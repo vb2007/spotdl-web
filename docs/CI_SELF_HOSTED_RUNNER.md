@@ -99,23 +99,49 @@ GitHub repo → **Settings → Actions → Runners** should show the runner list
 
 ## 5. Project test dependencies
 
-Unlike the runner binary's own OS dependencies (step 2), this project's *test* dependencies are
-handled entirely inside the workflow (`.github/workflows/backend-tests.yml`), not as manual host
-setup:
+This project's *test* dependencies are handled entirely inside the workflow
+(`.github/workflows/backend-tests.yml`) — **nothing needs manually apt-installing on the host
+for Python itself**, which is a deliberate choice, not an oversight; see why below.
 
 - **Python 3.12**: Debian 12 ships Python 3.11 by default, which doesn't satisfy this project's
-  `requires-python = ">=3.12,<3.13"` (`backend/pyproject.toml`). The workflow uses
-  `actions/setup-python@v5` to download a self-contained CPython 3.12 build rather than relying
-  on a system-wide install — this only needs outbound HTTPS from the runner host to GitHub's
-  release CDN, which this host already has (it already pulls Docker images and clones this repo
-  over HTTPS).
-- **`uv`**: installed fresh into a per-run virtualenv by the workflow itself
-  (`.venv/bin/pip install uv`), not a manual host-level install. Required because plain `pip
-  install .` can't see `pyproject.toml`'s `[tool.uv] override-dependencies` — the same reason
-  `backend/Dockerfile` uses `uv` instead of bare `pip` (see `CLAUDE.md`'s v04 gotchas for why
-  spotdl needs that override at all).
+  `requires-python = ">=3.12,<3.13"` (`backend/pyproject.toml`). The first real run of this
+  workflow tried `actions/setup-python@v5` for this and failed outright:
+  ```
+  ##[error]The version '3.12' with architecture 'x64' was not found for Debian 12.
+  ```
+  `actions/setup-python`'s downloadable builds are keyed to the exact OS images GitHub's own
+  *hosted* runners use (specific Ubuntu/Windows/macOS versions) — its manifest
+  (`actions/python-versions`) simply has no entry for bare Debian, so it can never work here
+  regardless of which Python version is requested. This is a real limitation of that action on
+  non-Ubuntu self-hosted Linux runners, not a config mistake to retry differently.
+
+  The fix: use **`uv`'s own Python management** instead
+  (`uv python install 3.12` / `uv venv --python 3.12`), which downloads a portable,
+  distro-agnostic CPython build (the same
+  [python-build-standalone](https://github.com/astral-sh/python-build-standalone) project
+  `pyenv`/`rye` use) rather than one of GitHub's OS-specific packages. It works identically
+  regardless of which Linux distro or version the runner host is on, so there's no Debian
+  package (backports or otherwise) to track or install — verified locally end-to-end
+  (`uv python install 3.12` → `uv venv --clear --python 3.12 .venv` → `uv pip install --python
+  .venv/bin/python ".[dev]"` → `.venv/bin/pytest -v`, all 32 tests passing) before this fix was
+  pushed, not just assumed from reading `uv`'s docs.
+- **`uv` itself**: installed via the official standalone installer script
+  (`curl -LsSf https://astral.sh/uv/install.sh | sh`), not `pip install uv` — this needs no
+  system Python at all (it downloads a static binary directly), which matters now that
+  `actions/setup-python` is gone from this workflow and a working system `pip` can no longer be
+  assumed. Installs to `$HOME/.local/bin` by default; the workflow appends that to
+  `$GITHUB_PATH` so later steps can just call `uv` directly.
 - **Everything else** (`fastapi`, `spotdl`, `pytest`, etc.) comes from `uv pip install
-  ".[dev]"` against `backend/pyproject.toml`, same as local dev's `backend/.venv`.
+  ".[dev]"` against `backend/pyproject.toml`, same as local dev's `backend/.venv` — needed
+  instead of plain `pip install .` because plain `pip` can't see `pyproject.toml`'s `[tool.uv]
+  override-dependencies` (spotdl hard-pins fastapi/uvicorn for its own unused bundled web UI —
+  see `CLAUDE.md`'s v04 gotchas), the same reason `backend/Dockerfile` uses `uv` too.
+
+If a future project dependency genuinely needs an OS-level package (e.g. `ffmpeg`, if a test
+ever exercises a real `Downloader` — see below), install that one specific package via apt on
+the runner host and document it here, following the same pattern used for Android
+platform-tools on other projects' runners — the point of this section is that Python 3.12
+itself isn't one of those cases, not that apt has no place in runner setup at all.
 
 **Nothing else needs installing on the host for this test job specifically** — no PostgreSQL, no
 Redis, no `ffmpeg` binary. This is a property of the current test suite, not an oversight:
@@ -145,8 +171,8 @@ deployed app — don't reach for either preemptively while the suite doesn't nee
   itself without opening a PR).
 - `concurrency` cancels a still-running job for the same ref if a new commit supersedes it, so
   pushing twice to the same PR doesn't queue two redundant runs.
-- Single job, `runs-on: self-hosted`, working directory `backend/`: checkout → Python 3.12 →
-  fresh venv + `uv pip install ".[dev]"` → `pytest -v`.
+- Single job, `runs-on: self-hosted`, working directory `backend/`: checkout → install `uv` →
+  `uv python install 3.12` → fresh venv + `uv pip install ".[dev]"` → `pytest -v`.
 
 Only the backend has tests today (the frontend, from v09 onward, currently has no test script in
 `frontend/package.json` beyond lint/typecheck) — extend this same workflow with a second job once
@@ -160,6 +186,7 @@ that changes, rather than standing up a separate one preemptively.
 |---|---|---|
 | Runner shows **Offline** in the GitHub UI | systemd service not running | `sudo ./svc.sh status`; `sudo ./svc.sh start` if stopped; `journalctl -u actions.runner.* -n 50` for why it died |
 | Workflow run stays queued forever | No idle self-hosted runner available, or it's registered to the wrong repo | Confirm **Idle** status in Settings → Actions → Runners; re-run `config.sh` if it was registered against a different repo/org |
+| `##[error]The version '3.12' ... was not found for Debian 12` | `actions/setup-python`'s manifest has no build for bare Debian (only specific GitHub-hosted OS images) — hit on this workflow's first real run | Already fixed: the workflow uses `uv python install 3.12` instead (Section 5) — if this reappears, something re-added `actions/setup-python` for a Python version step |
 | A PR's workflow run sits "waiting for approval" | Expected for outside-collaborator PRs (see Security considerations above) | Review the diff, then approve manually from the PR's **Checks** tab — never approve a fork PR's run without reading its workflow-file changes first, since that file itself is part of the diff |
 | `uv pip install ".[dev]"` fails with a fastapi/uvicorn conflict | `pyproject.toml`'s `[tool.uv] override-dependencies` didn't get picked up | Confirm the install used `uv`, not plain `pip` — the workflow's `.venv/bin/uv pip install` step, not `.venv/bin/pip install` |
 | `pytest` fails on a fresh runner but passed locally | Dependency versions drifted between the runner's fresh venv and a stale local `backend/.venv` | Trust the runner — recreate the local venv (`rm -rf backend/.venv && uv venv` equivalent) and compare |

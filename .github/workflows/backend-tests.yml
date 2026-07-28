@@ -23,23 +23,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Debian 12 ships Python 3.11; the project requires >=3.12,<3.13 (pyproject.toml). This
-      # downloads a self-contained CPython 3.12 build rather than requiring one to be installed
-      # system-wide on the runner host.
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      # actions/setup-python's downloadable builds are keyed to specific GitHub-hosted OS
+      # images (Ubuntu/Windows/macOS) - there is no "Debian 12" entry in its manifest, so it
+      # fails outright on a bare Debian self-hosted runner:
+      #   ##[error]The version '3.12' with architecture 'x64' was not found for Debian 12.
+      # (confirmed by the first real run of this workflow). uv's own Python management
+      # downloads a portable, distro-agnostic CPython build instead (the same
+      # python-build-standalone project pyenv/rye use), so it works regardless of which
+      # Linux distro the runner host is on - no apt-level Python 3.12 package needs to exist
+      # for this distro at all. See docs/CI_SELF_HOSTED_RUNNER.md for the full explanation.
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       # Fresh venv every run (cheap with uv, and this is a persistent self-hosted disk, not an
       # ephemeral hosted runner) — avoids dependency drift accumulating across job runs. Plain
       # `pip install .` can't see pyproject.toml's [tool.uv] override-dependencies (needed
       # because spotdl hard-pins fastapi/uvicorn for its own unused bundled web UI — see
       # CLAUDE.md's v04 gotchas), so this needs uv's resolver, matching backend/Dockerfile.
-      - name: Install dependencies
+      - name: Install Python 3.12 and dependencies
         run: |
-          python -m venv --clear .venv
-          .venv/bin/pip install --upgrade pip uv
-          .venv/bin/uv pip install ".[dev]"
+          uv python install 3.12
+          uv venv --clear --python 3.12 .venv
+          uv pip install --python .venv/bin/python ".[dev]"
 
       # No Postgres/Redis/ffmpeg service needed here — every test uses an in-memory SQLite
       # engine and mocks any real spotdl/network call (see docs/CI_SELF_HOSTED_RUNNER.md for
