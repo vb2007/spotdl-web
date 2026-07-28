@@ -9,6 +9,9 @@
 .env
 !.env.example
 
+# local dev: bind-mounted download output (see docker-compose.override.yml)
+/downloads/
+
 # backend
 backend/__pycache__/
 backend/**/__pycache__/

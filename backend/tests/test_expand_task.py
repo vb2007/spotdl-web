@@ -25,6 +25,12 @@ class _NonClosingSession:
         pass
 
 
+def _stub_download_track(monkeypatch):
+    enqueued = []
+    monkeypatch.setattr(expand_task.download_track, "delay", lambda track_id: enqueued.append(track_id))
+    return enqueued
+
+
 def test_expand_job_success_inserts_pending_tracks(db_session, monkeypatch):
     job = Job(source_url="https://open.spotify.com/track/abc", source_type=JobSourceType.TRACK)
     db_session.add(job)
@@ -34,6 +40,7 @@ def test_expand_job_success_inserts_pending_tracks(db_session, monkeypatch):
     monkeypatch.setattr(
         expansion, "expand", lambda url: [_FakeSong("abc123", {"name": "Song A"})]
     )
+    enqueued = _stub_download_track(monkeypatch)
 
     expand_task.expand_job(str(job.id))
 
@@ -46,6 +53,7 @@ def test_expand_job_success_inserts_pending_tracks(db_session, monkeypatch):
     assert tracks[0].spotify_track_id == "abc123"
     assert tracks[0].song_json == {"name": "Song A"}
     assert tracks[0].state == TrackState.PENDING
+    assert enqueued == [str(tracks[0].id)]
 
 
 def test_expand_job_failure_marks_job_failed_with_error(db_session, monkeypatch):

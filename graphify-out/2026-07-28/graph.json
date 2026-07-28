@@ -190,7 +190,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_main",
-      "community": 79,
+      "community": 87,
       "norm_label": "main.py"
     },
     {
@@ -210,7 +210,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 79,
+      "community": 82,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -220,7 +220,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track_downloadedtrack",
-      "community": 79,
+      "community": 82,
       "norm_label": "downloadedtrack"
     },
     {
@@ -230,7 +230,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track_rationale_10",
-      "community": 79,
+      "community": 82,
       "norm_label": "dedup ledger, independent of `tracks` so it survives job/track deletion and powe"
     },
     {
@@ -280,7 +280,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_app_models_job_job",
-      "community": 15,
+      "community": 79,
       "norm_label": "job"
     },
     {
@@ -290,7 +290,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_models_job_rationale_26",
-      "community": 15,
+      "community": 79,
       "norm_label": "one row per submitted url (album/playlist/artist/track)."
     },
     {
@@ -330,7 +330,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_session",
-      "community": 37,
+      "community": 79,
       "norm_label": "session.py"
     },
     {
@@ -340,7 +340,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_session_usersession",
-      "community": 37,
+      "community": 79,
       "norm_label": "usersession"
     },
     {
@@ -350,7 +350,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_session_rationale_11",
-      "community": 37,
+      "community": 79,
       "norm_label": "our own session store \u2014 separate from the upstream vb-auth token (see v03)."
     },
     {
@@ -390,7 +390,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_app_models_track_track",
-      "community": 15,
+      "community": 82,
       "norm_label": "track"
     },
     {
@@ -400,7 +400,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_app_models_track_rationale_31",
-      "community": 15,
+      "community": 82,
       "norm_label": "one row per individual song discovered while expanding a job \u2014 the unit the retr"
     },
     {
@@ -590,7 +590,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_jobs",
-      "community": 15,
+      "community": 79,
       "norm_label": "jobs.py"
     },
     {
@@ -600,7 +600,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_createjobrequest",
-      "community": 15,
+      "community": 79,
       "norm_label": "createjobrequest"
     },
     {
@@ -610,7 +610,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_classify_source_type",
-      "community": 15,
+      "community": 79,
       "norm_label": "_classify_source_type()"
     },
     {
@@ -620,7 +620,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_track_counts",
-      "community": 15,
+      "community": 79,
       "norm_label": "_track_counts()"
     },
     {
@@ -630,7 +630,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_py_session",
-      "community": 15,
+      "community": 79,
       "norm_label": "session"
     },
     {
@@ -640,7 +640,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "uuid",
-      "community": 15,
+      "community": 79,
       "norm_label": "uuid"
     },
     {
@@ -650,7 +650,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_job_to_dict",
-      "community": 15,
+      "community": 79,
       "norm_label": "_job_to_dict()"
     },
     {
@@ -660,7 +660,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_track_to_dict",
-      "community": 15,
+      "community": 79,
       "norm_label": "_track_to_dict()"
     },
     {
@@ -670,7 +670,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_create_job",
-      "community": 15,
+      "community": 79,
       "norm_label": "create_job()"
     },
     {
@@ -680,7 +680,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_jobs",
-      "community": 15,
+      "community": 79,
       "norm_label": "list_jobs()"
     },
     {
@@ -690,7 +690,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_get_job_or_404",
-      "community": 15,
+      "community": 79,
       "norm_label": "_get_job_or_404()"
     },
     {
@@ -700,7 +700,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_get_job",
-      "community": 15,
+      "community": 79,
       "norm_label": "get_job()"
     },
     {
@@ -710,7 +710,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_job_tracks",
-      "community": 15,
+      "community": 79,
       "norm_label": "list_job_tracks()"
     },
     {
@@ -722,6 +722,146 @@
       "id": "backend_app_services_init",
       "community": 40,
       "norm_label": "__init__.py"
+    },
+    {
+      "label": "dedup.py",
+      "file_type": "code",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_dedup",
+      "community": 86,
+      "norm_label": "dedup.py"
+    },
+    {
+      "label": "is_already_downloaded()",
+      "file_type": "code",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "backend_app_services_dedup_is_already_downloaded",
+      "community": 86,
+      "norm_label": "is_already_downloaded()"
+    },
+    {
+      "label": "Path",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_services_dedup_py_path",
+      "community": 86,
+      "norm_label": "path"
+    },
+    {
+      "label": "reconcile_disk()",
+      "file_type": "code",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L21",
+      "_origin": "ast",
+      "id": "backend_app_services_dedup_reconcile_disk",
+      "community": 86,
+      "norm_label": "reconcile_disk()"
+    },
+    {
+      "label": "Download dedup ledger (`downloaded_tracks`) and startup disk reconciliation.",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_dedup_rationale_1",
+      "community": 86,
+      "norm_label": "download dedup ledger (`downloaded_tracks`) and startup disk reconciliation."
+    },
+    {
+      "label": "Drops ledger rows whose file no longer exists on disk, so a manually-deleted",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "backend_app_services_dedup_rationale_22",
+      "community": 86,
+      "norm_label": "drops ledger rows whose file no longer exists on disk, so a manually-deleted"
+    },
+    {
+      "label": "downloads.py",
+      "file_type": "code",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_downloads",
+      "community": 12,
+      "norm_label": "downloads.py"
+    },
+    {
+      "label": "get_downloader()",
+      "file_type": "code",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "backend_app_services_downloads_get_downloader",
+      "community": 12,
+      "norm_label": "get_downloader()"
+    },
+    {
+      "label": "Downloader",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "downloader",
+      "community": 12,
+      "norm_label": "downloader"
+    },
+    {
+      "label": "download_one()",
+      "file_type": "code",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L50",
+      "_origin": "ast",
+      "id": "backend_app_services_downloads_download_one",
+      "community": 12,
+      "norm_label": "download_one()"
+    },
+    {
+      "label": "Song",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_services_downloads_py_song",
+      "community": 12,
+      "norm_label": "song"
+    },
+    {
+      "label": "Path",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_services_downloads_py_path",
+      "community": 12,
+      "norm_label": "path"
+    },
+    {
+      "label": "Thin wrapper around spotdl's download machinery.  Never construct a `Downloader`",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_downloads_rationale_1",
+      "community": 12,
+      "norm_label": "thin wrapper around spotdl's download machinery.  never construct a `downloader`"
+    },
+    {
+      "label": "Must be called from a plain sync context \u2014 search_and_download raises     Downlo",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L51",
+      "_origin": "ast",
+      "id": "backend_app_services_downloads_rationale_51",
+      "community": 12,
+      "norm_label": "must be called from a plain sync context \u2014 search_and_download raises     downlo"
     },
     {
       "label": "expansion.py",
@@ -759,7 +899,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "song",
+      "id": "backend_app_services_expansion_py_song",
       "community": 12,
       "norm_label": "song"
     },
@@ -890,8 +1030,38 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app",
-      "community": 12,
+      "community": 86,
       "norm_label": "celery_app.py"
+    },
+    {
+      "label": "_reconcile_disk_on_boot()",
+      "file_type": "code",
+      "source_file": "backend/app/tasks/celery_app.py",
+      "source_location": "L30",
+      "_origin": "ast",
+      "id": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
+      "community": 86,
+      "norm_label": "_reconcile_disk_on_boot()"
+    },
+    {
+      "label": "download.py",
+      "file_type": "code",
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_tasks_download",
+      "community": 79,
+      "norm_label": "download.py"
+    },
+    {
+      "label": "download_track()",
+      "file_type": "code",
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "backend_app_tasks_download_download_track",
+      "community": 82,
+      "norm_label": "download_track()"
     },
     {
       "label": "expand.py",
@@ -900,17 +1070,17 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 15,
+      "community": 79,
       "norm_label": "expand.py"
     },
     {
       "label": "expand_job()",
       "file_type": "code",
       "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L13",
+      "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 15,
+      "community": 79,
       "norm_label": "expand_job()"
     },
     {
@@ -933,7 +1103,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_conftest",
-      "community": 79,
+      "community": 87,
       "norm_label": "conftest.py"
     },
     {
@@ -943,7 +1113,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_tests_conftest_compile_jsonb_sqlite",
-      "community": 79,
+      "community": 87,
       "norm_label": "_compile_jsonb_sqlite()"
     },
     {
@@ -953,17 +1123,17 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_tests_conftest_db_session",
-      "community": 79,
+      "community": 87,
       "norm_label": "db_session()"
     },
     {
       "label": "client()",
       "file_type": "code",
       "source_file": "backend/tests/conftest.py",
-      "source_location": "L48",
+      "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_conftest_client",
-      "community": 79,
+      "community": 87,
       "norm_label": "client()"
     },
     {
@@ -1037,6 +1207,336 @@
       "norm_label": "test_logout_clears_session()"
     },
     {
+      "label": "test_dedup.py",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup",
+      "community": 82,
+      "norm_label": "test_dedup.py"
+    },
+    {
+      "label": "_NonClosingSession",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_nonclosingsession",
+      "community": 82,
+      "norm_label": "_nonclosingsession"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_nonclosingsession_init",
+      "community": 82,
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": ".__getattr__()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_nonclosingsession_getattr",
+      "community": 82,
+      "norm_label": ".__getattr__()"
+    },
+    {
+      "label": ".close()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L17",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_nonclosingsession_close",
+      "community": 82,
+      "norm_label": ".close()"
+    },
+    {
+      "label": "test_is_already_downloaded_returns_none_when_missing()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L21",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_test_is_already_downloaded_returns_none_when_missing",
+      "community": 82,
+      "norm_label": "test_is_already_downloaded_returns_none_when_missing()"
+    },
+    {
+      "label": "test_is_already_downloaded_returns_path_when_present()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L27",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_test_is_already_downloaded_returns_path_when_present",
+      "community": 82,
+      "norm_label": "test_is_already_downloaded_returns_path_when_present()"
+    },
+    {
+      "label": "test_reconcile_disk_drops_rows_for_missing_files()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
+      "community": 82,
+      "norm_label": "test_reconcile_disk_drops_rows_for_missing_files()"
+    },
+    {
+      "label": "Wraps db_session so dedup's db.close() doesn't detach objects the test still",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_rationale_8",
+      "community": 82,
+      "norm_label": "wraps db_session so dedup's db.close() doesn't detach objects the test still"
+    },
+    {
+      "label": "test_download_task.py",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task",
+      "community": 82,
+      "norm_label": "test_download_task.py"
+    },
+    {
+      "label": "_NonClosingSession",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_nonclosingsession",
+      "community": 82,
+      "norm_label": "_nonclosingsession"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_nonclosingsession_init",
+      "community": 82,
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": ".__getattr__()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_nonclosingsession_getattr",
+      "community": 82,
+      "norm_label": ".__getattr__()"
+    },
+    {
+      "label": ".close()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_nonclosingsession_close",
+      "community": 82,
+      "norm_label": ".close()"
+    },
+    {
+      "label": "_FakeSettings",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_fakesettings",
+      "community": 82,
+      "norm_label": "_fakesettings"
+    },
+    {
+      "label": "_make_track()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L28",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_make_track",
+      "community": 82,
+      "norm_label": "_make_track()"
+    },
+    {
+      "label": "_patch_common()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_patch_common",
+      "community": 82,
+      "norm_label": "_patch_common()"
+    },
+    {
+      "label": "test_download_track_skips_when_already_downloaded()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L45",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_download_track_skips_when_already_downloaded",
+      "community": 82,
+      "norm_label": "test_download_track_skips_when_already_downloaded()"
+    },
+    {
+      "label": "test_download_track_success_marks_completed_and_upserts_ledger()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L63",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
+      "community": 82,
+      "norm_label": "test_download_track_success_marks_completed_and_upserts_ledger()"
+    },
+    {
+      "label": "test_download_track_failure_marks_failed_with_error()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L86",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "community": 82,
+      "norm_label": "test_download_track_failure_marks_failed_with_error()"
+    },
+    {
+      "label": "test_download_track_unknown_track_is_a_noop()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L106",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
+      "community": 82,
+      "norm_label": "test_download_track_unknown_track_is_a_noop()"
+    },
+    {
+      "label": "Wraps db_session so download_track's db.close() doesn't detach objects the test",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_rationale_10",
+      "community": 82,
+      "norm_label": "wraps db_session so download_track's db.close() doesn't detach objects the test"
+    },
+    {
+      "label": "test_downloads.py",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads",
+      "community": 84,
+      "norm_label": "test_downloads.py"
+    },
+    {
+      "label": "_FakeSettings",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_fakesettings",
+      "community": 84,
+      "norm_label": "_fakesettings"
+    },
+    {
+      "label": "_FakeDownloader",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_fakedownloader",
+      "community": 84,
+      "norm_label": "_fakedownloader"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_fakedownloader_init",
+      "community": 84,
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": ".search_and_download()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_fakedownloader_search_and_download",
+      "community": 84,
+      "norm_label": ".search_and_download()"
+    },
+    {
+      "label": "setup_function()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_setup_function",
+      "community": 84,
+      "norm_label": "setup_function()"
+    },
+    {
+      "label": "test_get_downloader_caches_per_format_bitrate_proxy()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L25",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_test_get_downloader_caches_per_format_bitrate_proxy",
+      "community": 84,
+      "norm_label": "test_get_downloader_caches_per_format_bitrate_proxy()"
+    },
+    {
+      "label": "test_get_downloader_builds_new_instance_for_different_key()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L36",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_test_get_downloader_builds_new_instance_for_different_key",
+      "community": 84,
+      "norm_label": "test_get_downloader_builds_new_instance_for_different_key()"
+    },
+    {
+      "label": "test_get_downloader_builds_output_template_from_settings_dir()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L49",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_test_get_downloader_builds_output_template_from_settings_dir",
+      "community": 84,
+      "norm_label": "test_get_downloader_builds_output_template_from_settings_dir()"
+    },
+    {
+      "label": "test_get_downloader_sets_proxy_only_when_given()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L61",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_test_get_downloader_sets_proxy_only_when_given",
+      "community": 84,
+      "norm_label": "test_get_downloader_sets_proxy_only_when_given()"
+    },
+    {
+      "label": "test_download_one_delegates_to_search_and_download()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L70",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_test_download_one_delegates_to_search_and_download",
+      "community": 84,
+      "norm_label": "test_download_one_delegates_to_search_and_download()"
+    },
+    {
       "label": "test_expand_task.py",
       "file_type": "code",
       "source_file": "backend/tests/test_expand_task.py",
@@ -1107,10 +1607,20 @@
       "norm_label": ".close()"
     },
     {
-      "label": "test_expand_job_success_inserts_pending_tracks()",
+      "label": "_stub_download_track()",
       "file_type": "code",
       "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L28",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_stub_download_track",
+      "community": 15,
+      "norm_label": "_stub_download_track()"
+    },
+    {
+      "label": "test_expand_job_success_inserts_pending_tracks()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L34",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
       "community": 15,
@@ -1120,17 +1630,27 @@
       "label": "test_expand_job_failure_marks_job_failed_with_error()",
       "file_type": "code",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L51",
+      "source_location": "L59",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
       "community": 15,
       "norm_label": "test_expand_job_failure_marks_job_failed_with_error()"
     },
     {
+      "label": "test_expand_job_db_error_during_insert_marks_job_failed()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L79",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "community": 15,
+      "norm_label": "test_expand_job_db_error_during_insert_marks_job_failed()"
+    },
+    {
       "label": "test_expand_job_unknown_job_is_a_noop()",
       "file_type": "code",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L71",
+      "source_location": "L99",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
       "community": 15,
@@ -1233,7 +1753,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_jobs",
-      "community": 82,
+      "community": 85,
       "norm_label": "test_jobs.py"
     },
     {
@@ -1243,7 +1763,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_login",
-      "community": 82,
+      "community": 85,
       "norm_label": "_login()"
     },
     {
@@ -1253,7 +1773,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_stub_expand_job",
-      "community": 82,
+      "community": 85,
       "norm_label": "_stub_expand_job()"
     },
     {
@@ -1263,7 +1783,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_create_job_enqueues_expansion_and_returns_expanding_state",
-      "community": 82,
+      "community": 85,
       "norm_label": "test_create_job_enqueues_expansion_and_returns_expanding_state()"
     },
     {
@@ -1273,7 +1793,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_create_job_classifies_source_type_from_url",
-      "community": 82,
+      "community": 85,
       "norm_label": "test_create_job_classifies_source_type_from_url()"
     },
     {
@@ -1283,7 +1803,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_list_and_get_job_include_track_counts",
-      "community": 82,
+      "community": 85,
       "norm_label": "test_list_and_get_job_include_track_counts()"
     },
     {
@@ -1293,7 +1813,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_list_job_tracks_projects_display_fields_and_stays_pending",
-      "community": 82,
+      "community": 85,
       "norm_label": "test_list_job_tracks_projects_display_fields_and_stays_pending()"
     },
     {
@@ -1303,7 +1823,7 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_get_unknown_job_returns_404",
-      "community": 82,
+      "community": 85,
       "norm_label": "test_get_unknown_job_returns_404()"
     },
     {
@@ -1313,7 +1833,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_jobs_endpoints_require_session",
-      "community": 82,
+      "community": 85,
       "norm_label": "test_jobs_endpoints_require_session()"
     },
     {
@@ -1920,7 +2440,7 @@
       "label": "Development environments",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L45",
+      "source_location": "L53",
       "_origin": "ast",
       "id": "claude_development_environments",
       "community": 14,
@@ -1930,7 +2450,7 @@
       "label": "Locked decisions",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L69",
+      "source_location": "L77",
       "_origin": "ast",
       "id": "claude_locked_decisions",
       "community": 14,
@@ -1940,7 +2460,7 @@
       "label": "Auth API \u2014 `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L88",
+      "source_location": "L96",
       "_origin": "ast",
       "id": "claude_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
       "community": 14,
@@ -1950,7 +2470,7 @@
       "label": "spotdl 4.5.2 \u2014 verified API surface actually used",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L106",
+      "source_location": "L114",
       "_origin": "ast",
       "id": "claude_spotdl_4_5_2_verified_api_surface_actually_used",
       "community": 14,
@@ -1960,7 +2480,7 @@
       "label": "Architecture",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L128",
+      "source_location": "L136",
       "_origin": "ast",
       "id": "claude_architecture",
       "community": 14,
@@ -1970,7 +2490,7 @@
       "label": "Track state machine",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L160",
+      "source_location": "L168",
       "_origin": "ast",
       "id": "claude_track_state_machine",
       "community": 14,
@@ -1980,7 +2500,7 @@
       "label": "Retry engine numbers",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L173",
+      "source_location": "L181",
       "_origin": "ast",
       "id": "claude_retry_engine_numbers",
       "community": 14,
@@ -1990,7 +2510,7 @@
       "label": "v01 deployment gotchas (learned deploying to the real host and local dev)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L187",
+      "source_location": "L195",
       "_origin": "ast",
       "id": "claude_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
       "community": 14,
@@ -2000,7 +2520,7 @@
       "label": "v02 schema gotchas (learned building the SQLAlchemy models + initial migration)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L226",
+      "source_location": "L234",
       "_origin": "ast",
       "id": "claude_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
       "community": 14,
@@ -2010,17 +2530,27 @@
       "label": "v03 auth gotchas (learned building the upstream login proxy + session cookie)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L266",
+      "source_location": "L274",
       "_origin": "ast",
       "id": "claude_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
       "community": 14,
       "norm_label": "v03 auth gotchas (learned building the upstream login proxy + session cookie)"
     },
     {
+      "label": "v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L319",
+      "_origin": "ast",
+      "id": "claude_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
+      "community": 14,
+      "norm_label": "v04 url-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)"
+    },
+    {
       "label": "Version roadmap",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L311",
+      "source_location": "L394",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -2033,7 +2563,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme",
-      "community": 14,
+      "community": 78,
       "norm_label": "readme.md"
     },
     {
@@ -2043,7 +2573,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme_spotdl_web",
-      "community": 14,
+      "community": 78,
       "norm_label": "spotdl-web"
     },
     {
@@ -2053,7 +2583,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "readme_plan",
-      "community": 14,
+      "community": 78,
       "norm_label": "plan"
     },
     {
@@ -2063,7 +2593,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_deployment",
-      "community": 14,
+      "community": 78,
       "norm_label": "deployment.md"
     },
     {
@@ -2183,7 +2713,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_local_dev",
-      "community": 14,
+      "community": 78,
       "norm_label": "local_dev.md"
     },
     {
@@ -2193,7 +2723,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_local_dev_local_development_environment",
-      "community": 14,
+      "community": 78,
       "norm_label": "local development environment"
     },
     {
@@ -2203,7 +2733,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "docs_local_dev_1_configure_env",
-      "community": 14,
+      "community": 78,
       "norm_label": "1. configure `.env`"
     },
     {
@@ -2213,7 +2743,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "docs_local_dev_2_bring_up_the_stack",
-      "community": 14,
+      "community": 78,
       "norm_label": "2. bring up the stack"
     },
     {
@@ -2223,7 +2753,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "docs_local_dev_3_verify",
-      "community": 14,
+      "community": 78,
       "norm_label": "3. verify"
     },
     {
@@ -2233,7 +2763,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "docs_local_dev_4_when_a_version_is_ready",
-      "community": 14,
+      "community": 78,
       "norm_label": "4. when a version is ready"
     },
     {
@@ -2243,7 +2773,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "docs_local_dev_once_there_s_real_data_worth_protecting",
-      "community": 14,
+      "community": 78,
       "norm_label": "once there's real data worth protecting"
     },
     {
@@ -2253,7 +2783,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "docs_local_dev_troubleshooting",
-      "community": 14,
+      "community": 78,
       "norm_label": "troubleshooting"
     },
     {
@@ -2313,7 +2843,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "plan_00_master_plan",
-      "community": 14,
+      "community": 78,
       "norm_label": "00-master-plan.md"
     },
     {
@@ -4049,6 +4579,17 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads",
+      "target": "backend_app_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/services/expansion.py",
       "source_location": "L13",
       "weight": 1.0,
@@ -4072,9 +4613,20 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/tasks/celery_app.py",
-      "source_location": "L4",
+      "source_location": "L7",
       "weight": 1.0,
       "source": "backend_app_tasks_celery_app",
+      "target": "backend_app_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "backend_app_tasks_download",
       "target": "backend_app_config",
       "confidence_score": 1.0
     },
@@ -4146,6 +4698,17 @@
       "context": "call",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads_get_downloader",
+      "target": "backend_app_config_get_settings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
       "source_file": "backend/app/services/expansion.py",
       "source_location": "L40",
       "weight": 1.0,
@@ -4161,6 +4724,17 @@
       "source_location": "L13",
       "weight": 1.0,
       "source": "backend_app_services_upstream_auth_login",
+      "target": "backend_app_config_get_settings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_config_get_settings"
     },
     {
@@ -4290,6 +4864,28 @@
       "source_location": "L8",
       "weight": 1.0,
       "source": "backend_app_routers_jobs",
+      "target": "backend_app_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "backend_app_services_dedup",
+      "target": "backend_app_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "backend_app_tasks_download",
       "target": "backend_app_db",
       "confidence_score": 1.0
     },
@@ -4478,6 +5074,83 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "backend_app_services_dedup_is_already_downloaded",
+      "target": "backend_app_models_downloaded_track_downloadedtrack"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "backend_app_services_dedup_reconcile_disk",
+      "target": "backend_app_models_downloaded_track_downloadedtrack"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L45",
+      "weight": 1.0,
+      "source": "backend_app_tasks_download_download_track",
+      "target": "backend_app_models_downloaded_track_downloadedtrack"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_is_already_downloaded_returns_path_when_present",
+      "target": "backend_app_models_downloaded_track_downloadedtrack"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
+      "target": "backend_app_models_downloaded_track_downloadedtrack"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L103",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "target": "backend_app_models_downloaded_track_downloadedtrack"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L79",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
+      "target": "backend_app_models_downloaded_track_downloadedtrack"
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/models/job.py",
@@ -4639,9 +5312,20 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L16",
+      "source_location": "L17",
       "weight": 1.0,
       "source": "backend_app_tasks_expand_expand_job",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L29",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_make_track",
       "target": "backend_app_models_job_job"
     },
     {
@@ -4650,7 +5334,18 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L65",
+      "source_location": "L93",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L73",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
       "target": "backend_app_models_job_job"
@@ -4661,7 +5356,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L40",
+      "source_location": "L47",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
       "target": "backend_app_models_job_job"
@@ -4934,14 +5629,69 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "backend_app_tasks_download_download_track",
+      "target": "backend_app_models_track_track"
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L34",
+      "source_location": "L26",
       "weight": 1.0,
       "source": "backend_app_tasks_expand_expand_job",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_make_track",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L100",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L58",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_skips_when_already_downloaded",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L75",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
       "target": "backend_app_models_track_track"
     },
     {
@@ -4950,7 +5700,18 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L68",
+      "source_location": "L96",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L76",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
       "target": "backend_app_models_track_track"
@@ -4961,7 +5722,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L44",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
       "target": "backend_app_models_track_track"
@@ -5510,10 +6271,32 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "backend_app_tasks_download",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/tasks/expand.py",
       "source_location": "L2",
       "weight": 1.0,
       "source": "backend_app_tasks_expand",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
       "target": "uuid",
       "confidence_score": 1.0
     },
@@ -5608,6 +6391,174 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_app_services_dedup",
+      "target": "backend_app_services_dedup_is_already_downloaded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "backend_app_services_dedup",
+      "target": "backend_app_services_dedup_reconcile_disk",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "backend_app_services_dedup_rationale_1",
+      "target": "backend_app_services_dedup",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_app_services_dedup_is_already_downloaded",
+      "target": "backend_app_services_dedup_py_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "backend_app_services_dedup_reconcile_disk",
+      "target": "backend_app_services_dedup_py_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "backend_app_services_dedup_rationale_22",
+      "target": "backend_app_services_dedup_reconcile_disk",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/tasks/celery_app.py",
+      "source_location": "L38",
+      "weight": 1.0,
+      "source": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
+      "target": "backend_app_services_dedup_reconcile_disk"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L50",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads",
+      "target": "backend_app_services_downloads_download_one",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads",
+      "target": "backend_app_services_downloads_get_downloader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads_rationale_1",
+      "target": "backend_app_services_downloads",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads_get_downloader",
+      "target": "backend_app_services_downloads_py_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads_get_downloader",
+      "target": "downloader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L50",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads_download_one",
+      "target": "downloader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L50",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads_download_one",
+      "target": "backend_app_services_downloads_py_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L50",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads_download_one",
+      "target": "backend_app_services_downloads_py_song",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads_rationale_51",
+      "target": "backend_app_services_downloads_download_one",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/services/expansion.py",
       "source_location": "L23",
       "weight": 1.0,
@@ -5664,7 +6615,7 @@
       "source_location": "L47",
       "weight": 1.0,
       "source": "backend_app_services_expansion_expand",
-      "target": "song",
+      "target": "backend_app_services_expansion_py_song",
       "confidence_score": 1.0
     },
     {
@@ -5763,8 +6714,28 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/celery_app.py",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "backend_app_tasks_celery_app",
+      "target": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_app_tasks_download",
+      "target": "backend_app_tasks_download_download_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L13",
+      "source_location": "L14",
       "weight": 1.0,
       "source": "backend_app_tasks_expand",
       "target": "backend_app_tasks_expand_expand_job",
@@ -5774,7 +6745,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/conftest.py",
-      "source_location": "L48",
+      "source_location": "L49",
       "weight": 1.0,
       "source": "backend_tests_conftest",
       "target": "backend_tests_conftest_client",
@@ -5907,6 +6878,537 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup",
+      "target": "backend_tests_test_dedup_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup",
+      "target": "backend_tests_test_dedup_test_is_already_downloaded_returns_none_when_missing",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup",
+      "target": "backend_tests_test_dedup_test_is_already_downloaded_returns_path_when_present",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup",
+      "target": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_nonclosingsession",
+      "target": "backend_tests_test_dedup_nonclosingsession_close",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_nonclosingsession",
+      "target": "backend_tests_test_dedup_nonclosingsession_getattr",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_nonclosingsession",
+      "target": "backend_tests_test_dedup_nonclosingsession_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_rationale_8",
+      "target": "backend_tests_test_dedup_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_is_already_downloaded_returns_none_when_missing",
+      "target": "backend_tests_test_dedup_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_is_already_downloaded_returns_path_when_present",
+      "target": "backend_tests_test_dedup_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
+      "target": "backend_tests_test_dedup_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L45",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_download_track_skips_when_already_downloaded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L63",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L106",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_nonclosingsession",
+      "target": "backend_tests_test_download_task_nonclosingsession_close",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_nonclosingsession",
+      "target": "backend_tests_test_download_task_nonclosingsession_getattr",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_nonclosingsession",
+      "target": "backend_tests_test_download_task_nonclosingsession_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_patch_common",
+      "target": "backend_tests_test_download_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_rationale_10",
+      "target": "backend_tests_test_download_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L107",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
+      "target": "backend_tests_test_download_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L41",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_patch_common",
+      "target": "backend_tests_test_download_task_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L87",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L46",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_skips_when_already_downloaded",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L64",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L47",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_skips_when_already_downloaded",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads",
+      "target": "backend_tests_test_downloads_fakedownloader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads",
+      "target": "backend_tests_test_downloads_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads",
+      "target": "backend_tests_test_downloads_setup_function",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L70",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads",
+      "target": "backend_tests_test_downloads_test_download_one_delegates_to_search_and_download",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads",
+      "target": "backend_tests_test_downloads_test_get_downloader_builds_new_instance_for_different_key",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L49",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads",
+      "target": "backend_tests_test_downloads_test_get_downloader_builds_output_template_from_settings_dir",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads",
+      "target": "backend_tests_test_downloads_test_get_downloader_caches_per_format_bitrate_proxy",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads",
+      "target": "backend_tests_test_downloads_test_get_downloader_sets_proxy_only_when_given",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_get_downloader_builds_new_instance_for_different_key",
+      "target": "backend_tests_test_downloads_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L50",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_get_downloader_builds_output_template_from_settings_dir",
+      "target": "backend_tests_test_downloads_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_get_downloader_caches_per_format_bitrate_proxy",
+      "target": "backend_tests_test_downloads_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L62",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_get_downloader_sets_proxy_only_when_given",
+      "target": "backend_tests_test_downloads_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_fakedownloader",
+      "target": "backend_tests_test_downloads_fakedownloader_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_fakedownloader",
+      "target": "backend_tests_test_downloads_fakedownloader_search_and_download",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L71",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_download_one_delegates_to_search_and_download",
+      "target": "backend_tests_test_downloads_fakedownloader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L38",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_get_downloader_builds_new_instance_for_different_key",
+      "target": "backend_tests_test_downloads_fakedownloader",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_get_downloader_builds_output_template_from_settings_dir",
+      "target": "backend_tests_test_downloads_fakedownloader",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_get_downloader_caches_per_format_bitrate_proxy",
+      "target": "backend_tests_test_downloads_fakedownloader",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L63",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_get_downloader_sets_proxy_only_when_given",
+      "target": "backend_tests_test_downloads_fakedownloader",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L8",
       "weight": 1.0,
@@ -5928,7 +7430,27 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L51",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "backend_tests_test_expand_task_stub_download_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L79",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L59",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task",
       "target": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
@@ -5938,7 +7460,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L28",
+      "source_location": "L34",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task",
       "target": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
@@ -5948,7 +7470,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L71",
+      "source_location": "L99",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task",
       "target": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
@@ -5969,7 +7491,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L35",
+      "source_location": "L88",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "target": "backend_tests_test_expand_task_fakesong",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L41",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
       "target": "backend_tests_test_expand_task_fakesong",
@@ -6020,7 +7553,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L56",
+      "source_location": "L84",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L64",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
       "target": "backend_tests_test_expand_task_nonclosingsession",
@@ -6031,7 +7575,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L33",
+      "source_location": "L39",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
       "target": "backend_tests_test_expand_task_nonclosingsession",
@@ -6042,10 +7586,21 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L72",
+      "source_location": "L100",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
       "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
+      "target": "backend_tests_test_expand_task_stub_download_track",
       "confidence_score": 1.0
     },
     {
@@ -6844,7 +8399,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L128",
+      "source_location": "L136",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_architecture",
@@ -6854,7 +8409,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L88",
+      "source_location": "L96",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
@@ -6864,7 +8419,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L45",
+      "source_location": "L53",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_development_environments",
@@ -6874,7 +8429,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L69",
+      "source_location": "L77",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_locked_decisions",
@@ -6884,7 +8439,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L173",
+      "source_location": "L181",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_retry_engine_numbers",
@@ -6894,7 +8449,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L106",
+      "source_location": "L114",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_spotdl_4_5_2_verified_api_surface_actually_used",
@@ -6904,7 +8459,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L160",
+      "source_location": "L168",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_track_state_machine",
@@ -6914,7 +8469,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L187",
+      "source_location": "L195",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
@@ -6924,7 +8479,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L226",
+      "source_location": "L234",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
@@ -6934,7 +8489,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L266",
+      "source_location": "L274",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
@@ -6944,7 +8499,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L311",
+      "source_location": "L319",
+      "weight": 1.0,
+      "source": "claude_project_spotdl_web",
+      "target": "claude_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L394",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -8152,5 +9717,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "e46a6ff525ff67a44e0e449253dffcf29a69395c"
+  "built_at_commit": "cadc8c8d61b3362abc24757897e13270e5f74fcf"
 }

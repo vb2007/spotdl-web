@@ -5,6 +5,7 @@ from app.db import SessionLocal
 from app.models import Job, JobState, Track
 from app.services import expansion
 from app.tasks.celery_app import celery_app
+from app.tasks.download import download_track
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +21,15 @@ def expand_job(job_id: str) -> None:
 
         try:
             songs = expansion.expand(job.source_url)
+            tracks = []
             for song in songs:
-                db.add(
-                    Track(
-                        job_id=job.id,
-                        spotify_track_id=song.song_id,
-                        song_json=song.json,
-                    )
+                track = Track(
+                    job_id=job.id,
+                    spotify_track_id=song.song_id,
+                    song_json=song.json,
                 )
+                db.add(track)
+                tracks.append(track)
             job.state = JobState.EXPANDED
             db.commit()
         except Exception as exc:
@@ -40,5 +42,8 @@ def expand_job(job_id: str) -> None:
             job.state = JobState.FAILED
             job.error = str(exc)
             db.commit()
+        else:
+            for track in tracks:
+                download_track.delay(str(track.id))
     finally:
         db.close()
