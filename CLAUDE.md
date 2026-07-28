@@ -308,6 +308,60 @@ any ──> cancelled
   (or `up -d --build`) to actually rebuild the image. Applies to every future version that adds
   a new backend dependency, not just this one.
 
+### v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)
+
+- **spotdl 4.5.2 hard-pins `fastapi<0.104` and `uvicorn<0.24` as unconditional (non-extra)
+  dependencies**, for its own bundled web UI (`spotdl.web`) that this project never imports or
+  runs — but `import spotdl` (triggered transitively by `from spotdl.utils.search import
+  get_simple_songs`) always runs `spotdl/__init__.py` → `spotdl.console` →
+  `spotdl.console.entry_point`, which unconditionally does `from spotdl.console.web import web`
+  at module level. So spotdl.web's fastapi/uvicorn imports execute on every process that touches
+  spotdl at all, and its pins directly conflict with our own `fastapi>=0.115`/
+  `uvicorn[standard]>=0.32`. Fixed with `uv`'s resolver override, not a version downgrade:
+  ```toml
+  [tool.uv]
+  override-dependencies = ["fastapi>=0.115", "uvicorn>=0.32"]
+  ```
+  Verified (don't just trust the resolver) that `spotdl.web`'s code actually still imports
+  cleanly against the newer pinned versions — confirmed via `import spotdl.utils.search` in the
+  built venv/image; only a handful of harmless `DeprecationWarning`s (`on_event` vs lifespan)
+  come out of it. **Plain `pip install .` does not read `[tool.uv]` at all** and will hit the
+  original conflict — `backend/Dockerfile` was changed from `pip install .` to `pip install uv
+  && uv pip install --system .` for this reason. Any future bump of spotdl, fastapi, or uvicorn
+  needs this override re-verified the same way (real import check), not assumed.
+- **`SpotifyClient` (`spotdl.utils.spotify`) is a process-wide singleton whose `.init()` raises
+  `SpotifyError` if called a second time** — a real risk here since `worker-meta` runs with
+  Celery's default prefork concurrency (multiple task executions can reuse the same worker
+  process) and every `expand_job` call otherwise would re-call `expansion.expand()`.
+  `app/services/expansion.py`'s `_ensure_spotify_client()` does a double-checked-lock pattern
+  (`SpotifyClient()` to probe, catch `SpotifyError`, lock, probe again, then `.init()`) so init
+  runs at most once per worker process. **Any future spotdl entry point added outside
+  `expansion.py` must go through `_ensure_spotify_client()` too**, never call
+  `SpotifyClient.init()` directly.
+- Default Spotify app credentials (used when `SPOTIFY_CLIENT_ID`/`SECRET` are unset, per the
+  v01 locked decision) are spotdl's own published defaults —
+  `spotdl.utils.config.DEFAULT_CONFIG["client_id"/"client_secret"]`. Hardcoded as
+  `expansion._DEFAULT_CLIENT_ID`/`_DEFAULT_CLIENT_SECRET` rather than imported, since
+  `spotdl.utils.config` pulls in the full CLI arg-parsing surface for one dict lookup.
+- **`sqlalchemy.dialects.postgresql.JSONB` has no SQLite compiler**, so
+  `Track.__table__.create(engine)` on the SQLite in-memory test engine (see v02/v03 gotchas)
+  raises `UnsupportedCompilationError` — `tests/conftest.py` registers
+  `@compiles(JSONB, "sqlite")` returning plain `"JSON"` to work around this; a no-op against real
+  Postgres. **Any future JSONB column added to a model needs this same fixture already in place
+  to be testable** — it now lives in `conftest.py` once, not per-test.
+- `get_simple_songs` raises different, inconsistent exception types for malformed input
+  depending on *how* it's malformed — confirmed empirically: a syntactically-valid but
+  nonexistent track ID raises a bare `KeyError('uri')` from deep inside spotdl's Spotify-response
+  parsing, not a clean `QueryError`/`SpotifyError`. `expand_job`'s `except Exception` catch-all
+  in `app/tasks/expand.py` is deliberately broad for exactly this reason — narrowing it to
+  specific spotdl exception types would miss cases like this.
+- Verified against the real network (not mocked) during this version: a track URL, an album URL
+  (13 tracks), and an artist URL (390 tracks across every album) all expand correctly end-to-end
+  through `POST /api/jobs` → `worker-meta` → `GET /api/jobs/{id}/tracks`, every track landing and
+  staying in `pending`. `worker-dl` also registers `expand_job` in its task list (it imports the
+  same `celery_app` module) but never runs it — `task_routes` still confines it to the `meta`
+  queue only worker-meta consumes.
+
 ### Version roadmap
 
 | # | Branch | Scope |

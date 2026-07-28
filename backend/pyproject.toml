@@ -14,6 +14,7 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "httpx>=0.27",
+    "spotdl==4.5.2",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +26,16 @@ dev = [
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+[tool.uv]
+# spotdl 4.5.2 hard-pins fastapi<0.104 and uvicorn<0.24 for its own bundled (unused-by-us)
+# web UI. We only ever import spotdl.utils.search / spotdl.types — never spotdl.web — so
+# forcing the resolver to use our newer pins instead is safe *if* spotdl.web still imports
+# cleanly against them (verified manually, see CLAUDE.md v04 gotchas).
+override-dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
