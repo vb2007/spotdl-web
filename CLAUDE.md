@@ -33,6 +33,35 @@ Full roadmap and rationale: `plan/00-master-plan.md`. Per-version implementation
 - **This file is the durable memory.** Every decision, gotcha, and number below must stay current —
   a fresh session should be able to continue the project from `CLAUDE.md` + `plan/` alone, without
   re-deriving anything already settled here.
+- **Develop and debug locally first, deploy to verify.** The user's PC (`docs/LOCAL_DEV.md`) is the
+  primary iteration loop — Docker already installed there, hot reload via
+  `docker-compose.override.yml`, fast to fix and re-test. The Debian production host
+  (`docs/DEPLOYMENT.md`) is a final-verification target for a version that's already working
+  locally, not a place to chase build errors interactively — a pull/rebuild/SSH-log-check round
+  trip per fix doesn't scale as a dev loop. Only fall back to debugging directly on the Debian
+  host for issues that are genuinely host-specific (the shared Postgres instance, tunnel/ingress,
+  restart survival) and can't reproduce locally.
+
+### Development environments
+
+Two separate environments, sharing only the physical Postgres server:
+
+| | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
+|---|---|---|
+| Purpose | Day-to-day iteration | Final per-version verification + eventual real deployment |
+| `.env` template | `.env.dev.example` | `.env.example` |
+| Compose invocation | `docker compose up` (override applies — hot reload) | `docker compose -f docker-compose.yml up` (override excluded) |
+| Postgres | Same physical server, reached over LAN by its real address | Same physical server, reached via `host.docker.internal` (same host as the containers) |
+| Database | `spotdl_web_dev` — disposable, reset freely | `spotdl_web` (or whatever was created) — the one that matters |
+| Redis, other containers | Fully local, independent per environment | Fully local, independent per environment |
+
+The two environments never share a database, specifically so that local schema experiments, bad
+migrations, shortened `LADDER_SECONDS`, or plain test data can't leak into whatever is deployed.
+`DATABASE_URL`'s host is the one thing that's genuinely different between the two `.env` templates
+— never copy `host.docker.internal` into the local one (Postgres isn't on the same host as the
+local containers, that would resolve to the wrong machine entirely) or a hardcoded LAN IP into the
+production one (fragile if the Debian host's address ever changes; `host.docker.internal` is
+already correct there since Postgres and the containers share a host).
 
 ### Locked decisions
 
@@ -40,7 +69,7 @@ Full roadmap and rationale: `plan/00-master-plan.md`. Per-version implementation
 |---|---|
 | Backend | Python 3.12, FastAPI + Celery |
 | Task queue | Celery + Redis (Redis dockerized) |
-| Database | PostgreSQL, non-dockerized on the Debian 12 host |
+| Database | PostgreSQL, non-dockerized on the Debian 12 host; separate `spotdl_web`/`spotdl_web_dev` databases for the deployed instance vs. local dev (see Development environments) |
 | Frontend | SvelteKit + TypeScript |
 | Live updates | SSE now, WebSocket later if needed |
 | Ingress | Cloudflare Tunnel only — no port forwarding, ever |

@@ -917,10 +917,20 @@
       "norm_label": "retry engine numbers"
     },
     {
-      "label": "Version roadmap",
+      "label": "v01 deployment gotchas (learned deploying to the real host)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L155",
+      "_origin": "ast",
+      "id": "claude_v01_deployment_gotchas_learned_deploying_to_the_real_host",
+      "community": 14,
+      "norm_label": "v01 deployment gotchas (learned deploying to the real host)"
+    },
+    {
+      "label": "Version roadmap",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L178",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -933,7 +943,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme",
-      "community": 2,
+      "community": 78,
       "norm_label": "readme.md"
     },
     {
@@ -943,7 +953,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme_spotdl_web",
-      "community": 2,
+      "community": 78,
       "norm_label": "spotdl-web"
     },
     {
@@ -953,7 +963,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "readme_plan",
-      "community": 2,
+      "community": 78,
       "norm_label": "plan"
     },
     {
@@ -963,7 +973,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "readme_running_locally",
-      "community": 2,
+      "community": 78,
       "norm_label": "running locally"
     },
     {
@@ -973,7 +983,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_deployment",
-      "community": 2,
+      "community": 78,
       "norm_label": "deployment.md"
     },
     {
@@ -1143,7 +1153,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "plan_00_master_plan",
-      "community": 2,
+      "community": 78,
       "norm_label": "00-master-plan.md"
     },
     {
@@ -3535,6 +3545,16 @@
       "source_location": "L155",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
+      "target": "claude_v01_deployment_gotchas_learned_deploying_to_the_real_host",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L178",
+      "weight": 1.0,
+      "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
       "confidence_score": 1.0
     },
@@ -4670,5 +4690,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "15c72353f96765b9b482221a4b8b170f1481e1a3"
+  "built_at_commit": "8d8fcc95cb4c8f3b2a4a14d27998b4e139b5860b"
 }

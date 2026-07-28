@@ -1,18 +1,18 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785246502.636482,
-    "ast_hash": "017547f648db8b4e78f83a8ece54d240",
+    "mtime": 1785247385.051566,
+    "ast_hash": "a4d91dd62f7ce004f65ae8bada2a5781",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785242636.6124904,
-    "ast_hash": "a22afc679376ca10eefef0d7a2565330",
+    "mtime": 1785247360.7415183,
+    "ast_hash": "ce8f857a49782a3d9d785dc4cd5a1fbf",
     "semantic_hash": ""
   },
   "plan/00-master-plan.md": {
-    "mtime": 1785241763.522282,
-    "ast_hash": "d1c63c9d22640e3c7097881a5e37db3f",
-    "semantic_hash": "d1c63c9d22640e3c7097881a5e37db3f"
+    "mtime": 1785247403.742371,
+    "ast_hash": "f5f319ab32ebc4e70dcf078a5c1a7792",
+    "semantic_hash": ""
   },
   "plan/v00-planning.md": {
     "mtime": 1785241763.5227365,
@@ -232,6 +232,11 @@
   "docs/DEPLOYMENT.md": {
     "mtime": 1785246339.9864578,
     "ast_hash": "dfbc5676632bd2a314d8202da14e2e7a",
+    "semantic_hash": ""
+  },
+  "docs/LOCAL_DEV.md": {
+    "mtime": 1785247342.3857274,
+    "ast_hash": "affd283e3038bc5daee5b675568ed479",
     "semantic_hash": ""
   }
 }

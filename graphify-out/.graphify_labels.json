@@ -77,5 +77,6 @@
   "75": "Priority-Ordered Dispatch (ORDER BY jobs.priority DESC)",
   "76": "Dual Proxy Source (file + manual coexistence)",
   "77": "README.md — spotdl-web summary",
-  "78": "Deploying spotdl-web (v01 — scaffold) to the Debian 12 host"
+  "78": "Deploying spotdl-web (v01 — scaffold) to the Debian 12 host",
+  "79": "Local development environment"
 }

@@ -244,6 +244,15 @@ v11 simply swap — say so at approval.
   not a release.
 - **`CLAUDE.md` is the durable memory.** Decisions, env vars, the state machine, and the ladder
   values live there so nothing is re-litigated next session.
+- **Develop and debug locally, added after v01.** A pull/rebuild/SSH-log-check loop per fix against
+  the Debian production host doesn't scale as a development loop. The user's own PC
+  (`docs/LOCAL_DEV.md`, `.env.dev.example`) is the primary iteration environment — Docker already
+  installed there, hot reload via `docker-compose.override.yml`, and its own disposable database on
+  the same physical Postgres server (never the one the Debian host uses). The Debian host
+  (`docs/DEPLOYMENT.md`, `.env.example`) is for final per-version verification of something that
+  already works locally, and for anything genuinely host-specific (the shared Postgres instance,
+  Cloudflare Tunnel, restart survival) that can't be reproduced on a dev machine. See `CLAUDE.md`'s
+  "Development environments" section for the full comparison.
 
 ---
 

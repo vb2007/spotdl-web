@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-07-28)
 
 ## Corpus Check
-- 42 files · ~13,154 words
+- 42 files · ~13,389 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 262 nodes · 190 edges · 79 communities (32 shown, 47 thin omitted)
+- 263 nodes · 191 edges · 79 communities (32 shown, 47 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 1 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `15c72353`
+- Built from commit: `8d8fcc95`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -88,9 +88,9 @@
 ## God Nodes (most connected - your core abstractions)
 1. `compilerOptions` - 11 edges
 2. `Deploying spotdl-web (v01 — scaffold) to the Debian 12 host` - 11 edges
-3. `spotdl-web — Master Development Plan` - 10 edges
-4. `scripts` - 9 edges
-5. `Project: spotdl-web` - 9 edges
+3. `Project: spotdl-web` - 10 edges
+4. `spotdl-web — Master Development Plan` - 10 edges
+5. `scripts` - 9 edges
 6. `Tables` - 7 edges
 7. `v03 — Authentication` - 6 edges
 8. `v06 — Retry Engine` - 6 edges
@@ -107,8 +107,8 @@
 ## Communities (79 total, 47 thin omitted)
 
 ### Community 2 - "Planning & Config Docs"
-Cohesion: 0.10
-Nodes (17): Architecture, Auth API — verified findings, Context, Locked decisions, Other architectural notes, Repository layout, Retry engine, spotdl 4.5.2 — verified API surface (+9 more)
+Cohesion: 0.14
+Nodes (14): Architecture, Auth API — verified findings, Context, Locked decisions, Other architectural notes, Repository layout, Retry engine, spotdl 4.5.2 — verified API surface (+6 more)
 
 ### Community 12 - "Deployment Hardening"
 Cohesion: 0.14
@@ -119,8 +119,8 @@ Cohesion: 0.12
 Nodes (17): devDependencies, eslint, eslint-config-prettier, @eslint/js, eslint-plugin-svelte, globals, prettier, prettier-plugin-svelte (+9 more)
 
 ### Community 14 - "Project: spotdl-web"
-Cohesion: 0.18
-Nodes (10): Architecture, Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), graphify, Locked decisions, Project: spotdl-web, Retry engine numbers, spotdl 4.5.2 — verified API surface actually used, Track state machine (+2 more)
+Cohesion: 0.17
+Nodes (11): Architecture, Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), graphify, Locked decisions, Project: spotdl-web, Retry engine numbers, spotdl 4.5.2 — verified API surface actually used, Track state machine (+3 more)
 
 ### Community 15 - "scripts"
 Cohesion: 0.14
@@ -191,25 +191,25 @@ Cohesion: 0.40
 Nodes (4): Building, Creating a project, Developing, sv
 
 ### Community 78 - "Deploying spotdl-web (v01 — scaffold) to the Debian 12 host"
-Cohesion: 0.18
-Nodes (11): 1. Install PostgreSQL (host-native — not a container), 2. Create the role and database, 3. Let Docker containers reach Postgres, 4. Install Docker + the Compose plugin, 5. Clone the repo, 6. Configure `.env`, 7. Bring up the stack, 8. Verify (+3 more)
+Cohesion: 0.12
+Nodes (14): 1. Install PostgreSQL (host-native — not a container), 2. Create the role and database, 3. Let Docker containers reach Postgres, 4. Install Docker + the Compose plugin, 5. Clone the repo, 6. Configure `.env`, 7. Bring up the stack, 8. Verify (+6 more)
 
 ## Knowledge Gaps
-- **179 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+174 more)
+- **180 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+175 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **47 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Deploying spotdl-web (v01 — scaffold) to the Debian 12 host` connect `Deploying spotdl-web (v01 — scaffold) to the Debian 12 host` to `Planning & Config Docs`?**
-  _High betweenness centrality (0.010) - this node is a cross-community bridge._
+- **Why does `spotdl-web — Master Development Plan` connect `Planning & Config Docs` to `Deploying spotdl-web (v01 — scaffold) to the Debian 12 host`?**
+  _High betweenness centrality (0.013) - this node is a cross-community bridge._
 - **Why does `devDependencies` connect `devDependencies` to `scripts`?**
   _High betweenness centrality (0.010) - this node is a cross-community bridge._
 - **What connects `spotdl-web-backend`, `gitignorePath`, `name` to the rest of the system?**
-  _185 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _186 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Planning & Config Docs` be split into smaller, more focused modules?**
-  _Cohesion score 0.1 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
 - **Should `Deployment Hardening` be split into smaller, more focused modules?**
   _Cohesion score 0.13725490196078433 - nodes in this community are weakly interconnected._
 - **Should `devDependencies` be split into smaller, more focused modules?**
