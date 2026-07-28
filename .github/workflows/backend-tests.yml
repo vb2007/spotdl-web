@@ -45,6 +45,15 @@ jobs:
       # `pip install .` can't see pyproject.toml's [tool.uv] override-dependencies (needed
       # because spotdl hard-pins fastapi/uvicorn for its own unused bundled web UI — see
       # CLAUDE.md's v04 gotchas), so this needs uv's resolver, matching backend/Dockerfile.
+      #
+      # No actions/cache step needed for the interpreter or downloaded packages: uv already
+      # caches both under $HOME (~/.local/share/uv/python, ~/.cache/uv by default), and unlike
+      # a GitHub-hosted runner's disposable VM, this self-hosted runner's $HOME persists across
+      # runs — verified with two consecutive real runs (docs/CI_SELF_HOSTED_RUNNER.md has the
+      # exact before/after log lines). `--clear` above only recreates the workspace-local
+      # `.venv` (already wiped by actions/checkout's `git clean` every run regardless), not
+      # uv's own cache — a future Python/dependency version bump just adds new version-keyed
+      # cache entries alongside the old ones rather than invalidating anything.
       - name: Install Python 3.12 and dependencies
         run: |
           uv python install 3.12

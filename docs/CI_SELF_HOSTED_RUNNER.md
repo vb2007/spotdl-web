@@ -178,6 +178,54 @@ Only the backend has tests today (the frontend, from v09 onward, currently has n
 `frontend/package.json` beyond lint/typecheck) — extend this same workflow with a second job once
 that changes, rather than standing up a separate one preemptively.
 
+## 7. Caching across runs — already automatic, no workflow change needed
+
+On a GitHub-*hosted* runner, every job starts on a fresh disposable VM, so caching the
+downloaded Python interpreter and packages requires an explicit `actions/cache` step. **This
+self-hosted runner doesn't need that**: it's the same persistent host and the same OS user
+account (`$HOME`) for every job — only the git working tree gets reset (`actions/checkout`'s
+`clean: true` default runs `git clean -ffdx` there each run, which is what wipes the
+workspace-local `backend/.venv` — nothing to do with uv's own cache). `uv` stores its downloaded
+interpreters and packages under `$HOME` (`uv python dir` → `~/.local/share/uv/python`, `uv cache
+dir` → `~/.cache/uv` by default), so they simply persist on disk across runs already, for free.
+
+Verified with two consecutive real runs on the actual runner, not assumed from reading `uv`'s
+docs — first run (cold, nothing cached yet on this host):
+
+```
+Downloading cpython-3.12.13-linux-x86_64-gnu (download) (32.6MiB)
+ Downloaded cpython-3.12.13-linux-x86_64-gnu (download)
+Installed Python 3.12.13 in 476ms
+...
+Downloading pydantic-core (2.0MiB)
+Downloading pillow (6.6MiB)
+Downloading curl-cffi (10.6MiB)
+... (91 packages resolved, most downloaded individually)
+```
+
+Second run, moments later, same runner:
+
+```
+Python 3.12 is already installed
+...
+Resolved 91 packages in 15ms
+Installed 91 packages in 19ms
+```
+
+Zero `Downloading` lines the second time — every package and the interpreter itself came from
+the on-disk cache. **This also answers the "won't a version bump break the cache" question**:
+`uv` names its Python installs by full version (`cpython-3.12.13-linux-x86_64-gnu`, visible in
+the log above) and its package cache by exact name+version+hash, so bumping
+`requires-python`/the workflow's hardcoded `3.12`, or bumping any dependency in
+`backend/pyproject.toml`, just adds new cache entries alongside the old ones — it can't corrupt
+or silently reuse a stale version, because a different version is a different cache key
+entirely, not an overwrite of the same one.
+
+If this ever needs revisiting (e.g. scaling out to multiple self-hosted runners later, where
+each runner would have its own separate `$HOME` and thus its own separate cache instead of a
+shared one): that's a real future consideration, but not one to solve preemptively while there's
+only one runner.
+
 ---
 
 ## Troubleshooting
