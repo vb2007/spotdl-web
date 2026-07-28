@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-07-28)
 
 ## Corpus Check
-- 50 files · ~16,432 words
+- 55 files · ~17,093 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 298 nodes · 240 edges · 81 communities (34 shown, 47 thin omitted)
-- Extraction: 95% EXTRACTED · 5% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.53)
+- 327 nodes · 292 edges · 82 communities (35 shown, 47 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 18 edges (avg confidence: 0.62)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a43f89a9`
+- Built from commit: `04983d7c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -51,6 +51,7 @@
 - [[_COMMUNITY_eslint.config.js|eslint.config.js]]
 - [[_COMMUNITY_prettier.config.js|prettier.config.js]]
 - [[_COMMUNITY_app.d.ts|app.d.ts]]
+- [[_COMMUNITY_main.py|main.py]]
 - [[_COMMUNITY_CLAUDE.md — Project Durable Memory|CLAUDE.md — Project Durable Memory]]
 - [[_COMMUNITY_spotdl-web-backend|spotdl-web-backend]]
 - [[_COMMUNITY_Cloudflare Tunnel  cloudflared|Cloudflare Tunnel / cloudflared]]
@@ -85,6 +86,7 @@
 - [[_COMMUNITY_README.md — spotdl-web summary|README.md — spotdl-web summary]]
 - [[_COMMUNITY_Deploying spotdl-web (v01 — scaffold) to the Debian 12 host|Deploying spotdl-web (v01 — scaffold) to the Debian 12 host]]
 - [[_COMMUNITY_Local development environment|Local development environment]]
+- [[_COMMUNITY_test_auth.py|test_auth.py]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `Base` - 13 edges
@@ -92,36 +94,36 @@
 3. `compilerOptions` - 11 edges
 4. `Deploying spotdl-web (v01 — scaffold) to the Debian 12 host` - 11 edges
 5. `spotdl-web — Master Development Plan` - 10 edges
-6. `scripts` - 9 edges
-7. `Local development environment` - 7 edges
-8. `Tables` - 7 edges
-9. `v03 — Authentication` - 6 edges
-10. `v06 — Retry Engine` - 6 edges
+6. `UserSession` - 9 edges
+7. `scripts` - 9 edges
+8. `login()` - 7 edges
+9. `Local development environment` - 7 edges
+10. `Tables` - 7 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `login()` --calls--> `get_settings()`  [INFERRED]
+  backend/app/routers/auth.py → backend/app/config.py
 - `Proxy` --uses--> `Base`  [INFERRED]
   backend/app/models/proxy.py → backend/app/db.py
+- `UserSession` --uses--> `Base`  [INFERRED]
+  backend/app/models/session.py → backend/app/db.py
 - `health()` --calls--> `get_settings()`  [INFERRED]
   backend/app/routers/health.py → backend/app/config.py
-- `DownloadedTrack` --uses--> `Base`  [INFERRED]
-  backend/app/models/downloaded_track.py → backend/app/db.py
-- `Job` --uses--> `Base`  [INFERRED]
-  backend/app/models/job.py → backend/app/db.py
-- `JobSourceType` --uses--> `Base`  [INFERRED]
-  backend/app/models/job.py → backend/app/db.py
+- `login()` --calls--> `get_settings()`  [INFERRED]
+  backend/app/services/upstream_auth.py → backend/app/config.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (81 total, 47 thin omitted)
+## Communities (82 total, 47 thin omitted)
 
 ### Community 2 - "Planning & Config Docs"
 Cohesion: 0.14
 Nodes (14): Architecture, Auth API — verified findings, Context, Locked decisions, Other architectural notes, Repository layout, Retry engine, spotdl 4.5.2 — verified API surface (+6 more)
 
 ### Community 12 - "Deployment Hardening"
-Cohesion: 0.18
-Nodes (5): get_settings(), Settings, health(), BaseSettings, Response
+Cohesion: 0.15
+Nodes (7): get_settings(), Settings, health(), Response, login(), Check credentials against vb2007.hu-api. Never forwards or returns the upstream, BaseSettings
 
 ### Community 13 - "devDependencies"
 Cohesion: 0.12
@@ -199,13 +201,21 @@ Nodes (5): Done when, Files touched (new), Scope, Tasks, v13 — Settings UI (Fi
 Cohesion: 0.40
 Nodes (4): Building, Creating a project, Developing, sv
 
+### Community 37 - "main.py"
+Cohesion: 0.19
+Nodes (16): Our own session store — separate from the upstream VB-AUTH token (see v03)., UserSession, login(), LoginRequest, logout(), me(), Response, Session (+8 more)
+
 ### Community 78 - "Deploying spotdl-web (v01 — scaffold) to the Debian 12 host"
 Cohesion: 0.08
 Nodes (20): 1. Install PostgreSQL (host-native — not a container), 2. Create the role and database, 3. Let Docker containers reach Postgres, 4. Install Docker + the Compose plugin, 5. Clone the repo, 6. Configure `.env`, 7. Bring up the stack, 8. Verify (+12 more)
 
 ### Community 79 - "Local development environment"
-Cohesion: 0.11
-Nodes (21): Base, get_db(), DownloadedTrack, Dedup ledger, independent of `tracks` so it survives job/track deletion and powe, Job, JobSourceType, JobState, One row per submitted URL (album/playlist/artist/track). (+13 more)
+Cohesion: 0.10
+Nodes (19): Base, get_db(), Session, DownloadedTrack, Dedup ledger, independent of `tracks` so it survives job/track deletion and powe, Job, JobSourceType, JobState (+11 more)
+
+### Community 81 - "test_auth.py"
+Cohesion: 0.48
+Nodes (5): _mock_upstream_login(), test_login_success_sets_cookie_and_me_returns_email(), test_logout_clears_session(), test_vb_auth_cookie_never_reaches_the_browser(), test_wrong_password_and_disallowed_email_return_identical_response()
 
 ## Knowledge Gaps
 - **187 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+182 more)
@@ -215,17 +225,17 @@ Nodes (21): Base, get_db(), DownloadedTrack, Dedup ledger, independent of `track
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
+- **Why does `Base` connect `Local development environment` to `main.py`?**
+  _High betweenness centrality (0.012) - this node is a cross-community bridge._
 - **Why does `spotdl-web — Master Development Plan` connect `Planning & Config Docs` to `Deploying spotdl-web (v01 — scaffold) to the Debian 12 host`?**
-  _High betweenness centrality (0.013) - this node is a cross-community bridge._
+  _High betweenness centrality (0.011) - this node is a cross-community bridge._
 - **Are the 11 inferred relationships involving `Base` (e.g. with `DownloadedTrack` and `Job`) actually correct?**
   _`Base` has 11 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Dedup ledger, independent of `tracks` so it survives job/track deletion and powe`, `One row per submitted URL (album/playlist/artist/track).`, `Our own session store — separate from the upstream VB-AUTH token (see v03).` to the rest of the system?**
-  _198 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _199 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Planning & Config Docs` be split into smaller, more focused modules?**
   _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
 - **Should `devDependencies` be split into smaller, more focused modules?**
   _Cohesion score 0.11764705882352941 - nodes in this community are weakly interconnected._
 - **Should `Project: spotdl-web` be split into smaller, more focused modules?**
-  _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
-- **Should `scripts` be split into smaller, more focused modules?**
   _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._

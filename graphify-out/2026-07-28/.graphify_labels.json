@@ -78,5 +78,6 @@
   "76": "Dual Proxy Source (file + manual coexistence)",
   "77": "README.md — spotdl-web summary",
   "78": "Deploying spotdl-web (v01 — scaffold) to the Debian 12 host",
-  "79": "Local development environment"
+  "79": "Local development environment",
+  "80": "ebc1d43e2c21_initial_schema.py"
 }
