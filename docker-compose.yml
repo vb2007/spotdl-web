@@ -1,0 +1,72 @@
+x-backend: &backend
+  build: ./backend
+  env_file: .env
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  depends_on:
+    - redis
+  restart: unless-stopped
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  api:
+    <<: *backend
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  worker-dl:
+    <<: *backend
+    command:
+      [
+        "celery",
+        "-A",
+        "app.tasks.celery_app",
+        "worker",
+        "-Q",
+        "downloads",
+        "--concurrency=1",
+        "--prefetch-multiplier=1",
+        "-l",
+        "info",
+      ]
+    volumes:
+      - downloads:/downloads
+
+  worker-meta:
+    <<: *backend
+    command: ["celery", "-A", "app.tasks.celery_app", "worker", "-Q", "meta", "-l", "info"]
+
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "app.tasks.celery_app", "beat", "-l", "info"]
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5173:80"
+
+  # Real tunnel config lands in v12 (dev-deploy-hardening). Until CLOUDFLARE_TUNNEL_TOKEN
+  # is set, this stays a no-op so it doesn't crash-loop.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+    profiles:
+      - tunnel
+
+volumes:
+  redis-data:
+  downloads:

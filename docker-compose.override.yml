@@ -1,0 +1,37 @@
+# Dev conveniences: bind-mounted source + hot reload. Applied automatically by
+# `docker compose up` alongside docker-compose.yml; omit with `-f docker-compose.yml`
+# for a prod-like run.
+services:
+  api:
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  worker-dl:
+    volumes:
+      - ./backend/app:/app/app
+      - downloads:/downloads
+
+  worker-meta:
+    volumes:
+      - ./backend/app:/app/app
+
+  beat:
+    volumes:
+      - ./backend/app:/app/app
+
+  web:
+    build:
+      context: ./frontend
+      target: build
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    # `ports` lists merge across compose files rather than replace (unlike `command`/`build`
+    # above) — without `!override`, this would ADD to docker-compose.yml's `5173:80` mapping
+    # instead of replacing it, leaving two host bindings on the same 127.0.0.1:5173 and a
+    # "port is already allocated" error at container start.
+    ports: !override
+      - "127.0.0.1:5173:5173"

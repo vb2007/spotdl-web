@@ -33,6 +33,38 @@ Full roadmap and rationale: `plan/00-master-plan.md`. Per-version implementation
 - **This file is the durable memory.** Every decision, gotcha, and number below must stay current —
   a fresh session should be able to continue the project from `CLAUDE.md` + `plan/` alone, without
   re-deriving anything already settled here.
+- **Develop and debug locally first, deploy to verify.** The user's PC (`docs/LOCAL_DEV.md`) is the
+  primary iteration loop — Docker already installed there, hot reload via
+  `docker-compose.override.yml`, fast to fix and re-test. The Debian production host
+  (`docs/DEPLOYMENT.md`) is a final-verification target for a version that's already working
+  locally, not a place to chase build errors interactively — a pull/rebuild/SSH-log-check round
+  trip per fix doesn't scale as a dev loop. Only fall back to debugging directly on the Debian
+  host for issues that are genuinely host-specific (the shared Postgres instance, tunnel/ingress,
+  restart survival) and can't reproduce locally.
+
+### Development environments
+
+Two separate environments, sharing the physical Postgres server **and, for now, the same
+database on it too** — there's no real user data yet worth protecting from a local dev run, so
+the extra ceremony of a separate `spotdl_web_dev` database isn't worth it yet. Revisit once the
+app holds anything worth not wiping out (realistically once v09+/frontend makes it easy to
+generate real-looking state) — switch local dev's `DATABASE_URL` to a dedicated database at that
+point, everything else about the split stays the same.
+
+| | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
+|---|---|---|
+| Purpose | Day-to-day iteration | Final per-version verification + eventual real deployment |
+| `.env` template | `.env.dev.example` | `.env.example` |
+| Compose invocation | `docker compose up` (override applies — hot reload) | `docker compose -f docker-compose.yml up` (override excluded) |
+| Postgres | Same physical server, reached over LAN by its real address | Same physical server, reached via `host.docker.internal` (same host as the containers) |
+| Database | `spotdl_web` — same one the Debian host uses, for now | `spotdl_web` (or whatever was created) |
+| Redis, other containers | Fully local, independent per environment | Fully local, independent per environment |
+
+`DATABASE_URL`'s host is the one thing that's genuinely different between the two `.env`
+templates — never copy `host.docker.internal` into the local one (Postgres isn't on the same
+host as the local containers, that would resolve to the wrong machine entirely) or a hardcoded
+LAN IP into the production one (fragile if the Debian host's address ever changes;
+`host.docker.internal` is already correct there since Postgres and the containers share a host).
 
 ### Locked decisions
 
@@ -40,7 +72,7 @@ Full roadmap and rationale: `plan/00-master-plan.md`. Per-version implementation
 |---|---|
 | Backend | Python 3.12, FastAPI + Celery |
 | Task queue | Celery + Redis (Redis dockerized) |
-| Database | PostgreSQL, non-dockerized on the Debian 12 host |
+| Database | PostgreSQL, non-dockerized on the Debian 12 host; local dev and the deployed instance currently share one database (see Development environments) — split once there's real data to protect |
 | Frontend | SvelteKit + TypeScript |
 | Live updates | SSE now, WebSocket later if needed |
 | Ingress | Cloudflare Tunnel only — no port forwarding, ever |
@@ -151,6 +183,45 @@ any ──> cancelled
 - **`LookupError` is terminal** — recorded, surfaced in the UI, never retried automatically.
 - **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`, default 0): randomized inter-track delay,
   wired but off by default — the first dial to turn if 429s stay frequent after proxies.
+
+### v01 deployment gotchas (learned deploying to the real host and local dev)
+
+- **`pydantic-settings` auto-JSON-decodes any `list[...]`-typed field's raw env value before
+  custom `field_validator`s run.** A plain comma-separated string (`ALLOWED_EMAILS=a@b.com,c@d.com`)
+  is not valid JSON and crashes `Settings()` at import time with a `SettingsError` — the app never
+  starts, `/api/health` gives no response at all. Fix: annotate the field
+  `Annotated[list[str], NoDecode]` (from `pydantic_settings`) so the raw string reaches the
+  before-validator unparsed. Applies today to `allowed_emails`/`ladder_seconds`; **any future
+  list-typed config field (proxy list in v07, `audio_providers` override, etc.) needs the same
+  annotation** or it will crash the same way.
+- **Target host runs a shared Postgres instance, not a fresh install** — Postgres 18 via the PGDG
+  apt repo (not Debian 12's bundled 15), already hosting roles for other self-hosted services
+  (Matrix/Synapse, Vaultwarden). Don't assume `/etc/postgresql/15/main/`; get the real paths from
+  `SHOW config_file` / `SHOW hba_file`. `pg_hba.conf` also already has entries for those other
+  services — it's first-match-wins top-to-bottom, so an earlier broad rule can shadow anything
+  appended for spotdl-web.
+- **Don't hardcode `172.17.0.1`** (the default `docker0` bridge gateway) anywhere — `docker compose
+  up` creates its own project-scoped bridge with a different subnet. A host-side `psql` test against
+  `172.17.0.1` can succeed (the host has a direct interface there) while giving no information about
+  whether a container can reach it. Always use `host.docker.internal` (resolved via
+  `extra_hosts: host-gateway` in `docker-compose.yml`) in `DATABASE_URL`, never a literal IP.
+- **On the local dev PC (rolling-release Arch): a pending kernel update blocks all Docker container
+  networking**, not just this project's. Symptom is every container failing at startup with
+  `failed to add the host <=> sandbox pair interfaces: operation not supported` — the `veth` kernel
+  module (and everything else) for the *currently running* kernel has already been deleted from
+  disk in favor of a newer installed one, and modules can't be loaded for a kernel that's no longer
+  on disk. Check `uname -r` against `pacman -Q linux` and whether `/lib/modules/$(uname -r)/`
+  exists; fix is a reboot, nothing project-specific.
+- **`docker-compose.override.yml`'s list-type keys merge with `docker-compose.yml` instead of
+  replacing it** — `ports`, `volumes`, etc. combine across files; only keys like `command`/`build`
+  replace outright. `web`'s override used to add a second `ports` entry instead of replacing the
+  base file's, so both `127.0.0.1:5173:80` (base, stale — dev serves via `vite dev` on 5173, not
+  nginx on 80) and `127.0.0.1:5173:5173` (override, correct) got programmed as separate host
+  bindings on the same address, causing `Bind for 127.0.0.1:5173 failed: port is already allocated`
+  at container start. Fixed with the `!override` merge tag on that `ports:` key. **Any new
+  override list value that's meant to replace rather than extend the base file needs the same
+  tag** — verify with `docker compose config` rather than assuming a plain list "just works."
+- Full deploy runbook: `docs/DEPLOYMENT.md`; local dev runbook: `docs/LOCAL_DEV.md`.
 
 ### Version roadmap
 
