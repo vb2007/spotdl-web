@@ -179,7 +179,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "session",
+      "id": "backend_app_db_py_session",
       "community": 79,
       "norm_label": "session"
     },
@@ -190,7 +190,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_main",
-      "community": 37,
+      "community": 79,
       "norm_label": "main.py"
     },
     {
@@ -280,7 +280,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_app_models_job_job",
-      "community": 79,
+      "community": 15,
       "norm_label": "job"
     },
     {
@@ -290,7 +290,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_models_job_rationale_26",
-      "community": 79,
+      "community": 15,
       "norm_label": "one row per submitted url (album/playlist/artist/track)."
     },
     {
@@ -330,7 +330,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_session",
-      "community": 79,
+      "community": 37,
       "norm_label": "session.py"
     },
     {
@@ -340,7 +340,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_session_usersession",
-      "community": 79,
+      "community": 37,
       "norm_label": "usersession"
     },
     {
@@ -350,7 +350,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_session_rationale_11",
-      "community": 79,
+      "community": 37,
       "norm_label": "our own session store \u2014 separate from the upstream vb-auth token (see v03)."
     },
     {
@@ -390,7 +390,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_app_models_track_track",
-      "community": 79,
+      "community": 15,
       "norm_label": "track"
     },
     {
@@ -400,7 +400,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_app_models_track_rationale_31",
-      "community": 79,
+      "community": 15,
       "norm_label": "one row per individual song discovered while expanding a job \u2014 the unit the retr"
     },
     {
@@ -444,6 +444,116 @@
       "norm_label": "__init__.py"
     },
     {
+      "label": "auth.py",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth",
+      "community": 37,
+      "norm_label": "auth.py"
+    },
+    {
+      "label": "LoginRequest",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_loginrequest",
+      "community": 37,
+      "norm_label": "loginrequest"
+    },
+    {
+      "label": "BaseModel",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "basemodel",
+      "community": 37,
+      "norm_label": "basemodel"
+    },
+    {
+      "label": "require_session()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_require_session",
+      "community": 37,
+      "norm_label": "require_session()"
+    },
+    {
+      "label": "Request",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "request",
+      "community": 37,
+      "norm_label": "request"
+    },
+    {
+      "label": "Session",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_py_session",
+      "community": 37,
+      "norm_label": "session"
+    },
+    {
+      "label": "_set_session_cookie()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L36",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_set_session_cookie",
+      "community": 37,
+      "norm_label": "_set_session_cookie()"
+    },
+    {
+      "label": "Response",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_py_response",
+      "community": 37,
+      "norm_label": "response"
+    },
+    {
+      "label": "login()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L48",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_login",
+      "community": 37,
+      "norm_label": "login()"
+    },
+    {
+      "label": "logout()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L65",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_logout",
+      "community": 37,
+      "norm_label": "logout()"
+    },
+    {
+      "label": "me()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L77",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_me",
+      "community": 37,
+      "norm_label": "me()"
+    },
+    {
       "label": "health.py",
       "file_type": "code",
       "source_file": "backend/app/routers/health.py",
@@ -469,9 +579,139 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "response",
+      "id": "backend_app_routers_health_py_response",
       "community": 12,
       "norm_label": "response"
+    },
+    {
+      "label": "jobs.py",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs",
+      "community": 15,
+      "norm_label": "jobs.py"
+    },
+    {
+      "label": "CreateJobRequest",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_createjobrequest",
+      "community": 15,
+      "norm_label": "createjobrequest"
+    },
+    {
+      "label": "_classify_source_type()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_classify_source_type",
+      "community": 15,
+      "norm_label": "_classify_source_type()"
+    },
+    {
+      "label": "_track_counts()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L33",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_track_counts",
+      "community": 15,
+      "norm_label": "_track_counts()"
+    },
+    {
+      "label": "Session",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_py_session",
+      "community": 15,
+      "norm_label": "session"
+    },
+    {
+      "label": "UUID",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "uuid",
+      "community": 15,
+      "norm_label": "uuid"
+    },
+    {
+      "label": "_job_to_dict()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L43",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_job_to_dict",
+      "community": 15,
+      "norm_label": "_job_to_dict()"
+    },
+    {
+      "label": "_track_to_dict()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L56",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_track_to_dict",
+      "community": 15,
+      "norm_label": "_track_to_dict()"
+    },
+    {
+      "label": "create_job()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L69",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_create_job",
+      "community": 15,
+      "norm_label": "create_job()"
+    },
+    {
+      "label": "list_jobs()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L82",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_list_jobs",
+      "community": 15,
+      "norm_label": "list_jobs()"
+    },
+    {
+      "label": "_get_job_or_404()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L90",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_get_job_or_404",
+      "community": 15,
+      "norm_label": "_get_job_or_404()"
+    },
+    {
+      "label": "get_job()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L98",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_get_job",
+      "community": 15,
+      "norm_label": "get_job()"
+    },
+    {
+      "label": "list_job_tracks()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L108",
+      "_origin": "ast",
+      "id": "backend_app_routers_jobs_list_job_tracks",
+      "community": 15,
+      "norm_label": "list_job_tracks()"
     },
     {
       "label": "__init__.py",
@@ -482,6 +722,156 @@
       "id": "backend_app_services_init",
       "community": 40,
       "norm_label": "__init__.py"
+    },
+    {
+      "label": "expansion.py",
+      "file_type": "code",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_expansion",
+      "community": 12,
+      "norm_label": "expansion.py"
+    },
+    {
+      "label": "_ensure_spotify_client()",
+      "file_type": "code",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "backend_app_services_expansion_ensure_spotify_client",
+      "community": 12,
+      "norm_label": "_ensure_spotify_client()"
+    },
+    {
+      "label": "expand()",
+      "file_type": "code",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L47",
+      "_origin": "ast",
+      "id": "backend_app_services_expansion_expand",
+      "community": 12,
+      "norm_label": "expand()"
+    },
+    {
+      "label": "Song",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "song",
+      "community": 12,
+      "norm_label": "song"
+    },
+    {
+      "label": "Thin wrapper around spotdl's URL-expansion logic.  Never import spotdl.utils.sea",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_expansion_rationale_1",
+      "community": 12,
+      "norm_label": "thin wrapper around spotdl's url-expansion logic.  never import spotdl.utils.sea"
+    },
+    {
+      "label": "SpotifyClient is a process-wide singleton that raises if .init() runs twice, so",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "backend_app_services_expansion_rationale_24",
+      "community": 12,
+      "norm_label": "spotifyclient is a process-wide singleton that raises if .init() runs twice, so"
+    },
+    {
+      "label": "Turn a Spotify URL (track/album/playlist/artist) or a search term into Songs.",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L48",
+      "_origin": "ast",
+      "id": "backend_app_services_expansion_rationale_48",
+      "community": 12,
+      "norm_label": "turn a spotify url (track/album/playlist/artist) or a search term into songs."
+    },
+    {
+      "label": "sessions.py",
+      "file_type": "code",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_sessions",
+      "community": 37,
+      "norm_label": "sessions.py"
+    },
+    {
+      "label": "create_session()",
+      "file_type": "code",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "backend_app_services_sessions_create_session",
+      "community": 37,
+      "norm_label": "create_session()"
+    },
+    {
+      "label": "Session",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_services_sessions_py_session",
+      "community": 37,
+      "norm_label": "session"
+    },
+    {
+      "label": "get_valid_session()",
+      "file_type": "code",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "backend_app_services_sessions_get_valid_session",
+      "community": 37,
+      "norm_label": "get_valid_session()"
+    },
+    {
+      "label": "delete_session()",
+      "file_type": "code",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L38",
+      "_origin": "ast",
+      "id": "backend_app_services_sessions_delete_session",
+      "community": 37,
+      "norm_label": "delete_session()"
+    },
+    {
+      "label": "upstream_auth.py",
+      "file_type": "code",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_upstream_auth",
+      "community": 12,
+      "norm_label": "upstream_auth.py"
+    },
+    {
+      "label": "login()",
+      "file_type": "code",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "backend_app_services_upstream_auth_login",
+      "community": 12,
+      "norm_label": "login()"
+    },
+    {
+      "label": "Check credentials against vb2007.hu-api. Never forwards or returns the upstream",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "backend_app_services_upstream_auth_rationale_11",
+      "community": 12,
+      "norm_label": "check credentials against vb2007.hu-api. never forwards or returns the upstream"
     },
     {
       "label": "__init__.py",
@@ -504,6 +894,26 @@
       "norm_label": "celery_app.py"
     },
     {
+      "label": "expand.py",
+      "file_type": "code",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_tasks_expand",
+      "community": 15,
+      "norm_label": "expand.py"
+    },
+    {
+      "label": "expand_job()",
+      "file_type": "code",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "backend_app_tasks_expand_expand_job",
+      "community": 15,
+      "norm_label": "expand_job()"
+    },
+    {
       "label": "spotdl-web-backend",
       "file_type": "code",
       "type": "package",
@@ -515,6 +925,396 @@
       "id": "pkg_spotdl_web_backend",
       "community": 47,
       "norm_label": "spotdl-web-backend"
+    },
+    {
+      "label": "conftest.py",
+      "file_type": "code",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_conftest",
+      "community": 79,
+      "norm_label": "conftest.py"
+    },
+    {
+      "label": "_compile_jsonb_sqlite()",
+      "file_type": "code",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L25",
+      "_origin": "ast",
+      "id": "backend_tests_conftest_compile_jsonb_sqlite",
+      "community": 79,
+      "norm_label": "_compile_jsonb_sqlite()"
+    },
+    {
+      "label": "db_session()",
+      "file_type": "code",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L30",
+      "_origin": "ast",
+      "id": "backend_tests_conftest_db_session",
+      "community": 79,
+      "norm_label": "db_session()"
+    },
+    {
+      "label": "client()",
+      "file_type": "code",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L48",
+      "_origin": "ast",
+      "id": "backend_tests_conftest_client",
+      "community": 79,
+      "norm_label": "client()"
+    },
+    {
+      "label": "test_auth.py",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth",
+      "community": 81,
+      "norm_label": "test_auth.py"
+    },
+    {
+      "label": "_mock_upstream_login()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_mock_upstream_login",
+      "community": 81,
+      "norm_label": "_mock_upstream_login()"
+    },
+    {
+      "label": "test_login_success_sets_cookie_and_me_returns_email()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_test_login_success_sets_cookie_and_me_returns_email",
+      "community": 81,
+      "norm_label": "test_login_success_sets_cookie_and_me_returns_email()"
+    },
+    {
+      "label": "test_wrong_password_and_disallowed_email_return_identical_response()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L27",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_test_wrong_password_and_disallowed_email_return_identical_response",
+      "community": 81,
+      "norm_label": "test_wrong_password_and_disallowed_email_return_identical_response()"
+    },
+    {
+      "label": "test_vb_auth_cookie_never_reaches_the_browser()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L44",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_test_vb_auth_cookie_never_reaches_the_browser",
+      "community": 81,
+      "norm_label": "test_vb_auth_cookie_never_reaches_the_browser()"
+    },
+    {
+      "label": "test_protected_route_without_session_returns_401()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L55",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_test_protected_route_without_session_returns_401",
+      "community": 81,
+      "norm_label": "test_protected_route_without_session_returns_401()"
+    },
+    {
+      "label": "test_logout_clears_session()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L60",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_test_logout_clears_session",
+      "community": 81,
+      "norm_label": "test_logout_clears_session()"
+    },
+    {
+      "label": "test_expand_task.py",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task",
+      "community": 15,
+      "norm_label": "test_expand_task.py"
+    },
+    {
+      "label": "_FakeSong",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_fakesong",
+      "community": 15,
+      "norm_label": "_fakesong"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_fakesong_init",
+      "community": 15,
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": "_NonClosingSession",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_nonclosingsession",
+      "community": 15,
+      "norm_label": "_nonclosingsession"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_nonclosingsession_init",
+      "community": 15,
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": ".__getattr__()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L21",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_nonclosingsession_getattr",
+      "community": 15,
+      "norm_label": ".__getattr__()"
+    },
+    {
+      "label": ".close()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_nonclosingsession_close",
+      "community": 15,
+      "norm_label": ".close()"
+    },
+    {
+      "label": "test_expand_job_success_inserts_pending_tracks()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L28",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
+      "community": 15,
+      "norm_label": "test_expand_job_success_inserts_pending_tracks()"
+    },
+    {
+      "label": "test_expand_job_failure_marks_job_failed_with_error()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L51",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
+      "community": 15,
+      "norm_label": "test_expand_job_failure_marks_job_failed_with_error()"
+    },
+    {
+      "label": "test_expand_job_unknown_job_is_a_noop()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L71",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
+      "community": 15,
+      "norm_label": "test_expand_job_unknown_job_is_a_noop()"
+    },
+    {
+      "label": "Wraps db_session so expand_job's db.close() doesn't detach objects the test",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_rationale_15",
+      "community": 15,
+      "norm_label": "wraps db_session so expand_job's db.close() doesn't detach objects the test"
+    },
+    {
+      "label": "test_expansion.py",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_test_expansion",
+      "community": 83,
+      "norm_label": "test_expansion.py"
+    },
+    {
+      "label": "_reset_spotify_client()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "backend_tests_test_expansion_reset_spotify_client",
+      "community": 83,
+      "norm_label": "_reset_spotify_client()"
+    },
+    {
+      "label": "_FakeSettings",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "backend_tests_test_expansion_fakesettings",
+      "community": 83,
+      "norm_label": "_fakesettings"
+    },
+    {
+      "label": "_fake_init()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "backend_tests_test_expansion_fake_init",
+      "community": 83,
+      "norm_label": "_fake_init()"
+    },
+    {
+      "label": "test_ensure_spotify_client_initializes_once()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L31",
+      "_origin": "ast",
+      "id": "backend_tests_test_expansion_test_ensure_spotify_client_initializes_once",
+      "community": 83,
+      "norm_label": "test_ensure_spotify_client_initializes_once()"
+    },
+    {
+      "label": "test_ensure_spotify_client_uses_default_creds_when_unset()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L41",
+      "_origin": "ast",
+      "id": "backend_tests_test_expansion_test_ensure_spotify_client_uses_default_creds_when_unset",
+      "community": 83,
+      "norm_label": "test_ensure_spotify_client_uses_default_creds_when_unset()"
+    },
+    {
+      "label": "test_ensure_spotify_client_prefers_configured_creds()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L50",
+      "_origin": "ast",
+      "id": "backend_tests_test_expansion_test_ensure_spotify_client_prefers_configured_creds",
+      "community": 83,
+      "norm_label": "test_ensure_spotify_client_prefers_configured_creds()"
+    },
+    {
+      "label": "test_expand_delegates_to_get_simple_songs()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L63",
+      "_origin": "ast",
+      "id": "backend_tests_test_expansion_test_expand_delegates_to_get_simple_songs",
+      "community": 83,
+      "norm_label": "test_expand_delegates_to_get_simple_songs()"
+    },
+    {
+      "label": "test_jobs.py",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs",
+      "community": 82,
+      "norm_label": "test_jobs.py"
+    },
+    {
+      "label": "_login()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_login",
+      "community": 82,
+      "norm_label": "_login()"
+    },
+    {
+      "label": "_stub_expand_job()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_stub_expand_job",
+      "community": 82,
+      "norm_label": "_stub_expand_job()"
+    },
+    {
+      "label": "test_create_job_enqueues_expansion_and_returns_expanding_state()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_test_create_job_enqueues_expansion_and_returns_expanding_state",
+      "community": 82,
+      "norm_label": "test_create_job_enqueues_expansion_and_returns_expanding_state()"
+    },
+    {
+      "label": "test_create_job_classifies_source_type_from_url()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L36",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_test_create_job_classifies_source_type_from_url",
+      "community": 82,
+      "norm_label": "test_create_job_classifies_source_type_from_url()"
+    },
+    {
+      "label": "test_list_and_get_job_include_track_counts()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L51",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_test_list_and_get_job_include_track_counts",
+      "community": 82,
+      "norm_label": "test_list_and_get_job_include_track_counts()"
+    },
+    {
+      "label": "test_list_job_tracks_projects_display_fields_and_stays_pending()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L81",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_test_list_job_tracks_projects_display_fields_and_stays_pending",
+      "community": 82,
+      "norm_label": "test_list_job_tracks_projects_display_fields_and_stays_pending()"
+    },
+    {
+      "label": "test_get_unknown_job_returns_404()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L107",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_test_get_unknown_job_returns_404",
+      "community": 82,
+      "norm_label": "test_get_unknown_job_returns_404()"
+    },
+    {
+      "label": "test_jobs_endpoints_require_session()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L113",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_test_jobs_endpoints_require_session",
+      "community": 82,
+      "norm_label": "test_jobs_endpoints_require_session()"
     },
     {
       "label": "eslint.config.js",
@@ -543,7 +1343,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_package",
-      "community": 15,
+      "community": 13,
       "norm_label": "package.json"
     },
     {
@@ -553,7 +1353,7 @@
       "source_location": "L2",
       "_origin": "ast",
       "id": "frontend_package_name",
-      "community": 15,
+      "community": 13,
       "norm_label": "name"
     },
     {
@@ -563,7 +1363,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "frontend_package_private",
-      "community": 15,
+      "community": 13,
       "norm_label": "private"
     },
     {
@@ -573,7 +1373,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "frontend_package_version",
-      "community": 15,
+      "community": 13,
       "norm_label": "version"
     },
     {
@@ -583,7 +1383,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "frontend_package_type",
-      "community": 15,
+      "community": 13,
       "norm_label": "type"
     },
     {
@@ -593,7 +1393,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "frontend_package_scripts",
-      "community": 15,
+      "community": 13,
       "norm_label": "scripts"
     },
     {
@@ -603,7 +1403,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "frontend_package_scripts_dev",
-      "community": 15,
+      "community": 13,
       "norm_label": "dev"
     },
     {
@@ -613,7 +1413,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "frontend_package_scripts_build",
-      "community": 15,
+      "community": 13,
       "norm_label": "build"
     },
     {
@@ -623,7 +1423,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "frontend_package_scripts_preview",
-      "community": 15,
+      "community": 13,
       "norm_label": "preview"
     },
     {
@@ -633,7 +1433,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "frontend_package_scripts_prepare",
-      "community": 15,
+      "community": 13,
       "norm_label": "prepare"
     },
     {
@@ -643,7 +1443,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "frontend_package_scripts_check",
-      "community": 15,
+      "community": 13,
       "norm_label": "check"
     },
     {
@@ -653,7 +1453,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "frontend_package_scripts_check_watch",
-      "community": 15,
+      "community": 13,
       "norm_label": "check:watch"
     },
     {
@@ -663,7 +1463,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "frontend_package_scripts_lint",
-      "community": 15,
+      "community": 13,
       "norm_label": "lint"
     },
     {
@@ -673,7 +1473,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "frontend_package_scripts_format",
-      "community": 15,
+      "community": 13,
       "norm_label": "format"
     },
     {
@@ -1207,10 +2007,20 @@
       "norm_label": "v02 schema gotchas (learned building the sqlalchemy models + initial migration)"
     },
     {
-      "label": "Version roadmap",
+      "label": "v03 auth gotchas (learned building the upstream login proxy + session cookie)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L266",
+      "_origin": "ast",
+      "id": "claude_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
+      "community": 14,
+      "norm_label": "v03 auth gotchas (learned building the upstream login proxy + session cookie)"
+    },
+    {
+      "label": "Version roadmap",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L311",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -1223,7 +2033,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme",
-      "community": 78,
+      "community": 14,
       "norm_label": "readme.md"
     },
     {
@@ -1233,7 +2043,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme_spotdl_web",
-      "community": 78,
+      "community": 14,
       "norm_label": "spotdl-web"
     },
     {
@@ -1243,7 +2053,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "readme_plan",
-      "community": 78,
+      "community": 14,
       "norm_label": "plan"
     },
     {
@@ -1253,7 +2063,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_deployment",
-      "community": 78,
+      "community": 14,
       "norm_label": "deployment.md"
     },
     {
@@ -1373,7 +2183,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_local_dev",
-      "community": 78,
+      "community": 14,
       "norm_label": "local_dev.md"
     },
     {
@@ -1383,7 +2193,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_local_dev_local_development_environment",
-      "community": 78,
+      "community": 14,
       "norm_label": "local development environment"
     },
     {
@@ -1393,7 +2203,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "docs_local_dev_1_configure_env",
-      "community": 78,
+      "community": 14,
       "norm_label": "1. configure `.env`"
     },
     {
@@ -1403,7 +2213,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "docs_local_dev_2_bring_up_the_stack",
-      "community": 78,
+      "community": 14,
       "norm_label": "2. bring up the stack"
     },
     {
@@ -1413,7 +2223,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "docs_local_dev_3_verify",
-      "community": 78,
+      "community": 14,
       "norm_label": "3. verify"
     },
     {
@@ -1423,7 +2233,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "docs_local_dev_4_when_a_version_is_ready",
-      "community": 78,
+      "community": 14,
       "norm_label": "4. when a version is ready"
     },
     {
@@ -1433,7 +2243,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "docs_local_dev_once_there_s_real_data_worth_protecting",
-      "community": 78,
+      "community": 14,
       "norm_label": "once there's real data worth protecting"
     },
     {
@@ -1443,7 +2253,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "docs_local_dev_troubleshooting",
-      "community": 78,
+      "community": 14,
       "norm_label": "troubleshooting"
     },
     {
@@ -1503,7 +2313,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "plan_00_master_plan",
-      "community": 78,
+      "community": 14,
       "norm_label": "00-master-plan.md"
     },
     {
@@ -3217,10 +4027,43 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/health.py",
       "source_location": "L9",
       "weight": 1.0,
       "source": "backend_app_routers_health",
+      "target": "backend_app_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "backend_app_services_expansion",
+      "target": "backend_app_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "backend_app_services_upstream_auth",
       "target": "backend_app_config",
       "confidence_score": 1.0
     },
@@ -3281,10 +4124,43 @@
       "context": "call",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L49",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_config_get_settings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
       "source_file": "backend/app/routers/health.py",
       "source_location": "L18",
       "weight": 1.0,
       "source": "backend_app_routers_health_health",
+      "target": "backend_app_config_get_settings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "backend_app_services_expansion_ensure_spotify_client",
+      "target": "backend_app_config_get_settings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "backend_app_services_upstream_auth_login",
       "target": "backend_app_config_get_settings"
     },
     {
@@ -3305,6 +4181,17 @@
       "weight": 1.0,
       "source": "backend_app_db",
       "target": "backend_app_db_get_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/db.py",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "backend_app_db",
+      "target": "uuid",
       "confidence_score": 1.0
     },
     {
@@ -3377,10 +4264,54 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/health.py",
       "source_location": "L10",
       "weight": 1.0,
       "source": "backend_app_routers_health",
+      "target": "backend_app_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "backend_app_tasks_expand",
+      "target": "backend_app_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_tests_conftest",
       "target": "backend_app_db",
       "confidence_score": 1.0
     },
@@ -3512,7 +4443,18 @@
       "source_location": "L22",
       "weight": 1.0,
       "source": "backend_app_db_get_db",
-      "target": "session",
+      "target": "backend_app_db_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "backend_tests_conftest",
+      "target": "backend_app_main",
       "confidence_score": 1.0
     },
     {
@@ -3566,6 +4508,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/job.py",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "backend_app_models_job",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/models/job.py",
@@ -3573,6 +4526,17 @@
       "weight": 1.0,
       "source": "backend_app_models_job_jobsourcetype",
       "target": "str",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_classify_source_type",
+      "target": "backend_app_models_job_jobsourcetype",
       "confidence_score": 1.0
     },
     {
@@ -3626,6 +4590,105 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L74",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_create_job",
+      "target": "backend_app_models_job_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L90",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_get_job_or_404",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_job_to_dict",
+      "target": "backend_app_models_job_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_list_jobs",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_app_tasks_expand_expand_job",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L58",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_list_and_get_job_include_track_counts",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_list_job_tracks_projects_display_fields_and_stays_pending",
+      "target": "backend_app_models_job_job"
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/models/proxy.py",
@@ -3646,6 +4709,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/proxy.py",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "backend_app_models_proxy",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/models/session.py",
@@ -3653,6 +4727,17 @@
       "weight": 1.0,
       "source": "backend_app_models_session",
       "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/session.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "backend_app_models_session",
+      "target": "uuid",
       "confidence_score": 1.0
     },
     {
@@ -3664,6 +4749,116 @@
       "source": "backend_app_models_session_rationale_11",
       "target": "backend_app_models_session_usersession",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_logout",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L77",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_me",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_require_session",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L69",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_create_job",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L98",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_get_job",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L108",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_list_job_tracks",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_list_jobs",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_create_session",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_delete_session",
+      "target": "backend_app_models_session_usersession"
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_get_valid_session",
+      "target": "backend_app_models_session_usersession"
     },
     {
       "relation": "contains",
@@ -3696,6 +4891,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/track.py",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "backend_app_models_track",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/models/track.py",
@@ -3704,6 +4910,83 @@
       "source": "backend_app_models_track_rationale_31",
       "target": "backend_app_models_track_track",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L114",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_list_job_tracks",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_track_to_dict",
+      "target": "backend_app_models_track_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "backend_app_tasks_expand_expand_job",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L68",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_list_and_get_job_include_track_counts",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L90",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_list_job_tracks_projects_display_fields_and_stays_pending",
+      "target": "backend_app_models_track_track"
     },
     {
       "relation": "contains",
@@ -3728,6 +5011,218 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_loginrequest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_logout",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L77",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_me",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_require_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_set_session_cookie",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_routers_auth_loginrequest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_loginrequest",
+      "target": "basemodel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_createjobrequest",
+      "target": "basemodel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_require_session",
+      "target": "backend_app_routers_auth_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_require_session",
+      "target": "backend_app_services_sessions_get_valid_session"
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_require_session",
+      "target": "request",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_routers_auth_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_logout",
+      "target": "backend_app_routers_auth_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L60",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_routers_auth_set_session_cookie",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_set_session_cookie",
+      "target": "backend_app_routers_auth_py_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_routers_auth_py_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_logout",
+      "target": "backend_app_routers_auth_py_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L58",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_services_sessions_create_session"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L70",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_logout",
+      "target": "backend_app_services_sessions_delete_session"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/health.py",
       "source_location": "L17",
       "weight": 1.0,
@@ -3743,7 +5238,1118 @@
       "source_location": "L17",
       "weight": 1.0,
       "source": "backend_app_routers_health_health",
-      "target": "response",
+      "target": "backend_app_routers_health_py_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_routers_jobs_classify_source_type",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L69",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_routers_jobs_create_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_routers_jobs_createjobrequest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L98",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_routers_jobs_get_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L90",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_routers_jobs_get_job_or_404",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_routers_jobs_job_to_dict",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L108",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_routers_jobs_list_job_tracks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_routers_jobs_list_jobs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_routers_jobs_track_counts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "backend_app_routers_jobs_track_to_dict",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L69",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_create_job",
+      "target": "backend_app_routers_jobs_createjobrequest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L74",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_create_job",
+      "target": "backend_app_routers_jobs_classify_source_type",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L52",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_job_to_dict",
+      "target": "backend_app_routers_jobs_track_counts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_track_counts",
+      "target": "backend_app_routers_jobs_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_track_counts",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L69",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_create_job",
+      "target": "backend_app_routers_jobs_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L98",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_get_job",
+      "target": "backend_app_routers_jobs_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L90",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_get_job_or_404",
+      "target": "backend_app_routers_jobs_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_job_to_dict",
+      "target": "backend_app_routers_jobs_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L108",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_list_job_tracks",
+      "target": "backend_app_routers_jobs_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_list_jobs",
+      "target": "backend_app_routers_jobs_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L98",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_get_job",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L90",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_get_job_or_404",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L108",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_list_job_tracks",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "backend_app_tasks_expand",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "uuid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L78",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_create_job",
+      "target": "backend_app_routers_jobs_job_to_dict",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L104",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_get_job",
+      "target": "backend_app_routers_jobs_job_to_dict",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L87",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_list_jobs",
+      "target": "backend_app_routers_jobs_job_to_dict",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L115",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_list_job_tracks",
+      "target": "backend_app_routers_jobs_track_to_dict",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L103",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_get_job",
+      "target": "backend_app_routers_jobs_get_job_or_404",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L113",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs_list_job_tracks",
+      "target": "backend_app_routers_jobs_get_job_or_404",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_app_services_expansion",
+      "target": "backend_app_services_expansion_ensure_spotify_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L47",
+      "weight": 1.0,
+      "source": "backend_app_services_expansion",
+      "target": "backend_app_services_expansion_expand",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "backend_app_services_expansion_rationale_1",
+      "target": "backend_app_services_expansion",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L50",
+      "weight": 1.0,
+      "source": "backend_app_services_expansion_expand",
+      "target": "backend_app_services_expansion_ensure_spotify_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "backend_app_services_expansion_rationale_24",
+      "target": "backend_app_services_expansion_ensure_spotify_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L47",
+      "weight": 1.0,
+      "source": "backend_app_services_expansion_expand",
+      "target": "song",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_services_expansion_rationale_48",
+      "target": "backend_app_services_expansion_expand",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions",
+      "target": "backend_app_services_sessions_create_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L38",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions",
+      "target": "backend_app_services_sessions_delete_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions",
+      "target": "backend_app_services_sessions_get_valid_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_create_session",
+      "target": "backend_app_services_sessions_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L38",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_delete_session",
+      "target": "backend_app_services_sessions_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_get_valid_session",
+      "target": "backend_app_services_sessions_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "backend_app_services_upstream_auth",
+      "target": "backend_app_services_upstream_auth_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "backend_app_services_upstream_auth_rationale_11",
+      "target": "backend_app_services_upstream_auth_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "backend_app_tasks_expand",
+      "target": "backend_app_tasks_expand_expand_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_tests_conftest",
+      "target": "backend_tests_conftest_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "backend_tests_conftest",
+      "target": "backend_tests_conftest_compile_jsonb_sqlite",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "backend_tests_conftest",
+      "target": "backend_tests_conftest_db_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_mock_upstream_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_test_login_success_sets_cookie_and_me_returns_email",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L60",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_test_logout_clears_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L55",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_test_protected_route_without_session_returns_401",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_test_vb_auth_cookie_never_reaches_the_browser",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_test_wrong_password_and_disallowed_email_return_identical_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth_test_login_success_sets_cookie_and_me_returns_email",
+      "target": "backend_tests_test_auth_mock_upstream_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth_test_logout_clears_session",
+      "target": "backend_tests_test_auth_mock_upstream_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L45",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth_test_vb_auth_cookie_never_reaches_the_browser",
+      "target": "backend_tests_test_auth_mock_upstream_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth_test_wrong_password_and_disallowed_email_return_identical_response",
+      "target": "backend_tests_test_auth_mock_upstream_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "backend_tests_test_expand_task_fakesong",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L71",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_fakesong",
+      "target": "backend_tests_test_expand_task_fakesong_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
+      "target": "backend_tests_test_expand_task_fakesong",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_nonclosingsession",
+      "target": "backend_tests_test_expand_task_nonclosingsession_close",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L21",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_nonclosingsession",
+      "target": "backend_tests_test_expand_task_nonclosingsession_getattr",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_nonclosingsession",
+      "target": "backend_tests_test_expand_task_nonclosingsession_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_rationale_15",
+      "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
+      "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
+      "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L72",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
+      "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion",
+      "target": "backend_tests_test_expansion_fake_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion",
+      "target": "backend_tests_test_expansion_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion",
+      "target": "backend_tests_test_expansion_reset_spotify_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion",
+      "target": "backend_tests_test_expansion_test_ensure_spotify_client_initializes_once",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L50",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion",
+      "target": "backend_tests_test_expansion_test_ensure_spotify_client_prefers_configured_creds",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L41",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion",
+      "target": "backend_tests_test_expansion_test_ensure_spotify_client_uses_default_creds_when_unset",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L63",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion",
+      "target": "backend_tests_test_expansion_test_expand_delegates_to_get_simple_songs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion_test_ensure_spotify_client_initializes_once",
+      "target": "backend_tests_test_expansion_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion_test_ensure_spotify_client_uses_default_creds_when_unset",
+      "target": "backend_tests_test_expansion_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion_test_ensure_spotify_client_initializes_once",
+      "target": "backend_tests_test_expansion_fake_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion_test_ensure_spotify_client_prefers_configured_creds",
+      "target": "backend_tests_test_expansion_fake_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expansion.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "backend_tests_test_expansion_test_ensure_spotify_client_uses_default_creds_when_unset",
+      "target": "backend_tests_test_expansion_fake_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "backend_tests_test_jobs_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "backend_tests_test_jobs_stub_expand_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "backend_tests_test_jobs_test_create_job_classifies_source_type_from_url",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "backend_tests_test_jobs_test_create_job_enqueues_expansion_and_returns_expanding_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L107",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "backend_tests_test_jobs_test_get_unknown_job_returns_404",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L113",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "backend_tests_test_jobs_test_jobs_endpoints_require_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "backend_tests_test_jobs_test_list_and_get_job_include_track_counts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "backend_tests_test_jobs_test_list_job_tracks_projects_display_fields_and_stays_pending",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_create_job_classifies_source_type_from_url",
+      "target": "backend_tests_test_jobs_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_create_job_enqueues_expansion_and_returns_expanding_state",
+      "target": "backend_tests_test_jobs_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L108",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_get_unknown_job_returns_404",
+      "target": "backend_tests_test_jobs_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L52",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_list_and_get_job_include_track_counts",
+      "target": "backend_tests_test_jobs_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_list_job_tracks_projects_display_fields_and_stays_pending",
+      "target": "backend_tests_test_jobs_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L38",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_create_job_classifies_source_type_from_url",
+      "target": "backend_tests_test_jobs_stub_expand_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_create_job_enqueues_expansion_and_returns_expanding_state",
+      "target": "backend_tests_test_jobs_stub_expand_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L53",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_list_and_get_job_include_track_counts",
+      "target": "backend_tests_test_jobs_stub_expand_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L83",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_list_job_tracks_projects_display_fields_and_stays_pending",
+      "target": "backend_tests_test_jobs_stub_expand_job",
       "confidence_score": 1.0
     },
     {
@@ -4329,6 +6935,16 @@
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
       "source_location": "L266",
+      "weight": 1.0,
+      "source": "claude_project_spotdl_web",
+      "target": "claude_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L311",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -5536,5 +8152,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "a43f89a92ce861a64c95125b40d9fdfecb4b114e"
+  "built_at_commit": "e46a6ff525ff67a44e0e449253dffcf29a69395c"
 }

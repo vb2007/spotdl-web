@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785257414.4075632,
-    "ast_hash": "b79bb342cb5813cc2bc9efe2fcc20237",
+    "mtime": 1785267496.864285,
+    "ast_hash": "dcf5f48fcfae591f594073fce6f76510",
     "semantic_hash": ""
   },
   "README.md": {
@@ -105,8 +105,8 @@
     "semantic_hash": ""
   },
   "backend/app/main.py": {
-    "mtime": 1785257515.2917054,
-    "ast_hash": "23711a55e8878a94decac3aececab0a8",
+    "mtime": 1785264110.9604313,
+    "ast_hash": "dfbb20baaeb38b554d51c6b2c4ceda8d",
     "semantic_hash": ""
   },
   "backend/app/models/__init__.py": {
@@ -135,13 +135,13 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/celery_app.py": {
-    "mtime": 1785254082.6190886,
-    "ast_hash": "8395b2306e4d6f29a48b9a4bd07db248",
+    "mtime": 1785264089.747513,
+    "ast_hash": "4cb3587087a1861cbfe614d8436f9b6f",
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
-    "mtime": 1785257469.0177007,
-    "ast_hash": "bba265a790bc169e85084f75f9d8c3db",
+    "mtime": 1785264235.1387863,
+    "ast_hash": "384deedbbeafc26a5bcc73ca163f9d58",
     "semantic_hash": ""
   },
   "frontend/.vscode/extensions.json": {
@@ -275,28 +275,58 @@
     "semantic_hash": ""
   },
   "backend/app/routers/auth.py": {
-    "mtime": 1785257509.5883992,
+    "mtime": 1785263769.0034497,
     "ast_hash": "cbc5270e7158648f5525f7e4e9067f85",
     "semantic_hash": ""
   },
   "backend/app/services/sessions.py": {
-    "mtime": 1785257604.0603693,
+    "mtime": 1785263769.0034497,
     "ast_hash": "dfaed8f2cc66ae4a012c1b7214329c82",
     "semantic_hash": ""
   },
   "backend/app/services/upstream_auth.py": {
-    "mtime": 1785257472.9728553,
+    "mtime": 1785263769.0034497,
     "ast_hash": "dddc6f2b84165de1b0c42303ecc04a33",
     "semantic_hash": ""
   },
   "backend/tests/conftest.py": {
-    "mtime": 1785257594.2578633,
-    "ast_hash": "b1587b47dacff1ba3c81dca9c6e39e85",
+    "mtime": 1785264310.785033,
+    "ast_hash": "d5f80d4c753df3b139f60ceba3d69b8e",
     "semantic_hash": ""
   },
   "backend/tests/test_auth.py": {
-    "mtime": 1785257568.6375306,
+    "mtime": 1785263769.0034497,
     "ast_hash": "ecf0f903f691fef506c778c8ad1e79e8",
+    "semantic_hash": ""
+  },
+  "backend/app/routers/jobs.py": {
+    "mtime": 1785264105.9282136,
+    "ast_hash": "e593e5f5710e403173ea3974af922f7e",
+    "semantic_hash": ""
+  },
+  "backend/app/services/expansion.py": {
+    "mtime": 1785264077.5479844,
+    "ast_hash": "0f4c624e853873994f4a686e43767626",
+    "semantic_hash": ""
+  },
+  "backend/app/tasks/expand.py": {
+    "mtime": 1785267477.3344734,
+    "ast_hash": "98913860a48e48665ea2dc6d19c299c0",
+    "semantic_hash": ""
+  },
+  "backend/tests/test_expand_task.py": {
+    "mtime": 1785267465.2289426,
+    "ast_hash": "e585c6417e48c63d27e272c15ef2992c",
+    "semantic_hash": ""
+  },
+  "backend/tests/test_expansion.py": {
+    "mtime": 1785264348.571651,
+    "ast_hash": "fe67838cafce0ec7b41a717837d25062",
+    "semantic_hash": ""
+  },
+  "backend/tests/test_jobs.py": {
+    "mtime": 1785264361.005183,
+    "ast_hash": "f8bdc580898ca11e3f23fc57eaf2bbb5",
     "semantic_hash": ""
   }
 }

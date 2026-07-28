@@ -8,12 +8,22 @@ os.environ.setdefault("ALLOWED_EMAILS", "allowed@example.com")
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db import get_db
 from app.main import app
-from app.models import UserSession
+from app.models import Job, Track, UserSession
+
+
+# SQLite (used for fast in-process tests, see v02/v03 gotchas) has no native JSONB type —
+# render it as plain JSON so Track.__table__.create() doesn't fail; a no-op against real
+# Postgres/psycopg, which never goes through this compiler.
+@compiles(JSONB, "sqlite")
+def _compile_jsonb_sqlite(element, compiler, **kw):
+    return "JSON"
 
 
 @pytest.fixture()
@@ -24,6 +34,8 @@ def db_session():
         poolclass=StaticPool,
     )
     UserSession.__table__.create(engine)
+    Job.__table__.create(engine)
+    Track.__table__.create(engine)
     testing_session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     session = testing_session_local()
     try:
