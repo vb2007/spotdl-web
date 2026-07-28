@@ -29,5 +29,9 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    ports:
+    # `ports` lists merge across compose files rather than replace (unlike `command`/`build`
+    # above) — without `!override`, this would ADD to docker-compose.yml's `5173:80` mapping
+    # instead of replacing it, leaving two host bindings on the same 127.0.0.1:5173 and a
+    # "port is already allocated" error at container start.
+    ports: !override
       - "127.0.0.1:5173:5173"

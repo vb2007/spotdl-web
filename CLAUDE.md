@@ -184,7 +184,7 @@ any ──> cancelled
 - **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`, default 0): randomized inter-track delay,
   wired but off by default — the first dial to turn if 429s stay frequent after proxies.
 
-### v01 deployment gotchas (learned deploying to the real host)
+### v01 deployment gotchas (learned deploying to the real host and local dev)
 
 - **`pydantic-settings` auto-JSON-decodes any `list[...]`-typed field's raw env value before
   custom `field_validator`s run.** A plain comma-separated string (`ALLOWED_EMAILS=a@b.com,c@d.com`)
@@ -205,7 +205,23 @@ any ──> cancelled
   `172.17.0.1` can succeed (the host has a direct interface there) while giving no information about
   whether a container can reach it. Always use `host.docker.internal` (resolved via
   `extra_hosts: host-gateway` in `docker-compose.yml`) in `DATABASE_URL`, never a literal IP.
-- Full deploy runbook: `docs/DEPLOYMENT.md`.
+- **On the local dev PC (rolling-release Arch): a pending kernel update blocks all Docker container
+  networking**, not just this project's. Symptom is every container failing at startup with
+  `failed to add the host <=> sandbox pair interfaces: operation not supported` — the `veth` kernel
+  module (and everything else) for the *currently running* kernel has already been deleted from
+  disk in favor of a newer installed one, and modules can't be loaded for a kernel that's no longer
+  on disk. Check `uname -r` against `pacman -Q linux` and whether `/lib/modules/$(uname -r)/`
+  exists; fix is a reboot, nothing project-specific.
+- **`docker-compose.override.yml`'s list-type keys merge with `docker-compose.yml` instead of
+  replacing it** — `ports`, `volumes`, etc. combine across files; only keys like `command`/`build`
+  replace outright. `web`'s override used to add a second `ports` entry instead of replacing the
+  base file's, so both `127.0.0.1:5173:80` (base, stale — dev serves via `vite dev` on 5173, not
+  nginx on 80) and `127.0.0.1:5173:5173` (override, correct) got programmed as separate host
+  bindings on the same address, causing `Bind for 127.0.0.1:5173 failed: port is already allocated`
+  at container start. Fixed with the `!override` merge tag on that `ports:` key. **Any new
+  override list value that's meant to replace rather than extend the base file needs the same
+  tag** — verify with `docker compose config` rather than assuming a plain list "just works."
+- Full deploy runbook: `docs/DEPLOYMENT.md`; local dev runbook: `docs/LOCAL_DEV.md`.
 
 ### Version roadmap
 

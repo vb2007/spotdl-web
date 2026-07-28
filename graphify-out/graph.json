@@ -649,10 +649,10 @@
     {
       "label": "$lib/assets/favicon.svg",
       "file_type": "code",
-      "source_file": "$lib/assets/favicon.svg",
+      "source_file": "frontend/src/lib/assets/favicon.svg",
       "confidence": "EXTRACTED",
       "_origin": "ast",
-      "id": "favicon_svg",
+      "id": "home_vb2007_code_spotdl_web_frontend_src_lib_assets_favicon_svg",
       "community": 32,
       "norm_label": "$lib/assets/favicon.svg"
     },
@@ -927,20 +927,20 @@
       "norm_label": "retry engine numbers"
     },
     {
-      "label": "v01 deployment gotchas (learned deploying to the real host)",
+      "label": "v01 deployment gotchas (learned deploying to the real host and local dev)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L187",
       "_origin": "ast",
-      "id": "claude_v01_deployment_gotchas_learned_deploying_to_the_real_host",
+      "id": "claude_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
       "community": 14,
-      "norm_label": "v01 deployment gotchas (learned deploying to the real host)"
+      "norm_label": "v01 deployment gotchas (learned deploying to the real host and local dev)"
     },
     {
       "label": "Version roadmap",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L210",
+      "source_location": "L226",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -1113,7 +1113,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_local_dev_local_development_environment",
-      "community": 78,
+      "community": 79,
       "norm_label": "local development environment"
     },
     {
@@ -1123,7 +1123,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "docs_local_dev_1_configure_env",
-      "community": 78,
+      "community": 79,
       "norm_label": "1. configure `.env`"
     },
     {
@@ -1133,7 +1133,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "docs_local_dev_2_bring_up_the_stack",
-      "community": 78,
+      "community": 79,
       "norm_label": "2. bring up the stack"
     },
     {
@@ -1143,7 +1143,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "docs_local_dev_3_verify",
-      "community": 78,
+      "community": 79,
       "norm_label": "3. verify"
     },
     {
@@ -1153,7 +1153,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "docs_local_dev_4_when_a_version_is_ready",
-      "community": 78,
+      "community": 79,
       "norm_label": "4. when a version is ready"
     },
     {
@@ -1163,8 +1163,18 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "docs_local_dev_once_there_s_real_data_worth_protecting",
-      "community": 78,
+      "community": 79,
       "norm_label": "once there's real data worth protecting"
+    },
+    {
+      "label": "Troubleshooting",
+      "file_type": "document",
+      "source_file": "docs/LOCAL_DEV.md",
+      "source_location": "L68",
+      "_origin": "ast",
+      "id": "docs_local_dev_troubleshooting",
+      "community": 79,
+      "norm_label": "troubleshooting"
     },
     {
       "label": "README.md",
@@ -3395,7 +3405,7 @@
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+layout.svelte",
       "source": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "target": "favicon_svg",
+      "target": "home_vb2007_code_spotdl_web_frontend_src_lib_assets_favicon_svg",
       "confidence_score": 1.0
     },
     {
@@ -3625,14 +3635,14 @@
       "source_location": "L187",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
-      "target": "claude_v01_deployment_gotchas_learned_deploying_to_the_real_host",
+      "target": "claude_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L210",
+      "source_location": "L226",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -3866,6 +3876,16 @@
       "weight": 1.0,
       "source": "docs_local_dev_local_development_environment",
       "target": "docs_local_dev_once_there_s_real_data_worth_protecting",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/LOCAL_DEV.md",
+      "source_location": "L68",
+      "weight": 1.0,
+      "source": "docs_local_dev_local_development_environment",
+      "target": "docs_local_dev_troubleshooting",
       "confidence_score": 1.0
     },
     {
@@ -4830,5 +4850,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "8b3a448032c8c7372c541a7882a8cf0e801ba28e"
+  "built_at_commit": "3135f1043576f20a6fc254dcf25c8ed5bab74c08"
 }

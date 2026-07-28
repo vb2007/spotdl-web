@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785247685.9225194,
-    "ast_hash": "715c92cd6912a7df7f13319cead71deb",
+    "mtime": 1785252358.4663858,
+    "ast_hash": "83163c71affb5d54029a6a59d0ba6950",
     "semantic_hash": ""
   },
   "README.md": {
@@ -200,8 +200,8 @@
     "semantic_hash": ""
   },
   "docker-compose.override.yml": {
-    "mtime": 1785242065.7027056,
-    "ast_hash": "68cafceb958d35629e6fbe3c4ed8a20f",
+    "mtime": 1785252276.8868084,
+    "ast_hash": "7eee71846ffc1730732d4d3b46a1e96e",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -235,8 +235,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
-    "mtime": 1785247653.774136,
-    "ast_hash": "7f26a6828380c7ea6c95d86b891ac4ea",
+    "mtime": 1785252338.287753,
+    "ast_hash": "5d64f59f682d6fe2f2b27dbe580d31e0",
     "semantic_hash": ""
   }
 }
