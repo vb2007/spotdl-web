@@ -190,7 +190,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_main",
-      "community": 87,
+      "community": 79,
       "norm_label": "main.py"
     },
     {
@@ -210,7 +210,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 82,
+      "community": 86,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -220,7 +220,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track_downloadedtrack",
-      "community": 82,
+      "community": 86,
       "norm_label": "downloadedtrack"
     },
     {
@@ -230,7 +230,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track_rationale_10",
-      "community": 82,
+      "community": 86,
       "norm_label": "dedup ledger, independent of `tracks` so it survives job/track deletion and powe"
     },
     {
@@ -280,7 +280,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_app_models_job_job",
-      "community": 79,
+      "community": 82,
       "norm_label": "job"
     },
     {
@@ -290,7 +290,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_models_job_rationale_26",
-      "community": 79,
+      "community": 82,
       "norm_label": "one row per submitted url (album/playlist/artist/track)."
     },
     {
@@ -330,7 +330,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_session",
-      "community": 79,
+      "community": 37,
       "norm_label": "session.py"
     },
     {
@@ -340,7 +340,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_session_usersession",
-      "community": 79,
+      "community": 37,
       "norm_label": "usersession"
     },
     {
@@ -350,7 +350,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_session_rationale_11",
-      "community": 79,
+      "community": 37,
       "norm_label": "our own session store \u2014 separate from the upstream vb-auth token (see v03)."
     },
     {
@@ -590,7 +590,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_jobs",
-      "community": 79,
+      "community": 37,
       "norm_label": "jobs.py"
     },
     {
@@ -600,7 +600,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_createjobrequest",
-      "community": 79,
+      "community": 37,
       "norm_label": "createjobrequest"
     },
     {
@@ -610,7 +610,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_classify_source_type",
-      "community": 79,
+      "community": 37,
       "norm_label": "_classify_source_type()"
     },
     {
@@ -620,7 +620,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_track_counts",
-      "community": 79,
+      "community": 37,
       "norm_label": "_track_counts()"
     },
     {
@@ -630,7 +630,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_py_session",
-      "community": 79,
+      "community": 37,
       "norm_label": "session"
     },
     {
@@ -640,7 +640,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "uuid",
-      "community": 79,
+      "community": 37,
       "norm_label": "uuid"
     },
     {
@@ -650,7 +650,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_job_to_dict",
-      "community": 79,
+      "community": 37,
       "norm_label": "_job_to_dict()"
     },
     {
@@ -660,7 +660,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_track_to_dict",
-      "community": 79,
+      "community": 37,
       "norm_label": "_track_to_dict()"
     },
     {
@@ -670,7 +670,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_create_job",
-      "community": 79,
+      "community": 37,
       "norm_label": "create_job()"
     },
     {
@@ -680,7 +680,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_jobs",
-      "community": 79,
+      "community": 37,
       "norm_label": "list_jobs()"
     },
     {
@@ -690,7 +690,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_get_job_or_404",
-      "community": 79,
+      "community": 37,
       "norm_label": "_get_job_or_404()"
     },
     {
@@ -700,7 +700,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_get_job",
-      "community": 79,
+      "community": 37,
       "norm_label": "get_job()"
     },
     {
@@ -710,7 +710,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_job_tracks",
-      "community": 79,
+      "community": 37,
       "norm_label": "list_job_tracks()"
     },
     {
@@ -797,7 +797,7 @@
       "label": "get_downloader()",
       "file_type": "code",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L26",
+      "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_services_downloads_get_downloader",
       "community": 12,
@@ -817,7 +817,7 @@
       "label": "download_one()",
       "file_type": "code",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L50",
+      "source_location": "L51",
       "_origin": "ast",
       "id": "backend_app_services_downloads_download_one",
       "community": 12,
@@ -857,9 +857,9 @@
       "label": "Must be called from a plain sync context \u2014 search_and_download raises     Downlo",
       "file_type": "rationale",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L51",
+      "source_location": "L52",
       "_origin": "ast",
-      "id": "backend_app_services_downloads_rationale_51",
+      "id": "backend_app_services_downloads_rationale_52",
       "community": 12,
       "norm_label": "must be called from a plain sync context \u2014 search_and_download raises     downlo"
     },
@@ -1050,7 +1050,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_download",
-      "community": 79,
+      "community": 12,
       "norm_label": "download.py"
     },
     {
@@ -1060,7 +1060,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_download_download_track",
-      "community": 82,
+      "community": 12,
       "norm_label": "download_track()"
     },
     {
@@ -1070,7 +1070,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 79,
+      "community": 82,
       "norm_label": "expand.py"
     },
     {
@@ -1080,7 +1080,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 79,
+      "community": 82,
       "norm_label": "expand_job()"
     },
     {
@@ -1103,7 +1103,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_conftest",
-      "community": 87,
+      "community": 79,
       "norm_label": "conftest.py"
     },
     {
@@ -1113,7 +1113,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_tests_conftest_compile_jsonb_sqlite",
-      "community": 87,
+      "community": 79,
       "norm_label": "_compile_jsonb_sqlite()"
     },
     {
@@ -1123,7 +1123,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_tests_conftest_db_session",
-      "community": 87,
+      "community": 79,
       "norm_label": "db_session()"
     },
     {
@@ -1133,7 +1133,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_conftest_client",
-      "community": 87,
+      "community": 79,
       "norm_label": "client()"
     },
     {
@@ -1213,7 +1213,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_dedup",
-      "community": 82,
+      "community": 86,
       "norm_label": "test_dedup.py"
     },
     {
@@ -1223,7 +1223,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession",
-      "community": 82,
+      "community": 86,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -1233,7 +1233,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession_init",
-      "community": 82,
+      "community": 86,
       "norm_label": ".__init__()"
     },
     {
@@ -1243,7 +1243,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession_getattr",
-      "community": 82,
+      "community": 86,
       "norm_label": ".__getattr__()"
     },
     {
@@ -1253,7 +1253,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession_close",
-      "community": 82,
+      "community": 86,
       "norm_label": ".close()"
     },
     {
@@ -1263,7 +1263,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_is_already_downloaded_returns_none_when_missing",
-      "community": 82,
+      "community": 86,
       "norm_label": "test_is_already_downloaded_returns_none_when_missing()"
     },
     {
@@ -1273,7 +1273,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_is_already_downloaded_returns_path_when_present",
-      "community": 82,
+      "community": 86,
       "norm_label": "test_is_already_downloaded_returns_path_when_present()"
     },
     {
@@ -1283,7 +1283,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
-      "community": 82,
+      "community": 86,
       "norm_label": "test_reconcile_disk_drops_rows_for_missing_files()"
     },
     {
@@ -1293,7 +1293,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_rationale_8",
-      "community": 82,
+      "community": 86,
       "norm_label": "wraps db_session so dedup's db.close() doesn't detach objects the test still"
     },
     {
@@ -1537,13 +1537,23 @@
       "norm_label": "test_download_one_delegates_to_search_and_download()"
     },
     {
+      "label": "test_download_one_ensures_spotify_client_before_downloading()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L79",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_test_download_one_ensures_spotify_client_before_downloading",
+      "community": 84,
+      "norm_label": "test_download_one_ensures_spotify_client_before_downloading()"
+    },
+    {
       "label": "test_expand_task.py",
       "file_type": "code",
       "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task",
-      "community": 15,
+      "community": 82,
       "norm_label": "test_expand_task.py"
     },
     {
@@ -1553,7 +1563,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_fakesong",
-      "community": 15,
+      "community": 82,
       "norm_label": "_fakesong"
     },
     {
@@ -1563,7 +1573,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_fakesong_init",
-      "community": 15,
+      "community": 82,
       "norm_label": ".__init__()"
     },
     {
@@ -1573,7 +1583,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession",
-      "community": 15,
+      "community": 82,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -1583,7 +1593,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_init",
-      "community": 15,
+      "community": 82,
       "norm_label": ".__init__()"
     },
     {
@@ -1593,7 +1603,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_getattr",
-      "community": 15,
+      "community": 82,
       "norm_label": ".__getattr__()"
     },
     {
@@ -1603,7 +1613,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_close",
-      "community": 15,
+      "community": 82,
       "norm_label": ".close()"
     },
     {
@@ -1613,7 +1623,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_stub_download_track",
-      "community": 15,
+      "community": 82,
       "norm_label": "_stub_download_track()"
     },
     {
@@ -1623,7 +1633,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
-      "community": 15,
+      "community": 82,
       "norm_label": "test_expand_job_success_inserts_pending_tracks()"
     },
     {
@@ -1633,7 +1643,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
-      "community": 15,
+      "community": 82,
       "norm_label": "test_expand_job_failure_marks_job_failed_with_error()"
     },
     {
@@ -1643,7 +1653,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
-      "community": 15,
+      "community": 82,
       "norm_label": "test_expand_job_db_error_during_insert_marks_job_failed()"
     },
     {
@@ -1653,7 +1663,7 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
-      "community": 15,
+      "community": 82,
       "norm_label": "test_expand_job_unknown_job_is_a_noop()"
     },
     {
@@ -1663,7 +1673,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_rationale_15",
-      "community": 15,
+      "community": 82,
       "norm_label": "wraps db_session so expand_job's db.close() doesn't detach objects the test"
     },
     {
@@ -2547,10 +2557,20 @@
       "norm_label": "v04 url-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)"
     },
     {
+      "label": "v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L395",
+      "_origin": "ast",
+      "id": "claude_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
+      "community": 14,
+      "norm_label": "v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)"
+    },
+    {
       "label": "Version roadmap",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L394",
+      "source_location": "L442",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -4699,7 +4719,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L35",
+      "source_location": "L36",
       "weight": 1.0,
       "source": "backend_app_services_downloads_get_downloader",
       "target": "backend_app_config_get_settings"
@@ -6465,7 +6485,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_app_services_downloads",
       "target": "backend_app_services_downloads_download_one",
@@ -6475,7 +6495,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L26",
+      "source_location": "L27",
       "weight": 1.0,
       "source": "backend_app_services_downloads",
       "target": "backend_app_services_downloads_get_downloader",
@@ -6496,7 +6516,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L39",
+      "source_location": "L40",
       "weight": 1.0,
       "source": "backend_app_services_downloads_get_downloader",
       "target": "backend_app_services_downloads_py_path",
@@ -6507,7 +6527,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L26",
+      "source_location": "L27",
       "weight": 1.0,
       "source": "backend_app_services_downloads_get_downloader",
       "target": "downloader",
@@ -6518,7 +6538,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_app_services_downloads_download_one",
       "target": "downloader",
@@ -6529,7 +6549,7 @@
       "context": "generic_arg",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_app_services_downloads_download_one",
       "target": "backend_app_services_downloads_py_path",
@@ -6540,19 +6560,30 @@
       "context": "generic_arg",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_app_services_downloads_download_one",
       "target": "backend_app_services_downloads_py_song",
       "confidence_score": 1.0
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L60",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads_download_one",
+      "target": "backend_app_services_expansion_ensure_spotify_client"
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L51",
+      "source_location": "L52",
       "weight": 1.0,
-      "source": "backend_app_services_downloads_rationale_51",
+      "source": "backend_app_services_downloads_rationale_52",
       "target": "backend_app_services_downloads_download_one",
       "confidence_score": 1.0
     },
@@ -7251,6 +7282,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L79",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads",
+      "target": "backend_tests_test_downloads_test_download_one_ensures_spotify_client_before_downloading",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
       "source_location": "L36",
       "weight": 1.0,
       "source": "backend_tests_test_downloads",
@@ -7356,9 +7397,20 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_downloads.py",
-      "source_location": "L71",
+      "source_location": "L72",
       "weight": 1.0,
       "source": "backend_tests_test_downloads_test_download_one_delegates_to_search_and_download",
+      "target": "backend_tests_test_downloads_fakedownloader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_download_one_ensures_spotify_client_before_downloading",
       "target": "backend_tests_test_downloads_fakedownloader",
       "confidence_score": 1.0
     },
@@ -8509,7 +8561,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L394",
+      "source_location": "L395",
+      "weight": 1.0,
+      "source": "claude_project_spotdl_web",
+      "target": "claude_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L442",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -9717,5 +9779,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "cadc8c8d61b3362abc24757897e13270e5f74fcf"
+  "built_at_commit": "90543f5fac6a61684590168f75222c2e1a9bfe7a"
 }

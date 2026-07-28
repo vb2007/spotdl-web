@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-07-28)
 
 ## Corpus Check
-- 67 files · ~21,751 words
+- 68 files · ~24,028 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 434 nodes · 512 edges · 86 communities (39 shown, 47 thin omitted)
-- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 54 edges (avg confidence: 0.72)
+- 444 nodes · 521 edges · 87 communities (40 shown, 47 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 54 edges (avg confidence: 0.72)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `90543f5f`
+- Built from commit: `2b15068c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -30,6 +30,7 @@
 - [[_COMMUNITY_Deployment Hardening|Deployment Hardening]]
 - [[_COMMUNITY_devDependencies|devDependencies]]
 - [[_COMMUNITY_Project spotdl-web|Project: spotdl-web]]
+- [[_COMMUNITY_Setting up the self-hosted GitHub Actions runner|Setting up the self-hosted GitHub Actions runner]]
 - [[_COMMUNITY_compilerOptions|compilerOptions]]
 - [[_COMMUNITY_Tables|Tables]]
 - [[_COMMUNITY_v03 — Authentication|v03 — Authentication]]
@@ -119,7 +120,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (86 total, 47 thin omitted)
+## Communities (87 total, 47 thin omitted)
 
 ### Community 2 - "Planning & Config Docs"
 Cohesion: 0.14
@@ -136,6 +137,10 @@ Nodes (30): devDependencies, eslint, eslint-config-prettier, @eslint/js, eslint-
 ### Community 14 - "Project: spotdl-web"
 Cohesion: 0.12
 Nodes (16): Architecture, Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), Development environments, graphify, Locked decisions, Project: spotdl-web, Retry engine numbers, spotdl 4.5.2 — verified API surface actually used (+8 more)
+
+### Community 15 - "Setting up the self-hosted GitHub Actions runner"
+Cohesion: 0.20
+Nodes (9): 1. Download and register the runner (already done), 2. Install OS-level runner dependencies, 3. Run it as a persistent service, not an interactive session, 4. Verify registration, 5. Project test dependencies, 6. What the workflow actually runs, Security considerations — read this before enabling the workflow, Setting up the self-hosted GitHub Actions runner (+1 more)
 
 ### Community 16 - "compilerOptions"
 Cohesion: 0.15
@@ -238,7 +243,7 @@ Cohesion: 0.13
 Nodes (13): DownloadedTrack, Dedup ledger, independent of `tracks` so it survives job/track deletion and powe, is_already_downloaded(), Path, Download dedup ledger (`downloaded_tracks`) and startup disk reconciliation., Drops ledger rows whose file no longer exists on disk, so a manually-deleted, reconcile_disk(), _reconcile_disk_on_boot() (+5 more)
 
 ## Knowledge Gaps
-- **190 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+185 more)
+- **198 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+193 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **47 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -246,16 +251,16 @@ Nodes (13): DownloadedTrack, Dedup ledger, independent of `tracks` so it survive
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `Base` connect `Local development environment` to `Track`, `main.py`, `reconcile_disk`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+  _High betweenness centrality (0.019) - this node is a cross-community bridge._
 - **Why does `DownloadedTrack` connect `reconcile_disk` to `Track`, `Deployment Hardening`, `Local development environment`?**
-  _High betweenness centrality (0.020) - this node is a cross-community bridge._
+  _High betweenness centrality (0.019) - this node is a cross-community bridge._
 - **Why does `Track` connect `Track` to `test_jobs.py`, `Deployment Hardening`, `main.py`, `Local development environment`?**
-  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+  _High betweenness centrality (0.016) - this node is a cross-community bridge._
 - **Are the 13 inferred relationships involving `Track` (e.g. with `Base` and `list_job_tracks()`) actually correct?**
   _`Track` has 13 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 9 inferred relationships involving `Job` (e.g. with `Base` and `list_jobs()`) actually correct?**
   _`Job` has 9 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Dedup ledger, independent of `tracks` so it survives job/track deletion and powe`, `One row per submitted URL (album/playlist/artist/track).`, `Our own session store — separate from the upstream VB-AUTH token (see v03).` to the rest of the system?**
-  _212 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _220 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Planning & Config Docs` be split into smaller, more focused modules?**
   _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._

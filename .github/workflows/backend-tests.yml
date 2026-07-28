@@ -1,0 +1,48 @@
+name: Backend tests
+
+# Runs on the self-hosted runner on the Debian 12 production host (see
+# docs/CI_SELF_HOSTED_RUNNER.md) — the same hardware/OS the app deploys to, not a GitHub-hosted
+# runner. `pull_request` covers every PR regardless of target branch (this project only ever PRs
+# into `main`); `workflow_dispatch` lets the runner setup itself be smoke-tested on demand.
+"on":
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: backend-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      # Debian 12 ships Python 3.11; the project requires >=3.12,<3.13 (pyproject.toml). This
+      # downloads a self-contained CPython 3.12 build rather than requiring one to be installed
+      # system-wide on the runner host.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Fresh venv every run (cheap with uv, and this is a persistent self-hosted disk, not an
+      # ephemeral hosted runner) — avoids dependency drift accumulating across job runs. Plain
+      # `pip install .` can't see pyproject.toml's [tool.uv] override-dependencies (needed
+      # because spotdl hard-pins fastapi/uvicorn for its own unused bundled web UI — see
+      # CLAUDE.md's v04 gotchas), so this needs uv's resolver, matching backend/Dockerfile.
+      - name: Install dependencies
+        run: |
+          python -m venv --clear .venv
+          .venv/bin/pip install --upgrade pip uv
+          .venv/bin/uv pip install ".[dev]"
+
+      # No Postgres/Redis/ffmpeg service needed here — every test uses an in-memory SQLite
+      # engine and mocks any real spotdl/network call (see docs/CI_SELF_HOSTED_RUNNER.md for
+      # why, and what to add if a future test needs a real service).
+      - name: Run pytest
+        run: .venv/bin/pytest -v
