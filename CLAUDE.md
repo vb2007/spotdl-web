@@ -223,6 +223,46 @@ any ──> cancelled
   tag** — verify with `docker compose config` rather than assuming a plain list "just works."
 - Full deploy runbook: `docs/DEPLOYMENT.md`; local dev runbook: `docs/LOCAL_DEV.md`.
 
+### v02 schema gotchas (learned building the SQLAlchemy models + initial migration)
+
+- **`sqlalchemy.Enum(SomePyEnum, ...)` stores member *names* in the database by default, not
+  member *values*.** A Python enum with lowercase string values (matching the plan's exact
+  wording, e.g. `TRACK = "track"`) still produces a Postgres `ENUM('TRACK', 'ALBUM', ...)` unless
+  the column is declared with `values_callable=lambda cls: [e.value for e in cls]`. Applies to
+  every enum column in this schema (`job_source_type`, `job_state`, `track_state`,
+  `track_error_type`, `proxy_source`) — **any future enum column needs the same
+  `values_callable`** or the DB values silently drift from what every plan doc and downstream
+  service code assumes.
+- **`op.drop_table()` does not drop the native Postgres `ENUM` type it implicitly created** —
+  after `alembic downgrade base`, the tables were gone but `\dT` still showed all 5 enum types,
+  failing the "downgrade cleanly drops everything" check. Fixed by adding explicit
+  `op.execute("DROP TYPE ...")` calls at the end of `downgrade()` for every enum type the revision
+  creates. **Any future revision that adds a new native enum column needs the same explicit drop
+  in its `downgrade()`** — autogenerate never emits this on its own.
+- The partial index (`tracks (scheduled_at) WHERE state = 'waiting'`) that the v02 plan warned
+  might need hand-fixing actually came out of `alembic revision --autogenerate` correctly on a
+  from-scratch DB (verified: `\d tracks` shows `WHERE state = 'waiting'::track_state`) — the
+  known autogenerate limitation is about *diffing* an existing partial index on a later
+  `--autogenerate` run, not initial creation. Still worth a manual eyeball on every future
+  partial-index revision rather than trusting the diff blindly.
+- The `sessions` table's model class is named `UserSession` (`app/models/session.py`), not
+  `Session` — `sqlalchemy.orm.Session` is the DB-session type FastAPI routes depend-inject
+  everywhere (`db: Session = Depends(get_db)`), so a same-named ORM model would force an import
+  alias at every call site touching both. v03's `app/services/sessions.py` should import
+  `UserSession`, not shadow-name it.
+- `app/db.py`'s `Base` now declares a `type_annotation_map` (`datetime` → `DateTime(timezone=True)`,
+  `uuid.UUID` → `PgUUID(as_uuid=True)`) so every model just writes `Mapped[datetime]` /
+  `Mapped[uuid.UUID]` and gets the right Postgres type — every timestamp in this schema must be
+  `timestamptz`, and repeating `DateTime(timezone=True)` on ~15 columns individually was the
+  alternative. **Any future timestamp/uuid column added outside this mapping needs an explicit
+  type override**, not a bare `Mapped[...]`, or it'll get the wrong (naive/non-UUID-typed) column.
+- Verified against a scratch `postgres:17-alpine` container (not the shared dev/prod Postgres —
+  no reason to touch real data for a schema-only version): `upgrade head` → `downgrade base` →
+  `upgrade head` round-trips cleanly, `worker_state` seed row (id=1) survives, and every field
+  referenced by v04–v13's plan docs (`jobs.priority`, `tracks.attempt_count`/`scheduled_at`/
+  `used_proxy_id`, `proxies.*`, `worker_state.*`) already exists here — no ad-hoc migration should
+  be needed until v13's possible new `settings` table.
+
 ### Version roadmap
 
 | # | Branch | Scope |
