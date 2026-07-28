@@ -291,6 +291,22 @@ any ──> cancelled
   tokens (`secrets.token_hex(32)`) looked up in Postgres, not signed/stateless, so nothing in v03
   needed it. Leave it wired in `config.py` for whichever future version wants signed cookies or
   CSRF tokens rather than removing it as dead config.
+- **The live `https://api.vb2007.hu` has been having issues as of 2026-07-28.** Until it's
+  healthy again, local dev's `UPSTREAM_AUTH_BASE_URL` points at a local instance of
+  `vb2007.hu-api` running on the host machine's port 3000 instead — set in local `.env`
+  (gitignored, never committed) as `UPSTREAM_AUTH_BASE_URL=http://host.docker.internal:3000`,
+  **not** `http://localhost:3000` (the `api` container has its own network namespace;
+  `localhost` there means the container itself — same class of gotcha as the `DATABASE_URL`
+  note in v01). Test account is `balazs@vb2007.hu` (user `vb2007`) in `ALLOWED_EMAILS`; the
+  password lives only in the local `.env` — **this repo is public on GitHub, never write that
+  password into `CLAUDE.md`, a plan doc, or any other tracked file.** Switch both settings back
+  once the live API is confirmed working again.
+- **Adding a new core runtime dependency (e.g. `httpx` for `upstream_auth.py`) to
+  `pyproject.toml` does not take effect in an already-running container** —
+  `docker compose restart <service>` reuses the existing image, so the container keeps crash-
+  looping on `ModuleNotFoundError` for the new import. Needs `docker compose build <service>`
+  (or `up -d --build`) to actually rebuild the image. Applies to every future version that adds
+  a new backend dependency, not just this one.
 
 ### Version roadmap
 
