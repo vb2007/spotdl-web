@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785268097.04686,
-    "ast_hash": "508d76f470b74dbb9fe9187426743378",
+    "mtime": 1785268461.2815154,
+    "ast_hash": "18d9a06bf1af5c9f44f75ef2c0618b45",
     "semantic_hash": ""
   },
   "README.md": {
@@ -200,8 +200,8 @@
     "semantic_hash": ""
   },
   "docker-compose.override.yml": {
-    "mtime": 1785254082.6190886,
-    "ast_hash": "7eee71846ffc1730732d4d3b46a1e96e",
+    "mtime": 1785268857.6270347,
+    "ast_hash": "68dc61f0910b7afe6c9e1c8a65b66e2c",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -335,8 +335,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/downloads.py": {
-    "mtime": 1785268106.5532048,
-    "ast_hash": "472a3e263123543fd93e240dad039c5d",
+    "mtime": 1785269012.0581822,
+    "ast_hash": "0dcd2dab1c410b4a1874dd3f5393c956",
     "semantic_hash": ""
   },
   "backend/app/tasks/download.py": {
@@ -355,8 +355,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_downloads.py": {
-    "mtime": 1785268209.1219707,
-    "ast_hash": "9df6c0efdf18bd59493aff499afaa4e7",
+    "mtime": 1785269022.065582,
+    "ast_hash": "1abaf256bfecab00324f2409116e1265",
     "semantic_hash": ""
   }
 }

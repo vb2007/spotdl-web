@@ -9,13 +9,18 @@ services:
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   worker-dl:
-    volumes:
+    # Bind-mounted to the project root instead of the base file's named `downloads` volume,
+    # so downloaded files are directly browsable on the host during local dev. `!override`
+    # replaces rather than merges (v01 gotcha) — without it this would sit alongside the
+    # named volume as a second, conflicting mount at the same target.
+    volumes: !override
       - ./backend/app:/app/app
-      - downloads:/downloads
+      - ./downloads:/downloads
 
   worker-meta:
-    volumes:
+    volumes: !override
       - ./backend/app:/app/app
+      - ./downloads:/downloads
 
   beat:
     volumes:

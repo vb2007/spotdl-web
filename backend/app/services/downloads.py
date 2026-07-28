@@ -13,6 +13,7 @@ from spotdl.types.options import DownloaderOptions
 from spotdl.types.song import Song
 
 from app.config import get_settings
+from app.services.expansion import _ensure_spotify_client
 
 # spotdl's own default output filename template (spotdl.utils.config.DEFAULT_CONFIG
 # ["output"]), joined with our configurable output directory. Per-template UI override
@@ -51,4 +52,10 @@ def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]
     """Must be called from a plain sync context — search_and_download raises
     DownloaderError if a asyncio event loop is already running in this thread."""
 
+    # search_and_download "reinitializes" the song (re-fetches missing metadata like
+    # genres/album_id/track_number, common for album/playlist-expanded songs) via a live
+    # SpotifyClient — worker-dl is a separate process from worker-meta and never
+    # otherwise initializes one, so every such reinit failed with "Spotify client not
+    # created" until this call was added (caught during real album-download testing).
+    _ensure_spotify_client()
     return downloader.search_and_download(song)

@@ -67,9 +67,20 @@ def test_get_downloader_sets_proxy_only_when_given(monkeypatch):
     assert downloader.options["proxy"] == "http://proxy:8080"
 
 
-def test_download_one_delegates_to_search_and_download():
+def test_download_one_delegates_to_search_and_download(monkeypatch):
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
     downloader = _FakeDownloader(options={})
 
     result = downloads.download_one("a-song", downloader)
 
     assert result == ("a-song", "fake-path")
+
+
+def test_download_one_ensures_spotify_client_before_downloading(monkeypatch):
+    calls = []
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: calls.append(True))
+    downloader = _FakeDownloader(options={})
+
+    downloads.download_one("a-song", downloader)
+
+    assert calls == [True]

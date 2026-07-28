@@ -425,19 +425,42 @@ any ──> cancelled
   to build the `output` option. Per-template override is v13's job (locked decision: global
   output config first, UI override deferred); don't add a `DEFAULT_OUTPUT_TEMPLATE` env var ahead
   of that version without asking.
+- **`Downloader.search_and_download` needs a live `SpotifyClient` in the *same process*, not just
+  in whichever process expanded the job** — missed on the first pass and only surfaced by
+  actually downloading a real album (single-track jobs happened to not trigger it). Internally it
+  "reinitializes" the song (re-fetches metadata via `reinit_song`/`Song.from_url`) whenever any of
+  `genres`/`disc_count`/`tracks_count`/`track_number`/`album_id`/`album_artist` is `None` — common
+  for album/playlist-expanded songs, not for the single-track expansion path that happened to work
+  in initial testing. `worker-dl` is a separate OS process from `worker-meta`; the `SpotifyClient`
+  singleton `expansion._ensure_spotify_client()` initializes there never exists in `worker-dl`
+  unless something in that process calls it too. Every album track failed with `"Error occurred
+  while reinitializing song: Spotify client not created"` until `downloads.download_one()` was
+  changed to call `expansion._ensure_spotify_client()` before `search_and_download` — exactly the
+  "any future spotdl entry point must go through `_ensure_spotify_client()`" rule the v04 gotcha
+  above already called out; this is why. **Any future code path that calls into spotdl anywhere
+  outside `expansion.py` needs the same call**, not just ones that look like they touch Spotify
+  directly.
 - Verified against the real network and the real docker-compose stack (not mocked) in this
   version: a real track URL downloads to `DOWNLOAD_OUTPUT_DIR` with the correct filename and
   embedded `artist`/`album`/`track` tags; re-submitting the same URL immediately lands
   `skipped_duplicate` with a sub-10ms task duration (no network call — confirmed via
   `worker-dl` logs); deleting the file and restarting `worker-meta` drops the
   `downloaded_tracks` row (`reconcile_disk: checked 1 ledger rows, removed 1 with missing files`
-  in the logs) and the next submission of the same URL re-downloads it from scratch.
-- The "one bad track doesn't take down the rest of the album" requirement is structurally
-  guaranteed rather than something that needed its own real-network reproduction: every track is
-  its own Celery task with its own `SessionLocal()`/commit/rollback, so one task's exception
-  can't affect another's session. Covered by
-  `test_download_track_failure_marks_failed_with_error` instead of a live simulated-corruption
-  test.
+  in the logs) and the next submission of the same URL re-downloads it from scratch; a real
+  15-track album (Muse — *Absolution*, `open.spotify.com/album/0HcHPBu9aaF1MxOiZmUQTl`) downloaded
+  14/15 tracks successfully with correct filenames/tags for each, while the 15th hit a real
+  transient `"Could not get client token"` Spotify API error and landed `failed` — the other 14
+  tracks in the same job were entirely unaffected, confirming task isolation for real rather than
+  only structurally. (That transient failure is exactly what v06's retry ladder exists for — it's
+  expected to succeed on a later attempt, not a bug to chase here.)
+- **Local dev's `downloads` folder is a host bind mount (`./downloads` at the project root, in
+  `docker-compose.override.yml` for `worker-dl`/`worker-meta`), not the base file's named Docker
+  volume** — lets downloaded files be inspected directly from the host during testing.
+  `docker-compose.yml` (the prod-like base) still declares `downloads` as a named volume; the
+  override's `!override` tag replaces the service's `volumes:` list rather than merging with it
+  (same v01 gotcha as the `web` service's `ports:` override), since simply adding a bind mount
+  entry would otherwise sit alongside the named-volume mount at the same `/downloads` target.
+  `/downloads/` is gitignored at the project root.
 
 ### Version roadmap
 
