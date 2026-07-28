@@ -386,10 +386,58 @@ any ──> cancelled
   - `job.source_url` reaches spotdl's `get_simple_songs` raw, which has branches beyond Spotify/
     YouTube URL parsing: a string ending in `.spotdl` is opened as a **local file** and JSON-
     parsed, and a `spotify.link/...` string triggers an outbound `requests.head(..., allow_redirects=True)`.
-    Low impact today — single-user, allowlisted, and `worker-meta` has no volumes mounted — but
-    worth knowing before this endpoint's trust model changes.
+    Low impact today — single-user, allowlisted — but worth knowing before this endpoint's trust
+    model changes. (As of v05, `worker-meta` *does* have the `downloads` volume mounted — see
+    below — so this is no longer mitigated by that container being read-only-by-omission either.)
   - `GET /api/jobs` runs one grouped-count query per job (N+1) via `_track_counts` — fine at
     current scale, revisit if job history grows large (no pagination either).
+
+### v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)
+
+- **`worker-meta` needed the `downloads` named volume added in this version** — it didn't have
+  one before (v04 note above, now stale) since expansion never touched disk. `reconcile_disk()`
+  runs there on boot (see next point), so it needs read/write access to the same
+  `DOWNLOAD_OUTPUT_DIR` `worker-dl` writes to. Compose list-merge behavior (v01 gotcha) meant
+  adding `downloads:/downloads` to the base `docker-compose.yml` service was enough — the
+  override file's separate `./backend/app:/app/app` bind mount for the same service concatenates
+  with it rather than replacing it; verified with `docker compose config` rather than assumed.
+- **`reconcile_disk()` on worker-meta boot is gated by an explicit `RUN_DISK_RECONCILE=true` env
+  var set only on that service in `docker-compose.yml`, not by introspecting which Celery queue
+  the process consumes.** `celery_app.py`'s `worker_ready` signal handler fires identically in
+  every process that imports the module (api, beat, both workers) since `-Q meta`/`-Q downloads`
+  is a `celery worker` CLI arg invisible to the importing module; reflecting on that from inside
+  `celery_app.py` would mean digging into `Consumer`/`Worker` internals for something an env var
+  says explicitly. **Any future worker-boot-only hook needs the same explicit env-var gate**,
+  not queue introspection.
+- **`spotdl.types.song.Song.from_dict(data)` / `song.json` round-trip cleanly** (`from_dict` is
+  just `cls(**data)`, `.json` is `dataclasses.asdict(self)`) — confirmed by reading the source,
+  not assumed. This is what lets `download_track` turn `Track.song_json` (stored by `expand_job`
+  in v04) back into a real `Song` for `Downloader.search_and_download` without re-querying
+  Spotify.
+- **`Downloader.__init__` fills any keys missing from the passed `DownloaderOptions` dict from
+  spotdl's own defaults** (`create_settings_type(..., DOWNLOADER_OPTIONS)`) — `get_downloader()`
+  only needs to pass `format`/`bitrate`/`output`/`cookie_file`(+`proxy` when given), not the full
+  ~45-key `TypedDict`. Verified against the real installed 4.5.2 source
+  (`Downloader.__init__`), not just the plan's key list.
+- **No fixed output path template exists anywhere in config** — `DOWNLOAD_OUTPUT_DIR` is a bare
+  directory. `get_downloader()` joins it with spotdl's own default filename pattern
+  (`"{artists} - {title}.{output-ext}"`, read from `spotdl.utils.config.DEFAULT_CONFIG["output"]`)
+  to build the `output` option. Per-template override is v13's job (locked decision: global
+  output config first, UI override deferred); don't add a `DEFAULT_OUTPUT_TEMPLATE` env var ahead
+  of that version without asking.
+- Verified against the real network and the real docker-compose stack (not mocked) in this
+  version: a real track URL downloads to `DOWNLOAD_OUTPUT_DIR` with the correct filename and
+  embedded `artist`/`album`/`track` tags; re-submitting the same URL immediately lands
+  `skipped_duplicate` with a sub-10ms task duration (no network call — confirmed via
+  `worker-dl` logs); deleting the file and restarting `worker-meta` drops the
+  `downloaded_tracks` row (`reconcile_disk: checked 1 ledger rows, removed 1 with missing files`
+  in the logs) and the next submission of the same URL re-downloads it from scratch.
+- The "one bad track doesn't take down the rest of the album" requirement is structurally
+  guaranteed rather than something that needed its own real-network reproduction: every track is
+  its own Celery task with its own `SessionLocal()`/commit/rollback, so one task's exception
+  can't affect another's session. Covered by
+  `test_download_track_failure_marks_failed_with_error` instead of a live simulated-corruption
+  test.
 
 ### Version roadmap
 
