@@ -59,14 +59,27 @@ By default Postgres only listens on `localhost` and only trusts local Unix-socke
 Containers connect over the Docker bridge, so both need widening — but only to that bridge, not
 to the LAN.
 
-Edit `/etc/postgresql/15/main/postgresql.conf`:
+**Do not hardcode `172.17.0.1`.** That's the gateway of Docker's *default* bridge network — but
+`docker compose up` creates its own project-scoped bridge network (e.g. `spotdl-web_default`) with
+a different subnet (Compose picks the next free one, often `172.18.0.0/16` or higher), and Docker
+isolates bridge networks from each other by default. A connection to `172.17.0.1` from the host
+itself will succeed (the host has a direct interface there), which is a misleading test — the same
+address is very likely *unreachable from inside the containers* on Compose's own network. This is
+exactly why `docker-compose.yml` uses `extra_hosts: host.docker.internal:host-gateway`: that magic
+value always resolves, per-container, to *that container's own network's* gateway, whatever subnet
+Compose actually picked.
+
+So bind Postgres broadly and let `pg_hba.conf` (next step) do the real access control, rather than
+chasing the exact subnet Compose happened to choose:
 
 ```bash
-sudo sed -i "s/^#listen_addresses = .*/listen_addresses = 'localhost,172.17.0.1'/" /etc/postgresql/15/main/postgresql.conf
+sudo sed -i "s/^#listen_addresses = .*/listen_addresses = '*'/" /etc/postgresql/15/main/postgresql.conf
 ```
 
-`172.17.0.1` is the default `docker0` bridge gateway. If you're unsure it matches your setup,
-confirm with `ip -4 addr show docker0`.
+This is safe here specifically because `pg_hba.conf` below scopes trust to one role talking to one
+database from Docker's private address range only — an unauthenticated LAN client still gets
+rejected at the `pg_hba` stage, `listen_addresses` only controls which interface the socket accepts
+connections on before that check runs.
 
 Add a `pg_hba.conf` entry scoped to Docker's private address space (covers the default bridge and
 any compose-created bridge network, all of which fall inside `172.16.0.0/12`):
@@ -198,17 +211,20 @@ docker compose -f docker-compose.yml exec api alembic upgrade head
   ssh -N -L 8000:localhost:8000 <you>@192.168.100.200
   # then, on your machine: curl http://localhost:8000/api/health
   ```
-- Postgres (`5432`) should never be reachable from the LAN either — `listen_addresses` above only
-  binds `localhost` and the Docker bridge gateway, not the host's LAN interface, so this is
-  already closed off at the Postgres level. If you run `ufw` or another host firewall, an explicit
-  default-deny on `5432` is good defense in depth:
+- Postgres (`5432`) should never be reachable from the LAN either. Because `listen_addresses` is
+  `*` (step 3), the socket itself accepts connections on every interface, including the LAN one —
+  `pg_hba.conf`'s scoping to `172.16.0.0/12` is what actually rejects a LAN client (the TCP
+  handshake completes, then Postgres refuses the connection at the authentication stage). Still
+  worth a firewall as defense in depth, since it's cheap and means unauthorized clients get
+  dropped before they can even attempt to authenticate:
   ```bash
   sudo ufw allow OpenSSH
   sudo ufw default deny incoming
   sudo ufw enable
   ```
-  (No separate allow rule is needed for Docker→Postgres traffic — that hits `postgresql.conf`'s
-  bridge-gateway address, not a LAN-facing one.)
+  Docker manipulates iptables directly for container traffic, so this doesn't need a separate
+  allow rule for Docker→Postgres — `ufw`'s chain sits alongside, not in front of, Docker's own
+  rules for that path.
 
 ---
 
@@ -216,7 +232,8 @@ docker compose -f docker-compose.yml exec api alembic upgrade head
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `/api/health` reports `postgres` failing | `pg_hba.conf`/`listen_addresses` not picked up | `sudo systemctl restart postgresql`, re-check step 3 |
+| `/api/health` reports `postgres` failing | `pg_hba.conf`/`listen_addresses` not picked up | `sudo systemctl restart postgresql`, re-check step 3. `docker compose -f docker-compose.yml logs api` now logs the real exception (fixed in v01) — read it before guessing further. |
+| Postgres reachable via `psql` from the host, but not from the container | Tested against a hardcoded IP (e.g. `172.17.0.1`) that isn't this container's actual gateway — Docker isolates bridge networks from each other, so a host-side test against the wrong bridge's gateway can "succeed" while the container still can't reach it | Use `host.docker.internal` in `DATABASE_URL`, not a hardcoded IP; confirm what it resolves to with `docker compose -f docker-compose.yml exec api getent hosts host.docker.internal` |
 | `/api/health` reports `redis` failing | `REDIS_URL` password doesn't match `REDIS_PASSWORD` | make sure both were updated together in `.env` |
 | `docker compose` command not found | compose plugin missing | re-run step 4 |
 | `api` container can't resolve `host.docker.internal` | old Docker Engine (< 20.10) | `docker --version`; upgrade via step 4 |
