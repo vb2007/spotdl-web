@@ -21,7 +21,10 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      # v7 targets Node 24 natively - v4 was flagged deprecated (targets Node 20, forced to run
+      # on 24 anyway) on this workflow's first real runs. Verified v7.0.1's action.yml directly
+      # (`runs: using: node24`) rather than assuming from the version bump alone.
+      - uses: actions/checkout@v7
 
       # actions/setup-python's downloadable builds are keyed to specific GitHub-hosted OS
       # images (Ubuntu/Windows/macOS) - there is no "Debian 12" entry in its manifest, so it
