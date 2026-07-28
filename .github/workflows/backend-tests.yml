@@ -83,9 +83,12 @@ jobs:
       # only a failure to even produce the files (e.g. the install step itself breaking) should
       # skip this, which if-no-files-found: warn turns into a visible warning instead of a
       # second, confusing failure on top of whatever broke upstream.
+      # v7 targets Node 24 natively (verified action.yml directly, same as actions/checkout
+      # above) - v4 triggered the same Node 20 deprecation warning on this workflow's first
+      # run with this step.
       - name: Upload test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-test-reports
           path: backend/test-reports/
@@ -99,7 +102,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      # v8 targets Node 24 natively - same reasoning as the checkout/upload-artifact bumps
+      # above, verified the same way (action.yml directly).
+      - uses: actions/download-artifact@v8
         with:
           name: backend-test-reports
           path: test-reports
