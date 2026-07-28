@@ -5,8 +5,8 @@
     "semantic_hash": "486b581f94c3a866085621d0d5b8d7d8"
   },
   "README.md": {
-    "mtime": 1785242092.756831,
-    "ast_hash": "11f7840be2f033610d5fba4ed20e3f45",
+    "mtime": 1785242636.6124904,
+    "ast_hash": "a22afc679376ca10eefef0d7a2565330",
     "semantic_hash": ""
   },
   "plan/00-master-plan.md": {
@@ -227,6 +227,11 @@
   "frontend/src/lib/assets/favicon.svg": {
     "mtime": 1785241853.0522444,
     "ast_hash": "a0d1b540c1b9a2a920d5f6cae983118a",
+    "semantic_hash": ""
+  },
+  "docs/DEPLOYMENT.md": {
+    "mtime": 1785242627.9131277,
+    "ast_hash": "82016f61bd341f590d51d6584b2c7ae3",
     "semantic_hash": ""
   }
 }

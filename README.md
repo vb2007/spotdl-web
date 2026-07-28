@@ -7,6 +7,8 @@ This project is built one feature slice ("version") at a time. The roadmap and r
 [`plan/00-master-plan.md`](plan/00-master-plan.md); implementation detail for each version is in
 `plan/vNN-*.md`. Durable decisions, gotchas, and current state live in [`CLAUDE.md`](CLAUDE.md).
 
+For deploying to the real target host, see [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
 ## Running locally
 
 Prerequisites:
