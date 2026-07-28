@@ -263,6 +263,35 @@ any ──> cancelled
   `used_proxy_id`, `proxies.*`, `worker_state.*`) already exists here — no ad-hoc migration should
   be needed until v13's possible new `settings` table.
 
+### v03 auth gotchas (learned building the upstream login proxy + session cookie)
+
+- **The session cookie is set with `Secure=True`, which conflicts with local dev's plain
+  `http://localhost` — except it doesn't**: modern browsers (Chrome, Firefox) treat
+  `http://localhost` as a secure context and will store/send `Secure` cookies over it without
+  real TLS. No dev-only exception was needed. The same is *not* true for `httpx`'s cookie jar
+  (used by FastAPI's `TestClient`) — it enforces the `Secure` flag literally by scheme, so tests
+  must use `TestClient(app, base_url="https://testserver")` or the session cookie silently never
+  round-trips on the next request. Any future test hitting a cookie-authenticated route needs the
+  same `https://` base_url.
+- **`UserSession.last_seen_at` can come back timezone-naive** even though the column is
+  `timestamptz` (via `Base.type_annotation_map`, see v02) — only true against real Postgres/psycopg;
+  SQLite (used for fast in-process auth tests, `UserSession.__table__.create()` on an in-memory
+  engine rather than spinning up Postgres) returns a naive datetime for `func.now()` server
+  defaults. `sessions.py`'s idle-timeout check normalizes with `.replace(tzinfo=timezone.utc)` if
+  `tzinfo is None` before comparing — needed purely for the SQLite test path, a no-op against real
+  Postgres, but removing it breaks every session-validating test.
+- SQLite in-memory (`sqlite:///:memory:`) needs `poolclass=StaticPool` +
+  `connect_args={"check_same_thread": False}` for FastAPI test fixtures — the default per-thread
+  pool gives the request-handling thread (TestClient dispatches through Starlette's thread pool) a
+  *different, empty* in-memory database than the one the fixture created tables on, surfacing as a
+  confusing "no such table" error rather than an obvious connection-pooling one.
+- `httpx` moved from `dev` to core `pyproject.toml` dependencies — `upstream_auth.py` needs it at
+  runtime to call `vb2007.hu-api`, not just in tests.
+- `SESSION_SECRET` (env var, scaffolded since v01) is still unused — sessions are opaque random
+  tokens (`secrets.token_hex(32)`) looked up in Postgres, not signed/stateless, so nothing in v03
+  needed it. Leave it wired in `config.py` for whichever future version wants signed cookies or
+  CSRF tokens rather than removing it as dead config.
+
 ### Version roadmap
 
 | # | Branch | Scope |

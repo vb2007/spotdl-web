@@ -179,7 +179,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "session",
+      "id": "backend_app_db_py_session",
       "community": 79,
       "norm_label": "session"
     },
@@ -190,7 +190,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_main",
-      "community": 37,
+      "community": 79,
       "norm_label": "main.py"
     },
     {
@@ -330,7 +330,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_session",
-      "community": 79,
+      "community": 37,
       "norm_label": "session.py"
     },
     {
@@ -340,7 +340,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_session_usersession",
-      "community": 79,
+      "community": 37,
       "norm_label": "usersession"
     },
     {
@@ -350,7 +350,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_session_rationale_11",
-      "community": 79,
+      "community": 37,
       "norm_label": "our own session store \u2014 separate from the upstream vb-auth token (see v03)."
     },
     {
@@ -444,6 +444,116 @@
       "norm_label": "__init__.py"
     },
     {
+      "label": "auth.py",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth",
+      "community": 37,
+      "norm_label": "auth.py"
+    },
+    {
+      "label": "LoginRequest",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_loginrequest",
+      "community": 37,
+      "norm_label": "loginrequest"
+    },
+    {
+      "label": "BaseModel",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "basemodel",
+      "community": 37,
+      "norm_label": "basemodel"
+    },
+    {
+      "label": "require_session()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_require_session",
+      "community": 37,
+      "norm_label": "require_session()"
+    },
+    {
+      "label": "Request",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "request",
+      "community": 37,
+      "norm_label": "request"
+    },
+    {
+      "label": "Session",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_py_session",
+      "community": 37,
+      "norm_label": "session"
+    },
+    {
+      "label": "_set_session_cookie()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L36",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_set_session_cookie",
+      "community": 37,
+      "norm_label": "_set_session_cookie()"
+    },
+    {
+      "label": "Response",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_py_response",
+      "community": 37,
+      "norm_label": "response"
+    },
+    {
+      "label": "login()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L48",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_login",
+      "community": 37,
+      "norm_label": "login()"
+    },
+    {
+      "label": "logout()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L65",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_logout",
+      "community": 37,
+      "norm_label": "logout()"
+    },
+    {
+      "label": "me()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L77",
+      "_origin": "ast",
+      "id": "backend_app_routers_auth_me",
+      "community": 37,
+      "norm_label": "me()"
+    },
+    {
       "label": "health.py",
       "file_type": "code",
       "source_file": "backend/app/routers/health.py",
@@ -469,7 +579,7 @@
       "source_file": "",
       "source_location": "",
       "_origin": "ast",
-      "id": "response",
+      "id": "backend_app_routers_health_py_response",
       "community": 12,
       "norm_label": "response"
     },
@@ -482,6 +592,86 @@
       "id": "backend_app_services_init",
       "community": 40,
       "norm_label": "__init__.py"
+    },
+    {
+      "label": "sessions.py",
+      "file_type": "code",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_sessions",
+      "community": 37,
+      "norm_label": "sessions.py"
+    },
+    {
+      "label": "create_session()",
+      "file_type": "code",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "backend_app_services_sessions_create_session",
+      "community": 37,
+      "norm_label": "create_session()"
+    },
+    {
+      "label": "Session",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_services_sessions_py_session",
+      "community": 37,
+      "norm_label": "session"
+    },
+    {
+      "label": "get_valid_session()",
+      "file_type": "code",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "backend_app_services_sessions_get_valid_session",
+      "community": 37,
+      "norm_label": "get_valid_session()"
+    },
+    {
+      "label": "delete_session()",
+      "file_type": "code",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L38",
+      "_origin": "ast",
+      "id": "backend_app_services_sessions_delete_session",
+      "community": 37,
+      "norm_label": "delete_session()"
+    },
+    {
+      "label": "upstream_auth.py",
+      "file_type": "code",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_upstream_auth",
+      "community": 12,
+      "norm_label": "upstream_auth.py"
+    },
+    {
+      "label": "login()",
+      "file_type": "code",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "backend_app_services_upstream_auth_login",
+      "community": 12,
+      "norm_label": "login()"
+    },
+    {
+      "label": "Check credentials against vb2007.hu-api. Never forwards or returns the upstream",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "backend_app_services_upstream_auth_rationale_11",
+      "community": 12,
+      "norm_label": "check credentials against vb2007.hu-api. never forwards or returns the upstream"
     },
     {
       "label": "__init__.py",
@@ -515,6 +705,106 @@
       "id": "pkg_spotdl_web_backend",
       "community": 47,
       "norm_label": "spotdl-web-backend"
+    },
+    {
+      "label": "conftest.py",
+      "file_type": "code",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_conftest",
+      "community": 79,
+      "norm_label": "conftest.py"
+    },
+    {
+      "label": "db_session()",
+      "file_type": "code",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "backend_tests_conftest_db_session",
+      "community": 79,
+      "norm_label": "db_session()"
+    },
+    {
+      "label": "client()",
+      "file_type": "code",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L36",
+      "_origin": "ast",
+      "id": "backend_tests_conftest_client",
+      "community": 79,
+      "norm_label": "client()"
+    },
+    {
+      "label": "test_auth.py",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth",
+      "community": 81,
+      "norm_label": "test_auth.py"
+    },
+    {
+      "label": "_mock_upstream_login()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_mock_upstream_login",
+      "community": 81,
+      "norm_label": "_mock_upstream_login()"
+    },
+    {
+      "label": "test_login_success_sets_cookie_and_me_returns_email()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_test_login_success_sets_cookie_and_me_returns_email",
+      "community": 81,
+      "norm_label": "test_login_success_sets_cookie_and_me_returns_email()"
+    },
+    {
+      "label": "test_wrong_password_and_disallowed_email_return_identical_response()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L27",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_test_wrong_password_and_disallowed_email_return_identical_response",
+      "community": 81,
+      "norm_label": "test_wrong_password_and_disallowed_email_return_identical_response()"
+    },
+    {
+      "label": "test_vb_auth_cookie_never_reaches_the_browser()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L44",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_test_vb_auth_cookie_never_reaches_the_browser",
+      "community": 81,
+      "norm_label": "test_vb_auth_cookie_never_reaches_the_browser()"
+    },
+    {
+      "label": "test_protected_route_without_session_returns_401()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L55",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_test_protected_route_without_session_returns_401",
+      "community": 81,
+      "norm_label": "test_protected_route_without_session_returns_401()"
+    },
+    {
+      "label": "test_logout_clears_session()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L60",
+      "_origin": "ast",
+      "id": "backend_tests_test_auth_test_logout_clears_session",
+      "community": 81,
+      "norm_label": "test_logout_clears_session()"
     },
     {
       "label": "eslint.config.js",
@@ -3217,10 +3507,32 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/health.py",
       "source_location": "L9",
       "weight": 1.0,
       "source": "backend_app_routers_health",
+      "target": "backend_app_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "backend_app_services_upstream_auth",
       "target": "backend_app_config",
       "confidence_score": 1.0
     },
@@ -3281,10 +3593,32 @@
       "context": "call",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L49",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_config_get_settings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
       "source_file": "backend/app/routers/health.py",
       "source_location": "L18",
       "weight": 1.0,
       "source": "backend_app_routers_health_health",
+      "target": "backend_app_config_get_settings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "backend_app_services_upstream_auth_login",
       "target": "backend_app_config_get_settings"
     },
     {
@@ -3377,10 +3711,32 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/health.py",
       "source_location": "L10",
       "weight": 1.0,
       "source": "backend_app_routers_health",
+      "target": "backend_app_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "backend_tests_conftest",
       "target": "backend_app_db",
       "confidence_score": 1.0
     },
@@ -3512,7 +3868,18 @@
       "source_location": "L22",
       "weight": 1.0,
       "source": "backend_app_db_get_db",
-      "target": "session",
+      "target": "backend_app_db_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "backend_tests_conftest",
+      "target": "backend_app_main",
       "confidence_score": 1.0
     },
     {
@@ -3666,6 +4033,72 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_logout",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L77",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_me",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_require_session",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_create_session",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_delete_session",
+      "target": "backend_app_models_session_usersession"
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_get_valid_session",
+      "target": "backend_app_models_session_usersession"
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/models/track.py",
@@ -3728,6 +4161,208 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_loginrequest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_logout",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L77",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_me",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_require_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth",
+      "target": "backend_app_routers_auth_set_session_cookie",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_routers_auth_loginrequest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_loginrequest",
+      "target": "basemodel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_require_session",
+      "target": "backend_app_routers_auth_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_require_session",
+      "target": "backend_app_services_sessions_get_valid_session"
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_require_session",
+      "target": "request",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_routers_auth_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_logout",
+      "target": "backend_app_routers_auth_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L60",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_routers_auth_set_session_cookie",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_set_session_cookie",
+      "target": "backend_app_routers_auth_py_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_routers_auth_py_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_logout",
+      "target": "backend_app_routers_auth_py_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L58",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_login",
+      "target": "backend_app_services_sessions_create_session"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L70",
+      "weight": 1.0,
+      "source": "backend_app_routers_auth_logout",
+      "target": "backend_app_services_sessions_delete_session"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/health.py",
       "source_location": "L17",
       "weight": 1.0,
@@ -3743,7 +4378,214 @@
       "source_location": "L17",
       "weight": 1.0,
       "source": "backend_app_routers_health_health",
-      "target": "response",
+      "target": "backend_app_routers_health_py_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions",
+      "target": "backend_app_services_sessions_create_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L38",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions",
+      "target": "backend_app_services_sessions_delete_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions",
+      "target": "backend_app_services_sessions_get_valid_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_create_session",
+      "target": "backend_app_services_sessions_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L38",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_delete_session",
+      "target": "backend_app_services_sessions_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/sessions.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "backend_app_services_sessions_get_valid_session",
+      "target": "backend_app_services_sessions_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "backend_app_services_upstream_auth",
+      "target": "backend_app_services_upstream_auth_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "backend_app_services_upstream_auth_rationale_11",
+      "target": "backend_app_services_upstream_auth_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "backend_tests_conftest",
+      "target": "backend_tests_conftest_client",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L20",
+      "weight": 1.0,
+      "source": "backend_tests_conftest",
+      "target": "backend_tests_conftest_db_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_mock_upstream_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_test_login_success_sets_cookie_and_me_returns_email",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L60",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_test_logout_clears_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L55",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_test_protected_route_without_session_returns_401",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_test_vb_auth_cookie_never_reaches_the_browser",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth",
+      "target": "backend_tests_test_auth_test_wrong_password_and_disallowed_email_return_identical_response",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth_test_login_success_sets_cookie_and_me_returns_email",
+      "target": "backend_tests_test_auth_mock_upstream_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth_test_logout_clears_session",
+      "target": "backend_tests_test_auth_mock_upstream_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L45",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth_test_vb_auth_cookie_never_reaches_the_browser",
+      "target": "backend_tests_test_auth_mock_upstream_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_auth.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "backend_tests_test_auth_test_wrong_password_and_disallowed_email_return_identical_response",
+      "target": "backend_tests_test_auth_mock_upstream_login",
       "confidence_score": 1.0
     },
     {
@@ -5536,5 +6378,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "a43f89a92ce861a64c95125b40d9fdfecb4b114e"
+  "built_at_commit": "04983d7c1648db5e4a7c251dd9b4ed8ab2b51cc6"
 }
