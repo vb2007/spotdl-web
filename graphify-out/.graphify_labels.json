@@ -14,6 +14,7 @@
   "12": "Deployment Hardening",
   "13": "devDependencies",
   "14": "Project: spotdl-web",
+  "15": "Setting up the self-hosted GitHub Actions runner",
   "16": "compilerOptions",
   "17": "Tables",
   "18": "v03 — Authentication",
@@ -84,5 +85,7 @@
   "83": "test_expansion.py",
   "84": "test_downloads.py",
   "85": "test_jobs.py",
-  "86": "reconcile_disk"
+  "86": "reconcile_disk",
+  "87": "conftest.py",
+  "88": "junit_to_summary.py"
 }

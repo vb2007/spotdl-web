@@ -1,0 +1,149 @@
+name: Backend tests
+
+# Runs on the self-hosted runner on the Debian 12 production host (see
+# docs/CI_SELF_HOSTED_RUNNER.md) — the same hardware/OS the app deploys to, not a GitHub-hosted
+# runner. `pull_request` covers every PR regardless of target branch (this project only ever PRs
+# into `main`); `workflow_dispatch` lets the runner setup itself be smoke-tested on demand.
+"on":
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: backend-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      # v7 targets Node 24 natively - v4 was flagged deprecated (targets Node 20, forced to run
+      # on 24 anyway) on this workflow's first real runs. Verified v7.0.1's action.yml directly
+      # (`runs: using: node24`) rather than assuming from the version bump alone.
+      - uses: actions/checkout@v7
+
+      # actions/setup-python's downloadable builds are keyed to specific GitHub-hosted OS
+      # images (Ubuntu/Windows/macOS) - there is no "Debian 12" entry in its manifest, so it
+      # fails outright on a bare Debian self-hosted runner:
+      #   ##[error]The version '3.12' with architecture 'x64' was not found for Debian 12.
+      # (confirmed by the first real run of this workflow). uv's own Python management
+      # downloads a portable, distro-agnostic CPython build instead (the same
+      # python-build-standalone project pyenv/rye use), so it works regardless of which
+      # Linux distro the runner host is on - no apt-level Python 3.12 package needs to exist
+      # for this distro at all. See docs/CI_SELF_HOSTED_RUNNER.md for the full explanation.
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      # Fresh venv every run (cheap with uv, and this is a persistent self-hosted disk, not an
+      # ephemeral hosted runner) — avoids dependency drift accumulating across job runs. Plain
+      # `pip install .` can't see pyproject.toml's [tool.uv] override-dependencies (needed
+      # because spotdl hard-pins fastapi/uvicorn for its own unused bundled web UI — see
+      # CLAUDE.md's v04 gotchas), so this needs uv's resolver, matching backend/Dockerfile.
+      #
+      # No actions/cache step needed for the interpreter or downloaded packages: uv already
+      # caches both under $HOME (~/.local/share/uv/python, ~/.cache/uv by default), and unlike
+      # a GitHub-hosted runner's disposable VM, this self-hosted runner's $HOME persists across
+      # runs — verified with two consecutive real runs (docs/CI_SELF_HOSTED_RUNNER.md has the
+      # exact before/after log lines). `--clear` above only recreates the workspace-local
+      # `.venv` (already wiped by actions/checkout's `git clean` every run regardless), not
+      # uv's own cache — a future Python/dependency version bump just adds new version-keyed
+      # cache entries alongside the old ones rather than invalidating anything.
+      # `report` (pytest-html, pytest-excel) is a separate optional-dependencies group from
+      # `dev` in pyproject.toml specifically so local `uv pip install ".[dev]"` doesn't drag in
+      # pandas/numpy/openpyxl just to run pytest — only this CI job needs it.
+      - name: Install Python 3.12 and dependencies
+        run: |
+          uv python install 3.12
+          uv venv --clear --python 3.12 .venv
+          uv pip install --python .venv/bin/python ".[dev,report]"
+
+      # No Postgres/Redis/ffmpeg service needed here — every test uses an in-memory SQLite
+      # engine and mocks any real spotdl/network call (see docs/CI_SELF_HOSTED_RUNNER.md for
+      # why, and what to add if a future test needs a real service).
+      #
+      # Generates three human-readable report formats alongside the terminal output: a
+      # self-contained HTML page, an ODS spreadsheet, and junit XML (the machine-readable input
+      # the publish-report job below turns into a job summary). `.ods` rather than `.xlsx` -
+      # pytest-excel writes via pandas' to_excel(), which auto-selects the write engine from
+      # the file extension (odfpy for .ods, see pyproject.toml's `report` extra); verified this
+      # produces a genuine OpenDocument Spreadsheet (`file report.ods` -> "OpenDocument
+      # Spreadsheet", re-read with pandas(engine="odf")) rather than an xlsx file with the
+      # wrong extension. Deliberately not `-x` / fail-fast — a partial report covering only the
+      # first failure defeats the point of a report.
+      - name: Run pytest
+        run: |
+          mkdir -p test-reports
+          .venv/bin/pytest -v \
+            --junit-xml=test-reports/junit.xml \
+            --html=test-reports/report.html --self-contained-html \
+            --excel-report=test-reports/report.ods
+
+      # Three separate artifacts, one per file, instead of one zip bundling all three -
+      # `archive: false` uploads the raw file as-is (the artifact's displayed name becomes the
+      # file's own name, ignoring `name:`); only a single file is allowed per artifact when
+      # `archive: false`, which is exactly the point here. `if: always()` on each - a test
+      # *failure* is exactly when the report is most worth having; only a failure to even
+      # produce the files (e.g. the install step itself breaking) should skip these, which
+      # if-no-files-found: warn turns into a visible warning instead of a second, confusing
+      # failure on top of whatever broke upstream.
+      - name: Upload junit.xml
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: backend/test-reports/junit.xml
+          if-no-files-found: warn
+          retention-days: 14
+          archive: false
+
+      - name: Upload report.html
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: backend/test-reports/report.html
+          if-no-files-found: warn
+          retention-days: 14
+          archive: false
+
+      - name: Upload report.ods
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: backend/test-reports/report.ods
+          if-no-files-found: warn
+          retention-days: 14
+          archive: false
+
+  publish-report:
+    needs: pytest
+    if: always()
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v7
+
+      # v8 targets Node 24 natively - same reasoning as the checkout/upload-artifact bumps
+      # above, verified the same way (action.yml directly). `pattern: "*"` +
+      # `merge-multiple: true` grabs all three separately-uploaded artifacts (junit.xml,
+      # report.html, report.ods) into one flat directory rather than naming each individually -
+      # avoids keeping upload/download steps in sync by artifact name.
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: "*"
+          path: test-reports
+          merge-multiple: true
+
+      # Renders junit.xml as a markdown table directly on the run's summary page — visible
+      # without downloading anything, complementing the downloadable HTML/Excel artifacts from
+      # the pytest job. Stdlib-only script (.github/scripts/junit_to_summary.py), so this job
+      # doesn't need the backend venv at all, just whatever python3 the runner already has.
+      #
+      # `|| true`: the script exits 1 when tests failed (useful running it standalone), but
+      # that must not fail *this* job - the pytest job above is already the authoritative
+      # pass/fail signal; this one's job is purely "did the summary get published".
+      - name: Publish job summary
+        run: python3 .github/scripts/junit_to_summary.py test-reports/junit.xml >> "$GITHUB_STEP_SUMMARY" || true

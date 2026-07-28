@@ -104,6 +104,7 @@ LAN IP into the production one (fragile if the Debian host's address ever change
 | Dedup | DB table keyed on Spotify track ID + disk reconciliation |
 | Extra levers (cookies file, own Spotify app creds, pacing delay) | None enabled initially; config hooks present, default off |
 | Deployment | Docker Compose stack on Debian 12 |
+| CI | Self-hosted GitHub Actions runner on the same Debian 12 production host (not GitHub-hosted) — `docs/CI_SELF_HOSTED_RUNNER.md` |
 
 ### Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)
 

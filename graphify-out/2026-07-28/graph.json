@@ -4,6 +4,26 @@
   "graph": {},
   "nodes": [
     {
+      "label": "junit_to_summary.py",
+      "file_type": "code",
+      "source_file": ".github/scripts/junit_to_summary.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "github_scripts_junit_to_summary",
+      "community": 88,
+      "norm_label": "junit_to_summary.py"
+    },
+    {
+      "label": "main()",
+      "file_type": "code",
+      "source_file": ".github/scripts/junit_to_summary.py",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "github_scripts_junit_to_summary_main",
+      "community": 88,
+      "norm_label": "main()"
+    },
+    {
       "label": "env.py",
       "file_type": "code",
       "source_file": "backend/alembic/env.py",
@@ -210,7 +230,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 82,
+      "community": 86,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -220,7 +240,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track_downloadedtrack",
-      "community": 82,
+      "community": 86,
       "norm_label": "downloadedtrack"
     },
     {
@@ -230,7 +250,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track_rationale_10",
-      "community": 82,
+      "community": 86,
       "norm_label": "dedup ledger, independent of `tracks` so it survives job/track deletion and powe"
     },
     {
@@ -797,7 +817,7 @@
       "label": "get_downloader()",
       "file_type": "code",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L26",
+      "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_services_downloads_get_downloader",
       "community": 12,
@@ -817,7 +837,7 @@
       "label": "download_one()",
       "file_type": "code",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L50",
+      "source_location": "L51",
       "_origin": "ast",
       "id": "backend_app_services_downloads_download_one",
       "community": 12,
@@ -857,9 +877,9 @@
       "label": "Must be called from a plain sync context \u2014 search_and_download raises     Downlo",
       "file_type": "rationale",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L51",
+      "source_location": "L52",
       "_origin": "ast",
-      "id": "backend_app_services_downloads_rationale_51",
+      "id": "backend_app_services_downloads_rationale_52",
       "community": 12,
       "norm_label": "must be called from a plain sync context \u2014 search_and_download raises     downlo"
     },
@@ -1060,7 +1080,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_download_download_track",
-      "community": 82,
+      "community": 86,
       "norm_label": "download_track()"
     },
     {
@@ -1213,7 +1233,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_dedup",
-      "community": 82,
+      "community": 86,
       "norm_label": "test_dedup.py"
     },
     {
@@ -1223,7 +1243,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession",
-      "community": 82,
+      "community": 86,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -1233,7 +1253,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession_init",
-      "community": 82,
+      "community": 86,
       "norm_label": ".__init__()"
     },
     {
@@ -1243,7 +1263,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession_getattr",
-      "community": 82,
+      "community": 86,
       "norm_label": ".__getattr__()"
     },
     {
@@ -1253,7 +1273,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession_close",
-      "community": 82,
+      "community": 86,
       "norm_label": ".close()"
     },
     {
@@ -1263,7 +1283,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_is_already_downloaded_returns_none_when_missing",
-      "community": 82,
+      "community": 86,
       "norm_label": "test_is_already_downloaded_returns_none_when_missing()"
     },
     {
@@ -1273,7 +1293,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_is_already_downloaded_returns_path_when_present",
-      "community": 82,
+      "community": 86,
       "norm_label": "test_is_already_downloaded_returns_path_when_present()"
     },
     {
@@ -1283,7 +1303,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
-      "community": 82,
+      "community": 86,
       "norm_label": "test_reconcile_disk_drops_rows_for_missing_files()"
     },
     {
@@ -1293,7 +1313,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_rationale_8",
-      "community": 82,
+      "community": 86,
       "norm_label": "wraps db_session so dedup's db.close() doesn't detach objects the test still"
     },
     {
@@ -1537,13 +1557,23 @@
       "norm_label": "test_download_one_delegates_to_search_and_download()"
     },
     {
+      "label": "test_download_one_ensures_spotify_client_before_downloading()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L79",
+      "_origin": "ast",
+      "id": "backend_tests_test_downloads_test_download_one_ensures_spotify_client_before_downloading",
+      "community": 84,
+      "norm_label": "test_download_one_ensures_spotify_client_before_downloading()"
+    },
+    {
       "label": "test_expand_task.py",
       "file_type": "code",
       "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task",
-      "community": 15,
+      "community": 82,
       "norm_label": "test_expand_task.py"
     },
     {
@@ -1553,7 +1583,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_fakesong",
-      "community": 15,
+      "community": 82,
       "norm_label": "_fakesong"
     },
     {
@@ -1563,7 +1593,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_fakesong_init",
-      "community": 15,
+      "community": 82,
       "norm_label": ".__init__()"
     },
     {
@@ -1573,7 +1603,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession",
-      "community": 15,
+      "community": 82,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -1583,7 +1613,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_init",
-      "community": 15,
+      "community": 82,
       "norm_label": ".__init__()"
     },
     {
@@ -1593,7 +1623,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_getattr",
-      "community": 15,
+      "community": 82,
       "norm_label": ".__getattr__()"
     },
     {
@@ -1603,7 +1633,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_close",
-      "community": 15,
+      "community": 82,
       "norm_label": ".close()"
     },
     {
@@ -1613,7 +1643,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_stub_download_track",
-      "community": 15,
+      "community": 82,
       "norm_label": "_stub_download_track()"
     },
     {
@@ -1623,7 +1653,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
-      "community": 15,
+      "community": 82,
       "norm_label": "test_expand_job_success_inserts_pending_tracks()"
     },
     {
@@ -1633,7 +1663,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
-      "community": 15,
+      "community": 82,
       "norm_label": "test_expand_job_failure_marks_job_failed_with_error()"
     },
     {
@@ -1643,7 +1673,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
-      "community": 15,
+      "community": 82,
       "norm_label": "test_expand_job_db_error_during_insert_marks_job_failed()"
     },
     {
@@ -1653,7 +1683,7 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
-      "community": 15,
+      "community": 82,
       "norm_label": "test_expand_job_unknown_job_is_a_noop()"
     },
     {
@@ -1663,7 +1693,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_rationale_15",
-      "community": 15,
+      "community": 82,
       "norm_label": "wraps db_session so expand_job's db.close() doesn't detach objects the test"
     },
     {
@@ -2440,7 +2470,7 @@
       "label": "Development environments",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L53",
+      "source_location": "L65",
       "_origin": "ast",
       "id": "claude_development_environments",
       "community": 14,
@@ -2450,7 +2480,7 @@
       "label": "Locked decisions",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L77",
+      "source_location": "L89",
       "_origin": "ast",
       "id": "claude_locked_decisions",
       "community": 14,
@@ -2460,7 +2490,7 @@
       "label": "Auth API \u2014 `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L96",
+      "source_location": "L109",
       "_origin": "ast",
       "id": "claude_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
       "community": 14,
@@ -2470,7 +2500,7 @@
       "label": "spotdl 4.5.2 \u2014 verified API surface actually used",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L114",
+      "source_location": "L127",
       "_origin": "ast",
       "id": "claude_spotdl_4_5_2_verified_api_surface_actually_used",
       "community": 14,
@@ -2480,7 +2510,7 @@
       "label": "Architecture",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L136",
+      "source_location": "L149",
       "_origin": "ast",
       "id": "claude_architecture",
       "community": 14,
@@ -2490,7 +2520,7 @@
       "label": "Track state machine",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L168",
+      "source_location": "L181",
       "_origin": "ast",
       "id": "claude_track_state_machine",
       "community": 14,
@@ -2500,7 +2530,7 @@
       "label": "Retry engine numbers",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L181",
+      "source_location": "L194",
       "_origin": "ast",
       "id": "claude_retry_engine_numbers",
       "community": 14,
@@ -2510,7 +2540,7 @@
       "label": "v01 deployment gotchas (learned deploying to the real host and local dev)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L195",
+      "source_location": "L208",
       "_origin": "ast",
       "id": "claude_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
       "community": 14,
@@ -2520,7 +2550,7 @@
       "label": "v02 schema gotchas (learned building the SQLAlchemy models + initial migration)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L234",
+      "source_location": "L247",
       "_origin": "ast",
       "id": "claude_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
       "community": 14,
@@ -2530,7 +2560,7 @@
       "label": "v03 auth gotchas (learned building the upstream login proxy + session cookie)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L274",
+      "source_location": "L287",
       "_origin": "ast",
       "id": "claude_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
       "community": 14,
@@ -2540,17 +2570,27 @@
       "label": "v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L319",
+      "source_location": "L332",
       "_origin": "ast",
       "id": "claude_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
       "community": 14,
       "norm_label": "v04 url-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)"
     },
     {
+      "label": "v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L408",
+      "_origin": "ast",
+      "id": "claude_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
+      "community": 14,
+      "norm_label": "v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)"
+    },
+    {
       "label": "Version roadmap",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L394",
+      "source_location": "L478",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -2585,6 +2625,126 @@
       "id": "readme_plan",
       "community": 78,
       "norm_label": "plan"
+    },
+    {
+      "label": "CI_SELF_HOSTED_RUNNER.md",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner",
+      "community": 15,
+      "norm_label": "ci_self_hosted_runner.md"
+    },
+    {
+      "label": "Setting up the self-hosted GitHub Actions runner",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "community": 15,
+      "norm_label": "setting up the self-hosted github actions runner"
+    },
+    {
+      "label": "Security considerations \u2014 read this before enabling the workflow",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L17",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_security_considerations_read_this_before_enabling_the_workflow",
+      "community": 15,
+      "norm_label": "security considerations \u2014 read this before enabling the workflow"
+    },
+    {
+      "label": "1. Download and register the runner (already done)",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L53",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_1_download_and_register_the_runner_already_done",
+      "community": 15,
+      "norm_label": "1. download and register the runner (already done)"
+    },
+    {
+      "label": "2. Install OS-level runner dependencies",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L71",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_2_install_os_level_runner_dependencies",
+      "community": 15,
+      "norm_label": "2. install os-level runner dependencies"
+    },
+    {
+      "label": "3. Run it as a persistent service, not an interactive session",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L81",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_3_run_it_as_a_persistent_service_not_an_interactive_session",
+      "community": 15,
+      "norm_label": "3. run it as a persistent service, not an interactive session"
+    },
+    {
+      "label": "4. Verify registration",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L94",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_4_verify_registration",
+      "community": 15,
+      "norm_label": "4. verify registration"
+    },
+    {
+      "label": "5. Project test dependencies",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L100",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_5_project_test_dependencies",
+      "community": 15,
+      "norm_label": "5. project test dependencies"
+    },
+    {
+      "label": "6. What the workflow actually runs",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L165",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_6_what_the_workflow_actually_runs",
+      "community": 15,
+      "norm_label": "6. what the workflow actually runs"
+    },
+    {
+      "label": "8. Human-readable test reports",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L190",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_8_human_readable_test_reports",
+      "community": 15,
+      "norm_label": "8. human-readable test reports"
+    },
+    {
+      "label": "7. Caching across runs \u2014 already automatic, no workflow change needed",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L217",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_7_caching_across_runs_already_automatic_no_workflow_change_needed",
+      "community": 15,
+      "norm_label": "7. caching across runs \u2014 already automatic, no workflow change needed"
+    },
+    {
+      "label": "Troubleshooting",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L267",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_troubleshooting",
+      "community": 15,
+      "norm_label": "troubleshooting"
     },
     {
       "label": "DEPLOYMENT.md",
@@ -4461,6 +4621,16 @@
   ],
   "links": [
     {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".github/scripts/junit_to_summary.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "github_scripts_junit_to_summary",
+      "target": "github_scripts_junit_to_summary_main",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -4699,7 +4869,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L35",
+      "source_location": "L36",
       "weight": 1.0,
       "source": "backend_app_services_downloads_get_downloader",
       "target": "backend_app_config_get_settings"
@@ -6465,7 +6635,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_app_services_downloads",
       "target": "backend_app_services_downloads_download_one",
@@ -6475,7 +6645,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L26",
+      "source_location": "L27",
       "weight": 1.0,
       "source": "backend_app_services_downloads",
       "target": "backend_app_services_downloads_get_downloader",
@@ -6496,7 +6666,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L39",
+      "source_location": "L40",
       "weight": 1.0,
       "source": "backend_app_services_downloads_get_downloader",
       "target": "backend_app_services_downloads_py_path",
@@ -6507,7 +6677,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L26",
+      "source_location": "L27",
       "weight": 1.0,
       "source": "backend_app_services_downloads_get_downloader",
       "target": "downloader",
@@ -6518,7 +6688,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_app_services_downloads_download_one",
       "target": "downloader",
@@ -6529,7 +6699,7 @@
       "context": "generic_arg",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_app_services_downloads_download_one",
       "target": "backend_app_services_downloads_py_path",
@@ -6540,19 +6710,30 @@
       "context": "generic_arg",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L50",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_app_services_downloads_download_one",
       "target": "backend_app_services_downloads_py_song",
       "confidence_score": 1.0
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L60",
+      "weight": 1.0,
+      "source": "backend_app_services_downloads_download_one",
+      "target": "backend_app_services_expansion_ensure_spotify_client"
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/downloads.py",
-      "source_location": "L51",
+      "source_location": "L52",
       "weight": 1.0,
-      "source": "backend_app_services_downloads_rationale_51",
+      "source": "backend_app_services_downloads_rationale_52",
       "target": "backend_app_services_downloads_download_one",
       "confidence_score": 1.0
     },
@@ -7251,6 +7432,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L79",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads",
+      "target": "backend_tests_test_downloads_test_download_one_ensures_spotify_client_before_downloading",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
       "source_location": "L36",
       "weight": 1.0,
       "source": "backend_tests_test_downloads",
@@ -7356,9 +7547,20 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_downloads.py",
-      "source_location": "L71",
+      "source_location": "L72",
       "weight": 1.0,
       "source": "backend_tests_test_downloads_test_download_one_delegates_to_search_and_download",
+      "target": "backend_tests_test_downloads_fakedownloader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_downloads.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "backend_tests_test_downloads_test_download_one_ensures_spotify_client_before_downloading",
       "target": "backend_tests_test_downloads_fakedownloader",
       "confidence_score": 1.0
     },
@@ -8399,7 +8601,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L136",
+      "source_location": "L149",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_architecture",
@@ -8409,7 +8611,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L96",
+      "source_location": "L109",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
@@ -8419,7 +8621,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L53",
+      "source_location": "L65",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_development_environments",
@@ -8429,7 +8631,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L77",
+      "source_location": "L89",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_locked_decisions",
@@ -8439,7 +8641,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L181",
+      "source_location": "L194",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_retry_engine_numbers",
@@ -8449,7 +8651,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L114",
+      "source_location": "L127",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_spotdl_4_5_2_verified_api_surface_actually_used",
@@ -8459,7 +8661,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L168",
+      "source_location": "L181",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_track_state_machine",
@@ -8469,7 +8671,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L195",
+      "source_location": "L208",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
@@ -8479,7 +8681,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L234",
+      "source_location": "L247",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
@@ -8489,7 +8691,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L274",
+      "source_location": "L287",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
@@ -8499,7 +8701,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L319",
+      "source_location": "L332",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
@@ -8509,7 +8711,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L394",
+      "source_location": "L408",
+      "weight": 1.0,
+      "source": "claude_project_spotdl_web",
+      "target": "claude_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L478",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -8573,6 +8785,116 @@
       "weight": 1.0,
       "source": "readme_spotdl_web",
       "target": "readme_plan",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner",
+      "target": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L53",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_1_download_and_register_the_runner_already_done",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L71",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_2_install_os_level_runner_dependencies",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_3_run_it_as_a_persistent_service_not_an_interactive_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L94",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_4_verify_registration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L100",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_5_project_test_dependencies",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L165",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_6_what_the_workflow_actually_runs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L217",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_7_caching_across_runs_already_automatic_no_workflow_change_needed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L190",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_8_human_readable_test_reports",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_security_considerations_read_this_before_enabling_the_workflow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L267",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_troubleshooting",
       "confidence_score": 1.0
     },
     {
@@ -9717,5 +10039,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "cadc8c8d61b3362abc24757897e13270e5f74fcf"
+  "built_at_commit": "98494c82e02026b052c16e25dee0608048be0814"
 }

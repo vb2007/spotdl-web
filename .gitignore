@@ -16,5 +16,8 @@
 backend/__pycache__/
 backend/**/__pycache__/
 backend/*.egg-info/
+backend/build/
 backend/.venv/
 backend/.pytest_cache/
+# pytest-html/pytest-excel/junit-xml output (backend-tests.yml's `report` extra)
+backend/test-reports/

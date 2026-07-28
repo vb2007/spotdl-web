@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785268461.2815154,
-    "ast_hash": "18d9a06bf1af5c9f44f75ef2c0618b45",
+    "mtime": 1785270444.0928872,
+    "ast_hash": "8df2b9ee99573fa046aa717619768af4",
     "semantic_hash": ""
   },
   "README.md": {
@@ -135,13 +135,13 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/celery_app.py": {
-    "mtime": 1785268145.2696166,
+    "mtime": 1785270178.1235595,
     "ast_hash": "70528e5e3b640e0f56e5330987c41045",
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
-    "mtime": 1785268097.04686,
-    "ast_hash": "384deedbbeafc26a5bcc73ca163f9d58",
+    "mtime": 1785273094.1357632,
+    "ast_hash": "49aed7eb0ea47f88c9c11f2649e10e1f",
     "semantic_hash": ""
   },
   "frontend/.vscode/extensions.json": {
@@ -200,12 +200,12 @@
     "semantic_hash": ""
   },
   "docker-compose.override.yml": {
-    "mtime": 1785268857.6270347,
+    "mtime": 1785270178.1235595,
     "ast_hash": "68dc61f0910b7afe6c9e1c8a65b66e2c",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1785268152.210871,
+    "mtime": 1785270178.1235595,
     "ast_hash": "d04acaa74c53d36781402caf22e08dfa",
     "semantic_hash": ""
   },
@@ -290,7 +290,7 @@
     "semantic_hash": ""
   },
   "backend/tests/conftest.py": {
-    "mtime": 1785268221.3414245,
+    "mtime": 1785270178.1235595,
     "ast_hash": "893ecf4b126f8a75713eb9f8bc4c8d47",
     "semantic_hash": ""
   },
@@ -310,12 +310,12 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/expand.py": {
-    "mtime": 1785268135.217249,
+    "mtime": 1785270178.1235595,
     "ast_hash": "b8c89f31eac493ca886ca3fca60bd221",
     "semantic_hash": ""
   },
   "backend/tests/test_expand_task.py": {
-    "mtime": 1785268193.8624053,
+    "mtime": 1785270178.1235595,
     "ast_hash": "afe8040f6d770cfca21cca6a7c443c79",
     "semantic_hash": ""
   },
@@ -330,33 +330,48 @@
     "semantic_hash": ""
   },
   "backend/app/services/dedup.py": {
-    "mtime": 1785268111.352379,
+    "mtime": 1785270178.1235595,
     "ast_hash": "a889965aab790c68d9347d6a09f4c217",
     "semantic_hash": ""
   },
   "backend/app/services/downloads.py": {
-    "mtime": 1785269012.0581822,
+    "mtime": 1785270178.1235595,
     "ast_hash": "0dcd2dab1c410b4a1874dd3f5393c956",
     "semantic_hash": ""
   },
   "backend/app/tasks/download.py": {
-    "mtime": 1785268119.5586777,
+    "mtime": 1785270178.1235595,
     "ast_hash": "f1c9a66c096606018f0160a496a6b19d",
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
-    "mtime": 1785268228.6356957,
+    "mtime": 1785272313.1367054,
     "ast_hash": "52569110229cc554850195171d1cf3b8",
     "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
-    "mtime": 1785268249.12646,
+    "mtime": 1785270178.1235595,
     "ast_hash": "55827b5ba8ca5ea156216ba5e3815443",
     "semantic_hash": ""
   },
   "backend/tests/test_downloads.py": {
-    "mtime": 1785269022.065582,
+    "mtime": 1785270178.1235595,
     "ast_hash": "1abaf256bfecab00324f2409116e1265",
+    "semantic_hash": ""
+  },
+  ".github/workflows/backend-tests.yml": {
+    "mtime": 1785273114.0185835,
+    "ast_hash": "510b8ee58ce712a156efc747bda92bc3",
+    "semantic_hash": ""
+  },
+  "docs/CI_SELF_HOSTED_RUNNER.md": {
+    "mtime": 1785273410.965831,
+    "ast_hash": "e702f48c4128111c45f47ce761dfc340",
+    "semantic_hash": ""
+  },
+  ".github/scripts/junit_to_summary.py": {
+    "mtime": 1785272290.6375718,
+    "ast_hash": "13259a2e7f438c6c7fe6dcbfa6407658",
     "semantic_hash": ""
   }
 }
