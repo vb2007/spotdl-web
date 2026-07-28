@@ -68,6 +68,26 @@ def test_expand_job_failure_marks_job_failed_with_error(db_session, monkeypatch)
     assert db_session.query(Track).filter(Track.job_id == job.id).count() == 0
 
 
+def test_expand_job_db_error_during_insert_marks_job_failed(db_session, monkeypatch):
+    job = Job(source_url="https://open.spotify.com/track/abc", source_type=JobSourceType.TRACK)
+    db_session.add(job)
+    db_session.commit()
+
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    # spotify_track_id is NOT NULL — a song missing it (e.g. a malformed list-expansion
+    # entry) must fail the job cleanly instead of crashing the task at commit() time.
+    monkeypatch.setattr(
+        expansion, "expand", lambda url: [_FakeSong(None, {"name": "Bad Song"})]
+    )
+
+    expand_task.expand_job(str(job.id))
+
+    updated = db_session.get(Job, job.id)
+    assert updated.state == JobState.FAILED
+    assert updated.error
+    assert db_session.query(Track).filter(Track.job_id == job.id).count() == 0
+
+
 def test_expand_job_unknown_job_is_a_noop(db_session, monkeypatch):
     monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
 

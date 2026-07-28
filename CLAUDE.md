@@ -361,6 +361,27 @@ any ──> cancelled
   staying in `pending`. `worker-dl` also registers `expand_job` in its task list (it imports the
   same `celery_app` module) but never runs it — `task_routes` still confines it to the `meta`
   queue only worker-meta consumes.
+- **The `except Exception` in `expand_job` originally only wrapped `expansion.expand()` itself,
+  not the per-song `Track` insert loop or the final `db.commit()`.** Caught by an independent
+  review pass: a song with `spotify_track_id=None` (e.g. a malformed list-expansion entry —
+  `Track.spotify_track_id` is `nullable=False`) raised an uncaught `IntegrityError` at commit
+  time, crashing the task with no `job.error` set and no state transition — the job would sit in
+  `expanding` forever with nothing in the UI explaining why (Celery's default ack-on-receipt means
+  no retry either). Fixed by widening the `try` to cover the insert loop + commit, with a
+  `db.rollback()` before recording the failure. Regression test:
+  `test_expand_job_db_error_during_insert_marks_job_failed` (confirmed it fails against the
+  pre-fix code). **Any future code added to `expand_job` between "call expansion.expand()" and
+  "commit" must stay inside that same `try`** — the whole point is that nothing about turning
+  Songs into Track rows should be able to leave a job stuck silently.
+- Two lower-severity items surfaced by that same review, deliberately **not** fixed in v04 —
+  noted here so they aren't re-discovered from scratch later:
+  - `job.source_url` reaches spotdl's `get_simple_songs` raw, which has branches beyond Spotify/
+    YouTube URL parsing: a string ending in `.spotdl` is opened as a **local file** and JSON-
+    parsed, and a `spotify.link/...` string triggers an outbound `requests.head(..., allow_redirects=True)`.
+    Low impact today — single-user, allowlisted, and `worker-meta` has no volumes mounted — but
+    worth knowing before this endpoint's trust model changes.
+  - `GET /api/jobs` runs one grouped-count query per job (N+1) via `_track_counts` — fine at
+    current scale, revisit if job history grows large (no pagination either).
 
 ### Version roadmap
 

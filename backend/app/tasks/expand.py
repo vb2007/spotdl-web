@@ -20,24 +20,25 @@ def expand_job(job_id: str) -> None:
 
         try:
             songs = expansion.expand(job.source_url)
+            for song in songs:
+                db.add(
+                    Track(
+                        job_id=job.id,
+                        spotify_track_id=song.song_id,
+                        song_json=song.json,
+                    )
+                )
+            job.state = JobState.EXPANDED
+            db.commit()
         except Exception as exc:
-            # get_simple_songs raises assorted exception types (QueryError, SpotifyError,
-            # ValueError, network errors) for malformed/unreachable URLs — all terminal here.
+            # Covers both expansion.expand() itself (assorted exception types spotdl raises
+            # for malformed/unreachable URLs) and any DB error while inserting tracks (e.g. a
+            # NOT NULL violation from a song missing spotify_track_id) — either way the job
+            # must land in `failed` with a readable error, never hang in `expanding` forever.
             logger.warning("expand_job: job %s failed to expand: %s", job_id, exc)
+            db.rollback()
             job.state = JobState.FAILED
             job.error = str(exc)
             db.commit()
-            return
-
-        for song in songs:
-            db.add(
-                Track(
-                    job_id=job.id,
-                    spotify_track_id=song.song_id,
-                    song_json=song.json,
-                )
-            )
-        job.state = JobState.EXPANDED
-        db.commit()
     finally:
         db.close()
