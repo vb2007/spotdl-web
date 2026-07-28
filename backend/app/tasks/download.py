@@ -1,12 +1,13 @@
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from spotdl.types.song import Song
 
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import DownloadedTrack, Track, TrackState
-from app.services import dedup, downloads
+from app.services import dedup, downloads, retry
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,17 @@ def download_track(track_id: str) -> None:
             logger.warning("download_track: track %s not found", track_id)
             return
 
+        # Covers the race where this task was already enqueued just before the breaker
+        # tripped (or the worker was paused) — dispatch_due_tracks is the primary gate and
+        # normally won't enqueue in this state at all.
+        now = datetime.now(timezone.utc)
+        worker_state = retry.get_worker_state(db)
+        if retry.breaker_active(worker_state, now):
+            track.state = TrackState.WAITING
+            track.scheduled_at = worker_state.breaker_tripped_until or (now + retry.next_delay(0))
+            db.commit()
+            return
+
         existing_path = dedup.is_already_downloaded(track.spotify_track_id)
         if existing_path is not None:
             track.state = TrackState.SKIPPED_DUPLICATE
@@ -32,6 +44,10 @@ def download_track(track_id: str) -> None:
         db.commit()
 
         settings = get_settings()
+        # Proxy escalation seam: second+ attempts should prefer a proxy once one exists.
+        # TODO(v07): draw a proxy from the pool when use_proxy is True and pass it to
+        # get_downloader — no pool exists yet, so this only marks the decision point.
+        use_proxy = track.attempt_count >= 1  # noqa: F841
         try:
             song = Song.from_dict(track.song_json)
             downloader = downloads.get_downloader(settings.default_format, settings.default_bitrate)
@@ -49,17 +65,14 @@ def download_track(track_id: str) -> None:
                     bitrate=settings.default_bitrate,
                 )
             )
+            retry.record_success(db, track)
             db.commit()
         except Exception as exc:
-            # v06 replaces this branch with ladder/breaker error classification
-            # (AudioProviderError vs LookupError vs other) — for now every failure is
-            # naive: log it fully and mark the track failed, without taking down the
-            # rest of the job's tracks.
             logger.exception("download_track: track %s failed", track_id)
             db.rollback()
             track = db.get(Track, uuid.UUID(track_id))
-            track.state = TrackState.FAILED
-            track.last_error = str(exc)
+            error_type = retry.classify_error(exc)
+            retry.record_failure(db, track, error_type, str(exc))
             db.commit()
     finally:
         db.close()

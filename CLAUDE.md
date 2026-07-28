@@ -475,6 +475,62 @@ any ──> cancelled
   entry would otherwise sit alongside the named-volume mount at the same `/downloads` target.
   `/downloads/` is gitignored at the project root.
 
+### v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch)
+
+- **`app/services/retry.py`'s `next_delay(attempt_count)` reads `attempt_count` as "failures
+  *before* this one" (0 on the very first failure), not the post-increment count.**
+  `record_failure` computes the delay before incrementing `track.attempt_count`, then increments
+  and stores `scheduled_at`. Doing it in the other order (increment first, then look up the delay
+  with the new count) silently skips the ladder's first rung — first failure would jump straight
+  to the 1h step instead of 15m, contradicting the sequence this file's own "Retry engine numbers"
+  section documents. Any future change to `record_failure`'s ordering needs to preserve
+  compute-delay-then-increment, not the reverse.
+- **The "other" error bucket shares the ladder with `audio_provider` but never touches
+  `worker_state.consecutive_failures` or calls `maybe_trip_breaker()`.** Only a real
+  `AudioProviderError` feeds the breaker — it exists specifically for YT-Music rate-limit
+  detection, and letting unrelated exceptions (a bad proxy string, a transient KeyError) count
+  toward it would trip a rate-limit-shaped pause for a problem that isn't rate-limiting.
+- **`WorkerState.breaker_tripped_until` needs the same naive-vs-aware normalization as the v03
+  `UserSession.last_seen_at` gotcha, but this time it also matters against real Postgres-shaped
+  *application* logic, not just SQLite tests** — `retry.breaker_active()` explicitly
+  `.replace(tzinfo=timezone.utc)`s a naive value before comparing against `datetime.now(timezone.utc)`,
+  needed purely for the SQLite test path (`db_session` fixture); a no-op against real
+  Postgres/psycopg. Any future code comparing `breaker_tripped_until` directly (rather than through
+  `breaker_active()`) needs the same guard.
+- **A fresh Python process that imports `app.tasks.download` (or anything else under `app.tasks`)
+  directly, instead of importing `app.tasks.celery_app` first, hits a circular `ImportError`:**
+  `download.py` imports `celery_app`, whose own module-bottom import order is
+  `download` → `expand` → `beat`; if `download` is still mid-import when that chain re-enters it,
+  `expand.py`'s `from app.tasks.download import download_track` fails because `download_track`
+  isn't defined on the partially-initialized module yet. This is pre-existing since v04/v05 (`expand.py`
+  already imported `download_track` this way) and wasn't introduced by v06's `beat.py`, but it
+  surfaced while writing ad-hoc fault-injection scripts for this version's real-stack verification.
+  Fix: any one-off script reaching into `app.tasks.*` must `import app.tasks.celery_app` (or run
+  via the real `celery -A app.tasks.celery_app ...` entry point) before importing any task module
+  directly — this is also simply the realistic way the app is ever actually entered.
+- **`dispatch_due_tracks` needs no `task_routes` entry** — it has no download-shaped work of its
+  own (only enqueues `download_track`, which *is* routed to `downloads`), so it's fine falling
+  into the existing `task_default_queue="meta"`, consumed by `worker-meta` alongside
+  expansion/reconciliation — matches the architecture doc's meta/downloads split.
+- **No `FAULT_INJECT` env var or equivalent hook exists** — the plan's "Done when" checklist
+  assumed one might be needed; in practice, verifying the ladder/breaker/restart-survival/
+  terminal-lookup behaviors against the real stack was done by `docker compose cp`-ing small
+  ad-hoc scripts into `worker-dl` that monkeypatch `app.services.downloads.download_one` /
+  `app.services.dedup.is_already_downloaded` in-process and call `download_task.download_track(...)`
+  and `beat_task.dispatch_due_tracks()` directly against the real Postgres instance (not through
+  Celery's broker) — real DB, real schema, real enum/timestamptz behavior, deterministic fault
+  triggering, no dependency on actual YouTube-Music rate limiting timing. Verified this way: full
+  ladder progression 5s→10s→15s→20s→30s (with `LADDER_SECONDS` shortened) settling at the final
+  step forever after breaker-clear; breaker trips at exactly 5 consecutive `AudioProviderError`s
+  and `dispatch_due_tracks` dispatches nothing while tripped; a manual `record_success` call clears
+  the trip and resets the counter, after which dispatch resumes; a `LookupError` track lands
+  `lookup_failed` with `scheduled_at` staying `NULL` and is never touched by later
+  `dispatch_due_tracks` runs; and — the specific "verified via SQL, not logs" bullet — a track
+  scheduled 90s out had `docker compose restart worker-dl beat` run mid-wait, with `scheduled_at`
+  confirmed byte-identical via a direct SQL/ORM query taken immediately before and immediately
+  after the restart (proving Postgres's `scheduled_at`, not Celery/Redis, is what survived), before
+  beat resumed dispatching it on schedule once due.
+
 ### Version roadmap
 
 | # | Branch | Scope |

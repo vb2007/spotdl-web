@@ -1,8 +1,11 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from app.models import DownloadedTrack, Job, JobSourceType, Track, TrackState
-from app.services import dedup, downloads
+from spotdl.providers.audio.base import AudioProviderError
+
+from app.models import DownloadedTrack, Job, JobSourceType, Track, TrackErrorType, TrackState, WorkerState
+from app.services import dedup, downloads, retry
 from app.tasks import download as download_task
 
 
@@ -83,7 +86,7 @@ def test_download_track_success_marks_completed_and_upserts_ledger(db_session, m
     assert ledger_row.bitrate == "320k"
 
 
-def test_download_track_failure_marks_failed_with_error(db_session, monkeypatch):
+def test_download_track_other_error_reschedules_to_waiting(db_session, monkeypatch):
     track = _make_track(db_session)
     _patch_common(monkeypatch, db_session)
 
@@ -98,9 +101,103 @@ def test_download_track_failure_marks_failed_with_error(db_session, monkeypatch)
     download_task.download_track(str(track.id))
 
     updated = db_session.get(Track, track.id)
-    assert updated.state == TrackState.FAILED
+    assert updated.state == TrackState.WAITING
     assert updated.last_error == "provider exploded"
+    assert updated.last_error_type == TrackErrorType.OTHER
+    assert updated.attempt_count == 1
+    assert updated.scheduled_at is not None
     assert db_session.get(DownloadedTrack, "abc123") is None
+
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.consecutive_failures == 0
+
+
+def test_download_track_audio_provider_error_feeds_breaker(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate: "fake-downloader")
+
+    def fake_download_one(song, downloader):
+        raise AudioProviderError("rate limited")
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.WAITING
+    assert updated.last_error_type == TrackErrorType.AUDIO_PROVIDER
+    assert updated.attempt_count == 1
+
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.consecutive_failures == 1
+
+
+def test_download_track_lookup_error_is_terminal(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate: "fake-downloader")
+
+    def fake_download_one(song, downloader):
+        raise LookupError("no result on any provider")
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.LOOKUP_FAILED
+    assert updated.last_error_type == TrackErrorType.LOOKUP
+    assert updated.scheduled_at is None
+
+
+def test_download_track_success_resets_breaker_state(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = 3
+    worker_state.breaker_trip_count = 1
+    db_session.commit()
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate: "fake-downloader")
+    monkeypatch.setattr(
+        downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
+    )
+
+    download_task.download_track(str(track.id))
+
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.consecutive_failures == 0
+    assert worker_state.breaker_trip_count == 0
+
+
+def test_download_track_skips_entirely_while_breaker_tripped(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+
+    tripped_until = datetime.now(timezone.utc) + timedelta(hours=1)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = tripped_until
+    db_session.commit()
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("dedup should not be checked while the breaker is tripped")
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", _fail_if_called)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.WAITING
+    # SQLite round-trips this timestamptz column as naive (see v02/v03 gotchas); a no-op
+    # against real Postgres/psycopg.
+    assert updated.scheduled_at.replace(tzinfo=timezone.utc) == tripped_until
 
 
 def test_download_track_unknown_track_is_a_noop(db_session, monkeypatch):
