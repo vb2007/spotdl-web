@@ -2697,10 +2697,20 @@
       "norm_label": "6. what the workflow actually runs"
     },
     {
+      "label": "7. Caching across runs \u2014 already automatic, no workflow change needed",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L181",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_7_caching_across_runs_already_automatic_no_workflow_change_needed",
+      "community": 15,
+      "norm_label": "7. caching across runs \u2014 already automatic, no workflow change needed"
+    },
+    {
       "label": "Troubleshooting",
       "file_type": "document",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L183",
+      "source_location": "L231",
       "_origin": "ast",
       "id": "docs_ci_self_hosted_runner_troubleshooting",
       "community": 15,
@@ -8811,6 +8821,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L181",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_7_caching_across_runs_already_automatic_no_workflow_change_needed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
       "source_location": "L17",
       "weight": 1.0,
       "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
@@ -8821,7 +8841,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L183",
+      "source_location": "L231",
       "weight": 1.0,
       "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
       "target": "docs_ci_self_hosted_runner_troubleshooting",
@@ -9969,5 +9989,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "90b43bfd3fbc4aa851bdca9b0b51887d8dbe89a6"
+  "built_at_commit": "7e1a53cdf69ab4e092bcbec7b055a38b0f7b766a"
 }

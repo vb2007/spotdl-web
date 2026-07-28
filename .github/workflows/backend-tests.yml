@@ -54,14 +54,63 @@ jobs:
       # `.venv` (already wiped by actions/checkout's `git clean` every run regardless), not
       # uv's own cache — a future Python/dependency version bump just adds new version-keyed
       # cache entries alongside the old ones rather than invalidating anything.
+      # `report` (pytest-html, pytest-excel) is a separate optional-dependencies group from
+      # `dev` in pyproject.toml specifically so local `uv pip install ".[dev]"` doesn't drag in
+      # pandas/numpy/openpyxl just to run pytest — only this CI job needs it.
       - name: Install Python 3.12 and dependencies
         run: |
           uv python install 3.12
           uv venv --clear --python 3.12 .venv
-          uv pip install --python .venv/bin/python ".[dev]"
+          uv pip install --python .venv/bin/python ".[dev,report]"
 
       # No Postgres/Redis/ffmpeg service needed here — every test uses an in-memory SQLite
       # engine and mocks any real spotdl/network call (see docs/CI_SELF_HOSTED_RUNNER.md for
       # why, and what to add if a future test needs a real service).
+      #
+      # Generates three human-readable report formats alongside the terminal output: a
+      # self-contained HTML page, an Excel sheet, and junit XML (the machine-readable input the
+      # publish-report job below turns into a job summary). Deliberately not `-x` / fail-fast —
+      # a partial report covering only the first failure defeats the point of a report.
       - name: Run pytest
-        run: .venv/bin/pytest -v
+        run: |
+          mkdir -p test-reports
+          .venv/bin/pytest -v \
+            --junit-xml=test-reports/junit.xml \
+            --html=test-reports/report.html --self-contained-html \
+            --excel-report=test-reports/report.xlsx
+
+      # `if: always()` - a test *failure* is exactly when the report is most worth having;
+      # only a failure to even produce the files (e.g. the install step itself breaking) should
+      # skip this, which if-no-files-found: warn turns into a visible warning instead of a
+      # second, confusing failure on top of whatever broke upstream.
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: backend/test-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  publish-report:
+    needs: pytest
+    if: always()
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend-test-reports
+          path: test-reports
+
+      # Renders junit.xml as a markdown table directly on the run's summary page — visible
+      # without downloading anything, complementing the downloadable HTML/Excel artifacts from
+      # the pytest job. Stdlib-only script (.github/scripts/junit_to_summary.py), so this job
+      # doesn't need the backend venv at all, just whatever python3 the runner already has.
+      #
+      # `|| true`: the script exits 1 when tests failed (useful running it standalone), but
+      # that must not fail *this* job - the pytest job above is already the authoritative
+      # pass/fail signal; this one's job is purely "did the summary get published".
+      - name: Publish job summary
+        run: python3 .github/scripts/junit_to_summary.py test-reports/junit.xml >> "$GITHUB_STEP_SUMMARY" || true
