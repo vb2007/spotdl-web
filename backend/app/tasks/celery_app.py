@@ -1,4 +1,7 @@
+import os
+
 from celery import Celery
+from celery.signals import worker_ready
 from kombu import Queue
 
 from app.config import get_settings
@@ -19,4 +22,17 @@ celery_app.conf.update(
 
 # Importing task modules here (after celery_app is defined) registers their @celery_app.task
 # decorators with this app — required since the worker command doesn't pass --include.
+from app.tasks import download  # noqa: E402,F401
 from app.tasks import expand  # noqa: E402,F401
+
+
+@worker_ready.connect
+def _reconcile_disk_on_boot(**kwargs) -> None:
+    # Gated by an explicit env var (set only on worker-meta in docker-compose.yml) rather
+    # than introspecting which queues this process consumes — reconciliation is a
+    # worker-meta concern (see Architecture notes in CLAUDE.md), and this keeps that
+    # scoping visible in compose config instead of buried in Celery internals.
+    if os.environ.get("RUN_DISK_RECONCILE") == "true":
+        from app.services.dedup import reconcile_disk
+
+        reconcile_disk()

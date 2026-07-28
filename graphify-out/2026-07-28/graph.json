@@ -330,7 +330,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_session",
-      "community": 37,
+      "community": 79,
       "norm_label": "session.py"
     },
     {
@@ -590,7 +590,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_jobs",
-      "community": 15,
+      "community": 37,
       "norm_label": "jobs.py"
     },
     {
@@ -600,7 +600,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_createjobrequest",
-      "community": 15,
+      "community": 37,
       "norm_label": "createjobrequest"
     },
     {
@@ -610,7 +610,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_classify_source_type",
-      "community": 15,
+      "community": 37,
       "norm_label": "_classify_source_type()"
     },
     {
@@ -620,7 +620,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_track_counts",
-      "community": 15,
+      "community": 37,
       "norm_label": "_track_counts()"
     },
     {
@@ -630,7 +630,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_py_session",
-      "community": 15,
+      "community": 37,
       "norm_label": "session"
     },
     {
@@ -640,7 +640,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "uuid",
-      "community": 15,
+      "community": 79,
       "norm_label": "uuid"
     },
     {
@@ -650,7 +650,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_job_to_dict",
-      "community": 15,
+      "community": 37,
       "norm_label": "_job_to_dict()"
     },
     {
@@ -660,7 +660,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_track_to_dict",
-      "community": 15,
+      "community": 37,
       "norm_label": "_track_to_dict()"
     },
     {
@@ -670,7 +670,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_create_job",
-      "community": 15,
+      "community": 37,
       "norm_label": "create_job()"
     },
     {
@@ -680,7 +680,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_jobs",
-      "community": 15,
+      "community": 37,
       "norm_label": "list_jobs()"
     },
     {
@@ -690,7 +690,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_get_job_or_404",
-      "community": 15,
+      "community": 37,
       "norm_label": "_get_job_or_404()"
     },
     {
@@ -700,7 +700,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_get_job",
-      "community": 15,
+      "community": 37,
       "norm_label": "get_job()"
     },
     {
@@ -710,7 +710,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_job_tracks",
-      "community": 15,
+      "community": 37,
       "norm_label": "list_job_tracks()"
     },
     {
@@ -900,7 +900,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 15,
+      "community": 79,
       "norm_label": "expand.py"
     },
     {
@@ -1127,10 +1127,20 @@
       "norm_label": "test_expand_job_failure_marks_job_failed_with_error()"
     },
     {
-      "label": "test_expand_job_unknown_job_is_a_noop()",
+      "label": "test_expand_job_db_error_during_insert_marks_job_failed()",
       "file_type": "code",
       "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L71",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "community": 15,
+      "norm_label": "test_expand_job_db_error_during_insert_marks_job_failed()"
+    },
+    {
+      "label": "test_expand_job_unknown_job_is_a_noop()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L91",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
       "community": 15,
@@ -1233,7 +1243,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_jobs",
-      "community": 82,
+      "community": 15,
       "norm_label": "test_jobs.py"
     },
     {
@@ -1243,7 +1253,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_login",
-      "community": 82,
+      "community": 15,
       "norm_label": "_login()"
     },
     {
@@ -1253,7 +1263,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_stub_expand_job",
-      "community": 82,
+      "community": 15,
       "norm_label": "_stub_expand_job()"
     },
     {
@@ -1263,7 +1273,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_create_job_enqueues_expansion_and_returns_expanding_state",
-      "community": 82,
+      "community": 15,
       "norm_label": "test_create_job_enqueues_expansion_and_returns_expanding_state()"
     },
     {
@@ -1273,7 +1283,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_create_job_classifies_source_type_from_url",
-      "community": 82,
+      "community": 15,
       "norm_label": "test_create_job_classifies_source_type_from_url()"
     },
     {
@@ -1283,7 +1293,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_list_and_get_job_include_track_counts",
-      "community": 82,
+      "community": 15,
       "norm_label": "test_list_and_get_job_include_track_counts()"
     },
     {
@@ -1293,7 +1303,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_list_job_tracks_projects_display_fields_and_stays_pending",
-      "community": 82,
+      "community": 15,
       "norm_label": "test_list_job_tracks_projects_display_fields_and_stays_pending()"
     },
     {
@@ -1303,7 +1313,7 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_get_unknown_job_returns_404",
-      "community": 82,
+      "community": 15,
       "norm_label": "test_get_unknown_job_returns_404()"
     },
     {
@@ -1313,7 +1323,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_jobs_endpoints_require_session",
-      "community": 82,
+      "community": 15,
       "norm_label": "test_jobs_endpoints_require_session()"
     },
     {
@@ -2017,10 +2027,20 @@
       "norm_label": "v03 auth gotchas (learned building the upstream login proxy + session cookie)"
     },
     {
-      "label": "Version roadmap",
+      "label": "v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L311",
+      "_origin": "ast",
+      "id": "claude_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
+      "community": 14,
+      "norm_label": "v04 url-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)"
+    },
+    {
+      "label": "Version roadmap",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L386",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -2033,7 +2053,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme",
-      "community": 14,
+      "community": 78,
       "norm_label": "readme.md"
     },
     {
@@ -2043,7 +2063,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme_spotdl_web",
-      "community": 14,
+      "community": 78,
       "norm_label": "spotdl-web"
     },
     {
@@ -2053,7 +2073,7 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "readme_plan",
-      "community": 14,
+      "community": 78,
       "norm_label": "plan"
     },
     {
@@ -2063,7 +2083,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_deployment",
-      "community": 14,
+      "community": 78,
       "norm_label": "deployment.md"
     },
     {
@@ -2183,7 +2203,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_local_dev",
-      "community": 14,
+      "community": 78,
       "norm_label": "local_dev.md"
     },
     {
@@ -2193,7 +2213,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_local_dev_local_development_environment",
-      "community": 14,
+      "community": 78,
       "norm_label": "local development environment"
     },
     {
@@ -2203,7 +2223,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "docs_local_dev_1_configure_env",
-      "community": 14,
+      "community": 78,
       "norm_label": "1. configure `.env`"
     },
     {
@@ -2213,7 +2233,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "docs_local_dev_2_bring_up_the_stack",
-      "community": 14,
+      "community": 78,
       "norm_label": "2. bring up the stack"
     },
     {
@@ -2223,7 +2243,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "docs_local_dev_3_verify",
-      "community": 14,
+      "community": 78,
       "norm_label": "3. verify"
     },
     {
@@ -2233,7 +2253,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "docs_local_dev_4_when_a_version_is_ready",
-      "community": 14,
+      "community": 78,
       "norm_label": "4. when a version is ready"
     },
     {
@@ -2243,7 +2263,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "docs_local_dev_once_there_s_real_data_worth_protecting",
-      "community": 14,
+      "community": 78,
       "norm_label": "once there's real data worth protecting"
     },
     {
@@ -2253,7 +2273,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "docs_local_dev_troubleshooting",
-      "community": 14,
+      "community": 78,
       "norm_label": "troubleshooting"
     },
     {
@@ -2313,7 +2333,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "plan_00_master_plan",
-      "community": 14,
+      "community": 78,
       "norm_label": "00-master-plan.md"
     },
     {
@@ -4650,6 +4670,17 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L85",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L65",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
@@ -4939,9 +4970,20 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L34",
+      "source_location": "L25",
       "weight": 1.0,
       "source": "backend_app_tasks_expand_expand_job",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
       "target": "backend_app_models_track_track"
     },
     {
@@ -5928,6 +5970,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L71",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L51",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task",
@@ -5948,7 +6000,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L71",
+      "source_location": "L91",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task",
       "target": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
@@ -5962,6 +6014,17 @@
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_fakesong",
       "target": "backend_tests_test_expand_task_fakesong_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L80",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "target": "backend_tests_test_expand_task_fakesong",
       "confidence_score": 1.0
     },
     {
@@ -6020,6 +6083,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L76",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L56",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
@@ -6042,7 +6116,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L72",
+      "source_location": "L92",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
       "target": "backend_tests_test_expand_task_nonclosingsession",
@@ -6945,6 +7019,16 @@
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
       "source_location": "L311",
+      "weight": 1.0,
+      "source": "claude_project_spotdl_web",
+      "target": "claude_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L386",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -8152,5 +8236,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "e46a6ff525ff67a44e0e449253dffcf29a69395c"
+  "built_at_commit": "5accb40a8e23350ae89fe47243be620542362ed7"
 }

@@ -42,6 +42,11 @@ services:
   worker-meta:
     <<: *backend
     command: ["celery", "-A", "app.tasks.celery_app", "worker", "-Q", "meta", "-l", "info"]
+    environment:
+      # reconcile_disk() runs on worker-meta boot only — see celery_app.py.
+      RUN_DISK_RECONCILE: "true"
+    volumes:
+      - downloads:/downloads
 
   beat:
     <<: *backend
