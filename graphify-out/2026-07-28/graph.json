@@ -933,7 +933,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme",
-      "community": 14,
+      "community": 2,
       "norm_label": "readme.md"
     },
     {
@@ -943,7 +943,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme_spotdl_web",
-      "community": 14,
+      "community": 2,
       "norm_label": "spotdl-web"
     },
     {
@@ -953,18 +953,138 @@
       "source_location": "L4",
       "_origin": "ast",
       "id": "readme_plan",
-      "community": 14,
+      "community": 2,
       "norm_label": "plan"
     },
     {
       "label": "Running locally",
       "file_type": "document",
       "source_file": "README.md",
-      "source_location": "L10",
+      "source_location": "L12",
       "_origin": "ast",
       "id": "readme_running_locally",
-      "community": 14,
+      "community": 2,
       "norm_label": "running locally"
+    },
+    {
+      "label": "DEPLOYMENT.md",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_deployment",
+      "community": 2,
+      "norm_label": "deployment.md"
+    },
+    {
+      "label": "Deploying spotdl-web (v01 \u2014 scaffold) to the Debian 12 host",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "community": 78,
+      "norm_label": "deploying spotdl-web (v01 \u2014 scaffold) to the debian 12 host"
+    },
+    {
+      "label": "1. Install PostgreSQL (host-native \u2014 not a container)",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "docs_deployment_1_install_postgresql_host_native_not_a_container",
+      "community": 78,
+      "norm_label": "1. install postgresql (host-native \u2014 not a container)"
+    },
+    {
+      "label": "2. Create the role and database",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L29",
+      "_origin": "ast",
+      "id": "docs_deployment_2_create_the_role_and_database",
+      "community": 78,
+      "norm_label": "2. create the role and database"
+    },
+    {
+      "label": "3. Let Docker containers reach Postgres",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L56",
+      "_origin": "ast",
+      "id": "docs_deployment_3_let_docker_containers_reach_postgres",
+      "community": 78,
+      "norm_label": "3. let docker containers reach postgres"
+    },
+    {
+      "label": "4. Install Docker + the Compose plugin",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L82",
+      "_origin": "ast",
+      "id": "docs_deployment_4_install_docker_the_compose_plugin",
+      "community": 78,
+      "norm_label": "4. install docker + the compose plugin"
+    },
+    {
+      "label": "5. Clone the repo",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L117",
+      "_origin": "ast",
+      "id": "docs_deployment_5_clone_the_repo",
+      "community": 78,
+      "norm_label": "5. clone the repo"
+    },
+    {
+      "label": "6. Configure `.env`",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L127",
+      "_origin": "ast",
+      "id": "docs_deployment_6_configure_env",
+      "community": 78,
+      "norm_label": "6. configure `.env`"
+    },
+    {
+      "label": "7. Bring up the stack",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L153",
+      "_origin": "ast",
+      "id": "docs_deployment_7_bring_up_the_stack",
+      "community": 78,
+      "norm_label": "7. bring up the stack"
+    },
+    {
+      "label": "8. Verify",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L165",
+      "_origin": "ast",
+      "id": "docs_deployment_8_verify",
+      "community": 78,
+      "norm_label": "8. verify"
+    },
+    {
+      "label": "Firewall / network notes",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L188",
+      "_origin": "ast",
+      "id": "docs_deployment_firewall_network_notes",
+      "community": 78,
+      "norm_label": "firewall / network notes"
+    },
+    {
+      "label": "Troubleshooting",
+      "file_type": "document",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L215",
+      "_origin": "ast",
+      "id": "docs_deployment_troubleshooting",
+      "community": 78,
+      "norm_label": "troubleshooting"
     },
     {
       "label": "README.md",
@@ -1023,7 +1143,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "plan_00_master_plan",
-      "community": 14,
+      "community": 2,
       "norm_label": "00-master-plan.md"
     },
     {
@@ -3432,6 +3552,16 @@
       "relation": "references",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "readme",
+      "target": "docs_deployment",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "README.md",
       "source_location": "L7",
       "weight": 1.0,
       "source": "readme",
@@ -3462,10 +3592,120 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "README.md",
-      "source_location": "L10",
+      "source_location": "L12",
       "weight": 1.0,
       "source": "readme_spotdl_web",
       "target": "readme_running_locally",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "docs_deployment",
+      "target": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "target": "docs_deployment_1_install_postgresql_host_native_not_a_container",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L29",
+      "weight": 1.0,
+      "source": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "target": "docs_deployment_2_create_the_role_and_database",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "target": "docs_deployment_3_let_docker_containers_reach_postgres",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "target": "docs_deployment_4_install_docker_the_compose_plugin",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L117",
+      "weight": 1.0,
+      "source": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "target": "docs_deployment_5_clone_the_repo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L127",
+      "weight": 1.0,
+      "source": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "target": "docs_deployment_6_configure_env",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L153",
+      "weight": 1.0,
+      "source": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "target": "docs_deployment_7_bring_up_the_stack",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L165",
+      "weight": 1.0,
+      "source": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "target": "docs_deployment_8_verify",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L188",
+      "weight": 1.0,
+      "source": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "target": "docs_deployment_firewall_network_notes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/DEPLOYMENT.md",
+      "source_location": "L215",
+      "weight": 1.0,
+      "source": "docs_deployment_deploying_spotdl_web_v01_scaffold_to_the_debian_12_host",
+      "target": "docs_deployment_troubleshooting",
       "confidence_score": 1.0
     },
     {
@@ -4430,5 +4670,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "e3729cdf77fd6e8be1121273aa3809746cd969c2"
+  "built_at_commit": "5a4370a7a8a692bd9a55924ddea3e9e01b2d7656"
 }

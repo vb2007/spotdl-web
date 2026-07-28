@@ -1,7 +1,8 @@
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEFAULT_LADDER_SECONDS = [900, 3600, 14400, 43200, 86400]
 
@@ -14,7 +15,9 @@ class Settings(BaseSettings):
     redis_url: str = Field(alias="REDIS_URL")
 
     # Auth (v03)
-    allowed_emails: list[str] = Field(default_factory=list, alias="ALLOWED_EMAILS")
+    allowed_emails: Annotated[list[str], NoDecode] = Field(
+        default_factory=list, alias="ALLOWED_EMAILS"
+    )
     upstream_auth_base_url: str = Field(
         default="https://api.vb2007.hu", alias="UPSTREAM_AUTH_BASE_URL"
     )
@@ -29,7 +32,7 @@ class Settings(BaseSettings):
     cookie_file: str | None = Field(default=None, alias="COOKIE_FILE")
 
     # Retry engine (v06) — override hook for tests, comma-separated seconds
-    ladder_seconds: list[int] = Field(
+    ladder_seconds: Annotated[list[int], NoDecode] = Field(
         default_factory=lambda: list(DEFAULT_LADDER_SECONDS), alias="LADDER_SECONDS"
     )
 
