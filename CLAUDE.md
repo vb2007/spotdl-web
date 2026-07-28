@@ -152,6 +152,29 @@ any ──> cancelled
 - **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`, default 0): randomized inter-track delay,
   wired but off by default — the first dial to turn if 429s stay frequent after proxies.
 
+### v01 deployment gotchas (learned deploying to the real host)
+
+- **`pydantic-settings` auto-JSON-decodes any `list[...]`-typed field's raw env value before
+  custom `field_validator`s run.** A plain comma-separated string (`ALLOWED_EMAILS=a@b.com,c@d.com`)
+  is not valid JSON and crashes `Settings()` at import time with a `SettingsError` — the app never
+  starts, `/api/health` gives no response at all. Fix: annotate the field
+  `Annotated[list[str], NoDecode]` (from `pydantic_settings`) so the raw string reaches the
+  before-validator unparsed. Applies today to `allowed_emails`/`ladder_seconds`; **any future
+  list-typed config field (proxy list in v07, `audio_providers` override, etc.) needs the same
+  annotation** or it will crash the same way.
+- **Target host runs a shared Postgres instance, not a fresh install** — Postgres 18 via the PGDG
+  apt repo (not Debian 12's bundled 15), already hosting roles for other self-hosted services
+  (Matrix/Synapse, Vaultwarden). Don't assume `/etc/postgresql/15/main/`; get the real paths from
+  `SHOW config_file` / `SHOW hba_file`. `pg_hba.conf` also already has entries for those other
+  services — it's first-match-wins top-to-bottom, so an earlier broad rule can shadow anything
+  appended for spotdl-web.
+- **Don't hardcode `172.17.0.1`** (the default `docker0` bridge gateway) anywhere — `docker compose
+  up` creates its own project-scoped bridge with a different subnet. A host-side `psql` test against
+  `172.17.0.1` can succeed (the host has a direct interface there) while giving no information about
+  whether a container can reach it. Always use `host.docker.internal` (resolved via
+  `extra_hosts: host-gateway` in `docker-compose.yml`) in `DATABASE_URL`, never a literal IP.
+- Full deploy runbook: `docs/DEPLOYMENT.md`.
+
 ### Version roadmap
 
 | # | Branch | Scope |
