@@ -35,6 +35,18 @@ Full roadmap and rationale: `plan/00-master-plan.md`. Per-version implementation
   fixture can't exercise) — confirmed necessary in v04, where a post-review fix was re-verified
   end-to-end against the real Postgres instance and the real docker-compose stack before being
   called merge-ready, not just left at "pytest passes."
+- **The plan file's "Done when" section is a literal checklist, not a vibe — every bullet needs
+  its own concrete evidence (a log line, a command's output, a file listing) before a PR is called
+  merge-ready, not an extrapolation from a similar or partial test.** Testing one scenario and
+  assuming a differently-shaped one "probably" also works is exactly how regressions reach
+  "merge-ready" status undetected. Confirmed necessary in v05: real-stack testing covered a
+  single-track download, dedup, and disk reconciliation, but skipped the plan's explicit "a small
+  real album" bullet — and a real album turned out to fail 100% of the time on the very first
+  attempt (a cross-process `SpotifyClient` bug that only album-shaped songs trigger, invisible
+  from single-track testing). The PR had already been called merge-ready before that gap was
+  caught — by the user re-reading the plan file, not by this workflow. Before saying "merge-ready"
+  or "done when criteria met," re-read the plan's "Done when" list fresh and check off each line
+  against what was *actually run this session*, not what seems like it should generalize.
 - **Context comes from graphify, not exploration agents.** Run `graphify query "…"` /
   `graphify path "A" "B"` / `graphify explain "concept"` for codebase questions before searching
   manually. Run `graphify update .` after every code-modifying version.
