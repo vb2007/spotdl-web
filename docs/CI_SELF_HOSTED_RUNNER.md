@@ -173,46 +173,20 @@ deployed app — don't reach for either preemptively while the suite doesn't nee
   pushing twice to the same PR doesn't queue two redundant runs.
 - **`pytest` job** (`runs-on: self-hosted`, working directory `backend/`): checkout → install
   `uv` → `uv python install 3.12` → fresh venv + `uv pip install ".[dev,report]"` → `pytest -v`
-  generating three report formats (`test-reports/junit.xml`, `report.html`, `report.xlsx` — see
-  Section 8) → uploads them as the `backend-test-reports` artifact, even on test failure.
+  generating three report formats (`test-reports/junit.xml`, `report.html`, `report.ods` — see
+  Section 8) → uploads each as its own artifact, even on test failure.
 - **`publish-report` job**: `needs: pytest`, `if: always()` (runs even when `pytest` fails, so a
-  failing PR still gets a rendered summary) — downloads that artifact and renders `junit.xml` as
-  a markdown table directly on the run's **Summary** page via `$GITHUB_STEP_SUMMARY`
-  (`.github/scripts/junit_to_summary.py`, stdlib-only — this job doesn't set up the backend
-  venv at all). Its own pass/fail status only reflects whether the summary was published, not
-  whether the tests passed — that's `pytest`'s job to signal, not duplicated here.
+  failing PR still gets a rendered summary) — downloads all three artifacts and renders
+  `junit.xml` as a markdown table directly on the run's **Summary** page via
+  `$GITHUB_STEP_SUMMARY` (`.github/scripts/junit_to_summary.py`, stdlib-only — this job doesn't
+  set up the backend venv at all). Its own pass/fail status only reflects whether the summary
+  was published, not whether the tests passed — that's `pytest`'s job to signal, not duplicated
+  here.
 
 Only the backend has tests today (the frontend, from v09 onward, currently has no test script in
 `frontend/package.json` beyond lint/typecheck) — extend the `pytest` job with a second matrix
 entry (or a sibling job) once that changes, rather than standing up a separate workflow
 preemptively.
-
-## 8. Human-readable test reports
-
-Beyond the raw `pytest -v` terminal log, every run also produces (via the `report` optional-
-dependencies group in `backend/pyproject.toml` — `pytest-html`, `pytest-excel`, and pytest's
-built-in `--junit-xml`):
-
-- **`report.html`** — a self-contained HTML page (`pytest-html`, `--self-contained-html`): one
-  file, no external assets, safe to open directly from a downloaded artifact zip.
-- **`report.xlsx`** — an Excel sheet (`pytest-excel`) with one row per test: suite, name, result,
-  duration, timestamp.
-- **`junit.xml`** — the standard machine-readable format; this is what `publish-report`'s job
-  summary is generated from, and what any future tool (a badge, a dashboard, `dorny/test-
-  reporter`-style PR annotations) should consume instead of re-parsing pytest's own output.
-
-All three land in the **`backend-test-reports`** artifact on the run's **Summary** page
-(Actions → this run → Artifacts, bottom of the page) — download the zip and open `report.html`
-directly in a browser, or `report.xlsx` in any spreadsheet program. The rendered markdown table
-on the Summary page itself (from `publish-report`) is enough for an at-a-glance pass/fail count
-and a list of failing tests without downloading anything.
-
-Verified locally before wiring into the workflow (not assumed from the plugins' docs): ran
-`pytest --junit-xml=... --html=... --self-contained-html --excel-report=...` for real, confirmed
-`report.xlsx` opens with `openpyxl` and contains one row per test, `report.html` contains a real
-results table, and — deliberately breaking one test temporarily — confirmed
-`junit_to_summary.py` renders a correct "Failed tests" table with the real assertion message and
-exits `1`, then restored the test file with no diff left behind.
 
 ## 7. Caching across runs — already automatic, no workflow change needed
 
@@ -262,6 +236,46 @@ each runner would have its own separate `$HOME` and thus its own separate cache 
 shared one): that's a real future consideration, but not one to solve preemptively while there's
 only one runner.
 
+## 8. Human-readable test reports
+
+Beyond the raw `pytest -v` terminal log, every run also produces (via the `report` optional-
+dependencies group in `backend/pyproject.toml` — `pytest-html`, `pytest-excel`, `odfpy`, and
+pytest's built-in `--junit-xml`):
+
+- **`report.html`** — a self-contained HTML page (`pytest-html`, `--self-contained-html`): one
+  file, no external assets, safe to open directly from the downloaded artifact.
+- **`report.ods`** — an OpenDocument Spreadsheet (`pytest-excel`, `--excel-report=...ods`) with
+  one row per test: suite, name, result, duration, timestamp. `pytest-excel` writes via pandas'
+  `DataFrame.to_excel()`, which auto-selects the write engine from the file extension — `odfpy`
+  is what makes an `.ods` path genuinely produce ODS rather than an xlsx file with the wrong
+  extension slapped on; verified with `file report.ods` → `OpenDocument Spreadsheet` and
+  re-reading it back with `pandas.read_excel(..., engine="odf")`, not just trusted from the
+  plugin's own (Excel-oriented) docs.
+- **`junit.xml`** — the standard machine-readable format; this is what `publish-report`'s job
+  summary is generated from, and what any future tool (a badge, a dashboard, `dorny/test-
+  reporter`-style PR annotations) should consume instead of re-parsing pytest's own output.
+
+**Each of these three is its own separate artifact** (`junit.xml`, `report.html`, `report.ods` —
+named after the file itself), not one zip bundling all three. `actions/upload-artifact`'s
+`archive: false` input uploads a single raw file as-is instead of zipping it, at the cost of one
+file per artifact — exactly the trade wanted here. `publish-report`'s download step uses
+`pattern: "*"` + `merge-multiple: true` to grab all three into one flat directory without having
+to keep an explicit artifact-name list in sync between the upload and download steps.
+
+Find them on the run's **Summary** page (Actions → this run → Artifacts, bottom of the page) —
+each downloads and opens directly (`report.html` in a browser, `report.ods` in any spreadsheet
+program that reads OpenDocument — LibreOffice Calc, Excel with the ODS filter, Google Sheets via
+upload). The rendered markdown table on the Summary page itself (from `publish-report`) is
+enough for an at-a-glance pass/fail count and a list of failing tests without downloading
+anything.
+
+Verified locally before wiring into the workflow (not assumed from the plugins' docs): ran
+`pytest --junit-xml=... --html=... --self-contained-html --excel-report=...ods` for real against
+a clean checkout, confirmed `report.ods` is a genuine OpenDocument Spreadsheet with one row per
+test and `report.html` contains a real results table, and — deliberately breaking one test
+temporarily — confirmed `junit_to_summary.py` renders a correct "Failed tests" table with the
+real assertion message and exits `1`, then restored the test file with no diff left behind.
+
 ---
 
 ## Troubleshooting
@@ -277,4 +291,5 @@ only one runner.
 | Runner works, but a *new* test needs real Postgres/Redis/ffmpeg | Expected — the current suite deliberately avoids needing any of these (see Section 5) | Add a GitHub Actions service container or point at the host's existing Postgres, scoped to that new test only |
 | `publish-report` fails with "artifact not found" | The `pytest` job never reached its "Upload test reports" step (e.g. it failed before `mkdir -p test-reports`, or the whole job was cancelled) | Check the `pytest` job's own logs first — this is a downstream symptom, not the root cause |
 | Job summary is missing but the artifact download succeeded | `junit_to_summary.py` itself errored (bad XML, wrong path) | Check `publish-report`'s "Publish job summary" step logs directly — it's `|| true`'d so the job stays green even here, which trades a hard failure for needing to actually look |
-| `report.xlsx`/`report.html` missing from the artifact but `junit.xml` is there | `pytest-html`/`pytest-excel` not installed — `uv pip install` used `.[dev]` instead of `.[dev,report]` | Confirm the "Install Python 3.12 and dependencies" step installs the `report` extra, not just `dev` |
+| `report.ods`/`report.html` artifacts missing but `junit.xml` is there | `pytest-html`/`pytest-excel` not installed — `uv pip install` used `.[dev]` instead of `.[dev,report]` | Confirm the "Install Python 3.12 and dependencies" step installs the `report` extra, not just `dev` |
+| `report.ods` exists but a spreadsheet program can't open it / errors | Missing `odfpy` — without it, pandas would raise at write time rather than silently writing an xlsx file with the wrong extension, so this should fail loudly in the `pytest` job, not show up as a bad download | Confirm `odfpy` is listed in `backend/pyproject.toml`'s `report` extra |

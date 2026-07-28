@@ -140,8 +140,8 @@
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
-    "mtime": 1785268097.04686,
-    "ast_hash": "384deedbbeafc26a5bcc73ca163f9d58",
+    "mtime": 1785272328.3631334,
+    "ast_hash": "a08194bc412e02f1f2444debfcc96207",
     "semantic_hash": ""
   },
   "frontend/.vscode/extensions.json": {
@@ -345,7 +345,7 @@
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
-    "mtime": 1785270178.1235595,
+    "mtime": 1785272313.1367054,
     "ast_hash": "52569110229cc554850195171d1cf3b8",
     "semantic_hash": ""
   },
@@ -360,13 +360,18 @@
     "semantic_hash": ""
   },
   ".github/workflows/backend-tests.yml": {
-    "mtime": 1785271610.7634106,
-    "ast_hash": "23ec5d25a83cd25a4d5709834fd2c763",
+    "mtime": 1785272576.2703846,
+    "ast_hash": "eac6b7873f3a97379788cb86ee8898ff",
     "semantic_hash": ""
   },
   "docs/CI_SELF_HOSTED_RUNNER.md": {
-    "mtime": 1785271634.8124032,
-    "ast_hash": "a218df453511a8a7f82a572fb54490c7",
+    "mtime": 1785272453.4243066,
+    "ast_hash": "c6858733e07852e2dd171c8f1d9ba30c",
+    "semantic_hash": ""
+  },
+  ".github/scripts/junit_to_summary.py": {
+    "mtime": 1785272290.6375718,
+    "ast_hash": "13259a2e7f438c6c7fe6dcbfa6407658",
     "semantic_hash": ""
   }
 }

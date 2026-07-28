@@ -68,32 +68,56 @@ jobs:
       # why, and what to add if a future test needs a real service).
       #
       # Generates three human-readable report formats alongside the terminal output: a
-      # self-contained HTML page, an Excel sheet, and junit XML (the machine-readable input the
-      # publish-report job below turns into a job summary). Deliberately not `-x` / fail-fast —
-      # a partial report covering only the first failure defeats the point of a report.
+      # self-contained HTML page, an ODS spreadsheet, and junit XML (the machine-readable input
+      # the publish-report job below turns into a job summary). `.ods` rather than `.xlsx` -
+      # pytest-excel writes via pandas' to_excel(), which auto-selects the write engine from
+      # the file extension (odfpy for .ods, see pyproject.toml's `report` extra); verified this
+      # produces a genuine OpenDocument Spreadsheet (`file report.ods` -> "OpenDocument
+      # Spreadsheet", re-read with pandas(engine="odf")) rather than an xlsx file with the
+      # wrong extension. Deliberately not `-x` / fail-fast — a partial report covering only the
+      # first failure defeats the point of a report.
       - name: Run pytest
         run: |
           mkdir -p test-reports
           .venv/bin/pytest -v \
             --junit-xml=test-reports/junit.xml \
             --html=test-reports/report.html --self-contained-html \
-            --excel-report=test-reports/report.xlsx
+            --excel-report=test-reports/report.ods
 
-      # `if: always()` - a test *failure* is exactly when the report is most worth having;
-      # only a failure to even produce the files (e.g. the install step itself breaking) should
-      # skip this, which if-no-files-found: warn turns into a visible warning instead of a
-      # second, confusing failure on top of whatever broke upstream.
-      # v7 targets Node 24 natively (verified action.yml directly, same as actions/checkout
-      # above) - v4 triggered the same Node 20 deprecation warning on this workflow's first
-      # run with this step.
-      - name: Upload test reports
+      # Three separate artifacts, one per file, instead of one zip bundling all three -
+      # `archive: false` uploads the raw file as-is (the artifact's displayed name becomes the
+      # file's own name, ignoring `name:`); only a single file is allowed per artifact when
+      # `archive: false`, which is exactly the point here. `if: always()` on each - a test
+      # *failure* is exactly when the report is most worth having; only a failure to even
+      # produce the files (e.g. the install step itself breaking) should skip these, which
+      # if-no-files-found: warn turns into a visible warning instead of a second, confusing
+      # failure on top of whatever broke upstream.
+      - name: Upload junit.xml
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: backend-test-reports
-          path: backend/test-reports/
+          path: backend/test-reports/junit.xml
           if-no-files-found: warn
           retention-days: 14
+          archive: false
+
+      - name: Upload report.html
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: backend/test-reports/report.html
+          if-no-files-found: warn
+          retention-days: 14
+          archive: false
+
+      - name: Upload report.ods
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          path: backend/test-reports/report.ods
+          if-no-files-found: warn
+          retention-days: 14
+          archive: false
 
   publish-report:
     needs: pytest
@@ -103,11 +127,15 @@ jobs:
       - uses: actions/checkout@v7
 
       # v8 targets Node 24 natively - same reasoning as the checkout/upload-artifact bumps
-      # above, verified the same way (action.yml directly).
+      # above, verified the same way (action.yml directly). `pattern: "*"` +
+      # `merge-multiple: true` grabs all three separately-uploaded artifacts (junit.xml,
+      # report.html, report.ods) into one flat directory rather than naming each individually -
+      # avoids keeping upload/download steps in sync by artifact name.
       - uses: actions/download-artifact@v8
         with:
-          name: backend-test-reports
+          pattern: "*"
           path: test-reports
+          merge-multiple: true
 
       # Renders junit.xml as a markdown table directly on the run's summary page — visible
       # without downloading anything, complementing the downloadable HTML/Excel artifacts from

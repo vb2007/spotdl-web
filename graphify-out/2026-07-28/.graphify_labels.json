@@ -85,5 +85,7 @@
   "83": "test_expansion.py",
   "84": "test_downloads.py",
   "85": "test_jobs.py",
-  "86": "reconcile_disk"
+  "86": "reconcile_disk",
+  "87": "conftest.py",
+  "88": "junit_to_summary.py"
 }

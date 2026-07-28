@@ -4,6 +4,26 @@
   "graph": {},
   "nodes": [
     {
+      "label": "junit_to_summary.py",
+      "file_type": "code",
+      "source_file": ".github/scripts/junit_to_summary.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "github_scripts_junit_to_summary",
+      "community": 88,
+      "norm_label": "junit_to_summary.py"
+    },
+    {
+      "label": "main()",
+      "file_type": "code",
+      "source_file": ".github/scripts/junit_to_summary.py",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "github_scripts_junit_to_summary_main",
+      "community": 88,
+      "norm_label": "main()"
+    },
+    {
       "label": "env.py",
       "file_type": "code",
       "source_file": "backend/alembic/env.py",
@@ -190,7 +210,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_main",
-      "community": 79,
+      "community": 87,
       "norm_label": "main.py"
     },
     {
@@ -280,7 +300,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_app_models_job_job",
-      "community": 82,
+      "community": 79,
       "norm_label": "job"
     },
     {
@@ -290,7 +310,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_models_job_rationale_26",
-      "community": 82,
+      "community": 79,
       "norm_label": "one row per submitted url (album/playlist/artist/track)."
     },
     {
@@ -330,7 +350,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_session",
-      "community": 37,
+      "community": 79,
       "norm_label": "session.py"
     },
     {
@@ -340,7 +360,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_session_usersession",
-      "community": 37,
+      "community": 79,
       "norm_label": "usersession"
     },
     {
@@ -350,7 +370,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_session_rationale_11",
-      "community": 37,
+      "community": 79,
       "norm_label": "our own session store \u2014 separate from the upstream vb-auth token (see v03)."
     },
     {
@@ -590,7 +610,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_jobs",
-      "community": 37,
+      "community": 79,
       "norm_label": "jobs.py"
     },
     {
@@ -600,7 +620,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_createjobrequest",
-      "community": 37,
+      "community": 79,
       "norm_label": "createjobrequest"
     },
     {
@@ -610,7 +630,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_classify_source_type",
-      "community": 37,
+      "community": 79,
       "norm_label": "_classify_source_type()"
     },
     {
@@ -620,7 +640,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_track_counts",
-      "community": 37,
+      "community": 79,
       "norm_label": "_track_counts()"
     },
     {
@@ -630,7 +650,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_py_session",
-      "community": 37,
+      "community": 79,
       "norm_label": "session"
     },
     {
@@ -640,7 +660,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "uuid",
-      "community": 37,
+      "community": 79,
       "norm_label": "uuid"
     },
     {
@@ -650,7 +670,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_job_to_dict",
-      "community": 37,
+      "community": 79,
       "norm_label": "_job_to_dict()"
     },
     {
@@ -660,7 +680,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_track_to_dict",
-      "community": 37,
+      "community": 79,
       "norm_label": "_track_to_dict()"
     },
     {
@@ -670,7 +690,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_create_job",
-      "community": 37,
+      "community": 79,
       "norm_label": "create_job()"
     },
     {
@@ -680,7 +700,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_jobs",
-      "community": 37,
+      "community": 79,
       "norm_label": "list_jobs()"
     },
     {
@@ -690,7 +710,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_get_job_or_404",
-      "community": 37,
+      "community": 79,
       "norm_label": "_get_job_or_404()"
     },
     {
@@ -700,7 +720,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_get_job",
-      "community": 37,
+      "community": 79,
       "norm_label": "get_job()"
     },
     {
@@ -710,7 +730,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_job_tracks",
-      "community": 37,
+      "community": 79,
       "norm_label": "list_job_tracks()"
     },
     {
@@ -1050,7 +1070,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_download",
-      "community": 12,
+      "community": 79,
       "norm_label": "download.py"
     },
     {
@@ -1060,7 +1080,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_download_download_track",
-      "community": 12,
+      "community": 86,
       "norm_label": "download_track()"
     },
     {
@@ -1070,7 +1090,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 82,
+      "community": 79,
       "norm_label": "expand.py"
     },
     {
@@ -1080,7 +1100,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 82,
+      "community": 79,
       "norm_label": "expand_job()"
     },
     {
@@ -1103,7 +1123,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_conftest",
-      "community": 79,
+      "community": 87,
       "norm_label": "conftest.py"
     },
     {
@@ -1113,7 +1133,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_tests_conftest_compile_jsonb_sqlite",
-      "community": 79,
+      "community": 87,
       "norm_label": "_compile_jsonb_sqlite()"
     },
     {
@@ -1123,7 +1143,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_tests_conftest_db_session",
-      "community": 79,
+      "community": 87,
       "norm_label": "db_session()"
     },
     {
@@ -1133,7 +1153,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_conftest_client",
-      "community": 79,
+      "community": 87,
       "norm_label": "client()"
     },
     {
@@ -2697,10 +2717,20 @@
       "norm_label": "6. what the workflow actually runs"
     },
     {
+      "label": "8. Human-readable test reports",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L190",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_8_human_readable_test_reports",
+      "community": 15,
+      "norm_label": "8. human-readable test reports"
+    },
+    {
       "label": "7. Caching across runs \u2014 already automatic, no workflow change needed",
       "file_type": "document",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L181",
+      "source_location": "L217",
       "_origin": "ast",
       "id": "docs_ci_self_hosted_runner_7_caching_across_runs_already_automatic_no_workflow_change_needed",
       "community": 15,
@@ -2710,7 +2740,7 @@
       "label": "Troubleshooting",
       "file_type": "document",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L231",
+      "source_location": "L267",
       "_origin": "ast",
       "id": "docs_ci_self_hosted_runner_troubleshooting",
       "community": 15,
@@ -4590,6 +4620,16 @@
     }
   ],
   "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".github/scripts/junit_to_summary.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "github_scripts_junit_to_summary",
+      "target": "github_scripts_junit_to_summary_main",
+      "confidence_score": 1.0
+    },
     {
       "relation": "imports_from",
       "context": "import",
@@ -8821,10 +8861,20 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L181",
+      "source_location": "L217",
       "weight": 1.0,
       "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
       "target": "docs_ci_self_hosted_runner_7_caching_across_runs_already_automatic_no_workflow_change_needed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L190",
+      "weight": 1.0,
+      "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
+      "target": "docs_ci_self_hosted_runner_8_human_readable_test_reports",
       "confidence_score": 1.0
     },
     {
@@ -8841,7 +8891,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L231",
+      "source_location": "L267",
       "weight": 1.0,
       "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
       "target": "docs_ci_self_hosted_runner_troubleshooting",
@@ -9989,5 +10039,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "7e1a53cdf69ab4e092bcbec7b055a38b0f7b766a"
+  "built_at_commit": "98494c82e02026b052c16e25dee0608048be0814"
 }

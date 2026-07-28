@@ -28,6 +28,12 @@ dev = [
 report = [
     "pytest-html>=4.2",
     "pytest-excel>=1.8",
+    # pytest-excel writes via pandas' DataFrame.to_excel(), which auto-selects the write
+    # engine from the file extension - odfpy is what makes a `.ods` path (as opposed to
+    # `.xlsx`) actually produce a real OpenDocument Spreadsheet rather than erroring. Verified
+    # with `file report.ods` -> "OpenDocument Spreadsheet" and re-reading it back with
+    # pandas(engine="odf") before relying on this.
+    "odfpy>=1.4",
 ]
 
 [build-system]
