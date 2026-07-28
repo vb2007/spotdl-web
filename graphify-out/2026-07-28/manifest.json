@@ -120,8 +120,8 @@
     "semantic_hash": ""
   },
   "backend/app/routers/health.py": {
-    "mtime": 1785241904.5620084,
-    "ast_hash": "25c46a49e1a4fbb522708e07eaae3666",
+    "mtime": 1785244909.2564516,
+    "ast_hash": "683228e16695b1a5e951fd6d32574a9f",
     "semantic_hash": ""
   },
   "backend/app/services/__init__.py": {
@@ -230,8 +230,8 @@
     "semantic_hash": ""
   },
   "docs/DEPLOYMENT.md": {
-    "mtime": 1785242627.9131277,
-    "ast_hash": "82016f61bd341f590d51d6584b2c7ae3",
+    "mtime": 1785245004.661021,
+    "ast_hash": "e207d1fcdd272951b948873ba0ae3704",
     "semantic_hash": ""
   }
 }

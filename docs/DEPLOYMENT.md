@@ -18,18 +18,37 @@ Run every command below on the target host (`ssh <you>@192.168.100.200`), as a u
 Postgres is deliberately **not** dockerized; it runs directly on the Debian host and containers
 reach it via `host.docker.internal` (wired in `docker-compose.yml`'s `extra_hosts`).
 
+If this host already runs Postgres for other services (a shared instance is common — e.g.
+alongside Matrix/Synapse, Vaultwarden, etc.), skip straight to step 2 and reuse it; spotdl-web just
+needs its own role and database on it, not a dedicated instance.
+
+Otherwise, install it:
+
 ```bash
 sudo apt update
 sudo apt install -y postgresql postgresql-contrib
 sudo systemctl enable --now postgresql
 ```
 
-Debian 12's repo ships PostgreSQL 15 — config lives at `/etc/postgresql/15/main/`.
+Debian 12's own repo ships PostgreSQL 15, but a host may well be running a newer major version via
+the PGDG apt repo instead. **Don't assume a version or hardcode a config path** — confirm both
+first:
+
+```bash
+psql --version
+sudo -u postgres psql -c "SHOW config_file;"
+sudo -u postgres psql -c "SHOW hba_file;"
+```
+
+Use whatever paths those report for `postgresql.conf`/`pg_hba.conf` in step 3 below, not
+`/etc/postgresql/15/main/` — that's only correct if you're actually on 15.
 
 ## 2. Create the role and database
 
-Pick a real password and substitute it everywhere below (`changeme`). One-liners, run as the
-`postgres` OS user:
+The names below (`spotdl_web`) are just this doc's placeholder — pick whatever role/database name
+and password you like, but **use the exact same values everywhere**: the role name, database name,
+and password you set here must match `DATABASE_URL` in `.env` (step 6) character-for-character,
+including case and any special characters. One-liners, run as the `postgres` OS user:
 
 ```bash
 sudo -u postgres psql -c "CREATE ROLE spotdl_web WITH LOGIN PASSWORD 'changeme';"
@@ -47,6 +66,10 @@ CREATE DATABASE spotdl_web OWNER spotdl_web;
 \q
 ```
 
+If you need to change the password later, use `\password <role>` inside an interactive `psql`
+session rather than passing it on the command line — it prompts for the value directly, so special
+characters (`!`, `,`, etc.) can't be mangled by shell quoting or history expansion.
+
 Sanity check the role can authenticate and see its database:
 
 ```bash
@@ -57,7 +80,8 @@ psql "postgresql://spotdl_web:changeme@localhost:5432/spotdl_web" -c "SELECT cur
 
 By default Postgres only listens on `localhost` and only trusts local Unix-socket connections.
 Containers connect over the Docker bridge, so both need widening — but only to that bridge, not
-to the LAN.
+to the LAN. (If Postgres is shared with other services that already widened this, just add the
+`pg_hba.conf` line below for spotdl-web's own role/database — don't touch `listen_addresses` again.)
 
 **Do not hardcode `172.17.0.1`.** That's the gateway of Docker's *default* bridge network — but
 `docker compose up` creates its own project-scoped bridge network (e.g. `spotdl-web_default`) with
@@ -70,11 +94,18 @@ value always resolves, per-container, to *that container's own network's* gatewa
 Compose actually picked.
 
 So bind Postgres broadly and let `pg_hba.conf` (next step) do the real access control, rather than
-chasing the exact subnet Compose happened to choose:
+chasing the exact subnet Compose happened to choose. Using the config path from step 1
+(`$PGCONF` below — substitute what `SHOW config_file` actually printed):
 
 ```bash
-sudo sed -i "s/^#listen_addresses = .*/listen_addresses = '*'/" /etc/postgresql/15/main/postgresql.conf
+PGCONF=/etc/postgresql/18/main/postgresql.conf   # whatever `SHOW config_file` printed
+sudo sed -i "s/^#\?listen_addresses\s*=.*/listen_addresses = '*'/" "$PGCONF"
+grep listen_addresses "$PGCONF"   # confirm it actually took — see note below if not
 ```
+
+If that `grep` doesn't show `listen_addresses = '*'`, the file already had an uncommented,
+non-default value the pattern didn't match (common on a host already tuned for other services) —
+open the file and edit that line by hand instead.
 
 This is safe here specifically because `pg_hba.conf` below scopes trust to one role talking to one
 database from Docker's private address range only — an unauthenticated LAN client still gets
@@ -82,15 +113,21 @@ rejected at the `pg_hba` stage, `listen_addresses` only controls which interface
 connections on before that check runs.
 
 Add a `pg_hba.conf` entry scoped to Docker's private address space (covers the default bridge and
-any compose-created bridge network, all of which fall inside `172.16.0.0/12`):
+any compose-created bridge network, all of which fall inside `172.16.0.0/12`). Use the `hba_file`
+path from step 1's `SHOW hba_file`:
 
 ```bash
-echo "host    spotdl_web    spotdl_web    172.16.0.0/12    scram-sha-256" | sudo tee -a /etc/postgresql/15/main/pg_hba.conf
+PGHBA=/etc/postgresql/18/main/pg_hba.conf   # whatever `SHOW hba_file` printed
+echo "host    spotdl_web    spotdl_web    172.16.0.0/12    scram-sha-256" | sudo tee -a "$PGHBA"
 sudo systemctl restart postgresql
 ```
 
 This scopes trust to exactly one role connecting to exactly one database — not `all`/`all` — so a
-compromised container can't pivot to unrelated data.
+compromised container can't pivot to unrelated data. Postgres reads `pg_hba.conf` top-to-bottom and
+uses the *first* matching line, so if this instance already has a broader rule above (e.g. an
+existing `all`/`all` line for the same address range from another service), that earlier line wins
+and this appended one is dead weight — harmless, but worth checking with
+`sudo cat "$PGHBA"` if something still doesn't behave as expected.
 
 ## 4. Install Docker + the Compose plugin
 
