@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-07-28)
 
 ## Corpus Check
-- 43 files · ~14,447 words
+- 43 files · ~14,355 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 271 nodes · 199 edges · 80 communities (33 shown, 47 thin omitted)
+- 270 nodes · 198 edges · 79 communities (32 shown, 47 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 1 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `892acc4f`
+- Built from commit: `8b3a4480`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -84,7 +84,6 @@
 - [[_COMMUNITY_Dual Proxy Source (file + manual coexistence)|Dual Proxy Source (file + manual coexistence)]]
 - [[_COMMUNITY_README.md — spotdl-web summary|README.md — spotdl-web summary]]
 - [[_COMMUNITY_Deploying spotdl-web (v01 — scaffold) to the Debian 12 host|Deploying spotdl-web (v01 — scaffold) to the Debian 12 host]]
-- [[_COMMUNITY_Local development environment|Local development environment]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `compilerOptions` - 11 edges
@@ -92,8 +91,8 @@
 3. `Deploying spotdl-web (v01 — scaffold) to the Debian 12 host` - 11 edges
 4. `spotdl-web — Master Development Plan` - 10 edges
 5. `scripts` - 9 edges
-6. `Local development environment` - 7 edges
-7. `Tables` - 7 edges
+6. `Tables` - 7 edges
+7. `Local development environment` - 6 edges
 8. `v03 — Authentication` - 6 edges
 9. `v06 — Retry Engine` - 6 edges
 10. `Settings` - 5 edges
@@ -105,7 +104,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (80 total, 47 thin omitted)
+## Communities (79 total, 47 thin omitted)
 
 ### Community 2 - "Planning & Config Docs"
 Cohesion: 0.14
@@ -192,15 +191,11 @@ Cohesion: 0.40
 Nodes (4): Building, Creating a project, Developing, sv
 
 ### Community 78 - "Deploying spotdl-web (v01 — scaffold) to the Debian 12 host"
-Cohesion: 0.12
-Nodes (13): 1. Install PostgreSQL (host-native — not a container), 2. Create the role and database, 3. Let Docker containers reach Postgres, 4. Install Docker + the Compose plugin, 5. Clone the repo, 6. Configure `.env`, 7. Bring up the stack, 8. Verify (+5 more)
-
-### Community 79 - "Local development environment"
-Cohesion: 0.29
-Nodes (7): 1. One-time: create the dev database on the Debian host, 2. Configure `.env`, 3. Bring up the stack, 4. Verify, 5. When a version is ready, Local development environment, Resetting the dev database
+Cohesion: 0.09
+Nodes (19): 1. Install PostgreSQL (host-native — not a container), 2. Create the role and database, 3. Let Docker containers reach Postgres, 4. Install Docker + the Compose plugin, 5. Clone the repo, 6. Configure `.env`, 7. Bring up the stack, 8. Verify (+11 more)
 
 ## Knowledge Gaps
-- **186 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+181 more)
+- **185 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+180 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **47 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -210,7 +205,7 @@ _Questions this graph is uniquely positioned to answer:_
 - **Why does `spotdl-web — Master Development Plan` connect `Planning & Config Docs` to `Deploying spotdl-web (v01 — scaffold) to the Debian 12 host`?**
   _High betweenness centrality (0.015) - this node is a cross-community bridge._
 - **What connects `spotdl-web-backend`, `gitignorePath`, `name` to the rest of the system?**
-  _192 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _191 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Planning & Config Docs` be split into smaller, more focused modules?**
   _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
 - **Should `Deployment Hardening` be split into smaller, more focused modules?**
@@ -220,4 +215,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `scripts` be split into smaller, more focused modules?**
   _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
 - **Should `Deploying spotdl-web (v01 — scaffold) to the Debian 12 host` be split into smaller, more focused modules?**
-  _Cohesion score 0.11764705882352941 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08695652173913043 - nodes in this community are weakly interconnected._

@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785247385.051566,
-    "ast_hash": "a4d91dd62f7ce004f65ae8bada2a5781",
+    "mtime": 1785247685.9225194,
+    "ast_hash": "715c92cd6912a7df7f13319cead71deb",
     "semantic_hash": ""
   },
   "README.md": {
@@ -10,8 +10,8 @@
     "semantic_hash": ""
   },
   "plan/00-master-plan.md": {
-    "mtime": 1785247403.742371,
-    "ast_hash": "f5f319ab32ebc4e70dcf078a5c1a7792",
+    "mtime": 1785247697.7730293,
+    "ast_hash": "fbf0bb3b48a378f0e2ac783dccb6190d",
     "semantic_hash": ""
   },
   "plan/v00-planning.md": {
@@ -235,8 +235,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
-    "mtime": 1785247342.3857274,
-    "ast_hash": "affd283e3038bc5daee5b675568ed479",
+    "mtime": 1785247653.774136,
+    "ast_hash": "7f26a6828380c7ea6c95d86b891ac4ea",
     "semantic_hash": ""
   }
 }
