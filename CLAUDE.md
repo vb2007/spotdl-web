@@ -27,6 +27,14 @@ Full roadmap and rationale: `plan/00-master-plan.md`. Per-version implementation
 - **Branch per version**: `dev-<feature-name>` (e.g. `dev-scaffold`, `dev-auth`), branched from
   the current dev line (started from `dev-init`). Every completed version opens a PR into `main`.
   A "version" is a feature slice, not a release.
+- **A PR isn't merge-ready until every change on it has actually been re-tested — not just unit
+  tests.** After any fix (including ones made in response to a review pass), re-run the real
+  verification for what changed: the local `docker compose` stack against a real network/DB
+  where that's what the code touches, not only `pytest`. Unit tests can pass while a fix still
+  fails against the real dialect/runtime (e.g. a Postgres-specific error path a SQLite test
+  fixture can't exercise) — confirmed necessary in v04, where a post-review fix was re-verified
+  end-to-end against the real Postgres instance and the real docker-compose stack before being
+  called merge-ready, not just left at "pytest passes."
 - **Context comes from graphify, not exploration agents.** Run `graphify query "…"` /
   `graphify path "A" "B"` / `graphify explain "concept"` for codebase questions before searching
   manually. Run `graphify update .` after every code-modifying version.
