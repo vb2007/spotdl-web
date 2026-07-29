@@ -200,6 +200,12 @@ Everything else can stay at its `.env.example` default for v01.
 > bind-mounts a real directory over the `downloads` volume, and run compose with
 > `-f docker-compose.yml -f docker-compose.local.yml`.
 
+> **Proxy list (v07+):** `worker-meta` bind-mounts `./proxies.txt` read-only. Create it
+> (`cp proxies.txt.example proxies.txt`, then edit) before bringing the stack up — if the
+> host file doesn't exist yet, Docker creates an empty *directory* there instead, which
+> breaks `sync_from_file()` on boot. An empty/comment-only file is fine; rotation just has
+> nothing to draw from and every attempt falls back to direct.
+
 ## 7. Bring up the stack
 
 `docker-compose.override.yml` is dev-only (bind-mounted source, `uvicorn --reload`, `vite dev`) —

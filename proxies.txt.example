@@ -1,0 +1,15 @@
+# One proxy URL per line. spotdl 4.5.2's Downloader only accepts http(s) proxies with a
+# literal IPv4 host (verified against the installed source — see CLAUDE.md v07 gotchas):
+#   http://host:port
+#   http://user:pass@host:port
+# Hostnames and socks5:// are NOT accepted — spotdl raises DownloaderError for anything
+# that doesn't match its IPv4 regex, which download_track then treats like any other
+# failed attempt (cooldown, retried later).
+#
+# Blank lines and #-comments are ignored. Copy to proxies.txt (path configurable via the
+# PROXY_FILE env var) and restart worker-meta to pick up changes — sync_from_file() runs
+# once on worker-meta boot, adding new entries and disabling (not deleting) ones that were
+# removed from the file so their health history survives a later re-add.
+#
+# UI management of this list is deferred to v13 — this plain file is the only interface
+# for now.

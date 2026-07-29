@@ -531,6 +531,65 @@ any ──> cancelled
   after the restart (proving Postgres's `scheduled_at`, not Celery/Redis, is what survived), before
   beat resumed dispatching it on schedule once due.
 
+### v07 proxy-rotation gotchas (learned building `proxies.txt` sync + pick/cooldown + wiring)
+
+- **spotdl 4.5.2's `Downloader.__init__` only accepts `http`/`https` proxies with a literal
+  IPv4 host** — `re.match(r"^(http|https)://(?:(\w+)(?::(\w+))?@)?(\d{1,3}(?:\.\d{1,3}){3})(?::(\d{1,5}))?$", proxy)`,
+  checked in the real installed source, not assumed. Hostnames and `socks5://` — both
+  explicitly named in this plan's original task list as accepted formats — raise
+  `DownloaderError: Invalid proxy server: ...` at `Downloader()` construction time, caught
+  during real-stack testing (a hostname-based test entry crashed on the very first proxied
+  attempt). `proxies.txt.example`'s format guidance was corrected to `http(s)://[user:pass@]<IPv4>[:port]`
+  only. `sync_from_file()` deliberately does **not** hard-validate this format at ingest —
+  spotdl's own regex could loosen in a later version, and duplicating it here would just go
+  stale — a malformed entry is instead caught (and cooled down) the same way any other
+  real download failure is, the first time it's actually tried.
+- **`Downloader.__init__` builds a real `rich` Live TUI display by default
+  (`simple_tui=False` in spotdl's own `DEFAULT_CONFIG`), and `rich` allows only one Live
+  display per process, ever** — harmless through v05/v06 since exactly one `Downloader`
+  was ever constructed per worker-dl process's lifetime (single cache key, no proxy
+  variation). v07 is the first version where a worker-dl process can construct a *second*,
+  differently-keyed `Downloader` (direct first, then one per distinct proxy — see
+  `get_downloader`'s cache key), which crashed every single time with
+  `rich.errors.LiveError: Only one live display may be active at once` — this is a real,
+  100%-reproducible break of proxy rotation in production, not a test-harness artifact,
+  caught only by real-stack verification (unit tests fake out `get_downloader` entirely and
+  never construct a real `Downloader`). Fixed by always passing `simple_tui: True` in
+  `downloads.get_downloader`'s options — also simply the correct call for a headless
+  Celery worker with no terminal to render to (progress goes through
+  `progress_handler`/`notify_*` hooks per the v08 plan, never this TUI). **Any future code
+  path that constructs a real spotdl `Downloader` must keep `simple_tui: True`** or the
+  very next differently-keyed one built in that process will crash the same way.
+- **The always-running local dev stack (`beat` + `worker-dl` on their normal schedule) will
+  auto-retry any test `Track` row left in `WAITING` state** — a real risk when hand-crafting
+  fault-injection scripts (same technique as v06) that create tracks and leave them
+  mid-ladder: `dispatch_due_tracks` only filters on `state == WAITING`, so a script that
+  fails to reach its cleanup line (e.g. an assertion error) leaves the track live for the
+  *actual* background loop to keep retrying indefinitely, potentially against the real
+  network with real spotdl calls if the test track's `song_json` happens to be a real,
+  resolvable song (confirmed happening during this version's testing — a synthetic test
+  track reusing a real song's metadata got for-real downloaded by the background loop
+  between two manual verification steps). Any future ad-hoc verification script must set
+  the test track to a terminal state (`CANCELLED` is used elsewhere in the state machine as
+  is; not a new one) in the *same* script run, immediately after its assertions, not as a
+  separate follow-up step — a script that can fail its assertions must still be written so
+  cleanup happens (e.g. in a `finally`), or a failed assertion leaves the track live for
+  beat to keep picking up.
+- Verified against the real docker-compose stack and real Postgres instance (not mocked),
+  via the same `docker compose cp` ad-hoc-script technique v06 established: `sync_from_file()`
+  on `worker-meta` restart correctly added 2 new file entries, then (after editing
+  `proxies.txt` and restarting again) soft-disabled the one removed from the file while
+  leaving its `consecutive_failures` stat untouched, then re-enabled it on a later re-add
+  with that same stat still intact (never reset). A track with `attempt_count=0` never
+  calls `pick_proxy` (direct only); a track with `attempt_count>=1` picks a healthy proxy,
+  downloads through it (mocked `download_one`, real everything else), and gets
+  `used_proxy_id` + a real `download_track: track ... attempting via proxy <url>` log line
+  from the actual running worker-dl process (not just the ad-hoc script) confirming the
+  proxy used; a proxy failure sets `cooldown_until` and increments `consecutive_failures`,
+  and an immediate next `pick_proxy()` call correctly skips it in favor of a still-healthy
+  one; and with every proxy disabled, the track still completes via a direct attempt
+  (`used_proxy_id` stays `NULL`) rather than stalling.
+
 ### Version roadmap
 
 | # | Branch | Scope |

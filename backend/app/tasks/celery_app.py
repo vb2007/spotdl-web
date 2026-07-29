@@ -43,3 +43,13 @@ def _reconcile_disk_on_boot(**kwargs) -> None:
         from app.services.dedup import reconcile_disk
 
         reconcile_disk()
+
+
+@worker_ready.connect
+def _sync_proxies_on_boot(**kwargs) -> None:
+    # Same explicit-env-var-gate convention as _reconcile_disk_on_boot above — proxies.txt
+    # sync is also a worker-meta-only concern.
+    if os.environ.get("RUN_PROXY_SYNC") == "true":
+        from app.services.proxies import sync_from_file
+
+        sync_from_file()

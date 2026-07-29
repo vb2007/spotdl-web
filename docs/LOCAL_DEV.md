@@ -29,6 +29,17 @@ Fill in the real Postgres password (same role/database the Debian host uses — 
 already dev-appropriate out of the box — notably `LADDER_SECONDS` is pre-shortened to seconds
 instead of hours, since testing the real retry ladder shouldn't take literal days.
 
+`worker-meta` bind-mounts `./proxies.txt` (see `docker-compose.override.yml`), so a file needs
+to exist at the project root before `docker compose up` or Docker creates an empty directory
+there instead (silently breaking `sync_from_file()` — see v07 gotchas in `CLAUDE.md`):
+
+```bash
+cp proxies.txt.example proxies.txt
+```
+
+An empty (or comment-only) `proxies.txt` is fine — proxy rotation just has nothing to draw
+from, and every attempt falls back to direct.
+
 ## 2. Bring up the stack
 
 Unlike the production host, you *want* `docker-compose.override.yml` here — it's what gives

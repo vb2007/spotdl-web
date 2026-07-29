@@ -1,12 +1,12 @@
 # Graph Report - spotdl-web  (2026-07-29)
 
 ## Corpus Check
-- 75 files · ~31,395 words
+- 75 files · ~30,502 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 537 nodes · 697 edges · 92 communities (45 shown, 47 thin omitted)
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 84 edges (avg confidence: 0.74)
+- 535 nodes · 693 edges · 92 communities (45 shown, 47 thin omitted)
+- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 83 edges (avg confidence: 0.75)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
@@ -99,8 +99,8 @@
 
 ## God Nodes (most connected - your core abstractions)
 1. `Track` - 31 edges
-2. `Project: spotdl-web` - 17 edges
-3. `Job` - 16 edges
+2. `Job` - 16 edges
+3. `Project: spotdl-web` - 16 edges
 4. `WorkerState` - 15 edges
 5. `_make_track()` - 14 edges
 6. `_patch_common()` - 14 edges
@@ -140,7 +140,7 @@ Nodes (30): devDependencies, eslint, eslint-config-prettier, @eslint/js, eslint-
 
 ### Community 14 - "Project: spotdl-web"
 Cohesion: 0.11
-Nodes (18): Architecture, Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), Development environments, graphify, Locked decisions, Project: spotdl-web, Retry engine numbers, spotdl 4.5.2 — verified API surface actually used (+10 more)
+Nodes (17): Architecture, Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), Development environments, graphify, Locked decisions, Project: spotdl-web, Retry engine numbers, spotdl 4.5.2 — verified API surface actually used (+9 more)
 
 ### Community 15 - "Setting up the self-hosted GitHub Actions runner"
 Cohesion: 0.17
@@ -235,8 +235,8 @@ Cohesion: 0.43
 Nodes (5): _fake_init(), _FakeSettings, test_ensure_spotify_client_initializes_once(), test_ensure_spotify_client_prefers_configured_creds(), test_ensure_spotify_client_uses_default_creds_when_unset()
 
 ### Community 84 - "test_downloads.py"
-Cohesion: 0.31
-Nodes (9): _FakeDownloader, _FakeSettings, test_download_one_delegates_to_search_and_download(), test_download_one_ensures_spotify_client_before_downloading(), test_get_downloader_always_disables_rich_tui(), test_get_downloader_builds_new_instance_for_different_key(), test_get_downloader_builds_output_template_from_settings_dir(), test_get_downloader_caches_per_format_bitrate_proxy() (+1 more)
+Cohesion: 0.32
+Nodes (8): _FakeDownloader, _FakeSettings, test_download_one_delegates_to_search_and_download(), test_download_one_ensures_spotify_client_before_downloading(), test_get_downloader_builds_new_instance_for_different_key(), test_get_downloader_builds_output_template_from_settings_dir(), test_get_downloader_caches_per_format_bitrate_proxy(), test_get_downloader_sets_proxy_only_when_given()
 
 ### Community 85 - "test_jobs.py"
 Cohesion: 0.47
@@ -263,7 +263,7 @@ Cohesion: 0.15
 Nodes (15): next_cooldown(), pick_proxy(), _probe_reachable(), Session, timedelta, UUID, Proxy pool: file sync (`proxies.txt`), LRU selection, and per-proxy cooldown.  M, Least-recently-used selection among enabled, out-of-cooldown proxies — simple LR (+7 more)
 
 ## Knowledge Gaps
-- **202 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+197 more)
+- **201 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+196 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **47 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -271,7 +271,7 @@ Nodes (15): next_cooldown(), pick_proxy(), _probe_reachable(), Session, timedelt
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `Track` connect `Track` to `main.py`, `Deployment Hardening`, `Local development environment`, `Track`, `test_jobs.py`, `conftest.py`, `retry.py`?**
-  _High betweenness centrality (0.053) - this node is a cross-community bridge._
+  _High betweenness centrality (0.054) - this node is a cross-community bridge._
 - **Why does `Base` connect `Local development environment` to `Track`, `main.py`, `reconcile_disk`, `conftest.py`?**
   _High betweenness centrality (0.032) - this node is a cross-community bridge._
 - **Why does `get_settings()` connect `Deployment Hardening` to `retry.py`, `proxies.py`, `main.py`?**
@@ -283,4 +283,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Are the 11 inferred relationships involving `WorkerState` (e.g. with `Base` and `test_download_track_audio_provider_error_feeds_breaker()`) actually correct?**
   _`WorkerState` has 11 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Dedup ledger, independent of `tracks` so it survives job/track deletion and powe`, `One row per submitted URL (album/playlist/artist/track).`, `Our own session store — separate from the upstream VB-AUTH token (see v03).` to the rest of the system?**
-  _232 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _231 weakly-connected nodes found - possible documentation gaps or missing edges._

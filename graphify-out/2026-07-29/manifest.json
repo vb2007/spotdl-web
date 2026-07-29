@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785346917.3917778,
-    "ast_hash": "fdabadd5e7cc924552630681eb2b6287",
+    "mtime": 1785345733.728611,
+    "ast_hash": "9729c61b4b98da84ac060f3a3ff7b74c",
     "semantic_hash": ""
   },
   "README.md": {
@@ -335,13 +335,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/downloads.py": {
-    "mtime": 1785346749.6007202,
-    "ast_hash": "c393ff18a64a7b0c3980814b594f9065",
+    "mtime": 1785270178.1235595,
+    "ast_hash": "0dcd2dab1c410b4a1874dd3f5393c956",
     "semantic_hash": ""
   },
   "backend/app/tasks/download.py": {
-    "mtime": 1785346255.6158051,
-    "ast_hash": "b575850688945edd7a1364376acd1c72",
+    "mtime": 1785345975.1388793,
+    "ast_hash": "5080b01a60f3e2659535c78059868eda",
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
@@ -355,8 +355,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_downloads.py": {
-    "mtime": 1785346828.964056,
-    "ast_hash": "c0137cbd54c4da0f4ff2ebec22a2d270",
+    "mtime": 1785270178.1235595,
+    "ast_hash": "1abaf256bfecab00324f2409116e1265",
     "semantic_hash": ""
   },
   ".github/workflows/backend-tests.yml": {

@@ -21,6 +21,7 @@ services:
     volumes: !override
       - ./backend/app:/app/app
       - ./downloads:/downloads
+      - ./proxies.txt:/app/proxies.txt:ro
 
   beat:
     volumes:

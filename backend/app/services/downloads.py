@@ -39,6 +39,17 @@ def get_downloader(format: str, bitrate: str, proxy: str | None = None) -> Downl
             "bitrate": bitrate,
             "output": str(Path(settings.download_output_dir) / _OUTPUT_TEMPLATE),
             "cookie_file": settings.cookie_file,
+            # ProgressHandler defaults to a rich Live TUI display (simple_tui=False) —
+            # harmless with a single cached Downloader per process (v05/v06), but rich
+            # only allows one Live display per process at all, ever. v07 is the first
+            # version where a worker-dl process can construct a *second*, differently
+            # keyed Downloader (direct first, then a distinct one per proxy) within its
+            # lifetime, which crashed with rich.errors.LiveError until this was set —
+            # caught during real-stack proxy-rotation testing, not by unit tests (the
+            # unit tests fake out get_downloader entirely). Also just the right call for
+            # a headless worker with no terminal to render to; progress goes through
+            # progress_handler hooks (see v08), never this TUI.
+            "simple_tui": True,
         }
         if proxy:
             options["proxy"] = proxy

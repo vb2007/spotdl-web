@@ -7,7 +7,7 @@ from spotdl.types.song import Song
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import DownloadedTrack, Track, TrackState
-from app.services import dedup, downloads, retry
+from app.services import dedup, downloads, proxies, retry
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -40,17 +40,26 @@ def download_track(track_id: str) -> None:
             db.commit()
             return
 
+        settings = get_settings()
+
+        # Attempt 1 is always direct (per the locked "direct first -> wait out the ladder
+        # -> then proxy" strategy); only the *following* attempt, once its ladder wait has
+        # already elapsed, prefers a proxy.
+        proxy = proxies.pick_proxy(db) if track.attempt_count >= 1 else None
+        proxy_id = proxy.id if proxy is not None else None
+        proxy_url = proxy.url if proxy is not None else None
+
         track.state = TrackState.DOWNLOADING
+        if proxy_id is not None:
+            track.used_proxy_id = proxy_id
+            logger.info("download_track: track %s attempting via proxy %s", track_id, proxy_url)
         db.commit()
 
-        settings = get_settings()
-        # Proxy escalation seam: second+ attempts should prefer a proxy once one exists.
-        # TODO(v07): draw a proxy from the pool when use_proxy is True and pass it to
-        # get_downloader — no pool exists yet, so this only marks the decision point.
-        use_proxy = track.attempt_count >= 1  # noqa: F841
         try:
             song = Song.from_dict(track.song_json)
-            downloader = downloads.get_downloader(settings.default_format, settings.default_bitrate)
+            downloader = downloads.get_downloader(
+                settings.default_format, settings.default_bitrate, proxy=proxy_url
+            )
             _, output_path = downloads.download_one(song, downloader)
             if output_path is None:
                 raise RuntimeError("spotdl returned no output file for this track")
@@ -65,6 +74,8 @@ def download_track(track_id: str) -> None:
                     bitrate=settings.default_bitrate,
                 )
             )
+            if proxy_id is not None:
+                proxies.record_proxy_result(db, proxy_id, success=True)
             retry.record_success(db, track)
             db.commit()
         except Exception as exc:
@@ -73,6 +84,8 @@ def download_track(track_id: str) -> None:
             track = db.get(Track, uuid.UUID(track_id))
             error_type = retry.classify_error(exc)
             retry.record_failure(db, track, error_type, str(exc))
+            if proxy_id is not None:
+                proxies.record_proxy_result(db, proxy_id, success=False)
             db.commit()
     finally:
         db.close()

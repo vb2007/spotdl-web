@@ -15,7 +15,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db import get_db
 from app.main import app
-from app.models import DownloadedTrack, Job, Track, UserSession, WorkerState
+from app.models import DownloadedTrack, Job, Proxy, Track, UserSession, WorkerState
 
 
 # SQLite (used for fast in-process tests, see v02/v03 gotchas) has no native JSONB type —
@@ -35,6 +35,7 @@ def db_session():
     )
     UserSession.__table__.create(engine)
     Job.__table__.create(engine)
+    Proxy.__table__.create(engine)
     Track.__table__.create(engine)
     DownloadedTrack.__table__.create(engine)
     WorkerState.__table__.create(engine)
