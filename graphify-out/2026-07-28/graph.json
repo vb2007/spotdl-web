@@ -2717,30 +2717,30 @@
       "norm_label": "6. what the workflow actually runs"
     },
     {
-      "label": "8. Human-readable test reports",
-      "file_type": "document",
-      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L190",
-      "_origin": "ast",
-      "id": "docs_ci_self_hosted_runner_8_human_readable_test_reports",
-      "community": 15,
-      "norm_label": "8. human-readable test reports"
-    },
-    {
       "label": "7. Caching across runs \u2014 already automatic, no workflow change needed",
       "file_type": "document",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L217",
+      "source_location": "L191",
       "_origin": "ast",
       "id": "docs_ci_self_hosted_runner_7_caching_across_runs_already_automatic_no_workflow_change_needed",
       "community": 15,
       "norm_label": "7. caching across runs \u2014 already automatic, no workflow change needed"
     },
     {
+      "label": "8. Human-readable test reports",
+      "file_type": "document",
+      "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
+      "source_location": "L239",
+      "_origin": "ast",
+      "id": "docs_ci_self_hosted_runner_8_human_readable_test_reports",
+      "community": 15,
+      "norm_label": "8. human-readable test reports"
+    },
+    {
       "label": "Troubleshooting",
       "file_type": "document",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L267",
+      "source_location": "L281",
       "_origin": "ast",
       "id": "docs_ci_self_hosted_runner_troubleshooting",
       "community": 15,
@@ -8861,7 +8861,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L217",
+      "source_location": "L191",
       "weight": 1.0,
       "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
       "target": "docs_ci_self_hosted_runner_7_caching_across_runs_already_automatic_no_workflow_change_needed",
@@ -8871,7 +8871,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L190",
+      "source_location": "L239",
       "weight": 1.0,
       "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
       "target": "docs_ci_self_hosted_runner_8_human_readable_test_reports",
@@ -8891,7 +8891,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L267",
+      "source_location": "L281",
       "weight": 1.0,
       "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
       "target": "docs_ci_self_hosted_runner_troubleshooting",
@@ -10039,5 +10039,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "98494c82e02026b052c16e25dee0608048be0814"
+  "built_at_commit": "48ffd3aaa610e3c1157cb8a37e35d798d06e6165"
 }

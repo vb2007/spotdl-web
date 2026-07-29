@@ -210,7 +210,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_main",
-      "community": 87,
+      "community": 79,
       "norm_label": "main.py"
     },
     {
@@ -300,7 +300,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_app_models_job_job",
-      "community": 79,
+      "community": 82,
       "norm_label": "job"
     },
     {
@@ -310,7 +310,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_models_job_rationale_26",
-      "community": 79,
+      "community": 82,
       "norm_label": "one row per submitted url (album/playlist/artist/track)."
     },
     {
@@ -350,7 +350,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_session",
-      "community": 79,
+      "community": 37,
       "norm_label": "session.py"
     },
     {
@@ -360,7 +360,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_session_usersession",
-      "community": 79,
+      "community": 37,
       "norm_label": "usersession"
     },
     {
@@ -370,7 +370,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_session_rationale_11",
-      "community": 79,
+      "community": 37,
       "norm_label": "our own session store \u2014 separate from the upstream vb-auth token (see v03)."
     },
     {
@@ -410,7 +410,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_app_models_track_track",
-      "community": 82,
+      "community": 89,
       "norm_label": "track"
     },
     {
@@ -420,7 +420,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_app_models_track_rationale_31",
-      "community": 82,
+      "community": 89,
       "norm_label": "one row per individual song discovered while expanding a job \u2014 the unit the retr"
     },
     {
@@ -440,7 +440,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_app_models_worker_state_workerstate",
-      "community": 79,
+      "community": 87,
       "norm_label": "workerstate"
     },
     {
@@ -450,7 +450,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_worker_state_rationale_10",
-      "community": 79,
+      "community": 87,
       "norm_label": "single-row table backing the global circuit breaker."
     },
     {
@@ -490,7 +490,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "basemodel",
-      "community": 37,
+      "community": 82,
       "norm_label": "basemodel"
     },
     {
@@ -610,7 +610,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_jobs",
-      "community": 79,
+      "community": 82,
       "norm_label": "jobs.py"
     },
     {
@@ -620,7 +620,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_createjobrequest",
-      "community": 79,
+      "community": 82,
       "norm_label": "createjobrequest"
     },
     {
@@ -640,7 +640,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_track_counts",
-      "community": 79,
+      "community": 82,
       "norm_label": "_track_counts()"
     },
     {
@@ -650,7 +650,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_py_session",
-      "community": 79,
+      "community": 82,
       "norm_label": "session"
     },
     {
@@ -660,7 +660,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "uuid",
-      "community": 79,
+      "community": 82,
       "norm_label": "uuid"
     },
     {
@@ -670,7 +670,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_job_to_dict",
-      "community": 79,
+      "community": 82,
       "norm_label": "_job_to_dict()"
     },
     {
@@ -680,7 +680,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_track_to_dict",
-      "community": 79,
+      "community": 82,
       "norm_label": "_track_to_dict()"
     },
     {
@@ -690,7 +690,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_create_job",
-      "community": 79,
+      "community": 82,
       "norm_label": "create_job()"
     },
     {
@@ -700,7 +700,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_jobs",
-      "community": 79,
+      "community": 82,
       "norm_label": "list_jobs()"
     },
     {
@@ -710,7 +710,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_get_job_or_404",
-      "community": 79,
+      "community": 82,
       "norm_label": "_get_job_or_404()"
     },
     {
@@ -720,7 +720,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_get_job",
-      "community": 79,
+      "community": 82,
       "norm_label": "get_job()"
     },
     {
@@ -730,7 +730,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_job_tracks",
-      "community": 79,
+      "community": 82,
       "norm_label": "list_job_tracks()"
     },
     {
@@ -954,6 +954,136 @@
       "norm_label": "turn a spotify url (track/album/playlist/artist) or a search term into songs."
     },
     {
+      "label": "retry.py",
+      "file_type": "code",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_retry",
+      "community": 90,
+      "norm_label": "retry.py"
+    },
+    {
+      "label": "classify_error()",
+      "file_type": "code",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L17",
+      "_origin": "ast",
+      "id": "backend_app_services_retry_classify_error",
+      "community": 79,
+      "norm_label": "classify_error()"
+    },
+    {
+      "label": "Exception",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "exception",
+      "community": 79,
+      "norm_label": "exception"
+    },
+    {
+      "label": "next_delay()",
+      "file_type": "code",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L25",
+      "_origin": "ast",
+      "id": "backend_app_services_retry_next_delay",
+      "community": 90,
+      "norm_label": "next_delay()"
+    },
+    {
+      "label": "timedelta",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "timedelta",
+      "community": 87,
+      "norm_label": "timedelta"
+    },
+    {
+      "label": "get_worker_state()",
+      "file_type": "code",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L30",
+      "_origin": "ast",
+      "id": "backend_app_services_retry_get_worker_state",
+      "community": 90,
+      "norm_label": "get_worker_state()"
+    },
+    {
+      "label": "Session",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_services_retry_py_session",
+      "community": 90,
+      "norm_label": "session"
+    },
+    {
+      "label": "breaker_active()",
+      "file_type": "code",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "backend_app_services_retry_breaker_active",
+      "community": 90,
+      "norm_label": "breaker_active()"
+    },
+    {
+      "label": "datetime",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_services_retry_py_datetime",
+      "community": 90,
+      "norm_label": "datetime"
+    },
+    {
+      "label": "maybe_trip_breaker()",
+      "file_type": "code",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L48",
+      "_origin": "ast",
+      "id": "backend_app_services_retry_maybe_trip_breaker",
+      "community": 90,
+      "norm_label": "maybe_trip_breaker()"
+    },
+    {
+      "label": "record_failure()",
+      "file_type": "code",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L56",
+      "_origin": "ast",
+      "id": "backend_app_services_retry_record_failure",
+      "community": 90,
+      "norm_label": "record_failure()"
+    },
+    {
+      "label": "record_success()",
+      "file_type": "code",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L81",
+      "_origin": "ast",
+      "id": "backend_app_services_retry_record_success",
+      "community": 90,
+      "norm_label": "record_success()"
+    },
+    {
+      "label": "Per-track backoff ladder and global circuit breaker \u2014 see CLAUDE.md's \"Retry eng",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_services_retry_rationale_1",
+      "community": 90,
+      "norm_label": "per-track backoff ladder and global circuit breaker \u2014 see claude.md's \"retry eng"
+    },
+    {
       "label": "sessions.py",
       "file_type": "code",
       "source_file": "backend/app/services/sessions.py",
@@ -1044,6 +1174,26 @@
       "norm_label": "__init__.py"
     },
     {
+      "label": "beat.py",
+      "file_type": "code",
+      "source_file": "backend/app/tasks/beat.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_app_tasks_beat",
+      "community": 79,
+      "norm_label": "beat.py"
+    },
+    {
+      "label": "dispatch_due_tracks()",
+      "file_type": "code",
+      "source_file": "backend/app/tasks/beat.py",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "backend_app_tasks_beat_dispatch_due_tracks",
+      "community": 79,
+      "norm_label": "dispatch_due_tracks()"
+    },
+    {
       "label": "celery_app.py",
       "file_type": "code",
       "source_file": "backend/app/tasks/celery_app.py",
@@ -1057,7 +1207,7 @@
       "label": "_reconcile_disk_on_boot()",
       "file_type": "code",
       "source_file": "backend/app/tasks/celery_app.py",
-      "source_location": "L30",
+      "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
       "community": 86,
@@ -1070,17 +1220,17 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_download",
-      "community": 79,
+      "community": 12,
       "norm_label": "download.py"
     },
     {
       "label": "download_track()",
       "file_type": "code",
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L16",
+      "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_download_download_track",
-      "community": 86,
+      "community": 12,
       "norm_label": "download_track()"
     },
     {
@@ -1090,7 +1240,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 79,
+      "community": 82,
       "norm_label": "expand.py"
     },
     {
@@ -1100,7 +1250,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 79,
+      "community": 82,
       "norm_label": "expand_job()"
     },
     {
@@ -1123,7 +1273,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_conftest",
-      "community": 87,
+      "community": 79,
       "norm_label": "conftest.py"
     },
     {
@@ -1133,7 +1283,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_tests_conftest_compile_jsonb_sqlite",
-      "community": 87,
+      "community": 79,
       "norm_label": "_compile_jsonb_sqlite()"
     },
     {
@@ -1143,17 +1293,17 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_tests_conftest_db_session",
-      "community": 87,
+      "community": 79,
       "norm_label": "db_session()"
     },
     {
       "label": "client()",
       "file_type": "code",
       "source_file": "backend/tests/conftest.py",
-      "source_location": "L49",
+      "source_location": "L50",
       "_origin": "ast",
       "id": "backend_tests_conftest_client",
-      "community": 87,
+      "community": 79,
       "norm_label": "client()"
     },
     {
@@ -1225,6 +1375,116 @@
       "id": "backend_tests_test_auth_test_logout_clears_session",
       "community": 81,
       "norm_label": "test_logout_clears_session()"
+    },
+    {
+      "label": "test_beat_task.py",
+      "file_type": "code",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task",
+      "community": 87,
+      "norm_label": "test_beat_task.py"
+    },
+    {
+      "label": "_NonClosingSession",
+      "file_type": "code",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task_nonclosingsession",
+      "community": 87,
+      "norm_label": "_nonclosingsession"
+    },
+    {
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task_nonclosingsession_init",
+      "community": 87,
+      "norm_label": ".__init__()"
+    },
+    {
+      "label": ".__getattr__()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task_nonclosingsession_getattr",
+      "community": 87,
+      "norm_label": ".__getattr__()"
+    },
+    {
+      "label": ".close()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task_nonclosingsession_close",
+      "community": 87,
+      "norm_label": ".close()"
+    },
+    {
+      "label": "_make_track()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task_make_track",
+      "community": 87,
+      "norm_label": "_make_track()"
+    },
+    {
+      "label": "_patch_session()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task_patch_session",
+      "community": 87,
+      "norm_label": "_patch_session()"
+    },
+    {
+      "label": "test_dispatch_due_tracks_dispatches_and_flips_state()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L43",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task_test_dispatch_due_tracks_dispatches_and_flips_state",
+      "community": 87,
+      "norm_label": "test_dispatch_due_tracks_dispatches_and_flips_state()"
+    },
+    {
+      "label": "test_dispatch_due_tracks_skips_entirely_while_breaker_tripped()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L65",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_breaker_tripped",
+      "community": 87,
+      "norm_label": "test_dispatch_due_tracks_skips_entirely_while_breaker_tripped()"
+    },
+    {
+      "label": "test_dispatch_due_tracks_skips_entirely_while_paused()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L85",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_paused",
+      "community": 87,
+      "norm_label": "test_dispatch_due_tracks_skips_entirely_while_paused()"
+    },
+    {
+      "label": "See test_download_task.py \u2014 download_track's db.close() would otherwise detach",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "backend_tests_test_beat_task_rationale_9",
+      "community": 87,
+      "norm_label": "see test_download_task.py \u2014 download_track's db.close() would otherwise detach"
     },
     {
       "label": "test_dedup.py",
@@ -1323,127 +1583,167 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_download_task",
-      "community": 82,
+      "community": 89,
       "norm_label": "test_download_task.py"
     },
     {
       "label": "_NonClosingSession",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L9",
+      "source_location": "L12",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_nonclosingsession",
-      "community": 82,
+      "community": 89,
       "norm_label": "_nonclosingsession"
     },
     {
       "label": ".__init__()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L13",
+      "source_location": "L16",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_nonclosingsession_init",
-      "community": 82,
+      "community": 89,
       "norm_label": ".__init__()"
     },
     {
       "label": ".__getattr__()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L16",
+      "source_location": "L19",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_nonclosingsession_getattr",
-      "community": 82,
+      "community": 89,
       "norm_label": ".__getattr__()"
     },
     {
       "label": ".close()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L19",
+      "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_nonclosingsession_close",
-      "community": 82,
+      "community": 89,
       "norm_label": ".close()"
     },
     {
       "label": "_FakeSettings",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L23",
+      "source_location": "L26",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakesettings",
-      "community": 82,
+      "community": 89,
       "norm_label": "_fakesettings"
     },
     {
       "label": "_make_track()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L28",
+      "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_make_track",
-      "community": 82,
+      "community": 89,
       "norm_label": "_make_track()"
     },
     {
       "label": "_patch_common()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L39",
+      "source_location": "L42",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_patch_common",
-      "community": 82,
+      "community": 89,
       "norm_label": "_patch_common()"
     },
     {
       "label": "test_download_track_skips_when_already_downloaded()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L45",
+      "source_location": "L48",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_skips_when_already_downloaded",
-      "community": 82,
+      "community": 89,
       "norm_label": "test_download_track_skips_when_already_downloaded()"
     },
     {
       "label": "test_download_track_success_marks_completed_and_upserts_ledger()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L63",
+      "source_location": "L66",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
-      "community": 82,
+      "community": 89,
       "norm_label": "test_download_track_success_marks_completed_and_upserts_ledger()"
     },
     {
-      "label": "test_download_track_failure_marks_failed_with_error()",
+      "label": "test_download_track_other_error_reschedules_to_waiting()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L86",
+      "source_location": "L89",
       "_origin": "ast",
-      "id": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
-      "community": 82,
-      "norm_label": "test_download_track_failure_marks_failed_with_error()"
+      "id": "backend_tests_test_download_task_test_download_track_other_error_reschedules_to_waiting",
+      "community": 89,
+      "norm_label": "test_download_track_other_error_reschedules_to_waiting()"
+    },
+    {
+      "label": "test_download_track_audio_provider_error_feeds_breaker()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L115",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_download_track_audio_provider_error_feeds_breaker",
+      "community": 89,
+      "norm_label": "test_download_track_audio_provider_error_feeds_breaker()"
+    },
+    {
+      "label": "test_download_track_lookup_error_is_terminal()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L138",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_download_track_lookup_error_is_terminal",
+      "community": 89,
+      "norm_label": "test_download_track_lookup_error_is_terminal()"
+    },
+    {
+      "label": "test_download_track_success_resets_breaker_state()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L158",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_download_track_success_resets_breaker_state",
+      "community": 89,
+      "norm_label": "test_download_track_success_resets_breaker_state()"
+    },
+    {
+      "label": "test_download_track_skips_entirely_while_breaker_tripped()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L180",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_download_track_skips_entirely_while_breaker_tripped",
+      "community": 89,
+      "norm_label": "test_download_track_skips_entirely_while_breaker_tripped()"
     },
     {
       "label": "test_download_track_unknown_track_is_a_noop()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L106",
+      "source_location": "L203",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
-      "community": 82,
+      "community": 89,
       "norm_label": "test_download_track_unknown_track_is_a_noop()"
     },
     {
       "label": "Wraps db_session so download_track's db.close() doesn't detach objects the test",
       "file_type": "rationale",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L10",
+      "source_location": "L13",
       "_origin": "ast",
-      "id": "backend_tests_test_download_task_rationale_10",
-      "community": 82,
+      "id": "backend_tests_test_download_task_rationale_13",
+      "community": 89,
       "norm_label": "wraps db_session so download_track's db.close() doesn't detach objects the test"
     },
     {
@@ -1865,6 +2165,146 @@
       "id": "backend_tests_test_jobs_test_jobs_endpoints_require_session",
       "community": 85,
       "norm_label": "test_jobs_endpoints_require_session()"
+    },
+    {
+      "label": "test_retry.py",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry",
+      "community": 87,
+      "norm_label": "test_retry.py"
+    },
+    {
+      "label": "_aware()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_aware",
+      "community": 87,
+      "norm_label": "_aware()"
+    },
+    {
+      "label": "datetime",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_py_datetime",
+      "community": 87,
+      "norm_label": "datetime"
+    },
+    {
+      "label": "_make_track()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_make_track",
+      "community": 87,
+      "norm_label": "_make_track()"
+    },
+    {
+      "label": "test_classify_error_maps_known_exception_types()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L25",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_test_classify_error_maps_known_exception_types",
+      "community": 87,
+      "norm_label": "test_classify_error_maps_known_exception_types()"
+    },
+    {
+      "label": "test_next_delay_follows_ladder_and_caps_at_final_step()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L31",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_test_next_delay_follows_ladder_and_caps_at_final_step",
+      "community": 87,
+      "norm_label": "test_next_delay_follows_ladder_and_caps_at_final_step()"
+    },
+    {
+      "label": "test_record_failure_lookup_is_terminal_and_never_reschedules()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L43",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_test_record_failure_lookup_is_terminal_and_never_reschedules",
+      "community": 87,
+      "norm_label": "test_record_failure_lookup_is_terminal_and_never_reschedules()"
+    },
+    {
+      "label": "test_record_failure_audio_provider_advances_ladder_and_breaker()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L55",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_test_record_failure_audio_provider_advances_ladder_and_breaker",
+      "community": 87,
+      "norm_label": "test_record_failure_audio_provider_advances_ladder_and_breaker()"
+    },
+    {
+      "label": "test_record_failure_other_shares_ladder_but_does_not_feed_breaker()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L72",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_test_record_failure_other_shares_ladder_but_does_not_feed_breaker",
+      "community": 87,
+      "norm_label": "test_record_failure_other_shares_ladder_but_does_not_feed_breaker()"
+    },
+    {
+      "label": "test_breaker_trips_after_five_consecutive_failures()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L90",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_test_breaker_trips_after_five_consecutive_failures",
+      "community": 87,
+      "norm_label": "test_breaker_trips_after_five_consecutive_failures()"
+    },
+    {
+      "label": "test_breaker_escalates_delay_on_successive_trips()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L104",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_test_breaker_escalates_delay_on_successive_trips",
+      "community": 87,
+      "norm_label": "test_breaker_escalates_delay_on_successive_trips()"
+    },
+    {
+      "label": "test_breaker_caps_delay_at_third_trip_and_beyond()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L120",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_test_breaker_caps_delay_at_third_trip_and_beyond",
+      "community": 87,
+      "norm_label": "test_breaker_caps_delay_at_third_trip_and_beyond()"
+    },
+    {
+      "label": "test_record_success_resets_breaker_state()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L136",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_test_record_success_resets_breaker_state",
+      "community": 87,
+      "norm_label": "test_record_success_resets_breaker_state()"
+    },
+    {
+      "label": "test_breaker_active_checks_paused_and_tripped_until()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L153",
+      "_origin": "ast",
+      "id": "backend_tests_test_retry_test_breaker_active_checks_paused_and_tripped_until",
+      "community": 87,
+      "norm_label": "test_breaker_active_checks_paused_and_tripped_until()"
     },
     {
       "label": "eslint.config.js",
@@ -2587,10 +3027,20 @@
       "norm_label": "v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)"
     },
     {
-      "label": "Version roadmap",
+      "label": "v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L478",
+      "_origin": "ast",
+      "id": "claude_v06_retry_engine_gotchas_learned_building_error_classification_ladder_breaker_beat_dispatch",
+      "community": 14,
+      "norm_label": "v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch)"
+    },
+    {
+      "label": "Version roadmap",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L534",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -4771,6 +5221,17 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "backend_app_services_retry",
+      "target": "backend_app_config",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/services/upstream_auth.py",
       "source_location": "L5",
       "weight": 1.0,
@@ -4794,7 +5255,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L6",
+      "source_location": "L7",
       "weight": 1.0,
       "source": "backend_app_tasks_download",
       "target": "backend_app_config",
@@ -4890,6 +5351,17 @@
       "context": "call",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_next_delay",
+      "target": "backend_app_config_get_settings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
       "source_file": "backend/app/services/upstream_auth.py",
       "source_location": "L13",
       "weight": 1.0,
@@ -4902,9 +5374,20 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L34",
+      "source_location": "L46",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
+      "target": "backend_app_config_get_settings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_next_delay_follows_ladder_and_caps_at_final_step",
       "target": "backend_app_config_get_settings"
     },
     {
@@ -5052,8 +5535,19 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/beat.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "backend_app_tasks_beat",
+      "target": "backend_app_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L7",
+      "source_location": "L8",
       "weight": 1.0,
       "source": "backend_app_tasks_download",
       "target": "backend_app_db",
@@ -5271,7 +5765,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L45",
+      "source_location": "L61",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -5304,9 +5798,9 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L103",
+      "source_location": "L109",
       "weight": 1.0,
-      "source": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "source": "backend_tests_test_download_task_test_download_track_other_error_reschedules_to_waiting",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
     },
     {
@@ -5315,7 +5809,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L79",
+      "source_location": "L82",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -5492,8 +5986,19 @@
       "context": "call",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_make_track",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L29",
+      "source_location": "L32",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_make_track",
       "target": "backend_app_models_job_job"
@@ -5551,6 +6056,17 @@
       "source_location": "L88",
       "weight": 1.0,
       "source": "backend_tests_test_jobs_test_list_job_tracks_projects_display_fields_and_stays_pending",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_make_track",
       "target": "backend_app_models_job_job"
     },
     {
@@ -5767,6 +6283,28 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_classify_error",
+      "target": "backend_app_models_track_trackerrortype",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_record_failure",
+      "target": "backend_app_models_track_trackerrortype",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/models/track.py",
@@ -5799,12 +6337,45 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_record_failure",
+      "target": "backend_app_models_track_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_record_success",
+      "target": "backend_app_models_track_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/tasks/beat.py",
+      "source_location": "L29",
+      "weight": 1.0,
+      "source": "backend_app_tasks_beat_dispatch_due_tracks",
+      "target": "backend_app_models_track_track"
+    },
+    {
       "relation": "indirect_call",
       "context": "argument",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L19",
+      "source_location": "L20",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_models_track_track"
@@ -5825,8 +6396,52 @@
       "context": "call",
       "confidence": "INFERRED",
       "confidence_score": 0.8,
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_make_track",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_dispatches_and_flips_state",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_breaker_tripped",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L102",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_paused",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L33",
+      "source_location": "L36",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_make_track",
       "target": "backend_app_models_track_track"
@@ -5837,9 +6452,9 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L100",
+      "source_location": "L129",
       "weight": 1.0,
-      "source": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "source": "backend_tests_test_download_task_test_download_track_audio_provider_error_feeds_breaker",
       "target": "backend_app_models_track_track"
     },
     {
@@ -5848,7 +6463,40 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L58",
+      "source_location": "L152",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_lookup_error_is_terminal",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L103",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_other_error_reschedules_to_waiting",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L196",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_skips_entirely_while_breaker_tripped",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L61",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_when_already_downloaded",
       "target": "backend_app_models_track_track"
@@ -5859,7 +6507,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L75",
+      "source_location": "L78",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
       "target": "backend_app_models_track_track"
@@ -5920,6 +6568,17 @@
       "target": "backend_app_models_track_track"
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_make_track",
+      "target": "backend_app_models_track_track"
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/models/worker_state.py",
@@ -5938,6 +6597,138 @@
       "source": "backend_app_models_worker_state_rationale_10",
       "target": "backend_app_models_worker_state_workerstate",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_breaker_active",
+      "target": "backend_app_models_worker_state_workerstate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_get_worker_state",
+      "target": "backend_app_models_worker_state_workerstate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L134",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_audio_provider_error_feeds_breaker",
+      "target": "backend_app_models_worker_state_workerstate"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L111",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_other_error_reschedules_to_waiting",
+      "target": "backend_app_models_worker_state_workerstate"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L175",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_success_resets_breaker_state",
+      "target": "backend_app_models_worker_state_workerstate"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L156",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_active_checks_paused_and_tripped_until",
+      "target": "backend_app_models_worker_state_workerstate"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L129",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_caps_delay_at_third_trip_and_beyond",
+      "target": "backend_app_models_worker_state_workerstate"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L113",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_escalates_delay_on_successive_trips",
+      "target": "backend_app_models_worker_state_workerstate"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L97",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_trips_after_five_consecutive_failures",
+      "target": "backend_app_models_worker_state_workerstate"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L67",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_record_failure_audio_provider_advances_ladder_and_breaker",
+      "target": "backend_app_models_worker_state_workerstate"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_record_failure_other_shares_ladder_but_does_not_feed_breaker",
+      "target": "backend_app_models_worker_state_workerstate"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L147",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_record_success_resets_breaker_state",
+      "target": "backend_app_models_worker_state_workerstate"
     },
     {
       "relation": "contains",
@@ -6626,7 +7417,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/celery_app.py",
-      "source_location": "L38",
+      "source_location": "L45",
       "weight": 1.0,
       "source": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
       "target": "backend_app_services_dedup_reconcile_disk"
@@ -6812,6 +7603,350 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "backend_app_services_retry",
+      "target": "backend_app_services_retry_breaker_active",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "backend_app_services_retry",
+      "target": "backend_app_services_retry_classify_error",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "backend_app_services_retry",
+      "target": "backend_app_services_retry_get_worker_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_services_retry",
+      "target": "backend_app_services_retry_maybe_trip_breaker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "backend_app_services_retry",
+      "target": "backend_app_services_retry_next_delay",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "backend_app_services_retry",
+      "target": "backend_app_services_retry_py_datetime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "backend_app_services_retry",
+      "target": "backend_app_services_retry_record_failure",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "backend_app_services_retry",
+      "target": "backend_app_services_retry_record_success",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_rationale_1",
+      "target": "backend_app_services_retry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_classify_error",
+      "target": "exception",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_next_delay",
+      "target": "timedelta",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L68",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_record_failure",
+      "target": "backend_app_services_retry_next_delay",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L46",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_dispatches_and_flips_state",
+      "target": "timedelta"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L68",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_breaker_tripped",
+      "target": "timedelta"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_paused",
+      "target": "timedelta"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L184",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_skips_entirely_while_breaker_tripped",
+      "target": "timedelta"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L156",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_active_checks_paused_and_tripped_until",
+      "target": "timedelta"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L131",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_caps_delay_at_third_trip_and_beyond",
+      "target": "timedelta"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L115",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_escalates_delay_on_successive_trips",
+      "target": "timedelta"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L101",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_trips_after_five_consecutive_failures",
+      "target": "timedelta"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_next_delay_follows_ladder_and_caps_at_final_step",
+      "target": "timedelta"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_record_failure_audio_provider_advances_ladder_and_breaker",
+      "target": "timedelta"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L141",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_record_success_resets_breaker_state",
+      "target": "timedelta"
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_get_worker_state",
+      "target": "backend_app_services_retry_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L49",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_maybe_trip_breaker",
+      "target": "backend_app_services_retry_get_worker_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L76",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_record_failure",
+      "target": "backend_app_services_retry_get_worker_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L82",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_record_success",
+      "target": "backend_app_services_retry_get_worker_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_maybe_trip_breaker",
+      "target": "backend_app_services_retry_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_record_failure",
+      "target": "backend_app_services_retry_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_record_success",
+      "target": "backend_app_services_retry_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_breaker_active",
+      "target": "backend_app_services_retry_py_datetime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L78",
+      "weight": 1.0,
+      "source": "backend_app_services_retry_record_failure",
+      "target": "backend_app_services_retry_maybe_trip_breaker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/services/sessions.py",
       "source_location": "L12",
       "weight": 1.0,
@@ -6895,8 +8030,18 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/beat.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_app_tasks_beat",
+      "target": "backend_app_tasks_beat_dispatch_due_tracks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "backend/app/tasks/celery_app.py",
-      "source_location": "L30",
+      "source_location": "L37",
       "weight": 1.0,
       "source": "backend_app_tasks_celery_app",
       "target": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
@@ -6906,7 +8051,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L16",
+      "source_location": "L17",
       "weight": 1.0,
       "source": "backend_app_tasks_download",
       "target": "backend_app_tasks_download_download_track",
@@ -6926,7 +8071,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/conftest.py",
-      "source_location": "L49",
+      "source_location": "L50",
       "weight": 1.0,
       "source": "backend_tests_conftest",
       "target": "backend_tests_conftest_client",
@@ -7059,6 +8204,183 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task",
+      "target": "backend_tests_test_beat_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task",
+      "target": "backend_tests_test_beat_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task",
+      "target": "backend_tests_test_beat_task_patch_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task",
+      "target": "backend_tests_test_beat_task_test_dispatch_due_tracks_dispatches_and_flips_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task",
+      "target": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_breaker_tripped",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L85",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task",
+      "target": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_paused",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_nonclosingsession",
+      "target": "backend_tests_test_beat_task_nonclosingsession_close",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_nonclosingsession",
+      "target": "backend_tests_test_beat_task_nonclosingsession_getattr",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_nonclosingsession",
+      "target": "backend_tests_test_beat_task_nonclosingsession_init",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_patch_session",
+      "target": "backend_tests_test_beat_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_rationale_9",
+      "target": "backend_tests_test_beat_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L45",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_dispatches_and_flips_state",
+      "target": "backend_tests_test_beat_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L67",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_breaker_tripped",
+      "target": "backend_tests_test_beat_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L87",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_paused",
+      "target": "backend_tests_test_beat_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_dispatches_and_flips_state",
+      "target": "backend_tests_test_beat_task_patch_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L66",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_breaker_tripped",
+      "target": "backend_tests_test_beat_task_patch_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L86",
+      "weight": 1.0,
+      "source": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_paused",
+      "target": "backend_tests_test_beat_task_patch_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
       "source_location": "L7",
       "weight": 1.0,
@@ -7173,7 +8495,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L23",
+      "source_location": "L26",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_fakesettings",
@@ -7183,7 +8505,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L28",
+      "source_location": "L31",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_make_track",
@@ -7193,7 +8515,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L9",
+      "source_location": "L12",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_nonclosingsession",
@@ -7203,7 +8525,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L39",
+      "source_location": "L42",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_patch_common",
@@ -7213,17 +8535,47 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L86",
+      "source_location": "L115",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
-      "target": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "target": "backend_tests_test_download_task_test_download_track_audio_provider_error_feeds_breaker",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L45",
+      "source_location": "L138",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_download_track_lookup_error_is_terminal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L89",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_download_track_other_error_reschedules_to_waiting",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L180",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_download_track_skips_entirely_while_breaker_tripped",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L48",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_skips_when_already_downloaded",
@@ -7233,7 +8585,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L63",
+      "source_location": "L66",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
@@ -7243,7 +8595,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L106",
+      "source_location": "L158",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_download_track_success_resets_breaker_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L203",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
@@ -7253,7 +8615,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L19",
+      "source_location": "L22",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_nonclosingsession",
       "target": "backend_tests_test_download_task_nonclosingsession_close",
@@ -7263,7 +8625,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L16",
+      "source_location": "L19",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_nonclosingsession",
       "target": "backend_tests_test_download_task_nonclosingsession_getattr",
@@ -7273,7 +8635,7 @@
       "relation": "method",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L13",
+      "source_location": "L16",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_nonclosingsession",
       "target": "backend_tests_test_download_task_nonclosingsession_init",
@@ -7284,7 +8646,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L40",
+      "source_location": "L43",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_patch_common",
       "target": "backend_tests_test_download_task_nonclosingsession",
@@ -7294,9 +8656,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L10",
+      "source_location": "L13",
       "weight": 1.0,
-      "source": "backend_tests_test_download_task_rationale_10",
+      "source": "backend_tests_test_download_task_rationale_13",
       "target": "backend_tests_test_download_task_nonclosingsession",
       "confidence_score": 1.0
     },
@@ -7305,7 +8667,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L107",
+      "source_location": "L204",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
       "target": "backend_tests_test_download_task_nonclosingsession",
@@ -7316,7 +8678,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L41",
+      "source_location": "L44",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_patch_common",
       "target": "backend_tests_test_download_task_fakesettings",
@@ -7327,9 +8689,9 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L87",
+      "source_location": "L116",
       "weight": 1.0,
-      "source": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "source": "backend_tests_test_download_task_test_download_track_audio_provider_error_feeds_breaker",
       "target": "backend_tests_test_download_task_make_track",
       "confidence_score": 1.0
     },
@@ -7338,7 +8700,40 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L46",
+      "source_location": "L139",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_lookup_error_is_terminal",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L90",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_other_error_reschedules_to_waiting",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L181",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_skips_entirely_while_breaker_tripped",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L49",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_when_already_downloaded",
       "target": "backend_tests_test_download_task_make_track",
@@ -7349,7 +8744,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L64",
+      "source_location": "L67",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
       "target": "backend_tests_test_download_task_make_track",
@@ -7360,9 +8755,20 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L88",
+      "source_location": "L159",
       "weight": 1.0,
-      "source": "backend_tests_test_download_task_test_download_track_failure_marks_failed_with_error",
+      "source": "backend_tests_test_download_task_test_download_track_success_resets_breaker_state",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L117",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_audio_provider_error_feeds_breaker",
       "target": "backend_tests_test_download_task_patch_common",
       "confidence_score": 1.0
     },
@@ -7371,7 +8777,40 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L47",
+      "source_location": "L140",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_lookup_error_is_terminal",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L91",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_other_error_reschedules_to_waiting",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L182",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_skips_entirely_while_breaker_tripped",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L50",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_when_already_downloaded",
       "target": "backend_tests_test_download_task_patch_common",
@@ -7382,9 +8821,20 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L65",
+      "source_location": "L68",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_success_marks_completed_and_upserts_ledger",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L160",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_success_resets_breaker_state",
       "target": "backend_tests_test_download_task_patch_common",
       "confidence_score": 1.0
     },
@@ -8112,6 +9562,247 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_aware",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_py_datetime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L153",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_test_breaker_active_checks_paused_and_tripped_until",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L120",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_test_breaker_caps_delay_at_third_trip_and_beyond",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L104",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_test_breaker_escalates_delay_on_successive_trips",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L90",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_test_breaker_trips_after_five_consecutive_failures",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_test_classify_error_maps_known_exception_types",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_test_next_delay_follows_ladder_and_caps_at_final_step",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L55",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_test_record_failure_audio_provider_advances_ladder_and_breaker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_test_record_failure_lookup_is_terminal_and_never_reschedules",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L72",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_test_record_failure_other_shares_ladder_but_does_not_feed_breaker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L136",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry",
+      "target": "backend_tests_test_retry_test_record_success_resets_breaker_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_aware",
+      "target": "backend_tests_test_retry_py_datetime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L131",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_caps_delay_at_third_trip_and_beyond",
+      "target": "backend_tests_test_retry_aware",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L115",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_escalates_delay_on_successive_trips",
+      "target": "backend_tests_test_retry_aware",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L101",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_trips_after_five_consecutive_failures",
+      "target": "backend_tests_test_retry_aware",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_record_failure_audio_provider_advances_ladder_and_breaker",
+      "target": "backend_tests_test_retry_aware",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L91",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_breaker_trips_after_five_consecutive_failures",
+      "target": "backend_tests_test_retry_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_record_failure_audio_provider_advances_ladder_and_breaker",
+      "target": "backend_tests_test_retry_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_record_failure_lookup_is_terminal_and_never_reschedules",
+      "target": "backend_tests_test_retry_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L73",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_record_failure_other_shares_ladder_but_does_not_feed_breaker",
+      "target": "backend_tests_test_retry_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L137",
+      "weight": 1.0,
+      "source": "backend_tests_test_retry_test_record_success_resets_breaker_state",
+      "target": "backend_tests_test_retry_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/eslint.config.js",
       "source_location": "L9",
       "weight": 1.0,
@@ -8722,6 +10413,16 @@
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
       "source_location": "L478",
+      "weight": 1.0,
+      "source": "claude_project_spotdl_web",
+      "target": "claude_v06_retry_engine_gotchas_learned_building_error_classification_ladder_breaker_beat_dispatch",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L534",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -10039,5 +11740,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "48ffd3aaa610e3c1157cb8a37e35d798d06e6165"
+  "built_at_commit": "2ad7086dc4d28ed228b2d7f44380efc38a40d645"
 }
