@@ -43,10 +43,13 @@ services:
     <<: *backend
     command: ["celery", "-A", "app.tasks.celery_app", "worker", "-Q", "meta", "-l", "info"]
     environment:
-      # reconcile_disk() runs on worker-meta boot only — see celery_app.py.
+      # reconcile_disk() / proxies.sync_from_file() run on worker-meta boot only — see
+      # celery_app.py.
       RUN_DISK_RECONCILE: "true"
+      RUN_PROXY_SYNC: "true"
     volumes:
       - downloads:/downloads
+      - ./proxies.txt:/app/proxies.txt:ro
 
   beat:
     <<: *backend

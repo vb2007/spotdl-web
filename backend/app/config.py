@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     pacing_min_sec: int = Field(default=0, alias="PACING_MIN_SEC")
     pacing_max_sec: int = Field(default=0, alias="PACING_MAX_SEC")
 
+    # Proxy rotation (v07) — plain file, UI management deferred to v13
+    proxy_file: str = Field(default="/app/proxies.txt", alias="PROXY_FILE")
+
     @field_validator("allowed_emails", mode="before")
     @classmethod
     def _split_allowed_emails(cls, value: object) -> object:

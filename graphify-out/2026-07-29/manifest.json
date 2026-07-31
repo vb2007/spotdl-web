@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785456373.5069754,
-    "ast_hash": "71ba1c776c9bce5a53a05132e21473d2",
+    "mtime": 1785345733.728611,
+    "ast_hash": "9729c61b4b98da84ac060f3a3ff7b74c",
     "semantic_hash": ""
   },
   "README.md": {
@@ -335,13 +335,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/downloads.py": {
-    "mtime": 1785346749.6007202,
-    "ast_hash": "c393ff18a64a7b0c3980814b594f9065",
+    "mtime": 1785270178.1235595,
+    "ast_hash": "0dcd2dab1c410b4a1874dd3f5393c956",
     "semantic_hash": ""
   },
   "backend/app/tasks/download.py": {
-    "mtime": 1785456209.4431424,
-    "ast_hash": "feddb5792604cc1313b88f8c6c5b80ea",
+    "mtime": 1785345975.1388793,
+    "ast_hash": "5080b01a60f3e2659535c78059868eda",
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
@@ -350,13 +350,13 @@
     "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
-    "mtime": 1785456232.7451127,
-    "ast_hash": "d8fdb0e9b6ac342ac7f721a407636c9f",
+    "mtime": 1785346152.7904334,
+    "ast_hash": "3e0eaf783520ae92b7096ea12dcbdf5c",
     "semantic_hash": ""
   },
   "backend/tests/test_downloads.py": {
-    "mtime": 1785346828.964056,
-    "ast_hash": "c0137cbd54c4da0f4ff2ebec22a2d270",
+    "mtime": 1785270178.1235595,
+    "ast_hash": "1abaf256bfecab00324f2409116e1265",
     "semantic_hash": ""
   },
   ".github/workflows/backend-tests.yml": {
@@ -395,13 +395,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/proxies.py": {
-    "mtime": 1785456145.9384987,
-    "ast_hash": "13329f889fc060f67cb88aa5a5ac157e",
+    "mtime": 1785346004.7761395,
+    "ast_hash": "3b5edbd7af458529c2540190e49effe8",
     "semantic_hash": ""
   },
   "backend/tests/test_proxies.py": {
-    "mtime": 1785456222.9617052,
-    "ast_hash": "c21f47e7152d367fe653225718e120a1",
+    "mtime": 1785346104.099363,
+    "ast_hash": "08383e9a4052bef2fed4efe37df2e57e",
     "semantic_hash": ""
   }
 }

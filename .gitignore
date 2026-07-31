@@ -12,6 +12,10 @@
 # local dev: bind-mounted download output (see docker-compose.override.yml)
 /downloads/
 
+# proxy pool (v07): plain-file config, never commit real proxy credentials
+/proxies.txt
+!proxies.txt.example
+
 # backend
 backend/__pycache__/
 backend/**/__pycache__/

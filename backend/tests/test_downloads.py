@@ -58,6 +58,19 @@ def test_get_downloader_builds_output_template_from_settings_dir(monkeypatch):
     assert "proxy" not in downloader.options
 
 
+def test_get_downloader_always_disables_rich_tui(monkeypatch):
+    # simple_tui defaults to False in spotdl, which builds a rich Live display — harmless
+    # with a single cached Downloader, but rich only allows one Live per process, and v07
+    # can construct a second, differently-keyed Downloader (direct, then per-proxy) within
+    # one worker-dl process's lifetime. Caught via real-stack testing, see CLAUDE.md.
+    monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
+    monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
+
+    downloader = downloads.get_downloader("mp3", "320k")
+
+    assert downloader.options["simple_tui"] is True
+
+
 def test_get_downloader_sets_proxy_only_when_given(monkeypatch):
     monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
     monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
