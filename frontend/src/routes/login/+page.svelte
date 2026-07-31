@@ -6,19 +6,27 @@
 	let email = $state('');
 	let password = $state('');
 	let submitting = $state(false);
-	let failed = $state(false);
+	let errorMessage = $state('');
 
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
 		submitting = true;
-		failed = false;
+		errorMessage = '';
 		try {
 			await api.login(email, password);
 			await goto(resolve('/'));
-		} catch {
-			// Deliberately generic — matches the backend's non-disclosure between an
-			// unknown/wrong-password upstream account and an allowlist rejection.
-			failed = true;
+		} catch (err) {
+			// "Invalid credentials." is deliberately generic for a real 401 — matches
+			// the backend's non-disclosure between an unknown/wrong-password upstream
+			// account and an allowlist rejection. Anything else (CORS misconfigured,
+			// the API unreachable, a 5xx) is a categorically different problem and
+			// must not be reported as "wrong password" — that reads as a lie to
+			// whoever's actually blocked by a config/network issue, not a bad
+			// credential.
+			errorMessage =
+				err instanceof api.ApiError && err.status === 401
+					? 'Invalid credentials.'
+					: 'Could not reach the server. Check your connection and try again.';
 			submitting = false;
 		}
 	}
@@ -78,7 +86,7 @@
 		</button>
 
 		<p id="login-error" class="error mono" role="alert" aria-live="polite">
-			{failed ? 'Invalid credentials.' : ''}
+			{errorMessage}
 		</p>
 	</form>
 </main>

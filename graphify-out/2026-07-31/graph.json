@@ -30,7 +30,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_alembic_env",
-      "community": 92,
+      "community": 85,
       "norm_label": "env.py"
     },
     {
@@ -40,7 +40,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_alembic_env_run_migrations_offline",
-      "community": 92,
+      "community": 85,
       "norm_label": "run_migrations_offline()"
     },
     {
@@ -50,7 +50,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_alembic_env_run_migrations_online",
-      "community": 92,
+      "community": 85,
       "norm_label": "run_migrations_online()"
     },
     {
@@ -160,7 +160,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_db",
-      "community": 92,
+      "community": 85,
       "norm_label": "db.py"
     },
     {
@@ -170,7 +170,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_db_base",
-      "community": 92,
+      "community": 86,
       "norm_label": "base"
     },
     {
@@ -180,7 +180,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "declarativebase",
-      "community": 92,
+      "community": 86,
       "norm_label": "declarativebase"
     },
     {
@@ -190,7 +190,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_db_get_db",
-      "community": 92,
+      "community": 85,
       "norm_label": "get_db()"
     },
     {
@@ -200,7 +200,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_db_py_session",
-      "community": 92,
+      "community": 85,
       "norm_label": "session"
     },
     {
@@ -210,7 +210,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_main",
-      "community": 12,
+      "community": 97,
       "norm_label": "main.py"
     },
     {
@@ -260,7 +260,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_job",
-      "community": 92,
+      "community": 86,
       "norm_label": "job.py"
     },
     {
@@ -270,7 +270,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_job_jobsourcetype",
-      "community": 92,
+      "community": 86,
       "norm_label": "jobsourcetype"
     },
     {
@@ -280,7 +280,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "str",
-      "community": 92,
+      "community": 86,
       "norm_label": "str"
     },
     {
@@ -290,7 +290,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_models_job_jobstate",
-      "community": 92,
+      "community": 86,
       "norm_label": "jobstate"
     },
     {
@@ -320,7 +320,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_proxy",
-      "community": 92,
+      "community": 86,
       "norm_label": "proxy.py"
     },
     {
@@ -330,7 +330,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_proxy_proxysource",
-      "community": 92,
+      "community": 86,
       "norm_label": "proxysource"
     },
     {
@@ -340,7 +340,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_models_proxy_proxy",
-      "community": 92,
+      "community": 86,
       "norm_label": "proxy"
     },
     {
@@ -350,7 +350,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_session",
-      "community": 92,
+      "community": 85,
       "norm_label": "session.py"
     },
     {
@@ -380,7 +380,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_track",
-      "community": 92,
+      "community": 86,
       "norm_label": "track.py"
     },
     {
@@ -390,7 +390,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_app_models_track_trackstate",
-      "community": 92,
+      "community": 86,
       "norm_label": "trackstate"
     },
     {
@@ -400,7 +400,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_app_models_track_trackerrortype",
-      "community": 92,
+      "community": 86,
       "norm_label": "trackerrortype"
     },
     {
@@ -430,7 +430,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_worker_state",
-      "community": 92,
+      "community": 85,
       "norm_label": "worker_state.py"
     },
     {
@@ -770,7 +770,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_stream",
-      "community": 12,
+      "community": 98,
       "norm_label": "stream.py"
     },
     {
@@ -780,7 +780,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_app_routers_stream_event_stream",
-      "community": 12,
+      "community": 98,
       "norm_label": "_event_stream()"
     },
     {
@@ -790,7 +790,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_stream_py_request",
-      "community": 12,
+      "community": 98,
       "norm_label": "request"
     },
     {
@@ -800,7 +800,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_app_routers_stream_stream",
-      "community": 12,
+      "community": 98,
       "norm_label": "stream()"
     },
     {
@@ -810,7 +810,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "streamingresponse",
-      "community": 12,
+      "community": 98,
       "norm_label": "streamingresponse"
     },
     {
@@ -900,7 +900,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_services_downloads_get_downloader",
-      "community": 12,
+      "community": 96,
       "norm_label": "get_downloader()"
     },
     {
@@ -910,7 +910,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "downloader",
-      "community": 12,
+      "community": 96,
       "norm_label": "downloader"
     },
     {
@@ -920,7 +920,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "backend_app_services_downloads_download_one",
-      "community": 12,
+      "community": 96,
       "norm_label": "download_one()"
     },
     {
@@ -930,7 +930,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_downloads_py_song",
-      "community": 12,
+      "community": 96,
       "norm_label": "song"
     },
     {
@@ -940,7 +940,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_downloads_py_path",
-      "community": 12,
+      "community": 96,
       "norm_label": "path"
     },
     {
@@ -960,7 +960,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "backend_app_services_downloads_rationale_63",
-      "community": 12,
+      "community": 96,
       "norm_label": "must be called from a plain sync context \u2014 search_and_download raises     downlo"
     },
     {
@@ -1090,7 +1090,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_expansion",
-      "community": 12,
+      "community": 95,
       "norm_label": "expansion.py"
     },
     {
@@ -1100,7 +1100,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_services_expansion_ensure_spotify_client",
-      "community": 12,
+      "community": 95,
       "norm_label": "_ensure_spotify_client()"
     },
     {
@@ -1110,7 +1110,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_app_services_expansion_expand",
-      "community": 12,
+      "community": 95,
       "norm_label": "expand()"
     },
     {
@@ -1120,7 +1120,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_expansion_py_song",
-      "community": 12,
+      "community": 95,
       "norm_label": "song"
     },
     {
@@ -1130,7 +1130,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_expansion_rationale_1",
-      "community": 12,
+      "community": 95,
       "norm_label": "thin wrapper around spotdl's url-expansion logic.  never import spotdl.utils.sea"
     },
     {
@@ -1140,7 +1140,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_app_services_expansion_rationale_24",
-      "community": 12,
+      "community": 95,
       "norm_label": "spotifyclient is a process-wide singleton that raises if .init() runs twice, so"
     },
     {
@@ -1150,7 +1150,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "backend_app_services_expansion_rationale_48",
-      "community": 12,
+      "community": 95,
       "norm_label": "turn a spotify url (track/album/playlist/artist) or a search term into songs."
     },
     {
@@ -1560,7 +1560,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_beat",
-      "community": 92,
+      "community": 85,
       "norm_label": "beat.py"
     },
     {
@@ -1570,7 +1570,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_dispatch_due_tracks",
-      "community": 92,
+      "community": 85,
       "norm_label": "dispatch_due_tracks()"
     },
     {
@@ -1630,7 +1630,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 92,
+      "community": 85,
       "norm_label": "expand.py"
     },
     {
@@ -1640,7 +1640,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 92,
+      "community": 85,
       "norm_label": "expand_job()"
     },
     {
@@ -1663,7 +1663,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_conftest",
-      "community": 12,
+      "community": 97,
       "norm_label": "conftest.py"
     },
     {
@@ -1673,7 +1673,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_tests_conftest_compile_jsonb_sqlite",
-      "community": 12,
+      "community": 97,
       "norm_label": "_compile_jsonb_sqlite()"
     },
     {
@@ -1683,7 +1683,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_tests_conftest_db_session",
-      "community": 12,
+      "community": 97,
       "norm_label": "db_session()"
     },
     {
@@ -1693,7 +1693,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_tests_conftest_client",
-      "community": 12,
+      "community": 97,
       "norm_label": "client()"
     },
     {
@@ -4302,10 +4302,20 @@
       "norm_label": "v08 live-progress gotchas (learned building the redis pub/sub event bus + sse stream)"
     },
     {
-      "label": "Version roadmap",
+      "label": "v09 frontend gotchas (learned building the SvelteKit login/dashboard UI)",
       "file_type": "document",
       "source_file": "CLAUDE.md",
       "source_location": "L689",
+      "_origin": "ast",
+      "id": "claude_v09_frontend_gotchas_learned_building_the_sveltekit_login_dashboard_ui",
+      "community": 14,
+      "norm_label": "v09 frontend gotchas (learned building the sveltekit login/dashboard ui)"
+    },
+    {
+      "label": "Version roadmap",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L791",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -13939,6 +13949,16 @@
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
       "source_location": "L689",
+      "weight": 1.0,
+      "source": "claude_project_spotdl_web",
+      "target": "claude_v09_frontend_gotchas_learned_building_the_sveltekit_login_dashboard_ui",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L791",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",

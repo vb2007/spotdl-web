@@ -701,11 +701,47 @@ any ──> cancelled
   nothing but tests and curl called the API, but the SPA and API are different origins (different
   port locally, different subdomain once v12 wires the real tunnel), so cookie-authenticated
   `fetch()` calls need explicit CORS with `allow_credentials=True` (which forbids a wildcard
-  origin). Added `FRONTEND_ORIGIN` (`Settings`, default `http://localhost:5173` to match
-  `docker-compose.override.yml`'s vite port) and wired `CORSMiddleware` off it. **v12 must set
-  `FRONTEND_ORIGIN` to the real production frontend origin once the tunnel ingress topology
-  (single hostname with path routing vs. separate subdomains) is decided** — nothing here assumes
-  either shape yet.
+  origin). Added `FRONTEND_ORIGINS` (`Settings`, a list — see next gotcha) and wired
+  `CORSMiddleware` off it. **v12 must set `FRONTEND_ORIGINS` to the real production frontend
+  origin(s) once the tunnel ingress topology (single hostname with path routing vs. separate
+  subdomains) is decided** — nothing here assumes either shape yet.
+- **`localhost` and `127.0.0.1` are different CORS origins to a browser even though they're the
+  same machine** — first shipped as a single `FRONTEND_ORIGIN=http://localhost:5173`, which broke
+  login (and every other API call) 100% of the time for real-user testing done at
+  `http://127.0.0.1:5173` instead: the browser's CORS preflight (`OPTIONS /api/auth/login`) got a
+  real `400 Disallowed CORS origin` from Starlette's `CORSMiddleware`, the browser blocked the
+  actual `POST` before it ever reached the server, and the login page's `catch` block — written to
+  show a deliberately generic "Invalid credentials." for the backend's real non-disclosure between
+  wrong-password and not-allowlisted — caught this network-level failure too and showed the exact
+  same misleading message, making a CORS misconfiguration look identical to a wrong password. Two
+  fixes, not one: (1) `Settings.frontend_origins` is now `Annotated[list[str], NoDecode]` (same
+  `ALLOWED_EMAILS`/`LADDER_SECONDS` comma-separated pattern), defaulting to **both**
+  `http://localhost:5173` and `http://127.0.0.1:5173` for local dev; (2)
+  `login/+page.svelte`'s error handling now only shows "Invalid credentials." for a real
+  `ApiError` with `status === 401` (the backend's genuine non-disclosed auth rejection) and a
+  distinct "Could not reach the server..." message for everything else (network down, CORS
+  blocked, a 5xx). **Any future error-handling `catch` block that maps every exception to one
+  user-facing string must keep this same split** — "the backend said no" and "the request never
+  arrived" are not the same failure and must not read as the same message to the user.
+  **The CORS fix alone was not sufficient** — a third, deeper bug in the same family surfaced
+  immediately after: with the CORS origin allowed, login itself (`POST /api/auth/login`) started
+  succeeding (`200 OK`, cookie set), but the very next request (`GET /api/auth/me`) still came
+  back `401` every time, because `frontend/.env`'s `PUBLIC_API_BASE_URL=http://localhost:8000` is
+  a *hardcoded* hostname independent of whichever loopback hostname the page itself was opened
+  with. A page on `127.0.0.1:5173` calling an API hardcoded to `localhost:8000` is a **cross-site**
+  request to a browser's `SameSite=Lax` cookie logic (`localhost` and `127.0.0.1` share no
+  registrable domain, unlike two subdomains of a real production domain) — receiving a cookie from
+  a cross-site response is allowed, but *sending* it back on a later cross-site fetch/XHR is not,
+  which is exactly the confusing 200-then-401 pattern this produced. Fixed in `frontend/src/lib/
+  api.ts` with `resolveApiBase()`: when both the configured API host and the page's own
+  `window.location.hostname` are loopback addresses (`localhost`/`127.0.0.1`), the API base URL is
+  rewritten at runtime to reuse whichever loopback hostname the page was actually loaded with
+  (same port), keeping every request same-site regardless of which one the user opened. **This
+  rewrite must never fire in production** — there the API and web app are genuinely different
+  real hosts/subdomains on purpose, where cross-subdomain cookies work by a different rule
+  (same registrable domain = same-site), so the loopback-only guard is load-bearing, not
+  incidental. Any future change to how the frontend resolves its API base URL must preserve this
+  loopback-aware behavior instead of reverting to a single fixed absolute URL.
 - **`@sveltejs/adapter-static` cannot run a `+layout.server.ts` at request time** — there is no
   Node server in the static build, so the plan's literal `+layout.ts`/`+layout.server.ts` session
   guard had to be a universal `+layout.ts` with `export const ssr = false` (the session check —

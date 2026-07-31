@@ -23,10 +23,16 @@ class Settings(BaseSettings):
     )
     session_secret: str = Field(alias="SESSION_SECRET")
 
-    # Frontend (v09) — origin the SvelteKit static site is served from, for CORS. Local dev
-    # default matches docker-compose.override.yml's vite dev server port; v12 must set this
-    # to the real Cloudflare Tunnel-facing origin once that ingress topology is decided.
-    frontend_origin: str = Field(default="http://localhost:5173", alias="FRONTEND_ORIGIN")
+    # Frontend (v09) — origin(s) the SvelteKit static site is served from, for CORS. A list
+    # because local dev is reachable as both localhost and 127.0.0.1 (a browser treats them as
+    # different origins even though they're the same machine — whichever one you didn't open
+    # the app with gets every request silently CORS-blocked). Local dev default covers both;
+    # v12 must set this to the real Cloudflare Tunnel-facing origin(s) once that ingress
+    # topology is decided.
+    frontend_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"],
+        alias="FRONTEND_ORIGINS",
+    )
 
     # spotdl / download behavior
     spotify_client_id: str | None = Field(default=None, alias="SPOTIFY_CLIENT_ID")
@@ -48,11 +54,11 @@ class Settings(BaseSettings):
     # Proxy rotation (v07) — plain file, UI management deferred to v13
     proxy_file: str = Field(default="/app/proxies.txt", alias="PROXY_FILE")
 
-    @field_validator("allowed_emails", mode="before")
+    @field_validator("allowed_emails", "frontend_origins", mode="before")
     @classmethod
-    def _split_allowed_emails(cls, value: object) -> object:
+    def _split_comma_separated(cls, value: object) -> object:
         if isinstance(value, str):
-            return [email.strip() for email in value.split(",") if email.strip()]
+            return [item.strip() for item in value.split(",") if item.strip()]
         return value
 
     @field_validator("ladder_seconds", mode="before")
