@@ -3,7 +3,7 @@ import uuid
 
 from app.db import SessionLocal
 from app.models import Job, JobState, Track
-from app.services import expansion
+from app.services import events, expansion
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
 
@@ -19,6 +19,8 @@ def expand_job(job_id: str) -> None:
             logger.warning("expand_job: job %s not found", job_id)
             return
 
+        events.publish_job_event(job.id, job.state.value)
+
         try:
             songs = expansion.expand(job.source_url)
             tracks = []
@@ -32,6 +34,7 @@ def expand_job(job_id: str) -> None:
                 tracks.append(track)
             job.state = JobState.EXPANDED
             db.commit()
+            events.publish_job_event(job.id, job.state.value)
         except Exception as exc:
             # Covers both expansion.expand() itself (assorted exception types spotdl raises
             # for malformed/unreachable URLs) and any DB error while inserting tracks (e.g. a
@@ -42,6 +45,7 @@ def expand_job(job_id: str) -> None:
             job.state = JobState.FAILED
             job.error = str(exc)
             db.commit()
+            events.publish_job_event(job.id, job.state.value, error=job.error)
         else:
             for track in tracks:
                 download_track.delay(str(track.id))

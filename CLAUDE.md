@@ -611,6 +611,81 @@ any ──> cancelled
   proxy URL must go through `proxies.redact()`** — never log/store `proxy.url` or a raw
   exception message directly when a proxy was involved.
 
+### v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream)
+
+- **spotdl 4.5.2's `Downloader.__init__` hardcodes `self.progress_handler =
+  ProgressHandler(self.settings["simple_tui"])` — there is no `DownloaderOptions` key for a
+  progress callback at all.** Verified against the real installed source
+  (`spotdl/download/progress_handler.py` + `downloader.py`): `ProgressHandler.__init__` does
+  accept an `update_callback` parameter, and every `SongTracker.notify_*` method
+  (searching/getting-meta/downloading/converting/complete) ends by calling
+  `self.parent.update_callback(self, message)` if one is set — but the *only* way to reach
+  it is setting `downloader.progress_handler.update_callback = fn` directly on the
+  already-constructed instance, after `get_downloader()` returns it. `fn` receives the live
+  `SongTracker` (`.progress` is 0-100) and a status string on every update, including the
+  intermediate yt-dlp/ffmpeg phases — exactly the hook `events.make_progress_callback` uses.
+- **`get_downloader()` caches one `Downloader` (and its `ProgressHandler`) per
+  `(format, bitrate, proxy)` key across every track that reuses that combination** (see v05
+  gotcha) — so `update_callback` is shared, mutable state on a long-lived object, not
+  per-track. `download_track` rebinds it to a fresh closure (capturing the *current*
+  track/job id) immediately before every `download_one` call. This is only safe because
+  worker-dl runs `--concurrency=1 --prefetch-multiplier=1` (one track at a time, per the
+  locked architecture decision) — **raising worker-dl's concurrency in any future version
+  would make this a real race** (track A's progress events attributed to track B) and needs
+  revisiting together, not independently.
+- **`redis.asyncio`'s `PubSub.get_message(ignore_subscribe_messages=True, timeout=...)`
+  returns `None` almost immediately after `subscribe()`, not after the full timeout** — the
+  subscribe confirmation message arrives instantly, gets filtered by
+  `ignore_subscribe_messages`, and the call returns `None` for that (filtered) message rather
+  than continuing to wait out the remaining timeout. `app/routers/stream.py` treats any
+  `None` as "time to emit a heartbeat," so every stream connection emits one spurious extra
+  heartbeat right at connect time, before the real ~15s idle cadence kicks in. Confirmed via
+  real-stack testing (heartbeat appeared ~2s after connecting, not 15s). Harmless — `:
+  heartbeat` is a plain SSE comment line `EventSource` ignores — but worth knowing so a
+  slightly-early first heartbeat isn't mistaken for a timing bug.
+- **Starlette's `StreamingResponse` sends the ASGI `http.response.start` (status + headers)
+  before the body generator produces its first chunk** — confirmed both by real curl testing
+  (`GET /api/stream` immediately after an API restart returns `200` with correct headers
+  even though no event has been published yet) and by the unit test design in
+  `test_stream.py`. This is what lets a client (or a health-style check) confirm the
+  connection is live without needing an actual event to arrive first.
+- **A hung pytest run, once, from testing SSE the wrong way**: driving a real infinite
+  async generator through `TestClient.stream(...)` and trying to bound the test by reading
+  only the first N lines does not reliably terminate — the ASGI transport can keep the
+  generator spinning (a fake `pubsub.get_message` with no genuine `await`-suspending I/O
+  loops as fast as the interpreter allows) independent of what the test actually consumes,
+  pegging a CPU core indefinitely until killed. Had to `kill -9` a stuck `pytest` process
+  during this version. Fixed by monkeypatching `stream_router._event_stream` itself to a
+  short, finite async generator and using a plain (fully-buffered) `client.get(...)` instead
+  of `client.stream(...)` — the actual subscribe/forward/heartbeat loop against a real Redis
+  instance is covered by real-stack verification, not a unit test. **Any future test of a
+  genuinely infinite SSE/streaming generator must use this finite-fake-generator +
+  plain-`.get()` pattern**, never drive the real generator through `TestClient.stream(...)`
+  bounded only by "stop after reading N lines."
+- **Every pre-v08 `test_download_task.py` fake for `get_downloader` returned a bare string
+  (`"fake-downloader"`)** — broke the instant `download_track` needed
+  `downloader.progress_handler.update_callback = ...`, since a string has no such attribute.
+  Fixed with a minimal `_FakeDownloader`/`_FakeProgressHandler` pair exposing just that one
+  settable attribute. **Any future code path that reaches further into the real
+  `Downloader`'s surface needs the same fake-object treatment**, not a bare string return.
+- Verified against the real docker-compose stack (not mocked), both directly and through a
+  real Cloudflare Tunnel (`cloudflared` brought up manually for this check only — the
+  compose service stays behind the `tunnel` profile and is not part of normal local dev; see
+  v01's locked-decision table): a real track download produced a live, ordered
+  `job.state`(expanding→expanded) then `track.state`(downloading with real intermediate
+  `progress` values 0→25→40→70×many→95→100, then completed) sequence over `GET
+  /api/stream`, both directly (`http://localhost:8000`) and through the tunnel
+  (`https://sdwtest.vb2007.hu`, ingress `service` pointed at `http://api:8000` — the
+  docker-compose service name, since `cloudflared` reaches `api` over the compose network,
+  never `localhost`). A 320-second idle connection emitted exactly 21 heartbeats 15 seconds
+  apart with zero drops, confirmed both directly and through the tunnel (raw output
+  timestamps, not just "it didn't error"). Restarting the `api` container mid-stream cleanly
+  terminated the old connection (no hang, no zombie subscription) and a fresh connection
+  immediately after returned `200` with a working stream, with `GET /api/jobs` REST resync
+  also confirmed working post-restart — the server-side half of the v09 reconnection
+  contract this plan documents (full `EventSource` auto-reconnect behavior is a browser
+  guarantee, not testable until the frontend exists).
+
 ### Version roadmap
 
 | # | Branch | Scope |

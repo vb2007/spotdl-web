@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.db import SessionLocal
 from app.models import Track, TrackState
-from app.services import retry
+from app.services import events, retry
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
 
@@ -36,6 +36,9 @@ def dispatch_due_tracks() -> None:
         for track in due_tracks:
             track.state = TrackState.QUEUED
         db.commit()
+
+        for track in due_tracks:
+            events.publish_track_event(track.id, track.job_id, track.state.value)
 
         for track in due_tracks:
             download_track.delay(str(track.id))

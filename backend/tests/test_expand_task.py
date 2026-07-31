@@ -1,8 +1,16 @@
 import uuid
 
 from app.models import Job, JobSourceType, JobState, Track, TrackState
-from app.services import expansion
+from app.services import events, expansion
 from app.tasks import expand as expand_task
+
+
+def _capture_job_events(monkeypatch):
+    captured = []
+    monkeypatch.setattr(
+        events, "publish_job_event", lambda *args, **kwargs: captured.append((args, kwargs))
+    )
+    return captured
 
 
 class _FakeSong:
@@ -41,6 +49,7 @@ def test_expand_job_success_inserts_pending_tracks(db_session, monkeypatch):
         expansion, "expand", lambda url: [_FakeSong("abc123", {"name": "Song A"})]
     )
     enqueued = _stub_download_track(monkeypatch)
+    published = _capture_job_events(monkeypatch)
 
     expand_task.expand_job(str(job.id))
 
@@ -55,6 +64,9 @@ def test_expand_job_success_inserts_pending_tracks(db_session, monkeypatch):
     assert tracks[0].state == TrackState.PENDING
     assert enqueued == [str(tracks[0].id)]
 
+    states = [args[1] for args, _ in published]
+    assert states == ["expanding", "expanded"]
+
 
 def test_expand_job_failure_marks_job_failed_with_error(db_session, monkeypatch):
     job = Job(source_url="garbage", source_type=JobSourceType.SEARCH)
@@ -67,6 +79,7 @@ def test_expand_job_failure_marks_job_failed_with_error(db_session, monkeypatch)
         raise ValueError("boom")
 
     monkeypatch.setattr(expansion, "expand", fake_expand)
+    published = _capture_job_events(monkeypatch)
 
     expand_task.expand_job(str(job.id))
 
@@ -74,6 +87,10 @@ def test_expand_job_failure_marks_job_failed_with_error(db_session, monkeypatch)
     assert updated.state == JobState.FAILED
     assert updated.error == "boom"
     assert db_session.query(Track).filter(Track.job_id == job.id).count() == 0
+
+    states = [args[1] for args, _ in published]
+    assert states == ["expanding", "failed"]
+    assert published[-1][1]["error"] == "boom"
 
 
 def test_expand_job_db_error_during_insert_marks_job_failed(db_session, monkeypatch):
