@@ -7,7 +7,7 @@ from spotdl.types.song import Song
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import DownloadedTrack, Track, TrackState
-from app.services import dedup, downloads, proxies, retry
+from app.services import dedup, downloads, events, proxies, retry
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ def download_track(track_id: str) -> None:
             track.state = TrackState.WAITING
             track.scheduled_at = worker_state.breaker_tripped_until or (now + retry.next_delay(0))
             db.commit()
+            events.publish_track_event(track.id, track.job_id, track.state.value, scheduled_at=track.scheduled_at)
             return
 
         existing_path = dedup.is_already_downloaded(track.spotify_track_id)
@@ -38,6 +39,7 @@ def download_track(track_id: str) -> None:
             track.state = TrackState.SKIPPED_DUPLICATE
             track.output_path = str(existing_path)
             db.commit()
+            events.publish_track_event(track.id, track.job_id, track.state.value)
             return
 
         settings = get_settings()
@@ -58,11 +60,18 @@ def download_track(track_id: str) -> None:
                 proxies.redact(proxy_url),
             )
         db.commit()
+        events.publish_track_event(track.id, track.job_id, track.state.value, progress=0)
 
         try:
             song = Song.from_dict(track.song_json)
             downloader = downloads.get_downloader(
                 settings.default_format, settings.default_bitrate, proxy=proxy_url
+            )
+            # worker-dl runs a single track at a time (--concurrency=1), so it's safe to
+            # rebind this per attempt rather than threading track/job ids through
+            # get_downloader's cache key.
+            downloader.progress_handler.update_callback = events.make_progress_callback(
+                track.id, track.job_id
             )
             _, output_path = downloads.download_one(song, downloader)
             if output_path is None:
@@ -82,6 +91,7 @@ def download_track(track_id: str) -> None:
                 proxies.record_proxy_result(db, proxy_id, success=True)
             retry.record_success(db, track)
             db.commit()
+            events.publish_track_event(track.id, track.job_id, track.state.value)
         except Exception as exc:
             # Some exceptions (e.g. spotdl's DownloaderError for a malformed proxy) echo
             # the proxy string verbatim — never let that reach worker logs or the
@@ -105,5 +115,12 @@ def download_track(track_id: str) -> None:
             if proxy_id is not None:
                 proxies.record_proxy_result(db, proxy_id, success=False)
             db.commit()
+            events.publish_track_event(
+                track.id,
+                track.job_id,
+                track.state.value,
+                scheduled_at=track.scheduled_at,
+                error=track.last_error,
+            )
     finally:
         db.close()

@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785346917.3917778,
-    "ast_hash": "fdabadd5e7cc924552630681eb2b6287",
+    "mtime": 1785456373.5069754,
+    "ast_hash": "71ba1c776c9bce5a53a05132e21473d2",
     "semantic_hash": ""
   },
   "README.md": {
@@ -340,8 +340,8 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/download.py": {
-    "mtime": 1785346255.6158051,
-    "ast_hash": "b575850688945edd7a1364376acd1c72",
+    "mtime": 1785456209.4431424,
+    "ast_hash": "feddb5792604cc1313b88f8c6c5b80ea",
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
@@ -350,8 +350,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
-    "mtime": 1785346152.7904334,
-    "ast_hash": "3e0eaf783520ae92b7096ea12dcbdf5c",
+    "mtime": 1785456232.7451127,
+    "ast_hash": "d8fdb0e9b6ac342ac7f721a407636c9f",
     "semantic_hash": ""
   },
   "backend/tests/test_downloads.py": {
@@ -395,13 +395,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/proxies.py": {
-    "mtime": 1785346004.7761395,
-    "ast_hash": "3b5edbd7af458529c2540190e49effe8",
+    "mtime": 1785456145.9384987,
+    "ast_hash": "13329f889fc060f67cb88aa5a5ac157e",
     "semantic_hash": ""
   },
   "backend/tests/test_proxies.py": {
-    "mtime": 1785346104.099363,
-    "ast_hash": "08383e9a4052bef2fed4efe37df2e57e",
+    "mtime": 1785456222.9617052,
+    "ast_hash": "c21f47e7152d367fe653225718e120a1",
     "semantic_hash": ""
   }
 }

@@ -160,7 +160,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_db",
-      "community": 79,
+      "community": 12,
       "norm_label": "db.py"
     },
     {
@@ -170,7 +170,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_db_base",
-      "community": 79,
+      "community": 90,
       "norm_label": "base"
     },
     {
@@ -180,7 +180,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "declarativebase",
-      "community": 79,
+      "community": 90,
       "norm_label": "declarativebase"
     },
     {
@@ -190,7 +190,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_db_get_db",
-      "community": 79,
+      "community": 12,
       "norm_label": "get_db()"
     },
     {
@@ -200,7 +200,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_db_py_session",
-      "community": 79,
+      "community": 12,
       "norm_label": "session"
     },
     {
@@ -210,7 +210,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_main",
-      "community": 79,
+      "community": 12,
       "norm_label": "main.py"
     },
     {
@@ -260,7 +260,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_job",
-      "community": 79,
+      "community": 90,
       "norm_label": "job.py"
     },
     {
@@ -270,7 +270,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_job_jobsourcetype",
-      "community": 79,
+      "community": 90,
       "norm_label": "jobsourcetype"
     },
     {
@@ -280,7 +280,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "str",
-      "community": 79,
+      "community": 90,
       "norm_label": "str"
     },
     {
@@ -290,7 +290,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_models_job_jobstate",
-      "community": 79,
+      "community": 90,
       "norm_label": "jobstate"
     },
     {
@@ -320,7 +320,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_proxy",
-      "community": 79,
+      "community": 90,
       "norm_label": "proxy.py"
     },
     {
@@ -330,7 +330,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_proxy_proxysource",
-      "community": 79,
+      "community": 90,
       "norm_label": "proxysource"
     },
     {
@@ -340,7 +340,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_models_proxy_proxy",
-      "community": 79,
+      "community": 90,
       "norm_label": "proxy"
     },
     {
@@ -350,7 +350,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_session",
-      "community": 79,
+      "community": 12,
       "norm_label": "session.py"
     },
     {
@@ -380,7 +380,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_track",
-      "community": 79,
+      "community": 90,
       "norm_label": "track.py"
     },
     {
@@ -390,7 +390,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_app_models_track_trackstate",
-      "community": 79,
+      "community": 90,
       "norm_label": "trackstate"
     },
     {
@@ -400,7 +400,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_app_models_track_trackerrortype",
-      "community": 79,
+      "community": 90,
       "norm_label": "trackerrortype"
     },
     {
@@ -430,7 +430,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_worker_state",
-      "community": 79,
+      "community": 12,
       "norm_label": "worker_state.py"
     },
     {
@@ -984,10 +984,20 @@
       "norm_label": "timedelta"
     },
     {
-      "label": "_probe_reachable()",
+      "label": "redact()",
       "file_type": "code",
       "source_file": "backend/app/services/proxies.py",
       "source_location": "L31",
+      "_origin": "ast",
+      "id": "backend_app_services_proxies_redact",
+      "community": 91,
+      "norm_label": "redact()"
+    },
+    {
+      "label": "_probe_reachable()",
+      "file_type": "code",
+      "source_file": "backend/app/services/proxies.py",
+      "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_services_proxies_probe_reachable",
       "community": 91,
@@ -997,7 +1007,7 @@
       "label": "sync_from_file()",
       "file_type": "code",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L44",
+      "source_location": "L50",
       "_origin": "ast",
       "id": "backend_app_services_proxies_sync_from_file",
       "community": 91,
@@ -1007,7 +1017,7 @@
       "label": "pick_proxy()",
       "file_type": "code",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L102",
+      "source_location": "L108",
       "_origin": "ast",
       "id": "backend_app_services_proxies_pick_proxy",
       "community": 91,
@@ -1027,7 +1037,7 @@
       "label": "record_proxy_result()",
       "file_type": "code",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L133",
+      "source_location": "L139",
       "_origin": "ast",
       "id": "backend_app_services_proxies_record_proxy_result",
       "community": 91,
@@ -1064,12 +1074,22 @@
       "norm_label": "same \"failures before this one, computed before incrementing\" convention as"
     },
     {
-      "label": "Best-effort TCP connect so an obviously dead new entry doesn't get picked first",
+      "label": "scheme://host:port for logging \u2014 never print a proxy URL's user:pass in plaintex",
       "file_type": "rationale",
       "source_file": "backend/app/services/proxies.py",
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_app_services_proxies_rationale_32",
+      "community": 91,
+      "norm_label": "scheme://host:port for logging \u2014 never print a proxy url's user:pass in plaintex"
+    },
+    {
+      "label": "Best-effort TCP connect so an obviously dead new entry doesn't get picked first",
+      "file_type": "rationale",
+      "source_file": "backend/app/services/proxies.py",
+      "source_location": "L38",
+      "_origin": "ast",
+      "id": "backend_app_services_proxies_rationale_38",
       "community": 91,
       "norm_label": "best-effort tcp connect so an obviously dead new entry doesn't get picked first"
     },
@@ -1077,9 +1097,9 @@
       "label": "Run once on worker-meta boot (see celery_app.py). Upserts proxies.txt's URLs as",
       "file_type": "rationale",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L45",
+      "source_location": "L51",
       "_origin": "ast",
-      "id": "backend_app_services_proxies_rationale_45",
+      "id": "backend_app_services_proxies_rationale_51",
       "community": 91,
       "norm_label": "run once on worker-meta boot (see celery_app.py). upserts proxies.txt's urls as"
     },
@@ -1087,9 +1107,9 @@
       "label": "Least-recently-used selection among enabled, out-of-cooldown proxies \u2014 simple LR",
       "file_type": "rationale",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L103",
+      "source_location": "L109",
       "_origin": "ast",
-      "id": "backend_app_services_proxies_rationale_103",
+      "id": "backend_app_services_proxies_rationale_109",
       "community": 91,
       "norm_label": "least-recently-used selection among enabled, out-of-cooldown proxies \u2014 simple lr"
     },
@@ -1320,7 +1340,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_beat",
-      "community": 79,
+      "community": 12,
       "norm_label": "beat.py"
     },
     {
@@ -1330,7 +1350,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_dispatch_due_tracks",
-      "community": 79,
+      "community": 12,
       "norm_label": "dispatch_due_tracks()"
     },
     {
@@ -1380,7 +1400,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_download_download_track",
-      "community": 12,
+      "community": 86,
       "norm_label": "download_track()"
     },
     {
@@ -1390,7 +1410,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 79,
+      "community": 12,
       "norm_label": "expand.py"
     },
     {
@@ -1400,7 +1420,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 79,
+      "community": 12,
       "norm_label": "expand_job()"
     },
     {
@@ -1423,7 +1443,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_conftest",
-      "community": 79,
+      "community": 12,
       "norm_label": "conftest.py"
     },
     {
@@ -1433,7 +1453,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_tests_conftest_compile_jsonb_sqlite",
-      "community": 79,
+      "community": 12,
       "norm_label": "_compile_jsonb_sqlite()"
     },
     {
@@ -1443,7 +1463,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_tests_conftest_db_session",
-      "community": 79,
+      "community": 12,
       "norm_label": "db_session()"
     },
     {
@@ -1453,7 +1473,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_tests_conftest_client",
-      "community": 79,
+      "community": 12,
       "norm_label": "client()"
     },
     {
@@ -1533,7 +1553,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task",
-      "community": 89,
+      "community": 79,
       "norm_label": "test_beat_task.py"
     },
     {
@@ -1543,7 +1563,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_nonclosingsession",
-      "community": 89,
+      "community": 79,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -1553,7 +1573,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_nonclosingsession_init",
-      "community": 89,
+      "community": 79,
       "norm_label": ".__init__()"
     },
     {
@@ -1563,7 +1583,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_nonclosingsession_getattr",
-      "community": 89,
+      "community": 79,
       "norm_label": ".__getattr__()"
     },
     {
@@ -1573,7 +1593,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_nonclosingsession_close",
-      "community": 89,
+      "community": 79,
       "norm_label": ".close()"
     },
     {
@@ -1583,7 +1603,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_make_track",
-      "community": 89,
+      "community": 79,
       "norm_label": "_make_track()"
     },
     {
@@ -1593,7 +1613,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_patch_session",
-      "community": 89,
+      "community": 79,
       "norm_label": "_patch_session()"
     },
     {
@@ -1603,7 +1623,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_test_dispatch_due_tracks_dispatches_and_flips_state",
-      "community": 89,
+      "community": 79,
       "norm_label": "test_dispatch_due_tracks_dispatches_and_flips_state()"
     },
     {
@@ -1613,7 +1633,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_breaker_tripped",
-      "community": 89,
+      "community": 79,
       "norm_label": "test_dispatch_due_tracks_skips_entirely_while_breaker_tripped()"
     },
     {
@@ -1623,7 +1643,7 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_test_dispatch_due_tracks_skips_entirely_while_paused",
-      "community": 89,
+      "community": 79,
       "norm_label": "test_dispatch_due_tracks_skips_entirely_while_paused()"
     },
     {
@@ -1633,7 +1653,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_rationale_9",
-      "community": 89,
+      "community": 79,
       "norm_label": "see test_download_task.py \u2014 download_track's db.close() would otherwise detach"
     },
     {
@@ -1917,10 +1937,20 @@
       "norm_label": "test_download_track_retry_proxy_failure_sets_cooldown()"
     },
     {
-      "label": "test_download_track_retry_falls_back_to_direct_when_no_proxy_available()",
+      "label": "test_download_track_retry_failure_redacts_proxy_credentials_from_last_error()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
       "source_location": "L310",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
+      "community": 89,
+      "norm_label": "test_download_track_retry_failure_redacts_proxy_credentials_from_last_error()"
+    },
+    {
+      "label": "test_download_track_retry_falls_back_to_direct_when_no_proxy_available()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L336",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "community": 89,
@@ -2457,10 +2487,20 @@
       "norm_label": ".__init__()"
     },
     {
-      "label": "test_next_cooldown_follows_ladder_and_caps_at_final_step()",
+      "label": "test_redact_strips_credentials()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
       "source_location": "L32",
+      "_origin": "ast",
+      "id": "backend_tests_test_proxies_test_redact_strips_credentials",
+      "community": 2,
+      "norm_label": "test_redact_strips_credentials()"
+    },
+    {
+      "label": "test_next_cooldown_follows_ladder_and_caps_at_final_step()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_proxies.py",
+      "source_location": "L37",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_next_cooldown_follows_ladder_and_caps_at_final_step",
       "community": 2,
@@ -2470,7 +2510,7 @@
       "label": "test_pick_proxy_returns_none_when_pool_is_empty()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L39",
+      "source_location": "L44",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_pick_proxy_returns_none_when_pool_is_empty",
       "community": 2,
@@ -2480,7 +2520,7 @@
       "label": "test_pick_proxy_skips_disabled_and_cooled_down()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L43",
+      "source_location": "L48",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_pick_proxy_skips_disabled_and_cooled_down",
       "community": 2,
@@ -2490,7 +2530,7 @@
       "label": "test_pick_proxy_prefers_never_used_then_oldest_last_used_at()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L65",
+      "source_location": "L70",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_pick_proxy_prefers_never_used_then_oldest_last_used_at",
       "community": 2,
@@ -2500,7 +2540,7 @@
       "label": "test_pick_proxy_stamps_last_used_at_on_selection()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L85",
+      "source_location": "L90",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_pick_proxy_stamps_last_used_at_on_selection",
       "community": 2,
@@ -2510,7 +2550,7 @@
       "label": "test_record_proxy_result_success_resets_failure_count()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L98",
+      "source_location": "L103",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_record_proxy_result_success_resets_failure_count",
       "community": 2,
@@ -2520,7 +2560,7 @@
       "label": "test_record_proxy_result_failure_sets_cooldown_and_increments()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L116",
+      "source_location": "L121",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_record_proxy_result_failure_sets_cooldown_and_increments",
       "community": 2,
@@ -2530,7 +2570,7 @@
       "label": "test_record_proxy_result_failure_reads_ladder_before_incrementing()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L131",
+      "source_location": "L136",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_record_proxy_result_failure_reads_ladder_before_incrementing",
       "community": 2,
@@ -2540,7 +2580,7 @@
       "label": "test_record_proxy_result_unknown_proxy_is_a_noop()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L147",
+      "source_location": "L152",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_record_proxy_result_unknown_proxy_is_a_noop",
       "community": 2,
@@ -2550,7 +2590,7 @@
       "label": "test_sync_from_file_adds_new_and_disables_removed()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L154",
+      "source_location": "L159",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_sync_from_file_adds_new_and_disables_removed",
       "community": 2,
@@ -2560,7 +2600,7 @@
       "label": "test_sync_from_file_re_enables_without_resetting_stats()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L185",
+      "source_location": "L190",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_sync_from_file_re_enables_without_resetting_stats",
       "community": 2,
@@ -2570,7 +2610,7 @@
       "label": "test_sync_from_file_missing_file_is_a_noop()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L209",
+      "source_location": "L214",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_sync_from_file_missing_file_is_a_noop",
       "community": 2,
@@ -2580,7 +2620,7 @@
       "label": "test_sync_from_file_marks_unreachable_new_proxy_with_cooldown()",
       "file_type": "code",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L218",
+      "source_location": "L223",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_sync_from_file_marks_unreachable_new_proxy_with_cooldown",
       "community": 2,
@@ -3480,7 +3520,7 @@
       "label": "Version roadmap",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L593",
+      "source_location": "L614",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -5803,7 +5843,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L48",
+      "source_location": "L54",
       "weight": 1.0,
       "source": "backend_app_services_proxies_sync_from_file",
       "target": "backend_app_config_get_settings"
@@ -6227,7 +6267,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L70",
+      "source_location": "L74",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -6545,7 +6585,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L102",
+      "source_location": "L108",
       "weight": 1.0,
       "source": "backend_app_services_proxies_pick_proxy",
       "target": "backend_app_models_proxy_proxy",
@@ -6925,7 +6965,18 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L333",
+      "source_location": "L330",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L359",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "target": "backend_app_models_track_track"
@@ -8032,7 +8083,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L102",
+      "source_location": "L108",
       "weight": 1.0,
       "source": "backend_app_services_proxies",
       "target": "backend_app_services_proxies_pick_proxy",
@@ -8042,7 +8093,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L31",
+      "source_location": "L37",
       "weight": 1.0,
       "source": "backend_app_services_proxies",
       "target": "backend_app_services_proxies_probe_reachable",
@@ -8063,7 +8114,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L133",
+      "source_location": "L139",
       "weight": 1.0,
       "source": "backend_app_services_proxies",
       "target": "backend_app_services_proxies_record_proxy_result",
@@ -8073,7 +8124,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L44",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "backend_app_services_proxies",
+      "target": "backend_app_services_proxies_redact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/proxies.py",
+      "source_location": "L50",
       "weight": 1.0,
       "source": "backend_app_services_proxies",
       "target": "backend_app_services_proxies_sync_from_file",
@@ -8115,7 +8176,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L143",
+      "source_location": "L149",
       "weight": 1.0,
       "source": "backend_app_services_proxies_record_proxy_result",
       "target": "backend_app_services_proxies_next_cooldown",
@@ -8128,6 +8189,16 @@
       "source_location": "L32",
       "weight": 1.0,
       "source": "backend_app_services_proxies_rationale_32",
+      "target": "backend_app_services_proxies_redact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/proxies.py",
+      "source_location": "L38",
+      "weight": 1.0,
+      "source": "backend_app_services_proxies_rationale_38",
       "target": "backend_app_services_proxies_probe_reachable",
       "confidence_score": 1.0
     },
@@ -8136,7 +8207,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L76",
+      "source_location": "L82",
       "weight": 1.0,
       "source": "backend_app_services_proxies_sync_from_file",
       "target": "backend_app_services_proxies_probe_reachable",
@@ -8146,9 +8217,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L45",
+      "source_location": "L51",
       "weight": 1.0,
-      "source": "backend_app_services_proxies_rationale_45",
+      "source": "backend_app_services_proxies_rationale_51",
       "target": "backend_app_services_proxies_sync_from_file",
       "confidence_score": 1.0
     },
@@ -8168,7 +8239,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L102",
+      "source_location": "L108",
       "weight": 1.0,
       "source": "backend_app_services_proxies_pick_proxy",
       "target": "backend_app_services_proxies_py_session",
@@ -8178,9 +8249,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L103",
+      "source_location": "L109",
       "weight": 1.0,
-      "source": "backend_app_services_proxies_rationale_103",
+      "source": "backend_app_services_proxies_rationale_109",
       "target": "backend_app_services_proxies_pick_proxy",
       "confidence_score": 1.0
     },
@@ -8189,7 +8260,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L133",
+      "source_location": "L139",
       "weight": 1.0,
       "source": "backend_app_services_proxies_record_proxy_result",
       "target": "backend_app_services_proxies_py_session",
@@ -8200,7 +8271,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/proxies.py",
-      "source_location": "L133",
+      "source_location": "L139",
       "weight": 1.0,
       "source": "backend_app_services_proxies_record_proxy_result",
       "target": "backend_app_services_proxies_py_uuid",
@@ -9073,6 +9144,16 @@
       "source_location": "L310",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L336",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "confidence_score": 1.0
     },
@@ -9270,6 +9351,17 @@
       "source_file": "backend/tests/test_download_task.py",
       "source_location": "L311",
       "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L337",
+      "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "target": "backend_tests_test_download_task_make_track",
       "confidence_score": 1.0
@@ -9390,6 +9482,17 @@
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
       "source_location": "L314",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L340",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "target": "backend_tests_test_download_task_patch_common",
@@ -10259,7 +10362,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L32",
+      "source_location": "L37",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_next_cooldown_follows_ladder_and_caps_at_final_step",
@@ -10269,7 +10372,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L65",
+      "source_location": "L70",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_pick_proxy_prefers_never_used_then_oldest_last_used_at",
@@ -10279,7 +10382,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L39",
+      "source_location": "L44",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_pick_proxy_returns_none_when_pool_is_empty",
@@ -10289,7 +10392,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L43",
+      "source_location": "L48",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_pick_proxy_skips_disabled_and_cooled_down",
@@ -10299,7 +10402,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L85",
+      "source_location": "L90",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_pick_proxy_stamps_last_used_at_on_selection",
@@ -10309,7 +10412,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L131",
+      "source_location": "L136",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_record_proxy_result_failure_reads_ladder_before_incrementing",
@@ -10319,7 +10422,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L116",
+      "source_location": "L121",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_record_proxy_result_failure_sets_cooldown_and_increments",
@@ -10329,7 +10432,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L98",
+      "source_location": "L103",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_record_proxy_result_success_resets_failure_count",
@@ -10339,7 +10442,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L147",
+      "source_location": "L152",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_record_proxy_result_unknown_proxy_is_a_noop",
@@ -10349,7 +10452,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L154",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "backend_tests_test_proxies",
+      "target": "backend_tests_test_proxies_test_redact_strips_credentials",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_proxies.py",
+      "source_location": "L159",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_sync_from_file_adds_new_and_disables_removed",
@@ -10359,7 +10472,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L218",
+      "source_location": "L223",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_sync_from_file_marks_unreachable_new_proxy_with_cooldown",
@@ -10369,7 +10482,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L209",
+      "source_location": "L214",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_sync_from_file_missing_file_is_a_noop",
@@ -10379,7 +10492,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L185",
+      "source_location": "L190",
       "weight": 1.0,
       "source": "backend_tests_test_proxies",
       "target": "backend_tests_test_proxies_test_sync_from_file_re_enables_without_resetting_stats",
@@ -10430,7 +10543,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L155",
+      "source_location": "L160",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_sync_from_file_adds_new_and_disables_removed",
       "target": "backend_tests_test_proxies_nonclosingsession",
@@ -10441,7 +10554,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L219",
+      "source_location": "L224",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_sync_from_file_marks_unreachable_new_proxy_with_cooldown",
       "target": "backend_tests_test_proxies_nonclosingsession",
@@ -10452,7 +10565,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L210",
+      "source_location": "L215",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_sync_from_file_missing_file_is_a_noop",
       "target": "backend_tests_test_proxies_nonclosingsession",
@@ -10463,7 +10576,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L186",
+      "source_location": "L191",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_sync_from_file_re_enables_without_resetting_stats",
       "target": "backend_tests_test_proxies_nonclosingsession",
@@ -10485,7 +10598,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L95",
+      "source_location": "L100",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_pick_proxy_stamps_last_used_at_on_selection",
       "target": "backend_tests_test_proxies_aware",
@@ -10496,7 +10609,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L144",
+      "source_location": "L149",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_record_proxy_result_failure_reads_ladder_before_incrementing",
       "target": "backend_tests_test_proxies_aware",
@@ -10507,7 +10620,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L128",
+      "source_location": "L133",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_record_proxy_result_failure_sets_cooldown_and_increments",
       "target": "backend_tests_test_proxies_aware",
@@ -10528,7 +10641,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L160",
+      "source_location": "L165",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_sync_from_file_adds_new_and_disables_removed",
       "target": "backend_tests_test_proxies_fakesettings",
@@ -10539,7 +10652,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L224",
+      "source_location": "L229",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_sync_from_file_marks_unreachable_new_proxy_with_cooldown",
       "target": "backend_tests_test_proxies_fakesettings",
@@ -10550,7 +10663,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L211",
+      "source_location": "L216",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_sync_from_file_missing_file_is_a_noop",
       "target": "backend_tests_test_proxies_fakesettings",
@@ -10561,7 +10674,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_proxies.py",
-      "source_location": "L200",
+      "source_location": "L205",
       "weight": 1.0,
       "source": "backend_tests_test_proxies_test_sync_from_file_re_enables_without_resetting_stats",
       "target": "backend_tests_test_proxies_fakesettings",
@@ -11440,7 +11553,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L593",
+      "source_location": "L614",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -12758,5 +12871,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "1a2111b34761755eca91026dd0fed1673d77a152"
+  "built_at_commit": "ebb637ffc345ceea8f65143f58e18eb0684bfc58"
 }

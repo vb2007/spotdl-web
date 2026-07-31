@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from app.models import Job, JobSourceType, Track, TrackState
-from app.services import retry
+from app.services import events, retry
 from app.tasks import beat as beat_task
 
 
@@ -55,11 +55,17 @@ def test_dispatch_due_tracks_dispatches_and_flips_state(db_session, monkeypatch)
     dispatched_ids = []
     monkeypatch.setattr(beat_task.download_track, "delay", lambda track_id: dispatched_ids.append(track_id))
 
+    published = []
+    monkeypatch.setattr(
+        events, "publish_track_event", lambda *args, **kwargs: published.append(args)
+    )
+
     beat_task.dispatch_due_tracks()
 
     assert dispatched_ids == [str(due.id)]
     assert db_session.get(Track, due.id).state == TrackState.QUEUED
     assert db_session.get(Track, not_due.id).state == TrackState.WAITING
+    assert published == [(due.id, due.job_id, "queued")]
 
 
 def test_dispatch_due_tracks_skips_entirely_while_breaker_tripped(db_session, monkeypatch):
