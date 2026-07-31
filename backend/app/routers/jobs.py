@@ -57,11 +57,16 @@ def _track_to_dict(track: Track) -> dict:
     song = track.song_json
     return {
         "id": str(track.id),
+        "job_id": str(track.job_id),
         "state": track.state.value,
         "title": song.get("name"),
         "artists": song.get("artists"),
         "album": song.get("album_name"),
         "spotify_track_id": track.spotify_track_id,
+        "attempt_count": track.attempt_count,
+        "scheduled_at": track.scheduled_at.isoformat() if track.scheduled_at is not None else None,
+        "last_error": track.last_error,
+        "last_error_type": track.last_error_type.value if track.last_error_type is not None else None,
     }
 
 

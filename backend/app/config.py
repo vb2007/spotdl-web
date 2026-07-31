@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     )
     session_secret: str = Field(alias="SESSION_SECRET")
 
+    # Frontend (v09) — origin the SvelteKit static site is served from, for CORS. Local dev
+    # default matches docker-compose.override.yml's vite dev server port; v12 must set this
+    # to the real Cloudflare Tunnel-facing origin once that ingress topology is decided.
+    frontend_origin: str = Field(default="http://localhost:5173", alias="FRONTEND_ORIGIN")
+
     # spotdl / download behavior
     spotify_client_id: str | None = Field(default=None, alias="SPOTIFY_CLIENT_ID")
     spotify_client_secret: str | None = Field(default=None, alias="SPOTIFY_CLIENT_SECRET")

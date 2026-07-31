@@ -38,7 +38,9 @@ def dispatch_due_tracks() -> None:
         db.commit()
 
         for track in due_tracks:
-            events.publish_track_event(track.id, track.job_id, track.state.value)
+            events.publish_track_event(
+                track.id, track.job_id, track.state.value, attempt_count=track.attempt_count
+            )
 
         for track in due_tracks:
             download_track.delay(str(track.id))

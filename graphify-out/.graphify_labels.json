@@ -84,8 +84,8 @@
   "82": "Track",
   "83": "test_expansion.py",
   "84": "test_downloads.py",
-  "85": "test_jobs.py",
-  "86": "reconcile_disk",
+  "85": "db.py",
+  "86": "Base",
   "87": "conftest.py",
   "88": "junit_to_summary.py",
   "89": "Track",
@@ -93,5 +93,9 @@
   "91": "proxies.py",
   "92": "db.py",
   "93": "events.py",
-  "94": "test_stream.py"
+  "94": "test_stream.py",
+  "95": "_ensure_spotify_client",
+  "96": "download_one",
+  "97": "conftest.py",
+  "98": "stream"
 }

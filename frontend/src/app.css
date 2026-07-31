@@ -1,0 +1,197 @@
+/*
+  THESIS: an instrument panel, not a dashboard — the queue reads as a live spectrum
+  scope, never as cards-and-sidebar SaaS chrome.
+  OWN-WORLD: matte charcoal chassis, phosphor amber as the one committed live-signal
+  color (Committed strategy), cool mint for settled/done, soft signal-blue for patient
+  waiting, hard red held back for dead states only. IBM Plex Mono for every number,
+  timestamp and state tag; IBM Plex Sans for song/artist/album content so real text
+  never gets sacrificed to the theme.
+  STORY: the visitor glances in, the waterfall tells them what's alive right now, the
+  log below tells them everything else, waiting reads as a scan window not an error.
+  FIRST VIEWPORT: a live waterfall strip of active lanes above a dense spectrum-log
+  table, primary action (URL submit) framed as a console command line at the top.
+  FORM: ham-radio waterfall / spectrum scope — assigned direction, seed key 14e20c30,
+  candidate 3 of the grounded list; no staging script invoked, composition authored
+  directly per the plan's fixed two-route scope. Deliberate, cited simplification:
+  the "waterfall" is a labeled per-track progress-lane list, not a literal rendered
+  frequency/time spectrogram — an Operate-mode call for legibility of real song
+  titles over a decorative visualization, per the plan's own "prioritize legibility
+  over visual polish" instruction. The idle state is an animated low noise floor
+  (never a dead flatline) so the panel still reads as listening, not off.
+  FINISH: unreviewed and undocumented is unfinished; this build ends with the finish
+  review, the verdict, and DESIGN.md.
+*/
+
+:root {
+	color-scheme: dark;
+
+	/* Chassis / ground */
+	--bg-0: #0a0c0e;
+	--bg-1: #14181c;
+	--bg-2: #1c2227;
+	--bg-3: #262e34;
+	--line: #2b3339;
+	--line-bright: #3a444c;
+
+	/* Text */
+	--text-primary: #e8ecee;
+	--text-muted: #8b969d;
+	--text-dim: #566068;
+
+	/* Signal (the one committed accent — live/active) */
+	--signal: #ffb02e;
+	--signal-dim: #7a5a1e;
+	--signal-ink: #2a1c05;
+	--signal-glow: rgba(255, 176, 46, 0.35);
+
+	/* Settled (completed, no longer needs attention) */
+	--settled: #5ad1a8;
+	--settled-dim: #2c5347;
+
+	/* Waiting (patient, not alarming) */
+	--waiting: #7fa8d9;
+	--waiting-dim: #35485f;
+
+	/* Failure (sparing — terminal states only) */
+	--fail: #e5595c;
+	--fail-dim: #5c2f30;
+
+	/* Focus (accessibility — keyboard-only nav is a hard requirement, never suppressed) */
+	--focus-ring: #ffd479;
+
+	/* Type */
+	--font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	--font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+	/* Space (4px base) */
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+	--space-7: 3rem;
+	--space-8: 4rem;
+
+	/* Motion */
+	--ease-signal: cubic-bezier(0.16, 1, 0.3, 1);
+	--dur-fast: 120ms;
+	--dur-med: 320ms;
+	--dur-slow: 900ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--dur-fast: 0ms;
+		--dur-med: 0ms;
+		--dur-slow: 0ms;
+	}
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	height: 100%;
+}
+
+body {
+	margin: 0;
+	background: var(--bg-0);
+	background-image: radial-gradient(
+		ellipse 900px 500px at 50% -10%,
+		rgba(255, 176, 46, 0.05),
+		transparent 60%
+	);
+	color: var(--text-primary);
+	font-family: var(--font-sans);
+	font-size: 15px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p {
+	margin: 0;
+}
+
+a {
+	color: var(--signal);
+}
+
+button,
+input {
+	font: inherit;
+	color: inherit;
+}
+
+/* A single, always-visible, high-contrast focus treatment — keyboard-only navigation
+   is a confirmed product requirement, so this is never suppressed with outline:none. */
+:focus-visible {
+	outline: 3px solid var(--focus-ring);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+::selection {
+	background: var(--signal-dim);
+	color: var(--text-primary);
+}
+
+.mono {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.01em;
+}
+
+.label {
+	font-family: var(--font-mono);
+	font-size: 0.6875rem;
+	font-weight: 500;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--text-dim);
+}
+
+.panel {
+	background: var(--bg-1);
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	/* A recessed instrument housing, not a flat SaaS card. First pass (a 1px inset
+	   hairline) was mechanically present but not perceptible at normal viewing
+	   distance (finish-review round 1) — widened to a real top shadow plus an
+	   outer drop shadow that lifts the panel off the page, so the housing reads
+	   as recessed rather than merely bordered. */
+	box-shadow:
+		inset 0 2px 5px rgba(0, 0, 0, 0.5),
+		inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+		0 8px 20px -10px rgba(0, 0, 0, 0.7);
+}
+
+.hairline {
+	border-color: var(--line);
+}
+
+/* Signal-condition color mapping, shared by the waterfall lanes and the spectrum log
+   table so a track's color means the same thing everywhere it appears. */
+.cond-live {
+	color: var(--signal);
+}
+.cond-settled {
+	color: var(--settled);
+}
+.cond-waiting {
+	color: var(--waiting);
+}
+.cond-fail {
+	color: var(--fail);
+}
+.cond-idle {
+	color: var(--text-muted);
+}
