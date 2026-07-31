@@ -29,6 +29,11 @@ class _FakeSettings:
         self.proxy_file = str(proxy_file)
 
 
+def test_redact_strips_credentials():
+    assert proxies.redact("http://user:pass@203.0.113.5:8080") == "http://203.0.113.5:8080"
+    assert proxies.redact("http://203.0.113.5:8080") == "http://203.0.113.5:8080"
+
+
 def test_next_cooldown_follows_ladder_and_caps_at_final_step():
     assert proxies.next_cooldown(0) == timedelta(minutes=15)
     assert proxies.next_cooldown(1) == timedelta(hours=1)

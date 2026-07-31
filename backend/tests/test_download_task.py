@@ -307,6 +307,32 @@ def test_download_track_retry_proxy_failure_sets_cooldown(db_session, monkeypatc
     assert updated_proxy.cooldown_until is not None
 
 
+def test_download_track_retry_failure_redacts_proxy_credentials_from_last_error(db_session, monkeypatch):
+    track = _make_track(db_session)
+    track.attempt_count = 1
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+
+    proxy = Proxy(url="http://sneaky:hunter2@proxy-1:8080", source=ProxySource.FILE, enabled=True)
+    db_session.add(proxy)
+    db_session.commit()
+
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, proxy=None: "fake-downloader")
+
+    def fake_download_one(song, downloader):
+        raise RuntimeError(f"Invalid proxy server: {proxy.url}")
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert "hunter2" not in updated.last_error
+    assert "sneaky" not in updated.last_error
+    assert "http://proxy-1:8080" in updated.last_error
+
+
 def test_download_track_retry_falls_back_to_direct_when_no_proxy_available(db_session, monkeypatch):
     track = _make_track(db_session)
     track.attempt_count = 1

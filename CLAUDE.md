@@ -589,6 +589,27 @@ any ──> cancelled
   and an immediate next `pick_proxy()` call correctly skips it in favor of a still-healthy
   one; and with every proxy disabled, the track still completes via a direct attempt
   (`used_proxy_id` stays `NULL`) rather than stalling.
+- **The verification above mocked `download_one` throughout — no real proxy had ever been
+  used, which the user correctly flagged before accepting the version as done.** A
+  follow-up pass with 5 real, live, credentialed proxies (`http://user:pass@ip:port`,
+  spread across several countries) in `proxies.txt`, run against real Spotify tracks with
+  nothing mocked, confirmed: real downloads succeed through a real proxy end-to-end
+  (ffmpeg-tagged mp3 on disk, correct size); `pick_proxy`'s LRU rotates across distinct
+  real proxies on successive tracks; a genuine real failure (spotdl returned no output —
+  not every provider match works through every proxy/region) correctly set that proxy's
+  cooldown and the very next retry picked a different real proxy and succeeded. This run
+  caught a real credential leak that the mocked pass couldn't have: the
+  `attempting via proxy <url>` log line and the `DownloaderError` message for a malformed
+  proxy (which spotdl formats as `f"Invalid proxy server: {proxy}"`, echoing the full
+  credentialed URL) both put the proxy's plaintext username:password into worker logs and,
+  via `record_failure`, into `tracks.last_error` — a column a future UI (v09+) will
+  display. Fixed with `proxies.redact(url)` (scheme + host + port only): used for the
+  "attempting via proxy" log line, and `download_track`'s except-block substitutes the
+  redacted form into both the logged traceback (`exc_info=(type, redacted_exc, tb)` —
+  keeps the real traceback's file/line info, only swaps the final message) and the
+  `last_error` string before it's persisted. **Any future code that logs or persists a
+  proxy URL must go through `proxies.redact()`** — never log/store `proxy.url` or a raw
+  exception message directly when a proxy was involved.
 
 ### Version roadmap
 

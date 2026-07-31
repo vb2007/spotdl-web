@@ -28,6 +28,12 @@ def next_cooldown(consecutive_failures_before: int) -> timedelta:
     return PROXY_COOLDOWN_LADDER[min(consecutive_failures_before, len(PROXY_COOLDOWN_LADDER) - 1)]
 
 
+def redact(url: str) -> str:
+    """scheme://host:port for logging — never print a proxy URL's user:pass in plaintext."""
+    parsed = urlsplit(url)
+    return f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
+
+
 def _probe_reachable(url: str, timeout: float = 2.0) -> bool:
     """Best-effort TCP connect so an obviously dead new entry doesn't get picked first —
     never raises, and an unparseable host/port is treated as reachable (don't block it)."""

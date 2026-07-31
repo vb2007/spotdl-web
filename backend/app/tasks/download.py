@@ -52,7 +52,11 @@ def download_track(track_id: str) -> None:
         track.state = TrackState.DOWNLOADING
         if proxy_id is not None:
             track.used_proxy_id = proxy_id
-            logger.info("download_track: track %s attempting via proxy %s", track_id, proxy_url)
+            logger.info(
+                "download_track: track %s attempting via proxy %s",
+                track_id,
+                proxies.redact(proxy_url),
+            )
         db.commit()
 
         try:
@@ -79,11 +83,25 @@ def download_track(track_id: str) -> None:
             retry.record_success(db, track)
             db.commit()
         except Exception as exc:
-            logger.exception("download_track: track %s failed", track_id)
+            # Some exceptions (e.g. spotdl's DownloaderError for a malformed proxy) echo
+            # the proxy string verbatim — never let that reach worker logs or the
+            # DB-persisted last_error a future UI (v09+) will display. exc_info substitutes
+            # a sanitized exception for the final "Type: message" line while keeping the
+            # real traceback object, so file/line info is untouched.
+            error_message = str(exc)
+            log_exc = exc
+            if proxy_url is not None and proxy_url in error_message:
+                error_message = error_message.replace(proxy_url, proxies.redact(proxy_url))
+                log_exc = type(exc)(error_message)
+            logger.error(
+                "download_track: track %s failed",
+                track_id,
+                exc_info=(type(exc), log_exc, exc.__traceback__),
+            )
             db.rollback()
             track = db.get(Track, uuid.UUID(track_id))
             error_type = retry.classify_error(exc)
-            retry.record_failure(db, track, error_type, str(exc))
+            retry.record_failure(db, track, error_type, error_message)
             if proxy_id is not None:
                 proxies.record_proxy_result(db, proxy_id, success=False)
             db.commit()
