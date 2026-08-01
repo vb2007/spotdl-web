@@ -3906,7 +3906,7 @@
       "label": "queue",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L140",
+      "source_location": "L154",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_queue",
       "community": 44,
@@ -4356,7 +4356,7 @@
       "label": "Version roadmap",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L876",
+      "source_location": "L909",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -13644,7 +13644,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L140",
+      "source_location": "L154",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_queue",
@@ -14056,7 +14056,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L876",
+      "source_location": "L909",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -15724,5 +15724,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "708e9bcea69c7492ba89463c955e417596d7003b"
+  "built_at_commit": "039e694affa3c97d0afd5231cb0d769029447811"
 }

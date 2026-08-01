@@ -3809,6 +3809,17 @@
       "norm_label": "$lib/components/countdown.svelte"
     },
     {
+      "label": "$lib/components/IncomingJobs.svelte",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L1",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "id": "frontend_src_lib_components_incomingjobs",
+      "community": 44,
+      "norm_label": "$lib/components/incomingjobs.svelte"
+    },
+    {
       "label": "$lib/components/QueueTable.svelte",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/QueueTable.svelte",
@@ -3895,7 +3906,7 @@
       "label": "queue",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L114",
+      "source_location": "L140",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_queue",
       "community": 44,
@@ -4345,7 +4356,7 @@
       "label": "Version roadmap",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L827",
+      "source_location": "L876",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 14,
@@ -13390,6 +13401,14 @@
     {
       "relation": "imports_from",
       "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_api",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/QueueTable.svelte",
       "source": "frontend_src_lib_components_queuetable",
       "target": "frontend_src_lib_api",
@@ -13564,6 +13583,14 @@
     {
       "relation": "imports_from",
       "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/+page.svelte",
+      "source": "frontend_src_routes_page",
+      "target": "frontend_src_lib_components_incomingjobs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/QueueTable.svelte",
       "source": "frontend_src_lib_components_queuetable",
       "target": "frontend_src_lib_stores_queue",
@@ -13617,7 +13644,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L114",
+      "source_location": "L140",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_queue",
@@ -14029,7 +14056,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L827",
+      "source_location": "L876",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -15697,5 +15724,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "0fb55f4d9efa0d5822225e3f029485d923498119"
+  "built_at_commit": "708e9bcea69c7492ba89463c955e417596d7003b"
 }

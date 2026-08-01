@@ -791,6 +791,39 @@ any ──> cancelled
   element that's positioned by its layout box (flex/grid alignment, not `position: absolute`)
   needs an explicit `transform-origin` matching whichever edge the layout anchors** — the default
   center origin only looks correct for an element with no anchored edge at all.
+  **`transform-origin` alone did not fully close this** — re-tested after the fix shipped, 1-3
+  bars still dipped below the baseline by a few px, a different subset on every reload. Root
+  cause: these bars are only a few px tall (random height, `min-height: 2px`), and sub-pixel
+  antialiasing bleed on a `scaleY`-transformed element of that size can still render very
+  slightly past the mathematically exact edge on some displays, independent of `transform-origin`
+  being correct. Fixed by adding `overflow: hidden` to the `.noise-floor` container itself, which
+  clips any such bleed at the true baseline regardless of the rendering-level cause. Confirmed via
+  `getBoundingClientRect()` sampled across 6 frames of the animation cycle post-fix: zero bars
+  exceeding the container's bottom edge. **Any future short/thin `transform`-animated element
+  needs its clipping container treated as the actual guarantee, not `transform-origin` alone** —
+  the math being correct doesn't guarantee the rasterizer respects it exactly at sub-pixel sizes.
+- **Live SSE-updated rows can jump far enough down a long, mixed-state sorted list to look like
+  they vanished, even though nothing was ever removed from the store** — reported as "the track
+  appears while downloading, then completely disappears when the download finishes; F5 shows it
+  as completed." `queue.ts`'s `trackList` sorted purely by `TRACK_STATE_ORDER`
+  (`downloading`=0 … `completed`=6), with equal-priority ties falling back to plain
+  `Object.values()` insertion order — and a track that only just joined the `tracks` record via
+  its own live SSE events is *always* inserted after every track from the initial bulk
+  `loadAll()` fetch, so completing sent it to the very end of the `completed` tier. Verified via
+  real-stack testing (not assumed): a live completion measurably jumped from index 0 of 38 rows
+  (fully visible, while `downloading`) to index 25 of 38 (below the fold) the instant its state
+  flipped — nothing was actually missing from the DOM, it was just sorted somewhere the user
+  wasn't scrolled to. A **fresh reload** showed it much closer to the top purely because
+  `GET /api/jobs` orders newest-created-job-first and `Promise.all`-driven concurrent
+  `refreshJobTracks` calls tend to resolve close to that same order — a completely different,
+  coincidental position, not evidence the live version was "wrong" and the reloaded version
+  "right." Fixed by adding an `updatedAt: number` (`Date.now()`) to every `LiveTrack`, set on
+  every REST fetch and every applied SSE event, and sorting each state-priority tier by that
+  descending as a secondary key — a track that just changed state now surfaces at the top of its
+  new tier instead of wherever insertion order happened to leave it. Re-verified live: a
+  completion stayed at index 0 through the entire transition. **Any future field added to the
+  sort comparator must keep `updatedAt` as the tiebreaker** — dropping it silently reintroduces
+  this exact "vanishing" perception for every state transition, not just completion.
 - **`@sveltejs/adapter-static` cannot run a `+layout.server.ts` at request time** — there is no
   Node server in the static build, so the plan's literal `+layout.ts`/`+layout.server.ts` session
   guard had to be a universal `+layout.ts` with `export const ssr = false` (the session check —

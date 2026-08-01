@@ -1,16 +1,16 @@
-# Graph Report - spotdl-web  (2026-07-31)
+# Graph Report - spotdl-web  (2026-08-01)
 
 ## Corpus Check
-- 89 files · ~42,501 words
+- 90 files · ~43,710 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 660 nodes · 865 edges · 93 communities (46 shown, 47 thin omitted)
+- 661 nodes · 867 edges · 93 communities (46 shown, 47 thin omitted)
 - Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 89 edges (avg confidence: 0.74)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0fb55f4d`
+- Built from commit: `708e9bce`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -102,7 +102,7 @@
 
 ## God Nodes (most connected - your core abstractions)
 1. `Track` - 29 edges
-2. `$lib/api` - 26 edges
+2. `$lib/api` - 27 edges
 3. `Project: spotdl-web` - 19 edges
 4. `WorkerState` - 15 edges
 5. `_make_track()` - 15 edges
@@ -218,8 +218,8 @@ Cohesion: 0.13
 Nodes (31): Our own session store — separate from the upstream VB-AUTH token (see v03)., UserSession, login(), LoginRequest, logout(), me(), Request, Response (+23 more)
 
 ### Community 44 - "+layout.ts"
-Cohesion: 0.08
-Nodes (31): $lib/api, API_BASE, ApiError, createJob(), Job, JobSourceType, JobState, JobStateEvent (+23 more)
+Cohesion: 0.07
+Nodes (32): $lib/api, API_BASE, ApiError, createJob(), Job, JobSourceType, JobState, JobStateEvent (+24 more)
 
 ### Community 45 - "+page.svelte"
 Cohesion: 0.08

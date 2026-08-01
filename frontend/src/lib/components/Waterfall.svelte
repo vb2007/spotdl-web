@@ -90,6 +90,12 @@
 		width: 100%;
 		max-width: 24rem;
 		height: 1.5rem;
+		/* `transform-origin: bottom` keeps scaleY's math anchored to each bar's own
+		   bottom edge, but very short (often just a few px) scaled elements still show
+		   a sub-pixel antialiasing bleed past that edge on some displays -- clipping
+		   at the container guarantees nothing ever renders past the true baseline
+		   regardless of that rendering-level rounding. */
+		overflow: hidden;
 	}
 
 	.noise-bar {

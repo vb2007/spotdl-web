@@ -2,7 +2,7 @@ import { derived, writable } from 'svelte/store';
 import * as api from '$lib/api';
 import type { Job, StreamEvent, Track } from '$lib/api';
 
-export type LiveTrack = Track & { progress?: number };
+export type LiveTrack = Track & { progress?: number; updatedAt: number };
 
 /** State priority governs both color mapping and default table order — most-needs-
  * attention first, matching the "what's downloading right now" priority the direction
@@ -50,7 +50,9 @@ function createQueueStore() {
 		if (trackFetchSeq[jobId] !== seq) return;
 		tracks.update((current) => {
 			const next = { ...current };
-			for (const track of list) next[track.id] = { ...current[track.id], ...track };
+			for (const track of list) {
+				next[track.id] = { ...current[track.id], ...track, updatedAt: Date.now() };
+			}
 			return next;
 		});
 	}
@@ -75,7 +77,8 @@ function createQueueStore() {
 				...existing,
 				id: event.track_id,
 				job_id: event.job_id,
-				state: event.state
+				state: event.state,
+				updatedAt: Date.now()
 			} as LiveTrack;
 			if (event.progress !== undefined) next.progress = event.progress;
 			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
@@ -102,8 +105,19 @@ function createQueueStore() {
 		}
 	}
 
+	/** State priority alone isn't enough of a sort key -- a track's row was sitting at the
+	 * very top while `downloading` (priority 0), and the instant it completed (priority 6)
+	 * it fell all the way to wherever it happened to land among every other same-priority
+	 * track, which for a track that only just joined the `tracks` record is dead last per
+	 * plain object insertion order. Confirmed via real-stack testing: a live completion
+	 * jumped from index 0 to index 25 of 38 rows, well below the fold -- reading as "the
+	 * track vanished" even though it was still in the DOM the whole time. Sorting newest
+	 * update first within a priority tier keeps a just-changed row visible near the top of
+	 * its own tier instead of wherever insertion order happened to leave it. */
 	const trackList = derived(tracks, ($tracks) =>
-		Object.values($tracks).sort((a, b) => TRACK_STATE_ORDER[a.state] - TRACK_STATE_ORDER[b.state])
+		Object.values($tracks).sort(
+			(a, b) => TRACK_STATE_ORDER[a.state] - TRACK_STATE_ORDER[b.state] || b.updatedAt - a.updatedAt
+		)
 	);
 	const activeTracks = derived(trackList, ($t) => $t.filter((t) => t.state === 'downloading'));
 	const waitingTracks = derived(trackList, ($t) => $t.filter((t) => t.state === 'waiting'));

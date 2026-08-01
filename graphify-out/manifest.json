@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785579485.6049166,
-    "ast_hash": "806d7ca7a0b85530455695a48863f07b",
+    "mtime": 1785583711.695755,
+    "ast_hash": "84f56e1d0f8338b3e7b70a4dc181d17d",
     "semantic_hash": ""
   },
   "README.md": {
@@ -425,8 +425,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1785579221.1457183,
-    "ast_hash": "7a696d76ed20e04ad42661b38fc99df7",
+    "mtime": 1785583646.3159788,
+    "ast_hash": "0c190d72d17f62f8c55d90365de35bef",
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
@@ -450,13 +450,13 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/Waterfall.svelte": {
-    "mtime": 1785579178.8749275,
-    "ast_hash": "eafff0de7fddd58951ab19dc90132073",
+    "mtime": 1785583561.7483876,
+    "ast_hash": "9cb5c163b02e418a4f0a83ba9dd6d795",
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1785579124.1006064,
-    "ast_hash": "6a7f5502e8ec5443e6b2b878d2ed55ef",
+    "mtime": 1785583578.5552156,
+    "ast_hash": "76ef585a096eb6677fd23ae9c4f2a420",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
