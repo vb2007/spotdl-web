@@ -54,6 +54,25 @@
 		}
 	}
 
+	async function handleBumpJob(jobId: string, trackId: string) {
+		try {
+			await queue.bumpJob(jobId);
+			showNotice(trackId, 'job bumped to front of the queue');
+		} catch (err) {
+			showNotice(trackId, err instanceof api.ApiError ? err.message : 'Could not bump this job.');
+		}
+	}
+
+	async function handleSetPriority(jobId: string, trackId: string, value: string) {
+		const priority = Number.parseInt(value, 10);
+		if (Number.isNaN(priority)) return;
+		try {
+			await queue.setJobPriority(jobId, priority);
+		} catch (err) {
+			showNotice(trackId, err instanceof api.ApiError ? err.message : 'Could not set priority.');
+		}
+	}
+
 	async function handleRetry(id: string) {
 		try {
 			const { breakerHeld } = await queue.retryTrack(id);
@@ -145,37 +164,53 @@
 					{#if expanded.has(track.id)}
 						<div class="detail mono">
 							<span>passes attempted: {track.attempt_count}</span>
+							<span class="priority">
+								priority:
+								<input
+									type="number"
+									class="priority-input"
+									value={jobs[track.job_id]?.priority ?? 0}
+									aria-label="Job priority"
+									onclick={(e) => e.stopPropagation()}
+									onchange={(e) => handleSetPriority(track.job_id, track.id, e.currentTarget.value)}
+								/>
+							</span>
 							{#if track.state === 'waiting' && track.scheduled_at}
 								<Countdown scheduledAt={track.scheduled_at} />
 							{/if}
 							{#if track.last_error}
 								<span class="last-error">last read: {track.last_error}</span>
 							{/if}
-							{#if RETRYABLE_STATES.has(track.state) || CANCELLABLE_STATES.has(track.state)}
-								<div class="actions">
-									{#if RETRYABLE_STATES.has(track.state)}
-										<button type="button" class="action" onclick={() => handleRetry(track.id)}>
-											retry now
-										</button>
-									{/if}
-									{#if CANCELLABLE_STATES.has(track.state)}
-										<button
-											type="button"
-											class="action danger"
-											onclick={() => handleCancelTrack(track.id)}
-										>
-											cancel track
-										</button>
-										<button
-											type="button"
-											class="action danger"
-											onclick={() => handleCancelJob(track.job_id, track.id)}
-										>
-											cancel whole job
-										</button>
-									{/if}
-								</div>
-							{/if}
+							<div class="actions">
+								<button
+									type="button"
+									class="action"
+									onclick={() => handleBumpJob(track.job_id, track.id)}
+								>
+									bump job to front
+								</button>
+								{#if RETRYABLE_STATES.has(track.state)}
+									<button type="button" class="action" onclick={() => handleRetry(track.id)}>
+										retry now
+									</button>
+								{/if}
+								{#if CANCELLABLE_STATES.has(track.state)}
+									<button
+										type="button"
+										class="action danger"
+										onclick={() => handleCancelTrack(track.id)}
+									>
+										cancel track
+									</button>
+									<button
+										type="button"
+										class="action danger"
+										onclick={() => handleCancelJob(track.job_id, track.id)}
+									>
+										cancel whole job
+									</button>
+								{/if}
+							</div>
 							{#if notice.has(track.id)}
 								<span class="notice" role="status">{notice.get(track.id)}</span>
 							{/if}
@@ -343,6 +378,27 @@
 		padding: 0 var(--space-2) var(--space-3) 9rem;
 		font-size: 0.8125rem;
 		color: var(--text-muted);
+	}
+
+	.priority {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+	}
+
+	.priority-input {
+		width: 3.5rem;
+		background: var(--bg-0);
+		border: 1px solid var(--line);
+		border-radius: 4px;
+		padding: var(--space-1) var(--space-2);
+		color: var(--text-primary);
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+	}
+
+	.priority-input:focus-visible {
+		border-color: var(--signal-dim);
 	}
 
 	.last-error {

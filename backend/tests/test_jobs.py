@@ -162,3 +162,50 @@ def test_cancel_unknown_job_returns_404(client, db_session, monkeypatch):
     _login(client, monkeypatch)
     response = client.delete(f"/api/jobs/{uuid.uuid4()}")
     assert response.status_code == 404
+
+
+def test_set_job_priority_sets_exact_value(client, db_session, monkeypatch):
+    _login(client, monkeypatch)
+    _stub_expand_job(monkeypatch)
+
+    job_id = client.post("/api/jobs", json={"url": "https://open.spotify.com/track/abc"}).json()["id"]
+
+    response = client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 7})
+
+    assert response.status_code == 200
+    assert response.json()["priority"] == 7
+    assert db_session.get(Job, uuid.UUID(job_id)).priority == 7
+
+
+def test_set_priority_on_unknown_job_returns_404(client, db_session, monkeypatch):
+    _login(client, monkeypatch)
+    response = client.patch(f"/api/jobs/{uuid.uuid4()}/priority", json={"priority": 1})
+    assert response.status_code == 404
+
+
+def test_bump_job_sets_priority_above_current_max(client, db_session, monkeypatch):
+    _login(client, monkeypatch)
+    _stub_expand_job(monkeypatch)
+
+    first_id = client.post("/api/jobs", json={"url": "https://open.spotify.com/track/a"}).json()["id"]
+    second_id = client.post("/api/jobs", json={"url": "https://open.spotify.com/track/b"}).json()["id"]
+    db_session.get(Job, uuid.UUID(first_id)).priority = 3
+    db_session.commit()
+
+    response = client.post(f"/api/jobs/{second_id}/bump")
+
+    assert response.status_code == 200
+    assert response.json()["priority"] == 4
+    assert db_session.get(Job, uuid.UUID(second_id)).priority == 4
+
+
+def test_bump_unknown_job_returns_404(client, db_session, monkeypatch):
+    _login(client, monkeypatch)
+    response = client.post(f"/api/jobs/{uuid.uuid4()}/bump")
+    assert response.status_code == 404
+
+
+def test_priority_endpoints_require_session(client):
+    job_id = uuid.uuid4()
+    assert client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 1}).status_code == 401
+    assert client.post(f"/api/jobs/{job_id}/bump").status_code == 401
