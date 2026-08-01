@@ -1,5 +1,5 @@
 <script lang="ts">
-	let { scheduledAt }: { scheduledAt: string } = $props();
+	let { scheduledAt, label = 'next scan in' }: { scheduledAt: string; label?: string } = $props();
 
 	let now = $state(Date.now());
 
@@ -24,7 +24,8 @@
 </script>
 
 <span class="mono countdown" class:due={remainingMs <= 0}>
-	next scan in {format(remainingMs)}
+	{label}
+	{format(remainingMs)}
 </span>
 
 <style>

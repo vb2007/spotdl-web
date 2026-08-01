@@ -22,6 +22,14 @@ def download_track(track_id: str) -> None:
             logger.warning("download_track: track %s not found", track_id)
             return
 
+        # A cancel can land between beat's dispatch (or expand_job's immediate first
+        # dispatch) and this task actually executing — e.g. a track sitting `queued` in
+        # Celery's broker while the user cancels its job. Nothing upstream guarantees a
+        # cancelled track is never enqueued, so this is the actual gate.
+        if track.state == TrackState.CANCELLED:
+            logger.info("download_track: track %s was cancelled before dispatch, skipping", track_id)
+            return
+
         # Covers the race where this task was already enqueued just before the breaker
         # tripped (or the worker was paused) — dispatch_due_tracks is the primary gate and
         # normally won't enqueue in this state at all.
@@ -80,6 +88,34 @@ def download_track(track_id: str) -> None:
                 track.id, track.job_id
             )
             _, output_path = downloads.download_one(song, downloader)
+
+            # search_and_download is synchronous and not cleanly interruptible, so a
+            # cancel requested while this was running couldn't stop it — it instead set
+            # this row's state directly (from a separate request/session) and left the
+            # download to just finish. db.refresh picks up that committed change; a
+            # cancelled track's result is discarded rather than overwritten back to a
+            # non-terminal state.
+            db.refresh(track)
+            if track.state == TrackState.CANCELLED:
+                logger.info(
+                    "download_track: track %s was cancelled mid-download, discarding result",
+                    track_id,
+                )
+                # The progress callback above published `downloading` events straight
+                # through to 100% while the real (uninterruptible) download kept
+                # running after the cancel landed — it has no idea a cancel happened,
+                # it just reports spotdl's own tracker. Those stray events are already
+                # on the wire, so a live SSE client's last-known state for this track
+                # is one of them, not `cancelled`, even though the DB has been correct
+                # the whole time. Re-publishing here makes `cancelled` provably the
+                # last message for this track (nothing else publishes for it after
+                # download_one has returned), so a connected browser converges to the
+                # right state without needing a reload. Caught by live real-stack
+                # testing, not by REST-polling: REST already reflected `cancelled`,
+                # only the live view was stuck.
+                events.publish_track_event(track.id, track.job_id, track.state.value)
+                return
+
             if output_path is None:
                 raise RuntimeError("spotdl returned no output file for this track")
 
@@ -116,6 +152,15 @@ def download_track(track_id: str) -> None:
             )
             db.rollback()
             track = db.get(Track, uuid.UUID(track_id))
+            if track.state == TrackState.CANCELLED:
+                logger.info(
+                    "download_track: track %s was cancelled before this failure landed, "
+                    "leaving it cancelled",
+                    track_id,
+                )
+                # Same stray-progress-event race as the success path above.
+                events.publish_track_event(track.id, track.job_id, track.state.value)
+                return
             error_type = retry.classify_error(exc)
             retry.record_failure(db, track, error_type, error_message)
             if proxy_id is not None:

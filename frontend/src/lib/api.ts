@@ -27,7 +27,7 @@ function resolveApiBase(): string {
 const API_BASE = resolveApiBase();
 
 export type JobSourceType = 'track' | 'album' | 'playlist' | 'artist' | 'search';
-export type JobState = 'expanding' | 'expanded' | 'failed';
+export type JobState = 'expanding' | 'expanded' | 'failed' | 'cancelled';
 
 export interface Job {
 	id: string;
@@ -88,6 +88,13 @@ export interface JobStateEvent {
 }
 
 export type StreamEvent = TrackStateEvent | JobStateEvent;
+
+export interface WorkerStatus {
+	paused: boolean;
+	breaker_tripped_until: string | null;
+	breaker_trip_count: number;
+	consecutive_failures: number;
+}
 
 export class ApiError extends Error {
 	constructor(
@@ -154,6 +161,34 @@ export function listJobs(): Promise<Job[]> {
 
 export function listJobTracks(jobId: string): Promise<Track[]> {
 	return request(`/api/jobs/${jobId}/tracks`);
+}
+
+export function cancelJob(jobId: string): Promise<Job> {
+	return request(`/api/jobs/${jobId}`, { method: 'DELETE' });
+}
+
+export function cancelTrack(trackId: string): Promise<Track> {
+	return request(`/api/tracks/${trackId}`, { method: 'DELETE' });
+}
+
+export function retryTrack(trackId: string): Promise<Track & { breaker_held: boolean }> {
+	return request(`/api/tracks/${trackId}/retry`, { method: 'POST' });
+}
+
+export function workerStatus(): Promise<WorkerStatus> {
+	return request('/api/worker/status');
+}
+
+export function pauseWorker(): Promise<WorkerStatus> {
+	return request('/api/worker/pause', { method: 'POST' });
+}
+
+export function resumeWorker(): Promise<WorkerStatus> {
+	return request('/api/worker/resume', { method: 'POST' });
+}
+
+export function releaseBreaker(): Promise<WorkerStatus> {
+	return request('/api/worker/breaker/release', { method: 'POST' });
 }
 
 /** `EventSource` needs `withCredentials: true` — a plain `new EventSource(url)` defaults

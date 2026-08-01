@@ -115,3 +115,50 @@ def test_jobs_endpoints_require_session(client):
     assert client.get("/api/jobs").status_code == 401
     assert client.get(f"/api/jobs/{uuid.uuid4()}").status_code == 401
     assert client.get(f"/api/jobs/{uuid.uuid4()}/tracks").status_code == 401
+    assert client.delete(f"/api/jobs/{uuid.uuid4()}").status_code == 401
+
+
+def test_cancel_job_marks_job_and_non_terminal_tracks_cancelled(client, db_session, monkeypatch):
+    _login(client, monkeypatch)
+    _stub_expand_job(monkeypatch)
+
+    create_response = client.post("/api/jobs", json={"url": "https://open.spotify.com/album/xyz"})
+    job_id = create_response.json()["id"]
+    job = db_session.get(Job, uuid.UUID(job_id))
+    job.state = JobState.EXPANDED
+
+    downloading = Track(
+        job_id=job.id, spotify_track_id="a", song_json={"name": "A"}, state=TrackState.DOWNLOADING
+    )
+    waiting = Track(
+        job_id=job.id, spotify_track_id="b", song_json={"name": "B"}, state=TrackState.WAITING
+    )
+    completed = Track(
+        job_id=job.id, spotify_track_id="c", song_json={"name": "C"}, state=TrackState.COMPLETED
+    )
+    skipped = Track(
+        job_id=job.id,
+        spotify_track_id="d",
+        song_json={"name": "D"},
+        state=TrackState.SKIPPED_DUPLICATE,
+    )
+    db_session.add_all([downloading, waiting, completed, skipped])
+    db_session.commit()
+
+    response = client.delete(f"/api/jobs/{job_id}")
+
+    assert response.status_code == 200
+    assert response.json()["state"] == "cancelled"
+
+    assert db_session.get(Track, downloading.id).state == TrackState.CANCELLED
+    assert db_session.get(Track, waiting.id).state == TrackState.CANCELLED
+    assert db_session.get(Track, waiting.id).scheduled_at is None
+    # Already-terminal tracks are left exactly as they were.
+    assert db_session.get(Track, completed.id).state == TrackState.COMPLETED
+    assert db_session.get(Track, skipped.id).state == TrackState.SKIPPED_DUPLICATE
+
+
+def test_cancel_unknown_job_returns_404(client, db_session, monkeypatch):
+    _login(client, monkeypatch)
+    response = client.delete(f"/api/jobs/{uuid.uuid4()}")
+    assert response.status_code == 404

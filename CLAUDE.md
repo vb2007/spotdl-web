@@ -906,6 +906,121 @@ any ──> cancelled
   that a public-exposure action, not just a local one) — v08 already proved the SSE/tunnel
   contract, and v12 (deploy hardening) owns real tunnel-based verification going forward.
 
+### v10 queue-controls gotchas (learned building cancel/retry-now/pause/breaker-release)
+
+- **A cancelled track's live SSE view could get stuck showing a stale `downloading` state
+  forever, even though the DB and every REST endpoint were already correct** — caught only by
+  the user watching the actual running UI during this version's real-stack verification, not by
+  any REST-polling check (REST always showed the true `cancelled` state; only the live view was
+  wrong). Root cause: spotdl's `ProgressHandler.update_callback` hook (wired in v08,
+  `events.make_progress_callback`) publishes `state: "downloading"` events purely from its own
+  internal tracker — it has no idea a cancel happened. Since `search_and_download` is
+  synchronous and not interruptible (the whole reason cancel-mid-download works by discarding the
+  result rather than stopping it), the real download kept running for several more seconds after
+  `DELETE /api/tracks/{id}`/`DELETE /api/jobs/{id}` had already committed `cancelled`, and its
+  progress callback kept firing `downloading` events (up to `progress: 100`) the entire time —
+  all published *after* the `cancelled` event the cancel endpoint itself sent, silently
+  overwriting it in every connected browser. Fixed by having `download_track` **re-publish the
+  `cancelled` state a second time**, right after it detects the discard (both the success path
+  and the failure-after-cancel path) — since nothing else publishes for that track once
+  `download_one` has returned, this re-publish is provably the last message on the wire. Verified
+  by raw-capturing `GET /api/stream` (`curl -s -N`) during a real cancel-mid-download of a real
+  track end to end: the wire order was `downloading(progress:100) → cancelled`, `cancelled` last,
+  confirmed byte-for-byte from the captured SSE stream, not inferred. **Any future code path that
+  can leave a track in a different final state than its last-published live event needs the same
+  "re-publish the true outcome as the last message" treatment** — this is a general race between
+  a slow, uninterruptible background operation and any concurrent state change, not specific to
+  cancellation.
+- **The backend re-publish above was not sufficient on its own** — a second, real user re-test
+  after that fix shipped (manual: submit → wait for download to start → click "cancel track")
+  found the track visibly disappear from the waterfall instantly, then **reappear in the active
+  waterfall for a moment**, before finally settling on `cancelled`. Backend-side, this is entirely
+  correct and expected (exactly the stray-progress-event race documented above, now provably
+  ending in the right state) — the remaining bug was purely in how the frontend applied events:
+  `queue.ts`'s `applyTrackEvent` blindly overwrote a track's state with whatever event arrived
+  most recently, with no notion that some states are truly terminal and nothing legitimately
+  transitions a track back out of them. The optimistic local update from clicking "cancel"
+  (`mergeTrack` off the `DELETE` response) set the store to `cancelled` immediately, but a stray
+  `downloading` event from the still-running real download landed right after and flipped it back
+  before the backend's eventual re-published `cancelled` caught up — a purely client-side replay of
+  the same race, invisible to any backend-only test (curl/SSE-capture, unit tests) since the *wire*
+  order was already correct; only the *frontend's interpretation* of receiving events out of causal
+  order was wrong. Fixed with a `TRULY_TERMINAL_STATES` guard (`completed`/`skipped_duplicate`/
+  `cancelled` — deliberately **not** `lookup_failed`/`failed`, since retry-now can legitimately
+  revive those back to `waiting`): once a track's stored state is one of these three,
+  `applyTrackEvent` ignores every further event for that track id outright rather than applying
+  it, since nothing else in this app's model ever transitions a track back out of them. Confirmed
+  fixed by the same user, live, after a page refresh (a plain non-component `.ts` module needs a
+  full reload to pick up Vite HMR, not just a hot-swap) — no reappearance, straight to `cancelled`.
+  **Any future store logic that applies incoming live events on top of existing state needs the
+  same "is the current state one nothing ever legitimately exits" check** before blindly
+  overwriting — this is a second, independent instance of the same class of bug as the backend
+  fix above (a slow/uninterruptible operation's stale signal arriving after the true outcome is
+  already known), just at a different layer, and neither fix would have caught the other's gap.
+  No frontend unit-test framework exists in this project yet (v09 relied on backend `pytest` +
+  manual/Playwright-driven verification only) — this fix was verified by the user manually
+  re-testing the live UI, not by an automated frontend test; introducing Vitest/Jest purely to
+  cover this one case was judged out of scope for this version.
+- **`uv pip install ".[dev]"` (no `-e`/`--editable`) copies `app/` into `.venv/site-packages` as a
+  frozen snapshot** — every further edit to `backend/app/*.py` is invisible to a local
+  `.venv/bin/pytest` run until the package is reinstalled, silently testing stale code with zero
+  error or warning. Caught only because a fix made *after* the initial `uv pip install` (the SSE
+  re-publish fix above) kept failing its updated unit test with the *old* behavior even though the
+  source clearly had the new code — the traceback's own file path
+  (`.venv/lib/python3.12/site-packages/app/tasks/download.py`) was the tell. Fixed for this
+  session with `uv pip install --python .venv/bin/python -e .`; the real docker-compose stack was
+  never affected (its containers bind-mount `backend/app` directly, per `docker-compose.override.yml`,
+  so they always run live source) — this trap is specific to a local venv used for fast
+  `pytest`-only iteration outside Docker. **Any future local venv set up for running pytest
+  directly (outside `docker compose exec`) must use `-e`/`--editable`**, or re-verify after every
+  reinstall that source edits are actually reflected before trusting a "tests pass" result.
+- **Adding a new `JobState` member to an existing native Postgres enum needs `ALTER TYPE ... ADD
+  VALUE`, not the `values_callable` treatment alone** — `JobState.CANCELLED` required a hand-written
+  migration (`ALTER TYPE job_state ADD VALUE IF NOT EXISTS 'cancelled'`); Alembic's autogenerate
+  does not detect this at all (unlike a brand-new enum type, which v02 already covers). Downgrade
+  has no `DROP VALUE` equivalent — the migration's `downgrade()` remaps any `cancelled` row to
+  `failed`, renames the old type, recreates it without the new value, and swaps the column over via
+  `USING state::text::job_state`, mirroring v02's enum-type gotchas but for a value instead of a
+  whole type. Verified with a real `upgrade head` → `downgrade -1` → `upgrade head` round-trip
+  against the real shared Postgres instance (not a scratch container this time, since this is an
+  additive change to an existing type already holding real rows) — confirmed via `pg_enum` that the
+  value is present after upgrade and gone after downgrade. **Any future new enum member on an
+  already-shipped native enum type needs this same explicit `ADD VALUE` + type-swap-on-downgrade
+  pattern**, not just a Python-side enum change.
+- **A job cancelled while still `expanding` could have its cancellation silently undone** —
+  `expand_job`'s own multi-second Spotify round trip means a `DELETE /api/jobs/{id}` can commit
+  `cancelled` while `expand_job` is still mid-flight holding a stale in-memory `job.state ==
+  expanding`; the original code's `job.state = JobState.EXPANDED; db.commit()` at the end of
+  expansion would have blindly overwritten that cancel back to `expanded`, with the job's newly
+  inserted tracks then dispatched for real via `expand_job`'s own `download_track.delay(...)` calls
+  as if nothing had happened. Fixed with a conditional `UPDATE ... WHERE state = 'expanding'`
+  instead of a plain attribute assignment (a no-op if the row already moved on), followed by
+  `db.refresh(job)` to read the row's real current state rather than trusting the in-memory object —
+  if it comes back `cancelled`, the newly-inserted tracks are set `cancelled` too and dispatch never
+  happens. Verified with a real-stack-style test simulating the race (`expansion.expand`'s fake
+  commits the cancel mid-call, matching the timing a real concurrent request would produce):
+  confirmed zero `download_track.delay` calls and every inserted track landing `cancelled`, not
+  `pending`. **Any future write to `job.state` after an `await`-shaped gap (a network call, a slow
+  loop) needs the same conditional-UPDATE-then-refresh pattern**, not a bare assignment, if a
+  concurrent cancel must never be undoable.
+- The shared `app/services/serializers.py` (`job_to_dict`/`track_to_dict`/`track_counts`) replaces
+  what used to be private, jobs-router-only helpers — needed once `tracks.py`'s new retry/cancel
+  endpoints also had to serialize a `Track`. No behavior change, pure extraction.
+- Verified against the real docker-compose stack, real Postgres, and the real network (not
+  mocked), beyond the SSE re-publish fix above: pausing the worker held a real due `waiting` track
+  undispatched across 5 consecutive beat ticks (~2 minutes), confirmed via `worker-dl` logs showing
+  zero invocations for that track's id; resuming dispatched it on the very next tick with no
+  duplicate dispatch (`attempt_count` advanced by exactly one); `POST /api/tracks/{id}/retry` on a
+  track scheduled 12 hours out reset it to due immediately but `breaker_held: true` correctly held
+  it back while the breaker was tripped, then it dispatched on the first tick after release;
+  `POST /api/worker/breaker/release` cleared `breaker_tripped_until` immediately while leaving
+  `consecutive_failures`/`breaker_trip_count` untouched, and a subsequent simulated
+  `AudioProviderError` re-tripped the breaker straight to the *second* escalation delay (~2h), never
+  resetting to the first (~30m); and cancelling a track genuinely mid-download (a real, uncached
+  Spotify track picked specifically to avoid the dedup ledger) let the real download finish on disk
+  (confirmed the mp3 was actually written, then deleted as test cleanup) while the track's own
+  final state stayed `cancelled` with no `DownloadedTrack` ledger row ever created for it.
+
 ### Version roadmap
 
 | # | Branch | Scope |

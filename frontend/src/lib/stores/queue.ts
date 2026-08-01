@@ -1,6 +1,15 @@
 import { derived, writable } from 'svelte/store';
 import * as api from '$lib/api';
-import type { Job, StreamEvent, Track } from '$lib/api';
+import type { Job, StreamEvent, Track, TrackState } from '$lib/api';
+
+/** States nothing in this app ever transitions a track *out of* -- `waiting`/
+ * `lookup_failed`/`failed` don't qualify since retry-now can revive them back to
+ * `waiting`. A track's own real (uninterruptible) download can keep publishing stray
+ * `downloading` progress events for several seconds after a cancel has already landed
+ * (spotdl's progress callback has no idea a cancel happened -- see CLAUDE.md's v10
+ * gotchas); once a track is known to be in one of these states, any further event for
+ * it is necessarily stale and must be ignored, not applied. */
+const TRULY_TERMINAL_STATES = new Set<TrackState>(['completed', 'skipped_duplicate', 'cancelled']);
 
 export type LiveTrack = Track & { progress?: number; updatedAt: number };
 
@@ -70,9 +79,47 @@ function createQueueStore() {
 		jobs.update((current) => ({ ...current, [job.id]: job }));
 	}
 
+	function mergeTrack(track: Track): void {
+		tracks.update((current) => ({
+			...current,
+			[track.id]: { ...current[track.id], ...track, updatedAt: Date.now() }
+		}));
+	}
+
+	/** Same optimistic-then-resync pattern as `addJob`: apply the mutation's own response
+	 * immediately rather than waiting on the SSE echo, then pull the affected tracks via
+	 * REST since a job-level cancel can touch many tracks the response body doesn't list
+	 * individually (each still gets its own `track.state` SSE event, this just doesn't
+	 * wait on it). */
+	async function cancelJob(jobId: string): Promise<void> {
+		const job = await api.cancelJob(jobId);
+		jobs.update((current) => ({ ...current, [job.id]: job }));
+		await refreshJobTracks(jobId);
+	}
+
+	async function cancelTrack(trackId: string): Promise<void> {
+		mergeTrack(await api.cancelTrack(trackId));
+	}
+
+	/** Returns whether the retry is held behind the global breaker, so the caller can
+	 * surface that precedence to the user rather than leaving a silent no-op. */
+	async function retryTrack(trackId: string): Promise<{ breakerHeld: boolean }> {
+		const { breaker_held, ...track } = await api.retryTrack(trackId);
+		mergeTrack(track);
+		return { breakerHeld: breaker_held };
+	}
+
 	function applyTrackEvent(event: Extract<StreamEvent, { type: 'track.state' }>): void {
 		tracks.update((current) => {
 			const existing = current[event.track_id];
+			// A stray event arriving after a track already reached a truly terminal
+			// state is necessarily stale -- applying it would flip the track back to
+			// non-terminal for a moment (e.g. a cancelled track visibly "resuming" its
+			// download) before the eventual correcting event catches up. Ignoring it
+			// outright is simpler and more robust than trying to compare timestamps.
+			if (existing && TRULY_TERMINAL_STATES.has(existing.state)) {
+				return current;
+			}
 			const next: LiveTrack = {
 				...existing,
 				id: event.track_id,
@@ -147,7 +194,10 @@ function createQueueStore() {
 		incomingJobs,
 		loadAll,
 		addJob,
-		applyEvent
+		applyEvent,
+		cancelJob,
+		cancelTrack,
+		retryTrack
 	};
 }
 

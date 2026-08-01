@@ -85,6 +85,7 @@
   "83": "test_expansion.py",
   "84": "test_downloads.py",
   "85": "spotdl-web — Master Development Plan",
+  "86": "cancel_track",
   "87": "conftest.py",
   "88": "junit_to_summary.py",
   "89": "Track",
@@ -93,6 +94,11 @@
   "92": "db.py",
   "93": "events.py",
   "94": "test_stream.py",
+  "95": "DownloadedTrack",
+  "96": "_NonClosingSession",
+  "97": "db.py",
+  "98": "sync_from_file",
   "99": "test_worker.py",
+  "100": "conftest.py",
   "101": "46be30064f8b_add_cancelled_job_state.py"
 }

@@ -1,6 +1,8 @@
 <script lang="ts">
-	import { SvelteSet } from 'svelte/reactivity';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import Countdown from '$lib/components/Countdown.svelte';
+	import * as api from '$lib/api';
+	import { queue } from '$lib/stores/queue';
 	import type { Job, TrackState } from '$lib/api';
 	import type { LiveTrack } from '$lib/stores/queue';
 
@@ -13,6 +15,57 @@
 	function toggle(id: string) {
 		if (expanded.has(id)) expanded.delete(id);
 		else expanded.add(id);
+	}
+
+	const CANCELLABLE_STATES = new Set<TrackState>([
+		'pending',
+		'queued',
+		'downloading',
+		'waiting',
+		'lookup_failed',
+		'failed'
+	]);
+	const RETRYABLE_STATES = new Set<TrackState>(['waiting', 'lookup_failed', 'failed']);
+
+	// Per-row transient feedback (e.g. "held behind the global pause") -- SvelteMap so
+	// mutations are tracked without wholesale reassignment (see v09's reactivity gotcha).
+	const notice = new SvelteMap<string, string>();
+
+	function showNotice(id: string, text: string) {
+		notice.set(id, text);
+		setTimeout(() => {
+			if (notice.get(id) === text) notice.delete(id);
+		}, 4000);
+	}
+
+	async function handleCancelTrack(id: string) {
+		try {
+			await queue.cancelTrack(id);
+		} catch (err) {
+			showNotice(id, err instanceof api.ApiError ? err.message : 'Could not cancel this track.');
+		}
+	}
+
+	async function handleCancelJob(jobId: string, trackId: string) {
+		try {
+			await queue.cancelJob(jobId);
+		} catch (err) {
+			showNotice(trackId, err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
+		}
+	}
+
+	async function handleRetry(id: string) {
+		try {
+			const { breakerHeld } = await queue.retryTrack(id);
+			showNotice(
+				id,
+				breakerHeld
+					? 'held — global pause is active, will dispatch once it clears'
+					: 'queued — dispatching on the next pass'
+			);
+		} catch (err) {
+			showNotice(id, err instanceof api.ApiError ? err.message : 'Could not retry this track.');
+		}
 	}
 
 	const STATE_LABEL: Record<TrackState, string> = {
@@ -97,6 +150,34 @@
 							{/if}
 							{#if track.last_error}
 								<span class="last-error">last read: {track.last_error}</span>
+							{/if}
+							{#if RETRYABLE_STATES.has(track.state) || CANCELLABLE_STATES.has(track.state)}
+								<div class="actions">
+									{#if RETRYABLE_STATES.has(track.state)}
+										<button type="button" class="action" onclick={() => handleRetry(track.id)}>
+											retry now
+										</button>
+									{/if}
+									{#if CANCELLABLE_STATES.has(track.state)}
+										<button
+											type="button"
+											class="action danger"
+											onclick={() => handleCancelTrack(track.id)}
+										>
+											cancel track
+										</button>
+										<button
+											type="button"
+											class="action danger"
+											onclick={() => handleCancelJob(track.job_id, track.id)}
+										>
+											cancel whole job
+										</button>
+									{/if}
+								</div>
+							{/if}
+							{#if notice.has(track.id)}
+								<span class="notice" role="status">{notice.get(track.id)}</span>
 							{/if}
 						</div>
 					{/if}
@@ -268,5 +349,39 @@
 		color: var(--fail);
 		white-space: normal;
 		overflow-wrap: anywhere;
+	}
+
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+		flex-basis: 100%;
+	}
+
+	.action {
+		background: var(--bg-2);
+		border: 1px solid var(--line);
+		border-radius: 4px;
+		padding: var(--space-1) var(--space-3);
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+
+	.action:hover,
+	.action:focus-visible {
+		border-color: var(--waiting);
+		color: var(--text-primary);
+	}
+
+	.action.danger:hover,
+	.action.danger:focus-visible {
+		border-color: var(--fail);
+		color: var(--fail);
+	}
+
+	.notice {
+		flex-basis: 100%;
+		color: var(--waiting);
 	}
 </style>

@@ -369,6 +369,91 @@ def test_download_track_retry_failure_redacts_proxy_credentials_from_last_error(
     assert "http://proxy-1:8080" in updated.last_error
 
 
+def test_download_track_skips_entirely_when_already_cancelled(db_session, monkeypatch):
+    track = _make_track(db_session)
+    track.state = TrackState.CANCELLED
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("nothing should run for an already-cancelled track")
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", _fail_if_called)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.CANCELLED
+
+
+def test_download_track_discards_success_when_cancelled_mid_download(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    published = _capture_events(monkeypatch)
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, proxy=None: _FakeDownloader())
+
+    def fake_download_one(song, downloader):
+        # A `DELETE /api/tracks/{id}` (separate request/session) landing while this
+        # blocking, real download call was still running — search_and_download isn't
+        # cleanly interruptible, so the cancel just commits the state change directly.
+        db_session.query(Track).filter(Track.id == track.id).update(
+            {"state": TrackState.CANCELLED, "scheduled_at": None}
+        )
+        db_session.commit()
+        return song, Path("/downloads/song-a.mp3")
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.CANCELLED
+    assert updated.output_path is None
+    assert db_session.get(DownloadedTrack, "abc123") is None
+    # "downloading", then a re-published "cancelled" -- never "completed". The
+    # re-publish exists because the real (uninterruptible) download's progress
+    # callback keeps firing "downloading" events after the DB row already flipped to
+    # cancelled; without this, a live SSE client's last-known state for the track
+    # would be a stray "downloading" event, not the true outcome (caught via real
+    # end-to-end testing, not visible from a REST-only check).
+    states = [args[2] for args, _ in published]
+    assert states == ["downloading", "cancelled"]
+
+
+def test_download_track_discards_failure_when_cancelled_mid_download(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    published = _capture_events(monkeypatch)
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, proxy=None: _FakeDownloader())
+
+    def fake_download_one(song, downloader):
+        db_session.query(Track).filter(Track.id == track.id).update(
+            {"state": TrackState.CANCELLED, "scheduled_at": None}
+        )
+        db_session.commit()
+        raise RuntimeError("provider exploded after cancel")
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.CANCELLED
+    assert updated.last_error is None
+
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state is None or worker_state.consecutive_failures == 0
+
+    # "downloading", then a re-published "cancelled" -- same stray-progress-event race
+    # as the success-path test above, just hitting the except branch instead.
+    states = [args[2] for args, _ in published]
+    assert states == ["downloading", "cancelled"]
+
+
 def test_download_track_retry_falls_back_to_direct_when_no_proxy_available(db_session, monkeypatch):
     track = _make_track(db_session)
     track.attempt_count = 1
