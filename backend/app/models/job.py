@@ -20,6 +20,7 @@ class JobState(str, enum.Enum):
     EXPANDING = "expanding"
     EXPANDED = "expanded"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class Job(Base):

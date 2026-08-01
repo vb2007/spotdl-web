@@ -113,6 +113,40 @@ def test_expand_job_db_error_during_insert_marks_job_failed(db_session, monkeypa
     assert db_session.query(Track).filter(Track.job_id == job.id).count() == 0
 
 
+def test_expand_job_never_dispatches_when_cancelled_mid_expansion(db_session, monkeypatch):
+    job = Job(source_url="https://open.spotify.com/track/abc", source_type=JobSourceType.TRACK)
+    db_session.add(job)
+    db_session.commit()
+
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    enqueued = _stub_download_track(monkeypatch)
+    published_tracks = []
+    monkeypatch.setattr(
+        events, "publish_track_event", lambda *args, **kwargs: published_tracks.append(args)
+    )
+
+    def fake_expand(url):
+        # A `DELETE /api/jobs/{id}` landing on a separate request/session while this
+        # (multi-second, real) Spotify round trip was still running.
+        db_session.query(Job).filter(Job.id == job.id).update({"state": JobState.CANCELLED})
+        db_session.commit()
+        return [_FakeSong("abc123", {"name": "Song A"})]
+
+    monkeypatch.setattr(expansion, "expand", fake_expand)
+
+    expand_task.expand_job(str(job.id))
+
+    updated = db_session.get(Job, job.id)
+    assert updated.state == JobState.CANCELLED
+
+    tracks = db_session.query(Track).filter(Track.job_id == job.id).all()
+    assert len(tracks) == 1
+    assert tracks[0].state == TrackState.CANCELLED
+
+    assert enqueued == []
+    assert published_tracks == [(tracks[0].id, tracks[0].job_id, "cancelled")]
+
+
 def test_expand_job_unknown_job_is_a_noop(db_session, monkeypatch):
     monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
 

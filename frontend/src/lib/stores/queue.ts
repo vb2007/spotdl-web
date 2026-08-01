@@ -70,6 +70,36 @@ function createQueueStore() {
 		jobs.update((current) => ({ ...current, [job.id]: job }));
 	}
 
+	function mergeTrack(track: Track): void {
+		tracks.update((current) => ({
+			...current,
+			[track.id]: { ...current[track.id], ...track, updatedAt: Date.now() }
+		}));
+	}
+
+	/** Same optimistic-then-resync pattern as `addJob`: apply the mutation's own response
+	 * immediately rather than waiting on the SSE echo, then pull the affected tracks via
+	 * REST since a job-level cancel can touch many tracks the response body doesn't list
+	 * individually (each still gets its own `track.state` SSE event, this just doesn't
+	 * wait on it). */
+	async function cancelJob(jobId: string): Promise<void> {
+		const job = await api.cancelJob(jobId);
+		jobs.update((current) => ({ ...current, [job.id]: job }));
+		await refreshJobTracks(jobId);
+	}
+
+	async function cancelTrack(trackId: string): Promise<void> {
+		mergeTrack(await api.cancelTrack(trackId));
+	}
+
+	/** Returns whether the retry is held behind the global breaker, so the caller can
+	 * surface that precedence to the user rather than leaving a silent no-op. */
+	async function retryTrack(trackId: string): Promise<{ breakerHeld: boolean }> {
+		const { breaker_held, ...track } = await api.retryTrack(trackId);
+		mergeTrack(track);
+		return { breakerHeld: breaker_held };
+	}
+
 	function applyTrackEvent(event: Extract<StreamEvent, { type: 'track.state' }>): void {
 		tracks.update((current) => {
 			const existing = current[event.track_id];
@@ -147,7 +177,10 @@ function createQueueStore() {
 		incomingJobs,
 		loadAll,
 		addJob,
-		applyEvent
+		applyEvent,
+		cancelJob,
+		cancelTrack,
+		retryTrack
 	};
 }
 

@@ -1,8 +1,10 @@
 import logging
 import uuid
 
+from sqlalchemy import update
+
 from app.db import SessionLocal
-from app.models import Job, JobState, Track
+from app.models import Job, JobState, Track, TrackState
 from app.services import events, expansion
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -32,8 +34,30 @@ def expand_job(job_id: str) -> None:
                 )
                 db.add(track)
                 tracks.append(track)
-            job.state = JobState.EXPANDED
+
+            # A conditional UPDATE, not a blind attribute assignment: expansion is a
+            # multi-second Spotify round trip, long enough for a `DELETE /api/jobs/{id}`
+            # cancel to land mid-flight. A plain `job.state = EXPANDED; db.commit()` would
+            # silently clobber that cancel back to `expanded`. The WHERE clause makes the
+            # write a no-op if the row moved on while we were running, and db.refresh
+            # reads the row's real current state afterward rather than trusting the
+            # `job` object loaded at task start.
+            db.execute(
+                update(Job)
+                .where(Job.id == job.id, Job.state == JobState.EXPANDING)
+                .values(state=JobState.EXPANDED)
+            )
             db.commit()
+            db.refresh(job)
+
+            if job.state == JobState.CANCELLED:
+                for track in tracks:
+                    track.state = TrackState.CANCELLED
+                db.commit()
+                for track in tracks:
+                    events.publish_track_event(track.id, track.job_id, track.state.value)
+                return
+
             events.publish_job_event(job.id, job.state.value)
         except Exception as exc:
             # Covers both expansion.expand() itself (assorted exception types spotdl raises

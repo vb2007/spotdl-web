@@ -7,6 +7,7 @@
 	import Waterfall from '$lib/components/Waterfall.svelte';
 	import QueueTable from '$lib/components/QueueTable.svelte';
 	import IncomingJobs from '$lib/components/IncomingJobs.svelte';
+	import WorkerStatus from '$lib/components/WorkerStatus.svelte';
 
 	const { activeTracks, trackList, jobs, incomingJobs } = queue;
 
@@ -86,6 +87,8 @@
 		<button type="submit" disabled={submitting}>{submitting ? 'SENDING…' : 'SUBMIT'}</button>
 	</form>
 	<p id="submit-error" class="submit-error mono" role="alert">{submitError}</p>
+
+	<WorkerStatus />
 
 	<IncomingJobs jobs={$incomingJobs} />
 

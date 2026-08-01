@@ -1,4 +1,6 @@
 <script lang="ts">
+	import * as api from '$lib/api';
+	import { queue } from '$lib/stores/queue';
 	import type { Job } from '$lib/api';
 
 	let { jobs }: { jobs: Job[] } = $props();
@@ -10,6 +12,19 @@
 		artist: 'artist',
 		search: 'search'
 	};
+
+	let cancelError = $state<Record<string, string>>({});
+
+	async function handleCancel(jobId: string) {
+		try {
+			await queue.cancelJob(jobId);
+		} catch (err) {
+			cancelError = {
+				...cancelError,
+				[jobId]: err instanceof api.ApiError ? err.message : 'Could not cancel this job.'
+			};
+		}
+	}
 </script>
 
 {#if jobs.length > 0}
@@ -26,6 +41,12 @@
 					>
 				{/if}
 				<span class="url">{job.source_url}</span>
+				<button type="button" class="cancel" onclick={() => handleCancel(job.id)}>
+					{job.state === 'expanding' ? 'cancel' : 'dismiss'}
+				</button>
+				{#if cancelError[job.id]}
+					<span class="error mono" role="alert">{cancelError[job.id]}</span>
+				{/if}
 			</li>
 		{/each}
 	</ul>
@@ -44,6 +65,7 @@
 	.row {
 		display: flex;
 		align-items: center;
+		flex-wrap: wrap;
 		gap: var(--space-2);
 		padding: var(--space-2) var(--space-3);
 		background: var(--bg-1);
@@ -99,10 +121,35 @@
 
 	.url {
 		min-width: 0;
+		flex: 1;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		color: var(--text-dim);
+		font-size: 0.75rem;
+	}
+
+	.cancel {
+		flex-shrink: 0;
+		background: transparent;
+		border: 1px solid var(--line);
+		border-radius: 4px;
+		padding: var(--space-1) var(--space-2);
+		font-size: 0.6875rem;
+		font-family: var(--font-mono);
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+
+	.cancel:hover,
+	.cancel:focus-visible {
+		border-color: var(--fail);
+		color: var(--fail);
+	}
+
+	.error {
+		flex-basis: 100%;
+		color: var(--fail);
 		font-size: 0.75rem;
 	}
 </style>
