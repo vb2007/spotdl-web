@@ -48,6 +48,7 @@ def publish_track_event(
     progress: int | None = None,
     scheduled_at: datetime | None = None,
     error: str | None = None,
+    attempt_count: int | None = None,
 ) -> None:
     event: dict[str, Any] = {
         "type": "track.state",
@@ -61,6 +62,8 @@ def publish_track_event(
         event["scheduled_at"] = scheduled_at.isoformat()
     if error is not None:
         event["error"] = error
+    if attempt_count is not None:
+        event["attempt_count"] = attempt_count
     publish(event)
 
 

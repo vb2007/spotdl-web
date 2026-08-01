@@ -1,0 +1,94 @@
+{
+	"$schema": "sidecar for DESIGN.md — mirrors frontend/src/app.css :root exactly; keep in sync",
+	"meta": {
+		"world": "ham-radio waterfall / spectrum scope instrument panel",
+		"colorScheme": "dark",
+		"seedKey": "14e20c30",
+		"candidate": 3
+	},
+	"color": {
+		"chassis": {
+			"bg-0": "#0a0c0e",
+			"bg-1": "#14181c",
+			"bg-2": "#1c2227",
+			"bg-3": "#262e34",
+			"line": "#2b3339",
+			"line-bright": "#3a444c"
+		},
+		"text": {
+			"primary": "#e8ecee",
+			"muted": "#8b969d",
+			"dim": "#566068"
+		},
+		"signal": {
+			"meaning": "live/active only — exclusive, never used as permanent chrome or decoration",
+			"signal": "#ffb02e",
+			"signal-dim": "#7a5a1e",
+			"signal-ink": "#2a1c05",
+			"signal-glow": "rgba(255, 176, 46, 0.35)"
+		},
+		"settled": {
+			"meaning": "completed / no longer needs attention",
+			"settled": "#5ad1a8",
+			"settled-dim": "#2c5347"
+		},
+		"waiting": {
+			"meaning": "patient, scheduled, not alarming — the retry ladder's normal state",
+			"waiting": "#7fa8d9",
+			"waiting-dim": "#35485f"
+		},
+		"fail": {
+			"meaning": "terminal failure only — never used for waiting/backoff",
+			"fail": "#e5595c",
+			"fail-dim": "#5c2f30"
+		},
+		"focus": {
+			"meaning": "keyboard focus ring, never suppressed (hard accessibility requirement)",
+			"focus-ring": "#ffd479"
+		}
+	},
+	"typography": {
+		"families": {
+			"font-mono": "'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+			"font-sans": "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+		},
+		"rule": "mono = numbers/timestamps/state tags/UI chrome; sans = real content (song/artist/album)",
+		"sizesInUse": {
+			"0.5625rem": "login dial frequency ticks",
+			"0.6875rem": "label utility / job-type cell",
+			"0.75rem": "filter chips / state cell",
+			"0.8125rem": "secondary lines (artist byline, errors, countdown, detail rows)",
+			"0.875rem": "queue table artist/album cells",
+			"15px": "body root default"
+		}
+	},
+	"space": {
+		"space-1": "0.25rem",
+		"space-2": "0.5rem",
+		"space-3": "0.75rem",
+		"space-4": "1rem",
+		"space-5": "1.5rem",
+		"space-6": "2rem",
+		"space-7": "3rem",
+		"space-8": "4rem",
+		"note": "space-7/space-8 defined but not yet consumed by any built component"
+	},
+	"motion": {
+		"ease-signal": "cubic-bezier(0.16, 1, 0.3, 1)",
+		"dur-fast": "120ms",
+		"dur-med": "320ms",
+		"dur-slow": "900ms",
+		"reducedMotion": "all three durations zeroed globally under prefers-reduced-motion; every bespoke @keyframes literal-duration animation additionally needs its own override"
+	},
+	"stateColorMap": {
+		"pending": "cond-idle",
+		"queued": "cond-idle",
+		"downloading": "cond-live",
+		"completed": "cond-settled",
+		"waiting": "cond-waiting",
+		"lookup_failed": "cond-fail",
+		"failed": "cond-fail",
+		"skipped_duplicate": "cond-settled",
+		"cancelled": "cond-idle"
+	}
+}

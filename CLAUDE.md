@@ -686,6 +686,226 @@ any ──> cancelled
   contract this plan documents (full `EventSource` auto-reconnect behavior is a browser
   guarantee, not testable until the frontend exists).
 
+### v09 frontend gotchas (learned building the SvelteKit login/dashboard UI)
+
+- **`GET /api/jobs/{id}/tracks`'s `_track_to_dict` never projected `job_id`, `attempt_count`,
+  `scheduled_at`, `last_error`, or `last_error_type`, and `publish_track_event` never included
+  `attempt_count` in its SSE payload** — a real gap only visible once an actual frontend needed
+  to render the plan's explicit "live countdown to `scheduled_at`" and "current `attempt_count`"
+  requirements; nothing before v09 read these fields outside the backend itself. Fixed by adding
+  all four to `_track_to_dict` and adding an optional `attempt_count` kwarg to
+  `publish_track_event`, populated at every real call site in `download.py`/`beat.py`. **Any
+  future REST/SSE consumer needing a `Track` field not already in `_track_to_dict` needs the same
+  treatment** — the dict is a deliberate projection, not the ORM row, and stays that way.
+- **No `CORSMiddleware` existed anywhere in `main.py` before this version** — harmless while
+  nothing but tests and curl called the API, but the SPA and API are different origins (different
+  port locally, different subdomain once v12 wires the real tunnel), so cookie-authenticated
+  `fetch()` calls need explicit CORS with `allow_credentials=True` (which forbids a wildcard
+  origin). Added `FRONTEND_ORIGINS` (`Settings`, a list — see next gotcha) and wired
+  `CORSMiddleware` off it. **v12 must set `FRONTEND_ORIGINS` to the real production frontend
+  origin(s) once the tunnel ingress topology (single hostname with path routing vs. separate
+  subdomains) is decided** — nothing here assumes either shape yet.
+- **`localhost` and `127.0.0.1` are different CORS origins to a browser even though they're the
+  same machine** — first shipped as a single `FRONTEND_ORIGIN=http://localhost:5173`, which broke
+  login (and every other API call) 100% of the time for real-user testing done at
+  `http://127.0.0.1:5173` instead: the browser's CORS preflight (`OPTIONS /api/auth/login`) got a
+  real `400 Disallowed CORS origin` from Starlette's `CORSMiddleware`, the browser blocked the
+  actual `POST` before it ever reached the server, and the login page's `catch` block — written to
+  show a deliberately generic "Invalid credentials." for the backend's real non-disclosure between
+  wrong-password and not-allowlisted — caught this network-level failure too and showed the exact
+  same misleading message, making a CORS misconfiguration look identical to a wrong password. Two
+  fixes, not one: (1) `Settings.frontend_origins` is now `Annotated[list[str], NoDecode]` (same
+  `ALLOWED_EMAILS`/`LADDER_SECONDS` comma-separated pattern), defaulting to **both**
+  `http://localhost:5173` and `http://127.0.0.1:5173` for local dev; (2)
+  `login/+page.svelte`'s error handling now only shows "Invalid credentials." for a real
+  `ApiError` with `status === 401` (the backend's genuine non-disclosed auth rejection) and a
+  distinct "Could not reach the server..." message for everything else (network down, CORS
+  blocked, a 5xx). **Any future error-handling `catch` block that maps every exception to one
+  user-facing string must keep this same split** — "the backend said no" and "the request never
+  arrived" are not the same failure and must not read as the same message to the user.
+  **The CORS fix alone was not sufficient** — a third, deeper bug in the same family surfaced
+  immediately after: with the CORS origin allowed, login itself (`POST /api/auth/login`) started
+  succeeding (`200 OK`, cookie set), but the very next request (`GET /api/auth/me`) still came
+  back `401` every time, because `frontend/.env`'s `PUBLIC_API_BASE_URL=http://localhost:8000` is
+  a *hardcoded* hostname independent of whichever loopback hostname the page itself was opened
+  with. A page on `127.0.0.1:5173` calling an API hardcoded to `localhost:8000` is a **cross-site**
+  request to a browser's `SameSite=Lax` cookie logic (`localhost` and `127.0.0.1` share no
+  registrable domain, unlike two subdomains of a real production domain) — receiving a cookie from
+  a cross-site response is allowed, but *sending* it back on a later cross-site fetch/XHR is not,
+  which is exactly the confusing 200-then-401 pattern this produced. Fixed in `frontend/src/lib/
+  api.ts` with `resolveApiBase()`: when both the configured API host and the page's own
+  `window.location.hostname` are loopback addresses (`localhost`/`127.0.0.1`), the API base URL is
+  rewritten at runtime to reuse whichever loopback hostname the page was actually loaded with
+  (same port), keeping every request same-site regardless of which one the user opened. **This
+  rewrite must never fire in production** — there the API and web app are genuinely different
+  real hosts/subdomains on purpose, where cross-subdomain cookies work by a different rule
+  (same registrable domain = same-site), so the loopback-only guard is load-bearing, not
+  incidental. Any future change to how the frontend resolves its API base URL must preserve this
+  loopback-aware behavior instead of reverting to a single fixed absolute URL.
+- **A job between "submitted" and "its tracks exist" had nothing in the UI to represent it** —
+  the plan's own "Done when" criteria and a real user's first manual test both surfaced this:
+  `expand_job` genuinely takes several real seconds (a Spotify metadata round trip, not something
+  to fake away), and during that window nothing rendered for the job at all (`QueueTable` only
+  ever reads from `tracks`, and a job with no tracks yet is invisible), so a real click looked
+  like it had done nothing — enough that a user's natural next move was to submit again, thinking
+  the first click hadn't registered. Fixed with `queue.ts`'s `incomingJobs` derived store (jobs in
+  `expanding` or `failed` state) and `IncomingJobs.svelte`, rendered above the waterfall. **Any
+  future state a `Job` can reach that has no tracks of its own needs the same treatment** — this
+  store is the one place job-level (not track-level) state gets surfaced at all.
+- **A stale/overlapping REST fetch can resolve after a fresher one and clobber newer state** —
+  `queue.ts`'s `refreshJobTracks`/`refreshJobs` are called from multiple places that can overlap
+  (an `expanded` SSE event, an `EventSource` reconnect's `loadAll()`, the initial mount) with no
+  guarantee the fetch that started first also resolves first. Real manual testing reported "the
+  log doesn't update after a download completes, I need F5" and "submitting an already-downloaded
+  track gives no UI response at all" — extensive automated reproduction attempts (raw job
+  creation, real UI-driven submission, fresh downloads, genuine duplicates, in five separate
+  scenarios) could not force either symptom to recur as a deterministic bug; every attempt showed
+  correct live updates in 300ms–16s. Since the exact failure window couldn't be pinned down, the
+  fix applied is defensive rather than a targeted repro-driven fix: both functions now capture a
+  per-resource sequence number at call time and discard their own result if a newer call for the
+  same resource has started since — this is the direct class of bug the symptom describes, whether
+  or not this specific codebase was ever actually hitting it. **Any future store function that
+  fetches-then-merges REST state must keep this sequence-guard pattern**, not assume requests
+  resolve in the order they were sent. If either symptom recurs after this fix, the next step is
+  capturing real DevTools console/network output during an actual reproduction, since automated
+  headless testing could not manufacture the user's exact conditions (long-lived tab, possible
+  backend hot-reload mid-session, or something else not yet identified).
+- **Fixing the above indicator immediately surfaced 15 stale `Job` rows already sitting in the
+  shared local dev database** — pre-dating this fix, left in `expanding`/`failed` state forever by
+  earlier ad-hoc DB fault-injection scripts (the v06/v07-established technique) that manually
+  created `Job`+`Track` rows to test the retry ladder/proxy logic without going through the real
+  `expand_job` flow, and never bothered to also flip the parent `Job` to a terminal state since
+  their focus was the `Track` row. These were invisible before this version (nothing rendered a
+  job with no tracks) and suddenly appeared as a wall of fake "tuning in" rows the moment the new
+  indicator shipped. Deleted after confirming every attached `Track` was already terminal
+  (`cancelled`/`completed`) and none were live — pure historical test debris, not a code bug. **Any
+  future ad-hoc DB fault-injection script that creates a `Job` row directly should also set it to
+  a terminal state (or `cancelled`) before the script exits**, not just its `Track` rows — this
+  gotcha is exactly why: an invisible loose end can resurface as a visible bug in a much later
+  version once something finally renders off the field nobody was watching.
+- **`transform: scaleY(...)` on an element flex-anchored to a container's bottom edge grows from
+  the element's own center by default, not from that visual bottom edge** — the idle waterfall's
+  noise-floor bars visibly dipped below the container's baseline as they grew (reported as "the
+  soundbars move in both vertical directions instead of just their top part moving"). Fixed with
+  `transform-origin: bottom` on `.noise-bar`. **Any future `scale`-based CSS animation on an
+  element that's positioned by its layout box (flex/grid alignment, not `position: absolute`)
+  needs an explicit `transform-origin` matching whichever edge the layout anchors** — the default
+  center origin only looks correct for an element with no anchored edge at all.
+  **`transform-origin` alone did not fully close this** — re-tested after the fix shipped, 1-3
+  bars still dipped below the baseline by a few px, a different subset on every reload. Root
+  cause: these bars are only a few px tall (random height, `min-height: 2px`), and sub-pixel
+  antialiasing bleed on a `scaleY`-transformed element of that size can still render very
+  slightly past the mathematically exact edge on some displays, independent of `transform-origin`
+  being correct. Fixed by adding `overflow: hidden` to the `.noise-floor` container itself, which
+  clips any such bleed at the true baseline regardless of the rendering-level cause. Confirmed via
+  `getBoundingClientRect()` sampled across 6 frames of the animation cycle post-fix: zero bars
+  exceeding the container's bottom edge. **Any future short/thin `transform`-animated element
+  needs its clipping container treated as the actual guarantee, not `transform-origin` alone** —
+  the math being correct doesn't guarantee the rasterizer respects it exactly at sub-pixel sizes.
+- **Live SSE-updated rows can jump far enough down a long, mixed-state sorted list to look like
+  they vanished, even though nothing was ever removed from the store** — reported as "the track
+  appears while downloading, then completely disappears when the download finishes; F5 shows it
+  as completed." `queue.ts`'s `trackList` sorted purely by `TRACK_STATE_ORDER`
+  (`downloading`=0 … `completed`=6), with equal-priority ties falling back to plain
+  `Object.values()` insertion order — and a track that only just joined the `tracks` record via
+  its own live SSE events is *always* inserted after every track from the initial bulk
+  `loadAll()` fetch, so completing sent it to the very end of the `completed` tier. Verified via
+  real-stack testing (not assumed): a live completion measurably jumped from index 0 of 38 rows
+  (fully visible, while `downloading`) to index 25 of 38 (below the fold) the instant its state
+  flipped — nothing was actually missing from the DOM, it was just sorted somewhere the user
+  wasn't scrolled to. A **fresh reload** showed it much closer to the top purely because
+  `GET /api/jobs` orders newest-created-job-first and `Promise.all`-driven concurrent
+  `refreshJobTracks` calls tend to resolve close to that same order — a completely different,
+  coincidental position, not evidence the live version was "wrong" and the reloaded version
+  "right." Fixed by adding an `updatedAt: number` (`Date.now()`) to every `LiveTrack`, set on
+  every REST fetch and every applied SSE event, and sorting each state-priority tier by that
+  descending as a secondary key — a track that just changed state now surfaces at the top of its
+  new tier instead of wherever insertion order happened to leave it. Re-verified live: a
+  completion stayed at index 0 through the entire transition. **Any future field added to the
+  sort comparator must keep `updatedAt` as the tiebreaker** — dropping it silently reintroduces
+  this exact "vanishing" perception for every state transition, not just completion.
+- **`@sveltejs/adapter-static` cannot run a `+layout.server.ts` at request time** — there is no
+  Node server in the static build, so the plan's literal `+layout.ts`/`+layout.server.ts` session
+  guard had to be a universal `+layout.ts` with `export const ssr = false` (the session check —
+  `GET /api/auth/me` — runs client-side, in the browser, against the live cookie) and `export
+  const prerender = true` (fine here since the app has exactly two fixed routes, `/` and
+  `/login`, each getting its own prerendered empty shell that hydrates into the real check — no
+  nginx SPA-fallback config was needed for this reason). **Any future route added to this app
+  needs the same two exports** unless the route count grows enough to need a real `fallback:
+  'index.html'` + nginx `try_files` setup instead — revisit if v10+ adds routes beyond a small
+  fixed set.
+- **SvelteKit 2.63's `goto()` calls are lint-enforced (`svelte/no-navigation-without-resolve`) to
+  wrap their destination in `resolve()` from `$app/paths`** — a bare `goto('/login')` fails lint
+  even though it works at runtime; every `goto()` in this codebase goes through
+  `goto(resolve('/login'))`. Also as of this SvelteKit version, `redirect()`/`error()` from
+  `@sveltejs/kit` throw internally when called and must NOT be prefixed with `throw` (the older
+  `throw redirect(...)` pattern from SvelteKit 1.x is stale for this project's pinned version).
+- **A `SvelteSet`/`SvelteMap` from `svelte/reactivity` is required instead of a plain mutable
+  `Set`/`Map` behind `$state`** — `eslint-plugin-svelte`'s `svelte/prefer-svelte-reactivity` rule
+  catches this; a plain `Set` reassigned wholesale on every mutation (`expanded = new
+  Set(expanded)`) works but is exactly the pattern the rule exists to replace. `QueueTable.svelte`'s
+  row-expansion state uses `const expanded = new SvelteSet<string>()`, mutated in place
+  (`.add`/`.delete`), no reassignment needed.
+- **Mobile responsive collapse of a multi-column data table has a two-layer failure mode, not
+  one** — first attempt (squeezing all 5 columns proportionally onto one line) produced
+  zero-width columns and fully invisible text at 390px, caught only by an actual Playwright
+  screenshot (`svelte-check`/`eslint` saw nothing wrong, since this is a pure runtime CSS layout
+  failure). Second attempt (state+job sharing one grid row, title on its own full-width row)
+  fixed that but introduced a *different* bug one level down: pairing unrelated cells onto shared
+  grid columns across multiple stacked rows (title+job on one row, artist+album on another, same
+  two-column track definition) let one row's long `album` value size an `auto` column wide enough
+  to silently truncate a *different* row's `title`/`artist` in that same column — real tracks with
+  long album names (e.g. "Whenever You Need Somebody") starved short-artist rows ("Rick Astley")
+  in ways a short-album row never triggered, making the bug look content-dependent rather than
+  structural. **The fix that actually holds**: on the mobile breakpoint, every cell (`state`,
+  `title`, `artist`, `album`, `job`) gets its own full-width flex line via `order`, never sharing
+  a grid track with anything else. Confirmed only by re-screenshotting a real populated table with
+  a mix of short and long titles/albums after each attempt — neither failure was visible from
+  short test data or from `svelte-check`/`eslint`/`detect.mjs` alone. **Any future dense-table
+  mobile collapse in this codebase should default straight to one-cell-per-line and only pair
+  cells on a shared row after confirming with real, varied-length data that nothing can starve
+  anything else.**
+- **The one committed "live" accent color (`--signal`, phosphor amber) must never appear as
+  permanent chrome** — round 1 of finish review shipped a constant amber top border on the
+  waterfall panel (to mark it as the "hero" panel); the review correctly flagged this as spending
+  the single live-signal color's exclusive meaning ("something is active right now") on pure
+  decoration, present identically whether 0 or 5 tracks were downloading. Fixed by making the
+  border neutral (`--line-bright`) by default and switching to `--signal-dim` only via a
+  `.waterfall.live` class bound to `tracks.length > 0`. **Any future component that wants amber for
+  emphasis must first ask whether the thing it's marking is genuinely live right now** — if not,
+  a different token is correct, full stop; this rule and its rationale are recorded in
+  `frontend/src/DESIGN.md` §2 specifically so it survives past this session.
+- **The intended "matte charcoal chassis" panel material (a perceptibly recessed/lifted surface,
+  not a flat card) was never made clearly perceptible against the near-black page background,
+  across two full finish-review correction rounds** — first a 1px inset hairline (invisible at
+  normal viewing distance), then a stronger compound shadow (`inset 0 2px 5px`, `inset 0 -1px 0`,
+  `0 8px 20px -10px`), still not confirmed legible as "recessed housing" vs. "bordered card" by the
+  reviewer's final verdict. Per the finish process's two-round ceiling, this was **deliberately
+  left as an open, accepted gap** rather than pursued further — recorded in
+  `frontend/src/DESIGN.md` §6/§8 for whoever picks up visual polish next (candidate for v10+).
+  **Do not spend more `box-shadow` layers chasing this without first checking real-device
+  legibility**, and do not describe the chassis material as "done" without new evidence.
+- Verified against the real docker-compose stack (not mocked), via a headless Playwright driver
+  (`chromium-cli` was unavailable in this environment; `npx playwright` + a local scratch
+  `node_modules` install was the working substitute — see the `run` skill's fallback guidance) and
+  the project's real local dev credentials/database: full login (including a deliberate
+  wrong-password attempt showing the generic non-disclosing error) → real track submission → live
+  `pending`→`downloading`→`completed`/`skipped_duplicate` states with no manual refresh → page
+  reload mid-flight preserving state (proving the REST-resync + SSE-resume contract from v08 for
+  real, not just structurally) → a track force-set to `waiting` via the same ad-hoc
+  `docker compose exec` DB-script technique v06/v07 established (cleaned up to `cancelled`
+  immediately after, per the v07 gotcha about never leaving a live test track for the real beat
+  loop) showing a countdown that measurably ticked down across a real 3-second wait and survived
+  a reload → logout clearing the session and redirecting → direct navigation to `/` while logged
+  out redirecting to `/login` without ever rendering queue data. Keyboard-only navigation
+  (PRODUCT.md's confirmed hard requirement) was separately verified end-to-end: login completed
+  using only `Tab`/`type`/`Enter` with no mouse interaction, and the focus ring was confirmed
+  visible via screenshot on both the login submit button and a dashboard filter button reached by
+  tabbing alone. Real Cloudflare Tunnel verification was explicitly declined for this version
+  (user's call, given the real `CLOUDFLARE_TUNNEL_TOKEN` already sitting in local `.env` makes
+  that a public-exposure action, not just a local one) — v08 already proved the SSE/tunnel
+  contract, and v12 (deploy hardening) owns real tunnel-based verification going forward.
+
 ### Version roadmap
 
 | # | Branch | Scope |

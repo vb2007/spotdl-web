@@ -31,7 +31,13 @@ def download_track(track_id: str) -> None:
             track.state = TrackState.WAITING
             track.scheduled_at = worker_state.breaker_tripped_until or (now + retry.next_delay(0))
             db.commit()
-            events.publish_track_event(track.id, track.job_id, track.state.value, scheduled_at=track.scheduled_at)
+            events.publish_track_event(
+                track.id,
+                track.job_id,
+                track.state.value,
+                scheduled_at=track.scheduled_at,
+                attempt_count=track.attempt_count,
+            )
             return
 
         existing_path = dedup.is_already_downloaded(track.spotify_track_id)
@@ -121,6 +127,7 @@ def download_track(track_id: str) -> None:
                 track.state.value,
                 scheduled_at=track.scheduled_at,
                 error=track.last_error,
+                attempt_count=track.attempt_count,
             )
     finally:
         db.close()
