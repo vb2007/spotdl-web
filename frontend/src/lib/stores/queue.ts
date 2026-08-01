@@ -23,8 +23,18 @@ function createQueueStore() {
 	const jobs = writable<Record<string, Job>>({});
 	const tracks = writable<Record<string, LiveTrack>>({});
 
+	// Guards against an out-of-order REST response clobbering fresher state: the SSE
+	// `expanded`/reconnect paths can both trigger overlapping `refreshJobTracks` calls for
+	// the same job, and network timing gives no guarantee the one that started first is
+	// also the one that resolves first. Each call captures the sequence number current at
+	// call time and only applies its result if nothing newer has started since.
+	let jobsFetchSeq = 0;
+	const trackFetchSeq: Record<string, number> = {};
+
 	async function refreshJobs(): Promise<Job[]> {
+		const seq = ++jobsFetchSeq;
 		const list = await api.listJobs();
+		if (seq !== jobsFetchSeq) return list;
 		jobs.update((current) => {
 			const next = { ...current };
 			for (const job of list) next[job.id] = job;
@@ -34,7 +44,10 @@ function createQueueStore() {
 	}
 
 	async function refreshJobTracks(jobId: string): Promise<void> {
+		const seq = (trackFetchSeq[jobId] ?? 0) + 1;
+		trackFetchSeq[jobId] = seq;
 		const list = await api.listJobTracks(jobId);
+		if (trackFetchSeq[jobId] !== seq) return;
 		tracks.update((current) => {
 			const next = { ...current };
 			for (const track of list) next[track.id] = { ...current[track.id], ...track };
@@ -98,6 +111,18 @@ function createQueueStore() {
 		$t.filter((t) => t.state === 'lookup_failed')
 	);
 
+	/** A job between "submitted" and "its tracks exist" has nothing else in the UI to
+	 * represent it -- expanding a URL takes several real seconds (a genuine Spotify
+	 * metadata round trip, not something to fake away), and with no visible trace of the
+	 * submission during that window a user has every reason to think the click didn't
+	 * register and try again. Also carries `failed` jobs (expansion errored out with zero
+	 * tracks ever created) since those otherwise vanish with no explanation anywhere. */
+	const incomingJobs = derived(jobs, ($jobs) =>
+		Object.values($jobs)
+			.filter((j) => j.state === 'expanding' || j.state === 'failed')
+			.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+	);
+
 	return {
 		jobs,
 		tracks,
@@ -105,6 +130,7 @@ function createQueueStore() {
 		activeTracks,
 		waitingTracks,
 		lookupFailedTracks,
+		incomingJobs,
 		loadAll,
 		addJob,
 		applyEvent

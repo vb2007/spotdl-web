@@ -6,8 +6,9 @@
 	import { queue } from '$lib/stores/queue';
 	import Waterfall from '$lib/components/Waterfall.svelte';
 	import QueueTable from '$lib/components/QueueTable.svelte';
+	import IncomingJobs from '$lib/components/IncomingJobs.svelte';
 
-	const { activeTracks, trackList, jobs } = queue;
+	const { activeTracks, trackList, jobs, incomingJobs } = queue;
 
 	let { data } = $props();
 
@@ -17,7 +18,10 @@
 
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
-		if (!url.trim()) return;
+		if (!url.trim()) {
+			submitError = 'Paste a URL first.';
+			return;
+		}
 		submitting = true;
 		submitError = '';
 		try {
@@ -82,6 +86,8 @@
 		<button type="submit" disabled={submitting}>{submitting ? 'SENDING…' : 'SUBMIT'}</button>
 	</form>
 	<p id="submit-error" class="submit-error mono" role="alert">{submitError}</p>
+
+	<IncomingJobs jobs={$incomingJobs} />
 
 	<Waterfall tracks={$activeTracks} />
 	<QueueTable tracks={$trackList} jobs={$jobs} />

@@ -742,6 +742,55 @@ any ──> cancelled
   (same registrable domain = same-site), so the loopback-only guard is load-bearing, not
   incidental. Any future change to how the frontend resolves its API base URL must preserve this
   loopback-aware behavior instead of reverting to a single fixed absolute URL.
+- **A job between "submitted" and "its tracks exist" had nothing in the UI to represent it** —
+  the plan's own "Done when" criteria and a real user's first manual test both surfaced this:
+  `expand_job` genuinely takes several real seconds (a Spotify metadata round trip, not something
+  to fake away), and during that window nothing rendered for the job at all (`QueueTable` only
+  ever reads from `tracks`, and a job with no tracks yet is invisible), so a real click looked
+  like it had done nothing — enough that a user's natural next move was to submit again, thinking
+  the first click hadn't registered. Fixed with `queue.ts`'s `incomingJobs` derived store (jobs in
+  `expanding` or `failed` state) and `IncomingJobs.svelte`, rendered above the waterfall. **Any
+  future state a `Job` can reach that has no tracks of its own needs the same treatment** — this
+  store is the one place job-level (not track-level) state gets surfaced at all.
+- **A stale/overlapping REST fetch can resolve after a fresher one and clobber newer state** —
+  `queue.ts`'s `refreshJobTracks`/`refreshJobs` are called from multiple places that can overlap
+  (an `expanded` SSE event, an `EventSource` reconnect's `loadAll()`, the initial mount) with no
+  guarantee the fetch that started first also resolves first. Real manual testing reported "the
+  log doesn't update after a download completes, I need F5" and "submitting an already-downloaded
+  track gives no UI response at all" — extensive automated reproduction attempts (raw job
+  creation, real UI-driven submission, fresh downloads, genuine duplicates, in five separate
+  scenarios) could not force either symptom to recur as a deterministic bug; every attempt showed
+  correct live updates in 300ms–16s. Since the exact failure window couldn't be pinned down, the
+  fix applied is defensive rather than a targeted repro-driven fix: both functions now capture a
+  per-resource sequence number at call time and discard their own result if a newer call for the
+  same resource has started since — this is the direct class of bug the symptom describes, whether
+  or not this specific codebase was ever actually hitting it. **Any future store function that
+  fetches-then-merges REST state must keep this sequence-guard pattern**, not assume requests
+  resolve in the order they were sent. If either symptom recurs after this fix, the next step is
+  capturing real DevTools console/network output during an actual reproduction, since automated
+  headless testing could not manufacture the user's exact conditions (long-lived tab, possible
+  backend hot-reload mid-session, or something else not yet identified).
+- **Fixing the above indicator immediately surfaced 15 stale `Job` rows already sitting in the
+  shared local dev database** — pre-dating this fix, left in `expanding`/`failed` state forever by
+  earlier ad-hoc DB fault-injection scripts (the v06/v07-established technique) that manually
+  created `Job`+`Track` rows to test the retry ladder/proxy logic without going through the real
+  `expand_job` flow, and never bothered to also flip the parent `Job` to a terminal state since
+  their focus was the `Track` row. These were invisible before this version (nothing rendered a
+  job with no tracks) and suddenly appeared as a wall of fake "tuning in" rows the moment the new
+  indicator shipped. Deleted after confirming every attached `Track` was already terminal
+  (`cancelled`/`completed`) and none were live — pure historical test debris, not a code bug. **Any
+  future ad-hoc DB fault-injection script that creates a `Job` row directly should also set it to
+  a terminal state (or `cancelled`) before the script exits**, not just its `Track` rows — this
+  gotcha is exactly why: an invisible loose end can resurface as a visible bug in a much later
+  version once something finally renders off the field nobody was watching.
+- **`transform: scaleY(...)` on an element flex-anchored to a container's bottom edge grows from
+  the element's own center by default, not from that visual bottom edge** — the idle waterfall's
+  noise-floor bars visibly dipped below the container's baseline as they grew (reported as "the
+  soundbars move in both vertical directions instead of just their top part moving"). Fixed with
+  `transform-origin: bottom` on `.noise-bar`. **Any future `scale`-based CSS animation on an
+  element that's positioned by its layout box (flex/grid alignment, not `position: absolute`)
+  needs an explicit `transform-origin` matching whichever edge the layout anchors** — the default
+  center origin only looks correct for an element with no anchored edge at all.
 - **`@sveltejs/adapter-static` cannot run a `+layout.server.ts` at request time** — there is no
   Node server in the static build, so the plan's literal `+layout.ts`/`+layout.server.ts` session
   guard had to be a universal `+layout.ts` with `export const ssr = false` (the session check —

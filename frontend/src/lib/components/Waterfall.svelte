@@ -97,6 +97,11 @@
 		height: calc(var(--base, 0.2) * 100%);
 		min-height: 2px;
 		background: var(--line-bright);
+		/* scaleY defaults to growing from the element's own center, so a bar sitting
+		   at the container's bottom edge (flex align-items: flex-end) would visibly
+		   dip below that edge as it grows -- pinning the origin to the bottom keeps
+		   growth reading as "signal rising from the floor," not "wobbling in place." */
+		transform-origin: bottom;
 		/* Slow and low-amplitude on purpose — round 1 flagged perpetual idle motion
 		   as being in tension with the confirmed "left open in a background tab for
 		   long stretches" usage scene. Calm enough to sit unattended; still visibly
