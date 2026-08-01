@@ -1,6 +1,15 @@
 import { derived, writable } from 'svelte/store';
 import * as api from '$lib/api';
-import type { Job, StreamEvent, Track } from '$lib/api';
+import type { Job, StreamEvent, Track, TrackState } from '$lib/api';
+
+/** States nothing in this app ever transitions a track *out of* -- `waiting`/
+ * `lookup_failed`/`failed` don't qualify since retry-now can revive them back to
+ * `waiting`. A track's own real (uninterruptible) download can keep publishing stray
+ * `downloading` progress events for several seconds after a cancel has already landed
+ * (spotdl's progress callback has no idea a cancel happened -- see CLAUDE.md's v10
+ * gotchas); once a track is known to be in one of these states, any further event for
+ * it is necessarily stale and must be ignored, not applied. */
+const TRULY_TERMINAL_STATES = new Set<TrackState>(['completed', 'skipped_duplicate', 'cancelled']);
 
 export type LiveTrack = Track & { progress?: number; updatedAt: number };
 
@@ -103,6 +112,14 @@ function createQueueStore() {
 	function applyTrackEvent(event: Extract<StreamEvent, { type: 'track.state' }>): void {
 		tracks.update((current) => {
 			const existing = current[event.track_id];
+			// A stray event arriving after a track already reached a truly terminal
+			// state is necessarily stale -- applying it would flip the track back to
+			// non-terminal for a moment (e.g. a cancelled track visibly "resuming" its
+			// download) before the eventual correcting event catches up. Ignoring it
+			// outright is simpler and more robust than trying to compare timestamps.
+			if (existing && TRULY_TERMINAL_STATES.has(existing.state)) {
+				return current;
+			}
 			const next: LiveTrack = {
 				...existing,
 				id: event.track_id,

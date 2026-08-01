@@ -931,6 +931,36 @@ any ──> cancelled
   "re-publish the true outcome as the last message" treatment** — this is a general race between
   a slow, uninterruptible background operation and any concurrent state change, not specific to
   cancellation.
+- **The backend re-publish above was not sufficient on its own** — a second, real user re-test
+  after that fix shipped (manual: submit → wait for download to start → click "cancel track")
+  found the track visibly disappear from the waterfall instantly, then **reappear in the active
+  waterfall for a moment**, before finally settling on `cancelled`. Backend-side, this is entirely
+  correct and expected (exactly the stray-progress-event race documented above, now provably
+  ending in the right state) — the remaining bug was purely in how the frontend applied events:
+  `queue.ts`'s `applyTrackEvent` blindly overwrote a track's state with whatever event arrived
+  most recently, with no notion that some states are truly terminal and nothing legitimately
+  transitions a track back out of them. The optimistic local update from clicking "cancel"
+  (`mergeTrack` off the `DELETE` response) set the store to `cancelled` immediately, but a stray
+  `downloading` event from the still-running real download landed right after and flipped it back
+  before the backend's eventual re-published `cancelled` caught up — a purely client-side replay of
+  the same race, invisible to any backend-only test (curl/SSE-capture, unit tests) since the *wire*
+  order was already correct; only the *frontend's interpretation* of receiving events out of causal
+  order was wrong. Fixed with a `TRULY_TERMINAL_STATES` guard (`completed`/`skipped_duplicate`/
+  `cancelled` — deliberately **not** `lookup_failed`/`failed`, since retry-now can legitimately
+  revive those back to `waiting`): once a track's stored state is one of these three,
+  `applyTrackEvent` ignores every further event for that track id outright rather than applying
+  it, since nothing else in this app's model ever transitions a track back out of them. Confirmed
+  fixed by the same user, live, after a page refresh (a plain non-component `.ts` module needs a
+  full reload to pick up Vite HMR, not just a hot-swap) — no reappearance, straight to `cancelled`.
+  **Any future store logic that applies incoming live events on top of existing state needs the
+  same "is the current state one nothing ever legitimately exits" check** before blindly
+  overwriting — this is a second, independent instance of the same class of bug as the backend
+  fix above (a slow/uninterruptible operation's stale signal arriving after the true outcome is
+  already known), just at a different layer, and neither fix would have caught the other's gap.
+  No frontend unit-test framework exists in this project yet (v09 relied on backend `pytest` +
+  manual/Playwright-driven verification only) — this fix was verified by the user manually
+  re-testing the live UI, not by an automated frontend test; introducing Vitest/Jest purely to
+  cover this one case was judged out of scope for this version.
 - **`uv pip install ".[dev]"` (no `-e`/`--editable`) copies `app/` into `.venv/site-packages` as a
   frozen snapshot** — every further edit to `backend/app/*.py` is invisible to a local
   `.venv/bin/pytest` run until the package is reinstalled, silently testing stale code with zero
