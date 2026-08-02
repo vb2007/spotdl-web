@@ -1077,7 +1077,16 @@ any ──> cancelled
   its ladder wait, exactly as the plan's "Done when" specifies. `PATCH
   /api/jobs/{id}/priority` and `POST /api/jobs/{id}/bump` were confirmed wired and
   session-gated (`401` unauthenticated) against the real running `api` container after a
-  clean hot-reload with no import errors.
+  clean hot-reload with no import errors. The plan's first "Done when" bullet says
+  *bumping* a job causes its tracks to dispatch first — an initial pass had only tested
+  the dispatch-ordering query with priorities set directly via the ORM, which exercises
+  the ordering logic but not the actual bump codepath the plan describes. Closed that gap
+  with a follow-up real-stack run calling `app.routers.jobs.bump_job()` itself (the real
+  production function, not a reimplementation) against two same-priority, simultaneously-due
+  tracks: the bumped (newer) job's priority came back `12` (one above the real pre-existing
+  max in the shared DB, not a hardcoded value), and its track dispatched first on the next
+  `dispatch_due_tracks()` call — the literal scenario the plan specifies, not just its
+  underlying mechanism.
 
 ### Version roadmap
 

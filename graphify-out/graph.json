@@ -5178,7 +5178,7 @@
       "label": "Version roadmap",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L1082",
+      "source_location": "L1091",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 85,
@@ -17027,7 +17027,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L1082",
+      "source_location": "L1091",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -18695,5 +18695,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "a00d68c7a0e2b58ef34276f5e04a20fbee042c95"
+  "built_at_commit": "1c1326b7d0acaaccf1b445e27127e949d20707fc"
 }
