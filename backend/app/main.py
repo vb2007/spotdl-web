@@ -6,9 +6,12 @@ from app.routers import auth, health, jobs, stream, tracks, worker
 
 app = FastAPI(title="spotdl-web")
 
-# The SPA and API are served from different origins (different port locally, different
-# subdomain once v12 wires the real tunnel) — cookie-authenticated fetch() calls need this,
-# and credentials=True forbids a wildcard origin.
+# v12: both production (nginx's /api/ proxy inside the `web` container) and local dev
+# (Vite's dev-server /api proxy) are same-origin by default, so this middleware's allowlist
+# normally never gets exercised by a real cross-origin browser request at all — it's a
+# fallback for whoever bypasses the proxy (e.g. hitting this container's published port
+# directly), not the real enforcement boundary. credentials=True still forbids a wildcard
+# origin regardless.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().frontend_origins,

@@ -1,27 +1,22 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
-const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1']);
-
-/** `localhost` and `127.0.0.1` are different *sites* to a browser's SameSite cookie
- * logic even though they're the same machine — a page opened at one, calling an API
- * whose configured base URL hardcodes the other, makes every request cross-site. The
- * session cookie (SameSite=Lax) then gets set fine on login but never sent back on the
- * next request, a confusing 200-then-401 that looks like nothing is wrong until you
- * read the network tab. In local dev, always call the API via whichever loopback
- * hostname the page itself was loaded with, keeping every request same-site. This
- * never applies in production: there the API and web app are genuinely different
- * hosts/subdomains, where cookie same-site-ness works differently and this rewrite
- * must not run. */
+/** v12: both production (via the `web` container's nginx /api/ proxy, see
+ * frontend/nginx.conf) and local dev (via Vite's dev-server /api proxy, see
+ * vite.config.ts) are same-origin by default — `PUBLIC_API_BASE_URL` is "" in both, and
+ * every request is a plain relative `/api/...` fetch against whatever origin the page
+ * itself was loaded from. No cross-origin request, no CORS, no SameSite-cookie special
+ * casing needed either way.
+ *
+ * This function only matters if `PUBLIC_API_BASE_URL` is explicitly set to a real
+ * absolute URL (e.g. pointing dev's Vite server directly at the api container's
+ * published port for debugging, bypassing the proxy) — in which case it's used exactly
+ * as configured, no rewriting. `new URL('')` throws, so the empty-string default must be
+ * checked first. */
 function resolveApiBase(): string {
-	const configured = new URL(PUBLIC_API_BASE_URL);
-	if (
-		typeof window !== 'undefined' &&
-		LOOPBACK_HOSTS.has(configured.hostname) &&
-		LOOPBACK_HOSTS.has(window.location.hostname)
-	) {
-		return `${window.location.protocol}//${window.location.hostname}:${configured.port}`;
+	if (!PUBLIC_API_BASE_URL) {
+		return '';
 	}
-	return PUBLIC_API_BASE_URL;
+	return new URL(PUBLIC_API_BASE_URL).toString().replace(/\/$/, '');
 }
 
 const API_BASE = resolveApiBase();
@@ -202,9 +197,10 @@ export function releaseBreaker(): Promise<WorkerStatus> {
 	return request('/api/worker/breaker/release', { method: 'POST' });
 }
 
-/** `EventSource` needs `withCredentials: true` — a plain `new EventSource(url)` defaults
- * to omitting cookies, which would silently 401 the stream since the API and the SPA are
- * different origins. */
+/** `EventSource` needs `withCredentials: true` for the (now rare, see resolveApiBase)
+ * case where `API_BASE` is a genuinely different absolute origin — a plain
+ * `new EventSource(url)` defaults to omitting cookies there, which would silently 401
+ * the stream. A harmless no-op for the same-origin default. */
 export function createEventSource(): EventSource {
 	return new EventSource(`${API_BASE}/api/stream`, { withCredentials: true });
 }

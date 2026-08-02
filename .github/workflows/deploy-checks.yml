@@ -1,0 +1,84 @@
+name: Deploy checks
+
+# Static validation for the deployment surface added in v12 — catches YAML/anchor/
+# interpolation mistakes in the compose files and frontend build/lint/type errors before
+# they reach the Debian host, without ever actually starting the real stack.
+#
+# Runs on the self-hosted runner — the SAME Debian 12 production host `docker compose`
+# deploys to (see docs/CI_SELF_HOSTED_RUNNER.md) — so every step here is deliberately
+# read-only against Docker: `docker compose ... config` only renders and validates the
+# merged YAML, it never creates a container, network, or volume. Never add `up`, `build`,
+# or `pull` to this workflow — any of those would collide with the real running
+# production stack on this same host (same project name, same default ports).
+"on":
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compose-config:
+    runs-on: self-hosted
+    # Placeholder values only, purely to satisfy Compose-level ${VAR} interpolation for a
+    # static `config` render — none of these are ever used to actually start anything.
+    # DOWNLOADS_DIR/REDIS_PASSWORD/CLOUDFLARE_TUNNEL_TOKEN are the only three variables
+    # either compose file references at the Compose-interpolation level (as opposed to
+    # values merely passed through to a container via env_file: .env, which `config`
+    # doesn't need populated to render correctly).
+    env:
+      DOWNLOADS_DIR: /tmp/ci-placeholder-downloads
+      REDIS_PASSWORD: ci-placeholder
+      CLOUDFLARE_TUNNEL_TOKEN: ci-placeholder
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Validate dev compose (base + override, the real local-dev invocation)
+        run: docker compose -f docker-compose.yml -f docker-compose.override.yml config --quiet
+
+      - name: Validate prod compose (base + prod overlay, the real deploy invocation)
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel config --quiet
+
+      - name: Validate nginx config syntax
+        # frontend/nginx.conf is authored by hand (not generated), so a plain syntax check
+        # against the real nginx binary the image ships catches a typo before it reaches
+        # the host as a crash-looping `web` container.
+        run: |
+          docker run --rm \
+            -v "$PWD/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+            nginx:1.27-alpine nginx -t
+
+  frontend:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (prettier --check + eslint)
+        run: npm run lint
+
+      - name: Type-check (svelte-check)
+        run: npm run check
+
+      - name: Build
+        # Matches the v12 default (frontend/Dockerfile's ARG default, docker-compose.yml's
+        # build.args) — same-origin, no PUBLIC_API_BASE_URL needed. This is also the exact
+        # config that would have caught the pre-fix `new URL('')` crash in
+        # resolveApiBase() (src/lib/api.ts) had this job existed before that fix landed.
+        env:
+          PUBLIC_API_BASE_URL: ""
+        run: npm run build

@@ -1,0 +1,102 @@
+# Production-only overlay for the Debian host — layered on top of docker-compose.yml,
+# WITHOUT docker-compose.override.yml (that file is dev-only and must never apply here).
+# Real invocation (see docs/DEPLOYMENT.md for the full runbook):
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --build
+#
+# Everything here is a concern specific to running unattended on a shared personal server
+# rather than behavior shared with local dev: resource limits sized for that server, and
+# the real host bind mount for downloaded files (the base file's named volume remains the
+# zero-config default for anyone who just clones and runs `docker compose up`).
+services:
+  redis:
+    # noeviction is deliberate, not an oversight: this is a message broker, not a cache.
+    # redis's own default policy once maxmemory is set (allkeys-lru) would silently evict
+    # queued Celery task messages under memory pressure -- noeviction instead makes Redis
+    # reject new writes loudly (an error Celery surfaces) once full, a real signal to act
+    # on rather than silent task loss. maxmemory (256mb) stays comfortably under this
+    # service's own memory limit below (384M) -- if the two aren't kept in that
+    # relationship, the OOM killer reaps the container before Redis's own limit ever
+    # engages, and you lose the loud-failure behavior this is supposed to buy you.
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD}",
+        "--maxmemory",
+        "256mb",
+        "--maxmemory-policy",
+        "noeviction",
+      ]
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: "0.5"
+
+  api:
+    deploy:
+      resources:
+        limits:
+          # Higher than a bare FastAPI process would need on its own -- app.tasks.download
+          # is imported transitively by the jobs/tracks routers, which drags spotdl and
+          # yt-dlp into this process's memory even though it never downloads anything
+          # itself.
+          memory: 768M
+          cpus: "1.0"
+
+  worker-dl:
+    deploy:
+      resources:
+        limits:
+          # Highest of the five: spotdl + yt-dlp + an ffmpeg transcode subprocess all live
+          # in this one process at once during a real download.
+          memory: 1536M
+          cpus: "1.5"
+    # Named volume (base file) -> a real host directory, so downloaded files are directly
+    # browsable/backup-able and survive `docker compose down -v` (a named volume would not).
+    # `!override` replaces rather than merges this list (same trap
+    # docker-compose.override.yml's own `volumes:` comment documents) -- without it this
+    # would sit alongside the base file's named volume as a second, conflicting mount at
+    # the same target.
+    #
+    # DOWNLOADS_DIR must already contain the *migrated* contents of the old `downloads`
+    # named volume before the very first boot against this file -- see docs/DEPLOYMENT.md's
+    # migration step. reconcile_disk() (backend/app/services/dedup.py) refuses to prune the
+    # dedup ledger if this path is missing or empty specifically to catch a skipped
+    # migration rather than silently re-downloading everything.
+    volumes: !override
+      - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads
+
+  worker-meta:
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: "1.0"
+    volumes: !override
+      - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads
+      - ./proxies.txt:/app/proxies.txt:ro
+
+  beat:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+
+  web:
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+
+  cloudflared:
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"

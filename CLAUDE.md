@@ -834,6 +834,20 @@ any ──> cancelled
   needs the same two exports** unless the route count grows enough to need a real `fallback:
   'index.html'` + nginx `try_files` setup instead — revisit if v10+ adds routes beyond a small
   fixed set.
+  **Correction (v12): this claim was wrong, caught by v12's real-stack pressure-testing, not
+  by anything before it.** "No nginx SPA-fallback config was needed" was true only because
+  nothing before v12 put nginx in front of the app at all in a way that mattered — `web`'s
+  container has run `nginx:alpine` since v01, but every pre-v12 test of `/login` reached it
+  via client-side routing (`goto()`/`redirect()` inside the already-loaded SPA), never a
+  cold/hard navigation. Stock nginx has no route for the extensionless path `/login` to the
+  prerendered file `login.html`, so any hard nav (a bookmark, a page refresh, a fresh
+  Cloudflare-Tunnel hit) 404'd for real, in production, the entire time — v12's own
+  same-origin nginx redesign is what finally surfaced it, not a coincidence of that redesign
+  introducing a new bug. Fixed in `frontend/nginx.conf` with explicit
+  `location = /login { try_files /login.html =404; }` (and `location = /` similarly) rather
+  than a wildcard SPA fallback — see that file's own comment for why a wildcard was
+  deliberately avoided. **Any future route added to this app needs both the two SvelteKit
+  exports above AND its own explicit nginx `location` block**, not just one or the other.
 - **SvelteKit 2.63's `goto()` calls are lint-enforced (`svelte/no-navigation-without-resolve`) to
   wrap their destination in `resolve()` from `$app/paths`** — a bare `goto('/login')` fails lint
   even though it works at runtime; every `goto()` in this codebase goes through
@@ -1087,6 +1101,244 @@ any ──> cancelled
   max in the shared DB, not a hardcoded value), and its track dispatched first on the next
   `dispatch_due_tracks()` call — the literal scenario the plan specifies, not just its
   underlying mechanism.
+
+### v12 deploy-hardening gotchas (learned building durability fixes, same-origin nginx, non-root, JSON logging, backups)
+
+- **The plan's own "Done when" wording for restart survival could pass while the actual
+  bug shipped.** `docker compose down && up -d` leaving a `waiting` track's
+  `scheduled_at`/`attempt_count` untouched was never at risk — it's a pure Postgres row,
+  already proven safe at the unit level since v06. The property that genuinely needed
+  fixing is a track **actively `downloading`** when the stack goes down: with Celery's
+  default `task_acks_late=False`, the broker message is acked *before* `download_track`'s
+  body runs, so a `docker compose down`/OOM-kill/host crash mid-download loses that
+  message entirely and strands the track in `downloading` forever — nothing before v12
+  ever reclaimed a track out of that state. Fixed with three independent layers, not one:
+  `task_acks_late=True` + `task_reject_on_worker_lost=True` +
+  `broker_transport_options={"visibility_timeout": 3600}` (`celery_app.py`) so a killed
+  worker's message gets redelivered; `worker-dl`'s `stop_grace_period: 300s` so a real
+  in-flight download gets a chance to finish cleanly before SIGKILL; and an independent
+  DB-level reclaim sweep in `beat.py`'s `dispatch_due_tracks` (`_reclaim_stale_tracks`)
+  that resets any `DOWNLOADING`/`QUEUED` track past `STALE_TRACK_AFTER_SECONDS` (env var,
+  default 1800s — shortened for testing the same way `LADDER_SECONDS` already is) back to
+  `WAITING`, as the safety net for cases the Celery-level redelivery doesn't cover (e.g. a
+  message already acked by a pre-fix worker). Verified locally: a track force-set to
+  `DOWNLOADING` with a stale `updated_at` gets reclaimed to `WAITING` and — since the
+  reclaim's own `scheduled_at=now` is immediately due — re-dispatched to `QUEUED` in the
+  *same* `dispatch_due_tracks` tick, not the next one.
+- **Cutting `downloads` over from a named volume to a host bind mount (for `docker-compose.prod.yml`) can silently wipe the entire dedup ledger on first boot.** `reconcile_disk()`
+  (`dedup.py`) deletes every `downloaded_tracks` row whose file doesn't exist on disk — if
+  the new bind-mount directory is empty or not yet populated (a skipped migration step, a
+  typo'd `DOWNLOADS_DIR`), every row looks "missing" and gets pruned, forcing every
+  previously-downloaded track to re-download from scratch. Fixed with a guard: if the
+  ledger has rows but the output directory is missing or genuinely empty, `reconcile_disk`
+  logs an error and refuses to prune rather than assuming the worst. `docs/DEPLOYMENT.md`
+  documents the actual one-time volume-copy step this guard is protecting against skipping.
+- **A same-origin nginx reverse proxy (`frontend/nginx.conf`, new in v12) surfaced a real,
+  previously-shipped production bug that had nothing to do with the proxy itself: `GET
+  /login` 404s on any hard navigation.** `@sveltejs/adapter-static` prerenders `/login` to
+  a file named `login.html`, and stock nginx has no route from the extensionless path
+  `/login` to that filename. This bug existed since v09 — masked the entire time because
+  every prior test of `/login` went through client-side routing (`goto()`/`redirect()`
+  inside an already-loaded SPA), never a cold nav (a bookmark, a refresh, a fresh
+  Cloudflare-Tunnel hit). See the correction note on v09's frontend gotchas above — that
+  section's original claim that "no nginx SPA-fallback config was needed" was simply
+  wrong. Fixed with explicit per-route `location` blocks (`location = /login { try_files
+  /login.html =404; }`, same for `/`) rather than a wildcard SPA-shell fallback
+  (`try_files $uri /index.html`) — a wildcard would silently return `200` + HTML for a
+  genuinely missing asset chunk too, turning an honest 404 into a confusing "Unexpected
+  token '<'" JS error. **Any future route added to this app needs its own explicit nginx
+  `location` block matching adapter-static's emitted filename**, not just the SvelteKit
+  `+layout.ts` exports v09 already requires.
+- **The same nginx redesign would have silently killed SSE auto-reconnect if shipped
+  without a corresponding frontend fix.** `EventSource` only auto-reconnects on a
+  network-level failure (a raw TCP reset); a response with a non-2xx status or wrong
+  content-type "fails the connection" *permanently* per spec. Before v12, an `api`
+  container restart gave the browser a raw reset directly (auto-reconnect handled it
+  fine) — after routing through nginx, the same restart makes nginx answer with a real
+  `502 text/html` while `api` is down, which is exactly the terminal-failure case
+  `EventSource` never retries on its own. This also silently existed as a *different* bug
+  before v12 (a `401` after session expiry already killed the stream the same way) — never
+  caught because nobody left a tab open through an expiring session during testing. Fixed
+  in `+page.svelte` with a manual `onerror` handler + capped exponential-backoff
+  reconnect, gated on `readyState === EventSource.CLOSED` (a `CONNECTING` readyState means
+  the browser is already retrying on its own — reconnecting again on top of that would
+  double the retry storm).
+- **nginx resolving `api` in a literal `proxy_pass http://api:8000;` is resolved once at
+  config-parse time and cached for the process's lifetime** — this both crashes nginx at
+  boot if `api` isn't resolvable yet (a real startup race, since Compose starts services
+  concurrently) and keeps proxying to `api`'s *old* IP forever after any `docker compose
+  up -d --build` recreates it. Fixed with Docker's embedded DNS resolver
+  (`resolver 127.0.0.11 ipv6=off valid=10s;`) plus a `set $api_upstream api; proxy_pass
+  http://$api_upstream:8000$request_uri;` indirection — routing `proxy_pass` through a
+  variable forces per-request re-resolution instead of a one-time lookup.
+- **This image's `/etc/hosts` resolves `localhost` to `::1` (IPv6) before `127.0.0.1`, and
+  neither nginx (`listen 80;`, no `listen [::]:80;`) nor Vite's dev server bind IPv6** — a
+  healthcheck or verification command using `http://localhost/` gets a misleading
+  connection-refused failure even though the service is genuinely up and reachable on
+  IPv4. Caught for real: `web`'s healthcheck reported `unhealthy` with `wget: can't
+  connect to remote host: Connection refused` despite `curl 127.0.0.1` working fine from
+  inside the same container. Every healthcheck/verification command in this project now
+  uses `127.0.0.1` explicitly, never `localhost`.
+- **The dev (`docker-compose.override.yml`) and prod (`docker-compose.yml`) `web`
+  containers run genuinely different processes on different ports — nginx on `:80` in
+  prod, Vite's dev server on `:5173` in dev — so they need separate healthchecks, not one
+  shared one.** A single healthcheck targeting `:80` reports the dev container permanently
+  unhealthy (nothing listens there in dev). Fixed with the override providing its own
+  `healthcheck:` block targeting `:5173` — a full sub-key replacement, not a merge,
+  confirmed via `docker compose config` (mapping-valued healthcheck keys like `test:`
+  replace wholesale between files, they don't concatenate the way top-level list keys
+  like `volumes:`/`ports:` do).
+- **`docker compose config`'s interpolation escaping rules are opposite for the redis
+  healthcheck vs. the worker healthchecks, and getting it backwards produces a silent
+  permanently-failing/permanently-passing check with no error.** `redis`'s healthcheck
+  uses `${REDIS_PASSWORD}` **unescaped** — Compose-level interpolation from the root
+  `.env` is the only mechanism that works, since `redis` has no `env_file: .env` (it isn't
+  part of the `x-backend` anchor) and so has no container-side env var for a `$$`-escaped
+  form to read. `worker-dl`/`worker-meta`'s healthchecks use `$$HOSTNAME` **escaped** —
+  the opposite is needed there, since `$HOSTNAME` unescaped would have Compose
+  interpolate the *host machine's* hostname (from the shell running `docker compose`, not
+  the container) at config-parse time, silently pinging a Celery node name that will
+  never exist.
+- **A non-root container user for the backend needs a real home directory, not just
+  `--no-create-home` for a "service account" — `import spotdl` breaks otherwise, for every
+  process that imports it, with no warning.** `spotdl.utils.config` runs module-level code
+  at import time that unconditionally `os.makedirs()`s a `~/.spotdl` cache/config
+  directory — `api`, `worker-dl`, `worker-meta`, and `beat` (via `celery_app.py`
+  importing every task module at startup) all import this transitively. Building the
+  non-root user with `--no-create-home` (the initially "obviously correct" choice for a
+  service account with no shell) crashed every one of these four services on their very
+  first `import spotdl` with a bare `PermissionError: [Errno 13] Permission denied:
+  '/home/spotdl'` — caught only by actually starting every service locally after
+  switching to non-root, not assumed from the Dockerfile change looking correct.
+  `useradd --create-home` (not `--no-create-home`) is required. **Any future spotdl
+  4.5.2-importing process added to this project, containerized or not, needs a real,
+  writable home directory** — this is a real constraint of the spotdl library itself, not
+  specific to how this project happens to invoke it.
+- **`docker-compose.prod.yml`'s downloads bind mount needs the same `!override` YAML tag
+  the dev override already established (CLAUDE.md's v01 gotcha) for exactly the same
+  reason** — `volumes:` is a list key that merges across `-f` files by default; without
+  `!override` the prod file's host bind mount would sit alongside the base file's named
+  `downloads` volume as a second, conflicting mount at the same `/downloads` target.
+  `${DOWNLOADS_DIR:?...}` (required-variable interpolation, not a default) is deliberate
+  too — a typo'd/unset path silently creating an empty directory is exactly the setup for
+  the `reconcile_disk()` ledger-wipe hazard above.
+- **Redis's `maxmemory-policy` must be `noeviction`, not `allkeys-lru`, when Redis is
+  acting as a Celery broker rather than a cache** — `allkeys-lru` (redis's own default
+  policy once any `maxmemory` is set) would silently *evict queued task messages* under
+  memory pressure, which is real, silent task loss. `noeviction` instead makes Redis
+  reject new writes loudly once full — a real, actionable signal instead of a silent one.
+  `docker-compose.prod.yml`'s `--maxmemory 256mb` must stay comfortably under `redis`'s
+  own `deploy.resources.limits.memory` (384M) — if the two aren't kept in that
+  relationship, the OOM killer reaps the whole container before Redis's own limit ever
+  engages, defeating the point of setting one.
+- **A new `migrate` one-shot service (runs `alembic upgrade head`, then exits 0) now
+  gates every other backend service's startup** via `depends_on: migrate: condition:
+  service_completed_successfully`, added to the shared `x-backend` anchor — `api`,
+  `worker-dl`, `worker-meta`, and `beat` all wait for it. `migrate` itself must override
+  the anchor's `depends_on` back down to just `redis` (not the anchor's redis+migrate
+  combination), or it depends on itself and deadlocks — YAML's `<<:` merge key replaces a
+  child mapping's explicitly-redefined top-level key wholesale, it doesn't recursively
+  merge nested content under that key, so this override needed to be explicit. Verified
+  with a real `docker compose down && up -d`: `redis` starts → becomes healthy →
+  `migrate` starts → exits 0 → *only then* do `beat`/`worker-dl`/`worker-meta`/`api` start,
+  confirmed from real compose event ordering, not inferred from the YAML alone. This also
+  removes the old manual "confirm Alembic wiring" verification step from earlier versions
+  of `docs/DEPLOYMENT.md` — it happens automatically on every `up` now.
+- **`backend/Dockerfile` copying `app/` before running `uv pip install` meant every
+  source-only edit re-resolved and re-downloaded the full dependency tree (incl.
+  spotdl/yt-dlp) on every build** — reordered so `pyproject.toml` + a new committed
+  `requirements.txt` lock (`uv pip compile pyproject.toml -o requirements.txt`, re-run
+  after any dependency change) install *before* `COPY app`, caching that layer across
+  source edits. The lock file matters independently of the reordering too: this
+  project's dependencies were previously all floating `>=` bounds with no
+  dependency-freshness check in CI, so an unpinned rebuild months from now could
+  silently install a different yt-dlp/spotdl than whatever was last actually verified
+  working.
+- **`frontend/Dockerfile`'s `COPY . .` with no `.dockerignore` anywhere in the repo shipped
+  111MB of `node_modules` (including mismatched-libc native binaries — glibc bindings
+  from the host copied over an Alpine/musl `npm ci` result) and the untracked
+  `frontend/.env` into every build context.** Since `PUBLIC_API_BASE_URL` moved to a
+  Dockerfile `ARG` (default `""`, same-origin — see below) that no longer depends on
+  `frontend/.env` existing at all, a fresh clone can now `docker compose build web` with
+  zero frontend-specific config; `frontend/.dockerignore` (`node_modules`, `build`,
+  `.svelte-kit`, `.env`, `.env.*`, `.git`) makes that both correct and fast.
+- **`PUBLIC_API_BASE_URL` moved from an untracked `frontend/.env` file to a
+  Dockerfile `ARG PUBLIC_API_BASE_URL=""` (with a matching default in the Dockerfile),
+  wired via `docker-compose.yml`'s `build.args` — both dev and prod now default to `""`
+  (same-origin) rather than the pre-v12 split-origin setup.** `resolveApiBase()`
+  (`api.ts`) simplified to a single empty-string check (`new URL('')` throws, so this
+  must be checked before constructing a `URL`) — the old loopback-hostname SameSite-cookie
+  rewrite hack from v09 is now dead code for the default path, superseded by same-origin
+  being the actual fix rather than working around split-origin's cookie implications.
+  Local dev gets the same same-origin treatment via a new Vite `server.proxy` rule for
+  `/api` → `http://api:8000` (`vite.config.ts`) — the dev server runs *inside* the `web`
+  container (`docker-compose.override.yml`), so `api` resolves as a compose service name,
+  not a host-side address.
+- **`celery inspect ping` is real, non-trivial work — a fresh interpreter importing
+  `app.tasks.*`, which transitively drags in spotdl/yt-dlp — and must not be run every
+  few seconds forever as a healthcheck.** `worker-dl`/`worker-meta`'s healthchecks use a
+  120s interval and 90s `start_period` specifically to keep this cost rare. It does
+  respond promptly even mid-download despite `--concurrency=1`, since control/pidbox
+  messages are handled by the worker's MainProcess consumer loop, not the (possibly busy)
+  prefork child. `beat` deliberately has **no** healthcheck at all — it's a single
+  foreground process at PID 1, so a crash already produces a container exit
+  `restart: unless-stopped` handles with no extra signal needed, and a `pgrep`-style
+  check would only prove the process is scheduled, not that it's actually ticking, so it
+  wouldn't add real information.
+- **`health.py`'s per-request `Redis.from_url(...)` (never closed) mattered more once
+  Docker's own healthcheck started polling it every 30s** — 2,880 fresh connection
+  pools/sockets a day, previously harmless under only occasional manual/curl checks.
+  Fixed with a context manager (`with Redis.from_url(...) as redis_client:`) — three
+  lines, no behavior change otherwise.
+- **Taking over Celery's logging via the `setup_logging` signal disables Celery's *entire*
+  own logging setup the moment any receiver is connected — this is deliberate, not a side
+  effect to work around, but it means `-l info` on every `celery` CLI command becomes
+  documentation only, not the actual level source.** `logging_config.py`'s
+  `@setup_logging.connect` handler is the one place now responsible for the root logger's
+  handler/formatter in `worker-dl`/`worker-meta`/`beat`; `api` (uvicorn, not Celery) is
+  wired separately via `--log-config logging.json` referencing the same
+  `app.logging_config.JsonFormatter` class by dotted path. **Both wirings needed
+  independently updating in `docker-compose.override.yml`'s dev command overrides too** —
+  `command:` replaces rather than merges (same as `build:`, per the v01 gotcha), so the
+  dev override's own `--reload` uvicorn command silently dropped `--log-config
+  logging.json` (and would have silently lost any future flag the same way) until the
+  override was updated to repeat the full flag set.
+- **`python-json-logger` renamed its importable module from `pythonjsonlogger.jsonlogger`
+  to `pythonjsonlogger.json` in a recent major version** (a deprecation warning fires on
+  the old path, still functional but not for long) — `logging_config.py` imports from
+  `pythonjsonlogger.json` directly to avoid building on a path already flagged for
+  removal.
+- **JSON logging is new exposure surface for the v07 proxy-redaction contract, not just a
+  formatting change.** `proxies.redact()` is only reliably applied at the one call site in
+  `download.py` that already knows a proxy was involved — nothing before v12 guaranteed a
+  credentialed URL couldn't reach a log record through some *other* route (a raw exception
+  message from a library that isn't ours, a stray `extra=` field). `logging_config.py`'s
+  `JsonFormatter` adds an independent regex-based redaction pass
+  (`://[^/@\s]+:[^/@\s]+@` → `://[redacted]@`) over both the message and any formatted
+  exception, as a safety net on top of the existing call-site fix, not a replacement for
+  it. Covered by `test_logging_config.py` — including a real fabricated
+  `RuntimeError("Invalid proxy server: http://baduser:badpass@...")`, formatted through
+  the real formatter, asserting the credentials don't survive into the emitted JSON.
+- **Docker's own `json-file` log driver needs `max-size`/`max-file` set explicitly per
+  service (or via a shared block) — there is no global default that bounds it**, and nothing
+  in this project set one before v12. All 8 services (5 via the `x-backend` anchor,
+  `redis`/`web`/`cloudflared` individually) now cap at `max-size: "10m"`, `max-file: "5"` —
+  bounded regardless of how long the stack runs unattended.
+- **Verified against the real, shared production/dev Postgres instance (not a fixture)
+  during this version**: `scripts/pg_backup.sh`'s `pg_dump -Fc` + retention pruning ran
+  for real (confirmed a synthetic 20-day-old dump file was correctly deleted by a 14-day
+  retention run, while dumps under that window survived); a restore of the real dump into
+  a scratch `postgres:18-alpine` container reconstructed all 7 tables with matching real
+  row counts (73 `jobs` / 138 `tracks` / 9 `proxies` / 87 `downloaded_tracks` / 48
+  `sessions` / 1 `worker_state` / 1 `alembic_version` row, at the time of the test) — the
+  literal "Done when" bullet the original v12 plan specifies, run for real rather than
+  assumed from the script reading correctly.
+- The public production hostname is `spotdl.vb2007.hu`, routed through Cloudflare's
+  dashboard-managed (token-based) tunnel — **not** a repo-tracked `cloudflared/config.yml`
+  — with a single public-hostname rule pointing at `web:80`. This was a deliberate,
+  explicit choice over a `cloudflared/config.yml` + path-split approach specifically
+  *because* the same-origin nginx design collapses the routing decision to one hostname,
+  one service, no path rules to get wrong in the dashboard.
 
 ### Version roadmap
 

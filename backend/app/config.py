@@ -23,12 +23,15 @@ class Settings(BaseSettings):
     )
     session_secret: str = Field(alias="SESSION_SECRET")
 
-    # Frontend (v09) — origin(s) the SvelteKit static site is served from, for CORS. A list
-    # because local dev is reachable as both localhost and 127.0.0.1 (a browser treats them as
-    # different origins even though they're the same machine — whichever one you didn't open
-    # the app with gets every request silently CORS-blocked). Local dev default covers both;
-    # v12 must set this to the real Cloudflare Tunnel-facing origin(s) once that ingress
-    # topology is decided.
+    # Frontend (v09) — origin(s) the SvelteKit static site is served from, for CORS. As of
+    # v12, both production (nginx's /api/ proxy inside the `web` container) and local dev
+    # (Vite's dev-server /api proxy) are same-origin by default, so this middleware's
+    # allowlist normally never actually gets exercised by a real cross-origin browser
+    # request — it's a fallback for whoever bypasses the proxy (e.g. hitting the api
+    # container's published port directly). A list because local dev is reachable as both
+    # localhost and 127.0.0.1 (different origins to a browser even though they're the same
+    # machine); the default covers both. Production sets this to the real Cloudflare
+    # Tunnel hostname (see .env.example).
     frontend_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"],
         alias="FRONTEND_ORIGINS",
@@ -46,6 +49,13 @@ class Settings(BaseSettings):
     ladder_seconds: Annotated[list[int], NoDecode] = Field(
         default_factory=lambda: list(DEFAULT_LADDER_SECONDS), alias="LADDER_SECONDS"
     )
+
+    # Durability (v12) — how long a track can sit in DOWNLOADING/QUEUED before beat's
+    # stale-track reclaim sweep (app/tasks/beat.py) resets it back to WAITING. Same
+    # "shorten for local/verification testing" pattern as LADDER_SECONDS above — the
+    # 1800s (30min) production default would make manually verifying the reclaim sweep a
+    # 30-minute wait otherwise.
+    stale_track_after_seconds: int = Field(default=1800, alias="STALE_TRACK_AFTER_SECONDS")
 
     # Pacing hook (v07) — off by default
     pacing_min_sec: int = Field(default=0, alias="PACING_MIN_SEC")

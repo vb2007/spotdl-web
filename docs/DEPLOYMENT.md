@@ -1,28 +1,192 @@
-# Deploying spotdl-web (v01 — scaffold) to the Debian 12 host
+# Deploying spotdl-web to the Debian 12 host
 
 Target host: **192.168.100.200** (Debian 12 "bookworm"), reachable on the local network.
-This covers the v01 scaffold only: the stack comes up and `/api/health` reports Postgres +
-Redis reachable. There is no real feature (auth, downloading, etc.) yet — that starts at v03.
+This host already has a working deployment from earlier versions (repo cloned to
+`/opt/spotdl-web`, compose stack previously brought up for testing) — **the primary path
+below is "Upgrading an existing deployment to v12,"** not a fresh install. The one-time
+host setup section further down is kept for reference (a from-scratch host, or
+troubleshooting something that looks like it was never done) but does **not** need to be
+re-run on this host.
 
 Ports are intentionally **not** exposed beyond the host's loopback interface (see
-[Firewall / network notes](#firewall--network-notes)) — this matches the locked decision that
-Cloudflare Tunnel is the only ingress, ever, even during early testing. Verification therefore
-happens over SSH, not by curling the LAN IP directly.
+[Firewall / network notes](#firewall--network-notes)) — the locked decision is Cloudflare
+Tunnel as the only ingress, ever. Verification happens over SSH or through the tunnel
+itself, not by curling the LAN IP directly.
 
-Run every command below on the target host (`ssh <you>@192.168.100.200`), as a user with `sudo`.
+Run every command below on the target host (`ssh <you>@192.168.100.200`) unless marked
+otherwise.
 
 ---
 
-## 1. Install PostgreSQL (host-native — not a container)
+## Upgrading an existing deployment to v12
 
-Postgres is deliberately **not** dockerized; it runs directly on the Debian host and containers
-reach it via `host.docker.internal` (wired in `docker-compose.yml`'s `extra_hosts`).
+### 1. Pull the merged code
 
-If this host already runs Postgres for other services (a shared instance is common — e.g.
-alongside Matrix/Synapse, Vaultwarden, etc.), skip straight to step 2 and reuse it; spotdl-web just
-needs its own role and database on it, not a dedicated instance.
+```bash
+cd /opt/spotdl-web
+git pull origin main
+```
 
-Otherwise, install it:
+### 2. Update `.env`
+
+Diff your existing `.env` against `.env.example` and add whatever's new for v12:
+
+| Key | What to set it to |
+|---|---|
+| `FRONTEND_ORIGINS` | `https://spotdl.vb2007.hu` (see §4 below — same-origin in prod, but still worth setting correctly as the fallback allowlist) |
+| `DOWNLOADS_DIR` | A real host path, e.g. `/srv/spotdl-web/downloads` — read only by `docker-compose.prod.yml`, see §3 |
+| `STALE_TRACK_AFTER_SECONDS` | Leave at the `.env.example` default (`1800`) for real production use — see §7's restart-survival test for why you might *temporarily* lower it during verification |
+
+**No longer needed:** a `frontend/.env` file, and a manual `alembic upgrade head` step —
+both are now automatic (see §4 and §5 below). If you have a leftover `frontend/.env` from
+an earlier version, it's harmless but no longer read by anything; safe to delete.
+
+### 3. Migrate the downloads directory (one-time, before first boot with the new bind mount)
+
+`docker-compose.prod.yml` switches `worker-dl`/`worker-meta`'s `/downloads` mount from the
+base file's Docker-managed named volume to a real host directory — so downloaded files
+are directly browsable/backup-able and survive `docker compose down -v`. This must happen
+**before** the first `up` against the new compose files, or `reconcile_disk()` will find
+the (correctly) empty new directory, refuse to prune (a v12 safety guard added
+specifically for this), and log an error rather than silently deleting your dedup ledger —
+but you still need to actually move the files over for downloads to keep working without
+re-fetching everything.
+
+```bash
+# Confirm the exact volume name first -- it's <project-name>_downloads, and the project
+# name is derived from the compose project (normally the directory name, "spotdl-web").
+docker volume ls | grep downloads
+
+sudo mkdir -p /srv/spotdl-web/downloads
+docker run --rm \
+  -v spotdl-web_downloads:/from \
+  -v /srv/spotdl-web/downloads:/to \
+  alpine sh -c 'cp -a /from/. /to/ && echo "copied $(ls /to | wc -l) entries"'
+
+# Non-root containers (v12) run as uid/gid 1000 by default (backend/Dockerfile's
+# APP_UID/APP_GID build args) -- chown to match, or worker-dl/worker-meta will get
+# permission-denied writing new downloads.
+sudo chown -R 1000:1000 /srv/spotdl-web/downloads
+```
+
+If your deploy user ended up with a different uid than 1000 and you'd rather match that
+than chown the directory, rebuild with `--build-arg APP_UID=<uid> --build-arg
+APP_GID=<gid>` instead — see step 4's build command.
+
+### 4. Bring up the stack with the production overlay
+
+```bash
+cd /opt/spotdl-web
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --build
+```
+
+This is a different invocation from pre-v12 versions in three ways:
+- **`-f docker-compose.prod.yml`** is new — carries resource limits, the downloads bind
+  mount from step 3, and the `web` build arg (see below).
+- **`--profile tunnel`** now actually starts `cloudflared` for real, using the
+  `CLOUDFLARE_TUNNEL_TOKEN` already sitting in `.env` from earlier testing.
+- You no longer need a separate `frontend/.env` before this — `web`'s `PUBLIC_API_BASE_URL`
+  build arg defaults to `""` (same-origin, see §5), baked in by `docker-compose.yml`
+  itself. A fresh checkout can run this command with zero additional frontend config.
+
+**Do not** add `-f docker-compose.override.yml` — that file is dev-only (bind-mounted
+source, hot reload) and was never meant to run here; omitting `-f` for it (as above) is
+correct, not an oversight.
+
+A new **`migrate`** service now runs `alembic upgrade head` automatically and every other
+service waits for it to exit `0` before starting — the old manual "confirm Alembic wiring"
+step from earlier versions of this doc is gone; it happens on every `up` now, on its own.
+
+### 5. Configure the Cloudflare Tunnel (Zero Trust dashboard)
+
+Ingress is same-origin: the `web` container's nginx serves the built frontend *and*
+reverse-proxies `/api/*` to the `api` service internally (see `frontend/nginx.conf`) — so
+the tunnel only needs to know about **one** service, `web`, not two. There is no path
+rule to get right in the dashboard.
+
+1. Go to [the Zero Trust dashboard](https://one.dash.cloudflare.com/) → **Networks →
+   Tunnels**.
+2. Open the tunnel whose token is already in this host's `CLOUDFLARE_TUNNEL_TOKEN`.
+3. **Public Hostname** tab → **Add a public hostname**.
+4. Subdomain: `spotdl`, Domain: `vb2007.hu` (→ `spotdl.vb2007.hu`).
+5. Service **Type: HTTP**, **URL: `web:80`** — the compose service name and nginx's
+   internal port; `cloudflared` reaches it over the compose network the same way it
+   already reaches `api` today, never `localhost`.
+6. Save. DNS + the edge certificate can take a minute to become reachable.
+
+Optional but recommended, since this makes the app genuinely internet-reachable with no
+other gate in front of it:
+- A **Cache Rule** bypassing cache for `spotdl.vb2007.hu/api/*` (extensionless paths are
+  already unlikely to be cached by Cloudflare's default rules, but this makes it explicit
+  rather than relying on that default).
+- A **Rate Limiting** rule on `spotdl.vb2007.hu/api/auth/login` (e.g. 5 requests/minute per
+  IP) — there's no rate limiting anywhere in the app itself, and this endpoint proxies
+  credentials to the upstream auth API.
+
+### 6. Verify
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+```
+
+Expect every service `healthy` except `beat` (deliberately has no healthcheck — see its
+comment in `docker-compose.yml`) and `migrate`/`cloudflared` (one-shot / no healthcheck
+defined). If anything is `unhealthy`, `docker compose logs <service>` — output is now
+structured JSON (v12), so `docker compose logs api | jq .` is worth doing over raw
+scrollback.
+
+From the host:
+```bash
+curl -s http://localhost:8000/api/health
+```
+Expect `{"status":"ok"}`.
+
+Through the real tunnel, from your own machine (not the host):
+```bash
+curl -I https://spotdl.vb2007.hu/login   # expect 200, not 404 -- see the SPA-fallback note below
+curl -N https://spotdl.vb2007.hu/api/stream --max-time 20   # expect a ": heartbeat" line within ~15s (requires a valid session cookie to get past auth -- a 401 with no heartbeat is still a meaningful check that the proxy itself is reachable)
+```
+
+`GET /login` returning `200` instead of `404` is a real, previously-shipped bug this
+version fixes (stock nginx has no route for the extensionless `/login` path to the
+prerendered `login.html` file) — worth confirming explicitly, not assuming.
+
+---
+
+## Ongoing maintenance
+
+- **Backups**: install the cron job below once; see [Backups](#backups) for the restore
+  drill you should also do at least once to actually trust it.
+  ```bash
+  crontab -e
+  # add:
+  0 3 * * * /opt/spotdl-web/scripts/pg_backup.sh >> /var/log/spotdl-web-pg-backup.log 2>&1
+  ```
+- **`cloudflared` image**: deliberately left on a floating tag (see its comment in
+  `docker-compose.yml`) since Cloudflare periodically deprecates old client versions.
+  Re-pull it every so often rather than letting it silently age:
+  ```bash
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull cloudflared
+  docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d cloudflared
+  ```
+- **Disk/image pruning**: every deploy rebuilds the backend/frontend images, and dangling
+  layers accumulate on a host that's never rebooted for weeks. Worth a periodic (e.g.
+  weekly cron) check:
+  ```bash
+  docker system df
+  docker image prune -f
+  docker builder prune -f --keep-storage 5GB
+  ```
+
+---
+
+## One-time host setup (already done on this host — kept for reference)
+
+### 1. Install PostgreSQL (host-native — not a container)
+
+Postgres is deliberately **not** dockerized; it runs directly on the Debian host and
+containers reach it via `host.docker.internal` (wired in `docker-compose.yml`'s
+`extra_hosts`).
 
 ```bash
 sudo apt update
@@ -30,9 +194,8 @@ sudo apt install -y postgresql postgresql-contrib
 sudo systemctl enable --now postgresql
 ```
 
-Debian 12's own repo ships PostgreSQL 15, but a host may well be running a newer major version via
-the PGDG apt repo instead. **Don't assume a version or hardcode a config path** — confirm both
-first:
+Debian 12's own repo ships PostgreSQL 15, but this host actually runs a newer major
+version via the PGDG apt repo — **don't assume a version or hardcode a config path**:
 
 ```bash
 psql --version
@@ -40,99 +203,40 @@ sudo -u postgres psql -c "SHOW config_file;"
 sudo -u postgres psql -c "SHOW hba_file;"
 ```
 
-Use whatever paths those report for `postgresql.conf`/`pg_hba.conf` in step 3 below, not
-`/etc/postgresql/15/main/` — that's only correct if you're actually on 15.
-
-## 2. Create the role and database
-
-The names below (`spotdl_web`) are just this doc's placeholder — pick whatever role/database name
-and password you like, but **use the exact same values everywhere**: the role name, database name,
-and password you set here must match `DATABASE_URL` in `.env` (step 6) character-for-character,
-including case and any special characters. One-liners, run as the `postgres` OS user:
+### 2. Create the role and database
 
 ```bash
 sudo -u postgres psql -c "CREATE ROLE spotdl_web WITH LOGIN PASSWORD 'changeme';"
 sudo -u postgres psql -c "CREATE DATABASE spotdl_web OWNER spotdl_web;"
 ```
 
-Equivalent interactively, if you'd rather see it happen inside a `psql` session:
+If you need to change the password later, use `\password <role>` inside an interactive
+`psql` session rather than passing it on the command line — special characters (`!`,
+etc., which this project's own real password contains) can't be mangled by shell quoting
+or history expansion that way.
 
-```bash
-sudo -u postgres psql
-```
-```sql
-CREATE ROLE spotdl_web WITH LOGIN PASSWORD 'changeme';
-CREATE DATABASE spotdl_web OWNER spotdl_web;
-\q
-```
+### 3. Let Docker containers reach Postgres
 
-If you need to change the password later, use `\password <role>` inside an interactive `psql`
-session rather than passing it on the command line — it prompts for the value directly, so special
-characters (`!`, `,`, etc.) can't be mangled by shell quoting or history expansion.
-
-Sanity check the role can authenticate and see its database:
-
-```bash
-psql "postgresql://spotdl_web:changeme@localhost:5432/spotdl_web" -c "SELECT current_user, current_database();"
-```
-
-## 3. Let Docker containers reach Postgres
-
-By default Postgres only listens on `localhost` and only trusts local Unix-socket connections.
-Containers connect over the Docker bridge, so both need widening — but only to that bridge, not
-to the LAN. (If Postgres is shared with other services that already widened this, just add the
-`pg_hba.conf` line below for spotdl-web's own role/database — don't touch `listen_addresses` again.)
-
-**Do not hardcode `172.17.0.1`.** That's the gateway of Docker's *default* bridge network — but
-`docker compose up` creates its own project-scoped bridge network (e.g. `spotdl-web_default`) with
-a different subnet (Compose picks the next free one, often `172.18.0.0/16` or higher), and Docker
-isolates bridge networks from each other by default. A connection to `172.17.0.1` from the host
-itself will succeed (the host has a direct interface there), which is a misleading test — the same
-address is very likely *unreachable from inside the containers* on Compose's own network. This is
-exactly why `docker-compose.yml` uses `extra_hosts: host.docker.internal:host-gateway`: that magic
-value always resolves, per-container, to *that container's own network's* gateway, whatever subnet
-Compose actually picked.
-
-So bind Postgres broadly and let `pg_hba.conf` (next step) do the real access control, rather than
-chasing the exact subnet Compose happened to choose. Using the config path from step 1
-(`$PGCONF` below — substitute what `SHOW config_file` actually printed):
+**Do not hardcode `172.17.0.1`** (the default bridge's gateway) — `docker compose up`
+creates its own project-scoped bridge with a different subnet, and `host.docker.internal`
+(via `extra_hosts: host-gateway`) is the address that actually resolves correctly
+per-container regardless of which subnet Compose picked.
 
 ```bash
 PGCONF=/etc/postgresql/18/main/postgresql.conf   # whatever `SHOW config_file` printed
 sudo sed -i "s/^#\?listen_addresses\s*=.*/listen_addresses = '*'/" "$PGCONF"
-grep listen_addresses "$PGCONF"   # confirm it actually took — see note below if not
-```
 
-If that `grep` doesn't show `listen_addresses = '*'`, the file already had an uncommented,
-non-default value the pattern didn't match (common on a host already tuned for other services) —
-open the file and edit that line by hand instead.
-
-This is safe here specifically because `pg_hba.conf` below scopes trust to one role talking to one
-database from Docker's private address range only — an unauthenticated LAN client still gets
-rejected at the `pg_hba` stage, `listen_addresses` only controls which interface the socket accepts
-connections on before that check runs.
-
-Add a `pg_hba.conf` entry scoped to Docker's private address space (covers the default bridge and
-any compose-created bridge network, all of which fall inside `172.16.0.0/12`). Use the `hba_file`
-path from step 1's `SHOW hba_file`:
-
-```bash
 PGHBA=/etc/postgresql/18/main/pg_hba.conf   # whatever `SHOW hba_file` printed
 echo "host    spotdl_web    spotdl_web    172.16.0.0/12    scram-sha-256" | sudo tee -a "$PGHBA"
 sudo systemctl restart postgresql
 ```
 
-This scopes trust to exactly one role connecting to exactly one database — not `all`/`all` — so a
-compromised container can't pivot to unrelated data. Postgres reads `pg_hba.conf` top-to-bottom and
-uses the *first* matching line, so if this instance already has a broader rule above (e.g. an
-existing `all`/`all` line for the same address range from another service), that earlier line wins
-and this appended one is dead weight — harmless, but worth checking with
-`sudo cat "$PGHBA"` if something still doesn't behave as expected.
+Postgres reads `pg_hba.conf` top-to-bottom, first match wins — if a broader rule already
+exists above this one (this host also runs Matrix/Synapse, Vaultwarden, etc.), the
+appended line is dead weight, harmless but worth checking with `sudo cat "$PGHBA"` if
+something doesn't behave as expected.
 
-## 4. Install Docker + the Compose plugin
-
-Debian's own `docker.io` package is often stale and lacks the `compose` plugin. Use Docker's apt
-repo instead:
+### 4. Install Docker + the Compose plugin
 
 ```bash
 sudo apt update
@@ -140,134 +244,169 @@ sudo apt install -y ca-certificates curl gnupg
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
 echo \
   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
   $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
 sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 sudo systemctl enable --now docker
+sudo usermod -aG docker "$USER"   # newgrp docker, or log out/in
 ```
 
-Let your deploy user run `docker` without `sudo`:
-
-```bash
-sudo usermod -aG docker "$USER"
-newgrp docker   # or log out/in
-```
-
-Verify:
-
-```bash
-docker compose version
-```
-
-## 5. Clone the repo
+### 5. Clone the repo
 
 ```bash
 sudo mkdir -p /opt/spotdl-web
 sudo chown "$USER" /opt/spotdl-web
 git clone https://github.com/vb2007/spotdl-web.git /opt/spotdl-web
 cd /opt/spotdl-web
-git checkout dev-scaffold   # switch to `main` once PR #2 is merged
 ```
 
-## 6. Configure `.env`
+### 6. Configure `.env`
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and set at minimum:
-
-| Key | Value |
-|---|---|
-| `DATABASE_URL` | `postgresql+psycopg://spotdl_web:changeme@host.docker.internal:5432/spotdl_web` |
-| `REDIS_PASSWORD` | a fresh random value (`openssl rand -hex 24`) |
-| `REDIS_URL` | `redis://:<same REDIS_PASSWORD>@redis:6379/0` |
-| `SESSION_SECRET` | `openssl rand -hex 32` |
-| `ALLOWED_EMAILS` | left as a placeholder for now — real values land in v03 |
-| `DOWNLOAD_OUTPUT_DIR` | leave as `/downloads` (in-container path — see note below) |
-
-Everything else can stay at its `.env.example` default for v01.
-
-> **Downloads storage:** `docker-compose.yml` mounts `/downloads` inside `worker-dl` from a
-> Docker-managed named volume, not a host path. That's fine for v01 (nothing downloads yet). Once
-> v05 lands and you want the files directly browsable on the host filesystem, add a
-> machine-local, **untracked** override (e.g. `docker-compose.local.yml`, not committed) that
-> bind-mounts a real directory over the `downloads` volume, and run compose with
-> `-f docker-compose.yml -f docker-compose.local.yml`.
+Fill in `DATABASE_URL`, `REDIS_PASSWORD`/`REDIS_URL`, `SESSION_SECRET`, `ALLOWED_EMAILS`,
+`FRONTEND_ORIGINS`, `DOWNLOADS_DIR`, and `CLOUDFLARE_TUNNEL_TOKEN` — see the "Upgrading"
+section above for what each should be for this app's real values, and `.env.example`'s
+own comments for anything not covered there.
 
 > **Proxy list (v07+):** `worker-meta` bind-mounts `./proxies.txt` read-only. Create it
-> (`cp proxies.txt.example proxies.txt`, then edit) before bringing the stack up — if the
-> host file doesn't exist yet, Docker creates an empty *directory* there instead, which
-> breaks `sync_from_file()` on boot. An empty/comment-only file is fine; rotation just has
-> nothing to draw from and every attempt falls back to direct.
+> (`cp proxies.txt.example proxies.txt`) before bringing the stack up, or Docker creates
+> an empty *directory* there instead, breaking `sync_from_file()` on boot.
 
-## 7. Bring up the stack
+### 7. Bring up the stack
 
-`docker-compose.override.yml` is dev-only (bind-mounted source, `uvicorn --reload`, `vite dev`) —
-**do not** let it apply on this host. Always pass `-f docker-compose.yml` explicitly to exclude it:
-
-```bash
-docker compose -f docker-compose.yml up -d --build
-```
-
-This starts `redis`, `api`, `worker-dl`, `worker-meta`, `beat`, and `web`. `cloudflared` stays off
-— it's behind the `tunnel` compose profile until v12 wires a real `CLOUDFLARE_TUNNEL_TOKEN`.
-
-## 8. Verify
-
-From the host itself (ports are bound to `127.0.0.1`, by design — see below):
-
-```bash
-docker compose -f docker-compose.yml ps
-curl -s http://localhost:8000/api/health
-```
-
-Expect `{"status":"ok"}`. If it instead reports a failing dependency, check:
-
-```bash
-docker compose -f docker-compose.yml logs api
-```
-
-Confirm Alembic wiring works with zero revisions (matches the v01 "done when" criterion):
-
-```bash
-docker compose -f docker-compose.yml exec api alembic upgrade head
-```
+Same command as the "Upgrading" section's step 4 — see there.
 
 ---
 
 ## Firewall / network notes
 
 - `api` (`8000`) and `web` (`5173`→`80`) are published as `127.0.0.1:<port>:<port>` in
-  `docker-compose.yml` — reachable only from processes on the host itself, **not** from
-  `192.168.100.0/24` or the internet. This is deliberate: the locked ingress decision is
-  Cloudflare Tunnel only, no port forwarding, ever — that applies just as much to ad hoc LAN
-  testing as to production.
-- To check the deployment from your own machine instead of SSHing in and running `curl` locally,
-  use an SSH tunnel rather than opening the port:
+  `docker-compose.yml` — reachable only from processes on the host itself, never the LAN
+  or the internet directly. This is deliberate: Cloudflare Tunnel is the only ingress,
+  ever, including for ad hoc testing.
+- To check the deployment from your own machine without SSHing in, use an SSH tunnel
+  rather than opening the port:
   ```bash
   ssh -N -L 8000:localhost:8000 <you>@192.168.100.200
   # then, on your machine: curl http://localhost:8000/api/health
   ```
-- Postgres (`5432`) should never be reachable from the LAN either. Because `listen_addresses` is
-  `*` (step 3), the socket itself accepts connections on every interface, including the LAN one —
-  `pg_hba.conf`'s scoping to `172.16.0.0/12` is what actually rejects a LAN client (the TCP
-  handshake completes, then Postgres refuses the connection at the authentication stage). Still
-  worth a firewall as defense in depth, since it's cheap and means unauthorized clients get
-  dropped before they can even attempt to authenticate:
+- Postgres (`5432`) should never be reachable from the LAN either — `pg_hba.conf`'s
+  scoping to `172.16.0.0/12` is what actually rejects a LAN client. Defense in depth:
   ```bash
   sudo ufw allow OpenSSH
   sudo ufw default deny incoming
   sudo ufw enable
   ```
-  Docker manipulates iptables directly for container traffic, so this doesn't need a separate
-  allow rule for Docker→Postgres — `ufw`'s chain sits alongside, not in front of, Docker's own
-  rules for that path.
+  Docker manipulates iptables directly for container traffic, so this doesn't need a
+  separate allow rule for Docker→Postgres.
+
+---
+
+## Backups
+
+`scripts/pg_backup.sh` is a plain host script (Postgres isn't dockerized, so this isn't a
+compose service) — `pg_dump -Fc` (custom format, restorable with `pg_restore`) into
+`DOWNLOADS_DIR`'s sibling backup directory (default `/srv/spotdl-web/backups`, override
+via `SPOTDL_WEB_BACKUP_DIR`), pruning anything older than `SPOTDL_WEB_BACKUP_RETENTION_DAYS`
+(default 14). It reads `DATABASE_URL` straight out of this repo's own `.env` so backup
+credentials never drift out of sync with the real ones. Install it via the cron line in
+[Ongoing maintenance](#ongoing-maintenance) above.
+
+**Restore verification — do this at least once, don't just trust that the script "should"
+work:**
+
+```bash
+# 1. Take a real dump (safe -- pg_dump is read-only against the real DB).
+./scripts/pg_backup.sh
+
+# 2. Spin up a throwaway scratch Postgres -- never restore over the real database to "test"
+#    a restore.
+docker run -d --name pg-restore-check -e POSTGRES_PASSWORD=test -e POSTGRES_DB=restorecheck postgres:18-alpine
+until docker exec pg-restore-check pg_isready -U postgres | grep -q "accepting connections"; do sleep 2; done
+
+# 3. Restore the most recent dump into it.
+LATEST=$(ls -t /srv/spotdl-web/backups/*.dump | head -1)
+docker cp "$LATEST" pg-restore-check:/tmp/restore.dump
+docker exec pg-restore-check pg_restore -U postgres -d restorecheck --no-owner --clean --if-exists /tmp/restore.dump
+
+# 4. Confirm the schema and real row counts came back.
+docker exec pg-restore-check psql -U postgres -d restorecheck -c "\dt"
+docker exec pg-restore-check psql -U postgres -d restorecheck -c "
+SELECT 'jobs' t, count(*) FROM jobs
+UNION ALL SELECT 'tracks', count(*) FROM tracks
+UNION ALL SELECT 'downloaded_tracks', count(*) FROM downloaded_tracks;"
+
+# 5. Clean up the scratch container -- it was never meant to persist.
+docker rm -f pg-restore-check
+```
+This exact sequence (against the real dev/shared database, not a fixture) was run once
+during v12 development: all 7 tables reconstructed, row counts matched the real data
+(73 jobs / 138 tracks / 87 downloaded_tracks at the time) exactly.
+
+---
+
+## Restart-survival test
+
+`docker compose down && up -d` must leave every in-flight track's `scheduled_at` and
+`attempt_count` untouched for anything in `waiting` — but that property was never actually
+at risk (a `waiting` track is a pure Postgres row; the v06 retry engine already tested
+this at the unit level). The property that genuinely needed hardening in v12 is a track
+**actively downloading** when the stack goes down, since that's a live process, not just a
+DB row. Test that specifically:
+
+```bash
+# 1. Submit a real track and watch for it to enter `downloading` (via the UI, or:
+docker compose exec api python -c "
+from app.db import SessionLocal
+from app.models import Track, TrackState
+db = SessionLocal()
+print([t.id for t in db.query(Track).filter(Track.state == TrackState.DOWNLOADING).all()])
+"
+
+# 2. While it's genuinely downloading, hard-kill worker-dl (SIGKILL, not the graceful
+#    stop_grace_period path -- this is the actual failure mode being tested):
+docker compose kill worker-dl
+docker compose up -d worker-dl
+
+# 3. Confirm the track does NOT stay stranded in `downloading` forever. It resolves one of
+#    two ways: Celery's task_acks_late redelivers the same task once the broker's
+#    visibility_timeout (3600s) elapses, OR beat's stale-track reclaim sweep resets it to
+#    `waiting` once STALE_TRACK_AFTER_SECONDS elapses (1800s in production; temporarily
+#    export a lower value in .env + `docker compose up -d beat` before this test if you
+#    don't want to wait 30 minutes to observe it -- restore the real value afterward).
+watch -n 5 'docker compose exec api python -c "
+from app.db import SessionLocal
+from app.models import Track
+db = SessionLocal()
+t = db.get(Track, \"<track-id-from-step-1>\")
+print(t.state, t.attempt_count, t.scheduled_at)
+"'
+```
+
+**Never run `docker compose down -v`** for this or any other check — `-v` destroys the
+`redis-data` volume (the broker, including any unacked messages) and, pre-v12, the
+`downloads` named volume. v12's production overlay already moved downloads to a host bind
+mount specifically so this can't destroy real files, but the flag is still a one-keystroke
+way to lose the Redis broker state.
+
+To actually observe `docker compose ps` reporting a service `unhealthy` (rather than just
+`restarting`, which is what killing a container's main process produces), you need a
+*hung* process, not a killed one:
+```bash
+docker compose exec worker-dl kill -STOP 1   # freezes the main process without killing it
+# wait ~2 healthcheck intervals (worker-dl's is 120s) -> `docker compose ps` shows unhealthy
+docker compose exec worker-dl kill -CONT 1   # unfreeze
+```
+
+The literal full-host-reboot test from the original plan is **explicitly skipped** —
+this is a shared production host running other live services (Matrix/Synapse,
+Vaultwarden) that can't be rebooted just to verify this app's restart survival.
 
 ---
 
@@ -275,9 +414,13 @@ docker compose -f docker-compose.yml exec api alembic upgrade head
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `/api/health` reports `postgres` failing | `pg_hba.conf`/`listen_addresses` not picked up | `sudo systemctl restart postgresql`, re-check step 3. `docker compose -f docker-compose.yml logs api` now logs the real exception (fixed in v01) — read it before guessing further. |
-| Postgres reachable via `psql` from the host, but not from the container | Tested against a hardcoded IP (e.g. `172.17.0.1`) that isn't this container's actual gateway — Docker isolates bridge networks from each other, so a host-side test against the wrong bridge's gateway can "succeed" while the container still can't reach it | Use `host.docker.internal` in `DATABASE_URL`, not a hardcoded IP; confirm what it resolves to with `docker compose -f docker-compose.yml exec api getent hosts host.docker.internal` |
-| `/api/health` reports `redis` failing | `REDIS_URL` password doesn't match `REDIS_PASSWORD` | make sure both were updated together in `.env` |
-| `docker compose` command not found | compose plugin missing | re-run step 4 |
-| `api` container can't resolve `host.docker.internal` | old Docker Engine (< 20.10) | `docker --version`; upgrade via step 4 |
-| Containers restart-looping | check `docker compose -f docker-compose.yml logs <service>` first — don't guess | |
+| `/api/health` reports `postgres` failing | `pg_hba.conf`/`listen_addresses` not picked up | `sudo systemctl restart postgresql`; `docker compose logs api` now emits structured JSON (v12) — `\| jq .` it before guessing further |
+| Postgres reachable via `psql` from the host, but not from the container | Tested against a hardcoded IP (e.g. `172.17.0.1`) instead of this container's actual gateway | Use `host.docker.internal`; confirm with `docker compose exec api getent hosts host.docker.internal` |
+| `/api/health` reports `redis` failing | `REDIS_URL` password doesn't match `REDIS_PASSWORD` | update both together in `.env` |
+| `api`/`worker-dl`/`worker-meta` crash-loop with `PermissionError: [Errno 13] Permission denied: '/home/spotdl'` | Rebuilt the backend image without `--create-home` (v12's non-root user needs a real home directory — `import spotdl` creates a `~/.spotdl` cache dir at *import time*) | Confirm `backend/Dockerfile`'s `useradd` line has `--create-home`, not `--no-create-home`; rebuild |
+| `worker-dl`/`worker-meta` permission-denied writing to `/downloads` | `DOWNLOADS_DIR` on the host isn't owned by uid/gid 1000 (or whatever `APP_UID`/`APP_GID` the image was built with) | `sudo chown -R 1000:1000 <DOWNLOADS_DIR>` |
+| `worker-dl`/`worker-meta` show permanently `unhealthy` right after a deploy | Healthcheck's `start_period` (90s) hasn't elapsed yet — a fresh `celery inspect ping` pays a real cold-import cost | Wait it out; only worth investigating past ~2 minutes |
+| A healthcheck referencing `$HOSTNAME` never passes | Compose interpolates `$VAR` in the compose file itself before the container sees it — needs `$$HOSTNAME` (escaped) so the container's shell expands it instead | Check `docker-compose.yml`'s worker healthchecks use `$$HOSTNAME`, not `$HOSTNAME` |
+| `GET /login` (or any non-`/` route) returns 404 through the tunnel | Stock nginx has no route for an extensionless path to a prerendered `.html` file | Confirm `frontend/nginx.conf`'s explicit `location = /login { try_files /login.html =404; }` block is actually in the built image (`docker compose exec web cat /etc/nginx/conf.d/default.conf`) |
+| `docker compose` command not found | compose plugin missing | re-run the one-time setup's step 4 |
+| Containers restart-looping | check `docker compose logs <service>` first — don't guess | |
