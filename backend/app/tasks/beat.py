@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 
 from app.db import SessionLocal
-from app.models import Track, TrackState
+from app.models import Job, Track, TrackState
 from app.services import events, retry
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -27,8 +27,10 @@ def dispatch_due_tracks() -> None:
         due_tracks = (
             db.execute(
                 select(Track)
+                .join(Job, Track.job_id == Job.id)
                 .where(Track.state == TrackState.WAITING, Track.scheduled_at <= now)
-                .with_for_update(skip_locked=True)
+                .order_by(Job.priority.desc(), Track.scheduled_at.asc())
+                .with_for_update(skip_locked=True, of=Track)
             )
             .scalars()
             .all()

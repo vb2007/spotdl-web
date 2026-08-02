@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -23,6 +24,10 @@ _CANCELLABLE_TRACK_STATES = [
 
 class CreateJobRequest(BaseModel):
     url: str
+
+
+class SetPriorityRequest(BaseModel):
+    priority: int
 
 
 def _classify_source_type(url: str) -> JobSourceType:
@@ -112,4 +117,33 @@ def cancel_job(
     for track in tracks:
         events.publish_track_event(track.id, track.job_id, track.state.value)
     events.publish_job_event(job.id, job.state.value)
+    return job_to_dict(db, job)
+
+
+@router.patch("/{job_id}/priority")
+def set_job_priority(
+    job_id: uuid.UUID,
+    payload: SetPriorityRequest,
+    db: Session = Depends(get_db),
+    _: UserSession = Depends(require_session),
+) -> dict:
+    job = _get_job_or_404(db, job_id)
+    job.priority = payload.priority
+    db.commit()
+    return job_to_dict(db, job)
+
+
+@router.post("/{job_id}/bump")
+def bump_job(
+    job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _: UserSession = Depends(require_session),
+) -> dict:
+    """Moves this job to the front of the dispatch order — sets its priority one above
+    the current highest, which is the only "move to front" interaction actually needed
+    day-to-day (per the v11 plan) rather than a full manual ranking scheme."""
+    job = _get_job_or_404(db, job_id)
+    max_priority = db.query(func.max(Job.priority)).scalar() or 0
+    job.priority = max_priority + 1
+    db.commit()
     return job_to_dict(db, job)

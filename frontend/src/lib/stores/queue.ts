@@ -97,6 +97,18 @@ function createQueueStore() {
 		await refreshJobTracks(jobId);
 	}
 
+	function mergeJob(job: Job): void {
+		jobs.update((current) => ({ ...current, [job.id]: job }));
+	}
+
+	async function bumpJob(jobId: string): Promise<void> {
+		mergeJob(await api.bumpJob(jobId));
+	}
+
+	async function setJobPriority(jobId: string, priority: number): Promise<void> {
+		mergeJob(await api.setJobPriority(jobId, priority));
+	}
+
 	async function cancelTrack(trackId: string): Promise<void> {
 		mergeTrack(await api.cancelTrack(trackId));
 	}
@@ -197,7 +209,9 @@ function createQueueStore() {
 		applyEvent,
 		cancelJob,
 		cancelTrack,
-		retryTrack
+		retryTrack,
+		bumpJob,
+		setJobPriority
 	};
 }
 

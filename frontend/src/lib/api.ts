@@ -167,6 +167,17 @@ export function cancelJob(jobId: string): Promise<Job> {
 	return request(`/api/jobs/${jobId}`, { method: 'DELETE' });
 }
 
+export function setJobPriority(jobId: string, priority: number): Promise<Job> {
+	return request(`/api/jobs/${jobId}/priority`, {
+		method: 'PATCH',
+		body: JSON.stringify({ priority })
+	});
+}
+
+export function bumpJob(jobId: string): Promise<Job> {
+	return request(`/api/jobs/${jobId}/bump`, { method: 'POST' });
+}
+
 export function cancelTrack(trackId: string): Promise<Track> {
 	return request(`/api/tracks/${trackId}`, { method: 'DELETE' });
 }

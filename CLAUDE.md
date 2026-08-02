@@ -1021,6 +1021,73 @@ any ──> cancelled
   (confirmed the mp3 was actually written, then deleted as test cleanup) while the track's own
   final state stayed `cancelled` with no `DownloadedTrack` ledger row ever created for it.
 
+### v11 priority gotchas (learned building job-priority-ordered dispatch + bump/priority endpoints)
+
+- **A one-off verification script copied to `/tmp` and run as `python /tmp/script.py`
+  inside any backend container silently imports the *stale* `pip install .` copy of the
+  `app` package from `site-packages`, not the fresh bind-mounted source at `/app/app`.**
+  Every backend image has both: the Dockerfile's `pip install uv && uv pip install
+  --system .` (v04 gotcha) bakes a real, non-editable snapshot into
+  `/usr/local/lib/python3.12/site-packages/app/...` at build time, while
+  `docker-compose.yml`/`.override.yml` separately bind-mounts `backend/app` to
+  `/app/app` for hot reload. Both are real, importable copies of the same package name.
+  `python -c "import ..."` puts `''` (cwd, `/app` per the image's `WORKDIR`) first on
+  `sys.path`, correctly resolving to the fresh bind mount — but `python
+  /tmp/script.py` puts the *script's own directory* (`/tmp`) first instead, `''` never
+  appears, and the next match is the stale site-packages install. This produced a
+  100%-reproducible, silently-wrong result while verifying this version's priority-ordered
+  dispatch query: the exact same query, run via `-c`, returned the correct
+  priority-ordered rows; the identical logic, reached by calling the real
+  `dispatch_due_tracks()` through a copied `/tmp` script, silently ran the *pre-v11*
+  compiled-in version with no join/order-by at all (creation-order results) — and a
+  later cleanup line in the same script referencing `JobState.CANCELLED` (added in v10)
+  threw `AttributeError`, because the site-packages snapshot predates v10 too. No
+  exception, no warning, no visible sign anything was wrong until the row order and a
+  seemingly unrelated `AttributeError` didn't match what the current source plainly
+  says. **Any future ad-hoc verification script (the `docker compose cp` + direct
+  in-process call technique established in v06/v07) must be copied to `/app/` inside
+  the container, not `/tmp/`** — `python /app/script.py` puts `/app` itself first on
+  `sys.path`, matching cwd, and resolves the same fresh bind-mounted source the real
+  services run. Confirmed by re-running the identical script from `/app/`: correct
+  priority-ordered result, no `AttributeError`, matching what direct SQL inspection
+  already proved the query does.
+- **Testing `dispatch_due_tracks()` by directly inserting `WAITING`, already-due `Track`
+  rows into the real shared Postgres instance races the real `beat` container**, which
+  fires the actual Celery task every 30s straight into the *persistent* worker-meta
+  process (not the one-off verification script's own process) — a real, observed hazard
+  here, not a theoretical one, since the very first attempt hit it. Isolated by setting
+  `worker_state.paused = True` directly in the DB before inserting test rows (the
+  persistent process's own `retry.breaker_active()` check honors this and no-ops on
+  every tick during the test window) while monkeypatching `retry.breaker_active` to
+  always return `False` *only inside the verification script's own process*, so its own
+  direct call to `dispatch_due_tracks()` still runs unblocked. **Any future direct-DB
+  test of beat-dispatched behavior against the real stack needs this same pause-the-real-
+  process-but-not-my-script isolation**, not just the v07 "clean up to a terminal state
+  before the script exits" precaution alone — that precaution only protects rows *after*
+  the script's own dispatch call, not the query itself from racing a concurrent real tick.
+- Verified against the real docker-compose stack and real Postgres instance (not
+  mocked), via the corrected `/app/`-rooted script technique above: with a low-priority
+  job's track due 10 minutes ago and a high-priority job's track due only 1 minute ago
+  (both currently due), `dispatch_due_tracks()` dispatched the high-priority job's track
+  first — confirmed via the real compiled SQL statement and the real row order returned
+  by Postgres, not a mock. With a low-priority job's track due and a high-priority job's
+  track not yet due (`scheduled_at` an hour out), only the low-priority track dispatched
+  and the high-priority one was left completely untouched in `waiting` — confirming
+  priority reorders only among currently-due tracks, never pulls a track forward out of
+  its ladder wait, exactly as the plan's "Done when" specifies. `PATCH
+  /api/jobs/{id}/priority` and `POST /api/jobs/{id}/bump` were confirmed wired and
+  session-gated (`401` unauthenticated) against the real running `api` container after a
+  clean hot-reload with no import errors. The plan's first "Done when" bullet says
+  *bumping* a job causes its tracks to dispatch first — an initial pass had only tested
+  the dispatch-ordering query with priorities set directly via the ORM, which exercises
+  the ordering logic but not the actual bump codepath the plan describes. Closed that gap
+  with a follow-up real-stack run calling `app.routers.jobs.bump_job()` itself (the real
+  production function, not a reimplementation) against two same-priority, simultaneously-due
+  tracks: the bumped (newer) job's priority came back `12` (one above the real pre-existing
+  max in the shared DB, not a hardcoded value), and its track dispatched first on the next
+  `dispatch_due_tracks()` call — the literal scenario the plan specifies, not just its
+  underlying mechanism.
+
 ### Version roadmap
 
 | # | Branch | Scope |

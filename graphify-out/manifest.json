@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785623546.4179974,
-    "ast_hash": "9b5679c593a87db6c0859e21e581d1b4",
+    "mtime": 1785673951.9272346,
+    "ast_hash": "9670e284baa150d9ee4837b17893bb02",
     "semantic_hash": ""
   },
   "README.md": {
@@ -105,7 +105,7 @@
     "semantic_hash": ""
   },
   "backend/app/main.py": {
-    "mtime": 1785621511.3879385,
+    "mtime": 1785624218.4858527,
     "ast_hash": "23d7c35a5efa01df7799085b3dc89faf",
     "semantic_hash": ""
   },
@@ -185,7 +185,7 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1785621952.2670765,
+    "mtime": 1785624218.4858527,
     "ast_hash": "d0b3598151cd0e740f5d0e2c9febada5",
     "semantic_hash": ""
   },
@@ -250,7 +250,7 @@
     "semantic_hash": ""
   },
   "backend/app/models/job.py": {
-    "mtime": 1785621404.7845666,
+    "mtime": 1785624218.4858527,
     "ast_hash": "6b54162d480c82c2a3340198f060645e",
     "semantic_hash": ""
   },
@@ -300,8 +300,8 @@
     "semantic_hash": ""
   },
   "backend/app/routers/jobs.py": {
-    "mtime": 1785621479.5516322,
-    "ast_hash": "ba6825b8adf02e9ca460ac065bb61303",
+    "mtime": 1785624302.6563377,
+    "ast_hash": "6d18d16a6bc1182ccb2a7784951f5623",
     "semantic_hash": ""
   },
   "backend/app/services/expansion.py": {
@@ -310,12 +310,12 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/expand.py": {
-    "mtime": 1785621540.1101177,
+    "mtime": 1785624218.4858527,
     "ast_hash": "0f97b144f3d8811688a18ed5b45fafd3",
     "semantic_hash": ""
   },
   "backend/tests/test_expand_task.py": {
-    "mtime": 1785621610.1129932,
+    "mtime": 1785624218.4858527,
     "ast_hash": "8bf9e24f17bdf605341bbfa026eeba1c",
     "semantic_hash": ""
   },
@@ -325,8 +325,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_jobs.py": {
-    "mtime": 1785621619.6793864,
-    "ast_hash": "2ea2e97f9c47c7556f290029a2f6985b",
+    "mtime": 1785624334.9896762,
+    "ast_hash": "60271a911f66a91bfaae779af5a7b8f2",
     "semantic_hash": ""
   },
   "backend/app/services/dedup.py": {
@@ -340,7 +340,7 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/download.py": {
-    "mtime": 1785622573.9097283,
+    "mtime": 1785624218.4858527,
     "ast_hash": "e8008aeec08a7e317cd3fa0cc6f81a00",
     "semantic_hash": ""
   },
@@ -350,7 +350,7 @@
     "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
-    "mtime": 1785622600.0948098,
+    "mtime": 1785624218.4858527,
     "ast_hash": "7b29c8c53ae1bfc75b86bbd662e6254f",
     "semantic_hash": ""
   },
@@ -380,13 +380,13 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/beat.py": {
-    "mtime": 1785621175.3981888,
-    "ast_hash": "947b81b647860fe893e2641289f7e675",
+    "mtime": 1785625328.854917,
+    "ast_hash": "79f928f24b58cc3316621cb2e36794c9",
     "semantic_hash": ""
   },
   "backend/tests/test_beat_task.py": {
-    "mtime": 1785515779.448332,
-    "ast_hash": "8dd41900e67d562518538950263fda6b",
+    "mtime": 1785624325.3622777,
+    "ast_hash": "502268fd1556eb051a612be4696bcc6b",
     "semantic_hash": ""
   },
   "backend/tests/test_retry.py": {
@@ -430,23 +430,23 @@
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
-    "mtime": 1785532511.0269234,
-    "ast_hash": "3c8ec453d3c6e33f1cd37f9c09451ee9",
+    "mtime": 1785624508.4168553,
+    "ast_hash": "212944d3181260622c44685531acdaa2",
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
-    "mtime": 1785621743.8864946,
-    "ast_hash": "a06beb469814a66c3dff05af9b9435fc",
+    "mtime": 1785624357.709617,
+    "ast_hash": "51b2ba137146ae1228f2b2decb6f868c",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/Countdown.svelte": {
-    "mtime": 1785621967.2546942,
+    "mtime": 1785624218.4858527,
     "ast_hash": "e1372683c498da21ed693fcde07ceb7b",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/QueueTable.svelte": {
-    "mtime": 1785621967.3456979,
-    "ast_hash": "1ffc60fc053331dbde9645ce02dfe700",
+    "mtime": 1785624553.5987256,
+    "ast_hash": "5a799727470f2670f118445f28ef699b",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/Waterfall.svelte": {
@@ -455,8 +455,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1785623357.7599092,
-    "ast_hash": "2e0b550f22d9d4a0c05b8e4f0fdd1446",
+    "mtime": 1785624366.432978,
+    "ast_hash": "4462479670dec78758eabfbf7d5fdd16",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -475,47 +475,47 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
-    "mtime": 1785621907.7822435,
+    "mtime": 1785624218.4858527,
     "ast_hash": "97277fc1b43d4c7d04c52b2635562b99",
     "semantic_hash": ""
   },
   "backend/alembic/versions/46be30064f8b_add_cancelled_job_state.py": {
-    "mtime": 1785621427.4264946,
+    "mtime": 1785624218.4858527,
     "ast_hash": "f58377931697d47bb2d8a671f775fa7c",
     "semantic_hash": ""
   },
   "backend/app/routers/tracks.py": {
-    "mtime": 1785621494.6902533,
+    "mtime": 1785624218.4858527,
     "ast_hash": "d67c4f2989e59a0c8fe44f1aed9012a6",
     "semantic_hash": ""
   },
   "backend/app/routers/worker.py": {
-    "mtime": 1785621504.9126728,
+    "mtime": 1785624218.4858527,
     "ast_hash": "bb8cd76945f3ab1a0d9fe18cd5cab2a5",
     "semantic_hash": ""
   },
   "backend/app/services/serializers.py": {
-    "mtime": 1785621452.266513,
+    "mtime": 1785624218.4858527,
     "ast_hash": "cfe33bba153f4948711f6a3015a46ce9",
     "semantic_hash": ""
   },
   "backend/tests/test_tracks.py": {
-    "mtime": 1785621646.5624914,
+    "mtime": 1785624218.4858527,
     "ast_hash": "b82d552067312eccc7d76dc23b2cfb70",
     "semantic_hash": ""
   },
   "backend/tests/test_worker.py": {
-    "mtime": 1785621654.9798374,
+    "mtime": 1785624218.4858527,
     "ast_hash": "e4001e698803bf44c8e46a1fe2185686",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/WorkerStatus.svelte": {
-    "mtime": 1785621944.2161481,
+    "mtime": 1785624218.4858527,
     "ast_hash": "860967564173f237759d37175a0dbede",
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/worker.ts": {
-    "mtime": 1785621775.876742,
+    "mtime": 1785624218.4858527,
     "ast_hash": "0c1cd2fd1762e93eeabfab4ea786c568",
     "semantic_hash": ""
   }
