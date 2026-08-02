@@ -90,9 +90,14 @@
   "88": "junit_to_summary.py",
   "89": "Track",
   "90": "retry.py",
+  "91": "spotdl-web — Master Development Plan",
   "92": "db.py",
   "93": "events.py",
   "94": "test_stream.py",
+  "95": "README.md",
+  "96": "Local development environment",
+  "97": "Architecture",
+  "98": "pg_backup.sh",
   "99": "test_worker.py",
   "101": "46be30064f8b_add_cancelled_job_state.py"
 }
