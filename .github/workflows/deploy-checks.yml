@@ -44,7 +44,7 @@ jobs:
       # interpolation it's actually meant to validate. .env.example's placeholder values
       # are irrelevant here (nothing in this job starts a real container), only the
       # file's existence matters.
-      - name: Create placeholder .env (file must exist for env_file: .env to resolve)
+      - name: "Create placeholder .env (file must exist for env_file: .env to resolve)"
         run: cp .env.example .env
 
       - name: Validate dev compose (base + override, the real local-dev invocation)
