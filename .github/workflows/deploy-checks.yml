@@ -36,6 +36,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # `env_file: .env` on the x-backend anchor needs an actual .env file on disk for
+      # `docker compose config` to even parse successfully -- it's not just the three
+      # ${VAR}-interpolated values above, which the job-level `env:` already covers.
+      # CI's checkout never has a real .env (gitignored), so without this step `config`
+      # fails immediately with "env file ... not found", before ever reaching the
+      # interpolation it's actually meant to validate. .env.example's placeholder values
+      # are irrelevant here (nothing in this job starts a real container), only the
+      # file's existence matters.
+      - name: Create placeholder .env (file must exist for env_file: .env to resolve)
+        run: cp .env.example .env
+
       - name: Validate dev compose (base + override, the real local-dev invocation)
         run: docker compose -f docker-compose.yml -f docker-compose.override.yml config --quiet
 
@@ -56,6 +67,16 @@ jobs:
     defaults:
       run:
         working-directory: frontend
+    # Matches the v12 default (frontend/Dockerfile's ARG default, docker-compose.yml's
+    # build.args) — same-origin, no absolute PUBLIC_API_BASE_URL needed. Must be set at
+    # the job level, not just on the `Build` step: `npm run check` runs `svelte-kit sync`
+    # first, which generates `$env/static/public`'s module exports from whatever
+    # PUBLIC_* env vars are present *at that moment* — a missing key emits no export at
+    # all, so `check`'s own `import { PUBLIC_API_BASE_URL }` in src/lib/api.ts fails
+    # before `Build` (which had the var) ever runs. Caught by this job's own first real
+    # run, not anticipated in advance.
+    env:
+      PUBLIC_API_BASE_URL: ""
     steps:
       - uses: actions/checkout@v7
 
@@ -75,10 +96,7 @@ jobs:
         run: npm run check
 
       - name: Build
-        # Matches the v12 default (frontend/Dockerfile's ARG default, docker-compose.yml's
-        # build.args) — same-origin, no PUBLIC_API_BASE_URL needed. This is also the exact
-        # config that would have caught the pre-fix `new URL('')` crash in
-        # resolveApiBase() (src/lib/api.ts) had this job existed before that fix landed.
-        env:
-          PUBLIC_API_BASE_URL: ""
+        # This is also the exact config that would have caught the pre-fix `new URL('')`
+        # crash in resolveApiBase() (src/lib/api.ts) had this job existed before that fix
+        # landed.
         run: npm run build
