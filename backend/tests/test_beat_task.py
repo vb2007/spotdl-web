@@ -151,6 +151,42 @@ def test_dispatch_due_tracks_priority_never_pulls_forward_a_not_yet_due_track(db
     assert db_session.get(Track, not_due_high.id).state == TrackState.WAITING
 
 
+def test_dispatch_due_tracks_reclaims_stale_downloading_track(db_session, monkeypatch):
+    _patch_session(monkeypatch, db_session)
+    stuck = _make_track(db_session, state=TrackState.DOWNLOADING)
+    stuck.updated_at = datetime.now(timezone.utc) - beat_task.stale_track_after() - timedelta(minutes=1)
+    db_session.commit()
+
+    dispatched_ids = []
+    monkeypatch.setattr(beat_task.download_track, "delay", lambda track_id: dispatched_ids.append(track_id))
+    published = []
+    monkeypatch.setattr(events, "publish_track_event", lambda *args, **kwargs: published.append((args, kwargs)))
+
+    beat_task.dispatch_due_tracks()
+
+    # Reclaimed to WAITING with scheduled_at=now, which this same tick's due-tracks query
+    # then picks straight back up (its scheduled_at is already <= "now" computed just after)
+    # -- no reason to force an extra 30s wait once the decision to retry has been made.
+    refreshed = db_session.get(Track, stuck.id)
+    assert refreshed.state == TrackState.QUEUED
+    assert dispatched_ids == [str(stuck.id)]
+    published_states = [args[2] for args, kwargs in published]
+    assert published_states == ["waiting", "queued"]
+
+
+def test_dispatch_due_tracks_leaves_recent_downloading_track_alone(db_session, monkeypatch):
+    _patch_session(monkeypatch, db_session)
+    fresh = _make_track(db_session, state=TrackState.DOWNLOADING)
+    # updated_at defaults to "now" via server_default -- well within the stale window.
+
+    monkeypatch.setattr(beat_task.download_track, "delay", lambda track_id: None)
+    monkeypatch.setattr(events, "publish_track_event", lambda *args, **kwargs: None)
+
+    beat_task.dispatch_due_tracks()
+
+    assert db_session.get(Track, fresh.id).state == TrackState.DOWNLOADING
+
+
 def test_dispatch_due_tracks_skips_entirely_while_paused(db_session, monkeypatch):
     _patch_session(monkeypatch, db_session)
     due = _make_track(

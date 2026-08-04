@@ -4,22 +4,85 @@ x-backend: &backend
   extra_hosts:
     - "host.docker.internal:host-gateway"
   depends_on:
-    - redis
+    redis:
+      condition: service_healthy
+    # v12: every backend process now waits for the one-shot `migrate` service (below) to
+    # actually finish successfully before starting, instead of relying on whoever deploys
+    # remembering a separate manual `alembic upgrade head` step first. Prevents the classic
+    # half-migrated outage where a worker boots against a schema its code doesn't expect.
+    # `migrate` itself overrides this back down to just `redis` (see its own service
+    # definition) — it can't depend on itself.
+    migrate:
+      condition: service_completed_successfully
   restart: unless-stopped
+  # Bounded log rotation (v12) so a multi-week unattended run can't fill the host's disk —
+  # applied identically to every service in this file (this anchor covers the five
+  # backend-based ones; redis/web/cloudflared repeat the same block individually since
+  # they don't use this anchor).
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
 
 services:
+  # One-shot: runs pending Alembic migrations, then exits 0. Every other backend service
+  # depends on it via `service_completed_successfully` (the anchor above) rather than each
+  # running its own migration independently, which would race multiple processes against
+  # the same schema change concurrently. `docker compose down` will also try to "stop" this
+  # already-exited container -- harmless.
+  migrate:
+    <<: *backend
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      redis:
+        condition: service_healthy
+
   redis:
-    image: redis:7-alpine
+    image: redis:7.4-alpine
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     volumes:
       - redis-data:/data
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      # ${REDIS_PASSWORD} here is Compose-level interpolation from the root .env (same as
+      # this service's own `command` above) — NOT escaped to $$REDIS_PASSWORD, unlike the
+      # worker healthchecks below. `redis` has no `env_file: .env` (it isn't part of the
+      # x-backend anchor), so there is no container-side env var for a $$-escaped form to
+      # read; Compose-level interpolation is the only mechanism that works here.
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"${REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   api:
     <<: *backend
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    command:
+      ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-config", "logging.json"]
     ports:
       - "127.0.0.1:8000:8000"
+    healthcheck:
+      # python:3.12-slim has neither curl nor wget; urllib is stdlib. urlopen raises
+      # HTTPError on a non-2xx response (the 503 branch health.py returns when a
+      # dependency is down), which is the correct unhealthy signal.
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).status == 200 else 1)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   worker-dl:
     <<: *backend
@@ -29,6 +92,8 @@ services:
         "-A",
         "app.tasks.celery_app",
         "worker",
+        "-n",
+        "worker-dl@%h",
         "-Q",
         "downloads",
         "--concurrency=1",
@@ -36,17 +101,45 @@ services:
         "-l",
         "info",
       ]
+    # A real download can run for minutes; give Celery's warm shutdown (SIGTERM -> wait ->
+    # SIGKILL) room to let an in-flight download finish and commit its own result, rather
+    # than being hard-killed after Compose's 10s default grace period. Paired with
+    # task_acks_late (celery_app.py): if it's killed anyway, the message is redelivered
+    # instead of lost.
+    stop_grace_period: 300s
+    healthcheck:
+      # `inspect ping` is answered by the worker's MainProcess control loop, not the
+      # (possibly busy, --concurrency=1) prefork child, so this responds promptly even
+      # mid-download. It's still real work (a fresh interpreter importing app.tasks.*,
+      # which transitively drags in spotdl/yt-dlp) — a long interval and generous
+      # start_period keep that cost rare rather than paid every few seconds forever. The
+      # node name must match the `-n worker-dl@%h` above; $$HOSTNAME (escaped, so Compose
+      # leaves it for the container's shell to expand, not the host's) matches Celery's
+      # %h substitution since Docker sets $HOSTNAME to the same container hostname.
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d worker-dl@$$HOSTNAME -t 10 >/dev/null 2>&1"]
+      interval: 120s
+      timeout: 30s
+      retries: 3
+      start_period: 90s
     volumes:
       - downloads:/downloads
 
   worker-meta:
     <<: *backend
-    command: ["celery", "-A", "app.tasks.celery_app", "worker", "-Q", "meta", "-l", "info"]
+    command:
+      ["celery", "-A", "app.tasks.celery_app", "worker", "-n", "worker-meta@%h", "-Q", "meta", "-l", "info"]
     environment:
       # reconcile_disk() / proxies.sync_from_file() run on worker-meta boot only — see
       # celery_app.py.
       RUN_DISK_RECONCILE: "true"
       RUN_PROXY_SYNC: "true"
+    healthcheck:
+      # Same reasoning as worker-dl's healthcheck above.
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d worker-meta@$$HOSTNAME -t 10 >/dev/null 2>&1"]
+      interval: 120s
+      timeout: 30s
+      retries: 3
+      start_period: 90s
     volumes:
       - downloads:/downloads
       - ./proxies.txt:/app/proxies.txt:ro
@@ -54,16 +147,54 @@ services:
   beat:
     <<: *backend
     command: ["celery", "-A", "app.tasks.celery_app", "beat", "-l", "info"]
+    # Deliberately no healthcheck: beat is a single foreground process at PID 1 — if it
+    # dies, the container dies and `restart: unless-stopped` already handles that with no
+    # extra signal needed. A `pgrep`-style check would only prove the process is still
+    # scheduled, not that it's actually ticking, so it wouldn't add real information. Real
+    # beat-is-alive observability would need an effect-based check (e.g. dispatch_due_tracks
+    # writing a `redis SET beat:last_tick <ts> EX 120` heartbeat, checked via `EXISTS`) —
+    # worth adding later if beat silently wedging (rather than crashing) ever becomes a real
+    # incident, not preemptively here.
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # Empty = same-origin, see frontend/nginx.conf's /api/ proxy and api.ts's
+        # resolveApiBase. Explicit here (matching the Dockerfile's own ARG default)
+        # so this is visible as a real config decision, not just an implicit default.
+        PUBLIC_API_BASE_URL: ""
     restart: unless-stopped
     ports:
       - "127.0.0.1:5173:80"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    healthcheck:
+      # nginx:alpine ships busybox wget. Confirms nginx is actually serving the
+      # prerendered build (validates nginx.conf's SPA-route handling too), not just that
+      # the process is running. Must be `127.0.0.1`, not `localhost` — this image's
+      # `/etc/hosts` resolves `localhost` to `::1` first, and nginx here only binds the
+      # IPv4 wildcard (`listen 80;`, no `listen [::]:80;`), so `localhost` gets a
+      # connection-refused false negative even though the server is up.
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   # Real tunnel config lands in v12 (dev-deploy-hardening). Until CLOUDFLARE_TUNNEL_TOKEN
   # is set, this stays a no-op so it doesn't crash-loop.
   cloudflared:
+    # Deliberately floating, unlike every other image tag in this file — Cloudflare
+    # actively deprecates old cloudflared client versions and periodically refuses
+    # connections from them, so a hard pin would eventually stop connecting on its own.
+    # `--no-autoupdate` (below) only disables cloudflared's own in-process self-update;
+    # this image tag is the actual update mechanism, done via a deliberate, visible
+    # `docker compose pull cloudflared` rather than silent in-process auto-update.
+    # Re-pull periodically (see docs/DEPLOYMENT.md).
     image: cloudflare/cloudflared:latest
     command: ["tunnel", "--no-autoupdate", "run"]
     environment:
@@ -72,6 +203,11 @@ services:
       - api
       - web
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     profiles:
       - tunnel
 

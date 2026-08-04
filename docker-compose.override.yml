@@ -6,7 +6,29 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    # `command:` fully replaces rather than merges (same as `build:`, unlike list keys
+    # such as `volumes:`/`ports:` — see CLAUDE.md's v01 gotcha) — the base file's
+    # `--log-config logging.json` (v12) must be repeated here too, or dev silently loses
+    # structured JSON logging entirely while prod keeps it.
+    command:
+      [
+        "uvicorn",
+        "app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+        "--log-config",
+        "logging.json",
+      ]
+
+  migrate:
+    # Same bind-mount convenience as `api` below -- a new local Alembic revision file is
+    # picked up on the next `docker compose up` without needing `--build` first.
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
 
   worker-dl:
     # Bind-mounted to the project root instead of the base file's named `downloads` volume,
@@ -41,3 +63,12 @@ services:
     # "port is already allocated" error at container start.
     ports: !override
       - "127.0.0.1:5173:5173"
+    healthcheck:
+      # The base file's healthcheck targets nginx on :80 (the prod image) -- dev runs
+      # Vite on :5173 instead (see `command`/`ports` above), so it needs its own target
+      # here or every dev `web` container reports permanently unhealthy.
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s

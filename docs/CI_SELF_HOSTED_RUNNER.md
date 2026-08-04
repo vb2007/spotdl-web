@@ -100,7 +100,7 @@ GitHub repo → **Settings → Actions → Runners** should show the runner list
 ## 5. Project test dependencies
 
 This project's *test* dependencies are handled entirely inside the workflow
-(`.github/workflows/backend-tests.yml`) — **nothing needs manually apt-installing on the host
+(`.github/workflows/ci.yml`) — **nothing needs manually apt-installing on the host
 for Python itself**, which is a deliberate choice, not an oversight; see why below.
 
 - **Python 3.12**: Debian 12 ships Python 3.11 by default, which doesn't satisfy this project's
@@ -164,7 +164,11 @@ deployed app — don't reach for either preemptively while the suite doesn't nee
 
 ## 6. What the workflow actually runs
 
-`.github/workflows/backend-tests.yml`:
+`.github/workflows/ci.yml` — one workflow file, four jobs, covering everything a PR needs
+checked. (v12 briefly split `compose-config`/`frontend` into their own `deploy-checks.yml`
+before folding them back in here — right below is exactly the "rather than standing up a
+separate workflow preemptively" advice this section already gave; worth listening to it next
+time before re-learning it.)
 
 - Triggers on every pull request (any target branch — this project only ever PRs into `main`),
   every push to `main`, and manual `workflow_dispatch` (useful for smoke-testing the runner setup
@@ -182,11 +186,25 @@ deployed app — don't reach for either preemptively while the suite doesn't nee
   set up the backend venv at all). Its own pass/fail status only reflects whether the summary
   was published, not whether the tests passed — that's `pytest`'s job to signal, not duplicated
   here.
+- **`compose-config` job** (v12): static-only validation of `docker-compose.yml` merged against
+  both `docker-compose.override.yml` (the real local-dev invocation) and
+  `docker-compose.prod.yml` (the real deploy invocation), plus a syntax check of
+  `frontend/nginx.conf` against the real nginx binary. Deliberately never runs `up`/`build`/
+  `pull` — those would collide with the real production stack running on this same self-hosted
+  host. `docker compose ... config` needs an actual `.env` file to exist on disk (for the
+  `env_file: .env` directive to resolve) even though nothing in it is ever read for real — the
+  job creates one from `.env.example` first for exactly that reason, not to seed real config.
+- **`frontend` job** (v12): `actions/setup-node@v7` (see the version-history note in Section 5 —
+  same "verify `action.yml` directly, don't assume from a version bump" standard applies to every
+  action pin in this file) → `npm ci` → lint (`prettier --check` + `eslint`) → type-check
+  (`svelte-check`) → `npm run build`. `PUBLIC_API_BASE_URL: ""` is set at the *job* level, not
+  per-step — `svelte-check` needs it too (it runs `svelte-kit sync` first, which generates
+  `$env/static/public`'s exports from whatever `PUBLIC_*` vars exist at that moment), not just
+  the later `Build` step.
 
-Only the backend has tests today (the frontend, from v09 onward, currently has no test script in
-`frontend/package.json` beyond lint/typecheck) — extend the `pytest` job with a second matrix
-entry (or a sibling job) once that changes, rather than standing up a separate workflow
-preemptively.
+Only the backend has real *tests* today (the frontend job above is lint/typecheck/build, not a
+test runner — `frontend/package.json` has no test script as of v09) — extend `pytest` with a
+second matrix entry, or the `frontend` job with an actual test step, once that changes.
 
 ## 7. Caching across runs — already automatic, no workflow change needed
 

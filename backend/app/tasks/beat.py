@@ -1,8 +1,9 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
+from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Job, Track, TrackState
 from app.services import events, retry
@@ -12,10 +13,52 @@ from app.tasks.download import download_track
 logger = logging.getLogger(__name__)
 
 
+def stale_track_after() -> timedelta:
+    """A track stuck in DOWNLOADING/QUEUED past this long means whatever was supposed to
+    finish it (a crashed worker, a container restart during a hard-killed download) never
+    did. celery_app.py's task_acks_late + visibility_timeout is the primary redelivery
+    mechanism for this; the sweep below is the independent DB-level safety net for cases
+    that mechanism doesn't cover (e.g. a message already acked by a pre-fix worker, or the
+    broker losing state). Read from settings (not a module constant) so
+    STALE_TRACK_AFTER_SECONDS can be shortened for verification the same way
+    LADDER_SECONDS already is — the 1800s production default would otherwise make manually
+    confirming this sweep fires a 30-minute wait. With worker-dl's --concurrency=1,
+    reclaiming a track that's genuinely still running just means a duplicate attempt,
+    which the dedup ledger already absorbs."""
+    return timedelta(seconds=get_settings().stale_track_after_seconds)
+
+
+def _reclaim_stale_tracks(db) -> None:
+    now = datetime.now(timezone.utc)
+    threshold = stale_track_after()
+    stale_cutoff = now - threshold
+    reclaimed = db.execute(
+        update(Track)
+        .where(
+            Track.state.in_([TrackState.DOWNLOADING, TrackState.QUEUED]),
+            Track.updated_at < stale_cutoff,
+        )
+        .values(state=TrackState.WAITING, scheduled_at=now)
+        .returning(Track.id, Track.job_id)
+    ).all()
+    db.commit()
+    for track_id, job_id in reclaimed:
+        logger.warning(
+            "dispatch_due_tracks: reclaimed stale track %s (stuck past %s)",
+            track_id,
+            threshold,
+        )
+        events.publish_track_event(track_id, job_id, TrackState.WAITING.value, scheduled_at=now)
+
+
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")
 def dispatch_due_tracks() -> None:
     db = SessionLocal()
     try:
+        # Independent of the breaker/pause gate below — a stuck track needs reclaiming
+        # regardless, it just won't be re-dispatched until the breaker clears.
+        _reclaim_stale_tracks(db)
+
         now = datetime.now(timezone.utc)
         worker_state = retry.get_worker_state(db)
         db.commit()

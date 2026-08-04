@@ -38,6 +38,7 @@ function createQueueStore() {
 	// also the one that resolves first. Each call captures the sequence number current at
 	// call time and only applies its result if nothing newer has started since.
 	let jobsFetchSeq = 0;
+	let allTracksFetchSeq = 0;
 	const trackFetchSeq: Record<string, number> = {};
 
 	async function refreshJobs(): Promise<Job[]> {
@@ -52,11 +53,7 @@ function createQueueStore() {
 		return list;
 	}
 
-	async function refreshJobTracks(jobId: string): Promise<void> {
-		const seq = (trackFetchSeq[jobId] ?? 0) + 1;
-		trackFetchSeq[jobId] = seq;
-		const list = await api.listJobTracks(jobId);
-		if (trackFetchSeq[jobId] !== seq) return;
+	function mergeTrackList(list: Track[]): void {
 		tracks.update((current) => {
 			const next = { ...current };
 			for (const track of list) {
@@ -66,11 +63,32 @@ function createQueueStore() {
 		});
 	}
 
+	async function refreshJobTracks(jobId: string): Promise<void> {
+		const seq = (trackFetchSeq[jobId] ?? 0) + 1;
+		trackFetchSeq[jobId] = seq;
+		const list = await api.listJobTracks(jobId);
+		if (trackFetchSeq[jobId] !== seq) return;
+		mergeTrackList(list);
+	}
+
+	/** One request for every track across every job, not one request *per job* -- see
+	 * `GET /api/tracks`'s own comment for why the old per-job `Promise.all` approach
+	 * stopped being harmless once real usage accumulated 100+ historical jobs (100+
+	 * concurrent requests queued up behind the browser's/server's concurrent-stream
+	 * limit, starving any other in-flight request, e.g. a worker pause/resume click,
+	 * of its turn). Same overlapping-fetch guard as `refreshJobTracks`, just scoped to
+	 * this one bulk call instead of per job id. */
+	async function refreshAllTracks(): Promise<void> {
+		const seq = ++allTracksFetchSeq;
+		const list = await api.listTracks();
+		if (seq !== allTracksFetchSeq) return;
+		mergeTrackList(list);
+	}
+
 	/** Full REST resync — used on first load and on every SSE reconnect, per the v08
 	 * documented contract (the stream never replays missed events). */
 	async function loadAll(): Promise<void> {
-		const jobList = await refreshJobs();
-		await Promise.all(jobList.map((job) => refreshJobTracks(job.id)));
+		await Promise.all([refreshJobs(), refreshAllTracks()]);
 	}
 
 	/** Optimistic insert right after a successful `POST /api/jobs`, so the new job is

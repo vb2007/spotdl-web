@@ -41,11 +41,25 @@
 		await goto(resolve('/login'));
 	}
 
-	onMount(() => {
-		queue.loadAll();
+	// v12: previously relied entirely on the browser's built-in EventSource auto-reconnect,
+	// which only covers a network-level drop (a raw TCP reset, readyState -> CONNECTING,
+	// retried automatically). Per spec, a response with a non-2xx status or the wrong
+	// content-type "fails the connection" permanently instead (readyState -> CLOSED, never
+	// retried) -- something that was previously rare (a restarting `api` container gives the
+	// browser a raw reset directly) but became routine once the same-origin nginx proxy
+	// (frontend/nginx.conf) sits in front: `api` restarting now means nginx answers with a
+	// real 502 (text/html), permanently killing the stream until a manual reload. This also
+	// fixes a pre-existing gap where a 401 after session expiry already killed the stream for
+	// the same reason. Reconnect manually with capped exponential backoff whenever the
+	// browser has actually given up.
+	let streamRetryDelayMs = 1000;
+	let streamRetryTimer: ReturnType<typeof setTimeout> | undefined;
+	let source: EventSource | undefined;
 
-		const source = api.createEventSource();
+	function connectStream() {
+		source = api.createEventSource();
 		source.onopen = () => {
+			streamRetryDelayMs = 1000;
 			// Per the v08 contract: resync full REST state on every connect/reconnect
 			// rather than trying to replay whatever happened while disconnected.
 			queue.loadAll();
@@ -53,8 +67,25 @@
 		source.onmessage = (event) => {
 			queue.applyEvent(JSON.parse(event.data));
 		};
+		source.onerror = () => {
+			if (source?.readyState !== EventSource.CLOSED) {
+				// Browser is already retrying on its own (readyState === CONNECTING).
+				return;
+			}
+			source.close();
+			streamRetryTimer = setTimeout(connectStream, streamRetryDelayMs);
+			streamRetryDelayMs = Math.min(streamRetryDelayMs * 2, 30_000);
+		};
+	}
 
-		return () => source.close();
+	onMount(() => {
+		queue.loadAll();
+		connectStream();
+
+		return () => {
+			clearTimeout(streamRetryTimer);
+			source?.close();
+		};
 	});
 </script>
 

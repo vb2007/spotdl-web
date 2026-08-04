@@ -26,8 +26,12 @@ def health(response: Response) -> dict:
         failing.append("postgres")
 
     try:
-        redis_client = Redis.from_url(settings.redis_url, socket_connect_timeout=2)
-        redis_client.ping()
+        # v12: this endpoint is now also polled every ~30s by Docker's own `api`
+        # healthcheck (docker-compose.yml) — closing the client (a fresh connection pool
+        # + socket per call, previously never released) matters at that cadence in a way
+        # it didn't when only occasional manual/curl checks hit it.
+        with Redis.from_url(settings.redis_url, socket_connect_timeout=2) as redis_client:
+            redis_client.ping()
     except RedisError:
         logger.exception("Health check: Redis unreachable")
         failing.append("redis")
