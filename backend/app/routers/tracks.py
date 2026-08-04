@@ -23,6 +23,25 @@ def _get_track_or_404(db: Session, track_id: uuid.UUID) -> Track:
     return track
 
 
+@router.get("")
+def list_tracks(
+    db: Session = Depends(get_db),
+    _: UserSession = Depends(require_session),
+) -> list[dict]:
+    """All tracks across every job, in one query -- what the frontend's initial load and
+    every SSE-reconnect resync actually need. Replaces what used to be N individual
+    `GET /api/jobs/{id}/tracks` calls (one per job) fired concurrently via `Promise.all`
+    on the frontend: harmless with a handful of jobs, but a real, felt bug once real
+    usage accumulated 100+ historical jobs -- that many concurrent requests queues up
+    behind the browser's/server's concurrent-stream limit, and any *other* request
+    issued around the same time (e.g. a worker pause/resume click) gets stuck waiting
+    behind the flood rather than being independently fast. Caught via a live report
+    against the deployed production stack, not local testing (its shared dev database's
+    job count was still small enough not to trigger it)."""
+    tracks = db.query(Track).order_by(Track.created_at).all()
+    return [track_to_dict(track) for track in tracks]
+
+
 @router.delete("/{track_id}")
 def cancel_track(
     track_id: uuid.UUID,

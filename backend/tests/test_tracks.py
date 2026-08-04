@@ -138,3 +138,16 @@ def test_retry_unknown_track_returns_404(client, db_session, monkeypatch):
 def test_tracks_endpoints_require_session(client):
     assert client.delete(f"/api/tracks/{uuid.uuid4()}").status_code == 401
     assert client.post(f"/api/tracks/{uuid.uuid4()}/retry").status_code == 401
+    assert client.get("/api/tracks").status_code == 401
+
+
+def test_list_tracks_returns_every_track_across_every_job_in_one_call(client, db_session, monkeypatch):
+    _login(client, monkeypatch)
+    a = _make_track(db_session, state=TrackState.WAITING)
+    b = _make_track(db_session, state=TrackState.COMPLETED)
+
+    response = client.get("/api/tracks")
+
+    assert response.status_code == 200
+    ids = {row["id"] for row in response.json()}
+    assert ids == {str(a.id), str(b.id)}

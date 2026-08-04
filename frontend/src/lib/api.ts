@@ -158,6 +158,14 @@ export function listJobTracks(jobId: string): Promise<Track[]> {
 	return request(`/api/jobs/${jobId}/tracks`);
 }
 
+/** Every track across every job in one request -- what `queue.ts`'s `loadAll()` uses
+ * instead of firing one `listJobTracks` call per job. See `GET /api/tracks`'s own
+ * comment for why: N concurrent per-job requests stopped being harmless once real usage
+ * accumulated 100+ historical jobs. */
+export function listTracks(): Promise<Track[]> {
+	return request('/api/tracks');
+}
+
 export function cancelJob(jobId: string): Promise<Job> {
 	return request(`/api/jobs/${jobId}`, { method: 'DELETE' });
 }
