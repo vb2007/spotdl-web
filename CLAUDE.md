@@ -1339,6 +1339,73 @@ any ──> cancelled
   explicit choice over a `cloudflared/config.yml` + path-split approach specifically
   *because* the same-origin nginx design collapses the routing decision to one hostname,
   one service, no path rules to get wrong in the dashboard.
+- **`queue.ts`'s `loadAll()` fired one `GET /api/jobs/{id}/tracks` request *per job* via
+  `Promise.all` — harmless with a handful of jobs (true since v09), but a real, felt bug
+  the moment real usage (across every dev/testing session sharing one database) pushed
+  the job count past ~100.** That many concurrent requests queues up behind the
+  browser's/server's concurrent-stream limit, and any *other* request issued around the
+  same time — a worker pause/resume click, specifically what surfaced this — gets stuck
+  waiting behind the flood for 30–40+ seconds instead of resolving in its own normal
+  ~250ms. Caught via a live user report against the deployed production stack, not
+  local testing (local's job count happened to stay under the threshold). Fixed with a
+  single new `GET /api/tracks` endpoint (`tracks.py`) returning every track across every
+  job in one query — `loadAll()` now fires exactly 2 requests total regardless of job
+  count. Verified with a real headless-browser regression test (Playwright, real login,
+  real click) against the actual local stack with 141 real tracks: zero per-job
+  requests, exactly 2 bulk requests, table still renders all 141 rows correctly, and the
+  pause→"resume" label flip dropped from the previously-reported 30–40s to 68ms.
+  **Any future "load everything the queue needs" addition must stay a single bulk
+  request, never re-introduce a per-job (or otherwise per-row) loop** — this is the
+  concrete failure mode that pattern produces once the data volume this app is
+  explicitly designed to accumulate (it never deletes history) grows past a small
+  number.
+- **A brand-new `docker-compose.prod.yml`/CI addition was proven fully working in this
+  session's own local verification, then still failed for three independent reasons the
+  instant it hit the real self-hosted-runner CI — none of them a runner environment
+  problem, all three real bugs in the workflow file itself:**
+  1. `docker compose ... config` needs an actual `.env` file to exist on disk for the
+     `env_file: .env` directive on the `x-backend` anchor to resolve, separately from
+     the three `${VAR}`-interpolated values (`DOWNLOADS_DIR`/`REDIS_PASSWORD`/
+     `CLOUDFLARE_TUNNEL_TOKEN`) already supplied via job-level `env:` — CI's checkout
+     has no `.env` (gitignored), so `config` failed immediately with "env file ... not
+     found" before ever reaching the interpolation it was actually meant to validate.
+     Fixed with a `cp .env.example .env` step before validation; the file's *contents*
+     are irrelevant here since nothing in this job starts a real container.
+  2. `npm run check` runs `svelte-kit sync` *before* `svelte-check`, which generates
+     `$env/static/public`'s module exports from whatever `PUBLIC_*` env vars are present
+     **at that moment** — `PUBLIC_API_BASE_URL: ""` was only set on the later `Build`
+     step, so `check`'s own `import { PUBLIC_API_BASE_URL }` failed first. Fixed by
+     moving the env var to the *job* level so every step sees it, not just one.
+  3. An unquoted colon inside a step's own `name:` field
+     (`Create placeholder .env (file must exist for env_file: .env to resolve)`) parsed
+     as an unintended nested YAML mapping key, failing the **entire workflow file** at
+     parse time. A workflow that fails to parse creates zero jobs, so this didn't show
+     up as a failed check in the PR UI at all — it just silently vanished from the
+     checks list, which looked indistinguishable from a UI glitch until traced back via
+     `gh run view <id>` ("This run likely failed because of a workflow file issue.") and
+     confirmed with a real local PyYAML parse. **Any step `name:` containing a literal
+     colon must be quoted** — this is the second time in this project a bare colon in
+     YAML has caused a real, non-obvious failure (see the `env_file:`/`$$HOSTNAME`
+     interpolation-escaping gotchas above), and now the specific new failure mode is:
+     silent disappearance from PR checks, not a visible error.
+  All three were reproduced and confirmed fixed **locally** before pushing again
+  (a scratch `git clone` with no `.env`, and a `web` container stopped so a bind-mounted
+  `.svelte-kit/` write-back didn't get root-owned mid-test) — not just inferred from the
+  CI log and pushed on faith.
+- **`docs/CI_SELF_HOSTED_RUNNER.md` already explicitly warned against exactly the
+  mistake made when this version added its CI checks**: "extend the `pytest` job with a
+  second matrix entry (or a sibling job) once [the frontend has tests], rather than
+  standing up a separate workflow preemptively." `deploy-checks.yml` was created as a
+  second, separate workflow file anyway (for the new `compose-config`/`frontend` jobs),
+  splitting one PR's checks across two differently-named workflow groups in the GitHub
+  UI for no real reason — both files shared identical triggers and both existed purely
+  to gate the same PRs. Fixed by merging everything into a single `.github/workflows/
+  ci.yml` (`pytest` + `publish-report` + `compose-config` + `frontend` as four sibling
+  jobs, one shared `concurrency` group) and deleting the two predecessor files. **Read
+  this doc's own accumulated advice before adding a new workflow file**, not just before
+  editing an existing one — this is exactly the kind of already-recorded lesson this
+  file's "durable memory" premise exists to make available on the next read, not
+  something to re-discover the same way twice.
 
 ### Version roadmap
 

@@ -1,9 +1,15 @@
-name: Backend tests
+name: CI
 
 # Runs on the self-hosted runner on the Debian 12 production host (see
 # docs/CI_SELF_HOSTED_RUNNER.md) — the same hardware/OS the app deploys to, not a GitHub-hosted
 # runner. `pull_request` covers every PR regardless of target branch (this project only ever PRs
 # into `main`); `workflow_dispatch` lets the runner setup itself be smoke-tested on demand.
+#
+# One workflow file, one PR-checks group, for every static check a PR needs (backend tests,
+# compose/nginx config validation, frontend build) — kept together rather than split across
+# files since they all gate the exact same triggers and none is meaningfully independent of
+# "does this PR's code work." `compose-config` and `frontend` were briefly their own
+# `deploy-checks.yml` (added alongside v12) before being folded in here.
 "on":
   pull_request:
   push:
@@ -11,7 +17,7 @@ name: Backend tests
   workflow_dispatch:
 
 concurrency:
-  group: backend-tests-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -147,3 +153,95 @@ jobs:
       # pass/fail signal; this one's job is purely "did the summary get published".
       - name: Publish job summary
         run: python3 .github/scripts/junit_to_summary.py test-reports/junit.xml >> "$GITHUB_STEP_SUMMARY" || true
+
+  compose-config:
+    runs-on: self-hosted
+    # Static validation only — this never runs `up`/`build`/`pull`. Every step here is
+    # deliberately read-only against Docker: `docker compose ... config` only renders and
+    # validates the merged YAML, it never creates a container, network, or volume. Any of
+    # those other subcommands would collide with the real running production stack on this
+    # same self-hosted host (same project name, same default ports) — see CLAUDE.md's v12
+    # notes.
+    #
+    # Placeholder values only, purely to satisfy Compose-level ${VAR} interpolation for a
+    # static `config` render — none of these are ever used to actually start anything.
+    # DOWNLOADS_DIR/REDIS_PASSWORD/CLOUDFLARE_TUNNEL_TOKEN are the only three variables
+    # either compose file references at the Compose-interpolation level (as opposed to
+    # values merely passed through to a container via env_file: .env, which `config`
+    # doesn't need populated to render correctly).
+    env:
+      DOWNLOADS_DIR: /tmp/ci-placeholder-downloads
+      REDIS_PASSWORD: ci-placeholder
+      CLOUDFLARE_TUNNEL_TOKEN: ci-placeholder
+    steps:
+      - uses: actions/checkout@v7
+
+      # `env_file: .env` on the x-backend anchor needs an actual .env file on disk for
+      # `docker compose config` to even parse successfully -- it's not just the three
+      # ${VAR}-interpolated values above, which the job-level `env:` already covers.
+      # CI's checkout never has a real .env (gitignored), so without this step `config`
+      # fails immediately with "env file ... not found", before ever reaching the
+      # interpolation it's actually meant to validate. .env.example's placeholder values
+      # are irrelevant here (nothing in this job starts a real container), only the
+      # file's existence matters.
+      - name: "Create placeholder .env (file must exist for env_file: .env to resolve)"
+        run: cp .env.example .env
+
+      - name: Validate dev compose (base + override, the real local-dev invocation)
+        run: docker compose -f docker-compose.yml -f docker-compose.override.yml config --quiet
+
+      - name: Validate prod compose (base + prod overlay, the real deploy invocation)
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel config --quiet
+
+      - name: Validate nginx config syntax
+        # frontend/nginx.conf is authored by hand (not generated), so a plain syntax check
+        # against the real nginx binary the image ships catches a typo before it reaches
+        # the host as a crash-looping `web` container.
+        run: |
+          docker run --rm \
+            -v "$PWD/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+            nginx:1.27-alpine nginx -t
+
+  frontend:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: frontend
+    # Matches the v12 default (frontend/Dockerfile's ARG default, docker-compose.yml's
+    # build.args) — same-origin, no absolute PUBLIC_API_BASE_URL needed. Must be set at
+    # the job level, not just on the `Build` step: `npm run check` runs `svelte-kit sync`
+    # first, which generates `$env/static/public`'s module exports from whatever
+    # PUBLIC_* env vars are present *at that moment* — a missing key emits no export at
+    # all, so `check`'s own `import { PUBLIC_API_BASE_URL }` in src/lib/api.ts fails
+    # before `Build` (which had the var) ever runs. Caught by this job's own first real
+    # run, not anticipated in advance.
+    env:
+      PUBLIC_API_BASE_URL: ""
+    steps:
+      - uses: actions/checkout@v7
+
+      # v7 targets Node 24 natively, same as actions/checkout above — v4 was flagged
+      # deprecated (targets Node 20, forced to run on 24 anyway) on this job's first real
+      # run. Verified v7.0.0's action.yml directly (`runs: using: node24`) rather than
+      # assuming from the version bump alone, same verification standard as every other
+      # action version in this file.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint (prettier --check + eslint)
+        run: npm run lint
+
+      - name: Type-check (svelte-check)
+        run: npm run check
+
+      - name: Build
+        # This is also the exact config that would have caught the pre-fix `new URL('')`
+        # crash in resolveApiBase() (src/lib/api.ts) had this job existed before that fix
+        # landed.
+        run: npm run build
