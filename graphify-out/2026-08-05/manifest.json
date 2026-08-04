@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785881670.772266,
-    "ast_hash": "a0c6a1ab8615da91f311e634b8efdab7",
+    "mtime": 1785679536.8670366,
+    "ast_hash": "2b857a33c426a334efb95ecd8984e1c9",
     "semantic_hash": ""
   },
   "README.md": {
@@ -359,9 +359,14 @@
     "ast_hash": "c0137cbd54c4da0f4ff2ebec22a2d270",
     "semantic_hash": ""
   },
+  ".github/workflows/backend-tests.yml": {
+    "mtime": 1785274378.211918,
+    "ast_hash": "510b8ee58ce712a156efc747bda92bc3",
+    "semantic_hash": ""
+  },
   "docs/CI_SELF_HOSTED_RUNNER.md": {
-    "mtime": 1785881606.2175765,
-    "ast_hash": "5ff9c910724155e2c50bc2df6a8fdd96",
+    "mtime": 1785274378.211918,
+    "ast_hash": "e702f48c4128111c45f47ce761dfc340",
     "semantic_hash": ""
   },
   ".github/scripts/junit_to_summary.py": {
@@ -420,8 +425,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1785880067.655411,
-    "ast_hash": "3522283e8b92e9851716b92cc0af6b91",
+    "mtime": 1785677599.4904206,
+    "ast_hash": "c812faa38727733569aee3664173673e",
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
@@ -430,8 +435,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
-    "mtime": 1785870110.0717719,
-    "ast_hash": "027d9e823c4c0ac60fe4aa26f4abcec5",
+    "mtime": 1785677506.6115508,
+    "ast_hash": "2781591f0b42bc301e2bdbee6b185bc6",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/Countdown.svelte": {
@@ -450,8 +455,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1785870126.1294384,
-    "ast_hash": "d254f3f083e3765189bf7fa486485efd",
+    "mtime": 1785677110.2200327,
+    "ast_hash": "4462479670dec78758eabfbf7d5fdd16",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -480,8 +485,8 @@
     "semantic_hash": ""
   },
   "backend/app/routers/tracks.py": {
-    "mtime": 1785870098.7363017,
-    "ast_hash": "80c6644314513d78d479e39ef51eb7b0",
+    "mtime": 1785624218.4858527,
+    "ast_hash": "d67c4f2989e59a0c8fe44f1aed9012a6",
     "semantic_hash": ""
   },
   "backend/app/routers/worker.py": {
@@ -495,8 +500,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_tracks.py": {
-    "mtime": 1785870140.5020347,
-    "ast_hash": "e4cf04b9eebd2d8c34844b5213429dae",
+    "mtime": 1785624218.4858527,
+    "ast_hash": "b82d552067312eccc7d76dc23b2cfb70",
     "semantic_hash": ""
   },
   "backend/tests/test_worker.py": {
@@ -534,6 +539,11 @@
     "ast_hash": "ee2e35d440ac338c8516e4c6443cca27",
     "semantic_hash": ""
   },
+  ".github/workflows/deploy-checks.yml": {
+    "mtime": 1785679610.370095,
+    "ast_hash": "ca0c40472e14692703d07e4d93db0c4d",
+    "semantic_hash": ""
+  },
   "backend/requirements.txt": {
     "mtime": 1785678796.9122632,
     "ast_hash": "2b883d45f9840287df82555d1ce087e2",
@@ -542,11 +552,6 @@
   "docker-compose.prod.yml": {
     "mtime": 1785678195.9322681,
     "ast_hash": "4607da1c56733a34f3809b7758e76295",
-    "semantic_hash": ""
-  },
-  ".github/workflows/ci.yml": {
-    "mtime": 1785881543.1349487,
-    "ast_hash": "bc961ad09a15dde7d12195b1b07e5dc6",
     "semantic_hash": ""
   }
 }
