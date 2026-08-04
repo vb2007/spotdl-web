@@ -2,7 +2,6 @@ from app.services import downloads
 
 
 class _FakeSettings:
-    download_output_dir = "/downloads"
     cookie_file = None
 
 
@@ -22,12 +21,12 @@ def setup_function():
     _FakeDownloader.instances.clear()
 
 
-def test_get_downloader_caches_per_format_bitrate_proxy(monkeypatch):
+def test_get_downloader_caches_per_format_bitrate_output_and_proxy(monkeypatch):
     monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
     monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
 
-    first = downloads.get_downloader("mp3", "320k")
-    second = downloads.get_downloader("mp3", "320k")
+    first = downloads.get_downloader("mp3", "320k", "/downloads", "{title}.{output-ext}")
+    second = downloads.get_downloader("mp3", "320k", "/downloads", "{title}.{output-ext}")
 
     assert first is second
     assert len(_FakeDownloader.instances) == 1
@@ -37,20 +36,23 @@ def test_get_downloader_builds_new_instance_for_different_key(monkeypatch):
     monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
     monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
 
-    mp3 = downloads.get_downloader("mp3", "320k")
-    flac = downloads.get_downloader("flac", "320k")
-    proxied = downloads.get_downloader("mp3", "320k", proxy="http://proxy:8080")
+    mp3 = downloads.get_downloader("mp3", "320k", "/downloads", "{title}.{output-ext}")
+    flac = downloads.get_downloader("flac", "320k", "/downloads", "{title}.{output-ext}")
+    proxied = downloads.get_downloader(
+        "mp3", "320k", "/downloads", "{title}.{output-ext}", proxy="http://proxy:8080"
+    )
+    other_dir = downloads.get_downloader("mp3", "320k", "/elsewhere", "{title}.{output-ext}")
+    other_template = downloads.get_downloader("mp3", "320k", "/downloads", "{artists} - {title}.{output-ext}")
 
-    assert mp3 is not flac
-    assert mp3 is not proxied
-    assert len(_FakeDownloader.instances) == 3
+    assert len({id(d) for d in (mp3, flac, proxied, other_dir, other_template)}) == 5
+    assert len(_FakeDownloader.instances) == 5
 
 
-def test_get_downloader_builds_output_template_from_settings_dir(monkeypatch):
+def test_get_downloader_builds_output_from_given_dir_and_template(monkeypatch):
     monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
     monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
 
-    downloader = downloads.get_downloader("mp3", "320k")
+    downloader = downloads.get_downloader("mp3", "320k", "/downloads", "{artists} - {title}.{output-ext}")
 
     assert downloader.options["output"] == "/downloads/{artists} - {title}.{output-ext}"
     assert downloader.options["format"] == "mp3"
@@ -66,7 +68,7 @@ def test_get_downloader_always_disables_rich_tui(monkeypatch):
     monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
     monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
 
-    downloader = downloads.get_downloader("mp3", "320k")
+    downloader = downloads.get_downloader("mp3", "320k", "/downloads", "{title}.{output-ext}")
 
     assert downloader.options["simple_tui"] is True
 
@@ -75,7 +77,9 @@ def test_get_downloader_sets_proxy_only_when_given(monkeypatch):
     monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
     monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
 
-    downloader = downloads.get_downloader("mp3", "320k", proxy="http://proxy:8080")
+    downloader = downloads.get_downloader(
+        "mp3", "320k", "/downloads", "{title}.{output-ext}", proxy="http://proxy:8080"
+    )
 
     assert downloader.options["proxy"] == "http://proxy:8080"
 

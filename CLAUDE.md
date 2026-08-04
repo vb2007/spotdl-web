@@ -1407,6 +1407,94 @@ any ──> cancelled
   file's "durable memory" premise exists to make available on the next read, not
   something to re-discover the same way twice.
 
+### v13 settings-UI gotchas (learned building proxy management + output-config override UI)
+
+- **Per-job output override was explicitly scoped out**, per the plan's own instruction
+  to confirm before building it: the v00 master plan's locked decision is "global env
+  config first; UI override deferred to v13" — per-job override was only ever a "possible
+  future step," never a locked decision. v13 ships global-only, matching the locked
+  decision as written; nothing about this needs revisiting unless the user asks for
+  per-job overrides in a future, unplanned version.
+- **A settings change must invalidate `get_downloader`'s cache without a separate version
+  counter** — `output_dir`/`output_template` moved from a module-level constant sourced
+  from env `Settings` (v05) into a new singleton `app_settings` table (get-or-create,
+  same shape as `worker_state`/`retry.get_worker_state`), and `get_downloader`'s cache key
+  simply grew to `(format, bitrate, output_dir, output_template, proxy)` — every field the
+  UI can now edit is *in* the key, so a settings change can never hit a stale cached
+  `Downloader` by construction, no version counter needed. Verified for real (not just
+  unit tests): in a single `worker-dl` process, building a `Downloader` for the
+  pre-change settings, then calling the real `PATCH /api/settings/output`-equivalent
+  (`app_settings.update_output_settings` + commit) and building again with the freshly
+  re-read settings produced a second, distinct cached instance in the same process —
+  proving "affects the next download without a container restart" concretely rather than
+  by code-reading alone.
+- **`download_track` no longer touches env `Settings` for format/bitrate/output at all** —
+  it fetches `app_settings.get_output_settings(db)` once per task execution (the same
+  place `settings = get_settings()` used to sit) and reads everything from that row
+  instead. `default_format`/`default_bitrate`/`download_output_dir` env vars are now only
+  the *seed* for `app_settings`'s row on its very first read against a fresh DB — after
+  that first read, editing the env vars does nothing; the DB row is authoritative. Any
+  future code that needs the download format/bitrate/output must go through
+  `app_settings.get_output_settings(db)`, never `get_settings().default_format` directly,
+  or it'll silently read the stale, pre-v13 source.
+- **Proxy URLs are redacted in the settings UI too, not just in logs/`last_error`** —
+  `GET/POST/PATCH/DELETE /api/proxies` all return `proxies.redact(proxy.url)` (scheme://
+  host:port only), never the plaintext `user:pass`. This extends the v07 redaction
+  discipline (logs, `last_error`) to a third surface (the authenticated owner's own
+  screen) on the theory that a screenshot or shoulder-surf shouldn't leak a credential
+  either, even though the user already knows their own proxy passwords. Consistent with
+  the project's existing paranoia about this one specific leak vector; **any future
+  code that displays a `Proxy.url` anywhere must go through `redact()`**, matching every
+  other place a proxy URL is ever shown.
+- **`pick_proxy()` needed no changes at all for "both pools drawn from equally"** — it
+  already filtered purely on `Proxy.enabled`/`cooldown_until`, with no `source` filter
+  anywhere in the query (confirmed by reading `app/services/proxies.py` before writing
+  any v13 code, not assumed from the plan's wording alone). `POST /api/proxies` simply
+  inserts a `source=manual` row using the same table `sync_from_file()` (v07) already
+  populates with `source=file` rows; verified for real via the established
+  `docker compose cp` + `/app/`-rooted ad-hoc-script technique (v06/v07/v11): a
+  UI-added manual proxy with no `last_used_at` was picked first by a real `pick_proxy()`
+  call in the running `worker-meta` process (LRU prefers never-used), and disabling it
+  through `PATCH /api/proxies/{id}` made the very next `pick_proxy()` call skip it and
+  fall through to a real file-sourced proxy instead.
+- **`DELETE /api/proxies/{id}` is a soft delete (`enabled=false`) for every proxy
+  regardless of `source`, deliberately not restricted to `source=manual` rows** — matches
+  v07's never-hard-delete stance (preserves `consecutive_failures`/`last_success_at`
+  history). Disabling a `source=file` row through the UI is not surprising or
+  inconsistent: the next `sync_from_file()` run (worker-meta boot) simply re-enables it
+  as long as it's still listed in `proxies.txt`, identical to the existing
+  remove-then-re-add-the-line behavior v07 already documented — the UI control and the
+  file are just two paths to the same `enabled` flag on the same row.
+- Settings UI verified end-to-end against the real docker-compose stack, real Postgres,
+  and a real logged-in session (not mocked): `alembic upgrade head` → `downgrade -1` →
+  `upgrade head` round-tripped `app_settings` cleanly against the real shared Postgres
+  instance; all four backend processes (`api`, `worker-dl`, `worker-meta`, `beat`)
+  restarted cleanly with zero import errors after the new model/service/routers landed;
+  `GET/PATCH /api/settings/output` persisted a real change across requests; the frontend
+  `/settings` route builds and prerenders to `settings.html` (`svelte-check`/`eslint`/
+  `vite build` all clean) with its own explicit nginx `location` block added alongside
+  `/` and `/login`, per the v09/v12 gotcha that every route needs one. The plan's third
+  "Done when" bullet ("`proxies.txt` and the UI-added proxies coexist without either
+  overwriting the other's rows") was closed with its own dedicated real-stack check, not
+  inferred from `sync_from_file`'s source-scoped query alone: added a `source=manual` row
+  via `POST /api/proxies`, restarted the real `worker-meta` container (which runs
+  `sync_from_file()` on boot), and confirmed via `GET /api/proxies` afterward that the
+  manual row survived untouched (`source` still `manual`, stats unchanged) while the log
+  line read `sync_from_file: 5 in file, 0 added, 0 re-enabled, 0 disabled` — proving the
+  file-sync pass never even looked at it, not just that it happened not to change it.
+- **Not verified this version: an actual browser click-through of the `/settings` page.**
+  A headless-Playwright pass (the v09-established `npx playwright` + scratch
+  `node_modules` substitute) was attempted, but the Chromium binary download stalled
+  indefinitely partway through (2.5MB and no further progress after 7+ minutes) in this
+  session's sandboxed network egress — a plain `curl -I` to the redirect host succeeded,
+  but the actual binary host apparently isn't reachable the same way. Killed rather than
+  waited out further. Every non-visual check passed for real (API calls, `pick_proxy`
+  behavior, cache invalidation, migration round-trip, container boots, `svelte-check`/
+  `eslint`/`vite build`), but nobody has actually looked at the rendered `/settings` page
+  in a browser yet. **Whoever picks up visual polish next should do that manual/Playwright
+  pass before calling the settings UI's actual layout/interaction "done"** — this is an
+  honest gap, not an oversight to silently paper over.
+
 ### Version roadmap
 
 | # | Branch | Scope |

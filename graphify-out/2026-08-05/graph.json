@@ -330,7 +330,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_main",
-      "community": 92,
+      "community": 12,
       "norm_label": "main.py"
     },
     {
@@ -350,7 +350,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 86,
+      "community": 92,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -360,7 +360,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track_downloadedtrack",
-      "community": 86,
+      "community": 89,
       "norm_label": "downloadedtrack"
     },
     {
@@ -370,7 +370,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track_rationale_10",
-      "community": 86,
+      "community": 89,
       "norm_label": "dedup ledger, independent of `tracks` so it survives job/track deletion and powe"
     },
     {
@@ -960,7 +960,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_tracks",
-      "community": 90,
+      "community": 37,
       "norm_label": "tracks.py"
     },
     {
@@ -970,7 +970,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_get_track_or_404",
-      "community": 90,
+      "community": 37,
       "norm_label": "_get_track_or_404()"
     },
     {
@@ -980,7 +980,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_py_session",
-      "community": 90,
+      "community": 37,
       "norm_label": "session"
     },
     {
@@ -990,7 +990,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_py_uuid",
-      "community": 90,
+      "community": 37,
       "norm_label": "uuid"
     },
     {
@@ -1000,47 +1000,67 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_py_track",
-      "community": 90,
+      "community": 37,
       "norm_label": "track"
+    },
+    {
+      "label": "list_tracks()",
+      "file_type": "code",
+      "source_file": "backend/app/routers/tracks.py",
+      "source_location": "L27",
+      "_origin": "ast",
+      "id": "backend_app_routers_tracks_list_tracks",
+      "community": 37,
+      "norm_label": "list_tracks()"
     },
     {
       "label": "cancel_track()",
       "file_type": "code",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L27",
+      "source_location": "L46",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_cancel_track",
-      "community": 90,
+      "community": 37,
       "norm_label": "cancel_track()"
     },
     {
       "label": "retry_track()",
       "file_type": "code",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L45",
+      "source_location": "L64",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_retry_track",
-      "community": 90,
+      "community": 37,
       "norm_label": "retry_track()"
+    },
+    {
+      "label": "All tracks across every job, in one query -- what the frontend's initial load an",
+      "file_type": "rationale",
+      "source_file": "backend/app/routers/tracks.py",
+      "source_location": "L31",
+      "_origin": "ast",
+      "id": "backend_app_routers_tracks_rationale_31",
+      "community": 37,
+      "norm_label": "all tracks across every job, in one query -- what the frontend's initial load an"
     },
     {
       "label": "Same semantics as `DELETE /api/jobs/{id}` but for a single track \u2014 a track     a",
       "file_type": "rationale",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L32",
+      "source_location": "L51",
       "_origin": "ast",
-      "id": "backend_app_routers_tracks_rationale_32",
-      "community": 90,
+      "id": "backend_app_routers_tracks_rationale_51",
+      "community": 37,
       "norm_label": "same semantics as `delete /api/jobs/{id}` but for a single track \u2014 a track     a"
     },
     {
       "label": "Bypasses the per-track ladder wait by resetting `scheduled_at` to now, but still",
       "file_type": "rationale",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L50",
+      "source_location": "L69",
       "_origin": "ast",
-      "id": "backend_app_routers_tracks_rationale_50",
-      "community": 90,
+      "id": "backend_app_routers_tracks_rationale_69",
+      "community": 37,
       "norm_label": "bypasses the per-track ladder wait by resetting `scheduled_at` to now, but still"
     },
     {
@@ -1840,7 +1860,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_to_dict",
-      "community": 90,
+      "community": 37,
       "norm_label": "track_to_dict()"
     },
     {
@@ -1850,7 +1870,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_serializers_py_track",
-      "community": 90,
+      "community": 37,
       "norm_label": "track"
     },
     {
@@ -2040,7 +2060,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_sync_proxies_on_boot",
-      "community": 86,
+      "community": 92,
       "norm_label": "_sync_proxies_on_boot()"
     },
     {
@@ -2060,7 +2080,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_download_download_track",
-      "community": 12,
+      "community": 89,
       "norm_label": "download_track()"
     },
     {
@@ -2103,7 +2123,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_conftest",
-      "community": 92,
+      "community": 12,
       "norm_label": "conftest.py"
     },
     {
@@ -2113,7 +2133,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_tests_conftest_compile_jsonb_sqlite",
-      "community": 92,
+      "community": 12,
       "norm_label": "_compile_jsonb_sqlite()"
     },
     {
@@ -2123,7 +2143,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_tests_conftest_db_session",
-      "community": 92,
+      "community": 12,
       "norm_label": "db_session()"
     },
     {
@@ -2133,7 +2153,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_tests_conftest_client",
-      "community": 92,
+      "community": 12,
       "norm_label": "client()"
     },
     {
@@ -2363,7 +2383,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_dedup",
-      "community": 86,
+      "community": 90,
       "norm_label": "test_dedup.py"
     },
     {
@@ -2373,7 +2393,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession",
-      "community": 86,
+      "community": 90,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -2383,7 +2403,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession_init",
-      "community": 86,
+      "community": 90,
       "norm_label": ".__init__()"
     },
     {
@@ -2393,7 +2413,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession_getattr",
-      "community": 86,
+      "community": 90,
       "norm_label": ".__getattr__()"
     },
     {
@@ -2403,7 +2423,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_nonclosingsession_close",
-      "community": 86,
+      "community": 90,
       "norm_label": ".close()"
     },
     {
@@ -2413,7 +2433,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_is_already_downloaded_returns_none_when_missing",
-      "community": 86,
+      "community": 90,
       "norm_label": "test_is_already_downloaded_returns_none_when_missing()"
     },
     {
@@ -2423,7 +2443,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_is_already_downloaded_returns_path_when_present",
-      "community": 86,
+      "community": 90,
       "norm_label": "test_is_already_downloaded_returns_path_when_present()"
     },
     {
@@ -2433,7 +2453,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_fakesettings",
-      "community": 86,
+      "community": 90,
       "norm_label": "_fakesettings"
     },
     {
@@ -2443,7 +2463,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_fakesettings_init",
-      "community": 86,
+      "community": 90,
       "norm_label": ".__init__()"
     },
     {
@@ -2453,7 +2473,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
-      "community": 86,
+      "community": 90,
       "norm_label": "test_reconcile_disk_drops_rows_for_missing_files()"
     },
     {
@@ -2463,7 +2483,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_missing",
-      "community": 86,
+      "community": 90,
       "norm_label": "test_reconcile_disk_refuses_to_prune_when_output_dir_missing()"
     },
     {
@@ -2473,7 +2493,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_empty",
-      "community": 86,
+      "community": 90,
       "norm_label": "test_reconcile_disk_refuses_to_prune_when_output_dir_empty()"
     },
     {
@@ -2483,7 +2503,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_rationale_8",
-      "community": 86,
+      "community": 90,
       "norm_label": "wraps db_session so dedup's db.close() doesn't detach objects the test still"
     },
     {
@@ -4067,6 +4087,16 @@
       "norm_label": "test_tracks_endpoints_require_session()"
     },
     {
+      "label": "test_list_tracks_returns_every_track_across_every_job_in_one_call()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_tracks.py",
+      "source_location": "L144",
+      "_origin": "ast",
+      "id": "backend_tests_test_tracks_test_list_tracks_returns_every_track_across_every_job_in_one_call",
+      "community": 14,
+      "norm_label": "test_list_tracks_returns_every_track_across_every_job_in_one_call()"
+    },
+    {
       "label": "test_worker.py",
       "file_type": "code",
       "source_file": "backend/tests/test_worker.py",
@@ -4621,7 +4651,7 @@
       "label": "workerStatus",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L184",
+      "source_location": "L192",
       "_origin": "ast",
       "id": "frontend_src_lib_api_workerstatus",
       "community": 44,
@@ -4718,10 +4748,20 @@
       "norm_label": "listjobtracks()"
     },
     {
+      "label": "listTracks()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/api.ts",
+      "source_location": "L165",
+      "_origin": "ast",
+      "id": "frontend_src_lib_api_listtracks",
+      "community": 44,
+      "norm_label": "listtracks()"
+    },
+    {
       "label": "cancelJob()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L161",
+      "source_location": "L169",
       "_origin": "ast",
       "id": "frontend_src_lib_api_canceljob",
       "community": 44,
@@ -4731,7 +4771,7 @@
       "label": "setJobPriority()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L165",
+      "source_location": "L173",
       "_origin": "ast",
       "id": "frontend_src_lib_api_setjobpriority",
       "community": 44,
@@ -4741,7 +4781,7 @@
       "label": "bumpJob()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L172",
+      "source_location": "L180",
       "_origin": "ast",
       "id": "frontend_src_lib_api_bumpjob",
       "community": 44,
@@ -4751,7 +4791,7 @@
       "label": "cancelTrack()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L176",
+      "source_location": "L184",
       "_origin": "ast",
       "id": "frontend_src_lib_api_canceltrack",
       "community": 44,
@@ -4761,7 +4801,7 @@
       "label": "retryTrack()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L180",
+      "source_location": "L188",
       "_origin": "ast",
       "id": "frontend_src_lib_api_retrytrack",
       "community": 44,
@@ -4771,7 +4811,7 @@
       "label": "pauseWorker()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L188",
+      "source_location": "L196",
       "_origin": "ast",
       "id": "frontend_src_lib_api_pauseworker",
       "community": 44,
@@ -4781,7 +4821,7 @@
       "label": "resumeWorker()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L192",
+      "source_location": "L200",
       "_origin": "ast",
       "id": "frontend_src_lib_api_resumeworker",
       "community": 44,
@@ -4791,7 +4831,7 @@
       "label": "releaseBreaker()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L196",
+      "source_location": "L204",
       "_origin": "ast",
       "id": "frontend_src_lib_api_releasebreaker",
       "community": 44,
@@ -4801,7 +4841,7 @@
       "label": "createEventSource()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L204",
+      "source_location": "L212",
       "_origin": "ast",
       "id": "frontend_src_lib_api_createeventsource",
       "community": 44,
@@ -4978,7 +5018,7 @@
       "label": "queue",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L218",
+      "source_location": "L236",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_queue",
       "community": 44,
@@ -5496,7 +5536,7 @@
       "label": "Version roadmap",
       "file_type": "document",
       "source_file": "CLAUDE.md",
-      "source_location": "L1343",
+      "source_location": "L1410",
       "_origin": "ast",
       "id": "claude_version_roadmap",
       "community": 85,
@@ -5746,7 +5786,7 @@
       "label": "7. Caching across runs \u2014 already automatic, no workflow change needed",
       "file_type": "document",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L191",
+      "source_location": "L209",
       "_origin": "ast",
       "id": "docs_ci_self_hosted_runner_7_caching_across_runs_already_automatic_no_workflow_change_needed",
       "community": 15,
@@ -5756,7 +5796,7 @@
       "label": "8. Human-readable test reports",
       "file_type": "document",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L239",
+      "source_location": "L257",
       "_origin": "ast",
       "id": "docs_ci_self_hosted_runner_8_human_readable_test_reports",
       "community": 15,
@@ -5766,7 +5806,7 @@
       "label": "Troubleshooting",
       "file_type": "document",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L281",
+      "source_location": "L299",
       "_origin": "ast",
       "id": "docs_ci_self_hosted_runner_troubleshooting",
       "community": 15,
@@ -9514,7 +9554,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L27",
+      "source_location": "L46",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_cancel_track",
       "target": "backend_app_models_session_usersession",
@@ -9525,7 +9565,18 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L45",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "backend_app_routers_tracks_list_tracks",
+      "target": "backend_app_models_session_usersession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/tracks.py",
+      "source_location": "L64",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_retry_track",
       "target": "backend_app_models_session_usersession",
@@ -9679,6 +9730,17 @@
       "source_location": "L20",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_get_track_or_404",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/tracks.py",
+      "source_location": "L41",
+      "weight": 1.0,
+      "source": "backend_app_routers_tracks_list_tracks",
       "target": "backend_app_models_track_track"
     },
     {
@@ -11110,7 +11172,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L27",
+      "source_location": "L46",
       "weight": 1.0,
       "source": "backend_app_routers_tracks",
       "target": "backend_app_routers_tracks_cancel_track",
@@ -11124,6 +11186,16 @@
       "weight": 1.0,
       "source": "backend_app_routers_tracks",
       "target": "backend_app_routers_tracks_get_track_or_404",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/tracks.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "backend_app_routers_tracks",
+      "target": "backend_app_routers_tracks_list_tracks",
       "confidence_score": 1.0
     },
     {
@@ -11141,7 +11213,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L45",
+      "source_location": "L64",
       "weight": 1.0,
       "source": "backend_app_routers_tracks",
       "target": "backend_app_routers_tracks_retry_track",
@@ -11152,7 +11224,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L35",
+      "source_location": "L54",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_cancel_track",
       "target": "backend_app_routers_tracks_get_track_or_404",
@@ -11196,7 +11268,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L55",
+      "source_location": "L74",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_retry_track",
       "target": "backend_app_routers_tracks_get_track_or_404",
@@ -11207,7 +11279,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L27",
+      "source_location": "L46",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_cancel_track",
       "target": "backend_app_routers_tracks_py_session",
@@ -11218,7 +11290,18 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L45",
+      "source_location": "L27",
+      "weight": 1.0,
+      "source": "backend_app_routers_tracks_list_tracks",
+      "target": "backend_app_routers_tracks_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/tracks.py",
+      "source_location": "L64",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_retry_track",
       "target": "backend_app_routers_tracks_py_session",
@@ -11229,7 +11312,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L27",
+      "source_location": "L46",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_cancel_track",
       "target": "backend_app_routers_tracks_py_uuid",
@@ -11240,7 +11323,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L45",
+      "source_location": "L64",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_retry_track",
       "target": "backend_app_routers_tracks_py_uuid",
@@ -11252,7 +11335,28 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L41",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "backend_app_routers_tracks_list_tracks",
+      "target": "backend_app_services_serializers_track_to_dict"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/tracks.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "source": "backend_app_routers_tracks_rationale_31",
+      "target": "backend_app_routers_tracks_list_tracks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/routers/tracks.py",
+      "source_location": "L60",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_cancel_track",
       "target": "backend_app_services_serializers_track_to_dict"
@@ -11261,9 +11365,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L32",
+      "source_location": "L51",
       "weight": 1.0,
-      "source": "backend_app_routers_tracks_rationale_32",
+      "source": "backend_app_routers_tracks_rationale_51",
       "target": "backend_app_routers_tracks_cancel_track",
       "confidence_score": 1.0
     },
@@ -11271,9 +11375,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L50",
+      "source_location": "L69",
       "weight": 1.0,
-      "source": "backend_app_routers_tracks_rationale_50",
+      "source": "backend_app_routers_tracks_rationale_69",
       "target": "backend_app_routers_tracks_retry_track",
       "confidence_score": 1.0
     },
@@ -11283,7 +11387,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L77",
+      "source_location": "L96",
       "weight": 1.0,
       "source": "backend_app_routers_tracks_retry_track",
       "target": "backend_app_services_serializers_track_to_dict"
@@ -16204,6 +16308,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tracks.py",
+      "source_location": "L144",
+      "weight": 1.0,
+      "source": "backend_tests_test_tracks",
+      "target": "backend_tests_test_tracks_test_list_tracks_returns_every_track_across_every_job_in_one_call",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tracks.py",
       "source_location": "L92",
       "weight": 1.0,
       "source": "backend_tests_test_tracks",
@@ -16320,6 +16434,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tracks.py",
+      "source_location": "L145",
+      "weight": 1.0,
+      "source": "backend_tests_test_tracks_test_list_tracks_returns_every_track_across_every_job_in_one_call",
+      "target": "backend_tests_test_tracks_login",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tracks.py",
       "source_location": "L93",
       "weight": 1.0,
       "source": "backend_tests_test_tracks_test_retry_track_flips_lookup_failed_back_to_waiting",
@@ -16389,6 +16514,17 @@
       "source_location": "L43",
       "weight": 1.0,
       "source": "backend_tests_test_tracks_test_cancel_track_marks_cancelled_and_clears_schedule",
+      "target": "backend_tests_test_tracks_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tracks.py",
+      "source_location": "L146",
+      "weight": 1.0,
+      "source": "backend_tests_test_tracks_test_list_tracks_returns_every_track_across_every_job_in_one_call",
       "target": "backend_tests_test_tracks_make_track",
       "confidence_score": 1.0
     },
@@ -16884,7 +17020,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L172",
+      "source_location": "L180",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_bumpjob",
@@ -16894,7 +17030,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L161",
+      "source_location": "L169",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_canceljob",
@@ -16904,7 +17040,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L176",
+      "source_location": "L184",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_canceltrack",
@@ -16914,7 +17050,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L204",
+      "source_location": "L212",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_createeventsource",
@@ -16994,6 +17130,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
+      "source_location": "L165",
+      "weight": 1.0,
+      "source": "frontend_src_lib_api",
+      "target": "frontend_src_lib_api_listtracks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/api.ts",
       "source_location": "L131",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
@@ -17024,7 +17170,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L188",
+      "source_location": "L196",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_pauseworker",
@@ -17034,7 +17180,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L196",
+      "source_location": "L204",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_releasebreaker",
@@ -17064,7 +17210,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L192",
+      "source_location": "L200",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_resumeworker",
@@ -17074,7 +17220,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L180",
+      "source_location": "L188",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_retrytrack",
@@ -17084,7 +17230,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L165",
+      "source_location": "L173",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_setjobpriority",
@@ -17144,7 +17290,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L184",
+      "source_location": "L192",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_workerstatus",
@@ -17272,7 +17418,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L185",
+      "source_location": "L193",
       "weight": 1.0,
       "source": "frontend_src_lib_api_workerstatus",
       "target": "frontend_src_lib_api_request",
@@ -17304,7 +17450,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L173",
+      "source_location": "L181",
       "weight": 1.0,
       "source": "frontend_src_lib_api_bumpjob",
       "target": "frontend_src_lib_api_request",
@@ -17315,7 +17461,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L162",
+      "source_location": "L170",
       "weight": 1.0,
       "source": "frontend_src_lib_api_canceljob",
       "target": "frontend_src_lib_api_request",
@@ -17326,7 +17472,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L177",
+      "source_location": "L185",
       "weight": 1.0,
       "source": "frontend_src_lib_api_canceltrack",
       "target": "frontend_src_lib_api_request",
@@ -17370,6 +17516,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
+      "source_location": "L166",
+      "weight": 1.0,
+      "source": "frontend_src_lib_api_listtracks",
+      "target": "frontend_src_lib_api_request",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/api.ts",
       "source_location": "L132",
       "weight": 1.0,
       "source": "frontend_src_lib_api_login",
@@ -17403,7 +17560,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L189",
+      "source_location": "L197",
       "weight": 1.0,
       "source": "frontend_src_lib_api_pauseworker",
       "target": "frontend_src_lib_api_request",
@@ -17414,7 +17571,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L197",
+      "source_location": "L205",
       "weight": 1.0,
       "source": "frontend_src_lib_api_releasebreaker",
       "target": "frontend_src_lib_api_request",
@@ -17425,7 +17582,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L193",
+      "source_location": "L201",
       "weight": 1.0,
       "source": "frontend_src_lib_api_resumeworker",
       "target": "frontend_src_lib_api_request",
@@ -17436,7 +17593,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L181",
+      "source_location": "L189",
       "weight": 1.0,
       "source": "frontend_src_lib_api_retrytrack",
       "target": "frontend_src_lib_api_request",
@@ -17447,7 +17604,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L166",
+      "source_location": "L174",
       "weight": 1.0,
       "source": "frontend_src_lib_api_setjobpriority",
       "target": "frontend_src_lib_api_request",
@@ -17459,7 +17616,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L210",
+      "source_location": "L228",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_canceljob"
@@ -17470,7 +17627,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L214",
+      "source_location": "L232",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_setjobpriority"
@@ -17481,7 +17638,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L213",
+      "source_location": "L231",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_bumpjob"
@@ -17492,7 +17649,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L211",
+      "source_location": "L229",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_canceltrack"
@@ -17503,7 +17660,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L212",
+      "source_location": "L230",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_retrytrack"
@@ -17580,7 +17737,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L218",
+      "source_location": "L236",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_queue",
@@ -18123,7 +18280,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "CLAUDE.md",
-      "source_location": "L1343",
+      "source_location": "L1410",
       "weight": 1.0,
       "source": "claude_project_spotdl_web",
       "target": "claude_version_roadmap",
@@ -18373,7 +18530,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L191",
+      "source_location": "L209",
       "weight": 1.0,
       "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
       "target": "docs_ci_self_hosted_runner_7_caching_across_runs_already_automatic_no_workflow_change_needed",
@@ -18383,7 +18540,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L239",
+      "source_location": "L257",
       "weight": 1.0,
       "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
       "target": "docs_ci_self_hosted_runner_8_human_readable_test_reports",
@@ -18403,7 +18560,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/CI_SELF_HOSTED_RUNNER.md",
-      "source_location": "L281",
+      "source_location": "L299",
       "weight": 1.0,
       "source": "docs_ci_self_hosted_runner_setting_up_the_self_hosted_github_actions_runner",
       "target": "docs_ci_self_hosted_runner_troubleshooting",
@@ -19891,5 +20048,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "72890cb2c38d86be2be433b2de130e03af55bee3"
+  "built_at_commit": "60bbffe7a7fdb7aff5a2e6db8a2e65f6faa76c6b"
 }

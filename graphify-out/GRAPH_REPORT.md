@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-08-05)
 
 ## Corpus Check
-- 102 files · ~61,457 words
+- 111 files · ~65,079 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 788 nodes · 1155 edges · 101 communities (54 shown, 47 thin omitted)
-- Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 136 edges (avg confidence: 0.76)
+- 854 nodes · 1277 edges · 110 communities (63 shown, 47 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 139 edges (avg confidence: 0.76)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `60bbffe7`
+- Built from commit: `0737026d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -106,51 +106,59 @@
 - [[_COMMUNITY_Architecture|Architecture]]
 - [[_COMMUNITY_pg_backup.sh|pg_backup.sh]]
 - [[_COMMUNITY_test_worker.py|test_worker.py]]
+- [[_COMMUNITY_test_beat_task.py|test_beat_task.py]]
+- [[_COMMUNITY_AppSettings|AppSettings]]
+- [[_COMMUNITY_test_events.py|test_events.py]]
+- [[_COMMUNITY_test_proxies_router.py|test_proxies_router.py]]
+- [[_COMMUNITY_download_one|download_one]]
+- [[_COMMUNITY_test_settings_router.py|test_settings_router.py]]
+- [[_COMMUNITY_beat.py|beat.py]]
+- [[_COMMUNITY_stream|stream]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `Track` - 47 edges
-2. `$lib/api` - 38 edges
-3. `UserSession` - 24 edges
-4. `Project: spotdl-web` - 22 edges
-5. `Job` - 20 edges
-6. `_make_track()` - 18 edges
-7. `_patch_common()` - 18 edges
-8. `request()` - 18 edges
-9. `WorkerState` - 17 edges
+1. `$lib/api` - 48 edges
+2. `Track` - 47 edges
+3. `UserSession` - 30 edges
+4. `request()` - 24 edges
+5. `Project: spotdl-web` - 23 edges
+6. `Job` - 20 edges
+7. `_make_track()` - 18 edges
+8. `WorkerState` - 17 edges
+9. `_patch_common()` - 17 edges
 10. `get_settings()` - 15 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `login()` --calls--> `get_settings()`  [INFERRED]
   backend/app/routers/auth.py → backend/app/config.py
+- `health()` --calls--> `get_settings()`  [INFERRED]
+  backend/app/routers/health.py → backend/app/config.py
+- `_event_stream()` --calls--> `get_settings()`  [INFERRED]
+  backend/app/routers/stream.py → backend/app/config.py
+- `get_output_settings()` --calls--> `get_settings()`  [INFERRED]
+  backend/app/services/app_settings.py → backend/app/config.py
 - `reconcile_disk()` --calls--> `get_settings()`  [INFERRED]
   backend/app/services/dedup.py → backend/app/config.py
-- `_get_client()` --calls--> `get_settings()`  [INFERRED]
-  backend/app/services/events.py → backend/app/config.py
-- `sync_from_file()` --calls--> `get_settings()`  [INFERRED]
-  backend/app/services/proxies.py → backend/app/config.py
-- `next_delay()` --calls--> `get_settings()`  [INFERRED]
-  backend/app/services/retry.py → backend/app/config.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (101 total, 47 thin omitted)
+## Communities (110 total, 47 thin omitted)
 
 ### Community 2 - "Planning & Config Docs"
 Cohesion: 0.13
 Nodes (12): _aware(), _FakeSettings, _NonClosingSession, datetime, Wraps db_session so sync_from_file's db.close() doesn't detach objects the test, test_pick_proxy_stamps_last_used_at_on_selection(), test_record_proxy_result_failure_reads_ladder_before_incrementing(), test_record_proxy_result_failure_sets_cooldown_and_increments() (+4 more)
 
 ### Community 12 - "Deployment Hardening"
-Cohesion: 0.06
-Nodes (30): get_settings(), Settings, health(), Response, _event_stream(), Request, stream(), download_one() (+22 more)
+Cohesion: 0.15
+Nodes (12): get_settings(), Settings, _ensure_spotify_client(), expand(), Song, Thin wrapper around spotdl's URL-expansion logic.  Never import spotdl.utils.sea, SpotifyClient is a process-wide singleton that raises if .init() runs twice, so, Turn a Spotify URL (track/album/playlist/artist) or a search term into Songs. (+4 more)
 
 ### Community 13 - "devDependencies"
 Cohesion: 0.07
 Nodes (29): devDependencies, eslint, eslint-config-prettier, @eslint/js, eslint-plugin-svelte, globals, prettier, prettier-plugin-svelte (+21 more)
 
 ### Community 14 - "Project: spotdl-web"
-Cohesion: 0.30
-Nodes (13): _aware(), _login(), _make_track(), datetime, test_cancel_track_is_a_noop_on_terminal_states(), test_cancel_track_marks_cancelled_and_clears_schedule(), test_cancel_unknown_track_returns_404(), test_list_tracks_returns_every_track_across_every_job_in_one_call() (+5 more)
+Cohesion: 0.18
+Nodes (20): create_proxy(), CreateProxyRequest, delete_proxy(), _get_proxy_or_404(), list_proxies(), _proxy_to_dict(), Proxy, Session (+12 more)
 
 ### Community 15 - "Setting up the self-hosted GitHub Actions runner"
 Cohesion: 0.17
@@ -226,11 +234,11 @@ Nodes (7): _configure_celery_logging(), JsonFormatter, Structured JSON logging (
 
 ### Community 37 - "main.py"
 Cohesion: 0.07
-Nodes (58): Our own session store — separate from the upstream VB-AUTH token (see v03)., UserSession, login(), LoginRequest, logout(), me(), Request, Response (+50 more)
+Nodes (57): Our own session store — separate from the upstream VB-AUTH token (see v03)., UserSession, login(), LoginRequest, logout(), me(), Request, Response (+49 more)
 
 ### Community 44 - "+layout.ts"
-Cohesion: 0.06
-Nodes (45): svelte, $lib/api, API_BASE, ApiError, bumpJob(), cancelJob(), cancelTrack(), createJob() (+37 more)
+Cohesion: 0.05
+Nodes (54): svelte, $lib/api, API_BASE, ApiError, bumpJob(), cancelJob(), cancelTrack(), createJob() (+46 more)
 
 ### Community 45 - "+page.svelte"
 Cohesion: 0.08
@@ -258,11 +266,11 @@ Nodes (5): _fake_init(), _FakeSettings, test_ensure_spotify_client_initializes_o
 
 ### Community 84 - "test_downloads.py"
 Cohesion: 0.31
-Nodes (9): _FakeDownloader, _FakeSettings, test_download_one_delegates_to_search_and_download(), test_download_one_ensures_spotify_client_before_downloading(), test_get_downloader_always_disables_rich_tui(), test_get_downloader_builds_new_instance_for_different_key(), test_get_downloader_builds_output_template_from_settings_dir(), test_get_downloader_caches_per_format_bitrate_proxy() (+1 more)
+Nodes (9): _FakeDownloader, _FakeSettings, test_download_one_delegates_to_search_and_download(), test_download_one_ensures_spotify_client_before_downloading(), test_get_downloader_always_disables_rich_tui(), test_get_downloader_builds_new_instance_for_different_key(), test_get_downloader_builds_output_from_given_dir_and_template(), test_get_downloader_caches_per_format_bitrate_output_and_proxy() (+1 more)
 
 ### Community 85 - "spotdl-web — Master Development Plan"
 Cohesion: 0.09
-Nodes (22): Architecture, Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), Development environments, Locked decisions, Project: spotdl-web, Retry engine numbers, spotdl 4.5.2 — verified API surface actually used, Track state machine (+14 more)
+Nodes (23): Architecture, Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), Development environments, Locked decisions, Project: spotdl-web, Retry engine numbers, spotdl 4.5.2 — verified API surface actually used, Track state machine (+15 more)
 
 ### Community 86 - "_NonClosingSession"
 Cohesion: 0.15
@@ -273,24 +281,24 @@ Cohesion: 0.13
 Nodes (27): Single-row table backing the global circuit breaker., WorkerState, breaker_active(), classify_error(), get_worker_state(), maybe_trip_breaker(), next_delay(), datetime (+19 more)
 
 ### Community 89 - "Track"
-Cohesion: 0.11
-Nodes (41): DownloadedTrack, Dedup ledger, independent of `tracks` so it survives job/track deletion and powe, One row per individual song discovered while expanding a job — the unit the retr, Track, download_track(), _make_track(), _NonClosingSession, _patch_session() (+33 more)
+Cohesion: 0.12
+Nodes (39): One row per individual song discovered while expanding a job — the unit the retr, Track, _capture_events(), _FakeDownloader, _FakeProgressHandler, _make_track(), _NonClosingSession, _patch_common() (+31 more)
 
 ### Community 90 - "retry.py"
-Cohesion: 0.26
-Nodes (8): _FakeSettings, _NonClosingSession, Wraps db_session so dedup's db.close() doesn't detach objects the test still, test_is_already_downloaded_returns_none_when_missing(), test_is_already_downloaded_returns_path_when_present(), test_reconcile_disk_drops_rows_for_missing_files(), test_reconcile_disk_refuses_to_prune_when_output_dir_empty(), test_reconcile_disk_refuses_to_prune_when_output_dir_missing()
+Cohesion: 0.14
+Nodes (17): next_cooldown(), pick_proxy(), _probe_reachable(), Proxy, Session, timedelta, UUID, Proxy pool: file sync (`proxies.txt`), LRU selection, and per-proxy cooldown.  M (+9 more)
 
 ### Community 91 - "spotdl-web — Master Development Plan"
 Cohesion: 0.22
 Nodes (9): Auth API — verified findings, Context, Locked decisions, Repository layout, spotdl 4.5.2 — verified API surface, spotdl-web — Master Development Plan, Verification, Version roadmap (+1 more)
 
 ### Community 92 - "db.py"
-Cohesion: 0.08
-Nodes (28): Base, get_db(), Session, JobSourceType, JobState, Proxy, ProxySource, TrackErrorType (+20 more)
+Cohesion: 0.07
+Nodes (23): Base, get_db(), Session, DownloadedTrack, Dedup ledger, independent of `tracks` so it survives job/track deletion and powe, JobSourceType, JobState, Proxy (+15 more)
 
 ### Community 93 - "events.py"
-Cohesion: 0.14
-Nodes (13): Any, _get_client(), make_progress_callback(), publish(), publish_job_event(), publish_track_event(), datetime, Redis pub/sub event bus for live progress.  Publishers (Celery tasks) are plain (+5 more)
+Cohesion: 0.31
+Nodes (10): Any, _get_client(), make_progress_callback(), publish(), publish_job_event(), publish_track_event(), datetime, Redis pub/sub event bus for live progress.  Publishers (Celery tasks) are plain (+2 more)
 
 ### Community 94 - "test_stream.py"
 Cohesion: 0.60
@@ -312,8 +320,40 @@ Nodes (5): Architecture, Other architectural notes, Retry engine, The single mos
 Cohesion: 0.53
 Nodes (4): _login(), test_pause_and_resume_worker(), test_release_breaker_clears_countdown_without_resetting_trip_count(), test_worker_status_defaults()
 
+### Community 100 - "test_beat_task.py"
+Cohesion: 0.28
+Nodes (11): _make_track(), _NonClosingSession, _patch_session(), See test_download_task.py — download_track's db.close() would otherwise detach, test_dispatch_due_tracks_dispatches_and_flips_state(), test_dispatch_due_tracks_leaves_recent_downloading_track_alone(), test_dispatch_due_tracks_orders_by_job_priority_over_scheduled_at(), test_dispatch_due_tracks_priority_never_pulls_forward_a_not_yet_due_track() (+3 more)
+
+### Community 102 - "AppSettings"
+Cohesion: 0.22
+Nodes (11): AppSettings, Single-row table (v13) backing the output-format defaults editable from the, get_output_settings(), Session, Output-format defaults (v13) -- editable from the settings UI without a redeploy, update_output_settings(), _FakeSettings, test_get_output_settings_creates_row_seeded_from_env() (+3 more)
+
+### Community 103 - "test_events.py"
+Cohesion: 0.17
+Nodes (5): health(), Response, _FakeSongTracker, test_make_progress_callback_publishes_downloading_progress(), Redis
+
+### Community 104 - "test_proxies_router.py"
+Cohesion: 0.36
+Nodes (8): _login(), test_create_proxy_defaults_to_manual_source_and_enabled(), test_create_proxy_rejects_blank_url(), test_create_proxy_rejects_duplicate_url(), test_delete_proxy_soft_disables_without_dropping_row(), test_list_proxies_redacts_credentials_for_both_sources(), test_update_proxy_toggles_enabled(), test_update_unknown_proxy_is_404()
+
+### Community 105 - "download_one"
+Cohesion: 0.32
+Nodes (7): download_one(), get_downloader(), Path, Song, Thin wrapper around spotdl's download machinery.  Never construct a `Downloader`, Must be called from a plain sync context — search_and_download raises     Downlo, Downloader
+
+### Community 106 - "test_settings_router.py"
+Cohesion: 0.57
+Nodes (5): _FakeSettings, _login(), test_get_output_settings_seeds_from_env_defaults(), test_update_output_settings_ignores_unset_fields(), test_update_output_settings_persists_and_returns_partial_update()
+
+### Community 107 - "beat.py"
+Cohesion: 0.47
+Nodes (5): dispatch_due_tracks(), timedelta, A track stuck in DOWNLOADING/QUEUED past this long means whatever was supposed t, _reclaim_stale_tracks(), stale_track_after()
+
+### Community 108 - "stream"
+Cohesion: 0.60
+Nodes (4): _event_stream(), Request, stream(), StreamingResponse
+
 ## Knowledge Gaps
-- **256 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+251 more)
+- **260 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+255 more)
   These have ≤1 connection - possible missing edges or undocumented components.
 - **47 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -321,16 +361,16 @@ Nodes (4): _login(), test_pause_and_resume_worker(), test_release_breaker_clears
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `request()` connect `+layout.ts` to `$lib/assets/favicon.svg`?**
-  _High betweenness centrality (0.095) - this node is a cross-community bridge._
-- **Why does `Track` connect `Track` to `main.py`, `Deployment Hardening`, `Project: spotdl-web`, `Track`, `conftest.py`, `db.py`?**
-  _High betweenness centrality (0.085) - this node is a cross-community bridge._
+  _High betweenness centrality (0.100) - this node is a cross-community bridge._
+- **Why does `Track` connect `Track` to `test_beat_task.py`, `main.py`, `beat.py`, `Track`, `conftest.py`, `db.py`?**
+  _High betweenness centrality (0.077) - this node is a cross-community bridge._
 - **Are the 45 inferred relationships involving `Track` (e.g. with `Base` and `cancel_job()`) actually correct?**
   _`Track` has 45 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 2 inferred relationships involving `UserSession` (e.g. with `Base` and `delete_session()`) actually correct?**
   _`UserSession` has 2 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 18 inferred relationships involving `Job` (e.g. with `Base` and `_get_job_or_404()`) actually correct?**
-  _`Job` has 18 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `Structured JSON logging (v12) — one shared formatter both uvicorn (`api`, via `l`, `Adds Celery task context (`task_id`/`task_name`) when a log call happens inside`, `Connecting *any* receiver to this signal tells Celery to skip its own logging` to the rest of the system?**
-  _303 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _312 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Planning & Config Docs` be split into smaller, more focused modules?**
   _Cohesion score 0.12681159420289856 - nodes in this community are weakly interconnected._
+- **Should `Deployment Hardening` be split into smaller, more focused modules?**
+  _Cohesion score 0.14705882352941177 - nodes in this community are weakly interconnected._

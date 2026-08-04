@@ -91,6 +91,28 @@ export interface WorkerStatus {
 	consecutive_failures: number;
 }
 
+export type ProxySource = 'file' | 'manual';
+
+export interface Proxy {
+	id: string;
+	/** scheme://host:port only -- the backend never returns a proxy's plaintext
+	 * user:pass, matching the same redaction discipline applied to logs/last_error. */
+	url: string;
+	enabled: boolean;
+	source: ProxySource;
+	consecutive_failures: number;
+	cooldown_until: string | null;
+	last_used_at: string | null;
+	last_success_at: string | null;
+}
+
+export interface OutputSettings {
+	default_format: string;
+	default_bitrate: string;
+	output_dir: string;
+	output_template: string;
+}
+
 export class ApiError extends Error {
 	constructor(
 		public status: number,
@@ -203,6 +225,39 @@ export function resumeWorker(): Promise<WorkerStatus> {
 
 export function releaseBreaker(): Promise<WorkerStatus> {
 	return request('/api/worker/breaker/release', { method: 'POST' });
+}
+
+export function listProxies(): Promise<Proxy[]> {
+	return request('/api/proxies');
+}
+
+export function createProxy(url: string): Promise<Proxy> {
+	return request('/api/proxies', {
+		method: 'POST',
+		body: JSON.stringify({ url })
+	});
+}
+
+export function setProxyEnabled(proxyId: string, enabled: boolean): Promise<Proxy> {
+	return request(`/api/proxies/${proxyId}`, {
+		method: 'PATCH',
+		body: JSON.stringify({ enabled })
+	});
+}
+
+export function deleteProxy(proxyId: string): Promise<Proxy> {
+	return request(`/api/proxies/${proxyId}`, { method: 'DELETE' });
+}
+
+export function getOutputSettings(): Promise<OutputSettings> {
+	return request('/api/settings/output');
+}
+
+export function updateOutputSettings(patch: Partial<OutputSettings>): Promise<OutputSettings> {
+	return request('/api/settings/output', {
+		method: 'PATCH',
+		body: JSON.stringify(patch)
+	});
 }
 
 /** `EventSource` needs `withCredentials: true` for the (now rare, see resolveApiBase)
