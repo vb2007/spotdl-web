@@ -1,8 +1,12 @@
 """Output-format defaults (v13) -- editable from the settings UI without a redeploy.
 
-DEFAULT_FORMAT/DEFAULT_BITRATE/DOWNLOAD_OUTPUT_DIR env vars only seed this singleton row
-on first read; after that this table is the source of truth. Same get-or-create shape as
+DEFAULT_FORMAT/DEFAULT_BITRATE env vars only seed this singleton row on first read;
+after that this table is the source of truth. Same get-or-create shape as
 app/services/retry.get_worker_state.
+
+output_dir is deliberately NOT stored here -- it stays purely env
+(DOWNLOAD_OUTPUT_DIR)-sourced (see app/models/app_settings.py's docstring for why real
+user testing walked this back).
 """
 
 from sqlalchemy.orm import Session
@@ -24,7 +28,6 @@ def get_output_settings(db: Session) -> AppSettings:
             id=1,
             default_format=env.default_format,
             default_bitrate=env.default_bitrate,
-            output_dir=env.download_output_dir,
             output_template=DEFAULT_OUTPUT_TEMPLATE,
         )
         db.add(row)
@@ -37,7 +40,6 @@ def update_output_settings(
     *,
     default_format: str | None = None,
     default_bitrate: str | None = None,
-    output_dir: str | None = None,
     output_template: str | None = None,
 ) -> AppSettings:
     row = get_output_settings(db)
@@ -45,8 +47,6 @@ def update_output_settings(
         row.default_format = default_format
     if default_bitrate is not None:
         row.default_bitrate = default_bitrate
-    if output_dir is not None:
-        row.output_dir = output_dir
     if output_template is not None:
         row.output_template = output_template
     return row

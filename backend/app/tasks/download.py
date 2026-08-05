@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 from spotdl.types.song import Song
 
+from app.config import get_settings
 from app.db import SessionLocal
 from app.models import DownloadedTrack, Track, TrackState
 from app.services import app_settings, dedup, downloads, events, proxies, retry
@@ -77,10 +78,13 @@ def download_track(track_id: str) -> None:
 
         try:
             song = Song.from_dict(track.song_json)
+            # output_dir stays env-sourced (never DB-editable, see app_settings.py's
+            # docstring) -- the directory a container can actually write to is fixed by
+            # its volume mount at deploy time, not by an app-level setting.
             downloader = downloads.get_downloader(
                 output_settings.default_format,
                 output_settings.default_bitrate,
-                output_settings.output_dir,
+                get_settings().download_output_dir,
                 output_settings.output_template,
                 proxy=proxy_url,
             )

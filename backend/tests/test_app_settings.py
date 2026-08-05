@@ -5,7 +5,6 @@ from app.services import app_settings
 class _FakeSettings:
     default_format = "mp3"
     default_bitrate = "320k"
-    download_output_dir = "/downloads"
 
 
 def test_get_output_settings_creates_row_seeded_from_env(db_session, monkeypatch):
@@ -16,7 +15,6 @@ def test_get_output_settings_creates_row_seeded_from_env(db_session, monkeypatch
 
     assert row.default_format == "mp3"
     assert row.default_bitrate == "320k"
-    assert row.output_dir == "/downloads"
     assert row.output_template == app_settings.DEFAULT_OUTPUT_TEMPLATE
 
 
@@ -26,7 +24,6 @@ def test_get_output_settings_returns_existing_row_without_reseeding(db_session, 
         id=1,
         default_format="flac",
         default_bitrate="disable",
-        output_dir="/custom",
         output_template="{title}.{output-ext}",
     )
     db_session.add(existing)
@@ -40,7 +37,7 @@ def test_get_output_settings_returns_existing_row_without_reseeding(db_session, 
     row = app_settings.get_output_settings(db_session)
 
     assert row.default_format == "flac"
-    assert row.output_dir == "/custom"
+    assert row.output_template == "{title}.{output-ext}"
 
 
 def test_update_output_settings_only_touches_given_fields(db_session, monkeypatch):
@@ -53,7 +50,6 @@ def test_update_output_settings_only_touches_given_fields(db_session, monkeypatc
 
     assert row.default_format == "flac"
     assert row.default_bitrate == "320k"
-    assert row.output_dir == "/downloads"
 
 
 def test_update_output_settings_creates_row_if_missing(db_session, monkeypatch):

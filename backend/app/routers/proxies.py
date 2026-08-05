@@ -1,13 +1,13 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Proxy, ProxySource, UserSession
 from app.routers.auth import require_session
-from app.services.proxies import redact
+from app.services.proxies import PROXY_URL_RE, redact
 
 router = APIRouter(prefix="/api/proxies", tags=["proxies"])
 
@@ -61,13 +61,18 @@ def create_proxy(
     _: UserSession = Depends(require_session),
 ) -> dict:
     """Adds a source=manual proxy -- pick_proxy() draws from it exactly like a
-    source=file row (see v07). Deliberately doesn't hard-validate the URL format:
-    spotdl's own accepted-proxy regex could change independently of this code, and a
-    malformed entry is caught (and cooled down) the same way any real download failure
-    is, the first time it's actually tried -- matching sync_from_file's stance."""
+    source=file row (see v07). Validated against spotdl's real accepted-proxy format
+    (PROXY_URL_RE) -- unlike sync_from_file() (which deliberately skips this, see that
+    function's own docstring), a human typing into a live form benefits from immediate
+    feedback rather than a silent background failure days later."""
     url = payload.url.strip()
     if not url:
         raise HTTPException(status_code=400, detail="url is required")
+    if not PROXY_URL_RE.match(url):
+        raise HTTPException(
+            status_code=400,
+            detail="Proxy URL must look like http(s)://[user:pass@]<ipv4>[:port]",
+        )
 
     existing = db.query(Proxy).filter(Proxy.url == url).one_or_none()
     if existing is not None:
@@ -96,14 +101,24 @@ def update_proxy(
 @router.delete("/{proxy_id}")
 def delete_proxy(
     proxy_id: uuid.UUID,
+    response: Response,
     db: Session = Depends(get_db),
     _: UserSession = Depends(require_session),
-) -> dict:
-    """Soft delete (enabled=false) -- matches v07's never-hard-delete stance, which
-    exists to preserve health history for a later re-add. For a source=file row, this is
-    only a pause: the next sync_from_file() run re-enables it as long as it's still in
-    proxies.txt, exactly like removing then re-adding the line."""
+) -> dict | None:
+    """A source=manual proxy is hard-deleted -- there's no proxies.txt entry that could
+    ever re-add it, so soft-disabling one (the original v13 behavior) just left a dead,
+    permanently-disabled row with no way to actually get rid of it, caught in manual
+    testing as a real UX dead end. A source=file row keeps the original soft delete
+    (enabled=false), matching v07's never-hard-delete stance: the next sync_from_file()
+    run re-enables it as long as it's still in proxies.txt, exactly like removing then
+    re-adding the line, and hard-deleting it here would just lose that history for no
+    reason (the file is still the real source of truth for that row)."""
     proxy = _get_proxy_or_404(db, proxy_id)
+    if proxy.source == ProxySource.MANUAL:
+        db.delete(proxy)
+        db.commit()
+        response.status_code = 204
+        return None
     proxy.enabled = False
     db.commit()
     return _proxy_to_dict(proxy)

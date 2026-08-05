@@ -11,6 +11,7 @@ from pathlib import Path
 from spotdl.download.downloader import Downloader
 from spotdl.types.options import DownloaderOptions
 from spotdl.types.song import Song
+from spotdl.utils.arguments import create_parser
 
 from app.config import get_settings
 from app.services.expansion import _ensure_spotify_client
@@ -62,6 +63,26 @@ def get_downloader(
         downloader = Downloader(options)
         _downloader_cache[key] = downloader
         return downloader
+
+
+def get_supported_output_options() -> dict[str, list[str]]:
+    """The real, live set of --format/--bitrate values the installed spotdl accepts —
+    introspected from its own argparse definition (spotdl.utils.arguments.create_parser)
+    rather than a hardcoded list here that would silently drift the moment spotdl adds,
+    renames, or removes a choice. create_parser() only builds argparse groups (no argv
+    parsing, no I/O), so calling it purely for introspection is safe and cheap.
+
+    Uses ArgumentParser's private _option_string_actions map -- there's no public
+    argparse API for "give me this flag's choices" short of parsing --help text, and a
+    KeyError here (spotdl renaming/removing --format or --bitrate) is preferable to
+    silently falling back to a stale hardcoded list."""
+    parser = create_parser()
+    format_action = parser._option_string_actions["--format"]
+    bitrate_action = parser._option_string_actions["--bitrate"]
+    return {
+        "formats": list(format_action.choices),
+        "bitrates": list(bitrate_action.choices),
+    }
 
 
 def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]:

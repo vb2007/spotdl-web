@@ -109,8 +109,24 @@ export interface Proxy {
 export interface OutputSettings {
 	default_format: string;
 	default_bitrate: string;
+	/** Informational only -- read-only in the UI. Fixed by the container's volume mount
+	 * at deploy time (DOWNLOAD_OUTPUT_DIR), not editable at the app level; never sent by
+	 * updateOutputSettings. */
 	output_dir: string;
 	output_template: string;
+}
+
+/** Only the fields the settings UI can actually change -- see OutputSettings.output_dir. */
+export type EditableOutputSettings = Pick<
+	OutputSettings,
+	'default_format' | 'default_bitrate' | 'output_template'
+>;
+
+/** The real, live set of format/bitrate values the installed spotdl accepts --
+ * introspected server-side from spotdl's own argparse definition, never hardcoded here. */
+export interface OutputOptions {
+	formats: string[];
+	bitrates: string[];
 }
 
 export class ApiError extends Error {
@@ -245,7 +261,10 @@ export function setProxyEnabled(proxyId: string, enabled: boolean): Promise<Prox
 	});
 }
 
-export function deleteProxy(proxyId: string): Promise<Proxy> {
+/** A manual proxy is hard-deleted (204, no body); a file-sourced proxy is only
+ * soft-disabled (200, returns the updated row) -- see the backend's own docstring for
+ * why. `undefined` back means "the row is really gone." */
+export function deleteProxy(proxyId: string): Promise<Proxy | undefined> {
 	return request(`/api/proxies/${proxyId}`, { method: 'DELETE' });
 }
 
@@ -253,7 +272,13 @@ export function getOutputSettings(): Promise<OutputSettings> {
 	return request('/api/settings/output');
 }
 
-export function updateOutputSettings(patch: Partial<OutputSettings>): Promise<OutputSettings> {
+export function getOutputOptions(): Promise<OutputOptions> {
+	return request('/api/settings/output/options');
+}
+
+export function updateOutputSettings(
+	patch: Partial<EditableOutputSettings>
+): Promise<OutputSettings> {
 	return request('/api/settings/output', {
 		method: 'PATCH',
 		body: JSON.stringify(patch)

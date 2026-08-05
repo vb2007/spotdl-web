@@ -101,3 +101,14 @@ def test_download_one_ensures_spotify_client_before_downloading(monkeypatch):
     downloads.download_one("a-song", downloader)
 
     assert calls == [True]
+
+
+def test_get_supported_output_options_reflects_the_real_installed_spotdl():
+    # Not mocked -- this is the whole point of v13's fix: introspect the real installed
+    # spotdl's argparse choices instead of hardcoding a list that could silently drift.
+    options = downloads.get_supported_output_options()
+
+    assert set(options["formats"]) == {"mp3", "flac", "ogg", "opus", "m4a", "wav"}
+    assert "320k" in options["bitrates"]
+    assert "auto" in options["bitrates"]
+    assert "disable" in options["bitrates"]

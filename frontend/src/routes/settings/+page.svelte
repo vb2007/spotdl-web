@@ -5,10 +5,10 @@
 	import Countdown from '$lib/components/Countdown.svelte';
 
 	let outputSettings = $state<api.OutputSettings | null>(null);
-	let outputForm = $state({
+	let outputOptions = $state<api.OutputOptions | null>(null);
+	let outputForm = $state<api.EditableOutputSettings>({
 		default_format: '',
 		default_bitrate: '',
-		output_dir: '',
 		output_template: ''
 	});
 	let outputSaving = $state(false);
@@ -23,12 +23,26 @@
 	let addProxyError = $state('');
 	let proxyBusy = $state<Record<string, boolean>>({});
 
+	// Mirrors the backend's real gate (app.services.proxies.PROXY_URL_RE, verified
+	// against the installed spotdl's own Downloader source) -- this copy is purely for
+	// immediate form feedback; the backend enforces the actual rule and is the one that
+	// matters if the two ever drift.
+	const PROXY_URL_RE =
+		/^(http|https):\/\/(?:(\w+)(?::(\w+))?@)?(\d{1,3}(?:\.\d{1,3}){3})(?::(\d{1,5}))?$/;
+
 	function syncOutputForm(settings: api.OutputSettings) {
-		outputForm = { ...settings };
+		outputForm = {
+			default_format: settings.default_format,
+			default_bitrate: settings.default_bitrate,
+			output_template: settings.output_template
+		};
 	}
 
 	async function loadOutputSettings() {
-		outputSettings = await api.getOutputSettings();
+		[outputSettings, outputOptions] = await Promise.all([
+			api.getOutputSettings(),
+			api.getOutputOptions()
+		]);
 		syncOutputForm(outputSettings);
 	}
 
@@ -69,14 +83,20 @@
 
 	async function onAddProxy(event: SubmitEvent) {
 		event.preventDefault();
-		if (!newProxyUrl.trim()) {
+		const url = newProxyUrl.trim();
+		if (!url) {
 			addProxyError = 'Paste a proxy URL first.';
+			return;
+		}
+		if (!PROXY_URL_RE.test(url)) {
+			addProxyError =
+				'Must look like http(s)://[user:pass@]<ipv4>[:port] -- a literal IPv4 address, not a hostname.';
 			return;
 		}
 		addingProxy = true;
 		addProxyError = '';
 		try {
-			const proxy = await api.createProxy(newProxyUrl.trim());
+			const proxy = await api.createProxy(url);
 			proxyList = [...proxyList, proxy];
 			newProxyUrl = '';
 		} catch (err) {
@@ -100,10 +120,13 @@
 	}
 
 	async function removeProxy(proxy: api.Proxy) {
+		// Only ever called for source=manual -- the "remove" control isn't rendered for
+		// source=file rows at all (see markup below). A real, permanent delete: the row
+		// disappears from the list rather than being merged back in updated.
 		proxyBusy = { ...proxyBusy, [proxy.id]: true };
 		try {
-			const updated = await api.deleteProxy(proxy.id);
-			proxyList = proxyList.map((p) => (p.id === updated.id ? updated : p));
+			await api.deleteProxy(proxy.id);
+			proxyList = proxyList.filter((p) => p.id !== proxy.id);
 		} catch (err) {
 			proxiesError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		} finally {
@@ -139,27 +162,58 @@
 		<h2 class="label">Output defaults</h2>
 		<p class="hint mono">Applies to the next download — no restart needed.</p>
 
-		<form class="output-form" onsubmit={onOutputSubmit}>
-			<label class="field">
-				<span class="label">Format</span>
-				<input type="text" bind:value={outputForm.default_format} disabled={outputSaving} />
-			</label>
-			<label class="field">
-				<span class="label">Bitrate</span>
-				<input type="text" bind:value={outputForm.default_bitrate} disabled={outputSaving} />
-			</label>
-			<label class="field wide">
-				<span class="label">Output directory</span>
-				<input type="text" bind:value={outputForm.output_dir} disabled={outputSaving} />
-			</label>
-			<label class="field wide">
-				<span class="label">Filename template</span>
-				<input type="text" bind:value={outputForm.output_template} disabled={outputSaving} />
-			</label>
-			<button type="submit" class="save" disabled={outputSaving || outputSettings === null}>
-				{outputSaving ? 'SAVING…' : 'SAVE'}
-			</button>
-		</form>
+		{#if outputOptions === null}
+			<p class="hint mono">Loading options…</p>
+		{:else}
+			<form class="output-form" onsubmit={onOutputSubmit}>
+				<div class="field">
+					<span class="label" id="format-label">Format</span>
+					<div class="option-group" role="group" aria-labelledby="format-label">
+						{#each outputOptions.formats as fmt (fmt)}
+							<button
+								type="button"
+								aria-pressed={outputForm.default_format === fmt}
+								disabled={outputSaving}
+								onclick={() => (outputForm.default_format = fmt)}
+							>
+								{fmt}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<label class="field">
+					<span class="label">Bitrate</span>
+					<select bind:value={outputForm.default_bitrate} disabled={outputSaving}>
+						{#each outputOptions.bitrates as rate (rate)}
+							<option value={rate}>{rate}</option>
+						{/each}
+					</select>
+				</label>
+
+				<div class="field wide">
+					<span class="label">Output directory</span>
+					<input
+						type="text"
+						value={outputSettings?.output_dir ?? ''}
+						readonly
+						aria-label="Output directory (read-only)"
+					/>
+					<span class="hint mono"
+						>Set via DOWNLOAD_OUTPUT_DIR at deploy time — not editable here.</span
+					>
+				</div>
+
+				<label class="field wide">
+					<span class="label">Filename template</span>
+					<input type="text" bind:value={outputForm.output_template} disabled={outputSaving} />
+				</label>
+
+				<button type="submit" class="save" disabled={outputSaving || outputSettings === null}>
+					{outputSaving ? 'SAVING…' : 'SAVE'}
+				</button>
+			</form>
+		{/if}
 
 		{#if outputSaved && !outputSaving}
 			<p class="saved mono" role="status">Saved.</p>
@@ -215,14 +269,16 @@
 						>
 							{proxy.enabled ? 'enabled' : 'disabled'}
 						</button>
-						<button
-							type="button"
-							class="remove"
-							disabled={proxyBusy[proxy.id] || !proxy.enabled}
-							onclick={() => removeProxy(proxy)}
-						>
-							remove
-						</button>
+						{#if proxy.source === 'manual'}
+							<button
+								type="button"
+								class="remove"
+								disabled={proxyBusy[proxy.id]}
+								onclick={() => removeProxy(proxy)}
+							>
+								remove
+							</button>
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -300,17 +356,60 @@
 		grid-column: 1 / -1;
 	}
 
-	input[type='text'] {
+	/* Same "1-at-a-time active" toggle-group convention as QueueTable.svelte's filter
+	   tabs (DESIGN.md §6) -- reused here rather than inventing a second pattern for the
+	   same interaction. */
+	.option-group {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
+	.option-group button {
+		background: var(--bg-2);
+		border: 1px solid var(--line);
+		border-radius: 4px;
+		padding: var(--space-1) var(--space-3);
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+
+	.option-group button[aria-pressed='true'] {
+		border-color: var(--signal);
+		color: var(--text-primary);
+	}
+
+	.option-group button:hover:not(:disabled),
+	.option-group button:focus-visible {
+		border-color: var(--signal-dim);
+	}
+
+	.option-group button:disabled {
+		opacity: 0.6;
+		cursor: default;
+	}
+
+	input[type='text'],
+	select {
 		background: var(--bg-0);
 		border: 1px solid var(--line);
 		border-radius: 4px;
 		padding: var(--space-3);
 		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
 		font-family: var(--font-mono);
+		color: var(--text-primary);
 	}
 
-	input[type='text']:focus-visible {
+	input[type='text']:focus-visible,
+	select:focus-visible {
 		border-color: var(--signal-dim);
+	}
+
+	input[type='text'][readonly] {
+		color: var(--text-dim);
+		box-shadow: none;
 	}
 
 	.save {

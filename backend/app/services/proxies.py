@@ -5,6 +5,7 @@ just swapped for another rather than nursed back with the full 24h track ladder.
 """
 
 import logging
+import re
 import socket
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -20,6 +21,21 @@ from app.models import Proxy, ProxySource
 logger = logging.getLogger(__name__)
 
 PROXY_COOLDOWN_LADDER = [timedelta(minutes=15), timedelta(hours=1), timedelta(hours=4)]
+
+# spotdl 4.5.2's own accepted-proxy pattern, verified directly against the installed
+# source (spotdl.download.downloader.Downloader.__init__) rather than assumed --
+# literal IPv4 host required, hostnames and socks5:// are rejected. sync_from_file()
+# deliberately does NOT enforce this (a malformed proxies.txt line is instead caught,
+# and cooled down, the first time it's actually tried -- see that function's own
+# docstring) since this could drift from spotdl's regex without anyone noticing in an
+# unattended background sync. The manual-add UI form is a different context: a human
+# typing into a live form benefits from immediate feedback, so *this* one entry point
+# validates against it -- worst case a future spotdl loosening this regex means a
+# technically-valid proxy is rejected here until this constant is refreshed, which is a
+# far better failure mode than silently accepting anything.
+PROXY_URL_RE = re.compile(
+    r"^(http|https)://(?:(\w+)(?::(\w+))?@)?(\d{1,3}(?:\.\d{1,3}){3})(?::(\d{1,5}))?$"
+)
 
 
 def next_cooldown(consecutive_failures_before: int) -> timedelta:

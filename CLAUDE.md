@@ -1482,18 +1482,95 @@ any ──> cancelled
   manual row survived untouched (`source` still `manual`, stats unchanged) while the log
   line read `sync_from_file: 5 in file, 0 added, 0 re-enabled, 0 disabled` — proving the
   file-sync pass never even looked at it, not just that it happened not to change it.
-- **Not verified this version: an actual browser click-through of the `/settings` page.**
-  A headless-Playwright pass (the v09-established `npx playwright` + scratch
-  `node_modules` substitute) was attempted, but the Chromium binary download stalled
-  indefinitely partway through (2.5MB and no further progress after 7+ minutes) in this
-  session's sandboxed network egress — a plain `curl -I` to the redirect host succeeded,
-  but the actual binary host apparently isn't reachable the same way. Killed rather than
-  waited out further. Every non-visual check passed for real (API calls, `pick_proxy`
-  behavior, cache invalidation, migration round-trip, container boots, `svelte-check`/
-  `eslint`/`vite build`), but nobody has actually looked at the rendered `/settings` page
-  in a browser yet. **Whoever picks up visual polish next should do that manual/Playwright
-  pass before calling the settings UI's actual layout/interaction "done"** — this is an
-  honest gap, not an oversight to silently paper over.
+- **A real manual click-through (by the user, not a headless pass) of the first
+  `/settings` build found four real gaps that no automated check in this session had
+  caught** — the automated Playwright browser pass never ran at all (see below), and
+  `svelte-check`/`eslint`/`vite build`/pytest passing is exactly the kind of "correctness
+  verified, feature not" gap CLAUDE.md's own top-level rules warn about. Fixed in a
+  follow-up round, same version/branch:
+  1. **Format/bitrate were plain free-text inputs with zero validation** — a typo'd
+     format silently reached `get_downloader` and would only fail once a track actually
+     tried to download with it. Fixed with a live-introspected set of valid choices
+     rather than a hand-maintained guess: `downloads.get_supported_output_options()`
+     calls `spotdl.utils.arguments.create_parser()` (builds argparse groups only, no
+     argv parsing or I/O — safe/cheap to call purely for introspection) and reads the
+     real `--format`/`--bitrate` `choices` off the parser's `_option_string_actions` map
+     — there's no public argparse API for "give me this flag's choices" short of
+     parsing `--help` text, and a `KeyError` here (spotdl renaming/removing a flag) is
+     preferable to silently falling back to a stale hardcoded list. New
+     `GET /api/settings/output/options` backs the settings UI; `PATCH
+     /api/settings/output` now 400s server-side too if a submitted format/bitrate isn't
+     in that live set (defense in depth beyond the UI, verified for real: `{"default_
+     format": "wma"}` → `400 Unsupported format: 'wma'` against the real running `api`).
+     Format renders as the same `role="group"`/`aria-pressed` toggle-button convention
+     `QueueTable.svelte`'s filter tabs already established (DESIGN.md §6) — reused
+     rather than inventing a second pattern for the same "one active choice" interaction.
+     Bitrate uses a native `<select>` instead: ~28 values in a button row would be an
+     unreadable wall of buttons, a real cardinality difference from format's 6, not a
+     consistency compromise.
+  2. **The output-directory field was editable but meaningless** — the directory a
+     running container can actually write to is fixed by its volume mount at deploy
+     time (`DOWNLOAD_OUTPUT_DIR`), not by an app-level setting, so letting the UI edit
+     it just recorded a value nothing downstream would ever honor. Walked back
+     entirely rather than left half-working: `output_dir` dropped from `app_settings`
+     (migration `e92ed5ccf419`, round-tripped clean against the real shared Postgres
+     instance), removed from `UpdateOutputSettingsRequest` (pydantic silently ignores
+     the extra key if sent — verified `{"output_dir": "/hacked"}` has zero effect via a
+     real PATCH), and `download_track` now reads it straight from
+     `get_settings().download_output_dir` (env) like every version before v13 did. The
+     settings UI still shows it as a plain read-only field (informational — GET still
+     returns it, sourced live from env) with a hint explaining why it's not editable
+     there, rather than removing it from view entirely.
+  3. **A manually-added proxy could never actually be removed** — `DELETE
+     /api/proxies/{id}` originally soft-disabled every proxy regardless of source
+     (matching the plan's literal wording), which for a `source=manual` row is a dead
+     end: nothing (no `proxies.txt` line) will ever re-enable it, so the row just sits
+     forever as a permanently-disabled entry with its own "remove" button now disabled
+     too (since it was gated on `!proxy.enabled` under the mistaken assumption that
+     "disable" and "remove" were sequential steps of the same action). Fixed with a
+     source-conditional split: `source=manual` is now genuinely hard-deleted (`204`, row
+     gone from the table); `source=file` keeps the original soft-disable (`200`,
+     `enabled=false`) since the file is still that row's real source of truth and
+     `sync_from_file()`'s next run re-enables it exactly like removing then re-adding
+     the proxies.txt line, preserving its health stats. **Any future change to proxy
+     deletion needs to preserve this asymmetry** — it's not an inconsistency, the two
+     sources have genuinely different "what does delete even mean" answers. Verified for
+     real: a fresh manual proxy → `DELETE` → `204` → gone from `GET /api/proxies`; a
+     real, currently-healthy file-sourced proxy from earlier v07 testing → `DELETE` →
+     `200` + `enabled: false`, stats intact → re-enabled via `PATCH` afterward to restore
+     the shared dev DB's state. The settings UI's "remove" button is now only rendered
+     for `source=manual` rows at all (no confusing always-disabled button for file rows
+     — the enable/disable toggle already fully covers what "delete" would mean there).
+  4. **Manual proxy entries accepted literally any string** — `sync_from_file()`
+     deliberately never hard-validates (see its own docstring: a malformed `proxies.txt`
+     line is instead caught, and cooled down, the first time it's actually tried, since
+     duplicating spotdl's regex there risks drifting from an unattended background
+     process's actual behavior). The manual-add UI form is a different context — a
+     human typing into a live form benefits from immediate feedback instead of a
+     silent future failure — so `POST /api/proxies` now validates against
+     `proxies.PROXY_URL_RE`, spotdl's real accepted-proxy pattern (re-verified against
+     the currently-installed source, `spotdl.download.downloader.Downloader.__init__`,
+     not assumed from the v07 note alone — unchanged since then). The frontend mirrors
+     the same regex for instant feedback before the request even fires; the backend
+     check is the one that actually matters if the two ever drift. Verified for real: a
+     hostname (`http://proxy.example.com:8080`) and a `socks5://` URL — both real formats
+     spotdl's own Downloader rejects — both 400 against the real running `api`, no row
+     created.
+  All four fixes re-verified against the real docker-compose stack and real Postgres
+  instance (not mocked): `alembic upgrade head`/`downgrade -1`/`upgrade head`
+  round-tripped the `output_dir` column drop cleanly; all four backend processes
+  restarted with zero import errors; every endpoint above was exercised with real curl
+  calls against the real running `api` container, not just pytest. `svelte-check`/
+  `eslint`/`vite build` all still clean after the frontend rewrite.
+- **The Playwright browser click-through gap from the first round was never actually
+  closed — the Chromium download stalled again and was abandoned the same way.** This
+  session's sandboxed network egress appears unable to reach the actual binary host
+  (`playwright.download.prss.microsoft.com`) even though a plain `curl -I` to the
+  redirect host succeeds. The user's own manual testing (see the four fixes above) is
+  what actually caught the real bugs this round — **that manual pass is doing the job
+  the automated one was supposed to do, and should keep happening for any future
+  settings-UI change** until something in this environment's egress allowlist changes
+  enough to let the download complete.
 
 ### Version roadmap
 
