@@ -191,19 +191,6 @@
 					</select>
 				</label>
 
-				<div class="field wide">
-					<span class="label">Output directory</span>
-					<input
-						type="text"
-						value={outputSettings?.output_dir ?? ''}
-						readonly
-						aria-label="Output directory (read-only)"
-					/>
-					<span class="hint mono"
-						>Set via DOWNLOAD_OUTPUT_DIR at deploy time — not editable here.</span
-					>
-				</div>
-
 				<label class="field wide">
 					<span class="label">Filename template</span>
 					<input type="text" bind:value={outputForm.output_template} disabled={outputSaving} />
@@ -225,16 +212,17 @@
 		<h2 class="label">Proxy pool</h2>
 		<p class="hint mono">
 			File-managed (<code>proxies.txt</code>) and UI-managed proxies are both drawn from equally.
-			URLs are shown with credentials redacted.
+			URLs are shown with credentials redacted. Expected format:
+			<code>http(s)://[user:pass@]&lt;ipv4&gt;[:port]</code> — a literal IPv4 address, not a hostname.
 		</p>
 
 		<form class="add-proxy" onsubmit={onAddProxy}>
 			<input
 				type="text"
-				placeholder="http(s)://[user:pass@]&lt;ipv4&gt;[:port]"
+				placeholder="Proxy URL"
 				bind:value={newProxyUrl}
 				disabled={addingProxy}
-				aria-label="New proxy URL"
+				aria-label="New proxy URL, e.g. http(s)://[user:pass@]<ipv4>[:port]"
 				aria-describedby="add-proxy-error"
 			/>
 			<button type="submit" disabled={addingProxy}>{addingProxy ? 'ADDING…' : 'ADD'}</button>
@@ -356,6 +344,28 @@
 		grid-column: 1 / -1;
 	}
 
+	/* Same ≤640px breakpoint QueueTable.svelte's mobile stacked layout already
+	   established (DESIGN.md §6) -- below it, a 2-column grid squeezed format's 6
+	   toggle buttons and the bitrate select into two narrow lanes with nothing left
+	   over, confirmed by an actual mobile screenshot before this fix, not assumed. */
+	@media (max-width: 640px) {
+		.output-form {
+			grid-template-columns: 1fr;
+		}
+
+		.add-proxy {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		/* The filename template's default value (34 chars) is real content, not
+		   placeholder text, so it can't just be shortened -- confirmed by an actual
+		   mobile screenshot that it clipped its final character at the base size. */
+		input[type='text'] {
+			font-size: 0.8125rem;
+		}
+	}
+
 	/* Same "1-at-a-time active" toggle-group convention as QueueTable.svelte's filter
 	   tabs (DESIGN.md §6) -- reused here rather than inventing a second pattern for the
 	   same interaction. */
@@ -405,11 +415,6 @@
 	input[type='text']:focus-visible,
 	select:focus-visible {
 		border-color: var(--signal-dim);
-	}
-
-	input[type='text'][readonly] {
-		color: var(--text-dim);
-		box-shadow: none;
 	}
 
 	.save {

@@ -109,9 +109,10 @@ export interface Proxy {
 export interface OutputSettings {
 	default_format: string;
 	default_bitrate: string;
-	/** Informational only -- read-only in the UI. Fixed by the container's volume mount
-	 * at deploy time (DOWNLOAD_OUTPUT_DIR), not editable at the app level; never sent by
-	 * updateOutputSettings. */
+	/** Returned by the API for completeness but not rendered by the settings page at
+	 * all -- fixed by the container's volume mount at deploy time (DOWNLOAD_OUTPUT_DIR),
+	 * not editable at the app level, and confusing to even show as a field when nothing
+	 * about it can change. Never sent by updateOutputSettings. */
 	output_dir: string;
 	output_template: string;
 }

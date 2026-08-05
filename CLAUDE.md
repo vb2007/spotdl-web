@@ -1562,15 +1562,51 @@ any ──> cancelled
   restarted with zero import errors; every endpoint above was exercised with real curl
   calls against the real running `api` container, not just pytest. `svelte-check`/
   `eslint`/`vite build` all still clean after the frontend rewrite.
-- **The Playwright browser click-through gap from the first round was never actually
-  closed — the Chromium download stalled again and was abandoned the same way.** This
-  session's sandboxed network egress appears unable to reach the actual binary host
-  (`playwright.download.prss.microsoft.com`) even though a plain `curl -I` to the
-  redirect host succeeds. The user's own manual testing (see the four fixes above) is
-  what actually caught the real bugs this round — **that manual pass is doing the job
-  the automated one was supposed to do, and should keep happening for any future
-  settings-UI change** until something in this environment's egress allowlist changes
-  enough to let the download complete.
+- **The Playwright browser click-through gap was finally closed, but not by getting the
+  Chromium *download* to work — the download itself still stalls the same way every
+  time.** The actual fix: `~/.cache/ms-playwright/chromium-1234/` turned out to already
+  contain a fully-downloaded, working Chromium binary from some earlier, unrelated
+  session/setup — `playwright-core`'s `chromium.launch({ executablePath:
+  '.../chromium-1234/chrome-linux64/chrome' })` launches it directly, completely
+  bypassing the revision-matching lookup (and thus the download) that a bare
+  `chromium.launch()` would trigger. **Any future session that needs a real headless
+  browser in this sandboxed environment should check `~/.cache/ms-playwright/` for an
+  already-present revision and launch it via `executablePath` first**, rather than
+  assuming a fresh `npx playwright install` is required — the download is what's
+  actually blocked here, not browser automation itself.
+- **A real browser click-through (finally possible via the trick above) immediately
+  found two real mobile-responsive defects that no prior check caught** — confirmed via
+  actual screenshots at 390px width, not assumed: (1) `.output-form`'s `grid-template-
+  columns: repeat(2, 1fr)` had no mobile breakpoint at all, squeezing the format
+  toggle-button group and the bitrate select into two cramped columns instead of
+  QueueTable.svelte's own established "one field per line below 640px" convention
+  (DESIGN.md §6) — fixed with a matching `@media (max-width: 640px)` collapsing it to
+  `1fr`. (2) Both the add-proxy input's placeholder and the filename-template input's
+  real value clipped mid-string at 390px with no ellipsis or visual cue anything was
+  cut off — fixed by shortening the placeholder to "Proxy URL" and moving the full
+  format spec into the panel's own wrapping hint paragraph (placeholders don't wrap,
+  visible text does), plus a mobile-only `font-size` reduction on text inputs so the
+  34-character default filename template fits without clipping. **Any future narrow
+  input holding real (not placeholder) content this project ships should get the same
+  "does the real default value actually fit at 390px" check** — `svelte-check`/`eslint`/
+  a clean build proved nothing about this; only an actual rendered screenshot did.
+- **The output-directory field was removed from the settings page entirely** (not just
+  made read-only, per a later, more decisive user call) — showing it at all, even
+  read-only, was confusing UI real estate for a value nothing about the page can ever
+  change. `app.services.app_settings`/the `AppSettings` model were already output-dir-
+  free from the validation-fixes round above; this was a frontend-only removal (the
+  `<div class="field wide">` block and its now-dead `input[readonly]` CSS). The
+  `OutputSettings.output_dir` TypeScript field stays (the API still returns it for any
+  other consumer), just unrendered — not the same as removing it from the API contract.
+- **Manually clicking "remove" on the two stray disabled manual-proxy rows left over
+  from the validation-fixes round's own real-stack testing (`198.51.100.42:8080`,
+  `198.51.100.55:9090`) is what surfaced that they were still sitting there at all** —
+  they'd been soft-disabled under the *pre-fix* delete semantics, before `DELETE
+  /api/proxies/{id}` started hard-deleting manual rows, and nothing had gone back to
+  actually remove them since. Cleaned up via real UI clicks (confirmed gone from
+  `GET /api/proxies` afterward), not a curl call — **closing this out through the same
+  browser path a real user would use is what caught it**; a curl-only pass would have
+  "worked" without ever noticing the leftover rows looked wrong on the real page.
 
 ### Version roadmap
 

@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1785883115.903493,
-    "ast_hash": "9f4d49dede840ff382b7a6d8b73088ca",
+    "mtime": 1785947478.3680086,
+    "ast_hash": "33a02ce08b43fcb8fdded9707e44260c",
     "semantic_hash": ""
   },
   "README.md": {
@@ -335,13 +335,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/downloads.py": {
-    "mtime": 1785882430.0939083,
-    "ast_hash": "1a9b8a680dfe9f760762a1f419b10c14",
+    "mtime": 1785947004.5829935,
+    "ast_hash": "fb51fb830079ae9b9e6c3b424529080b",
     "semantic_hash": ""
   },
   "backend/app/tasks/download.py": {
-    "mtime": 1785882414.4482563,
-    "ast_hash": "f2e92b81e3d2623cf98b0fa92d573588",
+    "mtime": 1785947022.640761,
+    "ast_hash": "a56be22e0fbbb0f616cdc2b5ea2a959e",
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
@@ -355,8 +355,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_downloads.py": {
-    "mtime": 1785882510.4082558,
-    "ast_hash": "f4e64692228ad9d0dd280682f5313895",
+    "mtime": 1785947159.44056,
+    "ast_hash": "c2353c22675817a136a998a6e173ea60",
     "semantic_hash": ""
   },
   "docs/CI_SELF_HOSTED_RUNNER.md": {
@@ -390,8 +390,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/proxies.py": {
-    "mtime": 1785508239.2365837,
-    "ast_hash": "13329f889fc060f67cb88aa5a5ac157e",
+    "mtime": 1785947050.1199276,
+    "ast_hash": "e8f3938248d78a6ceee199eb454f69a1",
     "semantic_hash": ""
   },
   "backend/tests/test_proxies.py": {
@@ -425,13 +425,13 @@
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
-    "mtime": 1785882675.6941447,
-    "ast_hash": "196170d229acf26e6dafacb13218239d",
+    "mtime": 1785947336.5430381,
+    "ast_hash": "50ec03b27838b548f0885c016e6b9677",
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
-    "mtime": 1785882614.778606,
-    "ast_hash": "268af96584fbaad0137392a79c18b734",
+    "mtime": 1785947190.6378796,
+    "ast_hash": "20013086beb36b0a4f9134edcdb99eb2",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/Countdown.svelte": {
@@ -555,43 +555,48 @@
     "semantic_hash": ""
   },
   "backend/app/models/app_settings.py": {
-    "mtime": 1785882361.8530643,
-    "ast_hash": "d8a2e52901c2217f3c7916f941973c96",
+    "mtime": 1785946970.9145613,
+    "ast_hash": "74a72bb92ea8e85b9f736fc132b67cb9",
     "semantic_hash": ""
   },
   "backend/app/routers/proxies.py": {
-    "mtime": 1785882459.6101387,
-    "ast_hash": "05cf890b0c3e6e99891440488fb7ae3b",
+    "mtime": 1785947088.3345487,
+    "ast_hash": "bdee583d6e7689652002aed1cccbd9d5",
     "semantic_hash": ""
   },
   "backend/app/routers/settings.py": {
-    "mtime": 1785882473.2107055,
-    "ast_hash": "db72d3da2481be0cff2e6dab47f356dd",
+    "mtime": 1785947036.2693396,
+    "ast_hash": "8cd9f6fa072fc19336d6176650494929",
     "semantic_hash": ""
   },
   "backend/app/services/app_settings.py": {
-    "mtime": 1785882390.0212383,
-    "ast_hash": "d8e5f46d74ec07859223370a6cd3090d",
+    "mtime": 1785946987.6742744,
+    "ast_hash": "fccf828039c3c8cd916139d8cb0a923a",
     "semantic_hash": ""
   },
   "backend/tests/test_app_settings.py": {
-    "mtime": 1785882536.611348,
-    "ast_hash": "c60a1ef2c34f0292d86484081bbed799",
+    "mtime": 1785947107.524362,
+    "ast_hash": "20723af7de548651ab4f392129fd5fb7",
     "semantic_hash": ""
   },
   "backend/tests/test_proxies_router.py": {
-    "mtime": 1785882557.1612043,
-    "ast_hash": "deb32e0a4976d0d6c272dc2193244d6d",
+    "mtime": 1785947149.2611294,
+    "ast_hash": "d766a30470f242a4fda77eebbb9ff609",
     "semantic_hash": ""
   },
   "backend/tests/test_settings_router.py": {
-    "mtime": 1785882544.386672,
-    "ast_hash": "a9421ebaec480ed827b3c476e4ed0819",
+    "mtime": 1785947120.793924,
+    "ast_hash": "477b42dc0b8124021e120dd55a9ddcf1",
     "semantic_hash": ""
   },
   "frontend/src/routes/settings/+page.svelte": {
-    "mtime": 1785882699.9161544,
-    "ast_hash": "54df384c9d3830c054b847cdf379b392",
+    "mtime": 1785947336.4380338,
+    "ast_hash": "966a9236ee886875f98328504296e0af",
+    "semantic_hash": ""
+  },
+  "backend/alembic/versions/e92ed5ccf419_drop_app_settings_output_dir.py": {
+    "mtime": 1785946978.16587,
+    "ast_hash": "eecece497010f9a371299a472d95fc5d",
     "semantic_hash": ""
   }
 }
