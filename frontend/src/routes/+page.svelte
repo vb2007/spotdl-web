@@ -100,6 +100,7 @@
 			<span class="label dim">SIGNAL RECEIVER</span>
 		</div>
 		<div class="session">
+			<a class="settings-link mono" href={resolve('/settings')}>settings</a>
 			<span class="mono">{data.email}</span>
 			<button type="button" class="logout" onclick={onLogout}>disconnect</button>
 		</div>
@@ -161,6 +162,16 @@
 		gap: var(--space-3);
 		font-size: 0.8125rem;
 		color: var(--text-muted);
+	}
+
+	.settings-link {
+		color: var(--text-muted);
+		text-decoration: none;
+	}
+
+	.settings-link:hover,
+	.settings-link:focus-visible {
+		color: var(--signal-dim);
 	}
 
 	.logout {

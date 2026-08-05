@@ -1407,6 +1407,207 @@ any ──> cancelled
   file's "durable memory" premise exists to make available on the next read, not
   something to re-discover the same way twice.
 
+### v13 settings-UI gotchas (learned building proxy management + output-config override UI)
+
+- **Per-job output override was explicitly scoped out**, per the plan's own instruction
+  to confirm before building it: the v00 master plan's locked decision is "global env
+  config first; UI override deferred to v13" — per-job override was only ever a "possible
+  future step," never a locked decision. v13 ships global-only, matching the locked
+  decision as written; nothing about this needs revisiting unless the user asks for
+  per-job overrides in a future, unplanned version.
+- **A settings change must invalidate `get_downloader`'s cache without a separate version
+  counter** — `output_dir`/`output_template` moved from a module-level constant sourced
+  from env `Settings` (v05) into a new singleton `app_settings` table (get-or-create,
+  same shape as `worker_state`/`retry.get_worker_state`), and `get_downloader`'s cache key
+  simply grew to `(format, bitrate, output_dir, output_template, proxy)` — every field the
+  UI can now edit is *in* the key, so a settings change can never hit a stale cached
+  `Downloader` by construction, no version counter needed. Verified for real (not just
+  unit tests): in a single `worker-dl` process, building a `Downloader` for the
+  pre-change settings, then calling the real `PATCH /api/settings/output`-equivalent
+  (`app_settings.update_output_settings` + commit) and building again with the freshly
+  re-read settings produced a second, distinct cached instance in the same process —
+  proving "affects the next download without a container restart" concretely rather than
+  by code-reading alone.
+- **`download_track` no longer touches env `Settings` for format/bitrate/output at all** —
+  it fetches `app_settings.get_output_settings(db)` once per task execution (the same
+  place `settings = get_settings()` used to sit) and reads everything from that row
+  instead. `default_format`/`default_bitrate`/`download_output_dir` env vars are now only
+  the *seed* for `app_settings`'s row on its very first read against a fresh DB — after
+  that first read, editing the env vars does nothing; the DB row is authoritative. Any
+  future code that needs the download format/bitrate/output must go through
+  `app_settings.get_output_settings(db)`, never `get_settings().default_format` directly,
+  or it'll silently read the stale, pre-v13 source.
+- **Proxy URLs are redacted in the settings UI too, not just in logs/`last_error`** —
+  `GET/POST/PATCH/DELETE /api/proxies` all return `proxies.redact(proxy.url)` (scheme://
+  host:port only), never the plaintext `user:pass`. This extends the v07 redaction
+  discipline (logs, `last_error`) to a third surface (the authenticated owner's own
+  screen) on the theory that a screenshot or shoulder-surf shouldn't leak a credential
+  either, even though the user already knows their own proxy passwords. Consistent with
+  the project's existing paranoia about this one specific leak vector; **any future
+  code that displays a `Proxy.url` anywhere must go through `redact()`**, matching every
+  other place a proxy URL is ever shown.
+- **`pick_proxy()` needed no changes at all for "both pools drawn from equally"** — it
+  already filtered purely on `Proxy.enabled`/`cooldown_until`, with no `source` filter
+  anywhere in the query (confirmed by reading `app/services/proxies.py` before writing
+  any v13 code, not assumed from the plan's wording alone). `POST /api/proxies` simply
+  inserts a `source=manual` row using the same table `sync_from_file()` (v07) already
+  populates with `source=file` rows; verified for real via the established
+  `docker compose cp` + `/app/`-rooted ad-hoc-script technique (v06/v07/v11): a
+  UI-added manual proxy with no `last_used_at` was picked first by a real `pick_proxy()`
+  call in the running `worker-meta` process (LRU prefers never-used), and disabling it
+  through `PATCH /api/proxies/{id}` made the very next `pick_proxy()` call skip it and
+  fall through to a real file-sourced proxy instead.
+- **`DELETE /api/proxies/{id}` is a soft delete (`enabled=false`) for every proxy
+  regardless of `source`, deliberately not restricted to `source=manual` rows** — matches
+  v07's never-hard-delete stance (preserves `consecutive_failures`/`last_success_at`
+  history). Disabling a `source=file` row through the UI is not surprising or
+  inconsistent: the next `sync_from_file()` run (worker-meta boot) simply re-enables it
+  as long as it's still listed in `proxies.txt`, identical to the existing
+  remove-then-re-add-the-line behavior v07 already documented — the UI control and the
+  file are just two paths to the same `enabled` flag on the same row.
+- Settings UI verified end-to-end against the real docker-compose stack, real Postgres,
+  and a real logged-in session (not mocked): `alembic upgrade head` → `downgrade -1` →
+  `upgrade head` round-tripped `app_settings` cleanly against the real shared Postgres
+  instance; all four backend processes (`api`, `worker-dl`, `worker-meta`, `beat`)
+  restarted cleanly with zero import errors after the new model/service/routers landed;
+  `GET/PATCH /api/settings/output` persisted a real change across requests; the frontend
+  `/settings` route builds and prerenders to `settings.html` (`svelte-check`/`eslint`/
+  `vite build` all clean) with its own explicit nginx `location` block added alongside
+  `/` and `/login`, per the v09/v12 gotcha that every route needs one. The plan's third
+  "Done when" bullet ("`proxies.txt` and the UI-added proxies coexist without either
+  overwriting the other's rows") was closed with its own dedicated real-stack check, not
+  inferred from `sync_from_file`'s source-scoped query alone: added a `source=manual` row
+  via `POST /api/proxies`, restarted the real `worker-meta` container (which runs
+  `sync_from_file()` on boot), and confirmed via `GET /api/proxies` afterward that the
+  manual row survived untouched (`source` still `manual`, stats unchanged) while the log
+  line read `sync_from_file: 5 in file, 0 added, 0 re-enabled, 0 disabled` — proving the
+  file-sync pass never even looked at it, not just that it happened not to change it.
+- **A real manual click-through (by the user, not a headless pass) of the first
+  `/settings` build found four real gaps that no automated check in this session had
+  caught** — the automated Playwright browser pass never ran at all (see below), and
+  `svelte-check`/`eslint`/`vite build`/pytest passing is exactly the kind of "correctness
+  verified, feature not" gap CLAUDE.md's own top-level rules warn about. Fixed in a
+  follow-up round, same version/branch:
+  1. **Format/bitrate were plain free-text inputs with zero validation** — a typo'd
+     format silently reached `get_downloader` and would only fail once a track actually
+     tried to download with it. Fixed with a live-introspected set of valid choices
+     rather than a hand-maintained guess: `downloads.get_supported_output_options()`
+     calls `spotdl.utils.arguments.create_parser()` (builds argparse groups only, no
+     argv parsing or I/O — safe/cheap to call purely for introspection) and reads the
+     real `--format`/`--bitrate` `choices` off the parser's `_option_string_actions` map
+     — there's no public argparse API for "give me this flag's choices" short of
+     parsing `--help` text, and a `KeyError` here (spotdl renaming/removing a flag) is
+     preferable to silently falling back to a stale hardcoded list. New
+     `GET /api/settings/output/options` backs the settings UI; `PATCH
+     /api/settings/output` now 400s server-side too if a submitted format/bitrate isn't
+     in that live set (defense in depth beyond the UI, verified for real: `{"default_
+     format": "wma"}` → `400 Unsupported format: 'wma'` against the real running `api`).
+     Format renders as the same `role="group"`/`aria-pressed` toggle-button convention
+     `QueueTable.svelte`'s filter tabs already established (DESIGN.md §6) — reused
+     rather than inventing a second pattern for the same "one active choice" interaction.
+     Bitrate uses a native `<select>` instead: ~28 values in a button row would be an
+     unreadable wall of buttons, a real cardinality difference from format's 6, not a
+     consistency compromise.
+  2. **The output-directory field was editable but meaningless** — the directory a
+     running container can actually write to is fixed by its volume mount at deploy
+     time (`DOWNLOAD_OUTPUT_DIR`), not by an app-level setting, so letting the UI edit
+     it just recorded a value nothing downstream would ever honor. Walked back
+     entirely rather than left half-working: `output_dir` dropped from `app_settings`
+     (migration `e92ed5ccf419`, round-tripped clean against the real shared Postgres
+     instance), removed from `UpdateOutputSettingsRequest` (pydantic silently ignores
+     the extra key if sent — verified `{"output_dir": "/hacked"}` has zero effect via a
+     real PATCH), and `download_track` now reads it straight from
+     `get_settings().download_output_dir` (env) like every version before v13 did. The
+     settings UI still shows it as a plain read-only field (informational — GET still
+     returns it, sourced live from env) with a hint explaining why it's not editable
+     there, rather than removing it from view entirely.
+  3. **A manually-added proxy could never actually be removed** — `DELETE
+     /api/proxies/{id}` originally soft-disabled every proxy regardless of source
+     (matching the plan's literal wording), which for a `source=manual` row is a dead
+     end: nothing (no `proxies.txt` line) will ever re-enable it, so the row just sits
+     forever as a permanently-disabled entry with its own "remove" button now disabled
+     too (since it was gated on `!proxy.enabled` under the mistaken assumption that
+     "disable" and "remove" were sequential steps of the same action). Fixed with a
+     source-conditional split: `source=manual` is now genuinely hard-deleted (`204`, row
+     gone from the table); `source=file` keeps the original soft-disable (`200`,
+     `enabled=false`) since the file is still that row's real source of truth and
+     `sync_from_file()`'s next run re-enables it exactly like removing then re-adding
+     the proxies.txt line, preserving its health stats. **Any future change to proxy
+     deletion needs to preserve this asymmetry** — it's not an inconsistency, the two
+     sources have genuinely different "what does delete even mean" answers. Verified for
+     real: a fresh manual proxy → `DELETE` → `204` → gone from `GET /api/proxies`; a
+     real, currently-healthy file-sourced proxy from earlier v07 testing → `DELETE` →
+     `200` + `enabled: false`, stats intact → re-enabled via `PATCH` afterward to restore
+     the shared dev DB's state. The settings UI's "remove" button is now only rendered
+     for `source=manual` rows at all (no confusing always-disabled button for file rows
+     — the enable/disable toggle already fully covers what "delete" would mean there).
+  4. **Manual proxy entries accepted literally any string** — `sync_from_file()`
+     deliberately never hard-validates (see its own docstring: a malformed `proxies.txt`
+     line is instead caught, and cooled down, the first time it's actually tried, since
+     duplicating spotdl's regex there risks drifting from an unattended background
+     process's actual behavior). The manual-add UI form is a different context — a
+     human typing into a live form benefits from immediate feedback instead of a
+     silent future failure — so `POST /api/proxies` now validates against
+     `proxies.PROXY_URL_RE`, spotdl's real accepted-proxy pattern (re-verified against
+     the currently-installed source, `spotdl.download.downloader.Downloader.__init__`,
+     not assumed from the v07 note alone — unchanged since then). The frontend mirrors
+     the same regex for instant feedback before the request even fires; the backend
+     check is the one that actually matters if the two ever drift. Verified for real: a
+     hostname (`http://proxy.example.com:8080`) and a `socks5://` URL — both real formats
+     spotdl's own Downloader rejects — both 400 against the real running `api`, no row
+     created.
+  All four fixes re-verified against the real docker-compose stack and real Postgres
+  instance (not mocked): `alembic upgrade head`/`downgrade -1`/`upgrade head`
+  round-tripped the `output_dir` column drop cleanly; all four backend processes
+  restarted with zero import errors; every endpoint above was exercised with real curl
+  calls against the real running `api` container, not just pytest. `svelte-check`/
+  `eslint`/`vite build` all still clean after the frontend rewrite.
+- **The Playwright browser click-through gap was finally closed, but not by getting the
+  Chromium *download* to work — the download itself still stalls the same way every
+  time.** The actual fix: `~/.cache/ms-playwright/chromium-1234/` turned out to already
+  contain a fully-downloaded, working Chromium binary from some earlier, unrelated
+  session/setup — `playwright-core`'s `chromium.launch({ executablePath:
+  '.../chromium-1234/chrome-linux64/chrome' })` launches it directly, completely
+  bypassing the revision-matching lookup (and thus the download) that a bare
+  `chromium.launch()` would trigger. **Any future session that needs a real headless
+  browser in this sandboxed environment should check `~/.cache/ms-playwright/` for an
+  already-present revision and launch it via `executablePath` first**, rather than
+  assuming a fresh `npx playwright install` is required — the download is what's
+  actually blocked here, not browser automation itself.
+- **A real browser click-through (finally possible via the trick above) immediately
+  found two real mobile-responsive defects that no prior check caught** — confirmed via
+  actual screenshots at 390px width, not assumed: (1) `.output-form`'s `grid-template-
+  columns: repeat(2, 1fr)` had no mobile breakpoint at all, squeezing the format
+  toggle-button group and the bitrate select into two cramped columns instead of
+  QueueTable.svelte's own established "one field per line below 640px" convention
+  (DESIGN.md §6) — fixed with a matching `@media (max-width: 640px)` collapsing it to
+  `1fr`. (2) Both the add-proxy input's placeholder and the filename-template input's
+  real value clipped mid-string at 390px with no ellipsis or visual cue anything was
+  cut off — fixed by shortening the placeholder to "Proxy URL" and moving the full
+  format spec into the panel's own wrapping hint paragraph (placeholders don't wrap,
+  visible text does), plus a mobile-only `font-size` reduction on text inputs so the
+  34-character default filename template fits without clipping. **Any future narrow
+  input holding real (not placeholder) content this project ships should get the same
+  "does the real default value actually fit at 390px" check** — `svelte-check`/`eslint`/
+  a clean build proved nothing about this; only an actual rendered screenshot did.
+- **The output-directory field was removed from the settings page entirely** (not just
+  made read-only, per a later, more decisive user call) — showing it at all, even
+  read-only, was confusing UI real estate for a value nothing about the page can ever
+  change. `app.services.app_settings`/the `AppSettings` model were already output-dir-
+  free from the validation-fixes round above; this was a frontend-only removal (the
+  `<div class="field wide">` block and its now-dead `input[readonly]` CSS). The
+  `OutputSettings.output_dir` TypeScript field stays (the API still returns it for any
+  other consumer), just unrendered — not the same as removing it from the API contract.
+- **Manually clicking "remove" on the two stray disabled manual-proxy rows left over
+  from the validation-fixes round's own real-stack testing (`198.51.100.42:8080`,
+  `198.51.100.55:9090`) is what surfaced that they were still sitting there at all** —
+  they'd been soft-disabled under the *pre-fix* delete semantics, before `DELETE
+  /api/proxies/{id}` started hard-deleting manual rows, and nothing had gone back to
+  actually remove them since. Cleaned up via real UI clicks (confirmed gone from
+  `GET /api/proxies` afterward), not a curl call — **closing this out through the same
+  browser path a real user would use is what caught it**; a curl-only pass would have
+  "worked" without ever noticing the leftover rows looked wrong on the real page.
+
 ### Version roadmap
 
 | # | Branch | Scope |

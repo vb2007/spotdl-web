@@ -99,5 +99,21 @@
   "97": "Architecture",
   "98": "pg_backup.sh",
   "99": "test_worker.py",
-  "101": "46be30064f8b_add_cancelled_job_state.py"
+  "100": "test_beat_task.py",
+  "101": "46be30064f8b_add_cancelled_job_state.py",
+  "102": "AppSettings",
+  "103": "test_events.py",
+  "104": "test_proxies_router.py",
+  "105": "download_one",
+  "106": "test_settings_router.py",
+  "107": "beat.py",
+  "108": "stream",
+  "109": "321fd6d33d82_add_app_settings_table.py",
+  "110": "$lib/components/WorkerStatus.svelte",
+  "111": "_ensure_spotify_client",
+  "112": "sync_from_file",
+  "113": "createQueueStore",
+  "114": "e92ed5ccf419_drop_app_settings_output_dir.py",
+  "115": "ApiError",
+  "116": "+layout.ts"
 }

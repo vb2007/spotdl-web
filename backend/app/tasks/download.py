@@ -7,7 +7,7 @@ from spotdl.types.song import Song
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import DownloadedTrack, Track, TrackState
-from app.services import dedup, downloads, events, proxies, retry
+from app.services import app_settings, dedup, downloads, events, proxies, retry
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,7 @@ def download_track(track_id: str) -> None:
             events.publish_track_event(track.id, track.job_id, track.state.value)
             return
 
-        settings = get_settings()
+        output_settings = app_settings.get_output_settings(db)
 
         # Attempt 1 is always direct (per the locked "direct first -> wait out the ladder
         # -> then proxy" strategy); only the *following* attempt, once its ladder wait has
@@ -78,8 +78,15 @@ def download_track(track_id: str) -> None:
 
         try:
             song = Song.from_dict(track.song_json)
+            # output_dir stays env-sourced (never DB-editable, see app_settings.py's
+            # docstring) -- the directory a container can actually write to is fixed by
+            # its volume mount at deploy time, not by an app-level setting.
             downloader = downloads.get_downloader(
-                settings.default_format, settings.default_bitrate, proxy=proxy_url
+                output_settings.default_format,
+                output_settings.default_bitrate,
+                get_settings().download_output_dir,
+                output_settings.output_template,
+                proxy=proxy_url,
             )
             # worker-dl runs a single track at a time (--concurrency=1), so it's safe to
             # rebind this per attempt rather than threading track/job ids through
@@ -125,8 +132,8 @@ def download_track(track_id: str) -> None:
                 DownloadedTrack(
                     spotify_track_id=track.spotify_track_id,
                     file_path=str(output_path),
-                    format=settings.default_format,
-                    bitrate=settings.default_bitrate,
+                    format=output_settings.default_format,
+                    bitrate=output_settings.default_bitrate,
                 )
             )
             if proxy_id is not None:

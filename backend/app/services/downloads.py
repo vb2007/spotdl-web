@@ -1,8 +1,8 @@
 """Thin wrapper around spotdl's download machinery.
 
 Never construct a `Downloader` outside this module — building one initializes every
-audio/lyrics provider, so it must be cached per (format, bitrate, proxy) rather than
-built per track (see get_downloader).
+audio/lyrics provider, so it must be cached per (format, bitrate, output_dir,
+output_template, proxy) rather than built per track (see get_downloader).
 """
 
 import threading
@@ -11,21 +11,27 @@ from pathlib import Path
 from spotdl.download.downloader import Downloader
 from spotdl.types.options import DownloaderOptions
 from spotdl.types.song import Song
+from spotdl.utils.arguments import create_parser
 
 from app.config import get_settings
 from app.services.expansion import _ensure_spotify_client
 
-# spotdl's own default output filename template (spotdl.utils.config.DEFAULT_CONFIG
-# ["output"]), joined with our configurable output directory. Per-template UI override
-# is deferred to v13 — today only the directory is configurable.
-_OUTPUT_TEMPLATE = "{artists} - {title}.{output-ext}"
-
-_downloader_cache: dict[tuple[str, str, str | None], Downloader] = {}
+# format/bitrate/output_dir/output_template are now sourced from the DB-backed
+# app.services.app_settings (v13), passed in by the caller -- keeping them in the cache
+# key (rather than a separate version counter) is what makes a settings change actually
+# invalidate the right cached Downloader instances.
+_downloader_cache: dict[tuple[str, str, str, str, str | None], Downloader] = {}
 _cache_lock = threading.Lock()
 
 
-def get_downloader(format: str, bitrate: str, proxy: str | None = None) -> Downloader:
-    key = (format, bitrate, proxy)
+def get_downloader(
+    format: str,
+    bitrate: str,
+    output_dir: str,
+    output_template: str,
+    proxy: str | None = None,
+) -> Downloader:
+    key = (format, bitrate, output_dir, output_template, proxy)
     if key in _downloader_cache:
         return _downloader_cache[key]
 
@@ -37,7 +43,7 @@ def get_downloader(format: str, bitrate: str, proxy: str | None = None) -> Downl
         options: DownloaderOptions = {
             "format": format,
             "bitrate": bitrate,
-            "output": str(Path(settings.download_output_dir) / _OUTPUT_TEMPLATE),
+            "output": str(Path(output_dir) / output_template),
             "cookie_file": settings.cookie_file,
             # ProgressHandler defaults to a rich Live TUI display (simple_tui=False) —
             # harmless with a single cached Downloader per process (v05/v06), but rich
@@ -57,6 +63,26 @@ def get_downloader(format: str, bitrate: str, proxy: str | None = None) -> Downl
         downloader = Downloader(options)
         _downloader_cache[key] = downloader
         return downloader
+
+
+def get_supported_output_options() -> dict[str, list[str]]:
+    """The real, live set of --format/--bitrate values the installed spotdl accepts —
+    introspected from its own argparse definition (spotdl.utils.arguments.create_parser)
+    rather than a hardcoded list here that would silently drift the moment spotdl adds,
+    renames, or removes a choice. create_parser() only builds argparse groups (no argv
+    parsing, no I/O), so calling it purely for introspection is safe and cheap.
+
+    Uses ArgumentParser's private _option_string_actions map -- there's no public
+    argparse API for "give me this flag's choices" short of parsing --help text, and a
+    KeyError here (spotdl renaming/removing --format or --bitrate) is preferable to
+    silently falling back to a stale hardcoded list."""
+    parser = create_parser()
+    format_action = parser._option_string_actions["--format"]
+    bitrate_action = parser._option_string_actions["--bitrate"]
+    return {
+        "formats": list(format_action.choices),
+        "bitrates": list(bitrate_action.choices),
+    }
 
 
 def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]:

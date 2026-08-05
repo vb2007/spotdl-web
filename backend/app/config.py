@@ -37,7 +37,10 @@ class Settings(BaseSettings):
         alias="FRONTEND_ORIGINS",
     )
 
-    # spotdl / download behavior
+    # spotdl / download behavior. default_format/default_bitrate/download_output_dir are
+    # only the *seed* for app_settings (v13) on its first read in a fresh DB — after that,
+    # app.services.app_settings's DB-backed row is the source of truth, editable from the
+    # settings UI without a redeploy. cookie_file has no UI override; still env-only.
     spotify_client_id: str | None = Field(default=None, alias="SPOTIFY_CLIENT_ID")
     spotify_client_secret: str | None = Field(default=None, alias="SPOTIFY_CLIENT_SECRET")
     download_output_dir: str = Field(default="/downloads", alias="DOWNLOAD_OUTPUT_DIR")
@@ -61,7 +64,8 @@ class Settings(BaseSettings):
     pacing_min_sec: int = Field(default=0, alias="PACING_MIN_SEC")
     pacing_max_sec: int = Field(default=0, alias="PACING_MAX_SEC")
 
-    # Proxy rotation (v07) — plain file, UI management deferred to v13
+    # Proxy rotation (v07) — plain file; v13 adds UI-managed (source=manual) proxies
+    # alongside these file-sourced ones, both drawn from equally by pick_proxy().
     proxy_file: str = Field(default="/app/proxies.txt", alias="PROXY_FILE")
 
     @field_validator("allowed_emails", "frontend_origins", mode="before")
