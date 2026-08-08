@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1786229349.9186473,
-    "ast_hash": "4c583eeff60aeddf300a65dbd9a54174",
+    "mtime": 1786230013.1923726,
+    "ast_hash": "3f09fddf455414bcd1989b97a231b73e",
     "semantic_hash": ""
   },
   "README.md": {
@@ -600,13 +600,13 @@
     "semantic_hash": ""
   },
   "plan/master-v2/00-master-plan.md": {
-    "mtime": 1786229032.6634858,
-    "ast_hash": "c72a784b0c28420e8016e1eb1cbab5eb",
+    "mtime": 1786230107.9503446,
+    "ast_hash": "e6f0d3a3cce4ac7dc008fd5b60136bc7",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit.md": {
-    "mtime": 1786229063.695768,
-    "ast_hash": "f4d40aafe2aac078e572570575911aac",
+    "mtime": 1786230097.3819015,
+    "ast_hash": "afd97c17b1b545888d137c5e3624706d",
     "semantic_hash": ""
   },
   "plan/master-v2/v15-v1-gap-fixes.md": {
@@ -642,6 +642,16 @@
   "plan/master-v2/v21-multi-user-hardening.md": {
     "mtime": 1786229292.5772612,
     "ast_hash": "850dea3636127d5d4de11ca8c70539de",
+    "semantic_hash": ""
+  },
+  "docs/GOTCHAS.md": {
+    "mtime": 1786230049.708903,
+    "ast_hash": "f94221469dfb255b65b9707baa7a6673",
+    "semantic_hash": ""
+  },
+  "plan/master-v2/v14-audit-report.md": {
+    "mtime": 1786231612.3093266,
+    "ast_hash": "ceef5f23d69880c075ad5e4ffa4b3d82",
     "semantic_hash": ""
   }
 }
