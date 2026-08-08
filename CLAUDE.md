@@ -16,14 +16,21 @@ A self-hosted, single-user web wrapper around the **spotdl** Python library. Use
 album/playlist/artist/track URLs; the app downloads everything in the background, treating
 YouTube-Music rate limiting as an expected, permanent condition rather than a failure. Stated core
 goal: **get everything by dodging rate limitations, even if it takes an extremely long time.**
-Full roadmap and rationale: `plan/00-master-plan.md`. Per-version implementation detail:
-`plan/v00-planning.md` … `plan/v13-settings-ui.md`.
+**Master v1 (v00–v13) is complete, merged, and deployed.** Work is now on **master v2 (v14–v21)** —
+multi-user support, job/track hierarchy, and search/filter/archive. See the "Master v2" section at
+the bottom of this file, which supersedes the v1 roadmap for anything not yet built.
+
+Plans live in two folders, one per master version:
+- Master v1: `plan/master-v1/00-master-plan.md` + `plan/master-v1/v00-planning.md` …
+  `v13-settings-ui.md`. **Never edited again** — historical record.
+- Master v2: `plan/master-v2/00-master-plan.md` + `plan/master-v2/v14-audit.md` …
+  `v21-multi-user-hardening.md`.
 
 ### Workflow rules (do not deviate without asking)
 
 - **One feature at a time.** Never implement auth + library usage + error handling in parallel.
-  Work through `plan/vNN-*.md` in order. Subagents are used *within* a version, all focused on that
-  version's single concern — not spread across versions.
+  Work through `plan/master-vN/vNN-*.md` in order. Subagents are used *within* a version, all
+  focused on that version's single concern — not spread across versions.
 - **Branch per version**: `dev-<feature-name>` (e.g. `dev-scaffold`, `dev-auth`), branched from
   the current dev line (started from `dev-init`). Every completed version opens a PR into `main`.
   A "version" is a feature slice, not a release.
@@ -1608,7 +1615,7 @@ any ──> cancelled
   browser path a real user would use is what caught it**; a curl-only pass would have
   "worked" without ever noticing the leftover rows looked wrong on the real page.
 
-### Version roadmap
+### Version roadmap — master v1 (complete, merged, deployed)
 
 | # | Branch | Scope |
 |---|---|---|
@@ -1627,6 +1634,104 @@ any ──> cancelled
 | v12 | `dev-deploy-hardening` | cloudflared config, prod compose, backups, restart survival |
 | v13 | `dev-settings-ui` | *Final:* proxy management UI + output-config override UI |
 
-Full detail for each row lives in `plan/vNN-*.md`. Do not start a version out of order without
-asking the user first — the sequencing (e.g. auth before expansion, retry engine before proxy
-rotation, everything before the settings UI) is intentional.
+Full detail for each row lives in `plan/master-v1/vNN-*.md`. Do not start a version out of order
+without asking the user first — the sequencing (e.g. auth before expansion, retry engine before
+proxy rotation, everything before the settings UI) is intentional.
+
+---
+
+## Master v2 — multi-user, job hierarchy, search (v14–v21)
+
+Master v1 shipped a working POC that's deployed and downloading reliably. Master v2 makes it
+*usable* by more than one person. Full roadmap and rationale: `plan/master-v2/00-master-plan.md`.
+
+### The three problems v2 exists to fix
+
+1. **Single-user in everything but login.** Multiple people can authenticate, but there is no
+   `user_id` on `jobs`/`tracks`, no role concept, and `sessions` stores only an email. Everyone
+   sees everyone's data — including via SSE, which broadcasts every event on one global Redis
+   channel to every connected client.
+2. **No job/track hierarchy.** `QueueTable.svelte` renders one flat row per track and
+   `GET /api/tracks` returns every track across every job, unpaginated. A 1-track submission and a
+   3,000-track discography land in the same undifferentiated list.
+3. **Nothing is findable.** Three filter buttons (`all`/`waiting`/`lookup_failed`), no search, no
+   sorting, no way to retire finished work from view.
+
+### Locked decisions for v2
+
+| Area | Decision |
+|---|---|
+| Backward compatibility | **None required.** The DB holds only POC data and is disposable; destructive migrations are allowed |
+| User identity | Real `users` table; row created on first successful upstream login. `ALLOWED_EMAILS` still gates *who may log in*; the table governs *what they own and may do* |
+| Admin | `is_admin` column, seeded from a new `ADMIN_EMAIL` env var (which must also appear in `ALLOWED_EMAILS` — validated at startup) |
+| Data separation | **DB-level only.** Jobs/tracks are per-user; downloaded files stay in one shared library directory |
+| Dedup | Stays global — a track another user already downloaded resolves instantly as `skipped_duplicate`. Never re-fetch the same audio per user; that would multiply rate-limit exposure for zero benefit |
+| Ownership column | On `jobs` only. Tracks inherit via `job_id` — a denormalized `user_id` on `tracks` would be a second source of truth that can drift |
+| Queue fairness | Unchanged: global `jobs.priority DESC, scheduled_at ASC`. No round-robin, no per-user concurrency (concurrency is deliberate rate-limit exposure, per v1's locked decision) |
+| Admin visibility | Own jobs by default; explicit "all users" toggle, decided server-side from the session, never from a client-supplied flag |
+| Settings split | `/api/settings/output` + proxies + worker controls are **admin-only**; per-user settings (retention) are separate and open to everyone |
+| `LookupError` | **Unchanged from v1** — terminal, never auto-retried. Only the UI label changes: "Not found", never "Given up" |
+| Log retention | Soft-archive via `jobs.archived_at`, never hard delete. Per-user threshold, per-user "clear log" |
+| Live view | SSE scoped per user (`spotdl:events:{user_id}`); waterfall shows only the caller's tracks |
+| Search | Server-side across full history; archived excluded by default with an explicit opt-in |
+| Plan layout | `plan/master-v1/` + `plan/master-v2/`; version numbers continue at v14 and **never repeat** |
+
+### Job rollup status — two axes, never one stored flag
+
+A job is a *collection* whose members have independent outcomes, so it never gets a single stored
+success/fail column (which would need updating from every task and endpoint that touches a track
+state, and would be wrong the moment one path forgot). Both axes are **derived in SQL** from
+per-state track counts:
+
+**Lifecycle** — `expanding` (job.state) · `failed` (expansion errored, zero tracks) · `cancelled`
+(job.state) · `active` (≥1 track `pending`/`queued`/`downloading`) · `waiting` (no active, ≥1
+`waiting`) · `settled` (all tracks terminal).
+
+**Outcome**, only meaningful once `settled` — `complete` (all `completed`/`skipped_duplicate`) vs
+`partial` (≥1 `lookup_failed`/`cancelled`).
+
+A 10-track album where 1 track hits `LookupError` is **`settled · partial`** — rendered as
+"Done — 9 of 10" with a muted "1 not found". Never "failed" (90% succeeded on best effort), never a
+bare green tick (a real gap is hidden). `settled · partial` is a first-class filter value: *finished
+jobs that didn't get everything* is the one list actually worth acting on.
+
+**Job/track scope toggle**: `Jobs` (default) runs search/filter/sort against jobs, returning
+collapsed job rows; `Tracks` runs the same controls against tracks and auto-expands matching jobs
+showing only their matching tracks.
+
+### Version roadmap — master v2
+
+| # | Branch | Scope |
+|---|---|---|
+| v14 | `dev-v1-audit` | Read-only audit of v1's shipped code vs its plans; plan-folder reorg. No app code changes |
+| v15 | `dev-v1-gap-fixes` | Fix v14's findings (known: unwired pacing hook, `list_jobs` N+1) |
+| v16 | `dev-users-schema` | `users`, `user_settings`, `jobs.user_id`/`archived_at`, `sessions.user_id`. Schema only |
+| v17 | `dev-multi-user-auth` | User creation, admin seeding, owner-scoped queries, admin gating, **per-user SSE channel** |
+| v18 | `dev-job-centric-api` | Paginated/filtered/sorted/searchable endpoints; rollup status in one aggregate query |
+| v19 | `dev-archive-retention` | `archived_at` lifecycle, per-user retention, "clear log", hourly sweep |
+| v20 | `dev-job-centric-ui` | Job rows expanding to tracks, scope toggle, search, sorting, archive view, `/account` |
+| v21 | `dev-multi-user-hardening` | Adversarial two-user verification on the real stack, prod migration, doc reconciliation |
+
+### v2 rules that apply to every version
+
+- **Data separation is a security property, not a feature.** It fails *silently* — the UI looks
+  correct to everyone until someone spots a stranger's album. Any version touching queries,
+  endpoints, or events must re-run the cross-user sweep (v21's `verify_separation` script), and
+  must check **direct-id endpoints**, not only list endpoints. Non-owner access returns **404, not
+  403**, so the endpoint never confirms an id exists.
+- **The SSE stream is a data surface.** Before v17 it broadcast every user's track/job ids to every
+  connected client by default. `publish_track_event`/`publish_job_event` take the owning user as a
+  **required** argument specifically so a new call site cannot forget it and silently fall back to
+  broadcasting. Verify it by raw-capturing `curl -N /api/stream`, never by looking at the UI.
+- **`downloaded_tracks` is never touched by archiving or retention.** It is the dedup ledger; if
+  archiving could drop a ledger row it would cause a re-download, turning a UI convenience into
+  extra rate-limit exposure — the one thing this whole app exists to avoid.
+- **A `waiting` job is never archived on age alone.** It is deliberately sitting in a 24h ladder
+  step and may not touch again for a day; archiving it would hide exactly the long-running work
+  this app is built for. Eligibility is measured from the newest track `updated_at`, not
+  `job.created_at`.
+- **Pagination is cursor-based, not offset.** Rows change state constantly while a user pages, and
+  offset paging silently skips and duplicates rows under concurrent writes — so it must be tested
+  under concurrent writes, not on a static table.
+- **Sorting and searching are server-side, always.** Sorting a paginated result client-side sorts
+  one page; filtering client-side makes search silently lie about history.
