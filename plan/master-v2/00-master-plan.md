@@ -201,3 +201,25 @@ each "Done when" bullet checked individually with its own evidence. Additionally
    retrievable via the archive view — and that `downloaded_tracks` is never touched, so archiving
    can never cause a re-download.
 5. **`graphify update .`** after every code-modifying version, per the standing project rule.
+
+---
+
+## Amendments
+
+The plan above is the approved text, kept verbatim. Changes directed after approval are recorded
+here rather than edited into it, so the original record stays readable.
+
+### 2026-08-09 — CLAUDE.md split into rules vs. reference (folded into v14)
+
+The plan-reorganization section above says "the existing v01–v13 gotchas sections stay exactly as
+they are". They do — but they no longer live in `CLAUDE.md`.
+
+At 1,737 lines, `CLAUDE.md` was loaded into every session's context in full, ~81% of it version-by-
+version war stories describing code that master v2 is about to change. Per the user's direction, the
+v01–v13 gotchas and the two external-API reference sections moved **verbatim** into
+`docs/GOTCHAS.md` (with a topic index and a staleness warning), leaving `CLAUDE.md` at ~250 lines
+holding only rules, locked decisions, invariants, the state machine, and the roadmap.
+
+Keeping `CLAUDE.md` current remains a standing rule — but new findings now go to `docs/GOTCHAS.md`,
+and `CLAUDE.md` changes only when a rule, decision, invariant, or roadmap position changes.
+`plan/master-v2/v14-audit.md` carries the full task list and its verification.

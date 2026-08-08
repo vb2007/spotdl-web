@@ -12,187 +12,176 @@ Rules:
 
 ## Project: spotdl-web
 
-A self-hosted, single-user web wrapper around the **spotdl** Python library. User submits Spotify
+A self-hosted web wrapper around the **spotdl** Python library. Users submit Spotify
 album/playlist/artist/track URLs; the app downloads everything in the background, treating
-YouTube-Music rate limiting as an expected, permanent condition rather than a failure. Stated core
-goal: **get everything by dodging rate limitations, even if it takes an extremely long time.**
-**Master v1 (v00–v13) is complete, merged, and deployed.** Work is now on **master v2 (v14–v21)** —
-multi-user support, job/track hierarchy, and search/filter/archive. See the "Master v2" section at
-the bottom of this file, which supersedes the v1 roadmap for anything not yet built.
+YouTube-Music rate limiting as an expected, permanent condition rather than a failure.
 
-Plans live in two folders, one per master version:
-- Master v1: `plan/master-v1/00-master-plan.md` + `plan/master-v1/v00-planning.md` …
-  `v13-settings-ui.md`. **Never edited again** — historical record.
-- Master v2: `plan/master-v2/00-master-plan.md` + `plan/master-v2/v14-audit.md` …
-  `v21-multi-user-hardening.md`.
+**Core goal: get everything by dodging rate limits, even if it takes an extremely long time.**
+That inverts normal web-app priorities — durability beats throughput. A track may legitimately sit
+in the queue for days, and that is correct behavior, not a stall.
+
+**Status:** master v1 (v00–v13) is complete, merged, and deployed at `spotdl.vb2007.hu`.
+Current work is **master v2 (v14–v21)**: multi-user support, job/track hierarchy, search/archive.
+
+### Where things are
+
+| What | Where |
+|---|---|
+| Current roadmap + rationale | `plan/master-v2/00-master-plan.md` |
+| Per-version implementation detail | `plan/master-v2/vNN-*.md` (v14–v21) |
+| Master v1 plans (historical, never edited) | `plan/master-v1/` |
+| **Accumulated gotchas from v01–v13** | **`docs/GOTCHAS.md`** — indexed by topic; read the relevant section before touching an area |
+| Deploy runbook (Debian host) | `docs/DEPLOYMENT.md` |
+| Local dev runbook | `docs/LOCAL_DEV.md` |
+| CI (self-hosted runner) | `docs/CI_SELF_HOSTED_RUNNER.md` |
+| Product brief / UX requirements | `PRODUCT.md` |
+| Frontend design system | `frontend/src/DESIGN.md` |
+
+`docs/GOTCHAS.md` is the single most useful file when you hit something surprising. It records
+*why* things are the way they are and the failure modes already paid for. Don't read it end to end —
+use its topic index. Its entries describe the code as of v13; **verify a referenced file or
+function still exists before acting on it**, since v2 changes schema, endpoints, and the frontend.
 
 ### Workflow rules (do not deviate without asking)
 
-- **One feature at a time.** Never implement auth + library usage + error handling in parallel.
-  Work through `plan/master-vN/vNN-*.md` in order. Subagents are used *within* a version, all
-  focused on that version's single concern — not spread across versions.
-- **Branch per version**: `dev-<feature-name>` (e.g. `dev-scaffold`, `dev-auth`), branched from
-  the current dev line (started from `dev-init`). Every completed version opens a PR into `main`.
-  A "version" is a feature slice, not a release.
-- **A PR isn't merge-ready until every change on it has actually been re-tested — not just unit
-  tests.** After any fix (including ones made in response to a review pass), re-run the real
-  verification for what changed: the local `docker compose` stack against a real network/DB
-  where that's what the code touches, not only `pytest`. Unit tests can pass while a fix still
-  fails against the real dialect/runtime (e.g. a Postgres-specific error path a SQLite test
-  fixture can't exercise) — confirmed necessary in v04, where a post-review fix was re-verified
-  end-to-end against the real Postgres instance and the real docker-compose stack before being
-  called merge-ready, not just left at "pytest passes."
-- **The plan file's "Done when" section is a literal checklist, not a vibe — every bullet needs
-  its own concrete evidence (a log line, a command's output, a file listing) before a PR is called
-  merge-ready, not an extrapolation from a similar or partial test.** Testing one scenario and
-  assuming a differently-shaped one "probably" also works is exactly how regressions reach
-  "merge-ready" status undetected. Confirmed necessary in v05: real-stack testing covered a
-  single-track download, dedup, and disk reconciliation, but skipped the plan's explicit "a small
-  real album" bullet — and a real album turned out to fail 100% of the time on the very first
-  attempt (a cross-process `SpotifyClient` bug that only album-shaped songs trigger, invisible
-  from single-track testing). The PR had already been called merge-ready before that gap was
-  caught — by the user re-reading the plan file, not by this workflow. Before saying "merge-ready"
-  or "done when criteria met," re-read the plan's "Done when" list fresh and check off each line
-  against what was *actually run this session*, not what seems like it should generalize.
-- **Context comes from graphify, not exploration agents.** Run `graphify query "…"` /
-  `graphify path "A" "B"` / `graphify explain "concept"` for codebase questions before searching
-  manually. Run `graphify update .` after every code-modifying version.
-- **This file is the durable memory.** Every decision, gotcha, and number below must stay current —
-  a fresh session should be able to continue the project from `CLAUDE.md` + `plan/` alone, without
-  re-deriving anything already settled here.
-- **Develop and debug locally first, deploy to verify.** The user's PC (`docs/LOCAL_DEV.md`) is the
-  primary iteration loop — Docker already installed there, hot reload via
-  `docker-compose.override.yml`, fast to fix and re-test. The Debian production host
-  (`docs/DEPLOYMENT.md`) is a final-verification target for a version that's already working
-  locally, not a place to chase build errors interactively — a pull/rebuild/SSH-log-check round
-  trip per fix doesn't scale as a dev loop. Only fall back to debugging directly on the Debian
-  host for issues that are genuinely host-specific (the shared Postgres instance, tunnel/ingress,
-  restart survival) and can't reproduce locally.
+- **One feature at a time.** Work through `plan/master-vN/vNN-*.md` in order. Never implement two
+  versions in parallel. Subagents work *within* a version, on that version's single concern.
+- **Branch per version**: `dev-<feature-name>`, branched from `main`. Every completed version opens
+  a PR into `main`. A "version" is a feature slice, not a release.
+- **Do not start a version out of order** without asking — the sequencing is deliberate (schema
+  before enforcement, ownership before the API rework, UI last).
+- **"Done when" is a literal checklist, not a vibe.** Every bullet needs its own concrete evidence
+  (a log line, command output, a file listing) gathered *this session*. Testing one scenario and
+  assuming a differently-shaped one also works is how regressions reach "merge-ready" — this has
+  bitten the project twice (v05's untested album, v11's untested bump endpoint). Re-read the plan's
+  list fresh before saying merge-ready.
+- **A PR isn't merge-ready until every change on it has been re-tested against the real stack** —
+  the local `docker compose` stack, real Postgres, real network. Not just `pytest`. Unit tests pass
+  while a fix still fails against the real dialect or runtime.
+- **Mocked verification is not verification.** If a feature touches the network, a proxy, or the
+  database, at least one real end-to-end run is required before it ships.
+- **Context comes from graphify, not exploration agents.** Run `graphify query` / `path` / `explain`
+  before searching manually. Run `graphify update .` after every code-modifying version.
+- **Develop locally, deploy to verify.** The local stack is the iteration loop; the Debian host is
+  a final-verification target, not a place to chase build errors one SSH round trip at a time. Only
+  debug there for genuinely host-specific issues (shared Postgres, tunnel/ingress, restart survival).
+- **Keep this file current — but keep it short.** See "Maintaining this file" at the bottom.
 
 ### Development environments
 
-Two separate environments, sharing the physical Postgres server **and, for now, the same
-database on it too** — there's no real user data yet worth protecting from a local dev run, so
-the extra ceremony of a separate `spotdl_web_dev` database isn't worth it yet. Revisit once the
-app holds anything worth not wiping out (realistically once v09+/frontend makes it easy to
-generate real-looking state) — switch local dev's `DATABASE_URL` to a dedicated database at that
-point, everything else about the split stays the same.
+Two environments share the physical Postgres server **and currently the same database on it**.
+Revisit once there's data worth protecting; everything else about the split stays the same.
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
 |---|---|---|
-| Purpose | Day-to-day iteration | Final per-version verification + eventual real deployment |
+| Purpose | Day-to-day iteration | Final per-version verification + real deployment |
 | `.env` template | `.env.dev.example` | `.env.example` |
-| Compose invocation | `docker compose up` (override applies — hot reload) | `docker compose -f docker-compose.yml up` (override excluded) |
-| Postgres | Same physical server, reached over LAN by its real address | Same physical server, reached via `host.docker.internal` (same host as the containers) |
-| Database | `spotdl_web` — same one the Debian host uses, for now | `spotdl_web` (or whatever was created) |
+| Compose invocation | `docker compose up` (override applies — hot reload) | `docker compose -f docker-compose.yml up` |
+| Postgres | Same server, reached over LAN by its real address | Same server, reached via `host.docker.internal` |
 | Redis, other containers | Fully local, independent per environment | Fully local, independent per environment |
 
-`DATABASE_URL`'s host is the one thing that's genuinely different between the two `.env`
-templates — never copy `host.docker.internal` into the local one (Postgres isn't on the same
-host as the local containers, that would resolve to the wrong machine entirely) or a hardcoded
-LAN IP into the production one (fragile if the Debian host's address ever changes;
-`host.docker.internal` is already correct there since Postgres and the containers share a host).
+`DATABASE_URL`'s host is the one genuine difference between the two templates. Never copy
+`host.docker.internal` into the local one (Postgres isn't on the local containers' host) or a
+hardcoded LAN IP into the production one.
 
-### Locked decisions
+---
+
+## Locked decisions
+
+Settled. Don't re-litigate without asking.
 
 | Area | Decision |
 |---|---|
 | Backend | Python 3.12, FastAPI + Celery |
 | Task queue | Celery + Redis (Redis dockerized) |
-| Database | PostgreSQL, non-dockerized on the Debian 12 host; local dev and the deployed instance currently share one database (see Development environments) — split once there's real data to protect |
+| Database | PostgreSQL, non-dockerized on the Debian 12 host |
 | Frontend | SvelteKit + TypeScript |
-| Live updates | SSE now, WebSocket later if needed |
+| Live updates | SSE (WebSocket later if genuinely needed) |
 | Ingress | Cloudflare Tunnel only — no port forwarding, ever |
-| Auth | Proxy login to existing `vb2007.hu-api`, own session cookie |
+| Auth | Server-to-server login proxy to `vb2007.hu-api`, own session cookie |
 | Rate-limit handling | Per-track ladder **+** global circuit breaker |
-| Proxies | Plain file first (`proxies.txt`); UI management deferred to v13 |
 | Proxy strategy | Direct first → on failure wait out the ladder → *then* proxy |
-| Output config | Global env config first; UI override deferred to v13 |
-| Dedup | DB table keyed on Spotify track ID + disk reconciliation |
-| Extra levers (cookies file, own Spotify app creds, pacing delay) | None enabled initially; config hooks present, default off |
+| Dedup | Global ledger keyed on Spotify track ID + disk reconciliation |
 | Deployment | Docker Compose stack on Debian 12 |
-| CI | Self-hosted GitHub Actions runner on the same Debian 12 production host (not GitHub-hosted) — `docs/CI_SELF_HOSTED_RUNNER.md` |
+| CI | Self-hosted GitHub Actions runner on the production host |
+| Worker concurrency | `worker-dl` stays `--concurrency=1` — concurrency *is* rate-limit exposure |
 
-### Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)
+### Master v2 additions
 
-- `POST /auth/login`, body `{ email, password }` → `200` + `Set-Cookie: VB-AUTH=<sessionToken>;
-  Domain=localhost; Path=/` (`src/controllers/authentication.ts:39`). Errors: `400` missing
-  fields, `404` unknown email, `403` wrong password.
-- `sessionToken = HMAC-SHA256(salt + "/" + userId, CRYPTO_SECRET_KEY)`, no expiry, stored in Mongo.
-- `GET /user` behind `isAuthenticated` validates the `VB-AUTH` cookie — no `/auth/me` exists
-  upstream.
-- Public base URL: `https://api.vb2007.hu`.
-- **Gotcha 1:** `Domain=localhost` is hardcoded on the upstream cookie — a browser on any other
-  domain can never store it. Login must be **server-to-server**: spotdl-web's backend POSTs
-  credentials, checks the upstream status code, and never forwards `VB-AUTH` to the browser.
-  spotdl-web mints its own session cookie instead.
-- **Gotcha 2:** `POST /auth/register` is public upstream, so a successful upstream login only
-  proves "this is a real account," not "this person may use spotdl-web." An `ALLOWED_EMAILS` env
-  allowlist, checked after upstream success, is the actual authorization gate. Allowlist rejection
-  and wrong-password must return byte-identical responses so the two are indistinguishable.
+| Area | Decision |
+|---|---|
+| Backward compatibility | **None required.** The DB holds only POC data; destructive migrations are allowed |
+| User identity | Real `users` table, row created on first successful login. `ALLOWED_EMAILS` gates *who may log in*; the table governs *what they own and may do* |
+| Admin | `is_admin` column seeded from `ADMIN_EMAIL` (which must also be in `ALLOWED_EMAILS` — validated at startup) |
+| Data separation | **DB-level only.** Jobs/tracks are per-user; downloaded files stay in one shared library |
+| Dedup under multi-user | Stays global — a track another user already downloaded resolves instantly as `skipped_duplicate`. Never re-fetch the same audio per user |
+| Ownership column | On `jobs` only; tracks inherit via `job_id`. A denormalized copy would be a second source of truth that can drift |
+| Queue fairness | Unchanged: global `jobs.priority DESC, scheduled_at ASC` |
+| Settings split | Output config, proxies and worker controls are **admin-only**; per-user settings (retention) are open to everyone |
+| `LookupError` | Terminal, never auto-retried. Only the UI label changed — "Not found", never "Given up" |
+| Log retention | Soft-archive via `jobs.archived_at`, never hard delete. Per-user threshold |
+| Live view | SSE scoped per user (`spotdl:events:{user_id}`) |
+| Search/sort | Server-side, always. Cursor pagination, not offset |
 
-### spotdl 4.5.2 — verified API surface actually used
+---
 
-- `Spotdl(client_id, client_secret, ..., downloader_settings: DownloaderOptions)`;
-  lower-level: `Downloader(settings, loop)`.
-- Relevant `DownloaderOptions` keys: `proxy`, `threads`, `output`, `format`, `bitrate`,
-  `cookie_file`, `audio_providers`, `overwrite`, `archive`, `scan_for_songs`, `filter_results`,
-  `only_verified_results`, `yt_dlp_args`, `max_filename_length`.
-- `spotdl.utils.search.get_simple_songs(query, ...)` classifies and expands track/album/
-  playlist/artist URLs into `List[Song]` — this is the URL-expansion primitive; never hand-roll
-  Spotify Web API calls to replace it.
-- `Downloader.search_and_download(song) -> Tuple[Song, Optional[Path]]` is the per-track unit.
-  **It raises `DownloaderError` if called from a running asyncio event loop** — download tasks
-  must be plain sync Celery tasks, not async.
-- Errors: `AudioProviderError` (`spotdl.providers.audio.base`) = the rate-limit/yt-dlp-failure
-  signal. `LookupError` = no result found on any provider (terminal, per user's explicit
-  instruction — "it can't do much about it"). `DownloaderError` = config problems (bad proxy
-  string, missing ffmpeg, wrong calling context).
-- `Downloader.progress_handler.get_new_tracker(song)` + `notify_*` hooks are the live-progress
-  source for SSE.
-- spotdl ships default public Spotify credentials — `SPOTIFY_CLIENT_ID/SECRET` are optional
-  overrides, not hard requirements.
-
-### Architecture
+## Architecture
 
 ```
-Cloudflare Tunnel ──> cloudflared (container)
-                          │
-                          ├─> web (SvelteKit, static adapter)
-                          └─> api (FastAPI: auth, jobs, SSE)
-                                   │
-      ┌────────────────────────────┼─────────────────────────┐
-      │                            │                         │
-  PostgreSQL                    Redis                   worker-meta (Celery, -Q meta)
- (host, source of truth)   (broker + pub/sub)           worker-dl  (Celery, -Q downloads,
-      │                            │                            --concurrency=1)
+Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origin /api proxy)
+                                         └─> api (FastAPI: auth, jobs, SSE)
+                                                │
+      ┌─────────────────────────────────────────┼──────────────────────────┐
+      │                                         │                          │
+  PostgreSQL                                 Redis                 worker-meta (-Q meta)
+ (host, source of truth)              (broker + pub/sub)           worker-dl  (-Q downloads,
+      │                                         │                   --concurrency=1)
       └──── scheduled_at ──── beat (dispatch_due_tracks, every 30s)
 ```
 
-**Critical rule: never use Celery `eta`/`countdown` for backoff delays.** With the Redis broker,
-ETA tasks are prefetched into worker memory; a restart during a 24h wait loses or duplicates it.
-`tracks.scheduled_at` in Postgres is the only source of truth for "when is this next eligible."
-Celery Beat's `dispatch_due_tracks` (every 30s) selects due tracks (`FOR UPDATE SKIP LOCKED`) and
-hands them to Celery, which is purely the executor. Backoff = `UPDATE tracks SET scheduled_at =
-now() + interval`, fully inspectable with plain SQL, survives any restart.
+### Invariants — break these and things fail silently
 
-Other notes: `worker-dl` runs `--concurrency=1 --prefetch-multiplier=1` (deliberate — concurrency
-is rate-limit exposure); `worker-meta` handles expansion/reconciliation so long downloads never
-block queue feedback; `Downloader` instances are cached per `(format, bitrate, proxy)` in the
-worker process since construction initializes every provider; Postgres is reached from containers
-via `extra_hosts: host.docker.internal:host-gateway`; SSE responses need `Cache-Control: no-cache`,
-`X-Accel-Buffering: no`, and a `:heartbeat` comment every 15s or Cloudflare Tunnel closes the
-idle connection — `EventSource` reconnects automatically, and the frontend refetches full state via
-REST on every reconnect rather than replaying missed events.
+- **Never use Celery `eta`/`countdown` for backoff.** ETA tasks are prefetched into worker memory;
+  a restart during a 24h wait loses or duplicates them. `tracks.scheduled_at` in Postgres is the
+  *only* schedule source of truth; beat polls it and Celery is purely the executor.
+- **`worker-dl` runs `--concurrency=1 --prefetch-multiplier=1`.** Deliberate.
+- **Every spotdl entry point goes through `expansion._ensure_spotify_client()`.** `SpotifyClient`
+  is a process-wide singleton that raises on a second `.init()`.
+- **Every proxy URL that is logged or persisted goes through `proxies.redact()`.** spotdl's own
+  error messages echo credentials.
+- **Every enum column uses `values_callable`**, and every migration creating a native enum has an
+  explicit `DROP TYPE` in `downgrade()`.
+- **Every frontend route needs both the SvelteKit `ssr`/`prerender` exports and its own nginx
+  `location` block.** Missing either half ships a 404 that only appears on hard navigation.
+- **Compose override files merge list keys and replace mapping keys.** Use `!override` when a list
+  must replace. Verify with `docker compose config`, never assume.
+- **Never load queue data with a per-job or per-row request loop.** One bulk request, always.
 
-### Track state machine
+### Master v2 invariants
+
+- **Data separation is a security property.** It fails silently — the UI looks right to everyone
+  until someone spots a stranger's album. Any change to queries, endpoints, or events must re-run
+  the cross-user sweep, and must cover **direct-id endpoints**, not just list endpoints. Non-owner
+  access returns **404, not 403**, so an id's existence is never confirmed.
+- **The SSE stream is a data surface.** Before v17 it broadcast every user's ids to every client.
+  `publish_*_event` takes the owning user as a **required** argument so a new call site can't
+  silently fall back to broadcasting. Verify by raw-capturing `curl -N /api/stream`, never via the UI.
+- **`downloaded_tracks` is never touched by archiving or retention.** It's the dedup ledger; if
+  archiving dropped a row it would cause a re-download — extra rate-limit exposure, the one thing
+  this app exists to avoid.
+- **A `waiting` job is never archived on age alone.** It's deliberately in a 24h ladder step.
+  Eligibility is measured from the newest track `updated_at`, not `job.created_at`.
+
+---
+
+## Track state machine
 
 ```
 pending ──> queued ──> downloading ──> completed
                 │            │
                 │            ├─> AudioProviderError ─> waiting (scheduled_at = now + ladder)
                 │            │                          └─> queued (via beat) ... ∞
-                │            ├─> LookupError ──────────> lookup_failed  (terminal, notify, never retry)
+                │            ├─> LookupError ──────────> lookup_failed  (terminal, never retried)
                 │            └─> other error ─────────> waiting (same ladder)
                 └─> skipped_duplicate
 any ──> cancelled
@@ -201,1537 +190,65 @@ any ──> cancelled
 ### Retry engine numbers
 
 - **Per-track ladder** (`AudioProviderError`): `15m → 1h → 4h → 12h → 24h`, then 24h forever.
-  Never gives up; track goes to the back of the queue each retry.
+  Never gives up. `LADDER_SECONDS` overrides it for testing.
 - **Global circuit breaker**: 5 consecutive `AudioProviderError`s (any track) trips a pause —
-  `30m → 2h → 6h` escalating on successive trips; resets to zero on the first success afterward.
-  While tripped, `dispatch_due_tracks` dispatches nothing.
-- **Proxy escalation**: attempt 1 is always direct. On failure, wait out the ladder delay first —
-  only the *following* attempt uses a proxy (the wait is the point; it avoids the switch looking
-  like an evasion burst). A failing proxy gets its own `cooldown_until`.
-- **`LookupError` is terminal** — recorded, surfaced in the UI, never retried automatically.
-- **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`, default 0): randomized inter-track delay,
-  wired but off by default — the first dial to turn if 429s stay frequent after proxies.
+  `30m → 2h → 6h` escalating; resets to zero on the first success. While tripped,
+  `dispatch_due_tracks` dispatches nothing. Only real `AudioProviderError`s feed it.
+- **Proxy escalation**: attempt 1 is always direct. On failure, wait out the ladder delay *first*;
+  only the following attempt uses a proxy. A failing proxy gets its own `cooldown_until`.
+- **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`): randomized inter-track delay. **Currently
+  declared in config but unwired — v15 fixes this.** The first dial to turn if 429s stay frequent.
 
-### v01 deployment gotchas (learned deploying to the real host and local dev)
+### Job rollup status (v2) — two derived axes, never one stored flag
 
-- **`pydantic-settings` auto-JSON-decodes any `list[...]`-typed field's raw env value before
-  custom `field_validator`s run.** A plain comma-separated string (`ALLOWED_EMAILS=a@b.com,c@d.com`)
-  is not valid JSON and crashes `Settings()` at import time with a `SettingsError` — the app never
-  starts, `/api/health` gives no response at all. Fix: annotate the field
-  `Annotated[list[str], NoDecode]` (from `pydantic_settings`) so the raw string reaches the
-  before-validator unparsed. Applies today to `allowed_emails`/`ladder_seconds`; **any future
-  list-typed config field (proxy list in v07, `audio_providers` override, etc.) needs the same
-  annotation** or it will crash the same way.
-- **Target host runs a shared Postgres instance, not a fresh install** — Postgres 18 via the PGDG
-  apt repo (not Debian 12's bundled 15), already hosting roles for other self-hosted services
-  (Matrix/Synapse, Vaultwarden). Don't assume `/etc/postgresql/15/main/`; get the real paths from
-  `SHOW config_file` / `SHOW hba_file`. `pg_hba.conf` also already has entries for those other
-  services — it's first-match-wins top-to-bottom, so an earlier broad rule can shadow anything
-  appended for spotdl-web.
-- **Don't hardcode `172.17.0.1`** (the default `docker0` bridge gateway) anywhere — `docker compose
-  up` creates its own project-scoped bridge with a different subnet. A host-side `psql` test against
-  `172.17.0.1` can succeed (the host has a direct interface there) while giving no information about
-  whether a container can reach it. Always use `host.docker.internal` (resolved via
-  `extra_hosts: host-gateway` in `docker-compose.yml`) in `DATABASE_URL`, never a literal IP.
-- **On the local dev PC (rolling-release Arch): a pending kernel update blocks all Docker container
-  networking**, not just this project's. Symptom is every container failing at startup with
-  `failed to add the host <=> sandbox pair interfaces: operation not supported` — the `veth` kernel
-  module (and everything else) for the *currently running* kernel has already been deleted from
-  disk in favor of a newer installed one, and modules can't be loaded for a kernel that's no longer
-  on disk. Check `uname -r` against `pacman -Q linux` and whether `/lib/modules/$(uname -r)/`
-  exists; fix is a reboot, nothing project-specific.
-- **`docker-compose.override.yml`'s list-type keys merge with `docker-compose.yml` instead of
-  replacing it** — `ports`, `volumes`, etc. combine across files; only keys like `command`/`build`
-  replace outright. `web`'s override used to add a second `ports` entry instead of replacing the
-  base file's, so both `127.0.0.1:5173:80` (base, stale — dev serves via `vite dev` on 5173, not
-  nginx on 80) and `127.0.0.1:5173:5173` (override, correct) got programmed as separate host
-  bindings on the same address, causing `Bind for 127.0.0.1:5173 failed: port is already allocated`
-  at container start. Fixed with the `!override` merge tag on that `ports:` key. **Any new
-  override list value that's meant to replace rather than extend the base file needs the same
-  tag** — verify with `docker compose config` rather than assuming a plain list "just works."
-- Full deploy runbook: `docs/DEPLOYMENT.md`; local dev runbook: `docs/LOCAL_DEV.md`.
+**Lifecycle**: `expanding` · `failed` (expansion errored, zero tracks) · `cancelled` · `active`
+(≥1 track `pending`/`queued`/`downloading`) · `waiting` (no active, ≥1 `waiting`) · `settled` (all
+terminal).
 
-### v02 schema gotchas (learned building the SQLAlchemy models + initial migration)
+**Outcome**, only once `settled`: `complete` (all `completed`/`skipped_duplicate`) vs `partial`
+(≥1 `lookup_failed`/`cancelled`).
 
-- **`sqlalchemy.Enum(SomePyEnum, ...)` stores member *names* in the database by default, not
-  member *values*.** A Python enum with lowercase string values (matching the plan's exact
-  wording, e.g. `TRACK = "track"`) still produces a Postgres `ENUM('TRACK', 'ALBUM', ...)` unless
-  the column is declared with `values_callable=lambda cls: [e.value for e in cls]`. Applies to
-  every enum column in this schema (`job_source_type`, `job_state`, `track_state`,
-  `track_error_type`, `proxy_source`) — **any future enum column needs the same
-  `values_callable`** or the DB values silently drift from what every plan doc and downstream
-  service code assumes.
-- **`op.drop_table()` does not drop the native Postgres `ENUM` type it implicitly created** —
-  after `alembic downgrade base`, the tables were gone but `\dT` still showed all 5 enum types,
-  failing the "downgrade cleanly drops everything" check. Fixed by adding explicit
-  `op.execute("DROP TYPE ...")` calls at the end of `downgrade()` for every enum type the revision
-  creates. **Any future revision that adds a new native enum column needs the same explicit drop
-  in its `downgrade()`** — autogenerate never emits this on its own.
-- The partial index (`tracks (scheduled_at) WHERE state = 'waiting'`) that the v02 plan warned
-  might need hand-fixing actually came out of `alembic revision --autogenerate` correctly on a
-  from-scratch DB (verified: `\d tracks` shows `WHERE state = 'waiting'::track_state`) — the
-  known autogenerate limitation is about *diffing* an existing partial index on a later
-  `--autogenerate` run, not initial creation. Still worth a manual eyeball on every future
-  partial-index revision rather than trusting the diff blindly.
-- The `sessions` table's model class is named `UserSession` (`app/models/session.py`), not
-  `Session` — `sqlalchemy.orm.Session` is the DB-session type FastAPI routes depend-inject
-  everywhere (`db: Session = Depends(get_db)`), so a same-named ORM model would force an import
-  alias at every call site touching both. v03's `app/services/sessions.py` should import
-  `UserSession`, not shadow-name it.
-- `app/db.py`'s `Base` now declares a `type_annotation_map` (`datetime` → `DateTime(timezone=True)`,
-  `uuid.UUID` → `PgUUID(as_uuid=True)`) so every model just writes `Mapped[datetime]` /
-  `Mapped[uuid.UUID]` and gets the right Postgres type — every timestamp in this schema must be
-  `timestamptz`, and repeating `DateTime(timezone=True)` on ~15 columns individually was the
-  alternative. **Any future timestamp/uuid column added outside this mapping needs an explicit
-  type override**, not a bare `Mapped[...]`, or it'll get the wrong (naive/non-UUID-typed) column.
-- Verified against a scratch `postgres:17-alpine` container (not the shared dev/prod Postgres —
-  no reason to touch real data for a schema-only version): `upgrade head` → `downgrade base` →
-  `upgrade head` round-trips cleanly, `worker_state` seed row (id=1) survives, and every field
-  referenced by v04–v13's plan docs (`jobs.priority`, `tracks.attempt_count`/`scheduled_at`/
-  `used_proxy_id`, `proxies.*`, `worker_state.*`) already exists here — no ad-hoc migration should
-  be needed until v13's possible new `settings` table.
-
-### v03 auth gotchas (learned building the upstream login proxy + session cookie)
-
-- **The session cookie is set with `Secure=True`, which conflicts with local dev's plain
-  `http://localhost` — except it doesn't**: modern browsers (Chrome, Firefox) treat
-  `http://localhost` as a secure context and will store/send `Secure` cookies over it without
-  real TLS. No dev-only exception was needed. The same is *not* true for `httpx`'s cookie jar
-  (used by FastAPI's `TestClient`) — it enforces the `Secure` flag literally by scheme, so tests
-  must use `TestClient(app, base_url="https://testserver")` or the session cookie silently never
-  round-trips on the next request. Any future test hitting a cookie-authenticated route needs the
-  same `https://` base_url.
-- **`UserSession.last_seen_at` can come back timezone-naive** even though the column is
-  `timestamptz` (via `Base.type_annotation_map`, see v02) — only true against real Postgres/psycopg;
-  SQLite (used for fast in-process auth tests, `UserSession.__table__.create()` on an in-memory
-  engine rather than spinning up Postgres) returns a naive datetime for `func.now()` server
-  defaults. `sessions.py`'s idle-timeout check normalizes with `.replace(tzinfo=timezone.utc)` if
-  `tzinfo is None` before comparing — needed purely for the SQLite test path, a no-op against real
-  Postgres, but removing it breaks every session-validating test.
-- SQLite in-memory (`sqlite:///:memory:`) needs `poolclass=StaticPool` +
-  `connect_args={"check_same_thread": False}` for FastAPI test fixtures — the default per-thread
-  pool gives the request-handling thread (TestClient dispatches through Starlette's thread pool) a
-  *different, empty* in-memory database than the one the fixture created tables on, surfacing as a
-  confusing "no such table" error rather than an obvious connection-pooling one.
-- `httpx` moved from `dev` to core `pyproject.toml` dependencies — `upstream_auth.py` needs it at
-  runtime to call `vb2007.hu-api`, not just in tests.
-- `SESSION_SECRET` (env var, scaffolded since v01) is still unused — sessions are opaque random
-  tokens (`secrets.token_hex(32)`) looked up in Postgres, not signed/stateless, so nothing in v03
-  needed it. Leave it wired in `config.py` for whichever future version wants signed cookies or
-  CSRF tokens rather than removing it as dead config.
-- **The live `https://api.vb2007.hu` has been having issues as of 2026-07-28.** Until it's
-  healthy again, local dev's `UPSTREAM_AUTH_BASE_URL` points at a local instance of
-  `vb2007.hu-api` running on the host machine's port 3000 instead — set in local `.env`
-  (gitignored, never committed) as `UPSTREAM_AUTH_BASE_URL=http://host.docker.internal:3000`,
-  **not** `http://localhost:3000` (the `api` container has its own network namespace;
-  `localhost` there means the container itself — same class of gotcha as the `DATABASE_URL`
-  note in v01). Test account is `balazs@vb2007.hu` (user `vb2007`) in `ALLOWED_EMAILS`; the
-  password lives only in the local `.env` — **this repo is public on GitHub, never write that
-  password into `CLAUDE.md`, a plan doc, or any other tracked file.** Switch both settings back
-  once the live API is confirmed working again.
-- **Adding a new core runtime dependency (e.g. `httpx` for `upstream_auth.py`) to
-  `pyproject.toml` does not take effect in an already-running container** —
-  `docker compose restart <service>` reuses the existing image, so the container keeps crash-
-  looping on `ModuleNotFoundError` for the new import. Needs `docker compose build <service>`
-  (or `up -d --build`) to actually rebuild the image. Applies to every future version that adds
-  a new backend dependency, not just this one.
-
-### v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)
-
-- **spotdl 4.5.2 hard-pins `fastapi<0.104` and `uvicorn<0.24` as unconditional (non-extra)
-  dependencies**, for its own bundled web UI (`spotdl.web`) that this project never imports or
-  runs — but `import spotdl` (triggered transitively by `from spotdl.utils.search import
-  get_simple_songs`) always runs `spotdl/__init__.py` → `spotdl.console` →
-  `spotdl.console.entry_point`, which unconditionally does `from spotdl.console.web import web`
-  at module level. So spotdl.web's fastapi/uvicorn imports execute on every process that touches
-  spotdl at all, and its pins directly conflict with our own `fastapi>=0.115`/
-  `uvicorn[standard]>=0.32`. Fixed with `uv`'s resolver override, not a version downgrade:
-  ```toml
-  [tool.uv]
-  override-dependencies = ["fastapi>=0.115", "uvicorn>=0.32"]
-  ```
-  Verified (don't just trust the resolver) that `spotdl.web`'s code actually still imports
-  cleanly against the newer pinned versions — confirmed via `import spotdl.utils.search` in the
-  built venv/image; only a handful of harmless `DeprecationWarning`s (`on_event` vs lifespan)
-  come out of it. **Plain `pip install .` does not read `[tool.uv]` at all** and will hit the
-  original conflict — `backend/Dockerfile` was changed from `pip install .` to `pip install uv
-  && uv pip install --system .` for this reason. Any future bump of spotdl, fastapi, or uvicorn
-  needs this override re-verified the same way (real import check), not assumed.
-- **`SpotifyClient` (`spotdl.utils.spotify`) is a process-wide singleton whose `.init()` raises
-  `SpotifyError` if called a second time** — a real risk here since `worker-meta` runs with
-  Celery's default prefork concurrency (multiple task executions can reuse the same worker
-  process) and every `expand_job` call otherwise would re-call `expansion.expand()`.
-  `app/services/expansion.py`'s `_ensure_spotify_client()` does a double-checked-lock pattern
-  (`SpotifyClient()` to probe, catch `SpotifyError`, lock, probe again, then `.init()`) so init
-  runs at most once per worker process. **Any future spotdl entry point added outside
-  `expansion.py` must go through `_ensure_spotify_client()` too**, never call
-  `SpotifyClient.init()` directly.
-- Default Spotify app credentials (used when `SPOTIFY_CLIENT_ID`/`SECRET` are unset, per the
-  v01 locked decision) are spotdl's own published defaults —
-  `spotdl.utils.config.DEFAULT_CONFIG["client_id"/"client_secret"]`. Hardcoded as
-  `expansion._DEFAULT_CLIENT_ID`/`_DEFAULT_CLIENT_SECRET` rather than imported, since
-  `spotdl.utils.config` pulls in the full CLI arg-parsing surface for one dict lookup.
-- **`sqlalchemy.dialects.postgresql.JSONB` has no SQLite compiler**, so
-  `Track.__table__.create(engine)` on the SQLite in-memory test engine (see v02/v03 gotchas)
-  raises `UnsupportedCompilationError` — `tests/conftest.py` registers
-  `@compiles(JSONB, "sqlite")` returning plain `"JSON"` to work around this; a no-op against real
-  Postgres. **Any future JSONB column added to a model needs this same fixture already in place
-  to be testable** — it now lives in `conftest.py` once, not per-test.
-- `get_simple_songs` raises different, inconsistent exception types for malformed input
-  depending on *how* it's malformed — confirmed empirically: a syntactically-valid but
-  nonexistent track ID raises a bare `KeyError('uri')` from deep inside spotdl's Spotify-response
-  parsing, not a clean `QueryError`/`SpotifyError`. `expand_job`'s `except Exception` catch-all
-  in `app/tasks/expand.py` is deliberately broad for exactly this reason — narrowing it to
-  specific spotdl exception types would miss cases like this.
-- Verified against the real network (not mocked) during this version: a track URL, an album URL
-  (13 tracks), and an artist URL (390 tracks across every album) all expand correctly end-to-end
-  through `POST /api/jobs` → `worker-meta` → `GET /api/jobs/{id}/tracks`, every track landing and
-  staying in `pending`. `worker-dl` also registers `expand_job` in its task list (it imports the
-  same `celery_app` module) but never runs it — `task_routes` still confines it to the `meta`
-  queue only worker-meta consumes.
-- **The `except Exception` in `expand_job` originally only wrapped `expansion.expand()` itself,
-  not the per-song `Track` insert loop or the final `db.commit()`.** Caught by an independent
-  review pass: a song with `spotify_track_id=None` (e.g. a malformed list-expansion entry —
-  `Track.spotify_track_id` is `nullable=False`) raised an uncaught `IntegrityError` at commit
-  time, crashing the task with no `job.error` set and no state transition — the job would sit in
-  `expanding` forever with nothing in the UI explaining why (Celery's default ack-on-receipt means
-  no retry either). Fixed by widening the `try` to cover the insert loop + commit, with a
-  `db.rollback()` before recording the failure. Regression test:
-  `test_expand_job_db_error_during_insert_marks_job_failed` (confirmed it fails against the
-  pre-fix code). **Any future code added to `expand_job` between "call expansion.expand()" and
-  "commit" must stay inside that same `try`** — the whole point is that nothing about turning
-  Songs into Track rows should be able to leave a job stuck silently.
-- Two lower-severity items surfaced by that same review, deliberately **not** fixed in v04 —
-  noted here so they aren't re-discovered from scratch later:
-  - `job.source_url` reaches spotdl's `get_simple_songs` raw, which has branches beyond Spotify/
-    YouTube URL parsing: a string ending in `.spotdl` is opened as a **local file** and JSON-
-    parsed, and a `spotify.link/...` string triggers an outbound `requests.head(..., allow_redirects=True)`.
-    Low impact today — single-user, allowlisted — but worth knowing before this endpoint's trust
-    model changes. (As of v05, `worker-meta` *does* have the `downloads` volume mounted — see
-    below — so this is no longer mitigated by that container being read-only-by-omission either.)
-  - `GET /api/jobs` runs one grouped-count query per job (N+1) via `_track_counts` — fine at
-    current scale, revisit if job history grows large (no pagination either).
-
-### v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)
-
-- **`worker-meta` needed the `downloads` named volume added in this version** — it didn't have
-  one before (v04 note above, now stale) since expansion never touched disk. `reconcile_disk()`
-  runs there on boot (see next point), so it needs read/write access to the same
-  `DOWNLOAD_OUTPUT_DIR` `worker-dl` writes to. Compose list-merge behavior (v01 gotcha) meant
-  adding `downloads:/downloads` to the base `docker-compose.yml` service was enough — the
-  override file's separate `./backend/app:/app/app` bind mount for the same service concatenates
-  with it rather than replacing it; verified with `docker compose config` rather than assumed.
-- **`reconcile_disk()` on worker-meta boot is gated by an explicit `RUN_DISK_RECONCILE=true` env
-  var set only on that service in `docker-compose.yml`, not by introspecting which Celery queue
-  the process consumes.** `celery_app.py`'s `worker_ready` signal handler fires identically in
-  every process that imports the module (api, beat, both workers) since `-Q meta`/`-Q downloads`
-  is a `celery worker` CLI arg invisible to the importing module; reflecting on that from inside
-  `celery_app.py` would mean digging into `Consumer`/`Worker` internals for something an env var
-  says explicitly. **Any future worker-boot-only hook needs the same explicit env-var gate**,
-  not queue introspection.
-- **`spotdl.types.song.Song.from_dict(data)` / `song.json` round-trip cleanly** (`from_dict` is
-  just `cls(**data)`, `.json` is `dataclasses.asdict(self)`) — confirmed by reading the source,
-  not assumed. This is what lets `download_track` turn `Track.song_json` (stored by `expand_job`
-  in v04) back into a real `Song` for `Downloader.search_and_download` without re-querying
-  Spotify.
-- **`Downloader.__init__` fills any keys missing from the passed `DownloaderOptions` dict from
-  spotdl's own defaults** (`create_settings_type(..., DOWNLOADER_OPTIONS)`) — `get_downloader()`
-  only needs to pass `format`/`bitrate`/`output`/`cookie_file`(+`proxy` when given), not the full
-  ~45-key `TypedDict`. Verified against the real installed 4.5.2 source
-  (`Downloader.__init__`), not just the plan's key list.
-- **No fixed output path template exists anywhere in config** — `DOWNLOAD_OUTPUT_DIR` is a bare
-  directory. `get_downloader()` joins it with spotdl's own default filename pattern
-  (`"{artists} - {title}.{output-ext}"`, read from `spotdl.utils.config.DEFAULT_CONFIG["output"]`)
-  to build the `output` option. Per-template override is v13's job (locked decision: global
-  output config first, UI override deferred); don't add a `DEFAULT_OUTPUT_TEMPLATE` env var ahead
-  of that version without asking.
-- **`Downloader.search_and_download` needs a live `SpotifyClient` in the *same process*, not just
-  in whichever process expanded the job** — missed on the first pass and only surfaced by
-  actually downloading a real album (single-track jobs happened to not trigger it). Internally it
-  "reinitializes" the song (re-fetches metadata via `reinit_song`/`Song.from_url`) whenever any of
-  `genres`/`disc_count`/`tracks_count`/`track_number`/`album_id`/`album_artist` is `None` — common
-  for album/playlist-expanded songs, not for the single-track expansion path that happened to work
-  in initial testing. `worker-dl` is a separate OS process from `worker-meta`; the `SpotifyClient`
-  singleton `expansion._ensure_spotify_client()` initializes there never exists in `worker-dl`
-  unless something in that process calls it too. Every album track failed with `"Error occurred
-  while reinitializing song: Spotify client not created"` until `downloads.download_one()` was
-  changed to call `expansion._ensure_spotify_client()` before `search_and_download` — exactly the
-  "any future spotdl entry point must go through `_ensure_spotify_client()`" rule the v04 gotcha
-  above already called out; this is why. **Any future code path that calls into spotdl anywhere
-  outside `expansion.py` needs the same call**, not just ones that look like they touch Spotify
-  directly.
-- Verified against the real network and the real docker-compose stack (not mocked) in this
-  version: a real track URL downloads to `DOWNLOAD_OUTPUT_DIR` with the correct filename and
-  embedded `artist`/`album`/`track` tags; re-submitting the same URL immediately lands
-  `skipped_duplicate` with a sub-10ms task duration (no network call — confirmed via
-  `worker-dl` logs); deleting the file and restarting `worker-meta` drops the
-  `downloaded_tracks` row (`reconcile_disk: checked 1 ledger rows, removed 1 with missing files`
-  in the logs) and the next submission of the same URL re-downloads it from scratch; a real
-  15-track album (Muse — *Absolution*, `open.spotify.com/album/0HcHPBu9aaF1MxOiZmUQTl`) downloaded
-  14/15 tracks successfully with correct filenames/tags for each, while the 15th hit a real
-  transient `"Could not get client token"` Spotify API error and landed `failed` — the other 14
-  tracks in the same job were entirely unaffected, confirming task isolation for real rather than
-  only structurally. (That transient failure is exactly what v06's retry ladder exists for — it's
-  expected to succeed on a later attempt, not a bug to chase here.)
-- **Local dev's `downloads` folder is a host bind mount (`./downloads` at the project root, in
-  `docker-compose.override.yml` for `worker-dl`/`worker-meta`), not the base file's named Docker
-  volume** — lets downloaded files be inspected directly from the host during testing.
-  `docker-compose.yml` (the prod-like base) still declares `downloads` as a named volume; the
-  override's `!override` tag replaces the service's `volumes:` list rather than merging with it
-  (same v01 gotcha as the `web` service's `ports:` override), since simply adding a bind mount
-  entry would otherwise sit alongside the named-volume mount at the same `/downloads` target.
-  `/downloads/` is gitignored at the project root.
-
-### v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch)
-
-- **`app/services/retry.py`'s `next_delay(attempt_count)` reads `attempt_count` as "failures
-  *before* this one" (0 on the very first failure), not the post-increment count.**
-  `record_failure` computes the delay before incrementing `track.attempt_count`, then increments
-  and stores `scheduled_at`. Doing it in the other order (increment first, then look up the delay
-  with the new count) silently skips the ladder's first rung — first failure would jump straight
-  to the 1h step instead of 15m, contradicting the sequence this file's own "Retry engine numbers"
-  section documents. Any future change to `record_failure`'s ordering needs to preserve
-  compute-delay-then-increment, not the reverse.
-- **The "other" error bucket shares the ladder with `audio_provider` but never touches
-  `worker_state.consecutive_failures` or calls `maybe_trip_breaker()`.** Only a real
-  `AudioProviderError` feeds the breaker — it exists specifically for YT-Music rate-limit
-  detection, and letting unrelated exceptions (a bad proxy string, a transient KeyError) count
-  toward it would trip a rate-limit-shaped pause for a problem that isn't rate-limiting.
-- **`WorkerState.breaker_tripped_until` needs the same naive-vs-aware normalization as the v03
-  `UserSession.last_seen_at` gotcha, but this time it also matters against real Postgres-shaped
-  *application* logic, not just SQLite tests** — `retry.breaker_active()` explicitly
-  `.replace(tzinfo=timezone.utc)`s a naive value before comparing against `datetime.now(timezone.utc)`,
-  needed purely for the SQLite test path (`db_session` fixture); a no-op against real
-  Postgres/psycopg. Any future code comparing `breaker_tripped_until` directly (rather than through
-  `breaker_active()`) needs the same guard.
-- **A fresh Python process that imports `app.tasks.download` (or anything else under `app.tasks`)
-  directly, instead of importing `app.tasks.celery_app` first, hits a circular `ImportError`:**
-  `download.py` imports `celery_app`, whose own module-bottom import order is
-  `download` → `expand` → `beat`; if `download` is still mid-import when that chain re-enters it,
-  `expand.py`'s `from app.tasks.download import download_track` fails because `download_track`
-  isn't defined on the partially-initialized module yet. This is pre-existing since v04/v05 (`expand.py`
-  already imported `download_track` this way) and wasn't introduced by v06's `beat.py`, but it
-  surfaced while writing ad-hoc fault-injection scripts for this version's real-stack verification.
-  Fix: any one-off script reaching into `app.tasks.*` must `import app.tasks.celery_app` (or run
-  via the real `celery -A app.tasks.celery_app ...` entry point) before importing any task module
-  directly — this is also simply the realistic way the app is ever actually entered.
-- **`dispatch_due_tracks` needs no `task_routes` entry** — it has no download-shaped work of its
-  own (only enqueues `download_track`, which *is* routed to `downloads`), so it's fine falling
-  into the existing `task_default_queue="meta"`, consumed by `worker-meta` alongside
-  expansion/reconciliation — matches the architecture doc's meta/downloads split.
-- **No `FAULT_INJECT` env var or equivalent hook exists** — the plan's "Done when" checklist
-  assumed one might be needed; in practice, verifying the ladder/breaker/restart-survival/
-  terminal-lookup behaviors against the real stack was done by `docker compose cp`-ing small
-  ad-hoc scripts into `worker-dl` that monkeypatch `app.services.downloads.download_one` /
-  `app.services.dedup.is_already_downloaded` in-process and call `download_task.download_track(...)`
-  and `beat_task.dispatch_due_tracks()` directly against the real Postgres instance (not through
-  Celery's broker) — real DB, real schema, real enum/timestamptz behavior, deterministic fault
-  triggering, no dependency on actual YouTube-Music rate limiting timing. Verified this way: full
-  ladder progression 5s→10s→15s→20s→30s (with `LADDER_SECONDS` shortened) settling at the final
-  step forever after breaker-clear; breaker trips at exactly 5 consecutive `AudioProviderError`s
-  and `dispatch_due_tracks` dispatches nothing while tripped; a manual `record_success` call clears
-  the trip and resets the counter, after which dispatch resumes; a `LookupError` track lands
-  `lookup_failed` with `scheduled_at` staying `NULL` and is never touched by later
-  `dispatch_due_tracks` runs; and — the specific "verified via SQL, not logs" bullet — a track
-  scheduled 90s out had `docker compose restart worker-dl beat` run mid-wait, with `scheduled_at`
-  confirmed byte-identical via a direct SQL/ORM query taken immediately before and immediately
-  after the restart (proving Postgres's `scheduled_at`, not Celery/Redis, is what survived), before
-  beat resumed dispatching it on schedule once due.
-
-### v07 proxy-rotation gotchas (learned building `proxies.txt` sync + pick/cooldown + wiring)
-
-- **spotdl 4.5.2's `Downloader.__init__` only accepts `http`/`https` proxies with a literal
-  IPv4 host** — `re.match(r"^(http|https)://(?:(\w+)(?::(\w+))?@)?(\d{1,3}(?:\.\d{1,3}){3})(?::(\d{1,5}))?$", proxy)`,
-  checked in the real installed source, not assumed. Hostnames and `socks5://` — both
-  explicitly named in this plan's original task list as accepted formats — raise
-  `DownloaderError: Invalid proxy server: ...` at `Downloader()` construction time, caught
-  during real-stack testing (a hostname-based test entry crashed on the very first proxied
-  attempt). `proxies.txt.example`'s format guidance was corrected to `http(s)://[user:pass@]<IPv4>[:port]`
-  only. `sync_from_file()` deliberately does **not** hard-validate this format at ingest —
-  spotdl's own regex could loosen in a later version, and duplicating it here would just go
-  stale — a malformed entry is instead caught (and cooled down) the same way any other
-  real download failure is, the first time it's actually tried.
-- **`Downloader.__init__` builds a real `rich` Live TUI display by default
-  (`simple_tui=False` in spotdl's own `DEFAULT_CONFIG`), and `rich` allows only one Live
-  display per process, ever** — harmless through v05/v06 since exactly one `Downloader`
-  was ever constructed per worker-dl process's lifetime (single cache key, no proxy
-  variation). v07 is the first version where a worker-dl process can construct a *second*,
-  differently-keyed `Downloader` (direct first, then one per distinct proxy — see
-  `get_downloader`'s cache key), which crashed every single time with
-  `rich.errors.LiveError: Only one live display may be active at once` — this is a real,
-  100%-reproducible break of proxy rotation in production, not a test-harness artifact,
-  caught only by real-stack verification (unit tests fake out `get_downloader` entirely and
-  never construct a real `Downloader`). Fixed by always passing `simple_tui: True` in
-  `downloads.get_downloader`'s options — also simply the correct call for a headless
-  Celery worker with no terminal to render to (progress goes through
-  `progress_handler`/`notify_*` hooks per the v08 plan, never this TUI). **Any future code
-  path that constructs a real spotdl `Downloader` must keep `simple_tui: True`** or the
-  very next differently-keyed one built in that process will crash the same way.
-- **The always-running local dev stack (`beat` + `worker-dl` on their normal schedule) will
-  auto-retry any test `Track` row left in `WAITING` state** — a real risk when hand-crafting
-  fault-injection scripts (same technique as v06) that create tracks and leave them
-  mid-ladder: `dispatch_due_tracks` only filters on `state == WAITING`, so a script that
-  fails to reach its cleanup line (e.g. an assertion error) leaves the track live for the
-  *actual* background loop to keep retrying indefinitely, potentially against the real
-  network with real spotdl calls if the test track's `song_json` happens to be a real,
-  resolvable song (confirmed happening during this version's testing — a synthetic test
-  track reusing a real song's metadata got for-real downloaded by the background loop
-  between two manual verification steps). Any future ad-hoc verification script must set
-  the test track to a terminal state (`CANCELLED` is used elsewhere in the state machine as
-  is; not a new one) in the *same* script run, immediately after its assertions, not as a
-  separate follow-up step — a script that can fail its assertions must still be written so
-  cleanup happens (e.g. in a `finally`), or a failed assertion leaves the track live for
-  beat to keep picking up.
-- Verified against the real docker-compose stack and real Postgres instance (not mocked),
-  via the same `docker compose cp` ad-hoc-script technique v06 established: `sync_from_file()`
-  on `worker-meta` restart correctly added 2 new file entries, then (after editing
-  `proxies.txt` and restarting again) soft-disabled the one removed from the file while
-  leaving its `consecutive_failures` stat untouched, then re-enabled it on a later re-add
-  with that same stat still intact (never reset). A track with `attempt_count=0` never
-  calls `pick_proxy` (direct only); a track with `attempt_count>=1` picks a healthy proxy,
-  downloads through it (mocked `download_one`, real everything else), and gets
-  `used_proxy_id` + a real `download_track: track ... attempting via proxy <url>` log line
-  from the actual running worker-dl process (not just the ad-hoc script) confirming the
-  proxy used; a proxy failure sets `cooldown_until` and increments `consecutive_failures`,
-  and an immediate next `pick_proxy()` call correctly skips it in favor of a still-healthy
-  one; and with every proxy disabled, the track still completes via a direct attempt
-  (`used_proxy_id` stays `NULL`) rather than stalling.
-- **The verification above mocked `download_one` throughout — no real proxy had ever been
-  used, which the user correctly flagged before accepting the version as done.** A
-  follow-up pass with 5 real, live, credentialed proxies (`http://user:pass@ip:port`,
-  spread across several countries) in `proxies.txt`, run against real Spotify tracks with
-  nothing mocked, confirmed: real downloads succeed through a real proxy end-to-end
-  (ffmpeg-tagged mp3 on disk, correct size); `pick_proxy`'s LRU rotates across distinct
-  real proxies on successive tracks; a genuine real failure (spotdl returned no output —
-  not every provider match works through every proxy/region) correctly set that proxy's
-  cooldown and the very next retry picked a different real proxy and succeeded. This run
-  caught a real credential leak that the mocked pass couldn't have: the
-  `attempting via proxy <url>` log line and the `DownloaderError` message for a malformed
-  proxy (which spotdl formats as `f"Invalid proxy server: {proxy}"`, echoing the full
-  credentialed URL) both put the proxy's plaintext username:password into worker logs and,
-  via `record_failure`, into `tracks.last_error` — a column a future UI (v09+) will
-  display. Fixed with `proxies.redact(url)` (scheme + host + port only): used for the
-  "attempting via proxy" log line, and `download_track`'s except-block substitutes the
-  redacted form into both the logged traceback (`exc_info=(type, redacted_exc, tb)` —
-  keeps the real traceback's file/line info, only swaps the final message) and the
-  `last_error` string before it's persisted. **Any future code that logs or persists a
-  proxy URL must go through `proxies.redact()`** — never log/store `proxy.url` or a raw
-  exception message directly when a proxy was involved.
-
-### v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream)
-
-- **spotdl 4.5.2's `Downloader.__init__` hardcodes `self.progress_handler =
-  ProgressHandler(self.settings["simple_tui"])` — there is no `DownloaderOptions` key for a
-  progress callback at all.** Verified against the real installed source
-  (`spotdl/download/progress_handler.py` + `downloader.py`): `ProgressHandler.__init__` does
-  accept an `update_callback` parameter, and every `SongTracker.notify_*` method
-  (searching/getting-meta/downloading/converting/complete) ends by calling
-  `self.parent.update_callback(self, message)` if one is set — but the *only* way to reach
-  it is setting `downloader.progress_handler.update_callback = fn` directly on the
-  already-constructed instance, after `get_downloader()` returns it. `fn` receives the live
-  `SongTracker` (`.progress` is 0-100) and a status string on every update, including the
-  intermediate yt-dlp/ffmpeg phases — exactly the hook `events.make_progress_callback` uses.
-- **`get_downloader()` caches one `Downloader` (and its `ProgressHandler`) per
-  `(format, bitrate, proxy)` key across every track that reuses that combination** (see v05
-  gotcha) — so `update_callback` is shared, mutable state on a long-lived object, not
-  per-track. `download_track` rebinds it to a fresh closure (capturing the *current*
-  track/job id) immediately before every `download_one` call. This is only safe because
-  worker-dl runs `--concurrency=1 --prefetch-multiplier=1` (one track at a time, per the
-  locked architecture decision) — **raising worker-dl's concurrency in any future version
-  would make this a real race** (track A's progress events attributed to track B) and needs
-  revisiting together, not independently.
-- **`redis.asyncio`'s `PubSub.get_message(ignore_subscribe_messages=True, timeout=...)`
-  returns `None` almost immediately after `subscribe()`, not after the full timeout** — the
-  subscribe confirmation message arrives instantly, gets filtered by
-  `ignore_subscribe_messages`, and the call returns `None` for that (filtered) message rather
-  than continuing to wait out the remaining timeout. `app/routers/stream.py` treats any
-  `None` as "time to emit a heartbeat," so every stream connection emits one spurious extra
-  heartbeat right at connect time, before the real ~15s idle cadence kicks in. Confirmed via
-  real-stack testing (heartbeat appeared ~2s after connecting, not 15s). Harmless — `:
-  heartbeat` is a plain SSE comment line `EventSource` ignores — but worth knowing so a
-  slightly-early first heartbeat isn't mistaken for a timing bug.
-- **Starlette's `StreamingResponse` sends the ASGI `http.response.start` (status + headers)
-  before the body generator produces its first chunk** — confirmed both by real curl testing
-  (`GET /api/stream` immediately after an API restart returns `200` with correct headers
-  even though no event has been published yet) and by the unit test design in
-  `test_stream.py`. This is what lets a client (or a health-style check) confirm the
-  connection is live without needing an actual event to arrive first.
-- **A hung pytest run, once, from testing SSE the wrong way**: driving a real infinite
-  async generator through `TestClient.stream(...)` and trying to bound the test by reading
-  only the first N lines does not reliably terminate — the ASGI transport can keep the
-  generator spinning (a fake `pubsub.get_message` with no genuine `await`-suspending I/O
-  loops as fast as the interpreter allows) independent of what the test actually consumes,
-  pegging a CPU core indefinitely until killed. Had to `kill -9` a stuck `pytest` process
-  during this version. Fixed by monkeypatching `stream_router._event_stream` itself to a
-  short, finite async generator and using a plain (fully-buffered) `client.get(...)` instead
-  of `client.stream(...)` — the actual subscribe/forward/heartbeat loop against a real Redis
-  instance is covered by real-stack verification, not a unit test. **Any future test of a
-  genuinely infinite SSE/streaming generator must use this finite-fake-generator +
-  plain-`.get()` pattern**, never drive the real generator through `TestClient.stream(...)`
-  bounded only by "stop after reading N lines."
-- **Every pre-v08 `test_download_task.py` fake for `get_downloader` returned a bare string
-  (`"fake-downloader"`)** — broke the instant `download_track` needed
-  `downloader.progress_handler.update_callback = ...`, since a string has no such attribute.
-  Fixed with a minimal `_FakeDownloader`/`_FakeProgressHandler` pair exposing just that one
-  settable attribute. **Any future code path that reaches further into the real
-  `Downloader`'s surface needs the same fake-object treatment**, not a bare string return.
-- Verified against the real docker-compose stack (not mocked), both directly and through a
-  real Cloudflare Tunnel (`cloudflared` brought up manually for this check only — the
-  compose service stays behind the `tunnel` profile and is not part of normal local dev; see
-  v01's locked-decision table): a real track download produced a live, ordered
-  `job.state`(expanding→expanded) then `track.state`(downloading with real intermediate
-  `progress` values 0→25→40→70×many→95→100, then completed) sequence over `GET
-  /api/stream`, both directly (`http://localhost:8000`) and through the tunnel
-  (`https://sdwtest.vb2007.hu`, ingress `service` pointed at `http://api:8000` — the
-  docker-compose service name, since `cloudflared` reaches `api` over the compose network,
-  never `localhost`). A 320-second idle connection emitted exactly 21 heartbeats 15 seconds
-  apart with zero drops, confirmed both directly and through the tunnel (raw output
-  timestamps, not just "it didn't error"). Restarting the `api` container mid-stream cleanly
-  terminated the old connection (no hang, no zombie subscription) and a fresh connection
-  immediately after returned `200` with a working stream, with `GET /api/jobs` REST resync
-  also confirmed working post-restart — the server-side half of the v09 reconnection
-  contract this plan documents (full `EventSource` auto-reconnect behavior is a browser
-  guarantee, not testable until the frontend exists).
-
-### v09 frontend gotchas (learned building the SvelteKit login/dashboard UI)
-
-- **`GET /api/jobs/{id}/tracks`'s `_track_to_dict` never projected `job_id`, `attempt_count`,
-  `scheduled_at`, `last_error`, or `last_error_type`, and `publish_track_event` never included
-  `attempt_count` in its SSE payload** — a real gap only visible once an actual frontend needed
-  to render the plan's explicit "live countdown to `scheduled_at`" and "current `attempt_count`"
-  requirements; nothing before v09 read these fields outside the backend itself. Fixed by adding
-  all four to `_track_to_dict` and adding an optional `attempt_count` kwarg to
-  `publish_track_event`, populated at every real call site in `download.py`/`beat.py`. **Any
-  future REST/SSE consumer needing a `Track` field not already in `_track_to_dict` needs the same
-  treatment** — the dict is a deliberate projection, not the ORM row, and stays that way.
-- **No `CORSMiddleware` existed anywhere in `main.py` before this version** — harmless while
-  nothing but tests and curl called the API, but the SPA and API are different origins (different
-  port locally, different subdomain once v12 wires the real tunnel), so cookie-authenticated
-  `fetch()` calls need explicit CORS with `allow_credentials=True` (which forbids a wildcard
-  origin). Added `FRONTEND_ORIGINS` (`Settings`, a list — see next gotcha) and wired
-  `CORSMiddleware` off it. **v12 must set `FRONTEND_ORIGINS` to the real production frontend
-  origin(s) once the tunnel ingress topology (single hostname with path routing vs. separate
-  subdomains) is decided** — nothing here assumes either shape yet.
-- **`localhost` and `127.0.0.1` are different CORS origins to a browser even though they're the
-  same machine** — first shipped as a single `FRONTEND_ORIGIN=http://localhost:5173`, which broke
-  login (and every other API call) 100% of the time for real-user testing done at
-  `http://127.0.0.1:5173` instead: the browser's CORS preflight (`OPTIONS /api/auth/login`) got a
-  real `400 Disallowed CORS origin` from Starlette's `CORSMiddleware`, the browser blocked the
-  actual `POST` before it ever reached the server, and the login page's `catch` block — written to
-  show a deliberately generic "Invalid credentials." for the backend's real non-disclosure between
-  wrong-password and not-allowlisted — caught this network-level failure too and showed the exact
-  same misleading message, making a CORS misconfiguration look identical to a wrong password. Two
-  fixes, not one: (1) `Settings.frontend_origins` is now `Annotated[list[str], NoDecode]` (same
-  `ALLOWED_EMAILS`/`LADDER_SECONDS` comma-separated pattern), defaulting to **both**
-  `http://localhost:5173` and `http://127.0.0.1:5173` for local dev; (2)
-  `login/+page.svelte`'s error handling now only shows "Invalid credentials." for a real
-  `ApiError` with `status === 401` (the backend's genuine non-disclosed auth rejection) and a
-  distinct "Could not reach the server..." message for everything else (network down, CORS
-  blocked, a 5xx). **Any future error-handling `catch` block that maps every exception to one
-  user-facing string must keep this same split** — "the backend said no" and "the request never
-  arrived" are not the same failure and must not read as the same message to the user.
-  **The CORS fix alone was not sufficient** — a third, deeper bug in the same family surfaced
-  immediately after: with the CORS origin allowed, login itself (`POST /api/auth/login`) started
-  succeeding (`200 OK`, cookie set), but the very next request (`GET /api/auth/me`) still came
-  back `401` every time, because `frontend/.env`'s `PUBLIC_API_BASE_URL=http://localhost:8000` is
-  a *hardcoded* hostname independent of whichever loopback hostname the page itself was opened
-  with. A page on `127.0.0.1:5173` calling an API hardcoded to `localhost:8000` is a **cross-site**
-  request to a browser's `SameSite=Lax` cookie logic (`localhost` and `127.0.0.1` share no
-  registrable domain, unlike two subdomains of a real production domain) — receiving a cookie from
-  a cross-site response is allowed, but *sending* it back on a later cross-site fetch/XHR is not,
-  which is exactly the confusing 200-then-401 pattern this produced. Fixed in `frontend/src/lib/
-  api.ts` with `resolveApiBase()`: when both the configured API host and the page's own
-  `window.location.hostname` are loopback addresses (`localhost`/`127.0.0.1`), the API base URL is
-  rewritten at runtime to reuse whichever loopback hostname the page was actually loaded with
-  (same port), keeping every request same-site regardless of which one the user opened. **This
-  rewrite must never fire in production** — there the API and web app are genuinely different
-  real hosts/subdomains on purpose, where cross-subdomain cookies work by a different rule
-  (same registrable domain = same-site), so the loopback-only guard is load-bearing, not
-  incidental. Any future change to how the frontend resolves its API base URL must preserve this
-  loopback-aware behavior instead of reverting to a single fixed absolute URL.
-- **A job between "submitted" and "its tracks exist" had nothing in the UI to represent it** —
-  the plan's own "Done when" criteria and a real user's first manual test both surfaced this:
-  `expand_job` genuinely takes several real seconds (a Spotify metadata round trip, not something
-  to fake away), and during that window nothing rendered for the job at all (`QueueTable` only
-  ever reads from `tracks`, and a job with no tracks yet is invisible), so a real click looked
-  like it had done nothing — enough that a user's natural next move was to submit again, thinking
-  the first click hadn't registered. Fixed with `queue.ts`'s `incomingJobs` derived store (jobs in
-  `expanding` or `failed` state) and `IncomingJobs.svelte`, rendered above the waterfall. **Any
-  future state a `Job` can reach that has no tracks of its own needs the same treatment** — this
-  store is the one place job-level (not track-level) state gets surfaced at all.
-- **A stale/overlapping REST fetch can resolve after a fresher one and clobber newer state** —
-  `queue.ts`'s `refreshJobTracks`/`refreshJobs` are called from multiple places that can overlap
-  (an `expanded` SSE event, an `EventSource` reconnect's `loadAll()`, the initial mount) with no
-  guarantee the fetch that started first also resolves first. Real manual testing reported "the
-  log doesn't update after a download completes, I need F5" and "submitting an already-downloaded
-  track gives no UI response at all" — extensive automated reproduction attempts (raw job
-  creation, real UI-driven submission, fresh downloads, genuine duplicates, in five separate
-  scenarios) could not force either symptom to recur as a deterministic bug; every attempt showed
-  correct live updates in 300ms–16s. Since the exact failure window couldn't be pinned down, the
-  fix applied is defensive rather than a targeted repro-driven fix: both functions now capture a
-  per-resource sequence number at call time and discard their own result if a newer call for the
-  same resource has started since — this is the direct class of bug the symptom describes, whether
-  or not this specific codebase was ever actually hitting it. **Any future store function that
-  fetches-then-merges REST state must keep this sequence-guard pattern**, not assume requests
-  resolve in the order they were sent. If either symptom recurs after this fix, the next step is
-  capturing real DevTools console/network output during an actual reproduction, since automated
-  headless testing could not manufacture the user's exact conditions (long-lived tab, possible
-  backend hot-reload mid-session, or something else not yet identified).
-- **Fixing the above indicator immediately surfaced 15 stale `Job` rows already sitting in the
-  shared local dev database** — pre-dating this fix, left in `expanding`/`failed` state forever by
-  earlier ad-hoc DB fault-injection scripts (the v06/v07-established technique) that manually
-  created `Job`+`Track` rows to test the retry ladder/proxy logic without going through the real
-  `expand_job` flow, and never bothered to also flip the parent `Job` to a terminal state since
-  their focus was the `Track` row. These were invisible before this version (nothing rendered a
-  job with no tracks) and suddenly appeared as a wall of fake "tuning in" rows the moment the new
-  indicator shipped. Deleted after confirming every attached `Track` was already terminal
-  (`cancelled`/`completed`) and none were live — pure historical test debris, not a code bug. **Any
-  future ad-hoc DB fault-injection script that creates a `Job` row directly should also set it to
-  a terminal state (or `cancelled`) before the script exits**, not just its `Track` rows — this
-  gotcha is exactly why: an invisible loose end can resurface as a visible bug in a much later
-  version once something finally renders off the field nobody was watching.
-- **`transform: scaleY(...)` on an element flex-anchored to a container's bottom edge grows from
-  the element's own center by default, not from that visual bottom edge** — the idle waterfall's
-  noise-floor bars visibly dipped below the container's baseline as they grew (reported as "the
-  soundbars move in both vertical directions instead of just their top part moving"). Fixed with
-  `transform-origin: bottom` on `.noise-bar`. **Any future `scale`-based CSS animation on an
-  element that's positioned by its layout box (flex/grid alignment, not `position: absolute`)
-  needs an explicit `transform-origin` matching whichever edge the layout anchors** — the default
-  center origin only looks correct for an element with no anchored edge at all.
-  **`transform-origin` alone did not fully close this** — re-tested after the fix shipped, 1-3
-  bars still dipped below the baseline by a few px, a different subset on every reload. Root
-  cause: these bars are only a few px tall (random height, `min-height: 2px`), and sub-pixel
-  antialiasing bleed on a `scaleY`-transformed element of that size can still render very
-  slightly past the mathematically exact edge on some displays, independent of `transform-origin`
-  being correct. Fixed by adding `overflow: hidden` to the `.noise-floor` container itself, which
-  clips any such bleed at the true baseline regardless of the rendering-level cause. Confirmed via
-  `getBoundingClientRect()` sampled across 6 frames of the animation cycle post-fix: zero bars
-  exceeding the container's bottom edge. **Any future short/thin `transform`-animated element
-  needs its clipping container treated as the actual guarantee, not `transform-origin` alone** —
-  the math being correct doesn't guarantee the rasterizer respects it exactly at sub-pixel sizes.
-- **Live SSE-updated rows can jump far enough down a long, mixed-state sorted list to look like
-  they vanished, even though nothing was ever removed from the store** — reported as "the track
-  appears while downloading, then completely disappears when the download finishes; F5 shows it
-  as completed." `queue.ts`'s `trackList` sorted purely by `TRACK_STATE_ORDER`
-  (`downloading`=0 … `completed`=6), with equal-priority ties falling back to plain
-  `Object.values()` insertion order — and a track that only just joined the `tracks` record via
-  its own live SSE events is *always* inserted after every track from the initial bulk
-  `loadAll()` fetch, so completing sent it to the very end of the `completed` tier. Verified via
-  real-stack testing (not assumed): a live completion measurably jumped from index 0 of 38 rows
-  (fully visible, while `downloading`) to index 25 of 38 (below the fold) the instant its state
-  flipped — nothing was actually missing from the DOM, it was just sorted somewhere the user
-  wasn't scrolled to. A **fresh reload** showed it much closer to the top purely because
-  `GET /api/jobs` orders newest-created-job-first and `Promise.all`-driven concurrent
-  `refreshJobTracks` calls tend to resolve close to that same order — a completely different,
-  coincidental position, not evidence the live version was "wrong" and the reloaded version
-  "right." Fixed by adding an `updatedAt: number` (`Date.now()`) to every `LiveTrack`, set on
-  every REST fetch and every applied SSE event, and sorting each state-priority tier by that
-  descending as a secondary key — a track that just changed state now surfaces at the top of its
-  new tier instead of wherever insertion order happened to leave it. Re-verified live: a
-  completion stayed at index 0 through the entire transition. **Any future field added to the
-  sort comparator must keep `updatedAt` as the tiebreaker** — dropping it silently reintroduces
-  this exact "vanishing" perception for every state transition, not just completion.
-- **`@sveltejs/adapter-static` cannot run a `+layout.server.ts` at request time** — there is no
-  Node server in the static build, so the plan's literal `+layout.ts`/`+layout.server.ts` session
-  guard had to be a universal `+layout.ts` with `export const ssr = false` (the session check —
-  `GET /api/auth/me` — runs client-side, in the browser, against the live cookie) and `export
-  const prerender = true` (fine here since the app has exactly two fixed routes, `/` and
-  `/login`, each getting its own prerendered empty shell that hydrates into the real check — no
-  nginx SPA-fallback config was needed for this reason). **Any future route added to this app
-  needs the same two exports** unless the route count grows enough to need a real `fallback:
-  'index.html'` + nginx `try_files` setup instead — revisit if v10+ adds routes beyond a small
-  fixed set.
-  **Correction (v12): this claim was wrong, caught by v12's real-stack pressure-testing, not
-  by anything before it.** "No nginx SPA-fallback config was needed" was true only because
-  nothing before v12 put nginx in front of the app at all in a way that mattered — `web`'s
-  container has run `nginx:alpine` since v01, but every pre-v12 test of `/login` reached it
-  via client-side routing (`goto()`/`redirect()` inside the already-loaded SPA), never a
-  cold/hard navigation. Stock nginx has no route for the extensionless path `/login` to the
-  prerendered file `login.html`, so any hard nav (a bookmark, a page refresh, a fresh
-  Cloudflare-Tunnel hit) 404'd for real, in production, the entire time — v12's own
-  same-origin nginx redesign is what finally surfaced it, not a coincidence of that redesign
-  introducing a new bug. Fixed in `frontend/nginx.conf` with explicit
-  `location = /login { try_files /login.html =404; }` (and `location = /` similarly) rather
-  than a wildcard SPA fallback — see that file's own comment for why a wildcard was
-  deliberately avoided. **Any future route added to this app needs both the two SvelteKit
-  exports above AND its own explicit nginx `location` block**, not just one or the other.
-- **SvelteKit 2.63's `goto()` calls are lint-enforced (`svelte/no-navigation-without-resolve`) to
-  wrap their destination in `resolve()` from `$app/paths`** — a bare `goto('/login')` fails lint
-  even though it works at runtime; every `goto()` in this codebase goes through
-  `goto(resolve('/login'))`. Also as of this SvelteKit version, `redirect()`/`error()` from
-  `@sveltejs/kit` throw internally when called and must NOT be prefixed with `throw` (the older
-  `throw redirect(...)` pattern from SvelteKit 1.x is stale for this project's pinned version).
-- **A `SvelteSet`/`SvelteMap` from `svelte/reactivity` is required instead of a plain mutable
-  `Set`/`Map` behind `$state`** — `eslint-plugin-svelte`'s `svelte/prefer-svelte-reactivity` rule
-  catches this; a plain `Set` reassigned wholesale on every mutation (`expanded = new
-  Set(expanded)`) works but is exactly the pattern the rule exists to replace. `QueueTable.svelte`'s
-  row-expansion state uses `const expanded = new SvelteSet<string>()`, mutated in place
-  (`.add`/`.delete`), no reassignment needed.
-- **Mobile responsive collapse of a multi-column data table has a two-layer failure mode, not
-  one** — first attempt (squeezing all 5 columns proportionally onto one line) produced
-  zero-width columns and fully invisible text at 390px, caught only by an actual Playwright
-  screenshot (`svelte-check`/`eslint` saw nothing wrong, since this is a pure runtime CSS layout
-  failure). Second attempt (state+job sharing one grid row, title on its own full-width row)
-  fixed that but introduced a *different* bug one level down: pairing unrelated cells onto shared
-  grid columns across multiple stacked rows (title+job on one row, artist+album on another, same
-  two-column track definition) let one row's long `album` value size an `auto` column wide enough
-  to silently truncate a *different* row's `title`/`artist` in that same column — real tracks with
-  long album names (e.g. "Whenever You Need Somebody") starved short-artist rows ("Rick Astley")
-  in ways a short-album row never triggered, making the bug look content-dependent rather than
-  structural. **The fix that actually holds**: on the mobile breakpoint, every cell (`state`,
-  `title`, `artist`, `album`, `job`) gets its own full-width flex line via `order`, never sharing
-  a grid track with anything else. Confirmed only by re-screenshotting a real populated table with
-  a mix of short and long titles/albums after each attempt — neither failure was visible from
-  short test data or from `svelte-check`/`eslint`/`detect.mjs` alone. **Any future dense-table
-  mobile collapse in this codebase should default straight to one-cell-per-line and only pair
-  cells on a shared row after confirming with real, varied-length data that nothing can starve
-  anything else.**
-- **The one committed "live" accent color (`--signal`, phosphor amber) must never appear as
-  permanent chrome** — round 1 of finish review shipped a constant amber top border on the
-  waterfall panel (to mark it as the "hero" panel); the review correctly flagged this as spending
-  the single live-signal color's exclusive meaning ("something is active right now") on pure
-  decoration, present identically whether 0 or 5 tracks were downloading. Fixed by making the
-  border neutral (`--line-bright`) by default and switching to `--signal-dim` only via a
-  `.waterfall.live` class bound to `tracks.length > 0`. **Any future component that wants amber for
-  emphasis must first ask whether the thing it's marking is genuinely live right now** — if not,
-  a different token is correct, full stop; this rule and its rationale are recorded in
-  `frontend/src/DESIGN.md` §2 specifically so it survives past this session.
-- **The intended "matte charcoal chassis" panel material (a perceptibly recessed/lifted surface,
-  not a flat card) was never made clearly perceptible against the near-black page background,
-  across two full finish-review correction rounds** — first a 1px inset hairline (invisible at
-  normal viewing distance), then a stronger compound shadow (`inset 0 2px 5px`, `inset 0 -1px 0`,
-  `0 8px 20px -10px`), still not confirmed legible as "recessed housing" vs. "bordered card" by the
-  reviewer's final verdict. Per the finish process's two-round ceiling, this was **deliberately
-  left as an open, accepted gap** rather than pursued further — recorded in
-  `frontend/src/DESIGN.md` §6/§8 for whoever picks up visual polish next (candidate for v10+).
-  **Do not spend more `box-shadow` layers chasing this without first checking real-device
-  legibility**, and do not describe the chassis material as "done" without new evidence.
-- Verified against the real docker-compose stack (not mocked), via a headless Playwright driver
-  (`chromium-cli` was unavailable in this environment; `npx playwright` + a local scratch
-  `node_modules` install was the working substitute — see the `run` skill's fallback guidance) and
-  the project's real local dev credentials/database: full login (including a deliberate
-  wrong-password attempt showing the generic non-disclosing error) → real track submission → live
-  `pending`→`downloading`→`completed`/`skipped_duplicate` states with no manual refresh → page
-  reload mid-flight preserving state (proving the REST-resync + SSE-resume contract from v08 for
-  real, not just structurally) → a track force-set to `waiting` via the same ad-hoc
-  `docker compose exec` DB-script technique v06/v07 established (cleaned up to `cancelled`
-  immediately after, per the v07 gotcha about never leaving a live test track for the real beat
-  loop) showing a countdown that measurably ticked down across a real 3-second wait and survived
-  a reload → logout clearing the session and redirecting → direct navigation to `/` while logged
-  out redirecting to `/login` without ever rendering queue data. Keyboard-only navigation
-  (PRODUCT.md's confirmed hard requirement) was separately verified end-to-end: login completed
-  using only `Tab`/`type`/`Enter` with no mouse interaction, and the focus ring was confirmed
-  visible via screenshot on both the login submit button and a dashboard filter button reached by
-  tabbing alone. Real Cloudflare Tunnel verification was explicitly declined for this version
-  (user's call, given the real `CLOUDFLARE_TUNNEL_TOKEN` already sitting in local `.env` makes
-  that a public-exposure action, not just a local one) — v08 already proved the SSE/tunnel
-  contract, and v12 (deploy hardening) owns real tunnel-based verification going forward.
-
-### v10 queue-controls gotchas (learned building cancel/retry-now/pause/breaker-release)
-
-- **A cancelled track's live SSE view could get stuck showing a stale `downloading` state
-  forever, even though the DB and every REST endpoint were already correct** — caught only by
-  the user watching the actual running UI during this version's real-stack verification, not by
-  any REST-polling check (REST always showed the true `cancelled` state; only the live view was
-  wrong). Root cause: spotdl's `ProgressHandler.update_callback` hook (wired in v08,
-  `events.make_progress_callback`) publishes `state: "downloading"` events purely from its own
-  internal tracker — it has no idea a cancel happened. Since `search_and_download` is
-  synchronous and not interruptible (the whole reason cancel-mid-download works by discarding the
-  result rather than stopping it), the real download kept running for several more seconds after
-  `DELETE /api/tracks/{id}`/`DELETE /api/jobs/{id}` had already committed `cancelled`, and its
-  progress callback kept firing `downloading` events (up to `progress: 100`) the entire time —
-  all published *after* the `cancelled` event the cancel endpoint itself sent, silently
-  overwriting it in every connected browser. Fixed by having `download_track` **re-publish the
-  `cancelled` state a second time**, right after it detects the discard (both the success path
-  and the failure-after-cancel path) — since nothing else publishes for that track once
-  `download_one` has returned, this re-publish is provably the last message on the wire. Verified
-  by raw-capturing `GET /api/stream` (`curl -s -N`) during a real cancel-mid-download of a real
-  track end to end: the wire order was `downloading(progress:100) → cancelled`, `cancelled` last,
-  confirmed byte-for-byte from the captured SSE stream, not inferred. **Any future code path that
-  can leave a track in a different final state than its last-published live event needs the same
-  "re-publish the true outcome as the last message" treatment** — this is a general race between
-  a slow, uninterruptible background operation and any concurrent state change, not specific to
-  cancellation.
-- **The backend re-publish above was not sufficient on its own** — a second, real user re-test
-  after that fix shipped (manual: submit → wait for download to start → click "cancel track")
-  found the track visibly disappear from the waterfall instantly, then **reappear in the active
-  waterfall for a moment**, before finally settling on `cancelled`. Backend-side, this is entirely
-  correct and expected (exactly the stray-progress-event race documented above, now provably
-  ending in the right state) — the remaining bug was purely in how the frontend applied events:
-  `queue.ts`'s `applyTrackEvent` blindly overwrote a track's state with whatever event arrived
-  most recently, with no notion that some states are truly terminal and nothing legitimately
-  transitions a track back out of them. The optimistic local update from clicking "cancel"
-  (`mergeTrack` off the `DELETE` response) set the store to `cancelled` immediately, but a stray
-  `downloading` event from the still-running real download landed right after and flipped it back
-  before the backend's eventual re-published `cancelled` caught up — a purely client-side replay of
-  the same race, invisible to any backend-only test (curl/SSE-capture, unit tests) since the *wire*
-  order was already correct; only the *frontend's interpretation* of receiving events out of causal
-  order was wrong. Fixed with a `TRULY_TERMINAL_STATES` guard (`completed`/`skipped_duplicate`/
-  `cancelled` — deliberately **not** `lookup_failed`/`failed`, since retry-now can legitimately
-  revive those back to `waiting`): once a track's stored state is one of these three,
-  `applyTrackEvent` ignores every further event for that track id outright rather than applying
-  it, since nothing else in this app's model ever transitions a track back out of them. Confirmed
-  fixed by the same user, live, after a page refresh (a plain non-component `.ts` module needs a
-  full reload to pick up Vite HMR, not just a hot-swap) — no reappearance, straight to `cancelled`.
-  **Any future store logic that applies incoming live events on top of existing state needs the
-  same "is the current state one nothing ever legitimately exits" check** before blindly
-  overwriting — this is a second, independent instance of the same class of bug as the backend
-  fix above (a slow/uninterruptible operation's stale signal arriving after the true outcome is
-  already known), just at a different layer, and neither fix would have caught the other's gap.
-  No frontend unit-test framework exists in this project yet (v09 relied on backend `pytest` +
-  manual/Playwright-driven verification only) — this fix was verified by the user manually
-  re-testing the live UI, not by an automated frontend test; introducing Vitest/Jest purely to
-  cover this one case was judged out of scope for this version.
-- **`uv pip install ".[dev]"` (no `-e`/`--editable`) copies `app/` into `.venv/site-packages` as a
-  frozen snapshot** — every further edit to `backend/app/*.py` is invisible to a local
-  `.venv/bin/pytest` run until the package is reinstalled, silently testing stale code with zero
-  error or warning. Caught only because a fix made *after* the initial `uv pip install` (the SSE
-  re-publish fix above) kept failing its updated unit test with the *old* behavior even though the
-  source clearly had the new code — the traceback's own file path
-  (`.venv/lib/python3.12/site-packages/app/tasks/download.py`) was the tell. Fixed for this
-  session with `uv pip install --python .venv/bin/python -e .`; the real docker-compose stack was
-  never affected (its containers bind-mount `backend/app` directly, per `docker-compose.override.yml`,
-  so they always run live source) — this trap is specific to a local venv used for fast
-  `pytest`-only iteration outside Docker. **Any future local venv set up for running pytest
-  directly (outside `docker compose exec`) must use `-e`/`--editable`**, or re-verify after every
-  reinstall that source edits are actually reflected before trusting a "tests pass" result.
-- **Adding a new `JobState` member to an existing native Postgres enum needs `ALTER TYPE ... ADD
-  VALUE`, not the `values_callable` treatment alone** — `JobState.CANCELLED` required a hand-written
-  migration (`ALTER TYPE job_state ADD VALUE IF NOT EXISTS 'cancelled'`); Alembic's autogenerate
-  does not detect this at all (unlike a brand-new enum type, which v02 already covers). Downgrade
-  has no `DROP VALUE` equivalent — the migration's `downgrade()` remaps any `cancelled` row to
-  `failed`, renames the old type, recreates it without the new value, and swaps the column over via
-  `USING state::text::job_state`, mirroring v02's enum-type gotchas but for a value instead of a
-  whole type. Verified with a real `upgrade head` → `downgrade -1` → `upgrade head` round-trip
-  against the real shared Postgres instance (not a scratch container this time, since this is an
-  additive change to an existing type already holding real rows) — confirmed via `pg_enum` that the
-  value is present after upgrade and gone after downgrade. **Any future new enum member on an
-  already-shipped native enum type needs this same explicit `ADD VALUE` + type-swap-on-downgrade
-  pattern**, not just a Python-side enum change.
-- **A job cancelled while still `expanding` could have its cancellation silently undone** —
-  `expand_job`'s own multi-second Spotify round trip means a `DELETE /api/jobs/{id}` can commit
-  `cancelled` while `expand_job` is still mid-flight holding a stale in-memory `job.state ==
-  expanding`; the original code's `job.state = JobState.EXPANDED; db.commit()` at the end of
-  expansion would have blindly overwritten that cancel back to `expanded`, with the job's newly
-  inserted tracks then dispatched for real via `expand_job`'s own `download_track.delay(...)` calls
-  as if nothing had happened. Fixed with a conditional `UPDATE ... WHERE state = 'expanding'`
-  instead of a plain attribute assignment (a no-op if the row already moved on), followed by
-  `db.refresh(job)` to read the row's real current state rather than trusting the in-memory object —
-  if it comes back `cancelled`, the newly-inserted tracks are set `cancelled` too and dispatch never
-  happens. Verified with a real-stack-style test simulating the race (`expansion.expand`'s fake
-  commits the cancel mid-call, matching the timing a real concurrent request would produce):
-  confirmed zero `download_track.delay` calls and every inserted track landing `cancelled`, not
-  `pending`. **Any future write to `job.state` after an `await`-shaped gap (a network call, a slow
-  loop) needs the same conditional-UPDATE-then-refresh pattern**, not a bare assignment, if a
-  concurrent cancel must never be undoable.
-- The shared `app/services/serializers.py` (`job_to_dict`/`track_to_dict`/`track_counts`) replaces
-  what used to be private, jobs-router-only helpers — needed once `tracks.py`'s new retry/cancel
-  endpoints also had to serialize a `Track`. No behavior change, pure extraction.
-- Verified against the real docker-compose stack, real Postgres, and the real network (not
-  mocked), beyond the SSE re-publish fix above: pausing the worker held a real due `waiting` track
-  undispatched across 5 consecutive beat ticks (~2 minutes), confirmed via `worker-dl` logs showing
-  zero invocations for that track's id; resuming dispatched it on the very next tick with no
-  duplicate dispatch (`attempt_count` advanced by exactly one); `POST /api/tracks/{id}/retry` on a
-  track scheduled 12 hours out reset it to due immediately but `breaker_held: true` correctly held
-  it back while the breaker was tripped, then it dispatched on the first tick after release;
-  `POST /api/worker/breaker/release` cleared `breaker_tripped_until` immediately while leaving
-  `consecutive_failures`/`breaker_trip_count` untouched, and a subsequent simulated
-  `AudioProviderError` re-tripped the breaker straight to the *second* escalation delay (~2h), never
-  resetting to the first (~30m); and cancelling a track genuinely mid-download (a real, uncached
-  Spotify track picked specifically to avoid the dedup ledger) let the real download finish on disk
-  (confirmed the mp3 was actually written, then deleted as test cleanup) while the track's own
-  final state stayed `cancelled` with no `DownloadedTrack` ledger row ever created for it.
-
-### v11 priority gotchas (learned building job-priority-ordered dispatch + bump/priority endpoints)
-
-- **A one-off verification script copied to `/tmp` and run as `python /tmp/script.py`
-  inside any backend container silently imports the *stale* `pip install .` copy of the
-  `app` package from `site-packages`, not the fresh bind-mounted source at `/app/app`.**
-  Every backend image has both: the Dockerfile's `pip install uv && uv pip install
-  --system .` (v04 gotcha) bakes a real, non-editable snapshot into
-  `/usr/local/lib/python3.12/site-packages/app/...` at build time, while
-  `docker-compose.yml`/`.override.yml` separately bind-mounts `backend/app` to
-  `/app/app` for hot reload. Both are real, importable copies of the same package name.
-  `python -c "import ..."` puts `''` (cwd, `/app` per the image's `WORKDIR`) first on
-  `sys.path`, correctly resolving to the fresh bind mount — but `python
-  /tmp/script.py` puts the *script's own directory* (`/tmp`) first instead, `''` never
-  appears, and the next match is the stale site-packages install. This produced a
-  100%-reproducible, silently-wrong result while verifying this version's priority-ordered
-  dispatch query: the exact same query, run via `-c`, returned the correct
-  priority-ordered rows; the identical logic, reached by calling the real
-  `dispatch_due_tracks()` through a copied `/tmp` script, silently ran the *pre-v11*
-  compiled-in version with no join/order-by at all (creation-order results) — and a
-  later cleanup line in the same script referencing `JobState.CANCELLED` (added in v10)
-  threw `AttributeError`, because the site-packages snapshot predates v10 too. No
-  exception, no warning, no visible sign anything was wrong until the row order and a
-  seemingly unrelated `AttributeError` didn't match what the current source plainly
-  says. **Any future ad-hoc verification script (the `docker compose cp` + direct
-  in-process call technique established in v06/v07) must be copied to `/app/` inside
-  the container, not `/tmp/`** — `python /app/script.py` puts `/app` itself first on
-  `sys.path`, matching cwd, and resolves the same fresh bind-mounted source the real
-  services run. Confirmed by re-running the identical script from `/app/`: correct
-  priority-ordered result, no `AttributeError`, matching what direct SQL inspection
-  already proved the query does.
-- **Testing `dispatch_due_tracks()` by directly inserting `WAITING`, already-due `Track`
-  rows into the real shared Postgres instance races the real `beat` container**, which
-  fires the actual Celery task every 30s straight into the *persistent* worker-meta
-  process (not the one-off verification script's own process) — a real, observed hazard
-  here, not a theoretical one, since the very first attempt hit it. Isolated by setting
-  `worker_state.paused = True` directly in the DB before inserting test rows (the
-  persistent process's own `retry.breaker_active()` check honors this and no-ops on
-  every tick during the test window) while monkeypatching `retry.breaker_active` to
-  always return `False` *only inside the verification script's own process*, so its own
-  direct call to `dispatch_due_tracks()` still runs unblocked. **Any future direct-DB
-  test of beat-dispatched behavior against the real stack needs this same pause-the-real-
-  process-but-not-my-script isolation**, not just the v07 "clean up to a terminal state
-  before the script exits" precaution alone — that precaution only protects rows *after*
-  the script's own dispatch call, not the query itself from racing a concurrent real tick.
-- Verified against the real docker-compose stack and real Postgres instance (not
-  mocked), via the corrected `/app/`-rooted script technique above: with a low-priority
-  job's track due 10 minutes ago and a high-priority job's track due only 1 minute ago
-  (both currently due), `dispatch_due_tracks()` dispatched the high-priority job's track
-  first — confirmed via the real compiled SQL statement and the real row order returned
-  by Postgres, not a mock. With a low-priority job's track due and a high-priority job's
-  track not yet due (`scheduled_at` an hour out), only the low-priority track dispatched
-  and the high-priority one was left completely untouched in `waiting` — confirming
-  priority reorders only among currently-due tracks, never pulls a track forward out of
-  its ladder wait, exactly as the plan's "Done when" specifies. `PATCH
-  /api/jobs/{id}/priority` and `POST /api/jobs/{id}/bump` were confirmed wired and
-  session-gated (`401` unauthenticated) against the real running `api` container after a
-  clean hot-reload with no import errors. The plan's first "Done when" bullet says
-  *bumping* a job causes its tracks to dispatch first — an initial pass had only tested
-  the dispatch-ordering query with priorities set directly via the ORM, which exercises
-  the ordering logic but not the actual bump codepath the plan describes. Closed that gap
-  with a follow-up real-stack run calling `app.routers.jobs.bump_job()` itself (the real
-  production function, not a reimplementation) against two same-priority, simultaneously-due
-  tracks: the bumped (newer) job's priority came back `12` (one above the real pre-existing
-  max in the shared DB, not a hardcoded value), and its track dispatched first on the next
-  `dispatch_due_tracks()` call — the literal scenario the plan specifies, not just its
-  underlying mechanism.
-
-### v12 deploy-hardening gotchas (learned building durability fixes, same-origin nginx, non-root, JSON logging, backups)
-
-- **The plan's own "Done when" wording for restart survival could pass while the actual
-  bug shipped.** `docker compose down && up -d` leaving a `waiting` track's
-  `scheduled_at`/`attempt_count` untouched was never at risk — it's a pure Postgres row,
-  already proven safe at the unit level since v06. The property that genuinely needed
-  fixing is a track **actively `downloading`** when the stack goes down: with Celery's
-  default `task_acks_late=False`, the broker message is acked *before* `download_track`'s
-  body runs, so a `docker compose down`/OOM-kill/host crash mid-download loses that
-  message entirely and strands the track in `downloading` forever — nothing before v12
-  ever reclaimed a track out of that state. Fixed with three independent layers, not one:
-  `task_acks_late=True` + `task_reject_on_worker_lost=True` +
-  `broker_transport_options={"visibility_timeout": 3600}` (`celery_app.py`) so a killed
-  worker's message gets redelivered; `worker-dl`'s `stop_grace_period: 300s` so a real
-  in-flight download gets a chance to finish cleanly before SIGKILL; and an independent
-  DB-level reclaim sweep in `beat.py`'s `dispatch_due_tracks` (`_reclaim_stale_tracks`)
-  that resets any `DOWNLOADING`/`QUEUED` track past `STALE_TRACK_AFTER_SECONDS` (env var,
-  default 1800s — shortened for testing the same way `LADDER_SECONDS` already is) back to
-  `WAITING`, as the safety net for cases the Celery-level redelivery doesn't cover (e.g. a
-  message already acked by a pre-fix worker). Verified locally: a track force-set to
-  `DOWNLOADING` with a stale `updated_at` gets reclaimed to `WAITING` and — since the
-  reclaim's own `scheduled_at=now` is immediately due — re-dispatched to `QUEUED` in the
-  *same* `dispatch_due_tracks` tick, not the next one.
-- **Cutting `downloads` over from a named volume to a host bind mount (for `docker-compose.prod.yml`) can silently wipe the entire dedup ledger on first boot.** `reconcile_disk()`
-  (`dedup.py`) deletes every `downloaded_tracks` row whose file doesn't exist on disk — if
-  the new bind-mount directory is empty or not yet populated (a skipped migration step, a
-  typo'd `DOWNLOADS_DIR`), every row looks "missing" and gets pruned, forcing every
-  previously-downloaded track to re-download from scratch. Fixed with a guard: if the
-  ledger has rows but the output directory is missing or genuinely empty, `reconcile_disk`
-  logs an error and refuses to prune rather than assuming the worst. `docs/DEPLOYMENT.md`
-  documents the actual one-time volume-copy step this guard is protecting against skipping.
-- **A same-origin nginx reverse proxy (`frontend/nginx.conf`, new in v12) surfaced a real,
-  previously-shipped production bug that had nothing to do with the proxy itself: `GET
-  /login` 404s on any hard navigation.** `@sveltejs/adapter-static` prerenders `/login` to
-  a file named `login.html`, and stock nginx has no route from the extensionless path
-  `/login` to that filename. This bug existed since v09 — masked the entire time because
-  every prior test of `/login` went through client-side routing (`goto()`/`redirect()`
-  inside an already-loaded SPA), never a cold nav (a bookmark, a refresh, a fresh
-  Cloudflare-Tunnel hit). See the correction note on v09's frontend gotchas above — that
-  section's original claim that "no nginx SPA-fallback config was needed" was simply
-  wrong. Fixed with explicit per-route `location` blocks (`location = /login { try_files
-  /login.html =404; }`, same for `/`) rather than a wildcard SPA-shell fallback
-  (`try_files $uri /index.html`) — a wildcard would silently return `200` + HTML for a
-  genuinely missing asset chunk too, turning an honest 404 into a confusing "Unexpected
-  token '<'" JS error. **Any future route added to this app needs its own explicit nginx
-  `location` block matching adapter-static's emitted filename**, not just the SvelteKit
-  `+layout.ts` exports v09 already requires.
-- **The same nginx redesign would have silently killed SSE auto-reconnect if shipped
-  without a corresponding frontend fix.** `EventSource` only auto-reconnects on a
-  network-level failure (a raw TCP reset); a response with a non-2xx status or wrong
-  content-type "fails the connection" *permanently* per spec. Before v12, an `api`
-  container restart gave the browser a raw reset directly (auto-reconnect handled it
-  fine) — after routing through nginx, the same restart makes nginx answer with a real
-  `502 text/html` while `api` is down, which is exactly the terminal-failure case
-  `EventSource` never retries on its own. This also silently existed as a *different* bug
-  before v12 (a `401` after session expiry already killed the stream the same way) — never
-  caught because nobody left a tab open through an expiring session during testing. Fixed
-  in `+page.svelte` with a manual `onerror` handler + capped exponential-backoff
-  reconnect, gated on `readyState === EventSource.CLOSED` (a `CONNECTING` readyState means
-  the browser is already retrying on its own — reconnecting again on top of that would
-  double the retry storm).
-- **nginx resolving `api` in a literal `proxy_pass http://api:8000;` is resolved once at
-  config-parse time and cached for the process's lifetime** — this both crashes nginx at
-  boot if `api` isn't resolvable yet (a real startup race, since Compose starts services
-  concurrently) and keeps proxying to `api`'s *old* IP forever after any `docker compose
-  up -d --build` recreates it. Fixed with Docker's embedded DNS resolver
-  (`resolver 127.0.0.11 ipv6=off valid=10s;`) plus a `set $api_upstream api; proxy_pass
-  http://$api_upstream:8000$request_uri;` indirection — routing `proxy_pass` through a
-  variable forces per-request re-resolution instead of a one-time lookup.
-- **This image's `/etc/hosts` resolves `localhost` to `::1` (IPv6) before `127.0.0.1`, and
-  neither nginx (`listen 80;`, no `listen [::]:80;`) nor Vite's dev server bind IPv6** — a
-  healthcheck or verification command using `http://localhost/` gets a misleading
-  connection-refused failure even though the service is genuinely up and reachable on
-  IPv4. Caught for real: `web`'s healthcheck reported `unhealthy` with `wget: can't
-  connect to remote host: Connection refused` despite `curl 127.0.0.1` working fine from
-  inside the same container. Every healthcheck/verification command in this project now
-  uses `127.0.0.1` explicitly, never `localhost`.
-- **The dev (`docker-compose.override.yml`) and prod (`docker-compose.yml`) `web`
-  containers run genuinely different processes on different ports — nginx on `:80` in
-  prod, Vite's dev server on `:5173` in dev — so they need separate healthchecks, not one
-  shared one.** A single healthcheck targeting `:80` reports the dev container permanently
-  unhealthy (nothing listens there in dev). Fixed with the override providing its own
-  `healthcheck:` block targeting `:5173` — a full sub-key replacement, not a merge,
-  confirmed via `docker compose config` (mapping-valued healthcheck keys like `test:`
-  replace wholesale between files, they don't concatenate the way top-level list keys
-  like `volumes:`/`ports:` do).
-- **`docker compose config`'s interpolation escaping rules are opposite for the redis
-  healthcheck vs. the worker healthchecks, and getting it backwards produces a silent
-  permanently-failing/permanently-passing check with no error.** `redis`'s healthcheck
-  uses `${REDIS_PASSWORD}` **unescaped** — Compose-level interpolation from the root
-  `.env` is the only mechanism that works, since `redis` has no `env_file: .env` (it isn't
-  part of the `x-backend` anchor) and so has no container-side env var for a `$$`-escaped
-  form to read. `worker-dl`/`worker-meta`'s healthchecks use `$$HOSTNAME` **escaped** —
-  the opposite is needed there, since `$HOSTNAME` unescaped would have Compose
-  interpolate the *host machine's* hostname (from the shell running `docker compose`, not
-  the container) at config-parse time, silently pinging a Celery node name that will
-  never exist.
-- **A non-root container user for the backend needs a real home directory, not just
-  `--no-create-home` for a "service account" — `import spotdl` breaks otherwise, for every
-  process that imports it, with no warning.** `spotdl.utils.config` runs module-level code
-  at import time that unconditionally `os.makedirs()`s a `~/.spotdl` cache/config
-  directory — `api`, `worker-dl`, `worker-meta`, and `beat` (via `celery_app.py`
-  importing every task module at startup) all import this transitively. Building the
-  non-root user with `--no-create-home` (the initially "obviously correct" choice for a
-  service account with no shell) crashed every one of these four services on their very
-  first `import spotdl` with a bare `PermissionError: [Errno 13] Permission denied:
-  '/home/spotdl'` — caught only by actually starting every service locally after
-  switching to non-root, not assumed from the Dockerfile change looking correct.
-  `useradd --create-home` (not `--no-create-home`) is required. **Any future spotdl
-  4.5.2-importing process added to this project, containerized or not, needs a real,
-  writable home directory** — this is a real constraint of the spotdl library itself, not
-  specific to how this project happens to invoke it.
-- **`docker-compose.prod.yml`'s downloads bind mount needs the same `!override` YAML tag
-  the dev override already established (CLAUDE.md's v01 gotcha) for exactly the same
-  reason** — `volumes:` is a list key that merges across `-f` files by default; without
-  `!override` the prod file's host bind mount would sit alongside the base file's named
-  `downloads` volume as a second, conflicting mount at the same `/downloads` target.
-  `${DOWNLOADS_DIR:?...}` (required-variable interpolation, not a default) is deliberate
-  too — a typo'd/unset path silently creating an empty directory is exactly the setup for
-  the `reconcile_disk()` ledger-wipe hazard above.
-- **Redis's `maxmemory-policy` must be `noeviction`, not `allkeys-lru`, when Redis is
-  acting as a Celery broker rather than a cache** — `allkeys-lru` (redis's own default
-  policy once any `maxmemory` is set) would silently *evict queued task messages* under
-  memory pressure, which is real, silent task loss. `noeviction` instead makes Redis
-  reject new writes loudly once full — a real, actionable signal instead of a silent one.
-  `docker-compose.prod.yml`'s `--maxmemory 256mb` must stay comfortably under `redis`'s
-  own `deploy.resources.limits.memory` (384M) — if the two aren't kept in that
-  relationship, the OOM killer reaps the whole container before Redis's own limit ever
-  engages, defeating the point of setting one.
-- **A new `migrate` one-shot service (runs `alembic upgrade head`, then exits 0) now
-  gates every other backend service's startup** via `depends_on: migrate: condition:
-  service_completed_successfully`, added to the shared `x-backend` anchor — `api`,
-  `worker-dl`, `worker-meta`, and `beat` all wait for it. `migrate` itself must override
-  the anchor's `depends_on` back down to just `redis` (not the anchor's redis+migrate
-  combination), or it depends on itself and deadlocks — YAML's `<<:` merge key replaces a
-  child mapping's explicitly-redefined top-level key wholesale, it doesn't recursively
-  merge nested content under that key, so this override needed to be explicit. Verified
-  with a real `docker compose down && up -d`: `redis` starts → becomes healthy →
-  `migrate` starts → exits 0 → *only then* do `beat`/`worker-dl`/`worker-meta`/`api` start,
-  confirmed from real compose event ordering, not inferred from the YAML alone. This also
-  removes the old manual "confirm Alembic wiring" verification step from earlier versions
-  of `docs/DEPLOYMENT.md` — it happens automatically on every `up` now.
-- **`backend/Dockerfile` copying `app/` before running `uv pip install` meant every
-  source-only edit re-resolved and re-downloaded the full dependency tree (incl.
-  spotdl/yt-dlp) on every build** — reordered so `pyproject.toml` + a new committed
-  `requirements.txt` lock (`uv pip compile pyproject.toml -o requirements.txt`, re-run
-  after any dependency change) install *before* `COPY app`, caching that layer across
-  source edits. The lock file matters independently of the reordering too: this
-  project's dependencies were previously all floating `>=` bounds with no
-  dependency-freshness check in CI, so an unpinned rebuild months from now could
-  silently install a different yt-dlp/spotdl than whatever was last actually verified
-  working.
-- **`frontend/Dockerfile`'s `COPY . .` with no `.dockerignore` anywhere in the repo shipped
-  111MB of `node_modules` (including mismatched-libc native binaries — glibc bindings
-  from the host copied over an Alpine/musl `npm ci` result) and the untracked
-  `frontend/.env` into every build context.** Since `PUBLIC_API_BASE_URL` moved to a
-  Dockerfile `ARG` (default `""`, same-origin — see below) that no longer depends on
-  `frontend/.env` existing at all, a fresh clone can now `docker compose build web` with
-  zero frontend-specific config; `frontend/.dockerignore` (`node_modules`, `build`,
-  `.svelte-kit`, `.env`, `.env.*`, `.git`) makes that both correct and fast.
-- **`PUBLIC_API_BASE_URL` moved from an untracked `frontend/.env` file to a
-  Dockerfile `ARG PUBLIC_API_BASE_URL=""` (with a matching default in the Dockerfile),
-  wired via `docker-compose.yml`'s `build.args` — both dev and prod now default to `""`
-  (same-origin) rather than the pre-v12 split-origin setup.** `resolveApiBase()`
-  (`api.ts`) simplified to a single empty-string check (`new URL('')` throws, so this
-  must be checked before constructing a `URL`) — the old loopback-hostname SameSite-cookie
-  rewrite hack from v09 is now dead code for the default path, superseded by same-origin
-  being the actual fix rather than working around split-origin's cookie implications.
-  Local dev gets the same same-origin treatment via a new Vite `server.proxy` rule for
-  `/api` → `http://api:8000` (`vite.config.ts`) — the dev server runs *inside* the `web`
-  container (`docker-compose.override.yml`), so `api` resolves as a compose service name,
-  not a host-side address.
-- **`celery inspect ping` is real, non-trivial work — a fresh interpreter importing
-  `app.tasks.*`, which transitively drags in spotdl/yt-dlp — and must not be run every
-  few seconds forever as a healthcheck.** `worker-dl`/`worker-meta`'s healthchecks use a
-  120s interval and 90s `start_period` specifically to keep this cost rare. It does
-  respond promptly even mid-download despite `--concurrency=1`, since control/pidbox
-  messages are handled by the worker's MainProcess consumer loop, not the (possibly busy)
-  prefork child. `beat` deliberately has **no** healthcheck at all — it's a single
-  foreground process at PID 1, so a crash already produces a container exit
-  `restart: unless-stopped` handles with no extra signal needed, and a `pgrep`-style
-  check would only prove the process is scheduled, not that it's actually ticking, so it
-  wouldn't add real information.
-- **`health.py`'s per-request `Redis.from_url(...)` (never closed) mattered more once
-  Docker's own healthcheck started polling it every 30s** — 2,880 fresh connection
-  pools/sockets a day, previously harmless under only occasional manual/curl checks.
-  Fixed with a context manager (`with Redis.from_url(...) as redis_client:`) — three
-  lines, no behavior change otherwise.
-- **Taking over Celery's logging via the `setup_logging` signal disables Celery's *entire*
-  own logging setup the moment any receiver is connected — this is deliberate, not a side
-  effect to work around, but it means `-l info` on every `celery` CLI command becomes
-  documentation only, not the actual level source.** `logging_config.py`'s
-  `@setup_logging.connect` handler is the one place now responsible for the root logger's
-  handler/formatter in `worker-dl`/`worker-meta`/`beat`; `api` (uvicorn, not Celery) is
-  wired separately via `--log-config logging.json` referencing the same
-  `app.logging_config.JsonFormatter` class by dotted path. **Both wirings needed
-  independently updating in `docker-compose.override.yml`'s dev command overrides too** —
-  `command:` replaces rather than merges (same as `build:`, per the v01 gotcha), so the
-  dev override's own `--reload` uvicorn command silently dropped `--log-config
-  logging.json` (and would have silently lost any future flag the same way) until the
-  override was updated to repeat the full flag set.
-- **`python-json-logger` renamed its importable module from `pythonjsonlogger.jsonlogger`
-  to `pythonjsonlogger.json` in a recent major version** (a deprecation warning fires on
-  the old path, still functional but not for long) — `logging_config.py` imports from
-  `pythonjsonlogger.json` directly to avoid building on a path already flagged for
-  removal.
-- **JSON logging is new exposure surface for the v07 proxy-redaction contract, not just a
-  formatting change.** `proxies.redact()` is only reliably applied at the one call site in
-  `download.py` that already knows a proxy was involved — nothing before v12 guaranteed a
-  credentialed URL couldn't reach a log record through some *other* route (a raw exception
-  message from a library that isn't ours, a stray `extra=` field). `logging_config.py`'s
-  `JsonFormatter` adds an independent regex-based redaction pass
-  (`://[^/@\s]+:[^/@\s]+@` → `://[redacted]@`) over both the message and any formatted
-  exception, as a safety net on top of the existing call-site fix, not a replacement for
-  it. Covered by `test_logging_config.py` — including a real fabricated
-  `RuntimeError("Invalid proxy server: http://baduser:badpass@...")`, formatted through
-  the real formatter, asserting the credentials don't survive into the emitted JSON.
-- **Docker's own `json-file` log driver needs `max-size`/`max-file` set explicitly per
-  service (or via a shared block) — there is no global default that bounds it**, and nothing
-  in this project set one before v12. All 8 services (5 via the `x-backend` anchor,
-  `redis`/`web`/`cloudflared` individually) now cap at `max-size: "10m"`, `max-file: "5"` —
-  bounded regardless of how long the stack runs unattended.
-- **Verified against the real, shared production/dev Postgres instance (not a fixture)
-  during this version**: `scripts/pg_backup.sh`'s `pg_dump -Fc` + retention pruning ran
-  for real (confirmed a synthetic 20-day-old dump file was correctly deleted by a 14-day
-  retention run, while dumps under that window survived); a restore of the real dump into
-  a scratch `postgres:18-alpine` container reconstructed all 7 tables with matching real
-  row counts (73 `jobs` / 138 `tracks` / 9 `proxies` / 87 `downloaded_tracks` / 48
-  `sessions` / 1 `worker_state` / 1 `alembic_version` row, at the time of the test) — the
-  literal "Done when" bullet the original v12 plan specifies, run for real rather than
-  assumed from the script reading correctly.
-- The public production hostname is `spotdl.vb2007.hu`, routed through Cloudflare's
-  dashboard-managed (token-based) tunnel — **not** a repo-tracked `cloudflared/config.yml`
-  — with a single public-hostname rule pointing at `web:80`. This was a deliberate,
-  explicit choice over a `cloudflared/config.yml` + path-split approach specifically
-  *because* the same-origin nginx design collapses the routing decision to one hostname,
-  one service, no path rules to get wrong in the dashboard.
-- **`queue.ts`'s `loadAll()` fired one `GET /api/jobs/{id}/tracks` request *per job* via
-  `Promise.all` — harmless with a handful of jobs (true since v09), but a real, felt bug
-  the moment real usage (across every dev/testing session sharing one database) pushed
-  the job count past ~100.** That many concurrent requests queues up behind the
-  browser's/server's concurrent-stream limit, and any *other* request issued around the
-  same time — a worker pause/resume click, specifically what surfaced this — gets stuck
-  waiting behind the flood for 30–40+ seconds instead of resolving in its own normal
-  ~250ms. Caught via a live user report against the deployed production stack, not
-  local testing (local's job count happened to stay under the threshold). Fixed with a
-  single new `GET /api/tracks` endpoint (`tracks.py`) returning every track across every
-  job in one query — `loadAll()` now fires exactly 2 requests total regardless of job
-  count. Verified with a real headless-browser regression test (Playwright, real login,
-  real click) against the actual local stack with 141 real tracks: zero per-job
-  requests, exactly 2 bulk requests, table still renders all 141 rows correctly, and the
-  pause→"resume" label flip dropped from the previously-reported 30–40s to 68ms.
-  **Any future "load everything the queue needs" addition must stay a single bulk
-  request, never re-introduce a per-job (or otherwise per-row) loop** — this is the
-  concrete failure mode that pattern produces once the data volume this app is
-  explicitly designed to accumulate (it never deletes history) grows past a small
-  number.
-- **A brand-new `docker-compose.prod.yml`/CI addition was proven fully working in this
-  session's own local verification, then still failed for three independent reasons the
-  instant it hit the real self-hosted-runner CI — none of them a runner environment
-  problem, all three real bugs in the workflow file itself:**
-  1. `docker compose ... config` needs an actual `.env` file to exist on disk for the
-     `env_file: .env` directive on the `x-backend` anchor to resolve, separately from
-     the three `${VAR}`-interpolated values (`DOWNLOADS_DIR`/`REDIS_PASSWORD`/
-     `CLOUDFLARE_TUNNEL_TOKEN`) already supplied via job-level `env:` — CI's checkout
-     has no `.env` (gitignored), so `config` failed immediately with "env file ... not
-     found" before ever reaching the interpolation it was actually meant to validate.
-     Fixed with a `cp .env.example .env` step before validation; the file's *contents*
-     are irrelevant here since nothing in this job starts a real container.
-  2. `npm run check` runs `svelte-kit sync` *before* `svelte-check`, which generates
-     `$env/static/public`'s module exports from whatever `PUBLIC_*` env vars are present
-     **at that moment** — `PUBLIC_API_BASE_URL: ""` was only set on the later `Build`
-     step, so `check`'s own `import { PUBLIC_API_BASE_URL }` failed first. Fixed by
-     moving the env var to the *job* level so every step sees it, not just one.
-  3. An unquoted colon inside a step's own `name:` field
-     (`Create placeholder .env (file must exist for env_file: .env to resolve)`) parsed
-     as an unintended nested YAML mapping key, failing the **entire workflow file** at
-     parse time. A workflow that fails to parse creates zero jobs, so this didn't show
-     up as a failed check in the PR UI at all — it just silently vanished from the
-     checks list, which looked indistinguishable from a UI glitch until traced back via
-     `gh run view <id>` ("This run likely failed because of a workflow file issue.") and
-     confirmed with a real local PyYAML parse. **Any step `name:` containing a literal
-     colon must be quoted** — this is the second time in this project a bare colon in
-     YAML has caused a real, non-obvious failure (see the `env_file:`/`$$HOSTNAME`
-     interpolation-escaping gotchas above), and now the specific new failure mode is:
-     silent disappearance from PR checks, not a visible error.
-  All three were reproduced and confirmed fixed **locally** before pushing again
-  (a scratch `git clone` with no `.env`, and a `web` container stopped so a bind-mounted
-  `.svelte-kit/` write-back didn't get root-owned mid-test) — not just inferred from the
-  CI log and pushed on faith.
-- **`docs/CI_SELF_HOSTED_RUNNER.md` already explicitly warned against exactly the
-  mistake made when this version added its CI checks**: "extend the `pytest` job with a
-  second matrix entry (or a sibling job) once [the frontend has tests], rather than
-  standing up a separate workflow preemptively." `deploy-checks.yml` was created as a
-  second, separate workflow file anyway (for the new `compose-config`/`frontend` jobs),
-  splitting one PR's checks across two differently-named workflow groups in the GitHub
-  UI for no real reason — both files shared identical triggers and both existed purely
-  to gate the same PRs. Fixed by merging everything into a single `.github/workflows/
-  ci.yml` (`pytest` + `publish-report` + `compose-config` + `frontend` as four sibling
-  jobs, one shared `concurrency` group) and deleting the two predecessor files. **Read
-  this doc's own accumulated advice before adding a new workflow file**, not just before
-  editing an existing one — this is exactly the kind of already-recorded lesson this
-  file's "durable memory" premise exists to make available on the next read, not
-  something to re-discover the same way twice.
-
-### v13 settings-UI gotchas (learned building proxy management + output-config override UI)
-
-- **Per-job output override was explicitly scoped out**, per the plan's own instruction
-  to confirm before building it: the v00 master plan's locked decision is "global env
-  config first; UI override deferred to v13" — per-job override was only ever a "possible
-  future step," never a locked decision. v13 ships global-only, matching the locked
-  decision as written; nothing about this needs revisiting unless the user asks for
-  per-job overrides in a future, unplanned version.
-- **A settings change must invalidate `get_downloader`'s cache without a separate version
-  counter** — `output_dir`/`output_template` moved from a module-level constant sourced
-  from env `Settings` (v05) into a new singleton `app_settings` table (get-or-create,
-  same shape as `worker_state`/`retry.get_worker_state`), and `get_downloader`'s cache key
-  simply grew to `(format, bitrate, output_dir, output_template, proxy)` — every field the
-  UI can now edit is *in* the key, so a settings change can never hit a stale cached
-  `Downloader` by construction, no version counter needed. Verified for real (not just
-  unit tests): in a single `worker-dl` process, building a `Downloader` for the
-  pre-change settings, then calling the real `PATCH /api/settings/output`-equivalent
-  (`app_settings.update_output_settings` + commit) and building again with the freshly
-  re-read settings produced a second, distinct cached instance in the same process —
-  proving "affects the next download without a container restart" concretely rather than
-  by code-reading alone.
-- **`download_track` no longer touches env `Settings` for format/bitrate/output at all** —
-  it fetches `app_settings.get_output_settings(db)` once per task execution (the same
-  place `settings = get_settings()` used to sit) and reads everything from that row
-  instead. `default_format`/`default_bitrate`/`download_output_dir` env vars are now only
-  the *seed* for `app_settings`'s row on its very first read against a fresh DB — after
-  that first read, editing the env vars does nothing; the DB row is authoritative. Any
-  future code that needs the download format/bitrate/output must go through
-  `app_settings.get_output_settings(db)`, never `get_settings().default_format` directly,
-  or it'll silently read the stale, pre-v13 source.
-- **Proxy URLs are redacted in the settings UI too, not just in logs/`last_error`** —
-  `GET/POST/PATCH/DELETE /api/proxies` all return `proxies.redact(proxy.url)` (scheme://
-  host:port only), never the plaintext `user:pass`. This extends the v07 redaction
-  discipline (logs, `last_error`) to a third surface (the authenticated owner's own
-  screen) on the theory that a screenshot or shoulder-surf shouldn't leak a credential
-  either, even though the user already knows their own proxy passwords. Consistent with
-  the project's existing paranoia about this one specific leak vector; **any future
-  code that displays a `Proxy.url` anywhere must go through `redact()`**, matching every
-  other place a proxy URL is ever shown.
-- **`pick_proxy()` needed no changes at all for "both pools drawn from equally"** — it
-  already filtered purely on `Proxy.enabled`/`cooldown_until`, with no `source` filter
-  anywhere in the query (confirmed by reading `app/services/proxies.py` before writing
-  any v13 code, not assumed from the plan's wording alone). `POST /api/proxies` simply
-  inserts a `source=manual` row using the same table `sync_from_file()` (v07) already
-  populates with `source=file` rows; verified for real via the established
-  `docker compose cp` + `/app/`-rooted ad-hoc-script technique (v06/v07/v11): a
-  UI-added manual proxy with no `last_used_at` was picked first by a real `pick_proxy()`
-  call in the running `worker-meta` process (LRU prefers never-used), and disabling it
-  through `PATCH /api/proxies/{id}` made the very next `pick_proxy()` call skip it and
-  fall through to a real file-sourced proxy instead.
-- **`DELETE /api/proxies/{id}` is a soft delete (`enabled=false`) for every proxy
-  regardless of `source`, deliberately not restricted to `source=manual` rows** — matches
-  v07's never-hard-delete stance (preserves `consecutive_failures`/`last_success_at`
-  history). Disabling a `source=file` row through the UI is not surprising or
-  inconsistent: the next `sync_from_file()` run (worker-meta boot) simply re-enables it
-  as long as it's still listed in `proxies.txt`, identical to the existing
-  remove-then-re-add-the-line behavior v07 already documented — the UI control and the
-  file are just two paths to the same `enabled` flag on the same row.
-- Settings UI verified end-to-end against the real docker-compose stack, real Postgres,
-  and a real logged-in session (not mocked): `alembic upgrade head` → `downgrade -1` →
-  `upgrade head` round-tripped `app_settings` cleanly against the real shared Postgres
-  instance; all four backend processes (`api`, `worker-dl`, `worker-meta`, `beat`)
-  restarted cleanly with zero import errors after the new model/service/routers landed;
-  `GET/PATCH /api/settings/output` persisted a real change across requests; the frontend
-  `/settings` route builds and prerenders to `settings.html` (`svelte-check`/`eslint`/
-  `vite build` all clean) with its own explicit nginx `location` block added alongside
-  `/` and `/login`, per the v09/v12 gotcha that every route needs one. The plan's third
-  "Done when" bullet ("`proxies.txt` and the UI-added proxies coexist without either
-  overwriting the other's rows") was closed with its own dedicated real-stack check, not
-  inferred from `sync_from_file`'s source-scoped query alone: added a `source=manual` row
-  via `POST /api/proxies`, restarted the real `worker-meta` container (which runs
-  `sync_from_file()` on boot), and confirmed via `GET /api/proxies` afterward that the
-  manual row survived untouched (`source` still `manual`, stats unchanged) while the log
-  line read `sync_from_file: 5 in file, 0 added, 0 re-enabled, 0 disabled` — proving the
-  file-sync pass never even looked at it, not just that it happened not to change it.
-- **A real manual click-through (by the user, not a headless pass) of the first
-  `/settings` build found four real gaps that no automated check in this session had
-  caught** — the automated Playwright browser pass never ran at all (see below), and
-  `svelte-check`/`eslint`/`vite build`/pytest passing is exactly the kind of "correctness
-  verified, feature not" gap CLAUDE.md's own top-level rules warn about. Fixed in a
-  follow-up round, same version/branch:
-  1. **Format/bitrate were plain free-text inputs with zero validation** — a typo'd
-     format silently reached `get_downloader` and would only fail once a track actually
-     tried to download with it. Fixed with a live-introspected set of valid choices
-     rather than a hand-maintained guess: `downloads.get_supported_output_options()`
-     calls `spotdl.utils.arguments.create_parser()` (builds argparse groups only, no
-     argv parsing or I/O — safe/cheap to call purely for introspection) and reads the
-     real `--format`/`--bitrate` `choices` off the parser's `_option_string_actions` map
-     — there's no public argparse API for "give me this flag's choices" short of
-     parsing `--help` text, and a `KeyError` here (spotdl renaming/removing a flag) is
-     preferable to silently falling back to a stale hardcoded list. New
-     `GET /api/settings/output/options` backs the settings UI; `PATCH
-     /api/settings/output` now 400s server-side too if a submitted format/bitrate isn't
-     in that live set (defense in depth beyond the UI, verified for real: `{"default_
-     format": "wma"}` → `400 Unsupported format: 'wma'` against the real running `api`).
-     Format renders as the same `role="group"`/`aria-pressed` toggle-button convention
-     `QueueTable.svelte`'s filter tabs already established (DESIGN.md §6) — reused
-     rather than inventing a second pattern for the same "one active choice" interaction.
-     Bitrate uses a native `<select>` instead: ~28 values in a button row would be an
-     unreadable wall of buttons, a real cardinality difference from format's 6, not a
-     consistency compromise.
-  2. **The output-directory field was editable but meaningless** — the directory a
-     running container can actually write to is fixed by its volume mount at deploy
-     time (`DOWNLOAD_OUTPUT_DIR`), not by an app-level setting, so letting the UI edit
-     it just recorded a value nothing downstream would ever honor. Walked back
-     entirely rather than left half-working: `output_dir` dropped from `app_settings`
-     (migration `e92ed5ccf419`, round-tripped clean against the real shared Postgres
-     instance), removed from `UpdateOutputSettingsRequest` (pydantic silently ignores
-     the extra key if sent — verified `{"output_dir": "/hacked"}` has zero effect via a
-     real PATCH), and `download_track` now reads it straight from
-     `get_settings().download_output_dir` (env) like every version before v13 did. The
-     settings UI still shows it as a plain read-only field (informational — GET still
-     returns it, sourced live from env) with a hint explaining why it's not editable
-     there, rather than removing it from view entirely.
-  3. **A manually-added proxy could never actually be removed** — `DELETE
-     /api/proxies/{id}` originally soft-disabled every proxy regardless of source
-     (matching the plan's literal wording), which for a `source=manual` row is a dead
-     end: nothing (no `proxies.txt` line) will ever re-enable it, so the row just sits
-     forever as a permanently-disabled entry with its own "remove" button now disabled
-     too (since it was gated on `!proxy.enabled` under the mistaken assumption that
-     "disable" and "remove" were sequential steps of the same action). Fixed with a
-     source-conditional split: `source=manual` is now genuinely hard-deleted (`204`, row
-     gone from the table); `source=file` keeps the original soft-disable (`200`,
-     `enabled=false`) since the file is still that row's real source of truth and
-     `sync_from_file()`'s next run re-enables it exactly like removing then re-adding
-     the proxies.txt line, preserving its health stats. **Any future change to proxy
-     deletion needs to preserve this asymmetry** — it's not an inconsistency, the two
-     sources have genuinely different "what does delete even mean" answers. Verified for
-     real: a fresh manual proxy → `DELETE` → `204` → gone from `GET /api/proxies`; a
-     real, currently-healthy file-sourced proxy from earlier v07 testing → `DELETE` →
-     `200` + `enabled: false`, stats intact → re-enabled via `PATCH` afterward to restore
-     the shared dev DB's state. The settings UI's "remove" button is now only rendered
-     for `source=manual` rows at all (no confusing always-disabled button for file rows
-     — the enable/disable toggle already fully covers what "delete" would mean there).
-  4. **Manual proxy entries accepted literally any string** — `sync_from_file()`
-     deliberately never hard-validates (see its own docstring: a malformed `proxies.txt`
-     line is instead caught, and cooled down, the first time it's actually tried, since
-     duplicating spotdl's regex there risks drifting from an unattended background
-     process's actual behavior). The manual-add UI form is a different context — a
-     human typing into a live form benefits from immediate feedback instead of a
-     silent future failure — so `POST /api/proxies` now validates against
-     `proxies.PROXY_URL_RE`, spotdl's real accepted-proxy pattern (re-verified against
-     the currently-installed source, `spotdl.download.downloader.Downloader.__init__`,
-     not assumed from the v07 note alone — unchanged since then). The frontend mirrors
-     the same regex for instant feedback before the request even fires; the backend
-     check is the one that actually matters if the two ever drift. Verified for real: a
-     hostname (`http://proxy.example.com:8080`) and a `socks5://` URL — both real formats
-     spotdl's own Downloader rejects — both 400 against the real running `api`, no row
-     created.
-  All four fixes re-verified against the real docker-compose stack and real Postgres
-  instance (not mocked): `alembic upgrade head`/`downgrade -1`/`upgrade head`
-  round-tripped the `output_dir` column drop cleanly; all four backend processes
-  restarted with zero import errors; every endpoint above was exercised with real curl
-  calls against the real running `api` container, not just pytest. `svelte-check`/
-  `eslint`/`vite build` all still clean after the frontend rewrite.
-- **The Playwright browser click-through gap was finally closed, but not by getting the
-  Chromium *download* to work — the download itself still stalls the same way every
-  time.** The actual fix: `~/.cache/ms-playwright/chromium-1234/` turned out to already
-  contain a fully-downloaded, working Chromium binary from some earlier, unrelated
-  session/setup — `playwright-core`'s `chromium.launch({ executablePath:
-  '.../chromium-1234/chrome-linux64/chrome' })` launches it directly, completely
-  bypassing the revision-matching lookup (and thus the download) that a bare
-  `chromium.launch()` would trigger. **Any future session that needs a real headless
-  browser in this sandboxed environment should check `~/.cache/ms-playwright/` for an
-  already-present revision and launch it via `executablePath` first**, rather than
-  assuming a fresh `npx playwright install` is required — the download is what's
-  actually blocked here, not browser automation itself.
-- **A real browser click-through (finally possible via the trick above) immediately
-  found two real mobile-responsive defects that no prior check caught** — confirmed via
-  actual screenshots at 390px width, not assumed: (1) `.output-form`'s `grid-template-
-  columns: repeat(2, 1fr)` had no mobile breakpoint at all, squeezing the format
-  toggle-button group and the bitrate select into two cramped columns instead of
-  QueueTable.svelte's own established "one field per line below 640px" convention
-  (DESIGN.md §6) — fixed with a matching `@media (max-width: 640px)` collapsing it to
-  `1fr`. (2) Both the add-proxy input's placeholder and the filename-template input's
-  real value clipped mid-string at 390px with no ellipsis or visual cue anything was
-  cut off — fixed by shortening the placeholder to "Proxy URL" and moving the full
-  format spec into the panel's own wrapping hint paragraph (placeholders don't wrap,
-  visible text does), plus a mobile-only `font-size` reduction on text inputs so the
-  34-character default filename template fits without clipping. **Any future narrow
-  input holding real (not placeholder) content this project ships should get the same
-  "does the real default value actually fit at 390px" check** — `svelte-check`/`eslint`/
-  a clean build proved nothing about this; only an actual rendered screenshot did.
-- **The output-directory field was removed from the settings page entirely** (not just
-  made read-only, per a later, more decisive user call) — showing it at all, even
-  read-only, was confusing UI real estate for a value nothing about the page can ever
-  change. `app.services.app_settings`/the `AppSettings` model were already output-dir-
-  free from the validation-fixes round above; this was a frontend-only removal (the
-  `<div class="field wide">` block and its now-dead `input[readonly]` CSS). The
-  `OutputSettings.output_dir` TypeScript field stays (the API still returns it for any
-  other consumer), just unrendered — not the same as removing it from the API contract.
-- **Manually clicking "remove" on the two stray disabled manual-proxy rows left over
-  from the validation-fixes round's own real-stack testing (`198.51.100.42:8080`,
-  `198.51.100.55:9090`) is what surfaced that they were still sitting there at all** —
-  they'd been soft-disabled under the *pre-fix* delete semantics, before `DELETE
-  /api/proxies/{id}` started hard-deleting manual rows, and nothing had gone back to
-  actually remove them since. Cleaned up via real UI clicks (confirmed gone from
-  `GET /api/proxies` afterward), not a curl call — **closing this out through the same
-  browser path a real user would use is what caught it**; a curl-only pass would have
-  "worked" without ever noticing the leftover rows looked wrong on the real page.
-
-### Version roadmap — master v1 (complete, merged, deployed)
-
-| # | Branch | Scope |
-|---|---|---|
-| v00 | `dev-planning` | Plan files + this CLAUDE.md + initial graphify build |
-| v01 | `dev-scaffold` | Repo layout, compose stack topology, config, `/api/health`, Alembic init |
-| v02 | `dev-db-schema` | All SQLAlchemy models + one migration (no business logic) |
-| v03 | `dev-auth` | Upstream login proxy, allowlist, own session cookie |
-| v04 | `dev-url-expansion` | URL → `tracks` rows via `get_simple_songs` (no downloading) |
-| v05 | `dev-downloader` | Real downloads, dedup, naive error handling |
-| v06 | `dev-retry-engine` | Error classification, ladder, `scheduled_at`/beat dispatch, breaker |
-| v07 | `dev-proxy-rotation` | `proxies.txt`, health/cooldown, direct-then-proxy escalation |
-| v08 | `dev-live-progress` | spotdl progress hooks → Redis pub/sub → SSE `/api/stream` |
-| v09 | `dev-frontend` | SvelteKit login, submit form, live queue table |
-| v10 | `dev-queue-controls` | Cancel, retry-now, pause/resume worker + breaker |
-| v11 | `dev-priority` | Reorder/prioritize jobs in dispatch order |
-| v12 | `dev-deploy-hardening` | cloudflared config, prod compose, backups, restart survival |
-| v13 | `dev-settings-ui` | *Final:* proxy management UI + output-config override UI |
-
-Full detail for each row lives in `plan/master-v1/vNN-*.md`. Do not start a version out of order
-without asking the user first — the sequencing (e.g. auth before expansion, retry engine before
-proxy rotation, everything before the settings UI) is intentional.
+A 10-track album with 1 `LookupError` is `settled · partial` — "Done — 9 of 10", never "failed"
+(90% succeeded) and never a bare green tick (a real gap hidden). Both axes are derived in SQL from
+per-state counts; a stored column would need updating from every path that touches a track state
+and would be wrong the moment one forgot.
 
 ---
 
-## Master v2 — multi-user, job hierarchy, search (v14–v21)
+## Version roadmap
 
-Master v1 shipped a working POC that's deployed and downloading reliably. Master v2 makes it
-*usable* by more than one person. Full roadmap and rationale: `plan/master-v2/00-master-plan.md`.
+**Master v1 — complete, merged, deployed.** v00 planning · v01 scaffold · v02 db-schema ·
+v03 auth · v04 url-expansion · v05 downloader · v06 retry-engine · v07 proxy-rotation ·
+v08 live-progress · v09 frontend · v10 queue-controls · v11 priority · v12 deploy-hardening ·
+v13 settings-ui. Detail in `plan/master-v1/`, findings in `docs/GOTCHAS.md`.
 
-### The three problems v2 exists to fix
-
-1. **Single-user in everything but login.** Multiple people can authenticate, but there is no
-   `user_id` on `jobs`/`tracks`, no role concept, and `sessions` stores only an email. Everyone
-   sees everyone's data — including via SSE, which broadcasts every event on one global Redis
-   channel to every connected client.
-2. **No job/track hierarchy.** `QueueTable.svelte` renders one flat row per track and
-   `GET /api/tracks` returns every track across every job, unpaginated. A 1-track submission and a
-   3,000-track discography land in the same undifferentiated list.
-3. **Nothing is findable.** Three filter buttons (`all`/`waiting`/`lookup_failed`), no search, no
-   sorting, no way to retire finished work from view.
-
-### Locked decisions for v2
-
-| Area | Decision |
-|---|---|
-| Backward compatibility | **None required.** The DB holds only POC data and is disposable; destructive migrations are allowed |
-| User identity | Real `users` table; row created on first successful upstream login. `ALLOWED_EMAILS` still gates *who may log in*; the table governs *what they own and may do* |
-| Admin | `is_admin` column, seeded from a new `ADMIN_EMAIL` env var (which must also appear in `ALLOWED_EMAILS` — validated at startup) |
-| Data separation | **DB-level only.** Jobs/tracks are per-user; downloaded files stay in one shared library directory |
-| Dedup | Stays global — a track another user already downloaded resolves instantly as `skipped_duplicate`. Never re-fetch the same audio per user; that would multiply rate-limit exposure for zero benefit |
-| Ownership column | On `jobs` only. Tracks inherit via `job_id` — a denormalized `user_id` on `tracks` would be a second source of truth that can drift |
-| Queue fairness | Unchanged: global `jobs.priority DESC, scheduled_at ASC`. No round-robin, no per-user concurrency (concurrency is deliberate rate-limit exposure, per v1's locked decision) |
-| Admin visibility | Own jobs by default; explicit "all users" toggle, decided server-side from the session, never from a client-supplied flag |
-| Settings split | `/api/settings/output` + proxies + worker controls are **admin-only**; per-user settings (retention) are separate and open to everyone |
-| `LookupError` | **Unchanged from v1** — terminal, never auto-retried. Only the UI label changes: "Not found", never "Given up" |
-| Log retention | Soft-archive via `jobs.archived_at`, never hard delete. Per-user threshold, per-user "clear log" |
-| Live view | SSE scoped per user (`spotdl:events:{user_id}`); waterfall shows only the caller's tracks |
-| Search | Server-side across full history; archived excluded by default with an explicit opt-in |
-| Plan layout | `plan/master-v1/` + `plan/master-v2/`; version numbers continue at v14 and **never repeat** |
-
-### Job rollup status — two axes, never one stored flag
-
-A job is a *collection* whose members have independent outcomes, so it never gets a single stored
-success/fail column (which would need updating from every task and endpoint that touches a track
-state, and would be wrong the moment one path forgot). Both axes are **derived in SQL** from
-per-state track counts:
-
-**Lifecycle** — `expanding` (job.state) · `failed` (expansion errored, zero tracks) · `cancelled`
-(job.state) · `active` (≥1 track `pending`/`queued`/`downloading`) · `waiting` (no active, ≥1
-`waiting`) · `settled` (all tracks terminal).
-
-**Outcome**, only meaningful once `settled` — `complete` (all `completed`/`skipped_duplicate`) vs
-`partial` (≥1 `lookup_failed`/`cancelled`).
-
-A 10-track album where 1 track hits `LookupError` is **`settled · partial`** — rendered as
-"Done — 9 of 10" with a muted "1 not found". Never "failed" (90% succeeded on best effort), never a
-bare green tick (a real gap is hidden). `settled · partial` is a first-class filter value: *finished
-jobs that didn't get everything* is the one list actually worth acting on.
-
-**Job/track scope toggle**: `Jobs` (default) runs search/filter/sort against jobs, returning
-collapsed job rows; `Tracks` runs the same controls against tracks and auto-expands matching jobs
-showing only their matching tracks.
-
-### Version roadmap — master v2
+**Master v2 — in progress.**
 
 | # | Branch | Scope |
 |---|---|---|
-| v14 | `dev-v1-audit` | Read-only audit of v1's shipped code vs its plans; plan-folder reorg. No app code changes |
+| v14 | `dev-v1-audit` | Read-only audit of v1's code vs its plans; plan reorg. No app code changes |
 | v15 | `dev-v1-gap-fixes` | Fix v14's findings (known: unwired pacing hook, `list_jobs` N+1) |
-| v16 | `dev-users-schema` | `users`, `user_settings`, `jobs.user_id`/`archived_at`, `sessions.user_id`. Schema only |
-| v17 | `dev-multi-user-auth` | User creation, admin seeding, owner-scoped queries, admin gating, **per-user SSE channel** |
-| v18 | `dev-job-centric-api` | Paginated/filtered/sorted/searchable endpoints; rollup status in one aggregate query |
+| v16 | `dev-users-schema` | `users`, `user_settings`, `jobs.user_id`/`archived_at`. Schema only |
+| v17 | `dev-multi-user-auth` | User creation, admin seeding, owner-scoped queries, admin gating, per-user SSE |
+| v18 | `dev-job-centric-api` | Paginated/filtered/sorted/searchable endpoints; rollup status in one query |
 | v19 | `dev-archive-retention` | `archived_at` lifecycle, per-user retention, "clear log", hourly sweep |
-| v20 | `dev-job-centric-ui` | Job rows expanding to tracks, scope toggle, search, sorting, archive view, `/account` |
-| v21 | `dev-multi-user-hardening` | Adversarial two-user verification on the real stack, prod migration, doc reconciliation |
+| v20 | `dev-job-centric-ui` | Job rows expanding to tracks, scope toggle, search, sorting, `/account` |
+| v21 | `dev-multi-user-hardening` | Adversarial two-user verification, prod migration, doc reconciliation |
 
-### v2 rules that apply to every version
+---
 
-- **Data separation is a security property, not a feature.** It fails *silently* — the UI looks
-  correct to everyone until someone spots a stranger's album. Any version touching queries,
-  endpoints, or events must re-run the cross-user sweep (v21's `verify_separation` script), and
-  must check **direct-id endpoints**, not only list endpoints. Non-owner access returns **404, not
-  403**, so the endpoint never confirms an id exists.
-- **The SSE stream is a data surface.** Before v17 it broadcast every user's track/job ids to every
-  connected client by default. `publish_track_event`/`publish_job_event` take the owning user as a
-  **required** argument specifically so a new call site cannot forget it and silently fall back to
-  broadcasting. Verify it by raw-capturing `curl -N /api/stream`, never by looking at the UI.
-- **`downloaded_tracks` is never touched by archiving or retention.** It is the dedup ledger; if
-  archiving could drop a ledger row it would cause a re-download, turning a UI convenience into
-  extra rate-limit exposure — the one thing this whole app exists to avoid.
-- **A `waiting` job is never archived on age alone.** It is deliberately sitting in a 24h ladder
-  step and may not touch again for a day; archiving it would hide exactly the long-running work
-  this app is built for. Eligibility is measured from the newest track `updated_at`, not
-  `job.created_at`.
-- **Pagination is cursor-based, not offset.** Rows change state constantly while a user pages, and
-  offset paging silently skips and duplicates rows under concurrent writes — so it must be tested
-  under concurrent writes, not on a static table.
-- **Sorting and searching are server-side, always.** Sorting a paginated result client-side sorts
-  one page; filtering client-side makes search silently lie about history.
+## Maintaining this file
+
+This file is loaded into **every** session's context. Keep it under ~250 lines. It holds only what
+an agent must know *before* doing anything: rules, locked decisions, invariants, and where to find
+the rest.
+
+- **New findings, bugs, and war stories go in `docs/GOTCHAS.md`**, not here. Add them under a
+  version heading with enough detail to be actionable, and add a one-line entry to that file's
+  topic index.
+- **Change this file only when a rule, locked decision, invariant, or roadmap position changes** —
+  and then edit the existing line rather than appending a new section.
+- **Never append a session summary here.** If something learned this session doesn't change a rule,
+  it belongs in `docs/GOTCHAS.md` or the PR description.
+- When a gotcha turns out to be stale, correct it in place with a dated note rather than deleting
+  it — knowing a past claim was wrong is itself worth keeping.

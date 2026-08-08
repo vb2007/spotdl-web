@@ -58,8 +58,24 @@ here so they aren't "discovered" again):
    v1 version, a findings table, and a prioritized remediation list at the end mapping each gap to
    either "v15" or "needs its own version".
 6. **Update `CLAUDE.md`**: add the Master v2 section (context, locked v2 decisions, the job-rollup
-   status model, the v14–v21 roadmap table) and update the plan-file paths, which all moved. Leave
-   every existing v01–v13 gotchas section untouched — they remain true.
+   status model, the v14–v21 roadmap table) and update the plan-file paths, which all moved.
+7. **Split `CLAUDE.md` into rules vs. reference.** At 1,737 lines it was loaded into every session's
+   context in full, most of it war stories about code v2 is about to change. A rule an agent must
+   follow and a finding an agent might need are different documents, and only the first belongs in
+   every context window.
+   - Move the v01–v13 gotchas sections **verbatim** into `docs/GOTCHAS.md`, prefixed with a
+     topic index so an agent can jump to the relevant one instead of reading 1,400 lines, and a
+     warning that entries describe the code as of v13 and must be re-verified before being acted on.
+   - Move the "Auth API" and "spotdl 4.5.2 API surface" reference sections there too, under
+     "Verified external API contracts" — they're lookup material, not rules.
+   - `CLAUDE.md` keeps only: graphify rules, project context, workflow rules, a file map, dev
+     environments, locked decisions (v1 + v2), architecture invariants, the state machine and retry
+     numbers, the rollup model, and the roadmap. Target: under ~250 lines.
+   - Add a "Maintaining this file" section making the split a standing rule — new findings go to
+     `docs/GOTCHAS.md`; `CLAUDE.md` changes only when a rule, decision, invariant, or roadmap
+     position changes, by editing the existing line rather than appending.
+   - Verify the moved gotchas are **byte-identical** to what was removed (`diff`), not merely
+     "looks complete".
 7. `graphify update .` — the plan files moved, so the graph's `source_file` paths are stale.
 
 ## Explicitly out of scope
@@ -80,5 +96,8 @@ here so they aren't "discovered" again):
 - Every locked decision and every architecture invariant listed above has a verdict with evidence.
 - The remediation list at the end of the report is prioritized and each item is assigned to v15 or
   to its own version — no findings left unrouted.
-- `CLAUDE.md` reflects the new plan paths and the v2 roadmap.
-- `git diff --stat` shows changes only under `plan/`, `CLAUDE.md`, and `graphify-out/`.
+- `CLAUDE.md` reflects the new plan paths and the v2 roadmap, is under ~250 lines, and carries the
+  "Maintaining this file" rule.
+- `docs/GOTCHAS.md` exists, all 13 version sections are present, and its body `diff`s clean against
+  what was removed from `CLAUDE.md` — verified, not assumed.
+- `git diff --stat` shows changes only under `plan/`, `docs/`, `CLAUDE.md`, and `graphify-out/`.
