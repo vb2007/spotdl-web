@@ -13,7 +13,7 @@ from app.services.serializers import track_to_dict
 router = APIRouter(prefix="/api/tracks", tags=["tracks"])
 
 _TERMINAL_TRACK_STATES = {TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE, TrackState.CANCELLED}
-_RETRYABLE_TRACK_STATES = {TrackState.WAITING, TrackState.LOOKUP_FAILED, TrackState.FAILED}
+_RETRYABLE_TRACK_STATES = {TrackState.WAITING, TrackState.LOOKUP_FAILED}
 
 
 def _get_track_or_404(db: Session, track_id: uuid.UUID) -> Track:

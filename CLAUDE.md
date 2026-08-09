@@ -232,7 +232,7 @@ v13 settings-ui. Detail in `plan/master-v1/`, findings in `docs/GOTCHAS.md`.
 |---|---|---|
 | v14 | `dev-v1-audit` | Read-only audit of v1's code vs its plans; plan reorg. No app code changes |
 | v15 | `dev-v1-gap-fixes` | **Done.** Pacing hook wired, `list_jobs` N+1 collapsed, stale docs fixed, proxy settings polling, real-stack playlist/album-dedup verification. Deferred: `TrackState.FAILED` removal (v16, needs a migration), `list_tracks` pagination (v18) |
-| v16 | `dev-users-schema` | `users`, `user_settings`, `jobs.user_id`/`archived_at`. Schema only |
+| v16 | `dev-users-schema` | **Done.** `users`, `user_settings`, `jobs.user_id`/`archived_at`, `sessions.user_id` (NOT NULL, replacing `email`), `TrackState.FAILED` removed. **v17 must fix first:** login and job creation are broken (80 backend tests failing) until user-creation-on-login lands — see `docs/GOTCHAS.md`'s v16 section for the exact task list |
 | v17 | `dev-multi-user-auth` | User creation, admin seeding, owner-scoped queries, admin gating, per-user SSE |
 | v18 | `dev-job-centric-api` | Paginated/filtered/sorted/searchable endpoints; rollup status in one query |
 | v19 | `dev-archive-retention` | `archived_at` lifecycle, per-user retention, "clear log", hourly sweep |

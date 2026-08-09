@@ -16,7 +16,6 @@ class TrackState(str, enum.Enum):
     COMPLETED = "completed"
     WAITING = "waiting"
     LOOKUP_FAILED = "lookup_failed"
-    FAILED = "failed"
     SKIPPED_DUPLICATE = "skipped_duplicate"
     CANCELLED = "cancelled"
 
