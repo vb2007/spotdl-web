@@ -58,11 +58,34 @@
 		}
 	}
 
+	const PROXY_POLL_MS = 5000;
+
+	// No SSE event exists for proxy stats (cooldown_until expiring, consecutive_failures
+	// climbing) -- v14's audit flagged the page as only ever refreshing on mount or a
+	// self-triggered toggle. Same plain-poll approach as WorkerStatus.svelte's breaker
+	// check, but a silent variant: reusing loadProxies() verbatim would flip
+	// proxiesLoading on every tick and re-flash "Loading..." over a page the user is
+	// actively looking at.
+	async function refreshProxiesSilently() {
+		// Skip a tick while a toggle/remove/add is in flight -- a poll landing mid-request
+		// must not visually clobber that row before the user's own action resolves.
+		if (addingProxy || Object.keys(proxyBusy).length > 0) return;
+		try {
+			proxyList = await api.listProxies();
+		} catch {
+			// A transient poll failure isn't worth surfacing as a page-level error --
+			// loadProxies()'s own error path already covers the initial-load case.
+		}
+	}
+
 	onMount(() => {
 		loadOutputSettings().catch((err) => {
 			outputError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		});
 		loadProxies();
+
+		const id = setInterval(refreshProxiesSilently, PROXY_POLL_MS);
+		return () => clearInterval(id);
 	});
 
 	async function onOutputSubmit(event: SubmitEvent) {

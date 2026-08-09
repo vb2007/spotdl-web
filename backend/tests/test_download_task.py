@@ -474,3 +474,110 @@ def test_download_track_retry_falls_back_to_direct_when_no_proxy_available(db_se
     updated = db_session.get(Track, track.id)
     assert updated.state == TrackState.COMPLETED
     assert updated.used_proxy_id is None
+
+
+def test_pacing_delay_is_zero_when_unconfigured(monkeypatch):
+    """The regression guard for the drift itself -- PACING_MAX_SEC=0 (the default) must
+    mean the sleep path never runs, not time.sleep(0). Nothing ever asserted this before,
+    which is exactly how the hook went unwired without anyone noticing."""
+
+    def _fail_if_called(_seconds):
+        raise AssertionError("time.sleep must not be called with pacing off")
+
+    monkeypatch.setattr(download_task.time, "sleep", _fail_if_called)
+    assert download_task.pacing_delay() == 0.0
+
+
+def test_pacing_delay_samples_inside_the_configured_window(monkeypatch):
+    settings = download_task.get_settings()
+    monkeypatch.setattr(settings, "pacing_min_sec", 2, raising=False)
+    monkeypatch.setattr(settings, "pacing_max_sec", 6, raising=False)
+
+    samples = [download_task.pacing_delay() for _ in range(200)]
+    assert all(2 <= s <= 6 for s in samples)
+    # Randomized, not fixed -- a constant delay would make the whole worker fleet's
+    # request timing trivially fingerprintable, which is the point of "randomized" in
+    # the plan.
+    assert len(set(samples)) > 1
+
+
+def test_download_track_sleeps_before_the_attempt_when_pacing_configured(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    settings = download_task.get_settings()
+    monkeypatch.setattr(settings, "pacing_min_sec", 3, raising=False)
+    monkeypatch.setattr(settings, "pacing_max_sec", 3, raising=False)
+
+    calls = []
+    monkeypatch.setattr(
+        download_task.time, "sleep", lambda seconds: calls.append(("sleep", seconds))
+    )
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(
+        downloads,
+        "get_downloader",
+        lambda fmt, bitrate, output_dir, output_template, proxy=None: (
+            calls.append(("download", None)) or _FakeDownloader()
+        ),
+    )
+    monkeypatch.setattr(
+        downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
+    )
+
+    download_task.download_track(str(track.id))
+
+    # Ordering is the assertion that matters: a pacing delay applied *after* the download
+    # would space nothing out on a --concurrency=1 worker's final track in a batch.
+    assert calls == [("sleep", 3.0), ("download", None)]
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.COMPLETED
+
+
+def test_download_track_does_not_pace_a_skipped_duplicate(db_session, monkeypatch):
+    """The placement guard from the plan: a track that never touches the network must
+    not burn wall-clock waiting to not touch it."""
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    settings = download_task.get_settings()
+    monkeypatch.setattr(settings, "pacing_min_sec", 30, raising=False)
+    monkeypatch.setattr(settings, "pacing_max_sec", 60, raising=False)
+
+    def _fail_if_called(_seconds):
+        raise AssertionError("a duplicate must not pay the pacing delay")
+
+    monkeypatch.setattr(download_task.time, "sleep", _fail_if_called)
+    monkeypatch.setattr(
+        dedup, "is_already_downloaded", lambda track_id: Path("/downloads/existing.mp3")
+    )
+
+    download_task.download_track(str(track.id))
+
+    assert db_session.get(Track, track.id).state == TrackState.SKIPPED_DUPLICATE
+
+
+def test_download_track_cancelled_during_pacing_wait_skips_download(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    settings = download_task.get_settings()
+    monkeypatch.setattr(settings, "pacing_min_sec", 30, raising=False)
+    monkeypatch.setattr(settings, "pacing_max_sec", 60, raising=False)
+
+    def _cancel_during_wait(_seconds):
+        # Simulates a DELETE /api/tracks/{id} landing while download_track is asleep --
+        # a separate request/session committing this change underneath the sleeping task.
+        current = db_session.get(Track, track.id)
+        current.state = TrackState.CANCELLED
+        current.scheduled_at = None
+        db_session.commit()
+
+    monkeypatch.setattr(download_task.time, "sleep", _cancel_during_wait)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("a track cancelled during the pacing wait must not download")
+
+    monkeypatch.setattr(downloads, "get_downloader", _fail_if_called)
+
+    download_task.download_track(str(track.id))
+
+    assert db_session.get(Track, track.id).state == TrackState.CANCELLED

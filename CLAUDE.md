@@ -196,8 +196,12 @@ any ──> cancelled
   `dispatch_due_tracks` dispatches nothing. Only real `AudioProviderError`s feed it.
 - **Proxy escalation**: attempt 1 is always direct. On failure, wait out the ladder delay *first*;
   only the following attempt uses a proxy. A failing proxy gets its own `cooldown_until`.
-- **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`): randomized inter-track delay. **Currently
-  declared in config but unwired — v15 fixes this.** The first dial to turn if 429s stay frequent.
+- **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`): randomized inter-track delay, applied in
+  `download_track` after the cancel/breaker/dedup gates and before the actual attempt. `MAX_SEC=0`
+  (default) means off; `MIN` must not exceed `MAX` (rejected at startup). The first dial to turn if
+  429s stay frequent. Raising it means also raising `STALE_TRACK_AFTER_SECONDS` — pacing lengthens
+  how long a dispatched batch's tail sits `QUEUED`, and beat's stale-track sweep can't tell "paced"
+  from "stuck".
 
 ### Job rollup status (v2) — two derived axes, never one stored flag
 
@@ -227,7 +231,7 @@ v13 settings-ui. Detail in `plan/master-v1/`, findings in `docs/GOTCHAS.md`.
 | # | Branch | Scope |
 |---|---|---|
 | v14 | `dev-v1-audit` | Read-only audit of v1's code vs its plans; plan reorg. No app code changes |
-| v15 | `dev-v1-gap-fixes` | Fix v14's findings (known: unwired pacing hook, `list_jobs` N+1) |
+| v15 | `dev-v1-gap-fixes` | **Done.** Pacing hook wired, `list_jobs` N+1 collapsed, stale docs fixed, proxy settings polling, real-stack playlist/album-dedup verification. Deferred: `TrackState.FAILED` removal (v16, needs a migration), `list_tracks` pagination (v18) |
 | v16 | `dev-users-schema` | `users`, `user_settings`, `jobs.user_id`/`archived_at`. Schema only |
 | v17 | `dev-multi-user-auth` | User creation, admin seeding, owner-scoped queries, admin gating, per-user SSE |
 | v18 | `dev-job-centric-api` | Paginated/filtered/sorted/searchable endpoints; rollup status in one query |

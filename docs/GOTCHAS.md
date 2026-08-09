@@ -94,6 +94,10 @@ needed" claim — rather than silently deleted.
   make a mid-download crash recoverable → *v12*
 - Connecting the `setup_logging` signal disables Celery's own logging setup entirely — `-l info`
   becomes documentation, not the level source → *v12*
+- The pacing hook sat declared-but-unwired for four versions because nothing ever asserted it had
+  an effect; raising it also requires raising `STALE_TRACK_AFTER_SECONDS` → *v15*
+- `download_track` only gates on `CANCELLED` — a redelivered message for an already-`COMPLETED`
+  track can regress it to `SKIPPED_DUPLICATE` (found, documented, not fixed) → *v15*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -151,6 +155,12 @@ needed" claim — rather than silently deleted.
   credentialed run immediately exposed a credential leak → *v07*
 - `~/.cache/ms-playwright/` may already hold a working Chromium; launch it via `executablePath`
   rather than assuming a fresh install is needed (the download is what's blocked here) → *v13*
+- No query-counting utility existed before v15; a `before_cursor_execute` listener on
+  `db_session.get_bind()` is the pattern now — that engine is the only one the `client` fixture's
+  requests can possibly use → *v15*
+- When the real upstream login server is unreachable from a sandboxed dev network, create a session
+  row directly via `sessions.create_session()` and use its token as a manual cookie — identical
+  session mechanics to a real login, only the external auth hop is bypassed → *v15*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -164,6 +174,8 @@ needed" claim — rather than silently deleted.
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
   request, always → *v12*
+- Removing the `Session` parameter from a serializer, not just adding a bulk query, is what makes
+  the N+1 impossible to silently reintroduce → *v15*
 
 **Reference (not a gotcha)**
 - Upstream `vb2007.hu-api` endpoint shapes, token scheme, and the two constraints they impose →
@@ -421,6 +433,12 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
     below — so this is no longer mitigated by that container being read-only-by-omission either.)
   - `GET /api/jobs` runs one grouped-count query per job (N+1) via `_track_counts` — fine at
     current scale, revisit if job history grows large (no pagination either).
+    **[Corrected by v15]** A week of real use took this past "fine at current scale."
+    `job_to_dict` no longer takes a `Session` at all — `serializers.track_counts_by_job()` runs one
+    bulk grouped aggregate over every job in the response, and the caller passes each job's counts
+    in. Query count is now constant regardless of job count (asserted directly in
+    `test_jobs.py` via a `before_cursor_execute` listener, not inferred from timing). Pagination is
+    still v18's job — this fix only collapses the N+1, it doesn't bound the result set.
 
 ### v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)
 
@@ -1037,6 +1055,8 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
 - The shared `app/services/serializers.py` (`job_to_dict`/`track_to_dict`/`track_counts`) replaces
   what used to be private, jobs-router-only helpers — needed once `tracks.py`'s new retry/cancel
   endpoints also had to serialize a `Track`. No behavior change, pure extraction.
+  **[Updated by v15]** `job_to_dict`'s signature changed from `(db, job)` to `(job, counts)` — it no
+  longer takes a `Session`. See the v15 section below.
 - Verified against the real docker-compose stack, real Postgres, and the real network (not
   mocked), beyond the SSE re-publish fix above: pausing the worker held a real due `waiting` track
   undispatched across 5 consecutive beat ticks (~2 minutes), confirmed via `worker-dl` logs showing
@@ -1624,3 +1644,105 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   `GET /api/proxies` afterward), not a curl call — **closing this out through the same
   browser path a real user would use is what caught it**; a curl-only pass would have
   "worked" without ever noticing the leftover rows looked wrong on the real page.
+
+### v15 gap-fixes gotchas (learned closing v14's audit findings — pacing hook, N+1, stale docs)
+
+- **The pacing hook drifted for four versions (v07→v14) because nothing ever asserted it had an
+  effect.** `PACING_MIN_SEC`/`PACING_MAX_SEC` were declared in `config.py` since v07, documented in
+  `00-master-plan.md` as "wired but off by default," and never once read by `download_track`. This
+  is exactly why the gap survived four full "Done when" review passes: `git grep` for the settings'
+  *names* would have found them fine, sitting right there in `config.py` — what nobody checked was
+  whether anything downstream actually *consumed* them. **The reusable lesson: a config field
+  passing review because it exists and has a sane default is not the same claim as a config field
+  having an effect** — the second claim needs its own test asserting the observable behavior
+  changes when the value changes, not just that the field parses. The regression test added here
+  (`test_pacing_delay_is_zero_when_unconfigured`) is deliberately about the *default* case, not the
+  configured one — the gap was "off never means off," not "the math is wrong."
+- **Fix, real-stack verified**: `download.py`'s `pacing_delay()` samples `[PACING_MIN_SEC,
+  PACING_MAX_SEC]` and is called in `download_track` right after the dedup early-return and before
+  `get_output_settings` — after every gate that means "this track was never going to touch the
+  network," so a `skipped_duplicate` or breaker-deferred track never pays the delay. `db.commit()`
+  runs immediately before the `time.sleep()` so a pooled Postgres connection isn't held
+  `idle in transaction` for the whole window, and `db.refresh(track)` after the sleep re-checks
+  `CANCELLED` so a cancel landing mid-wait doesn't still trigger a real download. A `.env` value of
+  `PACING_MIN_SEC=8`/`PACING_MAX_SEC=12` against a real 5-track album showed explicit
+  `download_track: pacing N.Ns before track ...` log lines in `worker-dl` for every track
+  (samples: 10.1s, 9.8s, 11.9s, 10.0s, 11.7s, all inside the window), with total per-task runtime
+  (~21-24s) matching pacing-delay + real-download time. Restoring both values to `0` and
+  re-submitting the same album showed **zero** pacing log lines and every task completing in
+  single-digit milliseconds. `Settings` gained a `model_validator(mode="after")` rejecting
+  `min_sec > max_sec` and negative values — `random.uniform` silently samples a reversed range,
+  which would otherwise make `MIN=5, MAX=0` read as "pace by up to 5s" while meaning "off."
+- **Raising pacing means also raising `STALE_TRACK_AFTER_SECONDS`, and this is not obvious from
+  either setting's own docstring.** `dispatch_due_tracks` marks an entire due batch `QUEUED` in one
+  commit, but `worker-dl` drains it serially (`--concurrency=1`), so the k-th track's `updated_at`
+  is frozen for `k × (pacing + download time)`. Push per-track time up via pacing without also
+  raising the stale threshold and `_reclaim_stale_tracks` starts falsely reclaiming a batch's tail —
+  worse, a reclaimed-then-redelivered message for a track that's actually still running (or has
+  already `COMPLETED`) can regress it to `SKIPPED_DUPLICATE` via the dedup branch, since
+  `download_track` only gates on `CANCELLED` (see the new finding below). Local dev's
+  `STALE_TRACK_AFTER_SECONDS=20` was raised to `120` for the pacing verification run above and
+  restored afterward — this is the concrete failure mode that comment now documents inline in both
+  `.env` templates.
+- **New finding, documented not fixed**: `download_track` (`download.py`) returns early only for
+  `TrackState.CANCELLED`. A redelivered Celery message for an already-`COMPLETED` track (via
+  `task_acks_late` on a worker crash, or via `_reclaim_stale_tracks` sweeping a track that's
+  actually still running) passes that gate, falls into the dedup branch, and overwrites the row to
+  `SKIPPED_DUPLICATE` — a state-accuracy bug (both states are terminal/successful in v2's rollup),
+  not data loss. Real, but not a v14 remediation item and not small enough to fold into a fixes PR
+  per the admission rules — appended to the v2 roadmap as its own item.
+- **The `list_jobs` N+1 fix works by removing the `Session` parameter from `job_to_dict`, not just
+  by adding a bulk query alongside it.** A `job_to_dict(db, job)` signature with an internal
+  `track_counts(db, job.id)` call is exactly the shape that let the N+1 exist unnoticed for four
+  versions — anyone who forgot to route through a bulk pre-fetch just got a working-but-slow
+  request, no error, no test failure. `job_to_dict(job, counts)` has nothing left to query *with*,
+  so a caller that forgets is a `TypeError` on the very first request, not a silent regression.
+  `serializers.track_counts_by_job(db, job_ids)` runs one `GROUP BY (job_id, state)` aggregate over
+  every requested job; `track_counts(db, job_id)` is now a thin single-job wrapper over it, kept so
+  the five single-job routes (`create_job`, `get_job`, `cancel_job`, `set_job_priority`, `bump_job`)
+  didn't need their own bulk-fetch boilerplate.
+- **The response body was never byte-identical, before or after this fix, and the v15 plan's own
+  wording claiming so was wrong.** `track_counts`'s key order follows `GROUP BY` result order, which
+  Postgres doesn't guarantee across query plans — grouping by `(job_id, state)` instead of `state`
+  alone reorders it further. The regression tests assert parsed-JSON equality (exact key/value
+  correctness, including a job with zero tracks correctly serializing to `{}`), not literal bytes.
+  If literal byte stability is ever wanted, that needs an explicit `ORDER BY` and is a separate,
+  larger decision.
+- **A query-counting fixture (`count_queries` in `conftest.py`) is new to this repo** — there was
+  previously no way to assert "this endpoint issues N queries" directly; every prior "at current
+  scale" note in this file (see the v04/v05 entries above, corrected here) was a judgment call with
+  no regression guard behind it. It's a `contextmanager` wrapping
+  `sqlalchemy.event.listen(engine, "before_cursor_execute", ...)`, attached to
+  `db_session.get_bind()` — the only engine the `client` fixture's requests can possibly reach,
+  since `get_db` is overridden to yield that exact session.
+- **The local sandboxed dev network can reach the general internet (confirmed: spotdl's Spotify
+  calls worked) but specifically cannot reach `UPSTREAM_AUTH_BASE_URL`** (`api.vb2007.hu`), so the
+  real `/api/auth/login` flow 401s here even with correct credentials — `httpx.ConnectError: All
+  connection attempts failed` in the `api` container's logs, not a credentials problem. Creating a
+  session row directly via `app.services.sessions.create_session()` and using its token as a manual
+  cookie (`-b "SPOTDL_SESSION=<token>"`) produces a session indistinguishable from a real login for
+  every downstream purpose, since it's the exact same table and the exact same `require_session`
+  check — only the external auth hop is bypassed. Useful for any future real-stack verification run
+  from this same environment.
+- **`spotdl`'s own `SpotifyClient.search()` is not a literal-match catalog search** — it hits an
+  internal/undocumented Spotify endpoint (response shape includes `coverArt.extractedColors`, not
+  the public Web API's fields) that returns personalized/localized results almost unrelated to the
+  query string, and `total_tracks` comes back `0` for every album. Don't use it to programmatically
+  discover fixture URLs (e.g. "find a short 3-track album") — it doesn't do what the name suggests.
+  Real playlist/album URLs for this version's real-stack verification were supplied directly by the
+  project owner instead.
+- **`frontend/.svelte-kit/` and `frontend/build/` had root-owned files left over from a prior
+  `docker compose --build` run** that wrote into these bind-mounted, gitignored directories as
+  root — `npm run check`/`npm run build` both failed with `EACCES` until they were removed
+  (`sudo rm -rf` was needed for `build/`; `.svelte-kit/` came back with a plain `rm -rf` once its
+  top-level dir ownership allowed descending into it). Both are pure build output with nothing
+  tracked in git, so deleting and letting the next `npm run check`/`build` regenerate them is always
+  safe — if this recurs, it means a container ran a build command against these bind mounts again.
+- **Verified against the real docker-compose stack** for every finding above: a real 5-track album
+  download+re-download for the pacing hook and dedup, a real 17-track playlist submission
+  (`expanding` → `expanded`, exact track count and titles confirmed via `GET /jobs/{id}/tracks`,
+  then cancelled to bound the real-download footprint once expansion was confirmed), and a real
+  headless-Chromium session (Playwright, cookie-authenticated via the session-row technique above)
+  navigating to `/settings`, screenshotting a proxy row, mutating its `consecutive_failures` directly
+  in Postgres, and confirming the rendered row updated within ~7s with **no page reload** — the
+  proxy-polling fix's actual "Done when" claim, not just its code existing.

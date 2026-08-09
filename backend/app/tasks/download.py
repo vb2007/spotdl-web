@@ -1,4 +1,6 @@
 import logging
+import random
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -11,6 +13,24 @@ from app.services import app_settings, dedup, downloads, events, proxies, retry
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
+
+
+def pacing_delay() -> float:
+    """Seconds to wait before this track's download attempt -- a uniform sample from
+    [PACING_MIN_SEC, PACING_MAX_SEC], or 0.0 when the hook is off (the default).
+
+    Returns 0.0 rather than sleeping 0 so "off" means this code path never executes --
+    that's what the default-behavior regression test asserts. Not underscore-prefixed
+    because the sampling-window test calls it directly, same reasoning as
+    beat.stale_track_after()."""
+    settings = get_settings()
+    if settings.pacing_max_sec <= 0:
+        return 0.0
+    # Belt-and-braces: config.py's model_validator rejects min > max at startup, but a
+    # reversed window would otherwise make random.uniform silently sample the inverted
+    # range instead of failing.
+    low = max(0, min(settings.pacing_min_sec, settings.pacing_max_sec))
+    return random.uniform(low, settings.pacing_max_sec)
 
 
 @celery_app.task(name="app.tasks.download.download_track")
@@ -55,6 +75,35 @@ def download_track(track_id: str) -> None:
             db.commit()
             events.publish_track_event(track.id, track.job_id, track.state.value)
             return
+
+        # Pacing hook (declared since v07, actually consumed as of v15). Deliberately
+        # placed *after* the cancel/breaker/dedup gates above: a track that's never going
+        # to touch the network must not burn wall-clock waiting to not touch it.
+        # worker-dl is --concurrency=1 --prefetch-multiplier=1, so tasks run strictly
+        # serially and sleeping here is literally what spaces out consecutive attempts.
+        delay = pacing_delay()
+        if delay > 0:
+            # db.get(Track) above (and get_worker_state's possible get-or-create) opened
+            # a transaction nothing has closed yet. Commit before sleeping rather than
+            # pinning a pooled Postgres connection idle-in-transaction for the whole
+            # window -- same get-then-commit shape dispatch_due_tracks already uses.
+            db.commit()
+            logger.info(
+                "download_track: pacing %.1fs before track %s",
+                delay,
+                track_id,
+            )
+            time.sleep(delay)
+            # A cancel can land during the wait. Without this the download runs anyway
+            # and only the post-download refresh further down discards the result.
+            db.refresh(track)
+            if track.state == TrackState.CANCELLED:
+                logger.info(
+                    "download_track: track %s was cancelled during the pacing wait, "
+                    "skipping",
+                    track_id,
+                )
+                return
 
         output_settings = app_settings.get_output_settings(db)
 

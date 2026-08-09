@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 DEFAULT_LADDER_SECONDS = [900, 3600, 14400, 43200, 86400]
@@ -60,7 +60,12 @@ class Settings(BaseSettings):
     # 30-minute wait otherwise.
     stale_track_after_seconds: int = Field(default=1800, alias="STALE_TRACK_AFTER_SECONDS")
 
-    # Pacing hook (v07) — off by default
+    # Pacing hook (declared since v07, actually consumed by download_track as of v15) — a
+    # randomized inter-track delay. PACING_MAX_SEC=0 (the default) means off: the sleep
+    # path in download_track doesn't run at all, not sleep(0). Raising this means also
+    # raising STALE_TRACK_AFTER_SECONDS -- pacing lengthens how long a dispatched batch's
+    # tail sits QUEUED before its own attempt, and beat's stale-track sweep doesn't know
+    # the difference between "paced" and "stuck".
     pacing_min_sec: int = Field(default=0, alias="PACING_MIN_SEC")
     pacing_max_sec: int = Field(default=0, alias="PACING_MAX_SEC")
 
@@ -81,6 +86,22 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [int(part.strip()) for part in value.split(",") if part.strip()]
         return value
+
+    @model_validator(mode="after")
+    def _check_pacing_window(self) -> "Settings":
+        """Rejects a pacing window that can't mean what it says. random.uniform happily
+        samples a reversed range, so MIN=5/MAX=0 would silently read as "pace by up to
+        5s" while actually meaning "off" -- the exact silent-no-op shape v15 exists to
+        eliminate. get_settings() runs at import (celery_app.py), so a bad pair
+        crash-loops visibly at boot instead of misbehaving quietly at runtime."""
+        if self.pacing_min_sec < 0 or self.pacing_max_sec < 0:
+            raise ValueError("PACING_MIN_SEC/PACING_MAX_SEC must not be negative")
+        if self.pacing_min_sec > self.pacing_max_sec:
+            raise ValueError(
+                f"PACING_MIN_SEC ({self.pacing_min_sec}) must not exceed "
+                f"PACING_MAX_SEC ({self.pacing_max_sec})"
+            )
+        return self
 
 
 @lru_cache

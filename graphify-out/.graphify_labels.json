@@ -125,5 +125,9 @@
   "123": "Allowlisted shared users",
   "124": "README.md",
   "125": "test_app_settings.py",
-  "126": "conftest.py"
+  "126": "conftest.py",
+  "127": "README.md",
+  "128": "Deploying spotdl-web to the Debian 12 host",
+  "129": "spotdl-web — Accumulated Gotchas (master v1, v01–v13)",
+  "130": "stream"
 }

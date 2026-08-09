@@ -3,6 +3,7 @@ the ORM row directly (see v09's CLAUDE.md gotcha), used by both the jobs and tra
 routers."""
 
 import uuid
+from collections.abc import Sequence
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -10,17 +11,39 @@ from sqlalchemy.orm import Session
 from app.models import Job, Track
 
 
-def track_counts(db: Session, job_id: uuid.UUID) -> dict[str, int]:
+def track_counts_by_job(
+    db: Session, job_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, dict[str, int]]:
+    """One grouped aggregate covering every requested job -- replaces the per-job query
+    job_to_dict used to run in a loop (list_jobs's N+1, see v15). Jobs with no tracks are
+    simply absent from the result rather than mapped to {}; callers use .get(job_id, {}),
+    which reproduces exactly what the old per-job query returned for an empty job."""
+    if not job_ids:
+        return {}
     rows = (
-        db.query(Track.state, func.count(Track.id))
-        .filter(Track.job_id == job_id)
-        .group_by(Track.state)
+        db.query(Track.job_id, Track.state, func.count(Track.id))
+        .filter(Track.job_id.in_(job_ids))
+        .group_by(Track.job_id, Track.state)
         .all()
     )
-    return {state.value: count for state, count in rows}
+    counts: dict[uuid.UUID, dict[str, int]] = {}
+    for job_id, state, count in rows:
+        counts.setdefault(job_id, {})[state.value] = count
+    return counts
 
 
-def job_to_dict(db: Session, job: Job) -> dict:
+def track_counts(db: Session, job_id: uuid.UUID) -> dict[str, int]:
+    """Single-job convenience over the bulk query -- for endpoints that serialize exactly
+    one job and so can't loop into an N+1 by construction."""
+    return track_counts_by_job(db, [job_id]).get(job_id, {})
+
+
+def job_to_dict(job: Job, counts: dict[str, int]) -> dict:
+    """counts is passed in, not queried -- dropping the Session parameter is what makes
+    list_jobs's N+1 impossible to reintroduce by accident: this function has nothing left
+    to query with, so the caller must decide up front how many jobs' counts to fetch.
+    counts is required (no default) so a caller that forgets fails loudly at the call site
+    instead of silently serializing empty counts."""
     return {
         "id": str(job.id),
         "source_url": job.source_url,
@@ -29,7 +52,7 @@ def job_to_dict(db: Session, job: Job) -> dict:
         "priority": job.priority,
         "error": job.error,
         "created_at": job.created_at.isoformat(),
-        "track_counts": track_counts(db, job.id),
+        "track_counts": counts,
     }
 
 
