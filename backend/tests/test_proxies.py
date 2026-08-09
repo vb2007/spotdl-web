@@ -87,6 +87,52 @@ def test_pick_proxy_prefers_never_used_then_oldest_last_used_at(db_session):
     assert chosen.url == "http://never-used"
 
 
+def test_pick_proxy_selects_across_manual_and_file_sources_by_lru(db_session):
+    """v13 shipped MANUAL-source (UI-added) proxies alongside FILE-source ones, both meant
+    to be drawn from equally by pick_proxy -- but every existing test here only ever
+    builds FILE rows, so the service layer had never actually exercised a MANUAL one
+    (v14's audit, routed to v15). pick_proxy filters purely on enabled/cooldown and never
+    branches on source, so this should just work; the point is proving it, not changing
+    behavior."""
+    now = datetime.now(timezone.utc)
+    db_session.add_all(
+        [
+            Proxy(
+                url="http://file-proxy",
+                source=ProxySource.FILE,
+                enabled=True,
+                last_used_at=now,
+            ),
+            Proxy(url="http://manual-proxy", source=ProxySource.MANUAL, enabled=True),
+        ]
+    )
+    db_session.commit()
+
+    chosen = proxies.pick_proxy(db_session)
+
+    assert chosen is not None
+    assert chosen.url == "http://manual-proxy"
+    assert chosen.source == ProxySource.MANUAL
+
+
+def test_record_proxy_result_updates_a_manual_source_proxy(db_session):
+    proxy = Proxy(url="http://manual-proxy", source=ProxySource.MANUAL, enabled=True)
+    db_session.add(proxy)
+    db_session.commit()
+
+    proxies.record_proxy_result(db_session, proxy.id, success=True)
+    db_session.commit()
+    updated = db_session.get(Proxy, proxy.id)
+    assert updated.consecutive_failures == 0
+    assert updated.last_success_at is not None
+
+    proxies.record_proxy_result(db_session, proxy.id, success=False)
+    db_session.commit()
+    updated = db_session.get(Proxy, proxy.id)
+    assert updated.consecutive_failures == 1
+    assert updated.cooldown_until is not None
+
+
 def test_pick_proxy_stamps_last_used_at_on_selection(db_session):
     before = datetime.now(timezone.utc)
     proxy = Proxy(url="http://healthy", source=ProxySource.FILE, enabled=True)

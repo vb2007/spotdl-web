@@ -9,7 +9,7 @@ from app.db import get_db
 from app.models import Job, JobSourceType, JobState, Track, TrackState, UserSession
 from app.routers.auth import require_session
 from app.services import events
-from app.services.serializers import job_to_dict, track_to_dict
+from app.services.serializers import job_to_dict, track_counts, track_counts_by_job, track_to_dict
 from app.tasks.expand import expand_job
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -53,7 +53,7 @@ def create_job(
     db.add(job)
     db.commit()
     expand_job.delay(str(job.id))
-    return job_to_dict(db, job)
+    return job_to_dict(job, track_counts(db, job.id))
 
 
 @router.get("")
@@ -62,7 +62,14 @@ def list_jobs(
     _: UserSession = Depends(require_session),
 ) -> list[dict]:
     jobs = db.query(Job).order_by(Job.created_at.desc()).all()
-    return [job_to_dict(db, job) for job in jobs]
+    # One aggregate for the whole page rather than one per job (v15's N+1 fix). Jobs with
+    # no tracks are absent from `counts` and fall through to `{}` via job_to_dict's
+    # required `counts` argument, matching what the old per-job query returned for them.
+    # This does trade N queries for one query carrying N bind parameters -- fine at the
+    # scale `list_jobs` runs at today (no LIMIT yet, so it's already every job), and
+    # bounded permanently once v18 adds pagination.
+    counts = track_counts_by_job(db, [job.id for job in jobs])
+    return [job_to_dict(job, counts.get(job.id, {})) for job in jobs]
 
 
 def _get_job_or_404(db: Session, job_id: uuid.UUID) -> Job:
@@ -79,7 +86,7 @@ def get_job(
     _: UserSession = Depends(require_session),
 ) -> dict:
     job = _get_job_or_404(db, job_id)
-    return job_to_dict(db, job)
+    return job_to_dict(job, track_counts(db, job.id))
 
 
 @router.get("/{job_id}/tracks")
@@ -117,7 +124,9 @@ def cancel_job(
     for track in tracks:
         events.publish_track_event(track.id, track.job_id, track.state.value)
     events.publish_job_event(job.id, job.state.value)
-    return job_to_dict(db, job)
+    # Read after the cancel commit above, not before -- counts must reflect the just
+    # -cancelled tracks.
+    return job_to_dict(job, track_counts(db, job.id))
 
 
 @router.patch("/{job_id}/priority")
@@ -130,7 +139,7 @@ def set_job_priority(
     job = _get_job_or_404(db, job_id)
     job.priority = payload.priority
     db.commit()
-    return job_to_dict(db, job)
+    return job_to_dict(job, track_counts(db, job.id))
 
 
 @router.post("/{job_id}/bump")
@@ -146,4 +155,4 @@ def bump_job(
     max_priority = db.query(func.max(Job.priority)).scalar() or 0
     job.priority = max_priority + 1
     db.commit()
-    return job_to_dict(db, job)
+    return job_to_dict(job, track_counts(db, job.id))

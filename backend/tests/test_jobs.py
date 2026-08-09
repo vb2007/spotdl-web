@@ -1,6 +1,6 @@
 import uuid
 
-from app.models import Job, JobState, Track, TrackState
+from app.models import Job, JobSourceType, JobState, Track, TrackState
 from app.routers import auth
 from app.routers import jobs as jobs_router
 
@@ -78,6 +78,74 @@ def test_list_and_get_job_include_track_counts(client, db_session, monkeypatch):
     assert get_response.json()["track_counts"] == {"pending": 1}
 
 
+def _make_job_with_tracks(db_session, states=(TrackState.PENDING, TrackState.PENDING)):
+    job = Job(
+        source_url="https://open.spotify.com/album/x",
+        source_type=JobSourceType.ALBUM,
+        state=JobState.EXPANDED,
+    )
+    db_session.add(job)
+    db_session.commit()
+    for index, state in enumerate(states):
+        db_session.add(
+            Track(
+                job_id=job.id,
+                spotify_track_id=f"{job.id}-{index}",
+                song_json={"name": "Song"},
+                state=state,
+            )
+        )
+    db_session.commit()
+    return job
+
+
+def test_list_jobs_query_count_does_not_grow_with_job_count(
+    client, db_session, monkeypatch, count_queries
+):
+    """v15's N+1 guard. Before the fix, job_to_dict ran one grouped-count query per job,
+    so five jobs cost four more statements than one -- this asserts the count stays flat
+    instead of inferring it from timing."""
+    _login(client, monkeypatch)
+
+    _make_job_with_tracks(db_session)
+    with count_queries() as one_job_statements:
+        first = client.get("/api/jobs")
+    assert first.status_code == 200
+    assert len(first.json()) == 1
+
+    for _ in range(4):
+        _make_job_with_tracks(db_session)
+    with count_queries() as five_job_statements:
+        second = client.get("/api/jobs")
+    assert second.status_code == 200
+    assert len(second.json()) == 5
+
+    # Differential, not an absolute: the session lookup require_session does is constant
+    # but isn't this test's business, and pinning an exact total would make an unrelated
+    # auth change break this test for the wrong reason.
+    assert len(five_job_statements) == len(one_job_statements)
+    # ...and the absolute is small enough to prove it really is one aggregate, not N.
+    assert len(five_job_statements) <= 4
+
+
+def test_list_jobs_track_counts_are_attributed_per_job(client, db_session, monkeypatch):
+    """The correctness half of the N+1 fix: the classic bulk-aggregate bug is grouping by
+    state alone and smearing every job's counts together."""
+    _login(client, monkeypatch)
+
+    busy = _make_job_with_tracks(
+        db_session, states=(TrackState.PENDING, TrackState.PENDING, TrackState.COMPLETED)
+    )
+    waiting = _make_job_with_tracks(db_session, states=(TrackState.WAITING,))
+    empty = _make_job_with_tracks(db_session, states=())
+
+    by_id = {job["id"]: job for job in client.get("/api/jobs").json()}
+
+    assert by_id[str(busy.id)]["track_counts"] == {"pending": 2, "completed": 1}
+    assert by_id[str(waiting.id)]["track_counts"] == {"waiting": 1}
+    assert by_id[str(empty.id)]["track_counts"] == {}
+
+
 def test_list_job_tracks_projects_display_fields_and_stays_pending(client, db_session, monkeypatch):
     _login(client, monkeypatch)
     _stub_expand_job(monkeypatch)
@@ -148,7 +216,16 @@ def test_cancel_job_marks_job_and_non_terminal_tracks_cancelled(client, db_sessi
     response = client.delete(f"/api/jobs/{job_id}")
 
     assert response.status_code == 200
-    assert response.json()["state"] == "cancelled"
+    body = response.json()
+    assert body["state"] == "cancelled"
+    # Pins the ordering constraint that track_counts must be read *after* the cancel
+    # commit (jobs.py) -- reporting pre-cancel counts here would mean job_to_dict's
+    # counts argument was hoisted above the commit by a future refactor.
+    assert body["track_counts"] == {
+        "cancelled": 2,
+        "completed": 1,
+        "skipped_duplicate": 1,
+    }
 
     assert db_session.get(Track, downloading.id).state == TrackState.CANCELLED
     assert db_session.get(Track, waiting.id).state == TrackState.CANCELLED

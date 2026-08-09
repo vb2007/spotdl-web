@@ -223,3 +223,30 @@ holding only rules, locked decisions, invariants, the state machine, and the roa
 Keeping `CLAUDE.md` current remains a standing rule — but new findings now go to `docs/GOTCHAS.md`,
 and `CLAUDE.md` changes only when a rule, decision, invariant, or roadmap position changes.
 `plan/master-v2/v14-audit.md` carries the full task list and its verification.
+
+### 2026-08-09 — v15 complete; two v14 findings confirmed already scheduled, one new finding added
+
+v15 (`dev-v1-gap-fixes`) closed 7 of v14's 11 remediation items (pacing hook, `list_jobs` N+1,
+stale README/nginx-comment, settings-page proxy polling, plus real-stack verification of a literal
+playlist submission and album-scale re-submission dedup). Full detail in `docs/GOTCHAS.md`'s new
+"v15 gap-fixes" section.
+
+The other four were deliberately **not** taken, per this document's own "anything large gets its
+own version instead" rule:
+
+- `TrackState.FAILED` dead-code removal — confirmed still correctly routed to **v16** (`users-schema`
+  already touches a migration in that version; removing a native enum value needs its own
+  `DROP TYPE`, so it rides along rather than opening a migration-only PR just for this).
+- `routers/tracks.py`'s unbounded `list_tracks` — confirmed still correctly routed to **v18**
+  (`job-centric-api`, which already owns pagination for both jobs and tracks).
+- Host-reboot log, worker-healthcheck-flip log, non-root nginx — v14 marked all three optional;
+  left undone, not silently dropped.
+
+**New finding, not from v14's audit, added to the backlog for a future version**: `download_track`
+(`backend/app/tasks/download.py`) gates dispatch only on `TrackState.CANCELLED`. A redelivered
+Celery message for an already-`COMPLETED` track (via `task_acks_late` on a worker crash, or via
+`_reclaim_stale_tracks` sweeping a track that's actually still running) passes that gate and can
+regress the row to `SKIPPED_DUPLICATE` through the dedup branch. Real defect, not urgent (a
+state-accuracy bug, not data loss — both states are terminal/successful in v2's rollup), and not
+small enough to fold into v15's fixes-only scope. No version number assigned yet; needs scheduling
+alongside the other post-v21 backlog items above.

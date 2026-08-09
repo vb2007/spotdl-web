@@ -5,9 +5,11 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("SESSION_SECRET", "test-secret")
 os.environ.setdefault("ALLOWED_EMAILS", "allowed@example.com")
 
+from contextlib import contextmanager
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import sessionmaker
@@ -59,3 +61,29 @@ def client(db_session):
     with TestClient(app, base_url="https://testserver") as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def count_queries(db_session):
+    """Counts SQL statements executed inside a `with` block, for asserting a query count
+    directly (v15's N+1 regression guard) rather than inferring it from timing.
+
+    Listens on db_session's own Engine -- the `client` fixture overrides get_db with this
+    exact session, so every statement a request issues passes through here. This is the
+    repo's first query-counting helper; there was previously no way to assert this at all."""
+    engine = db_session.get_bind()
+
+    @contextmanager
+    def _count():
+        statements: list[str] = []
+
+        def _record(conn, cursor, statement, parameters, context, executemany):
+            statements.append(statement)
+
+        event.listen(engine, "before_cursor_execute", _record)
+        try:
+            yield statements
+        finally:
+            event.remove(engine, "before_cursor_execute", _record)
+
+    return _count
