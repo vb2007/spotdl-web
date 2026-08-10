@@ -38,12 +38,14 @@ def track_counts(db: Session, job_id: uuid.UUID) -> dict[str, int]:
     return track_counts_by_job(db, [job_id]).get(job_id, {})
 
 
-def job_to_dict(job: Job, counts: dict[str, int]) -> dict:
+def job_to_dict(job: Job, counts: dict[str, int], owner_email: str) -> dict:
     """counts is passed in, not queried -- dropping the Session parameter is what makes
     list_jobs's N+1 impossible to reintroduce by accident: this function has nothing left
     to query with, so the caller must decide up front how many jobs' counts to fetch.
-    counts is required (no default) so a caller that forgets fails loudly at the call site
-    instead of silently serializing empty counts."""
+    counts and owner_email are both required (no default) so a caller that forgets either
+    fails loudly at the call site instead of silently serializing empty/missing data --
+    owner_email specifically so an admin's all-users view can actually tell whose job is
+    whose (v17)."""
     return {
         "id": str(job.id),
         "source_url": job.source_url,
@@ -53,6 +55,7 @@ def job_to_dict(job: Job, counts: dict[str, int]) -> dict:
         "error": job.error,
         "created_at": job.created_at.isoformat(),
         "track_counts": counts,
+        "owner_email": owner_email,
     }
 
 

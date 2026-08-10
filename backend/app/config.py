@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     )
     session_secret: str = Field(alias="SESSION_SECRET")
 
+    # Multi-user (v17) -- the one account services.users.get_or_create_user grants
+    # is_admin to. Required, not optional: an admin nobody can log in as is a
+    # deployment that silently has no working settings/proxies/worker controls, which
+    # is worse than a loud crash-loop at boot.
+    admin_email: str = Field(alias="ADMIN_EMAIL")
+
     # Frontend (v09) — origin(s) the SvelteKit static site is served from, for CORS. As of
     # v12, both production (nginx's /api/ proxy inside the `web` container) and local dev
     # (Vite's dev-server /api proxy) are same-origin by default, so this middleware's
@@ -100,6 +106,22 @@ class Settings(BaseSettings):
             raise ValueError(
                 f"PACING_MIN_SEC ({self.pacing_min_sec}) must not exceed "
                 f"PACING_MAX_SEC ({self.pacing_max_sec})"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _check_admin_email_is_allowlisted(self) -> "Settings":
+        """ADMIN_EMAIL gates who services.users.get_or_create_user marks is_admin;
+        ALLOWED_EMAILS gates who may log in at all. If the admin's own address isn't
+        allowlisted, the deployment has an admin who can never log in -- exactly the
+        kind of silent misconfiguration that should crash-loop at boot (get_settings()
+        runs at import, per _check_pacing_window's same reasoning) rather than surface
+        only when someone notices settings/proxies/worker are unreachable."""
+        allowed = {e.strip().lower() for e in self.allowed_emails}
+        if self.admin_email.strip().lower() not in allowed:
+            raise ValueError(
+                f"ADMIN_EMAIL ({self.admin_email!r}) must also appear in "
+                f"ALLOWED_EMAILS ({self.allowed_emails!r})"
             )
         return self
 

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Track, TrackState, UserSession
+from app.models import Job, Track, TrackState, User
 from app.routers.auth import require_session
 from app.services import events, retry
 from app.services.serializers import track_to_dict
@@ -16,17 +16,24 @@ _TERMINAL_TRACK_STATES = {TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE, Tr
 _RETRYABLE_TRACK_STATES = {TrackState.WAITING, TrackState.LOOKUP_FAILED}
 
 
-def _get_track_or_404(db: Session, track_id: uuid.UUID) -> Track:
-    track = db.get(Track, track_id)
-    if track is None:
+def _get_track_or_404(db: Session, track_id: uuid.UUID, user: User) -> tuple[Track, uuid.UUID]:
+    """Returns the track alongside its job's owner id -- ownership lives on `jobs`, not
+    `tracks` (v2's locked decision: no denormalized copy), so this always joins through
+    `Track.job_id`. A non-admin's foreign track 404s exactly like a nonexistent one."""
+    query = db.query(Track, Job.user_id).join(Job, Track.job_id == Job.id).filter(Track.id == track_id)
+    if not user.is_admin:
+        query = query.filter(Job.user_id == user.id)
+    row = query.one_or_none()
+    if row is None:
         raise HTTPException(status_code=404, detail="Track not found")
-    return track
+    return row
 
 
 @router.get("")
 def list_tracks(
     db: Session = Depends(get_db),
-    _: UserSession = Depends(require_session),
+    user: User = Depends(require_session),
+    all_users: bool = False,
 ) -> list[dict]:
     """All tracks across every job, in one query -- what the frontend's initial load and
     every SSE-reconnect resync actually need. Replaces what used to be N individual
@@ -38,7 +45,10 @@ def list_tracks(
     behind the flood rather than being independently fast. Caught via a live report
     against the deployed production stack, not local testing (its shared dev database's
     job count was still small enough not to trigger it)."""
-    tracks = db.query(Track).order_by(Track.created_at).all()
+    query = db.query(Track).join(Job, Track.job_id == Job.id)
+    if not (all_users and user.is_admin):
+        query = query.filter(Job.user_id == user.id)
+    tracks = query.order_by(Track.created_at).all()
     return [track_to_dict(track) for track in tracks]
 
 
@@ -46,17 +56,17 @@ def list_tracks(
 def cancel_track(
     track_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: UserSession = Depends(require_session),
+    user: User = Depends(require_session),
 ) -> dict:
     """Same semantics as `DELETE /api/jobs/{id}` but for a single track — a track
     already `downloading` finishes but its result is discarded by `download_track`
     once it notices the state changed underneath it."""
-    track = _get_track_or_404(db, track_id)
+    track, owner_id = _get_track_or_404(db, track_id, user)
     if track.state not in _TERMINAL_TRACK_STATES:
         track.state = TrackState.CANCELLED
         track.scheduled_at = None
         db.commit()
-        events.publish_track_event(track.id, track.job_id, track.state.value)
+        events.publish_track_event(owner_id, track.id, track.job_id, track.state.value)
     return track_to_dict(track)
 
 
@@ -64,14 +74,14 @@ def cancel_track(
 def retry_track(
     track_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _: UserSession = Depends(require_session),
+    user: User = Depends(require_session),
 ) -> dict:
     """Bypasses the per-track ladder wait by resetting `scheduled_at` to now, but still
     respects the global circuit breaker — a manual retry must not be able to defeat the
     pause that exists specifically to stop hammering a rate-limited provider. The
     response's `breaker_held` field tells the caller whether this will dispatch on the
     next beat tick or is deferred until the breaker clears."""
-    track = _get_track_or_404(db, track_id)
+    track, owner_id = _get_track_or_404(db, track_id, user)
     if track.state not in _RETRYABLE_TRACK_STATES:
         raise HTTPException(
             status_code=409, detail=f"Track is {track.state.value}, not retryable"
@@ -82,6 +92,7 @@ def retry_track(
     track.scheduled_at = now
     db.commit()
     events.publish_track_event(
+        owner_id,
         track.id,
         track.job_id,
         track.state.value,

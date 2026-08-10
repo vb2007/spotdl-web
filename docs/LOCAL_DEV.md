@@ -25,9 +25,11 @@ cp .env.dev.example .env
 ```
 
 Fill in the real Postgres password (same role/database the Debian host uses — see
-`docs/DEPLOYMENT.md` for how that was created). Everything else in `.env.dev.example` is
-already dev-appropriate out of the box — notably `LADDER_SECONDS` is pre-shortened to seconds
-instead of hours, since testing the real retry ladder shouldn't take literal days.
+`docs/DEPLOYMENT.md` for how that was created) and `ADMIN_EMAIL` (v17+ — must also appear in
+`ALLOWED_EMAILS`, or the `api`/`worker-dl`/`worker-meta`/`beat` containers all crash-loop at
+boot). Everything else in `.env.dev.example` is already dev-appropriate out of the box —
+notably `LADDER_SECONDS` is pre-shortened to seconds instead of hours, since testing the real
+retry ladder shouldn't take literal days.
 
 `worker-meta` bind-mounts `./proxies.txt` (see `docker-compose.override.yml`), so a file needs
 to exist at the project root before `docker compose up` or Docker creates an empty directory
@@ -83,3 +85,4 @@ workflow stays the same.
 | Every container fails at startup with `failed to add the host <=> sandbox pair interfaces: operation not supported` (or any other veth/bridge networking error) | A kernel update landed via the package manager but the machine hasn't rebooted into it yet — the running kernel's module directory (including `veth`) has already been deleted from disk in favor of the new one | Compare `uname -r` against the installed kernel package version (`pacman -Q linux` on Arch) and check `/lib/modules/$(uname -r)/` exists; if it doesn't, reboot |
 | `web` fails with `Bind for 127.0.0.1:5173 failed: port is already allocated`, even though nothing else is using that port | `docker-compose.override.yml`'s `ports:` list *merges* with `docker-compose.yml`'s instead of replacing it (list-type keys merge by default across compose files — `command`/`build` don't, so this is easy to miss), so `web` ends up with two host bindings to the same address | Confirmed fixed for `web` via the `!override` merge tag on its `ports:` key — if you add a *new* port mapping to any service in the override, check `docker compose config` for duplicates rather than assuming a plain list will replace the base file's |
 | Stack was working, comes back broken after `docker compose down && up` with no config changes | Check `docker compose config` for the resolved service definitions before assuming it's a code regression — compose-file merge behavior is a common source of surprises that look like app bugs | |
+| `api`/`worker-dl`/`worker-meta`/`beat` all crash-loop at boot with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | Either `ADMIN_EMAIL` is unset in `.env`, or it's set but not also present in `ALLOWED_EMAILS` — both are required at startup, by design | Add `ADMIN_EMAIL=you@example.com` to `.env` and make sure that same address is also in `ALLOWED_EMAILS` |

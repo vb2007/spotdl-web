@@ -197,6 +197,15 @@ mono count next to the label (`all 12`, `waiting 3`, `given up 1`). This is the 
 future filter/tab control — `aria-pressed` boolean buttons with an inline count, not a `<select>`
 or unlabeled icon toggle.
 
+### Scope toggle (mine / all users, admin-only, v17)
+
+`+page.svelte`'s admin-only "mine / all users" toggle reuses the Filter tabs pattern above
+verbatim (`role="group"`, `aria-pressed` buttons, no `<select>`) but **does not** reuse its amber
+pressed state — `border-color: var(--line-bright)` instead of `--signal`. This switches a view
+scope, not a live/active condition, so §2's amber-exclusivity rule applies: the toggle is pressed
+indefinitely while "all users" is selected, which is exactly the "permanent chrome" amber must
+never represent.
+
 ### Attempt-history fan-out (expand/collapse row detail)
 
 Each queue row is itself a `<button>` (not a row with a separate expand icon) toggling a

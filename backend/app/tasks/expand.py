@@ -21,7 +21,7 @@ def expand_job(job_id: str) -> None:
             logger.warning("expand_job: job %s not found", job_id)
             return
 
-        events.publish_job_event(job.id, job.state.value)
+        events.publish_job_event(job.user_id, job.id, job.state.value)
 
         try:
             songs = expansion.expand(job.source_url)
@@ -55,10 +55,10 @@ def expand_job(job_id: str) -> None:
                     track.state = TrackState.CANCELLED
                 db.commit()
                 for track in tracks:
-                    events.publish_track_event(track.id, track.job_id, track.state.value)
+                    events.publish_track_event(job.user_id, track.id, track.job_id, track.state.value)
                 return
 
-            events.publish_job_event(job.id, job.state.value)
+            events.publish_job_event(job.user_id, job.id, job.state.value)
         except Exception as exc:
             # Covers both expansion.expand() itself (assorted exception types spotdl raises
             # for malformed/unreachable URLs) and any DB error while inserting tracks (e.g. a
@@ -69,7 +69,7 @@ def expand_job(job_id: str) -> None:
             job.state = JobState.FAILED
             job.error = str(exc)
             db.commit()
-            events.publish_job_event(job.id, job.state.value, error=job.error)
+            events.publish_job_event(job.user_id, job.id, job.state.value, error=job.error)
         else:
             for track in tracks:
                 download_track.delay(str(track.id))

@@ -59,7 +59,12 @@ function still exists before acting on it**, since v2 changes schema, endpoints,
   the local `docker compose` stack, real Postgres, real network. Not just `pytest`. Unit tests pass
   while a fix still fails against the real dialect or runtime.
 - **Mocked verification is not verification.** If a feature touches the network, a proxy, or the
-  database, at least one real end-to-end run is required before it ships.
+  database, at least one real end-to-end run is required before it ships. This includes login:
+  at least one identity must go through the real upstream `vb2007.hu-api`, not only the
+  direct-session-mint fallback (`docs/GOTCHAS.md`'s v15 testing entry) — use the local instance
+  (`host.docker.internal:3000`) if it's running, otherwise the live `https://api.vb2007.hu`
+  (register a fresh test account freely if needed). Only skip this if genuinely neither is
+  reachable, and say so explicitly rather than silently substituting the fallback for all of it.
 - **Context comes from graphify, not exploration agents.** Run `graphify query` / `path` / `explain`
   before searching manually. Run `graphify update .` after every code-modifying version.
 - **Develop locally, deploy to verify.** The local stack is the iteration loop; the Debian host is
@@ -232,8 +237,8 @@ v13 settings-ui. Detail in `plan/master-v1/`, findings in `docs/GOTCHAS.md`.
 |---|---|---|
 | v14 | `dev-v1-audit` | Read-only audit of v1's code vs its plans; plan reorg. No app code changes |
 | v15 | `dev-v1-gap-fixes` | **Done.** Pacing hook wired, `list_jobs` N+1 collapsed, stale docs fixed, proxy settings polling, real-stack playlist/album-dedup verification. Deferred: `TrackState.FAILED` removal (v16, needs a migration), `list_tracks` pagination (v18) |
-| v16 | `dev-users-schema` | **Done.** `users`, `user_settings`, `jobs.user_id`/`archived_at`, `sessions.user_id` (NOT NULL, replacing `email`), `TrackState.FAILED` removed. **v17 must fix first:** login and job creation are broken (80 backend tests failing) until user-creation-on-login lands — see `docs/GOTCHAS.md`'s v16 section for the exact task list |
-| v17 | `dev-multi-user-auth` | User creation, admin seeding, owner-scoped queries, admin gating, per-user SSE |
+| v16 | `dev-users-schema` | **Done.** `users`, `user_settings`, `jobs.user_id`/`archived_at`, `sessions.user_id` (NOT NULL, replacing `email`), `TrackState.FAILED` removed |
+| v17 | `dev-multi-user-auth` | **Done.** User creation on login, `ADMIN_EMAIL` seeding + reconciliation, owner-scoped REST queries (404 on non-owner), admin gating on settings/proxies/worker, per-user SSE channels + admin all-users pattern-subscribe |
 | v18 | `dev-job-centric-api` | Paginated/filtered/sorted/searchable endpoints; rollup status in one query |
 | v19 | `dev-archive-retention` | `archived_at` lifecycle, per-user retention, "clear log", hourly sweep |
 | v20 | `dev-job-centric-ui` | Job rows expanding to tracks, scope toggle, search, sorting, `/account` |

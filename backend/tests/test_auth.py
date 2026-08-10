@@ -16,12 +16,12 @@ def test_login_success_sets_cookie_and_me_returns_email(client, monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.json() == {"email": "allowed@example.com"}
+    assert response.json() == {"email": "allowed@example.com", "is_admin": False}
     assert "SPOTDL_SESSION" in response.cookies
 
     me_response = client.get("/api/auth/me")
     assert me_response.status_code == 200
-    assert me_response.json() == {"email": "allowed@example.com"}
+    assert me_response.json() == {"email": "allowed@example.com", "is_admin": False}
 
 
 def test_wrong_password_and_disallowed_email_return_identical_response(client, monkeypatch):

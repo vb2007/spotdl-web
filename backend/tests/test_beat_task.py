@@ -1,8 +1,17 @@
 from datetime import datetime, timedelta, timezone
 
-from app.models import Job, JobSourceType, Track, TrackState
+from app.models import Job, JobSourceType, Track, TrackState, User
 from app.services import events, retry
 from app.tasks import beat as beat_task
+
+
+def _owner(db_session) -> User:
+    user = db_session.query(User).filter(User.email == "owner@example.com").one_or_none()
+    if user is None:
+        user = User(email="owner@example.com", is_admin=False)
+        db_session.add(user)
+        db_session.flush()
+    return user
 
 
 class _NonClosingSession:
@@ -24,6 +33,7 @@ def _make_track(db_session, *, state, scheduled_at=None, spotify_track_id="abc12
         source_url="https://open.spotify.com/track/abc",
         source_type=JobSourceType.TRACK,
         priority=job_priority,
+        user_id=_owner(db_session).id,
     )
     db_session.add(job)
     db_session.commit()
@@ -69,7 +79,7 @@ def test_dispatch_due_tracks_dispatches_and_flips_state(db_session, monkeypatch)
     assert dispatched_ids == [str(due.id)]
     assert db_session.get(Track, due.id).state == TrackState.QUEUED
     assert db_session.get(Track, not_due.id).state == TrackState.WAITING
-    assert published == [(due.id, due.job_id, "queued")]
+    assert published == [(_owner(db_session).id, due.id, due.job_id, "queued")]
 
 
 def test_dispatch_due_tracks_skips_entirely_while_breaker_tripped(db_session, monkeypatch):
@@ -170,7 +180,7 @@ def test_dispatch_due_tracks_reclaims_stale_downloading_track(db_session, monkey
     refreshed = db_session.get(Track, stuck.id)
     assert refreshed.state == TrackState.QUEUED
     assert dispatched_ids == [str(stuck.id)]
-    published_states = [args[2] for args, kwargs in published]
+    published_states = [args[3] for args, kwargs in published]
     assert published_states == ["waiting", "queued"]
 
 

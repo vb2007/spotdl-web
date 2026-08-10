@@ -270,9 +270,10 @@ cp .env.example .env
 ```
 
 Fill in `DATABASE_URL`, `REDIS_PASSWORD`/`REDIS_URL`, `SESSION_SECRET`, `ALLOWED_EMAILS`,
-`FRONTEND_ORIGINS`, `DOWNLOADS_DIR`, and `CLOUDFLARE_TUNNEL_TOKEN` — see the "Upgrading"
-section above for what each should be for this app's real values, and `.env.example`'s
-own comments for anything not covered there.
+`ADMIN_EMAIL` (v17+ — must also appear in `ALLOWED_EMAILS`, or every backend container
+crash-loops at boot), `FRONTEND_ORIGINS`, `DOWNLOADS_DIR`, and `CLOUDFLARE_TUNNEL_TOKEN` — see
+the "Upgrading" section above for what each should be for this app's real values, and
+`.env.example`'s own comments for anything not covered there.
 
 > **Proxy list (v07+):** `worker-meta` bind-mounts `./proxies.txt` read-only. Create it
 > (`cp proxies.txt.example proxies.txt`) before bringing the stack up, or Docker creates

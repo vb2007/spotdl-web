@@ -4,6 +4,11 @@
 	import { worker } from '$lib/stores/worker';
 	import Countdown from '$lib/components/Countdown.svelte';
 
+	// Pause/resume and breaker-release are admin-only (v17) -- worker_status itself
+	// stays visible to everyone so a stalled queue is still explained. Cosmetic only,
+	// the server-side require_admin gate on those endpoints is the real enforcement.
+	let { isAdmin }: { isAdmin: boolean } = $props();
+
 	const { status } = worker;
 
 	let busy = $state(false);
@@ -56,18 +61,20 @@
 </script>
 
 <section class="panel worker" aria-label="Worker controls">
-	<div class="row">
-		<span class="label">Receiver power</span>
-		<button
-			type="button"
-			class="toggle"
-			aria-pressed={$status?.paused ?? false}
-			disabled={busy || $status === null}
-			onclick={handleToggle}
-		>
-			{$status?.paused ? 'resume' : 'pause'}
-		</button>
-	</div>
+	{#if isAdmin}
+		<div class="row">
+			<span class="label">Receiver power</span>
+			<button
+				type="button"
+				class="toggle"
+				aria-pressed={$status?.paused ?? false}
+				disabled={busy || $status === null}
+				onclick={handleToggle}
+			>
+				{$status?.paused ? 'resume' : 'pause'}
+			</button>
+		</div>
+	{/if}
 
 	{#if breakerActive}
 		<div class="row breaker">
@@ -75,9 +82,11 @@
 			{#if $status?.breaker_tripped_until}
 				<Countdown scheduledAt={$status.breaker_tripped_until} label="clears in" />
 			{/if}
-			<button type="button" class="release" disabled={busy} onclick={handleRelease}>
-				release now
-			</button>
+			{#if isAdmin}
+				<button type="button" class="release" disabled={busy} onclick={handleRelease}>
+					release now
+				</button>
+			{/if}
 		</div>
 	{/if}
 

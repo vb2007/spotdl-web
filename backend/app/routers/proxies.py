@@ -5,8 +5,8 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Proxy, ProxySource, UserSession
-from app.routers.auth import require_session
+from app.models import Proxy, ProxySource, User
+from app.routers.auth import require_admin
 from app.services.proxies import PROXY_URL_RE, redact
 
 router = APIRouter(prefix="/api/proxies", tags=["proxies"])
@@ -48,7 +48,7 @@ def _get_proxy_or_404(db: Session, proxy_id: uuid.UUID) -> Proxy:
 @router.get("")
 def list_proxies(
     db: Session = Depends(get_db),
-    _: UserSession = Depends(require_session),
+    _: User = Depends(require_admin),
 ) -> list[dict]:
     proxies = db.query(Proxy).order_by(Proxy.source, Proxy.url).all()
     return [_proxy_to_dict(proxy) for proxy in proxies]
@@ -58,7 +58,7 @@ def list_proxies(
 def create_proxy(
     payload: CreateProxyRequest,
     db: Session = Depends(get_db),
-    _: UserSession = Depends(require_session),
+    _: User = Depends(require_admin),
 ) -> dict:
     """Adds a source=manual proxy -- pick_proxy() draws from it exactly like a
     source=file row (see v07). Validated against spotdl's real accepted-proxy format
@@ -90,7 +90,7 @@ def update_proxy(
     proxy_id: uuid.UUID,
     payload: UpdateProxyRequest,
     db: Session = Depends(get_db),
-    _: UserSession = Depends(require_session),
+    _: User = Depends(require_admin),
 ) -> dict:
     proxy = _get_proxy_or_404(db, proxy_id)
     proxy.enabled = payload.enabled
@@ -103,7 +103,7 @@ def delete_proxy(
     proxy_id: uuid.UUID,
     response: Response,
     db: Session = Depends(get_db),
-    _: UserSession = Depends(require_session),
+    _: User = Depends(require_admin),
 ) -> dict | None:
     """A source=manual proxy is hard-deleted -- there's no proxies.txt entry that could
     ever re-add it, so soft-disabling one (the original v13 behavior) just left a dead,

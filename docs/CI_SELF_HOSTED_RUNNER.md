@@ -147,10 +147,11 @@ itself isn't one of those cases, not that apt has no place in runner setup at al
 Redis, no `ffmpeg` binary. This is a property of the current test suite, not an oversight:
 
 - Every test uses an in-memory SQLite engine (`backend/tests/conftest.py`'s `db_session`
-  fixture) rather than the real Postgres instance — `DATABASE_URL`/`REDIS_URL` env vars are set
-  to harmless placeholder values purely to satisfy `Settings()`'s required fields at import time;
-  nothing ever actually connects using them (SQLAlchemy's `create_engine()` and Celery's app
-  construction are both lazy).
+  fixture) rather than the real Postgres instance — `DATABASE_URL`/`REDIS_URL`/`SESSION_SECRET`/
+  `ALLOWED_EMAILS`/`ADMIN_EMAIL` (v17+) env vars are set to harmless placeholder values purely to
+  satisfy `Settings()`'s required fields (and its `ADMIN_EMAIL`-in-`ALLOWED_EMAILS` validator) at
+  import time; nothing ever actually connects using them (SQLAlchemy's `create_engine()` and
+  Celery's app construction are both lazy).
 - No test constructs a real `spotdl.download.downloader.Downloader` or calls a real Spotify/
   YouTube endpoint — `SpotifyClient.init`, `get_simple_songs`, `Downloader`, and
   `search_and_download` are all monkeypatched at the call site in every test that touches them.

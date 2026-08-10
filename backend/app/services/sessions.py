@@ -1,4 +1,5 @@
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
@@ -9,8 +10,8 @@ from app.models import UserSession
 SESSION_IDLE_TIMEOUT = timedelta(days=30)
 
 
-def create_session(db: Session, email: str) -> UserSession:
-    session = UserSession(email=email, token=secrets.token_hex(32))
+def create_session(db: Session, user_id: uuid.UUID) -> UserSession:
+    session = UserSession(user_id=user_id, token=secrets.token_hex(32))
     db.add(session)
     db.flush()
     return session
