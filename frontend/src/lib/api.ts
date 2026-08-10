@@ -33,6 +33,9 @@ export interface Job {
 	error: string | null;
 	created_at: string;
 	track_counts: Record<string, number>;
+	/** Whose job this is -- always present, but only interesting once an admin's "all
+	 * users" scope makes a foreign row visible at all. */
+	owner_email: string;
 }
 
 export type TrackState =
@@ -130,6 +133,13 @@ export interface OutputOptions {
 	bitrates: string[];
 }
 
+/** v17: every session carries the admin flag so the frontend can hide admin-only UI --
+ * cosmetic only, the server-side `require_admin` gate is the real enforcement. */
+export interface SessionInfo {
+	email: string;
+	is_admin: boolean;
+}
+
 export class ApiError extends Error {
 	constructor(
 		public status: number,
@@ -167,14 +177,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	return (await response.json()) as T;
 }
 
-export function login(email: string, password: string): Promise<{ email: string }> {
+export function login(email: string, password: string): Promise<SessionInfo> {
 	return request('/api/auth/login', {
 		method: 'POST',
 		body: JSON.stringify({ email, password })
 	});
 }
 
-export function me(): Promise<{ email: string }> {
+export function me(): Promise<SessionInfo> {
 	return request('/api/auth/me');
 }
 
@@ -189,8 +199,11 @@ export function createJob(url: string): Promise<Job> {
 	});
 }
 
-export function listJobs(): Promise<Job[]> {
-	return request('/api/jobs');
+/** allUsers is honored only for an admin session -- the server silently ignores it
+ * (never errors) from anyone else, so this is safe to pass unconditionally from the
+ * non-admin-hidden toggle's default-off state. */
+export function listJobs(allUsers = false): Promise<Job[]> {
+	return request(`/api/jobs${allUsers ? '?all_users=true' : ''}`);
 }
 
 export function listJobTracks(jobId: string): Promise<Track[]> {
@@ -201,8 +214,8 @@ export function listJobTracks(jobId: string): Promise<Track[]> {
  * instead of firing one `listJobTracks` call per job. See `GET /api/tracks`'s own
  * comment for why: N concurrent per-job requests stopped being harmless once real usage
  * accumulated 100+ historical jobs. */
-export function listTracks(): Promise<Track[]> {
-	return request('/api/tracks');
+export function listTracks(allUsers = false): Promise<Track[]> {
+	return request(`/api/tracks${allUsers ? '?all_users=true' : ''}`);
 }
 
 export function cancelJob(jobId: string): Promise<Job> {
@@ -290,6 +303,8 @@ export function updateOutputSettings(
  * case where `API_BASE` is a genuinely different absolute origin — a plain
  * `new EventSource(url)` defaults to omitting cookies there, which would silently 401
  * the stream. A harmless no-op for the same-origin default. */
-export function createEventSource(): EventSource {
-	return new EventSource(`${API_BASE}/api/stream`, { withCredentials: true });
+export function createEventSource(allUsers = false): EventSource {
+	return new EventSource(`${API_BASE}/api/stream${allUsers ? '?all_users=true' : ''}`, {
+		withCredentials: true
+	});
 }

@@ -32,6 +32,11 @@ function createQueueStore() {
 	const jobs = writable<Record<string, Job>>({});
 	const tracks = writable<Record<string, LiveTrack>>({});
 
+	// Admin-only view scope (v17) -- module state, not a per-call argument, since SSE-
+	// triggered refreshes (applyJobEvent) need to honor whatever scope is currently
+	// active without every call site threading it through.
+	let allUsers = false;
+
 	// Guards against an out-of-order REST response clobbering fresher state: the SSE
 	// `expanded`/reconnect paths can both trigger overlapping `refreshJobTracks` calls for
 	// the same job, and network timing gives no guarantee the one that started first is
@@ -43,7 +48,7 @@ function createQueueStore() {
 
 	async function refreshJobs(): Promise<Job[]> {
 		const seq = ++jobsFetchSeq;
-		const list = await api.listJobs();
+		const list = await api.listJobs(allUsers);
 		if (seq !== jobsFetchSeq) return list;
 		jobs.update((current) => {
 			const next = { ...current };
@@ -80,7 +85,7 @@ function createQueueStore() {
 	 * this one bulk call instead of per job id. */
 	async function refreshAllTracks(): Promise<void> {
 		const seq = ++allTracksFetchSeq;
-		const list = await api.listTracks();
+		const list = await api.listTracks(allUsers);
 		if (seq !== allTracksFetchSeq) return;
 		mergeTrackList(list);
 	}
@@ -89,6 +94,21 @@ function createQueueStore() {
 	 * documented contract (the stream never replays missed events). */
 	async function loadAll(): Promise<void> {
 		await Promise.all([refreshJobs(), refreshAllTracks()]);
+	}
+
+	/** Admin-only scope switch (v17): both stores accumulate by merge and never evict on
+	 * their own (see mergeTrackList/refreshJobs), so switching scope without clearing
+	 * first would leave the other scope's foreign rows resident forever. Caller is
+	 * responsible for calling loadAll() afterward and reconnecting the SSE stream with
+	 * the matching allUsers flag -- this only updates what the *next* fetch requests. */
+	function setAllUsers(value: boolean): void {
+		allUsers = value;
+		jobs.set({});
+		tracks.set({});
+	}
+
+	function getAllUsers(): boolean {
+		return allUsers;
 	}
 
 	/** Optimistic insert right after a successful `POST /api/jobs`, so the new job is
@@ -223,6 +243,8 @@ function createQueueStore() {
 		lookupFailedTracks,
 		incomingJobs,
 		loadAll,
+		setAllUsers,
+		getAllUsers,
 		addJob,
 		applyEvent,
 		cancelJob,

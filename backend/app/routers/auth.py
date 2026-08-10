@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.models import UserSession
+from app.models import User, UserSession
 from app.services import upstream_auth
 from app.services.sessions import SESSION_IDLE_TIMEOUT, create_session, delete_session, get_valid_session
+from app.services.users import get_or_create_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -20,7 +21,7 @@ class LoginRequest(BaseModel):
     password: str
 
 
-def require_session(request: Request, db: Session = Depends(get_db)) -> UserSession:
+def current_session(request: Request, db: Session = Depends(get_db)) -> UserSession:
     token = request.cookies.get(COOKIE_NAME)
     if token is None:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -31,6 +32,27 @@ def require_session(request: Request, db: Session = Depends(get_db)) -> UserSess
 
     db.commit()
     return session
+
+
+def require_session(
+    session: UserSession = Depends(current_session), db: Session = Depends(get_db)
+) -> User:
+    """Every owner-scoped route depends on this, not `current_session` directly --
+    `session.user_id` is only ever a means to reach the `User` that actually carries
+    ownership and the admin flag (v17)."""
+    user = db.get(User, session.user_id)
+    if user is None:
+        # The session outlived its user (never expected in practice -- ON DELETE CASCADE
+        # isn't set up, so this would mean a row was deleted out from under a live
+        # session), but "not authenticated" is the correct response either way.
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+
+def require_admin(user: User = Depends(require_session)) -> User:
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
 
 
 def _set_session_cookie(response: Response, token: str) -> None:
@@ -55,17 +77,18 @@ async def login(payload: LoginRequest, response: Response, db: Session = Depends
     if not upstream_ok or not allowed:
         raise _INVALID_CREDENTIALS
 
-    session = create_session(db, payload.email)
+    user = get_or_create_user(db, payload.email)
+    session = create_session(db, user.id)
     db.commit()
     _set_session_cookie(response, session.token)
-    return {"email": payload.email}
+    return {"email": user.email, "is_admin": user.is_admin}
 
 
 @router.post("/logout")
 def logout(
     response: Response,
     db: Session = Depends(get_db),
-    session: UserSession = Depends(require_session),
+    session: UserSession = Depends(current_session),
 ) -> dict:
     delete_session(db, session.token)
     db.commit()
@@ -74,5 +97,5 @@ def logout(
 
 
 @router.get("/me")
-def me(session: UserSession = Depends(require_session)) -> dict:
-    return {"email": session.email}
+def me(user: User = Depends(require_session)) -> dict:
+    return {"email": user.email, "is_admin": user.is_admin}

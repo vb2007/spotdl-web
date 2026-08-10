@@ -8,7 +8,7 @@ from spotdl.types.song import Song
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import DownloadedTrack, Track, TrackState
+from app.models import DownloadedTrack, Job, Track, TrackState
 from app.services import app_settings, dedup, downloads, events, proxies, retry
 from app.tasks.celery_app import celery_app
 
@@ -37,10 +37,19 @@ def pacing_delay() -> float:
 def download_track(track_id: str) -> None:
     db = SessionLocal()
     try:
-        track = db.get(Track, uuid.UUID(track_id))
-        if track is None:
+        # owner_id is captured as a plain UUID, not read off an ORM-attached Job, so it
+        # survives the db.rollback() in the failure branch below and stays usable for
+        # every publish call in this task, including the ones after a rollback.
+        row = (
+            db.query(Track, Job.user_id)
+            .join(Job, Track.job_id == Job.id)
+            .filter(Track.id == uuid.UUID(track_id))
+            .one_or_none()
+        )
+        if row is None:
             logger.warning("download_track: track %s not found", track_id)
             return
+        track, owner_id = row
 
         # A cancel can land between beat's dispatch (or expand_job's immediate first
         # dispatch) and this task actually executing — e.g. a track sitting `queued` in
@@ -60,6 +69,7 @@ def download_track(track_id: str) -> None:
             track.scheduled_at = worker_state.breaker_tripped_until or (now + retry.next_delay(0))
             db.commit()
             events.publish_track_event(
+                owner_id,
                 track.id,
                 track.job_id,
                 track.state.value,
@@ -73,7 +83,7 @@ def download_track(track_id: str) -> None:
             track.state = TrackState.SKIPPED_DUPLICATE
             track.output_path = str(existing_path)
             db.commit()
-            events.publish_track_event(track.id, track.job_id, track.state.value)
+            events.publish_track_event(owner_id, track.id, track.job_id, track.state.value)
             return
 
         # Pacing hook (declared since v07, actually consumed as of v15). Deliberately
@@ -123,7 +133,7 @@ def download_track(track_id: str) -> None:
                 proxies.redact(proxy_url),
             )
         db.commit()
-        events.publish_track_event(track.id, track.job_id, track.state.value, progress=0)
+        events.publish_track_event(owner_id, track.id, track.job_id, track.state.value, progress=0)
 
         try:
             song = Song.from_dict(track.song_json)
@@ -141,7 +151,7 @@ def download_track(track_id: str) -> None:
             # rebind this per attempt rather than threading track/job ids through
             # get_downloader's cache key.
             downloader.progress_handler.update_callback = events.make_progress_callback(
-                track.id, track.job_id
+                owner_id, track.id, track.job_id
             )
             _, output_path = downloads.download_one(song, downloader)
 
@@ -169,7 +179,7 @@ def download_track(track_id: str) -> None:
                 # right state without needing a reload. Caught by live real-stack
                 # testing, not by REST-polling: REST already reflected `cancelled`,
                 # only the live view was stuck.
-                events.publish_track_event(track.id, track.job_id, track.state.value)
+                events.publish_track_event(owner_id, track.id, track.job_id, track.state.value)
                 return
 
             if output_path is None:
@@ -189,7 +199,7 @@ def download_track(track_id: str) -> None:
                 proxies.record_proxy_result(db, proxy_id, success=True)
             retry.record_success(db, track)
             db.commit()
-            events.publish_track_event(track.id, track.job_id, track.state.value)
+            events.publish_track_event(owner_id, track.id, track.job_id, track.state.value)
         except Exception as exc:
             # Some exceptions (e.g. spotdl's DownloaderError for a malformed proxy) echo
             # the proxy string verbatim — never let that reach worker logs or the
@@ -215,7 +225,7 @@ def download_track(track_id: str) -> None:
                     track_id,
                 )
                 # Same stray-progress-event race as the success path above.
-                events.publish_track_event(track.id, track.job_id, track.state.value)
+                events.publish_track_event(owner_id, track.id, track.job_id, track.state.value)
                 return
             error_type = retry.classify_error(exc)
             retry.record_failure(db, track, error_type, error_message)
@@ -223,6 +233,7 @@ def download_track(track_id: str) -> None:
                 proxies.record_proxy_result(db, proxy_id, success=False)
             db.commit()
             events.publish_track_event(
+                owner_id,
                 track.id,
                 track.job_id,
                 track.state.value,

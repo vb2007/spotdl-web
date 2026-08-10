@@ -5,10 +5,19 @@ client. The SSE endpoint (app/routers/stream.py) subscribes with `redis.asyncio`
 separately — the two sides never share a client. Event payloads are a flat,
 provider-agnostic schema (`{type, ..., ts}`) precisely so a later WebSocket swap only
 touches the transport, never this shape (per the v08 plan).
+
+v17: channels are per-user, not global. Every publishing function takes the owning
+user's id as its first, required, positional argument -- never optional, never
+keyword-with-a-default -- so a future call site that forgets it fails loudly
+(TypeError) instead of silently broadcasting to nobody's channel. Before v17 this
+module published everything to one global channel that every connected client
+subscribed to, which meant every logged-in user already received every other user's
+track ids, job ids, titles and error strings live on the wire.
 """
 
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable
 
@@ -18,9 +27,16 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
-CHANNEL = "spotdl:events"
+CHANNEL_PREFIX = "spotdl:events:"
+# Matches every per-user channel -- only ever passed to PSUBSCRIBE, and only by
+# routers/stream.py when the session is admin *and* the all-users toggle is on.
+ADMIN_CHANNEL_PATTERN = f"{CHANNEL_PREFIX}*"
 
 _client: redis.Redis | None = None
+
+
+def channel_for(user_id: Any) -> str:
+    return f"{CHANNEL_PREFIX}{user_id}"
 
 
 def _get_client() -> redis.Redis:
@@ -30,17 +46,18 @@ def _get_client() -> redis.Redis:
     return _client
 
 
-def publish(event: dict[str, Any]) -> None:
+def publish(user_id: uuid.UUID | str, event: dict[str, Any]) -> None:
     """Best-effort — a Redis hiccup must never fail the download/expand task calling
     this, only lose that one live-progress update."""
     payload = {"ts": datetime.now(timezone.utc).isoformat(), **event}
     try:
-        _get_client().publish(CHANNEL, json.dumps(payload))
+        _get_client().publish(channel_for(user_id), json.dumps(payload))
     except redis.RedisError:
         logger.warning("events.publish: failed to publish %s event", event.get("type"), exc_info=True)
 
 
 def publish_track_event(
+    user_id: uuid.UUID | str,
     track_id: Any,
     job_id: Any,
     state: str,
@@ -64,17 +81,21 @@ def publish_track_event(
         event["error"] = error
     if attempt_count is not None:
         event["attempt_count"] = attempt_count
-    publish(event)
+    publish(user_id, event)
 
 
-def publish_job_event(job_id: Any, state: str, *, error: str | None = None) -> None:
+def publish_job_event(
+    user_id: uuid.UUID | str, job_id: Any, state: str, *, error: str | None = None
+) -> None:
     event: dict[str, Any] = {"type": "job.state", "job_id": str(job_id), "state": state}
     if error is not None:
         event["error"] = error
-    publish(event)
+    publish(user_id, event)
 
 
-def make_progress_callback(track_id: Any, job_id: Any) -> Callable[[Any, str], None]:
+def make_progress_callback(
+    user_id: uuid.UUID | str, track_id: Any, job_id: Any
+) -> Callable[[Any, str], None]:
     """Returns a callback for spotdl's `ProgressHandler.update_callback` hook — every
     `SongTracker.notify_*` call (searching/getting-meta/downloading/converting/complete)
     ends by invoking this with the tracker itself (`.progress` is 0-100) and a status
@@ -85,6 +106,6 @@ def make_progress_callback(track_id: Any, job_id: Any) -> Callable[[Any, str], N
     """
 
     def _callback(tracker: Any, message: str) -> None:
-        publish_track_event(track_id, job_id, "downloading", progress=int(tracker.progress))
+        publish_track_event(user_id, track_id, job_id, "downloading", progress=int(tracker.progress))
 
     return _callback

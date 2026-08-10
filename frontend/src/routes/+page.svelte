@@ -12,6 +12,16 @@
 	const { activeTracks, trackList, jobs, incomingJobs } = queue;
 
 	let { data } = $props();
+	// Nullable per +layout.ts's type -- in practice never null here, since its `load`
+	// redirects to /login before this page ever renders without a session. Falling back
+	// to false/undefined rather than asserting non-null keeps this reactive to `data`
+	// the same way the template's direct `data.session?.email` access already is.
+	const isAdmin = $derived(data.session?.is_admin ?? false);
+
+	// Admin-only (v17): mine/all-users scope. Off by default even for an admin --
+	// switching it clears the queue store (see queue.setAllUsers) and reconnects the
+	// SSE stream so both REST and live data agree on scope.
+	let allUsersView = $state(false);
 
 	let url = $state('');
 	let submitting = $state(false);
@@ -57,7 +67,7 @@
 	let source: EventSource | undefined;
 
 	function connectStream() {
-		source = api.createEventSource();
+		source = api.createEventSource(allUsersView);
 		source.onopen = () => {
 			streamRetryDelayMs = 1000;
 			// Per the v08 contract: resync full REST state on every connect/reconnect
@@ -76,6 +86,21 @@
 			streamRetryTimer = setTimeout(connectStream, streamRetryDelayMs);
 			streamRetryDelayMs = Math.min(streamRetryDelayMs * 2, 30_000);
 		};
+	}
+
+	/** Admin-only (v17): both REST and SSE must agree on scope, so switching requires
+	 * clearing the accumulated store (queue.setAllUsers), a fresh REST load, and a fresh
+	 * stream connection carrying the new all_users flag -- the existing connection has
+	 * no way to change what channel it's subscribed to mid-flight. */
+	async function onScopeChange(next: boolean) {
+		if (next === allUsersView) return;
+		allUsersView = next;
+		queue.setAllUsers(next);
+		clearTimeout(streamRetryTimer);
+		streamRetryDelayMs = 1000;
+		source?.close();
+		await queue.loadAll();
+		connectStream();
 	}
 
 	onMount(() => {
@@ -100,11 +125,24 @@
 			<span class="label dim">SIGNAL RECEIVER</span>
 		</div>
 		<div class="session">
-			<a class="settings-link mono" href={resolve('/settings')}>settings</a>
-			<span class="mono">{data.email}</span>
+			{#if isAdmin}
+				<a class="settings-link mono" href={resolve('/settings')}>settings</a>
+			{/if}
+			<span class="mono">{data.session?.email}</span>
 			<button type="button" class="logout" onclick={onLogout}>disconnect</button>
 		</div>
 	</header>
+
+	{#if isAdmin}
+		<div class="scope-toggle" role="group" aria-label="Viewing scope">
+			<button type="button" aria-pressed={!allUsersView} onclick={() => onScopeChange(false)}>
+				mine
+			</button>
+			<button type="button" aria-pressed={allUsersView} onclick={() => onScopeChange(true)}>
+				all users
+			</button>
+		</div>
+	{/if}
 
 	<form class="panel submit" {onsubmit}>
 		<span class="prompt mono" aria-hidden="true">&gt;</span>
@@ -120,7 +158,7 @@
 	</form>
 	<p id="submit-error" class="submit-error mono" role="alert">{submitError}</p>
 
-	<WorkerStatus />
+	<WorkerStatus {isAdmin} />
 
 	<IncomingJobs jobs={$incomingJobs} />
 
@@ -150,6 +188,36 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
+	}
+
+	/* Same role=group + aria-pressed toggle-tab pattern as QueueTable.svelte's state
+	   filters (DESIGN.md §6) -- but the pressed state maps to --line-bright, not
+	   --signal: this switches a view scope, not a live/active condition, and DESIGN.md
+	   §2 reserves amber exclusively for the latter. */
+	.scope-toggle {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.scope-toggle button {
+		background: var(--bg-2);
+		border: 1px solid var(--line);
+		border-radius: 4px;
+		padding: var(--space-1) var(--space-3);
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		cursor: pointer;
+	}
+
+	.scope-toggle button[aria-pressed='true'] {
+		border-color: var(--line-bright);
+		color: var(--text-primary);
+	}
+
+	.scope-toggle button:hover:not([aria-pressed='true']),
+	.scope-toggle button:focus-visible {
+		border-color: var(--waiting-dim);
 	}
 
 	.ident .dim {

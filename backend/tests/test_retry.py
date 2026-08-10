@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from app.models import Job, JobSourceType, Track, TrackErrorType, TrackState, WorkerState
+from app.models import Job, JobSourceType, Track, TrackErrorType, TrackState, User, WorkerState
 from app.services import retry
 from spotdl.providers.audio.base import AudioProviderError
 
@@ -11,8 +11,21 @@ def _aware(dt: datetime) -> datetime:
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 
+def _owner(db_session) -> User:
+    user = db_session.query(User).filter(User.email == "owner@example.com").one_or_none()
+    if user is None:
+        user = User(email="owner@example.com", is_admin=False)
+        db_session.add(user)
+        db_session.flush()
+    return user
+
+
 def _make_track(db_session):
-    job = Job(source_url="https://open.spotify.com/track/abc", source_type=JobSourceType.TRACK)
+    job = Job(
+        source_url="https://open.spotify.com/track/abc",
+        source_type=JobSourceType.TRACK,
+        user_id=_owner(db_session).id,
+    )
     db_session.add(job)
     db_session.commit()
 

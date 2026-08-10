@@ -13,10 +13,20 @@ from app.models import (
     Track,
     TrackErrorType,
     TrackState,
+    User,
     WorkerState,
 )
 from app.services import dedup, downloads, events, proxies, retry
 from app.tasks import download as download_task
+
+
+def _owner(db_session) -> User:
+    user = db_session.query(User).filter(User.email == "owner@example.com").one_or_none()
+    if user is None:
+        user = User(email="owner@example.com", is_admin=False)
+        db_session.add(user)
+        db_session.flush()
+    return user
 
 
 def _capture_events(monkeypatch):
@@ -54,7 +64,11 @@ class _FakeDownloader:
 
 
 def _make_track(db_session):
-    job = Job(source_url="https://open.spotify.com/track/abc", source_type=JobSourceType.TRACK)
+    job = Job(
+        source_url="https://open.spotify.com/track/abc",
+        source_type=JobSourceType.TRACK,
+        user_id=_owner(db_session).id,
+    )
     db_session.add(job)
     db_session.commit()
 
@@ -111,7 +125,7 @@ def test_download_track_success_marks_completed_and_upserts_ledger(db_session, m
     assert ledger_row.bitrate == "320k"
 
     # "downloading" (progress=0, right before the attempt) then "completed" once durable.
-    states = [args[2] for args, _ in published]
+    states = [args[3] for args, _ in published]
     assert states == ["downloading", "completed"]
 
 
@@ -190,7 +204,7 @@ def test_download_track_lookup_error_is_terminal(db_session, monkeypatch):
     assert updated.scheduled_at is None
 
     args, final_kwargs = published[-1]
-    assert args[2] == "lookup_failed"
+    assert args[3] == "lookup_failed"
     assert final_kwargs.get("scheduled_at") is None
     assert final_kwargs["error"] == "no result on any provider"
 
@@ -412,7 +426,7 @@ def test_download_track_discards_success_when_cancelled_mid_download(db_session,
     # cancelled; without this, a live SSE client's last-known state for the track
     # would be a stray "downloading" event, not the true outcome (caught via real
     # end-to-end testing, not visible from a REST-only check).
-    states = [args[2] for args, _ in published]
+    states = [args[3] for args, _ in published]
     assert states == ["downloading", "cancelled"]
 
 
@@ -444,7 +458,7 @@ def test_download_track_discards_failure_when_cancelled_mid_download(db_session,
 
     # "downloading", then a re-published "cancelled" -- same stray-progress-event race
     # as the success-path test above, just hitting the except branch instead.
-    states = [args[2] for args, _ in published]
+    states = [args[3] for args, _ in published]
     assert states == ["downloading", "cancelled"]
 
 

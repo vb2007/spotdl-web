@@ -3,7 +3,10 @@ import os
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("SESSION_SECRET", "test-secret")
-os.environ.setdefault("ALLOWED_EMAILS", "allowed@example.com")
+# Two addresses: ADMIN_EMAIL must be allowlisted too (config.py's v17 validator), and
+# most ownership/admin-gating tests need a non-admin *and* an admin identity available.
+os.environ.setdefault("ALLOWED_EMAILS", "allowed@example.com,admin@example.com")
+os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
 
 from contextlib import contextmanager
 
@@ -17,7 +20,9 @@ from sqlalchemy.pool import StaticPool
 
 from app.db import get_db
 from app.main import app
-from app.models import AppSettings, DownloadedTrack, Job, Proxy, Track, UserSession, WorkerState
+from app.models import AppSettings, DownloadedTrack, Job, Proxy, Track, User, UserSession, WorkerState
+from app.routers import auth as auth_router
+from app.services.sessions import create_session
 
 
 # SQLite (used for fast in-process tests, see v02/v03 gotchas) has no native JSONB type —
@@ -35,6 +40,8 @@ def db_session():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    # User must exist before UserSession/Job, both of which FK into it.
+    User.__table__.create(engine)
     UserSession.__table__.create(engine)
     Job.__table__.create(engine)
     Proxy.__table__.create(engine)
@@ -61,6 +68,76 @@ def client(db_session):
     with TestClient(app, base_url="https://testserver") as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+def _login(client: TestClient, monkeypatch, email: str) -> None:
+    async def fake_login(email_: str, password: str) -> bool:
+        return True
+
+    monkeypatch.setattr(auth_router.upstream_auth, "login", fake_login)
+    response = client.post("/api/auth/login", json={"email": email, "password": "x"})
+    assert response.status_code == 200
+
+
+@pytest.fixture()
+def authenticated_client(client: TestClient, monkeypatch) -> TestClient:
+    """The shared `client`, logged in as a plain (non-admin) user via the real login
+    endpoint -- replaces what used to be six byte-for-byte identical local `_login`
+    helpers (v16). For a *second* identity live in the same test, use `session_cookie`
+    instead of a second call to this: a second `/login` on the same `client` would just
+    overwrite this cookie in its shared jar, not add a second session alongside it."""
+    _login(client, monkeypatch, "allowed@example.com")
+    return client
+
+
+@pytest.fixture()
+def owner(authenticated_client: TestClient, db_session) -> User:
+    return db_session.query(User).filter(User.email == "allowed@example.com").one()
+
+
+@pytest.fixture()
+def admin_client(client: TestClient, monkeypatch) -> TestClient:
+    _login(client, monkeypatch, "admin@example.com")
+    return client
+
+
+@pytest.fixture()
+def admin_user(admin_client: TestClient, db_session) -> User:
+    return db_session.query(User).filter(User.email == "admin@example.com").one()
+
+
+@pytest.fixture()
+def make_user(db_session):
+    """Direct DB insert, no login round trip -- for task-level tests (beat/download/
+    expand) that need *a* valid owner to satisfy jobs.user_id's NOT NULL constraint but
+    have no session/client in play at all."""
+
+    def _make(email: str, *, is_admin: bool = False) -> User:
+        user = db_session.query(User).filter(User.email == email).one_or_none()
+        if user is None:
+            user = User(email=email, is_admin=is_admin)
+            db_session.add(user)
+            db_session.flush()
+        return user
+
+    return _make
+
+
+@pytest.fixture()
+def session_cookie(db_session, make_user):
+    """Mints a session directly via `services.sessions.create_session`, bypassing
+    `/login` entirely -- the documented v15 fallback (docs/GOTCHAS.md) for a test that
+    needs a *second* live identity on the same `client`: passed as that one request's
+    `cookies=` kwarg, it overrides the client's own jar for that call only, so it never
+    clobbers whatever `authenticated_client`/`admin_client` already logged in as."""
+
+    def _make(email: str, *, is_admin: bool = False) -> dict[str, str]:
+        user = make_user(email, is_admin=is_admin)
+        session = create_session(db_session, user.id)
+        db_session.commit()
+        return {"SPOTDL_SESSION": session.token}
+
+    return _make
 
 
 @pytest.fixture()

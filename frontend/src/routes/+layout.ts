@@ -3,28 +3,28 @@ import * as api from '$lib/api';
 import type { LayoutLoad } from './$types';
 
 // Adapter-static has no server to run a `+layout.server.ts` load against at request
-// time — this project has exactly two routes, so each still gets its own prerendered
-// shell (`prerender = true`), but the actual session check only makes sense in the
-// browser against the live cookie, hence `ssr = false`.
+// time — each of this project's routes (/, /login, /settings) still gets its own
+// prerendered shell (`prerender = true`), but the actual session check only makes
+// sense in the browser against the live cookie, hence `ssr = false`.
 export const ssr = false;
 export const prerender = true;
 
 export const load: LayoutLoad = async ({ url }) => {
 	const onLoginPage = url.pathname === '/login';
 
-	let email: string | null;
+	let session: api.SessionInfo | null;
 	try {
-		email = (await api.me()).email;
+		session = await api.me();
 	} catch {
-		email = null;
+		session = null;
 	}
 
-	if (email === null && !onLoginPage) {
+	if (session === null && !onLoginPage) {
 		redirect(302, '/login');
 	}
-	if (email !== null && onLoginPage) {
+	if (session !== null && onLoginPage) {
 		redirect(302, '/');
 	}
 
-	return { email };
+	return { session };
 };

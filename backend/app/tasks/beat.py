@@ -42,13 +42,22 @@ def _reclaim_stale_tracks(db) -> None:
         .returning(Track.id, Track.job_id)
     ).all()
     db.commit()
+    if not reclaimed:
+        return
+
+    # One bulk lookup for every reclaimed track's owner, never a per-row query
+    # (CLAUDE.md invariant) -- the RETURNING clause above only has job_id to offer.
+    job_ids = {job_id for _, job_id in reclaimed}
+    owner_by_job = dict(db.execute(select(Job.id, Job.user_id).where(Job.id.in_(job_ids))).all())
     for track_id, job_id in reclaimed:
         logger.warning(
             "dispatch_due_tracks: reclaimed stale track %s (stuck past %s)",
             track_id,
             threshold,
         )
-        events.publish_track_event(track_id, job_id, TrackState.WAITING.value, scheduled_at=now)
+        events.publish_track_event(
+            owner_by_job[job_id], track_id, job_id, TrackState.WAITING.value, scheduled_at=now
+        )
 
 
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")
@@ -67,24 +76,21 @@ def dispatch_due_tracks() -> None:
             # all becoming due at once right when the breaker releases.
             return
 
-        due_tracks = (
-            db.execute(
-                select(Track)
-                .join(Job, Track.job_id == Job.id)
-                .where(Track.state == TrackState.WAITING, Track.scheduled_at <= now)
-                .order_by(Job.priority.desc(), Track.scheduled_at.asc())
-                .with_for_update(skip_locked=True, of=Track)
-            )
-            .scalars()
-            .all()
-        )
+        due_rows = db.execute(
+            select(Track, Job.user_id)
+            .join(Job, Track.job_id == Job.id)
+            .where(Track.state == TrackState.WAITING, Track.scheduled_at <= now)
+            .order_by(Job.priority.desc(), Track.scheduled_at.asc())
+            .with_for_update(skip_locked=True, of=Track)
+        ).all()
+        due_tracks = [track for track, _ in due_rows]
         for track in due_tracks:
             track.state = TrackState.QUEUED
         db.commit()
 
-        for track in due_tracks:
+        for track, user_id in due_rows:
             events.publish_track_event(
-                track.id, track.job_id, track.state.value, attempt_count=track.attempt_count
+                user_id, track.id, track.job_id, track.state.value, attempt_count=track.attempt_count
             )
 
         for track in due_tracks:

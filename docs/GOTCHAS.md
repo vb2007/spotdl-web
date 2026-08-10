@@ -24,6 +24,9 @@ needed" claim — rather than silently deleted.
   `Annotated[list[str], NoDecode]` or the app won't start → *v01*
 - Adding a runtime dependency needs `docker compose build`, not `restart` → *v03*
 - `DATABASE_URL` host differs between local dev and the Debian host; never cross them → *v01*
+- A `BaseSettings` field omitted from a test's constructor kwargs still resolves from
+  `os.environ` — a test asserting "missing X is rejected" must `monkeypatch.delenv(X)` first, or
+  it silently passes via a value some *other* test's `conftest.py` setdefault already set → *v17*
 
 **Database, migrations & enums**
 - `Enum(...)` stores member *names* unless `values_callable` is set → *v02*
@@ -40,8 +43,7 @@ needed" claim — rather than silently deleted.
 - The model class is `UserSession`, not `Session` (collides with `sqlalchemy.orm.Session`) → *v02*
 - `JSONB` has no SQLite compiler; `conftest.py` registers a `@compiles` shim for tests → *v04*
 - v16 landed `jobs.user_id`/`sessions.user_id` as **NOT NULL with no application code populating
-  them yet** — deliberate, but it breaks login and job creation until v17 wires user creation
-  → *v16*
+  them yet** — deliberate, and fixed in v17 by wiring `get_or_create_user` into login → *v16, v17*
 
 **Docker Compose & deployment**
 - Override files **merge** list keys (`ports`, `volumes`) and **replace** mapping keys
@@ -68,6 +70,14 @@ needed" claim — rather than silently deleted.
 - `localhost` and `127.0.0.1` are different CORS origins *and* cross-site for `SameSite` cookies —
   produced a 200-then-401 login bug → *v09*
 - A `catch` block must distinguish "the backend said no" from "the request never arrived" → *v09*
+- Splitting session-lookup from user-resolution (`current_session` → `require_session`) adds one
+  query per request: `current_session`'s own `db.commit()` expires the `UserSession` ORM object
+  (SQLAlchemy's default `expire_on_commit=True`), so `require_session`'s next attribute read
+  (`session.user_id`) triggers an implicit re-`SELECT` by primary key before the `User` lookup can
+  even run. Constant overhead (proven by a query-count *differential*, not the absolute), not an
+  N+1 — left as is rather than restructured, since avoiding it would mean either deferring the
+  session's idle-timeout commit past the point every downstream dependency has already read from
+  the request, or duplicating the idle-timeout bump logic → *v17*
 
 **spotdl library**
 - spotdl pins `fastapi<0.104`/`uvicorn<0.24` for a web UI we never run; resolved via `[tool.uv]
@@ -117,6 +127,13 @@ needed" claim — rather than silently deleted.
 - A slow uninterruptible operation can publish stale state *after* the true outcome — re-publish
   the real final state last, **and** guard the client store against applying events to
   truly-terminal tracks (two independent fixes, at two layers) → *v10*
+- Channels went from one global `spotdl:events` to per-user `spotdl:events:{user_id}` — every
+  `publish_*_event`/`make_progress_callback` call now takes the owning user as a **required**
+  first positional argument (no default), specifically so a forgotten call site is a loud
+  `TypeError` in tests, not a silent broadcast-to-nobody. `get_message(ignore_subscribe_messages=
+  True)` filters `PSUBSCRIBE` confirmations exactly like `SUBSCRIBE` ones, and a `pmessage`'s
+  payload lands at the same `message["data"]` key — the SSE forward loop needed no change for the
+  admin pattern-subscribe path, only the subscribe call itself → *v17*
 
 **Proxies & secrets**
 - Any proxy URL that is logged or persisted must go through `proxies.redact()`; spotdl's own error
@@ -145,6 +162,15 @@ needed" claim — rather than silently deleted.
 - A REST fetch that resolves out of order can clobber fresher state; store fetches carry a sequence
   guard → *v09*
 - A job with no tracks yet has nothing to render — hence `IncomingJobs` → *v09*
+- `+layout.ts`'s `load` widening from `{email}` to the full session object needs the type kept
+  nullable (`SessionInfo | null`) even though the redirect logic guarantees non-null by the time
+  `+page.svelte` renders — TypeScript can't see across that boundary, so consumers read
+  `data.session?.field` rather than asserting non-null → *v17*
+- A new toggle/tab control that reuses the `role="group"` + `aria-pressed` Filter-tabs pattern
+  (DESIGN.md §6) must **not** also reuse its `--signal` amber pressed-border by default — that
+  color is reserved for genuinely-live state (§2); a persistently-pressed view-scope toggle is
+  exactly the "permanent chrome" the rule exists to prevent. Use a neutral token
+  (`--line-bright`/`--text-primary`) instead → *v17*
 
 **Testing & verification technique**
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
@@ -167,6 +193,15 @@ needed" claim — rather than silently deleted.
 - When the real upstream login server is unreachable from a sandboxed dev network, create a session
   row directly via `sessions.create_session()` and use its token as a manual cookie — identical
   session mechanics to a real login, only the external auth hop is bypassed → *v15*
+- A test needing **two live identities on one `TestClient`** (e.g. proving user B 404s on user A's
+  job) can't just call the real `/login` twice — the second call overwrites the first session's
+  cookie in the client's shared jar. Minting the second identity's session directly and switching
+  the client to it (`client.cookies.clear(); client.cookies.update(token)`) works; passing the
+  cookie per-request (`client.get(url, cookies=...)`) also works but is deprecated on httpx's
+  `TestClient` and prints a warning every call → *v17*
+- No project skill exists yet for driving the frontend in a real browser — verification used an
+  ad-hoc Playwright script against the cached Chromium at `~/.cache/ms-playwright/` (see v13's
+  gotcha above) rather than a repo-committed driver. Candidate for `/run-skill-generator` → *v17*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -1809,3 +1844,82 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   `track_state`'s `failed` value, and `ix_tracks_scheduled_at_waiting` before re-upgrading. All four
   backend processes (`api`, `worker-dl`, `worker-meta`, `beat`) restarted healthy with zero import
   errors against the new models.
+
+### v17 multi-user-auth gotchas (learned wiring user-creation-on-login + owner scoping + per-user SSE)
+
+- **`services.users.get_or_create_user` reconciles `is_admin` on *every* login, not just at row
+  creation, and demotes every other admin row in the same call.** Deriving `is_admin` once at
+  creation would mean changing `ADMIN_EMAIL` in `.env` needs manual SQL to take effect for an
+  already-existing user; reconciling only the logging-in user's own flag would leave a *previous*
+  admin privileged indefinitely if they simply don't happen to log in again after the env var
+  changes. One extra `UPDATE ... WHERE is_admin AND email != :new_admin` per login is what actually
+  makes "exactly one admin exists" true, not just "the current admin is correct."
+- **`require_session` returns the `User`, not the `UserSession`** — every route that used to take
+  `_: UserSession = Depends(require_session)` and discard it now takes `user: User` and actually
+  uses `user.id`/`user.is_admin`. Splitting `current_session` (resolves + bumps the session) from
+  `require_session` (resolves the owning `User`) costs one extra query per request from
+  `expire_on_commit` forcing a re-`SELECT` on the first post-commit attribute read — see the Auth
+  index entry above. Accepted as a small, constant cost rather than restructured.
+- **Ownership lives on `jobs` only, never denormalized onto `tracks`** (the locked v2 decision) —
+  every track-owner check (`tracks.py`'s `_get_track_or_404`, `download_track`'s owner-id lookup,
+  `beat.py`'s reclaim-sweep owner resolution) is a join through `Track.job_id → Job.user_id`, never
+  a stored column. `download_track` captures the resolved `owner_id` as a **plain `uuid.UUID`
+  before any work starts**, specifically because the failure branch's `db.rollback()` would expire
+  an ORM-attached `Job`/`Track` reference — a plain value survives the rollback, an attribute access
+  on an expired object would trigger a surprise re-`SELECT` (or worse, silently read stale data if
+  something upstream detached it).
+- **Direct-id ownership checks filter in the same query, not after loading the row** —
+  `_get_job_or_404`/`_get_track_or_404` add `.filter(Job.user_id == user.id)` (skipped for admins)
+  to the same `SELECT` that fetches the row, rather than loading it unconditionally and then
+  checking `.user_id` in Python. Functionally equivalent for a non-admin, but the query-level filter
+  is what makes "admin sees this row unconditionally" and "non-admin never even receives it" the
+  same code path, not two branches that can drift apart.
+- **`beat.py`'s `_reclaim_stale_tracks` needed a second bulk query, not a per-row one, to resolve
+  owners** — its `UPDATE ... RETURNING(Track.id, Track.job_id)` has no `Job.user_id` to offer
+  directly (an `UPDATE` can't join out an unrelated table's column into its own `RETURNING`
+  clause), so the fix is one extra `SELECT Job.id, Job.user_id WHERE Job.id IN (...)` over the
+  distinct `job_id`s from the first query's results — still exactly two queries regardless of how
+  many tracks were reclaimed, never N+1.
+- **`test_config.py`'s `_REQUIRED` dict silently stopped being "the required fields"** the moment
+  `ADMIN_EMAIL` became a real required setting — `Settings(**_REQUIRED)` still constructed fine
+  because `conftest.py`'s `os.environ.setdefault("ADMIN_EMAIL", ...)` (set for the *other* 150+
+  tests in the suite) filled the gap silently. A test asserting "missing `ADMIN_EMAIL` is rejected"
+  must `monkeypatch.delenv("ADMIN_EMAIL")` first or it doesn't actually test anything — caught by
+  the test failing with "DID NOT RAISE" rather than by inspection.
+- **The `list_jobs`/`list_tracks` N+1 guard's absolute query-count ceiling needed raising, not just
+  its differential check** — v15's test asserted `<= 4` statements regardless of job count; v17
+  adds one `JOIN users` to the list query and one `User` lookup to `require_session`, both still
+  O(1), pushing the real count to 6. The *differential* assertion (5-job page costs the same as a
+  1-job page) is the actual N+1 regression guard and needed no change; the absolute number is a
+  loose sanity ceiling that legitimately moves when auth/ownership overhead changes, and the test's
+  own comment already said as much.
+- **The local upstream `vb2007.hu-api` instance (`host.docker.internal:3000`, per the v03 gotcha)
+  was not running this session** — real-upstream login failed with a `ConnectError`, not a 401,
+  confirmed from `api`'s logs before assuming a code bug. Verification used the documented v15
+  fallback for *both* identities: `services.users.get_or_create_user` + `services.sessions
+  .create_session` called directly inside the running `api` container to mint two real DB-backed
+  users (one matching `ADMIN_EMAIL`, one not) and real session tokens, used as `Cookie:
+  SPOTDL_SESSION=...` headers against the real running stack. This exercises every line of v17's
+  actual code under test (ownership queries, admin gating, per-user Redis channels) — only the
+  external password-check HTTP call itself was bypassed, and v17 doesn't touch that call.
+- **Verified against the real docker-compose stack** (`ADMIN_EMAIL` added to the shared `.env`;
+  `docker compose up -d` recreated all four backend containers, which also picked up the code
+  changes `worker-dl`/`worker-meta`/`beat` don't hot-reload on their own): two real, DB-backed
+  identities (one admin, one not) each submitted a real Spotify track through the real
+  expand→download pipeline. List isolation confirmed both directions; all seven direct-id
+  endpoints individually returned 404 for the non-owner and 200 for the real owner; admin reached
+  and mutated (bump) the non-owner's job successfully; `all_users=true` from the non-admin session
+  was silently ignored (still only its own row) while the admin's `all_users=true` revealed both.
+  **SSE proven from two concurrent raw `curl -N /api/stream` captures, not the UI**: creating and
+  cancelling a job on the admin's own channel produced three real events (`job.state` ×2,
+  `track.state` ×1) captured on the admin's own stream in the same window a second, concurrently-
+  capturing non-admin stream received only heartbeats — zero of the admin's ids. A second run
+  proved the reverse-direction admin `all_users=true` pattern-subscribe positively receives a
+  non-admin's real events (same job-lifecycle sequence, captured on the admin's `?all_users=true`
+  stream). Admin gating swept from a real non-admin session: 403 on every `settings`/`proxies`/
+  `worker` mutation endpoint, 200 on `GET /api/worker/status`. Browser pass (Playwright against a
+  cached Chromium, no project driver existed yet — candidate for `/run-skill-generator`): the
+  non-admin session shows no settings link, no worker pause/resume button, no scope toggle, zero
+  console errors; the admin session shows all three, reaches `/settings` and loads real proxy/
+  output data, and the mine/all-users toggle switches both directions with zero console errors and
+  the job count changing from the caller's own jobs to every user's.

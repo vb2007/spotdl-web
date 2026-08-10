@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.models import AppSettings, UserSession
-from app.routers.auth import require_session
+from app.models import AppSettings, User
+from app.routers.auth import require_admin
 from app.services import app_settings, downloads
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -32,7 +32,7 @@ def _output_settings_to_dict(row: AppSettings) -> dict:
 @router.get("/output")
 def get_output_settings(
     db: Session = Depends(get_db),
-    _: UserSession = Depends(require_session),
+    _: User = Depends(require_admin),
 ) -> dict:
     row = app_settings.get_output_settings(db)
     db.commit()
@@ -41,7 +41,7 @@ def get_output_settings(
 
 @router.get("/output/options")
 def get_output_options(
-    _: UserSession = Depends(require_session),
+    _: User = Depends(require_admin),
 ) -> dict:
     """The real, live set of format/bitrate values the installed spotdl accepts --
     introspected from its own argparse definition, not a hardcoded guess that could
@@ -53,7 +53,7 @@ def get_output_options(
 def update_output_settings(
     payload: UpdateOutputSettingsRequest,
     db: Session = Depends(get_db),
-    _: UserSession = Depends(require_session),
+    _: User = Depends(require_admin),
 ) -> dict:
     """Takes effect on the *next* download_track call, no restart needed -- get_downloader's
     cache key includes format/bitrate/output_dir/output_template (see downloads.py), so a
