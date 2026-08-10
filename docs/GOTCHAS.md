@@ -70,6 +70,10 @@ needed" claim — rather than silently deleted.
 - `localhost` and `127.0.0.1` are different CORS origins *and* cross-site for `SameSite` cookies —
   produced a 200-then-401 login bug → *v09*
 - A `catch` block must distinguish "the backend said no" from "the request never arrived" → *v09*
+- **Standing rule: real-stack verification of login must exercise the actual upstream
+  `vb2007.hu-api` for at least one identity**, local instance preferred, live
+  `https://api.vb2007.hu` as fallback — the direct-session-mint fallback alone is not enough
+  → *v17*
 - Splitting session-lookup from user-resolution (`current_session` → `require_session`) adds one
   query per request: `current_session`'s own `db.commit()` expires the `UserSession` ORM object
   (SQLAlchemy's default `expire_on_commit=True`), so `require_session`'s next attribute read
@@ -382,16 +386,29 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   tokens (`secrets.token_hex(32)`) looked up in Postgres, not signed/stateless, so nothing in v03
   needed it. Leave it wired in `config.py` for whichever future version wants signed cookies or
   CSRF tokens rather than removing it as dead config.
-- **The live `https://api.vb2007.hu` has been having issues as of 2026-07-28.** Until it's
-  healthy again, local dev's `UPSTREAM_AUTH_BASE_URL` points at a local instance of
-  `vb2007.hu-api` running on the host machine's port 3000 instead — set in local `.env`
-  (gitignored, never committed) as `UPSTREAM_AUTH_BASE_URL=http://host.docker.internal:3000`,
-  **not** `http://localhost:3000` (the `api` container has its own network namespace;
-  `localhost` there means the container itself — same class of gotcha as the `DATABASE_URL`
-  note in v01). Test account is `balazs@vb2007.hu` (user `vb2007`) in `ALLOWED_EMAILS`; the
-  password lives only in the local `.env` — **this repo is public on GitHub, never write that
-  password into `CLAUDE.md`, a plan doc, or any other tracked file.** Switch both settings back
-  once the live API is confirmed working again.
+- **The live `https://api.vb2007.hu` was unhealthy as of 2026-07-28 — resolved 2026-08-11.**
+  (Corrected in place per this file's own stale-gotcha rule, not deleted: this entry originally
+  said to switch back once healthy, which happened, but local dev still runs the local instance
+  by choice — see the standing rule below, not because the live one is still broken.) Local dev's
+  `UPSTREAM_AUTH_BASE_URL` still points at a local instance of `vb2007.hu-api` running on the host
+  machine's port 3000 — set in local `.env` (gitignored, never committed) as
+  `UPSTREAM_AUTH_BASE_URL=http://host.docker.internal:3000`, **not** `http://localhost:3000` (the
+  `api` container has its own network namespace; `localhost` there means the container itself —
+  same class of gotcha as the `DATABASE_URL` note in v01). Test account is `balazs@vb2007.hu`
+  (user `vb2007`) in `ALLOWED_EMAILS`; the password lives only in the local `.env` — **this repo is
+  public on GitHub, never write that password into `CLAUDE.md`, a plan doc, or any other tracked
+  file.**
+- **Standing rule (added 2026-08-11, v17): a version's "Done when" verification must exercise the
+  real upstream login for at least one identity before being called done, not only the direct-
+  session-mint fallback below.** Check `http://host.docker.internal:3000` (from inside a container)
+  or `http://localhost:3000` (from the host) first; if that local instance isn't running, fall back
+  to the live `https://api.vb2007.hu` (point `UPSTREAM_AUTH_BASE_URL` at it, confirmed healthy again
+  as of 2026-08-11) rather than skipping real-login verification entirely. Registering a fresh test
+  account (`POST /auth/register {username, email, password}` on either instance) is fine and
+  expected — v17 did exactly this for its second identity. One caught gotcha while doing so: the
+  register endpoint 500s on a hyphenated `username` (an upstream bug, not spotdl-web's); a plain
+  alphanumeric username works. The direct-session-mint fallback (two entries below) remains correct
+  for *additional* identities beyond the first, or when neither upstream is reachable at all.
 - **Adding a new core runtime dependency (e.g. `httpx` for `upstream_auth.py`) to
   `pyproject.toml` does not take effect in an already-running container** —
   `docker compose restart <service>` reuses the existing image, so the container keeps crash-
@@ -1894,14 +1911,27 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   loose sanity ceiling that legitimately moves when auth/ownership overhead changes, and the test's
   own comment already said as much.
 - **The local upstream `vb2007.hu-api` instance (`host.docker.internal:3000`, per the v03 gotcha)
-  was not running this session** — real-upstream login failed with a `ConnectError`, not a 401,
-  confirmed from `api`'s logs before assuming a code bug. Verification used the documented v15
-  fallback for *both* identities: `services.users.get_or_create_user` + `services.sessions
-  .create_session` called directly inside the running `api` container to mint two real DB-backed
-  users (one matching `ADMIN_EMAIL`, one not) and real session tokens, used as `Cookie:
-  SPOTDL_SESSION=...` headers against the real running stack. This exercises every line of v17's
-  actual code under test (ownership queries, admin gating, per-user Redis channels) — only the
-  external password-check HTTP call itself was bypassed, and v17 doesn't touch that call.
+  was not running earlier in this session** — real-upstream login failed with a `ConnectError`,
+  not a 401, confirmed from `api`'s logs before assuming a code bug. Initial verification used the
+  documented v15 fallback for *both* identities: `services.users.get_or_create_user` +
+  `services.sessions.create_session` called directly inside the running `api` container to mint two
+  real DB-backed users (one matching `ADMIN_EMAIL`, one not) and real session tokens, used as
+  `Cookie: SPOTDL_SESSION=...` headers against the real running stack. This exercised every line of
+  v17's actual code under test (ownership queries, admin gating, per-user Redis channels) — only
+  the external password-check HTTP call itself was bypassed. **Once the local upstream instance was
+  started (and the live `https://api.vb2007.hu` confirmed healthy too, see the corrected v03 note
+  above), the full real-login path was re-verified end to end** — see the next entry.
+- **Real-upstream-login verification, both identities, following this file's new standing rule**:
+  logged in for real against the local `vb2007.hu-api` as the existing `balazs@vb2007.hu` test
+  account (now the v17 admin) and as a freshly `POST /auth/register`ed second account
+  (`spotdlwebtest@example.com`, plain alphanumeric username — the hyphenated one 500'd, an upstream
+  bug), added to `ALLOWED_EMAILS`. Both `/api/auth/login` calls returned real `Set-Cookie` headers
+  and correct `is_admin`; `get_or_create_user` correctly created the second identity's `users` row
+  on its first real login. Re-ran the core cross-user sweep with these real cookie jars (not
+  minted tokens): list isolation, all direct-id 404s, admin gating, and a raw `curl -N /api/stream`
+  capture — identical clean results to the fallback-identity run, confirming the fallback and the
+  real login path exercise the same downstream code (as expected, since v17 never touches
+  `upstream_auth.login` itself).
 - **Verified against the real docker-compose stack** (`ADMIN_EMAIL` added to the shared `.env`;
   `docker compose up -d` recreated all four backend containers, which also picked up the code
   changes `worker-dl`/`worker-meta`/`beat` don't hot-reload on their own): two real, DB-backed

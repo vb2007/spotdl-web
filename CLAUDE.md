@@ -59,7 +59,12 @@ function still exists before acting on it**, since v2 changes schema, endpoints,
   the local `docker compose` stack, real Postgres, real network. Not just `pytest`. Unit tests pass
   while a fix still fails against the real dialect or runtime.
 - **Mocked verification is not verification.** If a feature touches the network, a proxy, or the
-  database, at least one real end-to-end run is required before it ships.
+  database, at least one real end-to-end run is required before it ships. This includes login:
+  at least one identity must go through the real upstream `vb2007.hu-api`, not only the
+  direct-session-mint fallback (`docs/GOTCHAS.md`'s v15 testing entry) — use the local instance
+  (`host.docker.internal:3000`) if it's running, otherwise the live `https://api.vb2007.hu`
+  (register a fresh test account freely if needed). Only skip this if genuinely neither is
+  reachable, and say so explicitly rather than silently substituting the fallback for all of it.
 - **Context comes from graphify, not exploration agents.** Run `graphify query` / `path` / `explain`
   before searching manually. Run `graphify update .` after every code-modifying version.
 - **Develop locally, deploy to verify.** The local stack is the iteration loop; the Debian host is
