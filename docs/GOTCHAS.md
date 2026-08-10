@@ -31,11 +31,17 @@ needed" claim — rather than silently deleted.
   → *v02*
 - Adding a *value* to a shipped enum needs `ALTER TYPE ... ADD VALUE` + a type-swap downgrade;
   autogenerate never detects it → *v10*
+- **Removing** a value from a shipped enum via the type-swap technique breaks any partial index
+  whose `WHERE` clause embeds a literal of that type — drop the index before the swap, recreate
+  after → *v16*
 - Partial indexes: autogenerate emits them on first creation but not on later diffs → *v02*
 - `Base.type_annotation_map` gives `timestamptz`/`PgUUID`; columns outside it need explicit types
   → *v02*
 - The model class is `UserSession`, not `Session` (collides with `sqlalchemy.orm.Session`) → *v02*
 - `JSONB` has no SQLite compiler; `conftest.py` registers a `@compiles` shim for tests → *v04*
+- v16 landed `jobs.user_id`/`sessions.user_id` as **NOT NULL with no application code populating
+  them yet** — deliberate, but it breaks login and job creation until v17 wires user creation
+  → *v16*
 
 **Docker Compose & deployment**
 - Override files **merge** list keys (`ports`, `volumes`) and **replace** mapping keys
@@ -1746,3 +1752,60 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   navigating to `/settings`, screenshotting a proxy row, mutating its `consecutive_failures` directly
   in Postgres, and confirming the rendered row updated within ~7s with **no page reload** — the
   proxy-polling fix's actual "Done when" claim, not just its code existing.
+
+### v16 users-schema gotchas (learned building `users`/`user_settings` and ownership columns)
+
+- **The v16 plan's own text is self-contradictory, and the user resolved it by choosing to break
+  things on purpose.** The plan specifies `jobs.user_id`/`sessions.user_id` as NOT NULL and says
+  `sessions.user_id` *replaces* the `email` column outright — but also promises "no behavior change"
+  and "existing test suite passes unchanged." Those can't both hold: no `User` row exists until v17
+  wires login to create one, so `create_session(db, email)` and every direct `Job(...)` construction
+  in a task/router immediately violate the new NOT NULL constraints. Asked directly, the user chose
+  to apply the schema literally now and accept the breakage rather than soften it (e.g. nullable
+  `user_id` until v17) or pull user-creation logic into v16. **This was a deliberate, approved
+  decision — not a bug introduced this session and not something a future session should "fix" by
+  reverting to nullable columns.**
+- **Concrete blast radius, measured**: `python -m pytest tests/ -q` → **80 failed, 71 passed** (was
+  137/137 passing at v15). Every failure traces to exactly two causes, confirmed by reading tracebacks
+  rather than assumed from the diff: (1) `TypeError: 'email' is an invalid keyword argument for
+  UserSession` — `services/sessions.create_session` and `routers/auth.py`'s `/me` still read/write
+  the now-removed column; (2) `sqlalchemy.exc.IntegrityError: NOT NULL constraint failed:
+  jobs.user_id` — every direct `Job(...)` construction in `tests/test_*_task.py`/`test_retry.py` and
+  every router test that authenticates via the `client` fixture (which logs in, which hits cause 1).
+  Zero failures came from the `TrackState.FAILED` removal (grepped `tests/*.py` for it first — no
+  test ever referenced it) or from any other source; the 71 passing tests are exactly the ones
+  touching neither `Job` nor a session-authenticated `client` call.
+- **v17's actual unblock-the-suite task list, so it isn't rediscovered from scratch**: (a)
+  `routers/auth.py`'s `login` must create-or-load a `User` row (matched case-insensitively against
+  the normalized email) and call `create_session(db, user.id)` instead of `create_session(db,
+  email)`; (b) `create_session`'s signature and `UserSession`'s `.email` read in `/me` need to follow
+  the `user_id` → `User.email` relationship instead; (c) `routers/jobs.py`'s `create_job` needs the
+  authenticated user's id to populate `Job.user_id`; (d) every direct `Job(...)`/`UserSession(...)`
+  construction across `tests/test_beat_task.py`, `test_download_task.py`, `test_expand_task.py`,
+  `test_retry.py`, `test_jobs.py`, `test_tracks.py`, `test_auth.py` needs a `user_id`/relies on a
+  `client` fixture that logs in — both need a `User` row to exist first, so `conftest.py`'s
+  `db_session` fixture needs `User.__table__.create(engine)` added and probably a
+  `test_user`/`authenticated_client` fixture that creates one and logs in through it, replacing the
+  ad-hoc `Job(source_url=..., source_type=...)` calls with a version that also passes `user_id`.
+- **Enum-value removal via the type-swap technique (v02/v10's pattern) breaks a dependent partial
+  index in a way the existing gotcha didn't cover.** `ix_tracks_scheduled_at_waiting`'s `WHERE state
+  = 'waiting'` clause was parsed at index-creation time and bound to the enum type's OID; renaming
+  that type to `track_state_old` mid-swap doesn't change the OID, so by the time `ALTER TABLE tracks
+  ALTER COLUMN state TYPE track_state USING state::text::track_state` runs, Postgres is comparing the
+  new-typed column against an old-typed literal with no `=` operator between the two distinct types
+  — `psycopg.errors.UndefinedFunction: operator does not exist: track_state = track_state_old`. Any
+  future enum-value removal/rename on a column with a partial (or other predicate-bearing) index must
+  `DROP INDEX` before the `RENAME TYPE`/`CREATE TYPE`/`ALTER COLUMN` sequence and recreate it
+  afterward — confirmed by reproducing the failure once, fixing it this way, then verifying a full
+  `upgrade head → downgrade -1 → upgrade head` round-trip against the real shared Postgres.
+- **Verified against the real shared Postgres, not a scratch container** (per the user's explicit
+  go-ahead, since this instance also backs the live deployed app): row counts before the migration
+  were 81 `jobs` / 168 `tracks` / 72 `sessions`, all deleted by design (no backward compatibility
+  required — see `CLAUDE.md`). `\d`-equivalent output (via `information_schema`/`pg_indexes`/
+  `pg_constraint`, since the `api` image has no `psql`) confirmed every column, FK, and index matches
+  the plan exactly, including `ix_jobs_user_id_created_at_active`'s `WHERE (archived_at IS NULL)`
+  clause and `track_state`'s enum values with `failed` absent. `upgrade head → downgrade -1 → upgrade
+  head` round-tripped cleanly, with the downgrade step confirmed to fully restore `sessions.email`,
+  `track_state`'s `failed` value, and `ix_tracks_scheduled_at_waiting` before re-upgrading. All four
+  backend processes (`api`, `worker-dl`, `worker-meta`, `beat`) restarted healthy with zero import
+  errors against the new models.

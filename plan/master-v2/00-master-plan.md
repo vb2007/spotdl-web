@@ -250,3 +250,18 @@ regress the row to `SKIPPED_DUPLICATE` through the dedup branch. Real defect, no
 state-accuracy bug, not data loss — both states are terminal/successful in v2's rollup), and not
 small enough to fold into v15's fixes-only scope. No version number assigned yet; needs scheduling
 alongside the other post-v21 backlog items above.
+
+### 2026-08-09 — v16 complete; NOT NULL applied literally, login/job creation left broken for v17
+
+`v16-users-schema.md`'s own text turned out self-contradictory: it specifies `jobs.user_id` and
+`sessions.user_id` as NOT NULL, with `sessions.user_id` replacing `email` outright, while also
+promising "no behavior change" and "existing test suite passes unchanged." Both can't hold — no
+`User` row exists until v17 wires login to create one, so login and job creation break immediately.
+Asked directly, the user chose to apply the schema exactly as specified and accept the breakage
+(80 of 151 backend tests now fail) rather than soften the constraint or pull user-creation into v16.
+This is the approved resolution — v17 must not "fix" it by reverting to nullable columns; it must do
+the user-creation-on-login wiring the roadmap already assigned it. Full task list and exact failure
+inventory recorded in `docs/GOTCHAS.md`'s v16 section.
+
+`TrackState.FAILED` was also removed in this version's migration, per the routing decision recorded
+in the previous amendment above. Verified zero test coverage depended on it.

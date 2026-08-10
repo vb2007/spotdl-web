@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-08-09)
 
 ## Corpus Check
-- 123 files · ~83,275 words
+- 124 files · ~87,047 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1013 nodes · 1446 edges · 127 communities (80 shown, 47 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 142 edges (avg confidence: 0.76)
+- 1046 nodes · 1511 edges · 131 communities (83 shown, 48 thin omitted)
+- Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 159 edges (avg confidence: 0.76)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `b83762b4`
+- Built from commit: `199d7814`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -127,18 +127,23 @@
 - [[_COMMUNITY_Product purpose fire-and-forget durable downloads|Product purpose: fire-and-forget durable downloads]]
 - [[_COMMUNITY_Allowlisted shared users|Allowlisted shared users]]
 - [[_COMMUNITY_test_app_settings.py|test_app_settings.py]]
+- [[_COMMUNITY_conftest.py|conftest.py]]
+- [[_COMMUNITY_README|README.md]]
+- [[_COMMUNITY_Deploying spotdl-web to the Debian 12 host|Deploying spotdl-web to the Debian 12 host]]
+- [[_COMMUNITY_spotdl-web — Accumulated Gotchas (master v1, v01–v13)|spotdl-web — Accumulated Gotchas (master v1, v01–v13)]]
+- [[_COMMUNITY_stream|stream]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `$lib/api` - 51 edges
-2. `Track` - 47 edges
+1. `Track` - 51 edges
+2. `$lib/api` - 51 edges
 3. `UserSession` - 31 edges
 4. `request()` - 25 edges
-5. `Job` - 20 edges
-6. `v14 — Master v1 Implementation Audit Report` - 19 edges
-7. `_make_track()` - 18 edges
-8. `get_settings()` - 17 edges
-9. `WorkerState` - 17 edges
-10. `_patch_common()` - 17 edges
+5. `Job` - 21 edges
+6. `_make_track()` - 21 edges
+7. `_patch_common()` - 20 edges
+8. `v14 — Master v1 Implementation Audit Report` - 19 edges
+9. `get_settings()` - 18 edges
+10. `WorkerState` - 17 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `favicon.svg (Svelte default logo)` --semantically_similar_to--> `Instrument-panel THESIS (Operate mode)`  [AMBIGUOUS] [semantically similar]
@@ -149,8 +154,8 @@
   .github/workflows/ci.yml → CLAUDE.md
 - `compose-config job` --references--> `Compose list-key merge vs replace gotcha (v01, !override tag)`  [EXTRACTED]
   .github/workflows/ci.yml → CLAUDE.md
-- `login()` --calls--> `get_settings()`  [INFERRED]
-  backend/app/routers/auth.py → backend/app/config.py
+- `test_pacing_min_equal_to_max_is_allowed()` --calls--> `Settings`  [INFERRED]
+  backend/tests/test_config.py → backend/app/config.py
 
 ## Import Cycles
 - None detected.
@@ -159,31 +164,31 @@
 - **CI PR-checks pipeline (pytest, publish-report, compose-config, frontend)** — github_workflows_ci_pytest_job, github_workflows_ci_publish_report_job, github_workflows_ci_compose_config_job, github_workflows_ci_frontend_job [EXTRACTED 1.00]
 - **Docker Compose layered configuration (base/override/prod)** — docker_compose_doc, docker_compose_override_doc, docker_compose_prod_doc [EXTRACTED 1.00]
 
-## Communities (127 total, 47 thin omitted)
+## Communities (131 total, 48 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
 Cohesion: 0.07
-Nodes (57): Our own session store — separate from the upstream VB-AUTH token (see v03)., UserSession, login(), LoginRequest, logout(), me(), Request, Response (+49 more)
+Nodes (61): Our own session store — separate from the upstream VB-AUTH token (see v03)., UserSession, login(), LoginRequest, logout(), me(), Request, Response (+53 more)
 
 ### Community 1 - "Config & Health Check"
-Cohesion: 0.14
-Nodes (12): get_settings(), Settings, health(), Response, _event_stream(), Request, stream(), login() (+4 more)
+Cohesion: 0.28
+Nodes (7): get_settings(), health(), Response, download_track(), pacing_delay(), Seconds to wait before this track's download attempt -- a uniform sample from, test_next_delay_follows_ladder_and_caps_at_final_step()
 
 ### Community 2 - "Proxy Router Endpoints"
-Cohesion: 0.12
-Nodes (27): create_proxy(), CreateProxyRequest, delete_proxy(), _get_proxy_or_404(), list_proxies(), _proxy_to_dict(), Proxy, Response (+19 more)
+Cohesion: 0.10
+Nodes (32): create_proxy(), CreateProxyRequest, delete_proxy(), _get_proxy_or_404(), list_proxies(), _proxy_to_dict(), Proxy, Response (+24 more)
 
 ### Community 3 - "Track Model & Beat Tests"
-Cohesion: 0.11
-Nodes (42): DownloadedTrack, Dedup ledger, independent of `tracks` so it survives job/track deletion and powe, One row per individual song discovered while expanding a job — the unit the retr, Track, download_track(), _capture_events(), _FakeDownloader, _FakeProgressHandler (+34 more)
+Cohesion: 0.10
+Nodes (43): One row per individual song discovered while expanding a job — the unit the retr, Track, _make_track(), _NonClosingSession, _patch_session(), See test_download_task.py — download_track's db.close() would otherwise detach, test_dispatch_due_tracks_dispatches_and_flips_state(), test_dispatch_due_tracks_leaves_recent_downloading_track_alone() (+35 more)
 
 ### Community 4 - "DB Base & App Settings"
-Cohesion: 0.36
-Nodes (6): AppSettings, Single-row table (v13) backing the output-format defaults editable from the, get_output_settings(), Session, Output-format defaults (v13) -- editable from the settings UI without a redeploy, update_output_settings()
+Cohesion: 0.22
+Nodes (11): AppSettings, Single-row table (v13) backing the output-format defaults editable from the, get_output_settings(), Session, Output-format defaults (v13) -- editable from the settings UI without a redeploy, update_output_settings(), _FakeSettings, test_get_output_settings_creates_row_seeded_from_env() (+3 more)
 
 ### Community 5 - "Job Model & Expansion Tests"
-Cohesion: 0.13
-Nodes (25): Job, One row per submitted URL (album/playlist/artist/track)., _capture_job_events(), _FakeSong, _NonClosingSession, Wraps db_session so expand_job's db.close() doesn't detach objects the test, _stub_download_track(), test_expand_job_db_error_during_insert_marks_job_failed() (+17 more)
+Cohesion: 0.11
+Nodes (30): Job, One row per submitted URL (album/playlist/artist/track)., _capture_job_events(), _FakeSong, _NonClosingSession, Wraps db_session so expand_job's db.close() doesn't detach objects the test, _stub_download_track(), test_expand_job_db_error_during_insert_marks_job_failed() (+22 more)
 
 ### Community 6 - "Frontend API Client"
 Cohesion: 0.10
@@ -198,24 +203,24 @@ Cohesion: 0.07
 Nodes (29): devDependencies, eslint, eslint-config-prettier, @eslint/js, eslint-plugin-svelte, globals, prettier, prettier-plugin-svelte (+21 more)
 
 ### Community 9 - "Proxy Service Tests"
-Cohesion: 0.13
-Nodes (12): _aware(), _FakeSettings, _NonClosingSession, datetime, Wraps db_session so sync_from_file's db.close() doesn't detach objects the test, test_pick_proxy_stamps_last_used_at_on_selection(), test_record_proxy_result_failure_reads_ladder_before_incrementing(), test_record_proxy_result_failure_sets_cooldown_and_increments() (+4 more)
+Cohesion: 0.11
+Nodes (14): _aware(), _FakeSettings, _NonClosingSession, datetime, Wraps db_session so sync_from_file's db.close() doesn't detach objects the test, v13 shipped MANUAL-source (UI-added) proxies alongside FILE-source ones, both me, test_pick_proxy_selects_across_manual_and_file_sources_by_lru(), test_pick_proxy_stamps_last_used_at_on_selection() (+6 more)
 
 ### Community 10 - "SSE Event Publishing"
 Cohesion: 0.14
 Nodes (13): Any, _get_client(), make_progress_callback(), publish(), publish_job_event(), publish_track_event(), datetime, Redis pub/sub event bus for live progress.  Publishers (Celery tasks) are plain (+5 more)
 
 ### Community 11 - "Dedup Ledger & Reconciliation"
-Cohesion: 0.26
-Nodes (8): _FakeSettings, _NonClosingSession, Wraps db_session so dedup's db.close() doesn't detach objects the test still, test_is_already_downloaded_returns_none_when_missing(), test_is_already_downloaded_returns_path_when_present(), test_reconcile_disk_drops_rows_for_missing_files(), test_reconcile_disk_refuses_to_prune_when_output_dir_empty(), test_reconcile_disk_refuses_to_prune_when_output_dir_missing()
+Cohesion: 0.06
+Nodes (29): Base, get_db(), Session, DownloadedTrack, Dedup ledger, independent of `tracks` so it survives job/track deletion and powe, JobSourceType, JobState, Proxy (+21 more)
 
 ### Community 13 - "Queue UI Components"
 Cohesion: 0.15
 Nodes (15): Job, StreamEvent, Track, TrackState, $lib/components/IncomingJobs.svelte, $lib/components/QueueTable.svelte, $lib/components/Waterfall.svelte, $lib/stores/queue (+7 more)
 
 ### Community 14 - "Track Router Tests"
-Cohesion: 0.10
-Nodes (19): Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), Index by topic, spotdl 4.5.2 — verified API surface actually used, spotdl-web — Accumulated Gotchas (master v1, v01–v13), v01 deployment gotchas (learned deploying to the real host and local dev), v02 schema gotchas (learned building the SQLAlchemy models + initial migration), v03 auth gotchas (learned building the upstream login proxy + session cookie), v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`) (+11 more)
+Cohesion: 0.13
+Nodes (15): v01 deployment gotchas (learned deploying to the real host and local dev), v02 schema gotchas (learned building the SQLAlchemy models + initial migration), v03 auth gotchas (learned building the upstream login proxy + session cookie), v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`), v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation), v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch), v07 proxy-rotation gotchas (learned building `proxies.txt` sync + pick/cooldown + wiring), v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream) (+7 more)
 
 ### Community 16 - "Backend Dependencies"
 Cohesion: 0.08
@@ -270,8 +275,8 @@ Cohesion: 0.33
 Nodes (6): bumpJob(), cancelJob(), cancelTrack(), retryTrack(), setJobPriority(), createQueueStore()
 
 ### Community 31 - "Version Roadmap Plans"
-Cohesion: 0.04
-Nodes (45): Architecture, Development environments, graphify, Invariants — break these and things fail silently, Job rollup status (v2) — two derived axes, never one stored flag, Locked decisions, Maintaining this file, Master v2 additions (+37 more)
+Cohesion: 0.12
+Nodes (15): Architecture, Development environments, graphify, Invariants — break these and things fail silently, Job rollup status (v2) — two derived axes, never one stored flag, Locked decisions, Maintaining this file, Master v2 additions (+7 more)
 
 ### Community 32 - "Stream Router Tests"
 Cohesion: 0.60
@@ -282,20 +287,20 @@ Cohesion: 0.08
 Nodes (24): 1. World and thesis, 2. Palette, 3. Type system, 4. Spacing scale, 5. Motion, 6. Component patterns, 7. Accessibility (confirmed hard requirement, PRODUCT.md), 8. Known, accepted gaps (do not silently "fix" without re-reading this section first) (+16 more)
 
 ### Community 44 - "Proxy Selection & Coexistence"
-Cohesion: 0.16
-Nodes (17): _probe_reachable(), Best-effort TCP connect so an obviously dead new entry doesn't get picked first, Run once on worker-meta boot (see celery_app.py). Upserts proxies.txt's URLs as, sync_from_file(), _reconcile_disk_on_boot(), _sync_proxies_on_boot(), _format(), _make_record() (+9 more)
+Cohesion: 0.24
+Nodes (12): _reconcile_disk_on_boot(), _format(), _make_record(), Structured JSON logging (v12). The one contract that matters most here: a creden, test_credentialed_url_in_exception_traceback_is_redacted(), test_credentialed_url_in_message_is_redacted(), test_no_task_context_outside_a_running_task(), test_plain_message_passes_through_unchanged() (+4 more)
 
 ### Community 45 - "Track Event Schema"
 Cohesion: 0.13
 Nodes (14): Architecture, Auth API — verified findings, Context, Locked decisions, Other architectural notes, Repository layout, Retry engine, spotdl 4.5.2 — verified API surface (+6 more)
 
 ### Community 56 - "Planning Version Doc"
-Cohesion: 0.25
-Nodes (3): get_db(), Session, expand_job()
+Cohesion: 0.30
+Nodes (13): _aware(), _login(), _make_track(), datetime, test_cancel_track_is_a_noop_on_terminal_states(), test_cancel_track_marks_cancelled_and_clears_schedule(), test_cancel_unknown_track_returns_404(), test_list_tracks_returns_every_track_across_every_job_in_one_call() (+5 more)
 
 ### Community 57 - "Auth Version Doc"
-Cohesion: 0.27
-Nodes (9): Base, JobSourceType, JobState, Proxy, ProxySource, TrackErrorType, TrackState, DeclarativeBase (+1 more)
+Cohesion: 0.21
+Nodes (8): Rejects a pacing window that can't mean what it says. random.uniform happily, Settings, random.uniform tolerates reversed bounds and silently samples them anyway --, test_pacing_min_equal_to_max_is_allowed(), test_pacing_min_greater_than_max_is_rejected(), test_pacing_negative_values_are_rejected(), test_pacing_window_defaults_are_valid(), BaseSettings
 
 ### Community 58 - "URL Expansion Version Doc"
 Cohesion: 0.17
@@ -307,15 +312,15 @@ Nodes (11): Done when, `downloaded_tracks`, `jobs`, `proxies`, Scope, `sessions`
 
 ### Community 60 - "Proxy Cooldown Backoff"
 Cohesion: 0.15
-Nodes (12): 2026-08-09 — CLAUDE.md split into rules vs. reference (folded into v14), Amendments, Context, Critical files, Job rollup status — answering the open design question, Locked decisions for v2, Plan file reorganization (part of v14), spotdl-web — Master Plan v2 (+4 more)
+Nodes (13): 2026-08-09 — CLAUDE.md split into rules vs. reference (folded into v14), 2026-08-09 — v15 complete; two v14 findings confirmed already scheduled, one new finding added, Amendments, Context, Critical files, Job rollup status — answering the open design question, Locked decisions for v2, Plan file reorganization (part of v14) (+5 more)
 
 ### Community 61 - "Live Progress Version Doc"
 Cohesion: 0.18
 Nodes (10): Done when, `jobs` (modified), Scope, `sessions` (modified), Tables, Tasks, `tracks` (unchanged), `user_settings` (new) (+2 more)
 
 ### Community 62 - "Breaker Release Policy"
-Cohesion: 0.14
-Nodes (15): download_one(), get_downloader(), get_supported_output_options(), Path, Song, Thin wrapper around spotdl's download machinery.  Never construct a `Downloader`, The real, live set of --format/--bitrate values the installed spotdl accepts —, Must be called from a plain sync context — search_and_download raises     Downlo (+7 more)
+Cohesion: 0.24
+Nodes (9): download_one(), get_downloader(), get_supported_output_options(), Path, Song, Thin wrapper around spotdl's download machinery.  Never construct a `Downloader`, The real, live set of --format/--bitrate values the installed spotdl accepts —, Must be called from a plain sync context — search_and_download raises     Downlo (+1 more)
 
 ### Community 63 - "Queue Controls Version Doc"
 Cohesion: 0.33
@@ -406,20 +411,36 @@ Cohesion: 0.33
 Nodes (5): Done when, Files touched (new), Scope, Tasks, v13 — Settings UI (Final)
 
 ### Community 85 - "stream"
-Cohesion: 0.28
-Nodes (11): _make_track(), _NonClosingSession, _patch_session(), See test_download_task.py — download_track's db.close() would otherwise detach, test_dispatch_due_tracks_dispatches_and_flips_state(), test_dispatch_due_tracks_leaves_recent_downloading_track_alone(), test_dispatch_due_tracks_orders_by_job_priority_over_scheduled_at(), test_dispatch_due_tracks_priority_never_pulls_forward_a_not_yet_due_track() (+3 more)
+Cohesion: 0.20
+Nodes (8): _ensure_spotify_client(), expand(), Song, Thin wrapper around spotdl's URL-expansion logic.  Never import spotdl.utils.sea, SpotifyClient is a process-wide singleton that raises if .init() runs twice, so, Turn a Spotify URL (track/album/playlist/artist) or a search term into Songs., login(), Check credentials against vb2007.hu-api. Never forwards or returns the upstream
 
 ### Community 86 - "sv"
 Cohesion: 0.40
 Nodes (4): Building, Creating a project, Developing, sv
 
 ### Community 107 - "Version roadmap v00-v13"
-Cohesion: 0.40
-Nodes (5): is_already_downloaded(), Path, Download dedup ledger (`downloaded_tracks`) and startup disk reconciliation., Drops ledger rows whose file no longer exists on disk, so a manually-deleted, reconcile_disk()
+Cohesion: 0.25
+Nodes (8): 1. Install PostgreSQL (host-native — not a container), 2. Create the role and database, 3. Let Docker containers reach Postgres, 4. Install Docker + the Compose plugin, 5. Clone the repo, 6. Configure `.env`, 7. Bring up the stack, One-time host setup (already done on this host — kept for reference)
 
 ### Community 125 - "test_app_settings.py"
+Cohesion: 0.29
+Nodes (7): 1. Pull the merged code, 2. Update `.env`, 3. Migrate the downloads directory (one-time, before first boot with the new bind mount), 4. Bring up the stack with the production overlay, 5. Configure the Cloudflare Tunnel (Zero Trust dashboard), 6. Verify, Upgrading an existing deployment to v12
+
+### Community 126 - "conftest.py"
+Cohesion: 0.29
+Nodes (7): 1. Configure `.env`, 2. Bring up the stack, 3. Verify, 4. When a version is ready, Local development environment, Once there's real data worth protecting, Troubleshooting
+
+### Community 128 - "Deploying spotdl-web to the Debian 12 host"
+Cohesion: 0.33
+Nodes (6): Backups, Deploying spotdl-web to the Debian 12 host, Firewall / network notes, Ongoing maintenance, Restart-survival test, Troubleshooting
+
+### Community 129 - "spotdl-web — Accumulated Gotchas (master v1, v01–v13)"
+Cohesion: 0.33
+Nodes (5): Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), Index by topic, spotdl 4.5.2 — verified API surface actually used, spotdl-web — Accumulated Gotchas (master v1, v01–v13), Verified external API contracts
+
+### Community 130 - "stream"
 Cohesion: 0.60
-Nodes (5): _FakeSettings, test_get_output_settings_creates_row_seeded_from_env(), test_get_output_settings_returns_existing_row_without_reseeding(), test_update_output_settings_creates_row_if_missing(), test_update_output_settings_only_touches_given_fields()
+Nodes (4): _event_stream(), Request, stream(), StreamingResponse
 
 ## Ambiguous Edges - Review These
 - `PRODUCT.md` → `frontend/static/robots.txt`  [AMBIGUOUS]
@@ -428,9 +449,9 @@ Nodes (5): _FakeSettings, test_get_output_settings_creates_row_seeded_from_env()
   frontend/src/lib/assets/favicon.svg · relation: semantically_similar_to
 
 ## Knowledge Gaps
-- **332 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+327 more)
+- **334 isolated node(s):** `spotdl-web-backend`, `gitignorePath`, `name`, `private`, `version` (+329 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **47 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **48 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -439,13 +460,13 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `favicon.svg (Svelte default logo)` and `Instrument-panel THESIS (Operate mode)`?**
   _Edge tagged AMBIGUOUS (relation: semantically_similar_to) - confidence is low._
+- **Why does `Track` connect `Track Model & Beat Tests` to `Session Auth Routes`, `Config & Health Check`, `Job Model & Expansion Tests`, `Circuit Breaker & Retry`, `beat.py`, `Dedup Ledger & Reconciliation`, `Planning Version Doc`?**
+  _High betweenness centrality (0.084) - this node is a cross-community bridge._
 - **Why does `request()` connect `Frontend API Client` to `Worker Status UI`, `Alembic Env & JSON Logging`, `Queue Store Actions`?**
-  _High betweenness centrality (0.067) - this node is a cross-community bridge._
-- **Why does `Track` connect `Track Model & Beat Tests` to `Session Auth Routes`, `Job Model & Expansion Tests`, `Circuit Breaker & Retry`, `beat.py`, `stream`, `Planning Version Doc`, `Auth Version Doc`?**
-  _High betweenness centrality (0.062) - this node is a cross-community bridge._
+  _High betweenness centrality (0.079) - this node is a cross-community bridge._
 - **Why does `$lib/api` connect `Frontend API Client` to `API Error Class`, `Layout Load Guard`, `Queue UI Components`, `Worker Status UI`, `Queue Store Actions`?**
-  _High betweenness centrality (0.047) - this node is a cross-community bridge._
-- **Are the 45 inferred relationships involving `Track` (e.g. with `Base` and `cancel_job()`) actually correct?**
-  _`Track` has 45 INFERRED edges - model-reasoned connections that need verification._
+  _High betweenness centrality (0.070) - this node is a cross-community bridge._
+- **Are the 49 inferred relationships involving `Track` (e.g. with `Base` and `cancel_job()`) actually correct?**
+  _`Track` has 49 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 2 inferred relationships involving `UserSession` (e.g. with `Base` and `delete_session()`) actually correct?**
   _`UserSession` has 2 INFERRED edges - model-reasoned connections that need verification._
