@@ -136,5 +136,5 @@ def test_list_tracks_returns_every_track_across_every_job_in_one_call(authentica
     response = authenticated_client.get("/api/tracks")
 
     assert response.status_code == 200
-    ids = {row["id"] for row in response.json()}
+    ids = {row["id"] for row in response.json()["items"]}
     assert ids == {str(a.id), str(b.id)}
