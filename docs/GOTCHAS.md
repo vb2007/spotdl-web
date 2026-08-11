@@ -44,6 +44,19 @@ needed" claim — rather than silently deleted.
 - `JSONB` has no SQLite compiler; `conftest.py` registers a `@compiles` shim for tests → *v04*
 - v16 landed `jobs.user_id`/`sessions.user_id` as **NOT NULL with no application code populating
   them yet** — deliberate, and fixed in v17 by wiring `get_or_create_user` into login → *v16, v17*
+- `Track.song_json[key].astext` extracts JSONB text portably on both Postgres and SQLite, including
+  for array-valued keys (returns the array's JSON text form on both) — `.op("->>")(...)` instead
+  fails at execution on SQLite → *v18*
+- A pg_trgm GIN index is only used when the query's expression is structurally identical to the
+  one it was built on, not merely equivalent — keep the migration's raw SQL a hand-verified copy of
+  the query-builder's compiled output → *v18*
+- Row-value tuple comparison (`(a, b) > (c, d)`) breaks the moment any element can be `NULL` (SQL's
+  three-valued logic silently drops rows); keyset-paginate a nullable sort key with an explicit
+  two-branch WHERE instead → *v18*
+- A correlated scalar subquery's (implicit or explicit) correlation target must be the statement's
+  *actual* enclosing `FROM`, not the table the subquery conceptually belongs to — passing an
+  aggregated-subquery's column while asking to correlate against the raw table it was built from
+  silently produces an uncorrelated subquery instead of an error → *v18*
 
 **Docker Compose & deployment**
 - Override files **merge** list keys (`ports`, `volumes`) and **replace** mapping keys
@@ -206,6 +219,14 @@ needed" claim — rather than silently deleted.
 - No project skill exists yet for driving the frontend in a real browser — verification used an
   ad-hoc Playwright script against the cached Chromium at `~/.cache/ms-playwright/` (see v13's
   gotcha above) rather than a repo-committed driver. Candidate for `/run-skill-generator` → *v17*
+- SQLite's `CURRENT_TIMESTAMP` (what `func.now()`/a model's `server_default=func.now()` compiles
+  to) has one-second resolution — a fast test loop creating several rows can give them all an
+  identical timestamp, so a test asserting sort order on that column needs explicit, strictly
+  increasing values rather than relying on real insert timing → *v18*
+- A UUID cursor/token value must round-trip as an actual `uuid.UUID` on decode, not a string that
+  merely looks like one, or a bind parameter against a UUID-typed column fails; encode it
+  self-describing (like a datetime) rather than as a bare string indistinguishable from real text
+  → *v18*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -221,6 +242,8 @@ needed" claim — rather than silently deleted.
   request, always → *v12*
 - Removing the `Session` parameter from a serializer, not just adding a bulk query, is what makes
   the N+1 impossible to silently reintroduce → *v15*
+- Filter jobs *before* aggregating their tracks, not after — a search/archived/source_type filter
+  that excludes a huge job should never pay to aggregate it → *v18*
 
 **Reference (not a gotcha)**
 - Upstream `vb2007.hu-api` endpoint shapes, token scheme, and the two constraints they impose →
@@ -1953,3 +1976,100 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   console errors; the admin session shows all three, reaches `/settings` and loads real proxy/
   output data, and the mine/all-users toggle switches both directions with zero console errors and
   the job count changing from the caller's own jobs to every user's.
+
+### v18 job-centric-api gotchas (learned building cursor pagination, rollup status, and search)
+
+- **The plan's own endpoint list put a `scope=job|track` parameter on `GET /api/jobs`, but the
+  master plan's "Tracks mode" (search/filter/sort operate on tracks; pagination is over tracks, not
+  jobs) is only representable as a list of *track* rows with their parent job embedded — which is
+  exactly `GET /api/tracks`'s shape, not a job-shaped one.** Read literally, there is no coherent
+  third response shape for `/api/jobs?scope=track` distinct from `/api/tracks`. Resolved by
+  treating `scope=track` as a genuine alias: `GET /api/jobs?scope=track` shares its entire
+  implementation with `GET /api/tracks` (`services.track_listing.list_tracks`), returning the
+  track-shaped `{items, next_cursor}` body, not a job-shaped one. `GET /api/jobs?scope=job`
+  (default) is the normal job listing. This is a judgment call on an underspecified corner, not a
+  contradiction requiring a stop-and-ask like v16's — the *response shape* for scope=track was
+  never ambiguous (the design notes spell it out), only *which URL* reaches it, and that detail is
+  cheap for v20 to adjust either way since both paths already exist and agree.
+- **`Job` has no title column, and nothing in v14–v17 needed one.** v18's `sort=title` and the
+  listing response both need *some* per-job display string. `rollup.derive_job_title`/
+  `rollup.job_title_expr` use the first-created track's `list_name` (playlist/album name, present on
+  spotdl `Song` objects — verified via `dataclasses.fields(Song)` inside the running `api`
+  container, not assumed) if present, else that track's own `name`, else the job's `source_url` for
+  a job with zero tracks (`expanding`/`failed`). Not a stored column, by the same "don't add a
+  second source of truth" reasoning as rollup status itself.
+- **`Track.song_json[key].astext` (not `.op("->>")`) is the portable way to extract JSONB text, and
+  it works identically for a scalar field *and* a JSON array field on both Postgres and the test
+  suite's SQLite** — confirmed by direct execution against both engines (SQLite 3.40.1, which has
+  native `->`/`->>` operators as of 3.38). `.astext` on an array key (e.g. `song_json['artists']`)
+  returns the array's own JSON text form (`'["Queen","Bowie"]'`) on *both* backends, which is exactly
+  what substring search wants — no separate `cast(..., String)` needed. `.op("->>")('key')` instead
+  fails at execution on SQLite (`JSONDecodeError`) because it bypasses the path-building `.astext`
+  normally does internally.
+- **A correlated scalar subquery's `.correlate(...)` argument must name the actual enclosing
+  `FROM`, not the table the subquery conceptually "belongs to."** `job_title_expr`'s first draft
+  called `.correlate(Job)` on a subquery referencing `agg.c.id` (an aggregated subquery built *from*
+  `Job`, not `Job` itself) — since `Job` was never in the outer statement's `FROM` list, SQLAlchemy
+  silently produced an *uncorrelated* subquery that returned the same (arbitrary, ORDER-BY-first)
+  track's title for every single row. Caught by a fixture cross-check (zero-track jobs all showing
+  the same non-empty title, which should be impossible) before it reached a router. Fix: no
+  explicit `.correlate()` call at all — SQLAlchemy's default auto-correlation finds whichever
+  enclosing `FROM` actually provides the referenced columns, working correctly whether the caller's
+  outer query FROMs `Job` directly or an aggregate built from it.
+- **Row-value tuple comparison (`(a, b) > (c, d)`) cannot be the basis for keyset pagination once
+  any tuple element is nullable** — SQL's three-valued logic makes any comparison touching a `NULL`
+  evaluate to `NULL` (neither true nor false), which silently drops rows instead of including them.
+  `services.pagination` deliberately does NOT use `tuple_(...)` row comparison at all; nullable sort
+  keys (`sort=next_retry`) get their own explicit two-branch WHERE (already-in-the-NULL-partition vs
+  still-in-the-non-NULL-partition) rather than trying to force one generic comparison to handle both.
+  Caught by a fixture test pairing two NULL-valued rows across a page boundary before it reached
+  production code.
+- **A cursor's UUID component must round-trip as an actual `uuid.UUID`, not a string that merely
+  looks like one** — `pagination.encode_cursor` originally rendered a UUID via bare `str(value)`,
+  indistinguishable on decode from a genuine string sort key (e.g. a title). The decoded plain
+  string, used as a bind parameter against the `id` column, failed with `AttributeError: 'str'
+  object has no attribute 'hex'` (SQLAlchemy's cross-dialect `Uuid` type's bind processor calls
+  `.hex` on what it assumes is a real `UUID` instance). Fixed by making the UUID encoding
+  self-describing (`{"$uuid": "..."}`), mirroring how datetimes were already handled
+  (`{"$dt": "..."}`) — decode must distinguish "this looked like text" from "this needs
+  reconstructing into a real object," and can't infer that from the string's contents alone.
+- **SQLite's `CURRENT_TIMESTAMP` (what `func.now()` compiles to, and what `Job.created_at`'s
+  `server_default` uses) has one-second resolution** — a tight test loop creating several jobs
+  within the same wall-clock second gives them all an *identical* `created_at`, silently falling
+  back to `id` (an unordered UUID) as the only real sort key and making "sort=created_at" tests
+  flaky rather than reliably wrong. `test_pagination.py`'s fixtures set `created_at` explicitly with
+  strictly increasing values instead of relying on real insert timing.
+- **pg_trgm GIN indexes only get used by Postgres's planner if the query's expression is
+  structurally identical to the one the index was built on** — not merely equivalent. The
+  `ix_tracks_search_trgm` migration's raw-SQL expression is a hand-copied match of
+  `search.track_search_text()`'s compiled output (verified via `.compile(dialect=postgresql.dialect())`
+  at migration-authoring time, and again via `EXPLAIN` with `SET enable_seqscan = off` to prove the
+  index is at least reachable). At real ~3,000-row scale in this dev database, Postgres's planner
+  still chose a sequential scan over the index (7.9ms either way) — a correct, cost-based decision
+  at this size, not a sign the index doesn't work; it becomes the chosen plan once a table is large
+  enough that a full scan actually costs more.
+- **Re-confirmed v11's "ad-hoc scripts go in `/app/`, never `/tmp/`" the hard way**: a `/tmp`-staged
+  seeding script failed on `app.services.users` specifically (added after this dev image was last
+  built) while `app.services.sessions` imported fine — the stale `site-packages` copy of `app` isn't
+  simply *missing*, it's a real but outdated snapshot, so only symptoms touching what changed since
+  the last image build surface, making the failure look like a real bug in the new code rather than
+  a stale-import artifact. `PYTHONPATH=/app python3 /tmp/script.py` also works if a script must stay
+  outside `/app`.
+- **Query count for the new `GET /api/jobs` is a fixed 8 statements** (session lookup, the owner-
+  joined+aggregated base query, `counts_by_status`, the capped `total_estimate` count, the page
+  itself, and the page's bulk `track_counts_by_job`) **regardless of how many jobs exist or how many
+  are returned** — proven with the existing `count_queries` fixture (differential: a 5-job page
+  costs the same as a 1-job page) plus an absolute ceiling, same pattern as v15/v17's N+1 guards.
+- **Verified against the real docker-compose stack, real Postgres, real ~3,000-track volume**: a
+  job with 3,000 tracks (2,700 `completed` / 300 `lookup_failed`, realistic `song_json` incl.
+  `list_name`) seeded directly (not through 3,000 individual API calls) via `bulk_save_objects`.
+  Against the real running server: `GET /api/jobs` first page 85ms with correct `track_counts`
+  (`{"completed": 2700, "lookup_failed": 300}`), correct rollup (`settled`/`partial`), and correct
+  derived title (`list_name`); `GET /api/jobs/{id}/tracks` first page 73ms with correct
+  `counts_by_state`; a substring search across the 3,000 tracks 84ms, returning exactly the 11
+  correct matches (`Load Test Song 42`, `420`–`429`); `scope=track` via both URLs 72ms. A second,
+  independent user (session minted directly per the documented v15 fallback, real stack) confirmed
+  zero visibility into any of it across `/api/jobs`, `/api/jobs?q=...`, `/api/tracks?q=...`, and
+  `all_users=true` — the v18-specific extension of v17's cross-user sweep the project's own
+  "new query paths, new chances to drop the filter" invariant calls for. All seeded rows and both
+  test users deleted afterward (this is the shared dev database).

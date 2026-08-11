@@ -54,14 +54,14 @@ def test_list_jobs_and_tracks_contain_zero_of_the_other_users_rows(client, db_se
     job_b = _make_job(db_session, user_b)
     _make_track(db_session, job_b)
 
-    jobs_as_b = _as(client, cookie_b).get("/api/jobs").json()
+    jobs_as_b = _as(client, cookie_b).get("/api/jobs").json()["items"]
     assert all(j["id"] != str(job_a.id) for j in jobs_as_b)
     assert any(j["id"] == str(job_b.id) for j in jobs_as_b)
 
-    tracks_as_b = _as(client, cookie_b).get("/api/tracks").json()
+    tracks_as_b = _as(client, cookie_b).get("/api/tracks").json()["items"]
     assert all(t["job_id"] != str(job_a.id) for t in tracks_as_b)
 
-    jobs_as_a = _as(client, cookie_a).get("/api/jobs").json()
+    jobs_as_a = _as(client, cookie_a).get("/api/jobs").json()["items"]
     assert all(j["id"] != str(job_b.id) for j in jobs_as_a)
 
 
@@ -134,7 +134,7 @@ def test_all_users_flag_from_non_admin_is_silently_ignored(client, db_session, m
     _make_job(db_session, other)
 
     response = _as(client, owner_cookie).get("/api/jobs?all_users=true")
-    owners = {j["owner_email"] for j in response.json()}
+    owners = {j["owner_email"] for j in response.json()["items"]}
     assert owners == {"owner@example.com"}
 
 
@@ -147,8 +147,46 @@ def test_admin_default_view_is_own_jobs_only_and_all_users_reveals_the_rest(
 
     job = _make_job(db_session, owner)
 
-    default_view = _as(client, admin_cookie).get("/api/jobs").json()
+    default_view = _as(client, admin_cookie).get("/api/jobs").json()["items"]
     assert all(j["id"] != str(job.id) for j in default_view)
 
-    all_view = _as(client, admin_cookie).get("/api/jobs?all_users=true").json()
+    all_view = _as(client, admin_cookie).get("/api/jobs?all_users=true").json()["items"]
     assert any(j["id"] == str(job.id) for j in all_view)
+
+
+def test_search_and_scope_track_never_surface_another_users_rows(client, db_session, make_user, session_cookie):
+    """v18 adds real new query paths (search, scope=track, status/state filters) --
+    exactly the kind of new surface the project's data-separation invariant calls out as
+    needing its own re-run of the cross-user sweep, not just the list endpoints v17
+    already covered."""
+    stranger = make_user("stranger@example.com")
+    victim_job = _make_job(db_session, stranger)
+    victim_track = Track(
+        job_id=victim_job.id,
+        spotify_track_id="victim",
+        song_json={"name": "VeryUniqueSearchableTitle", "artists": ["Nobody"]},
+        state=TrackState.WAITING,
+    )
+    db_session.add(victim_track)
+    db_session.commit()
+
+    attacker_cookie = session_cookie("attacker@example.com")
+    _as(client, attacker_cookie)
+
+    # A search term that *does* match the victim's track must still come back empty for
+    # a non-owner, non-admin caller -- across every surface that accepts `q`.
+    for path in ("/api/jobs", "/api/jobs?scope=track", "/api/tracks"):
+        response = client.get(f"{path}{'&' if '?' in path else '?'}q=VeryUniqueSearchableTitle")
+        assert response.status_code == 200
+        assert response.json()["items"] == [], path
+
+    # Same for the victim's job's own /{id}/tracks endpoint -- direct-id, must 404.
+    assert client.get(f"/api/jobs/{victim_job.id}/tracks?q=VeryUnique").status_code == 404
+
+    # And status/state filters must not become a side channel either.
+    for path in ("/api/jobs?status=waiting", "/api/tracks?state=waiting"):
+        response = client.get(path)
+        assert response.status_code == 200
+        ids = {item["id"] for item in response.json()["items"]}
+        assert str(victim_job.id) not in ids
+        assert str(victim_track.id) not in ids

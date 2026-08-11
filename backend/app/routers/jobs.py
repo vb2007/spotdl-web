@@ -1,6 +1,7 @@
 import uuid
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -8,8 +9,9 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers.auth import require_session
-from app.services import events
-from app.services.serializers import job_to_dict, track_counts, track_counts_by_job, track_to_dict
+from app.services import events, job_listing, rollup, track_listing
+from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
+from app.services.serializers import job_to_dict, track_counts
 from app.tasks.expand import expand_job
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -53,31 +55,62 @@ def create_job(
     db.add(job)
     db.commit()
     expand_job.delay(str(job.id))
-    return job_to_dict(job, track_counts(db, job.id), user.email)
+    return job_to_dict(job, track_counts(db, job.id), user.email, rollup.job_title(db, job))
 
 
 @router.get("")
 def list_jobs(
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
+    scope: Literal["job", "track"] = "job",
+    q: str | None = None,
+    status: list[str] = Query(default=[]),
+    state: list[str] = Query(default=[]),
+    source_type: JobSourceType | None = None,
+    include_archived: bool = False,
+    sort: str | None = None,
+    dir: Literal["asc", "desc"] | None = None,
+    limit: int = DEFAULT_LIMIT,
+    cursor: str | None = None,
     all_users: bool = False,
-) -> list[dict]:
-    # all_users is honored only for an admin session -- a non-admin passing it is
-    # silently treated exactly as if they hadn't (v17's threat model: never trust a
-    # client-supplied scope flag).
-    query = db.query(Job, User.email).join(User, Job.user_id == User.id)
-    if not (all_users and user.is_admin):
-        query = query.filter(Job.user_id == user.id)
-    rows = query.order_by(Job.created_at.desc()).all()
-
-    # One aggregate for the whole page rather than one per job (v15's N+1 fix). Jobs with
-    # no tracks are absent from `counts` and fall through to `{}` via job_to_dict's
-    # required `counts` argument, matching what the old per-job query returned for them.
-    # This does trade N queries for one query carrying N bind parameters -- fine at the
-    # scale `list_jobs` runs at today (no LIMIT yet, so it's already every job), and
-    # bounded permanently once v18 adds pagination.
-    counts = track_counts_by_job(db, [job.id for job, _ in rows])
-    return [job_to_dict(job, counts.get(job.id, {}), owner_email) for job, owner_email in rows]
+) -> dict:
+    """`scope=track` (the master plan's job/track toggle, "Tracks" position) delegates to
+    exactly the same query `GET /api/tracks` runs, sharing `track_listing.list_tracks` --
+    both URLs are equally "correct" for a track-scoped result; which one the frontend
+    calls is purely its own choice, not a distinction this API enforces."""
+    try:
+        if scope == "track":
+            return track_listing.list_tracks(
+                db,
+                user_id=user.id,
+                is_admin=user.is_admin,
+                all_users=all_users,
+                q=q,
+                job_status_tokens=status,
+                track_states=state,
+                source_type=source_type,
+                include_archived=include_archived,
+                sort=sort or "created_at",
+                dir=dir or "desc",
+                limit=limit,
+                cursor=cursor,
+            )
+        return job_listing.list_jobs(
+            db,
+            user_id=user.id,
+            is_admin=user.is_admin,
+            all_users=all_users,
+            q=q,
+            status_tokens=status,
+            source_type=source_type,
+            include_archived=include_archived,
+            sort=sort or "created_at",
+            dir=dir or "desc",
+            limit=limit,
+            cursor=cursor,
+        )
+    except (job_listing.InvalidListParams, track_listing.InvalidListParams, InvalidCursor) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, str]:
@@ -101,7 +134,7 @@ def get_job(
     user: User = Depends(require_session),
 ) -> dict:
     job, owner_email = _get_job_or_404(db, job_id, user)
-    return job_to_dict(job, track_counts(db, job.id), owner_email)
+    return job_to_dict(job, track_counts(db, job.id), owner_email, rollup.job_title(db, job))
 
 
 @router.get("/{job_id}/tracks")
@@ -109,10 +142,44 @@ def list_job_tracks(
     job_id: uuid.UUID,
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
-) -> list[dict]:
+    q: str | None = None,
+    state: list[str] = Query(default=[]),
+    sort: str = "created_at",
+    dir: Literal["asc", "desc"] = "asc",
+    limit: int = DEFAULT_LIMIT,
+    cursor: str | None = None,
+) -> dict:
     _get_job_or_404(db, job_id, user)
-    tracks = db.query(Track).filter(Track.job_id == job_id).order_by(Track.created_at).all()
-    return [track_to_dict(track) for track in tracks]
+    try:
+        result = track_listing.list_tracks(
+            db,
+            user_id=user.id,
+            is_admin=user.is_admin,
+            # Ownership of `job_id` is already checked above by `_get_job_or_404` (which
+            # itself only bypasses the owner filter for an admin) -- passing
+            # `all_users=is_admin` here reproduces that exact same bypass for the track
+            # query rather than introducing a second, differently-shaped ownership rule.
+            all_users=user.is_admin,
+            q=q,
+            job_status_tokens=[],
+            track_states=state,
+            source_type=None,
+            include_archived=True,  # this job's own archived state is irrelevant to listing *its* tracks
+            sort=sort,
+            dir=dir,
+            limit=limit,
+            cursor=cursor,
+            job_id=job_id,
+        )
+    except (track_listing.InvalidListParams, InvalidCursor) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    # counts_by_state ignores this request's own `state` filter (so switching tabs keeps
+    # every tab's count visible) but, deliberately, not `q` either -- unlike the job
+    # listing's counts_by_status, this is the simple full per-job breakdown already
+    # computed by `track_counts`, reused as-is rather than adding a second q-aware query
+    # for a per-job tab count nobody has asked to search live.
+    result["counts_by_state"] = track_counts(db, job_id)
+    return result
 
 
 @router.delete("/{job_id}")
@@ -143,7 +210,7 @@ def cancel_job(
     events.publish_job_event(job.user_id, job.id, job.state.value)
     # Read after the cancel commit above, not before -- counts must reflect the just
     # -cancelled tracks.
-    return job_to_dict(job, track_counts(db, job.id), owner_email)
+    return job_to_dict(job, track_counts(db, job.id), owner_email, rollup.job_title(db, job))
 
 
 @router.patch("/{job_id}/priority")
@@ -156,7 +223,7 @@ def set_job_priority(
     job, owner_email = _get_job_or_404(db, job_id, user)
     job.priority = payload.priority
     db.commit()
-    return job_to_dict(job, track_counts(db, job.id), owner_email)
+    return job_to_dict(job, track_counts(db, job.id), owner_email, rollup.job_title(db, job))
 
 
 @router.post("/{job_id}/bump")
@@ -174,4 +241,4 @@ def bump_job(
     max_priority = db.query(func.max(Job.priority)).scalar() or 0
     job.priority = max_priority + 1
     db.commit()
-    return job_to_dict(job, track_counts(db, job.id), owner_email)
+    return job_to_dict(job, track_counts(db, job.id), owner_email, rollup.job_title(db, job))

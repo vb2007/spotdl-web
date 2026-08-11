@@ -58,7 +58,7 @@ def test_list_and_get_job_include_track_counts(authenticated_client, db_session,
 
     list_response = authenticated_client.get("/api/jobs")
     assert list_response.status_code == 200
-    listed = next(j for j in list_response.json() if j["id"] == job_id)
+    listed = next(j for j in list_response.json()["items"] if j["id"] == job_id)
     assert listed["state"] == "expanded"
     assert listed["track_counts"] == {"pending": 1}
 
@@ -92,30 +92,32 @@ def _make_job_with_tracks(db_session, owner, states=(TrackState.PENDING, TrackSt
 def test_list_jobs_query_count_does_not_grow_with_job_count(
     authenticated_client, db_session, owner, monkeypatch, count_queries
 ):
-    """v15's N+1 guard. Before the fix, job_to_dict ran one grouped-count query per job,
-    so five jobs cost four more statements than one -- this asserts the count stays flat
-    instead of inferring it from timing."""
+    """v15's N+1 guard, extended by v18: the listing now runs a fixed small number of
+    statements (counts_by_status, a capped total_estimate count, the page itself, and one
+    bulk per-state breakdown for the page's jobs) regardless of how many jobs exist --
+    this asserts the count stays flat instead of inferring it from timing."""
     _make_job_with_tracks(db_session, owner)
     with count_queries() as one_job_statements:
         first = authenticated_client.get("/api/jobs")
     assert first.status_code == 200
-    assert len(first.json()) == 1
+    assert len(first.json()["items"]) == 1
 
     for _ in range(4):
         _make_job_with_tracks(db_session, owner)
     with count_queries() as five_job_statements:
         second = authenticated_client.get("/api/jobs")
     assert second.status_code == 200
-    assert len(second.json()) == 5
+    assert len(second.json()["items"]) == 5
 
     # Differential, not an absolute: the session lookup require_session does is constant
     # but isn't this test's business, and pinning an exact total would make an unrelated
     # auth change break this test for the wrong reason.
     assert len(five_job_statements) == len(one_job_statements)
-    # ...and the absolute is small enough to prove it really is one aggregate, not N.
-    # (6, not 4: v17 adds one owner join to the list query and one User lookup to
-    # require_session -- both still O(1), just a slightly higher constant.)
-    assert len(five_job_statements) <= 6
+    # ...and the absolute is small enough to prove it really is O(1), not O(n) -- v18
+    # measures 8 here (session lookup, owner join + aggregate for counts_by_status,
+    # capped total_estimate count, the page query, and the page's bulk track_counts),
+    # each one query regardless of page size, just a higher constant than v15/v17's.
+    assert len(five_job_statements) <= 8
 
 
 def test_list_jobs_track_counts_are_attributed_per_job(authenticated_client, db_session, owner):
@@ -127,7 +129,7 @@ def test_list_jobs_track_counts_are_attributed_per_job(authenticated_client, db_
     waiting = _make_job_with_tracks(db_session, owner, states=(TrackState.WAITING,))
     empty = _make_job_with_tracks(db_session, owner, states=())
 
-    by_id = {job["id"]: job for job in authenticated_client.get("/api/jobs").json()}
+    by_id = {job["id"]: job for job in authenticated_client.get("/api/jobs").json()["items"]}
 
     assert by_id[str(busy.id)]["track_counts"] == {"pending": 2, "completed": 1}
     assert by_id[str(waiting.id)]["track_counts"] == {"waiting": 1}
@@ -152,7 +154,7 @@ def test_list_job_tracks_projects_display_fields_and_stays_pending(authenticated
 
     response = authenticated_client.get(f"/api/jobs/{job_id}/tracks")
     assert response.status_code == 200
-    [track] = response.json()
+    [track] = response.json()["items"]
     assert track["title"] == "Test Song"
     assert track["artists"] == ["Artist A"]
     assert track["album"] == "Album A"
