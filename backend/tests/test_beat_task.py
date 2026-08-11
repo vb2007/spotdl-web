@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from app.models import Job, JobSourceType, Track, TrackState, User
+from app.models import Job, JobSourceType, JobState, Track, TrackState, User, UserSettings
 from app.services import events, retry
 from app.tasks import beat as beat_task
 
@@ -100,6 +100,87 @@ def test_dispatch_due_tracks_skips_entirely_while_breaker_tripped(db_session, mo
     beat_task.dispatch_due_tracks()
 
     assert db_session.get(Track, due.id).state == TrackState.WAITING
+
+
+def _make_job(db_session, owner, *, job_state=JobState.EXPANDED, track_states=()) -> Job:
+    job = Job(
+        source_url="https://open.spotify.com/album/x",
+        source_type=JobSourceType.ALBUM,
+        state=job_state,
+        user_id=owner.id,
+    )
+    db_session.add(job)
+    db_session.commit()
+    for index, state in enumerate(track_states):
+        db_session.add(
+            Track(
+                job_id=job.id,
+                spotify_track_id=f"{job.id}-{index}",
+                song_json={"name": "Song"},
+                state=state,
+            )
+        )
+    db_session.commit()
+    return job
+
+
+def _set_retention(db_session, user, days) -> None:
+    db_session.add(UserSettings(user_id=user.id, retention_days=days))
+    db_session.commit()
+
+
+def test_archive_due_jobs_archives_settled_jobs_past_the_users_retention_threshold(
+    db_session, monkeypatch
+):
+    _patch_session(monkeypatch, db_session)
+    owner = _owner(db_session)
+    _set_retention(db_session, owner, 1)
+    job = _make_job(db_session, owner, track_states=(TrackState.COMPLETED,))
+    stale = datetime.now(timezone.utc) - timedelta(days=10)
+    for track in db_session.query(Track).filter(Track.job_id == job.id):
+        track.updated_at = stale
+    db_session.commit()
+
+    published = []
+    monkeypatch.setattr(events, "publish_job_event", lambda *a, **kw: published.append((a, kw)))
+
+    beat_task.archive_due_jobs()
+
+    assert db_session.get(Job, job.id).archived_at is not None
+    assert published == [((owner.id, job.id, "expanded"), {"archived": True})]
+
+
+def test_archive_due_jobs_never_archives_a_waiting_job_even_when_old(db_session, monkeypatch):
+    _patch_session(monkeypatch, db_session)
+    owner = _owner(db_session)
+    _set_retention(db_session, owner, 1)
+    job = _make_job(db_session, owner, track_states=(TrackState.WAITING,))
+    long_ago = datetime.now(timezone.utc) - timedelta(days=365)
+    job.created_at = long_ago
+    for track in db_session.query(Track).filter(Track.job_id == job.id):
+        track.updated_at = long_ago
+    db_session.commit()
+    monkeypatch.setattr(events, "publish_job_event", lambda *a, **kw: None)
+
+    beat_task.archive_due_jobs()
+
+    assert db_session.get(Job, job.id).archived_at is None
+
+
+def test_archive_due_jobs_skips_users_with_null_retention(db_session, monkeypatch):
+    _patch_session(monkeypatch, db_session)
+    owner = _owner(db_session)
+    # No UserSettings row at all -- the default, unset state -- must be treated the same
+    # as an explicit retention_days=None: never touched by the sweep.
+    job = _make_job(db_session, owner, track_states=(TrackState.COMPLETED,))
+    for track in db_session.query(Track).filter(Track.job_id == job.id):
+        track.updated_at = datetime.now(timezone.utc) - timedelta(days=365)
+    db_session.commit()
+    monkeypatch.setattr(events, "publish_job_event", lambda *a, **kw: None)
+
+    beat_task.archive_due_jobs()
+
+    assert db_session.get(Job, job.id).archived_at is None
 
 
 def test_dispatch_due_tracks_orders_by_job_priority_over_scheduled_at(db_session, monkeypatch):

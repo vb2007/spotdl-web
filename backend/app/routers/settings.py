@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.models import AppSettings, User
-from app.routers.auth import require_admin
-from app.services import app_settings, downloads
+from app.models import AppSettings, User, UserSettings
+from app.routers.auth import require_admin, require_session
+from app.services import app_settings, downloads, user_settings
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -15,6 +15,10 @@ class UpdateOutputSettingsRequest(BaseModel):
     default_format: str | None = None
     default_bitrate: str | None = None
     output_template: str | None = None
+
+
+class UpdateRetentionRequest(BaseModel):
+    retention_days: int | None
 
 
 def _output_settings_to_dict(row: AppSettings) -> dict:
@@ -72,3 +76,34 @@ def update_output_settings(
     row = app_settings.update_output_settings(db, **fields)
     db.commit()
     return _output_settings_to_dict(row)
+
+
+def _retention_to_dict(row: UserSettings) -> dict:
+    return {"retention_days": row.retention_days}
+
+
+@router.get("/retention")
+def get_retention_settings(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """Per-user, open to every user (unlike `/output`'s admin gating) -- retention is
+    each user's own log-hygiene preference, not a shared deployment config."""
+    row = user_settings.get_user_settings(db, user.id)
+    db.commit()
+    return _retention_to_dict(row)
+
+
+@router.patch("/retention")
+def update_retention_settings(
+    payload: UpdateRetentionRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    if payload.retention_days is not None and payload.retention_days <= 0:
+        raise HTTPException(
+            status_code=400, detail="retention_days must be a positive integer or null"
+        )
+    row = user_settings.update_retention(db, user.id, payload.retention_days)
+    db.commit()
+    return _retention_to_dict(row)

@@ -20,7 +20,17 @@ from sqlalchemy.pool import StaticPool
 
 from app.db import get_db
 from app.main import app
-from app.models import AppSettings, DownloadedTrack, Job, Proxy, Track, User, UserSession, WorkerState
+from app.models import (
+    AppSettings,
+    DownloadedTrack,
+    Job,
+    Proxy,
+    Track,
+    User,
+    UserSession,
+    UserSettings,
+    WorkerState,
+)
 from app.routers import auth as auth_router
 from app.services.sessions import create_session
 
@@ -49,6 +59,7 @@ def db_session():
     DownloadedTrack.__table__.create(engine)
     WorkerState.__table__.create(engine)
     AppSettings.__table__.create(engine)
+    UserSettings.__table__.create(engine)
     testing_session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     session = testing_session_local()
     try:

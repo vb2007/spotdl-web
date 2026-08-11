@@ -29,6 +29,12 @@ celery_app.conf.update(
             "task": "app.tasks.beat.dispatch_due_tracks",
             "schedule": 30.0,
         },
+        # Hourly, not 30s -- archiving is housekeeping, not latency-sensitive, and it
+        # competes with dispatch-due-tracks for the same worker-meta process.
+        "archive-due-jobs": {
+            "task": "app.tasks.beat.archive_due_jobs",
+            "schedule": 3600.0,
+        },
     },
     # Durability (v12): with the default task_acks_late=False, a track's broker message is
     # acked *before* download_track's body runs — a `docker compose down`/OOM-kill/host
