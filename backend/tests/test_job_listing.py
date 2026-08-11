@@ -126,6 +126,62 @@ def test_invalid_sort_or_dir_returns_400(authenticated_client, db_session, owner
     assert authenticated_client.get("/api/jobs", params={"dir": "sideways"}).status_code == 422
 
 
+def test_search_status_sort_and_pagination_compose_together_across_multiple_pages(authenticated_client, db_session, owner):
+    """The plan's own "Done when" standard, taken literally: search + status filter +
+    sort + pagination *together*, not pairwise -- every prior composition test in this
+    file matches so few rows that pagination across it never actually gets exercised.
+    Five real matches, paged two at a time, plus decoys that fail exactly one of the two
+    filters (to prove they're both actually being applied, not just one)."""
+    matches = [
+        _make_job(
+            db_session,
+            owner,
+            track_states=[TrackState.COMPLETED] * 9 + [TrackState.LOOKUP_FAILED],
+            list_name=f"ComboTarget {letter}",
+        )
+        for letter in "ABCDE"
+    ]
+    # Matches q but not status (fully completed, no partial outcome).
+    _make_job(db_session, owner, track_states=[TrackState.COMPLETED], list_name="ComboTarget Decoy")
+    # Matches status but not q.
+    _make_job(
+        db_session, owner, track_states=[TrackState.COMPLETED] * 9 + [TrackState.LOOKUP_FAILED], list_name="Unrelated"
+    )
+
+    seen_titles = []
+    cursor = None
+    for _ in range(10):
+        params = {"q": "ComboTarget", "status": "settled:partial", "sort": "title", "dir": "asc", "limit": 2}
+        if cursor:
+            params["cursor"] = cursor
+        response = authenticated_client.get("/api/jobs", params=params)
+        assert response.status_code == 200
+        body = response.json()
+        seen_titles.extend(i["title"] for i in body["items"])
+        cursor = body["next_cursor"]
+        if cursor is None:
+            break
+
+    assert seen_titles == [f"ComboTarget {letter}" for letter in "ABCDE"]
+    assert len(seen_titles) == len(set(seen_titles))
+
+
+def test_scope_track_all_users_flag_from_non_admin_is_ignored(client, db_session, make_user, session_cookie):
+    owner = make_user("owner@example.com")
+    other = make_user("other@example.com")
+    owner_cookie = session_cookie("owner@example.com")
+
+    job_owner = _make_job(db_session, owner, track_states=[TrackState.COMPLETED], list_name="Mine")
+    _make_job(db_session, other, track_states=[TrackState.COMPLETED], list_name="TheirsNotMine")
+
+    client.cookies.clear()
+    client.cookies.update(owner_cookie)
+    response = client.get("/api/jobs", params={"scope": "track", "all_users": "true"})
+    assert response.status_code == 200
+    job_ids = {i["job"]["id"] for i in response.json()["items"]}
+    assert job_ids == {str(job_owner.id)}
+
+
 def test_scope_track_on_jobs_endpoint_matches_get_tracks_endpoint(authenticated_client, db_session, owner):
     job = _make_job(db_session, owner, track_states=[TrackState.COMPLETED, TrackState.WAITING])
 
