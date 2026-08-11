@@ -61,6 +61,7 @@ def job_to_dict(job: Job, counts: dict[str, int], owner_email: str, title: str) 
         "priority": job.priority,
         "error": job.error,
         "created_at": job.created_at.isoformat(),
+        "archived_at": job.archived_at.isoformat() if job.archived_at is not None else None,
         "track_counts": counts,
         "owner_email": owner_email,
         "title": title,

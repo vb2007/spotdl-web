@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers.auth import require_session
-from app.services import events, job_listing, rollup, track_listing
+from app.services import archive, events, job_listing, rollup, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts
 from app.tasks.expand import expand_job
@@ -30,6 +30,15 @@ class CreateJobRequest(BaseModel):
 
 class SetPriorityRequest(BaseModel):
     priority: int
+
+
+class ArchiveJobsRequest(BaseModel):
+    job_ids: list[uuid.UUID] | None = None
+    all_settled: bool = False
+
+
+class UnarchiveJobsRequest(BaseModel):
+    job_ids: list[uuid.UUID]
 
 
 def _classify_source_type(url: str) -> JobSourceType:
@@ -111,6 +120,38 @@ def list_jobs(
         )
     except (job_listing.InvalidListParams, track_listing.InvalidListParams, InvalidCursor) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/archive")
+def archive_jobs(
+    payload: ArchiveJobsRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """"Clear log": archives the caller's own settled/failed/cancelled jobs, never an
+    in-flight or another user's job -- `archive.archive_jobs` re-derives eligibility from
+    the real track states rather than trusting `job_ids`. `all_settled=true` archives
+    every eligible job for this user with no age restriction; otherwise exactly the given
+    `job_ids` that turn out to be eligible."""
+    if not payload.all_settled and not payload.job_ids:
+        raise HTTPException(status_code=400, detail="Provide job_ids or set all_settled=true")
+    job_ids = None if payload.all_settled else payload.job_ids
+    jobs = archive.archive_jobs(db, user.id, job_ids=job_ids)
+    for job in jobs:
+        events.publish_job_event(user.id, job.id, job.state.value, archived=True)
+    return {"archived_ids": [str(job.id) for job in jobs]}
+
+
+@router.post("/unarchive")
+def unarchive_jobs(
+    payload: UnarchiveJobsRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    jobs = archive.unarchive_jobs(db, user.id, payload.job_ids)
+    for job in jobs:
+        events.publish_job_event(user.id, job.id, job.state.value, archived=False)
+    return {"unarchived_ids": [str(job.id) for job in jobs]}
 
 
 def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, str]:

@@ -85,11 +85,18 @@ def publish_track_event(
 
 
 def publish_job_event(
-    user_id: uuid.UUID | str, job_id: Any, state: str, *, error: str | None = None
+    user_id: uuid.UUID | str,
+    job_id: Any,
+    state: str,
+    *,
+    error: str | None = None,
+    archived: bool | None = None,
 ) -> None:
     event: dict[str, Any] = {"type": "job.state", "job_id": str(job_id), "state": state}
     if error is not None:
         event["error"] = error
+    if archived is not None:
+        event["archived"] = archived
     publish(user_id, event)
 
 

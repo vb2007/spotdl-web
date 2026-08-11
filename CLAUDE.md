@@ -240,7 +240,7 @@ v13 settings-ui. Detail in `plan/master-v1/`, findings in `docs/GOTCHAS.md`.
 | v16 | `dev-users-schema` | **Done.** `users`, `user_settings`, `jobs.user_id`/`archived_at`, `sessions.user_id` (NOT NULL, replacing `email`), `TrackState.FAILED` removed |
 | v17 | `dev-multi-user-auth` | **Done.** User creation on login, `ADMIN_EMAIL` seeding + reconciliation, owner-scoped REST queries (404 on non-owner), admin gating on settings/proxies/worker, per-user SSE channels + admin all-users pattern-subscribe |
 | v18 | `dev-job-centric-api` | **Done.** Cursor-paginated/filtered/sorted/searchable `/api/jobs` and `/api/tracks`; rollup status + title computed in one aggregate query; `pg_trgm` search; unpaginated `list_tracks` removed. **Frontend now renders an empty/broken queue** — `queue.ts`/`api.ts` still expect the old bare-array shape; this is expected and left for v20, not a regression to chase |
-| v19 | `dev-archive-retention` | `archived_at` lifecycle, per-user retention, "clear log", hourly sweep |
+| v19 | `dev-archive-retention` | **Done.** `archive_jobs`/`unarchive_jobs` re-derive eligibility from real track states (settled/failed/cancelled, age from newest track activity); `/api/jobs/archive`+`/unarchive`, per-user `/api/settings/retention`, hourly `archive_due_jobs` sweep. `job_to_dict` now exposes `archived_at` (a v18 gap this version needed closed) |
 | v20 | `dev-job-centric-ui` | Job rows expanding to tracks, scope toggle, search, sorting, `/account` |
 | v21 | `dev-multi-user-hardening` | Adversarial two-user verification, prod migration, doc reconciliation |
 

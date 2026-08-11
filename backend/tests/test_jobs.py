@@ -1,7 +1,8 @@
 import uuid
 
-from app.models import Job, JobSourceType, JobState, Track, TrackState
+from app.models import Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers import jobs as jobs_router
+from app.services import events
 
 
 def _stub_expand_job(monkeypatch):
@@ -274,3 +275,75 @@ def test_priority_endpoints_require_session(client):
     job_id = uuid.uuid4()
     assert client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 1}).status_code == 401
     assert client.post(f"/api/jobs/{job_id}/bump").status_code == 401
+
+
+def test_archive_all_settled_archives_only_the_callers_finished_jobs(
+    authenticated_client, db_session, owner, make_user, monkeypatch
+):
+    published = []
+    monkeypatch.setattr(events, "publish_job_event", lambda *a, **kw: published.append((a, kw)))
+
+    active = _make_job_with_tracks(db_session, owner, states=(TrackState.PENDING,))
+    waiting = _make_job_with_tracks(db_session, owner, states=(TrackState.WAITING,))
+    settled = _make_job_with_tracks(db_session, owner, states=(TrackState.COMPLETED,))
+
+    stranger = make_user("stranger@example.com")
+    others_settled = _make_job_with_tracks(db_session, stranger, states=(TrackState.COMPLETED,))
+
+    response = authenticated_client.post("/api/jobs/archive", json={"all_settled": True})
+
+    assert response.status_code == 200
+    assert response.json()["archived_ids"] == [str(settled.id)]
+    assert db_session.get(Job, active.id).archived_at is None
+    assert db_session.get(Job, waiting.id).archived_at is None
+    assert db_session.get(Job, settled.id).archived_at is not None
+    assert db_session.get(Job, others_settled.id).archived_at is None
+    assert published == [((owner.id, settled.id, "expanded"), {"archived": True})]
+
+
+def test_archive_with_job_ids_ignores_another_users_job(
+    authenticated_client, db_session, owner, make_user
+):
+    stranger = make_user("stranger@example.com")
+    theirs = _make_job_with_tracks(db_session, stranger, states=(TrackState.COMPLETED,))
+
+    response = authenticated_client.post("/api/jobs/archive", json={"job_ids": [str(theirs.id)]})
+
+    assert response.status_code == 200
+    assert response.json()["archived_ids"] == []
+    assert db_session.get(Job, theirs.id).archived_at is None
+
+
+def test_archive_requires_job_ids_or_all_settled(authenticated_client, db_session):
+    response = authenticated_client.post("/api/jobs/archive", json={})
+    assert response.status_code == 400
+
+
+def test_unarchive_restores_a_caller_owned_job(authenticated_client, db_session, owner, monkeypatch):
+    monkeypatch.setattr(events, "publish_job_event", lambda *a, **kw: None)
+    job = _make_job_with_tracks(db_session, owner, states=(TrackState.COMPLETED,))
+    authenticated_client.post("/api/jobs/archive", json={"job_ids": [str(job.id)]})
+    assert db_session.get(Job, job.id).archived_at is not None
+
+    response = authenticated_client.post("/api/jobs/unarchive", json={"job_ids": [str(job.id)]})
+
+    assert response.status_code == 200
+    assert response.json()["unarchived_ids"] == [str(job.id)]
+    assert db_session.get(Job, job.id).archived_at is None
+
+
+def test_archived_at_is_exposed_in_the_job_response(authenticated_client, db_session, owner, monkeypatch):
+    monkeypatch.setattr(events, "publish_job_event", lambda *a, **kw: None)
+    job = _make_job_with_tracks(db_session, owner, states=(TrackState.COMPLETED,))
+    listed_before = authenticated_client.get("/api/jobs").json()["items"][0]
+    assert listed_before["archived_at"] is None
+
+    authenticated_client.post("/api/jobs/archive", json={"job_ids": [str(job.id)]})
+
+    listed_after = authenticated_client.get("/api/jobs?include_archived=true").json()["items"][0]
+    assert listed_after["archived_at"] is not None
+
+
+def test_archive_unarchive_endpoints_require_session(client):
+    assert client.post("/api/jobs/archive", json={"all_settled": True}).status_code == 401
+    assert client.post("/api/jobs/unarchive", json={"job_ids": []}).status_code == 401

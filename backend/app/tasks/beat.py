@@ -5,8 +5,8 @@ from sqlalchemy import select, update
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Job, Track, TrackState
-from app.services import events, retry
+from app.models import Job, Track, TrackState, UserSettings
+from app.services import archive, events, retry
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
 
@@ -95,5 +95,27 @@ def dispatch_due_tracks() -> None:
 
         for track in due_tracks:
             download_track.delay(str(track.id))
+    finally:
+        db.close()
+
+
+@celery_app.task(name="app.tasks.beat.archive_due_jobs")
+def archive_due_jobs() -> None:
+    """Hourly (not every 30s like dispatch_due_tracks -- this is housekeeping, and it
+    competes with that task for the same worker-meta process). Iterates every user with
+    a non-null `retention_days` and archives their eligible jobs older than that many
+    days; a null retention_days (the default) means this user is never touched."""
+    db = SessionLocal()
+    try:
+        user_rows = db.execute(
+            select(UserSettings.user_id, UserSettings.retention_days).where(
+                UserSettings.retention_days.is_not(None)
+            )
+        ).all()
+        for user_id, retention_days in user_rows:
+            jobs = archive.archive_jobs(db, user_id, older_than=timedelta(days=retention_days))
+            for job in jobs:
+                logger.info("archive_due_jobs: archived job %s for user %s", job.id, user_id)
+                events.publish_job_event(user_id, job.id, job.state.value, archived=True)
     finally:
         db.close()

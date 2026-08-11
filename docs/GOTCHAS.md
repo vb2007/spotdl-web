@@ -131,6 +131,10 @@ needed" claim — rather than silently deleted.
   an effect; raising it also requires raising `STALE_TRACK_AFTER_SECONDS` → *v15*
 - `download_track` only gates on `CANCELLED` — a redelivered message for an already-`COMPLETED`
   track can regress it to `SKIPPED_DUPLICATE` (found, documented, not fixed) → *v15*
+- Verifying a new hourly (or longer) `beat_schedule` entry actually fires doesn't require waiting
+  out the real interval — temporarily edit the schedule literal to a few seconds, `docker compose
+  restart beat`, confirm `Scheduler: Sending due task ...` in real container logs, then revert the
+  literal and restart again before committing → *v19*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -227,6 +231,9 @@ needed" claim — rather than silently deleted.
   merely looks like one, or a bind parameter against a UUID-typed column fails; encode it
   self-describing (like a datetime) rather than as a bare string indistinguishable from real text
   → *v18*
+- `job_to_dict` never actually exposed `archived_at`, even after v18 wired `include_archived`
+  filtering — the gap only surfaced hitting the real running API with `curl`, not from unit tests
+  (which never assert exact response-body equality against every field) → *v19*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -2073,3 +2080,60 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   `all_users=true` — the v18-specific extension of v17's cross-user sweep the project's own
   "new query paths, new chances to drop the filter" invariant calls for. All seeded rows and both
   test users deleted afterward (this is the shared dev database).
+
+### v19 archive-retention gotchas (learned building soft-archive lifecycle + per-user retention)
+
+- **Eligibility is re-derived from real track states via the exact same `rollup.lifecycle_case`/
+  `active_count_expr`/`waiting_count_expr` building blocks the v18 listing uses, not a second,
+  differently-shaped check.** `services.archive._eligible_job_ids` builds its own small aggregate
+  (base `Job` columns + `active_n`/`waiting_n` + `coalesce(max(Track.updated_at), Job.updated_at)`
+  for the age comparison) rather than reusing `rollup.aggregate_jobs` directly, because that
+  function's output has no "last track activity" column at all — but the lifecycle-determining
+  `case()` expressions themselves are the identical shared functions, so archive eligibility and
+  listing-page rollup status can't silently drift apart the way two independently-written
+  `settled`/`failed`/`cancelled` checks could.
+- **The age cutoff is `coalesce(max(Track.updated_at), Job.updated_at)`, never `Job.created_at`** —
+  covers both a job with tracks (the common case, and the whole reason this version exists: a
+  `waiting` job's newest track activity, not its creation date, is what must block the sweep) and a
+  zero-track `failed` expansion (falls back to the job row's own `updated_at`, which `onupdate=
+  func.now()` keeps current even though the job has no tracks to derive activity from).
+- **`job_to_dict` never actually exposed `Job.archived_at` in the response body, even after v18
+  added `include_archived` query-param filtering** — the field simply wasn't in the returned dict,
+  so a caller had no way to tell *which* rows in an `include_archived=true` response were archived
+  without a direct DB check. Every existing call site already had a real `Job.archived_at` (or the
+  equivalent aggregate-row column, already selected by `job_listing.py`'s base query) in hand, so
+  the fix was a one-line addition inside `job_to_dict` itself with zero call-site changes — none of
+  the 228 existing tests asserted an exact response-body dict that would have caught the field's
+  absence, and it only surfaced hitting the real running `api` container with `curl` during this
+  version's own end-to-end pass. Worth remembering for v20: any future "the API returns everything
+  the frontend needs" assumption should be spot-checked against a real request, not just against
+  what the router *code* looks like it returns.
+- **Confirming the new hourly `archive-due-jobs` `beat_schedule` entry actually fires does not
+  require waiting an hour**: temporarily changed `celery_app.py`'s `"schedule": 3600.0` to `15.0`,
+  `docker compose restart beat`, and captured two real `Scheduler: Sending due task archive-due-jobs
+  (app.tasks.beat.archive_due_jobs)` lines in the container's own logs within a 20s window — then
+  reverted the literal to `3600.0` and restarted `beat` again before committing anything. Confirmed
+  via `git diff` that the reverted file is byte-identical to the intended final state (no stray
+  verification value left behind).
+- **Verified against the real docker-compose stack, real Postgres, real Redis, real `beat`
+  container** (not the unit-test SQLite suite, which separately covers the same logic — 228 tests,
+  all passing): seeded a seven-job mixed set directly via a script staged in `/app/` (the v11
+  convention, not `/tmp/`) covering every lifecycle — `active` (a `pending` track), `waiting` (a
+  `waiting` track, `scheduled_at` ten days out so the real running `dispatch_due_tracks` never
+  touched it mid-test), `settled`, zero-track `failed`, `cancelled`, and a second real user's
+  `settled` job. `POST /api/jobs/archive {"all_settled": true}` against the real running `api`
+  container (sessions minted directly, the documented v15 fallback) archived exactly the caller's
+  three eligible jobs, left `active`/`waiting` and the other user's job untouched, and — confirmed
+  by raw SQL, not the API — left all 12 `jobs` rows in place and `downloaded_tracks` at exactly 92
+  rows before and after. `POST /api/jobs/unarchive` restored a job to the default view; archiving a
+  second user's job id via the first user's session silently no-op'd (`archived_ids: []`), never
+  touching the row. `GET`/`PATCH /api/settings/retention` confirmed per-user isolation (one user's
+  `retention_days=1` invisible to another) and rejected `retention_days<=0` with `400`. Separately
+  aged a fresh job's track `updated_at` to a year old, set the owner's `retention_days=1`, and ran
+  the real `archive_due_jobs()` task function against the real stack from inside `worker-meta`: the
+  aged `settled` job was archived, the `waiting` job (also aged a year on both `job.created_at` and
+  its track's `updated_at`) was **not** — the specific failure mode this version's design exists to
+  prevent — and the second user's `settled` job was untouched because that user has no
+  `retention_days` set. All seeded rows, minted sessions, and both users' `user_settings` rows
+  deleted afterward (shared dev database); confirmed job/track/`downloaded_tracks` counts identical
+  to their pre-test values.
