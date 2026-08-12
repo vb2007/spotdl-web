@@ -97,6 +97,9 @@ needed" claim — rather than silently deleted.
   to miss and can land on the wrong disk entirely → *v21*
 - A generated-data directory (backups, logs, caches) placed inside a git-managed deploy checkout
   must be gitignored, or the next `git clean -fd` silently deletes it → *v21*
+- `docker compose ps`'s `CREATED`/`Up` columns show when a container last (re)started, not
+  whether the most recent deploy did anything — an idempotency-skipped, content-identical deploy
+  looks identical to a stuck one from that output alone → *v21*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -2489,3 +2492,17 @@ automated deploy-to-host)
   moving *any* generated, non-source data (logs, caches, backups, uploads) to live inside a
   git-managed directory that a deploy pipeline resets is only safe if it's gitignored — verify
   this every time such a path changes, not just when it's first introduced.
+- **An idempotency-skipped deploy looks identical to a stuck one from `docker compose ps`
+  alone** — after the real post-merge chain ran, every container still showed its original
+  `CREATED`/`Up` time from hours earlier, which looked like the deploy had silently done
+  nothing. It hadn't: `publish`'s already-published check and `deploy`'s already-deployed check
+  (see the Idempotency section of `docs/RELEASE_PIPELINE.md`) both correctly found the exact
+  same version already built and running, because the merge introduced zero `backend/`/
+  `frontend/` source changes beyond what live pre-merge testing had already deployed under the
+  same version string — confirmed with `git diff <pre-merge-test-commit> <merge-commit> --
+  backend/ frontend/` coming back empty, not assumed. The general lesson: `docker compose ps`'s
+  `CREATED`/`Up` columns answer "when was this container process last (re)started," not "did the
+  most recent deploy do anything" — a content-identical image legitimately never recreates the
+  container, and that's the idempotency feature working, not a stuck pipeline. Verify via the
+  deploy job's own logs (which step ran vs. skipped) and a source diff before assuming a deploy
+  failed silently.
