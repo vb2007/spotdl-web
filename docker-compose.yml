@@ -126,8 +126,26 @@ services:
 
   worker-meta:
     <<: *backend
+    # --concurrency=2 (v21): with no explicit flag, Celery defaults to os.cpu_count() prefork
+    # children -- 8 on the production host -- each importing the heavy spotdl/yt-dlp dependency
+    # tree. That reliably blew past this service's 768M prod limit and OOM-killed it (confirmed
+    # live: `docker inspect` showed OOMKilled=true, exit 137, in a crash-restart loop) well
+    # before v21 ever touched this file. meta tasks (expand_job/dispatch_due_tracks/
+    # archive_due_jobs) are lightweight and don't need more than a couple of workers.
     command:
-      ["celery", "-A", "app.tasks.celery_app", "worker", "-n", "worker-meta@%h", "-Q", "meta", "-l", "info"]
+      [
+        "celery",
+        "-A",
+        "app.tasks.celery_app",
+        "worker",
+        "-n",
+        "worker-meta@%h",
+        "-Q",
+        "meta",
+        "--concurrency=2",
+        "-l",
+        "info",
+      ]
     environment:
       # reconcile_disk() / proxies.sync_from_file() run on worker-meta boot only — see
       # celery_app.py.
