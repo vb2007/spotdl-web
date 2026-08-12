@@ -68,8 +68,11 @@ Found during this slice's live-host investigation:
 - Add the missing `ADMIN_EMAIL` to the host's `.env` (v17+ makes it required; its absence would
   crash-loop every backend container on the first automated deploy).
 - Add `IMAGE_TAG=latest` to the host's `.env`.
-- Create `/srv/spotdl-web/backups` (root-owned parent — needs `sudo` once) and prove
-  `scripts/pg_backup.sh` runs successfully before a deploy depends on it.
+- Prove `scripts/pg_backup.sh` runs successfully before a deploy depends on it — its default
+  backup location is now derived from the repo checkout itself (`<repo root>/backups`), not a
+  hardcoded path (**corrected mid-slice**: the original hardcoded `/srv/spotdl-web/backups`
+  default silently created a fresh, wrong directory on the OS root disk instead of the RAID array
+  the first time it ran for real — see `docs/GOTCHAS.md`'s v21 section).
 - Flip both GHCR packages to public after the first successful `publish` run (first push always
   lands private, regardless of repo visibility).
 
@@ -91,9 +94,14 @@ Found during this slice's live-host investigation:
 - [x] The same run deployed cleanly to the real host: all services healthy (after fixing the
       pre-existing `worker-meta` OOM that blocked this), `/api/health` returned `ok`, the v20 UI
       loaded through the real tunnel, `.env`/`proxies.txt` survived `git clean -fd`, and a real
-      Postgres dump landed in `/srv/spotdl-web/backups` (confirmed with `pg_restore --list`).
-      The host was stuck on v12 eight slices behind `main` before this — its migrate step ran
-      the real v16–v19 migrations for the first time, successfully.
+      Postgres dump landed on disk and was confirmed valid with `pg_restore --list`. The host
+      was stuck on v12 eight slices behind `main` before this — its migrate step ran the real
+      v16–v19 migrations for the first time, successfully. **Caught post-merge-prep:** at the
+      time this was verified, the backup script's still-hardcoded `/srv/spotdl-web/backups`
+      default had silently created that directory on the OS root disk rather than the RAID
+      array — the user spotted it, the real (test) dumps were removed from the host, and
+      `pg_backup.sh`'s default was fixed to derive from the repo checkout itself before merge.
+      See `docs/GOTCHAS.md`'s v21 section.
 - [x] A deliberately-broken push (a real crashing commit) triggered the rollback path: health
       gate correctly failed after its full ~7min timeout, the previous `IMAGE_TAG` was restored,
       the stack came back healthy, and the workflow run itself was still marked failed (by

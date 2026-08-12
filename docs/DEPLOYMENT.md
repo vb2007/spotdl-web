@@ -404,9 +404,14 @@ compose service). What it actually does, step by step:
    `pg_restore` (including `--clean` for a from-scratch overwrite), not a plain-SQL dump you'd
    have to pipe into `psql` by hand.
 4. Writes to `$SPOTDL_WEB_BACKUP_DIR/spotdl_web_<UTC-timestamp>.dump` — default
-   `/srv/spotdl-web/backups` (this is a fixed default, **not** derived from `DOWNLOADS_DIR`,
-   despite the two happening to share a `/srv/spotdl-web` parent in this doc's original
-   greenfield example).
+   `<repo root>/backups` (derived from the script's own location, so it always lands next to
+   whatever checkout is running it — on this host, `/mnt/raid1/spotdl-web/backups`). **v21
+   correction:** this used to default to a hardcoded `/srv/spotdl-web/backups`, which never
+   matched this host's real layout and, when that default was first exercised for real, silently
+   created a fresh `/srv/spotdl-web` directory on the OS's root disk instead of the RAID array —
+   found and fixed after the fact; see `docs/GOTCHAS.md`'s v21 section. Gitignored (`/backups/`)
+   since it now lives inside the git-managed deploy checkout — critical, since the automated
+   deploy's `git clean -fd` would otherwise delete it on every deploy.
 5. Prunes any `.dump` file older than `SPOTDL_WEB_BACKUP_RETENTION_DAYS` (default 14) — a daily
    cron therefore keeps roughly the last 14 dumps.
 
@@ -427,7 +432,7 @@ docker run -d --name pg-restore-check -e POSTGRES_PASSWORD=test -e POSTGRES_DB=r
 until docker exec pg-restore-check pg_isready -U postgres | grep -q "accepting connections"; do sleep 2; done
 
 # 3. Restore the most recent dump into it.
-LATEST=$(ls -t /srv/spotdl-web/backups/*.dump | head -1)
+LATEST=$(ls -t /mnt/raid1/spotdl-web/backups/*.dump | head -1)
 docker cp "$LATEST" pg-restore-check:/tmp/restore.dump
 docker exec pg-restore-check pg_restore -U postgres -d restorecheck --no-owner --clean --if-exists /tmp/restore.dump
 
@@ -451,7 +456,7 @@ the stack first):
 ```bash
 cd /mnt/raid1/spotdl-web
 docker compose -f docker-compose.yml -f docker-compose.prod.yml down
-LATEST=$(ls -t /srv/spotdl-web/backups/*.dump | head -1)   # or a specific older dump
+LATEST=$(ls -t /mnt/raid1/spotdl-web/backups/*.dump | head -1)   # or a specific older dump
 pg_restore --no-owner --clean --if-exists \
   --dbname="$(grep -E '^DATABASE_URL=' .env | cut -d= -f2- | sed 's/postgresql+psycopg:/postgresql:/')" \
   "$LATEST"

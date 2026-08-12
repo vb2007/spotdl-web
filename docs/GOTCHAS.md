@@ -92,6 +92,11 @@ needed" claim — rather than silently deleted.
   once resolved to an unambiguous commit SHA → *v21*
 - A service with no explicit Celery `--concurrency` defaults to `os.cpu_count()` prefork
   children — reliably OOMs a heavy-dependency worker on a resource-limited container → *v21*
+- A hardcoded absolute path in a script/doc is a claim about the real host's layout — verify it
+  against the host, since a stray `mkdir -p` into a "normal-looking" path (e.g. `/srv`) is easy
+  to miss and can land on the wrong disk entirely → *v21*
+- A generated-data directory (backups, logs, caches) placed inside a git-managed deploy checkout
+  must be gitignored, or the next `git clean -fd` silently deletes it → *v21*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -2451,3 +2456,36 @@ automated deploy-to-host)
   A pre-existing bug outside this slice's stated scope became in-scope the moment it started
   blocking the very thing being built — worth remembering next time a "flag for later" item
   turns out to sit on the critical path.
+- **A "reasonable-looking" hardcoded default path can be silently wrong for the real host, and
+  nothing will tell you until it's already created something** — `scripts/pg_backup.sh`'s
+  original default (`/srv/spotdl-web/backups`, inherited from this doc's own original,
+  never-fully-reconciled greenfield example) had no relationship to this host's actual storage
+  layout: the real deploy checkout and downloads both live under `/mnt/raid1` (a RAID array,
+  also reachable from other machines via a Samba share literally named `srv-raid1` — a
+  coincidence of naming, not the same path as the bare `/srv` on the host's own root
+  filesystem). The first time the script actually ran for real on the host, it silently
+  `mkdir -p`'d a brand-new `/srv/spotdl-web/backups` on the **OS root disk**, not the RAID
+  array — a live production host running several other unrelated services, so a mistakenly
+  ballooning root filesystem is a real risk, not a hypothetical one. Caught only because the
+  user noticed `/srv` mentioned in a changelog and immediately knew it didn't belong (it hadn't
+  existed before this session). Fixed by deriving the default from the script's own
+  `REPO_ROOT` instead of a second hardcoded absolute path — a default that's *computed from
+  where the code actually is* can't independently drift from where the code actually is, the
+  way two independently-typed absolute paths always eventually can. **The general lesson**:
+  every hardcoded absolute path in a script or doc that will run for real on a specific host is
+  a claim about that host's layout — verify it against the real host (as this slice's other
+  path corrections already did for the deploy checkout and `DOWNLOADS_DIR`) rather than trusting
+  it because it "sounds like" a normal Linux convention. `/srv` is a real, common,
+  intentionally-empty-by-default FHS directory — that's exactly what makes a stray, wrong
+  `mkdir -p /srv/...` easy to miss, since finding an unexpected `/srv/<project-name>/` doesn't
+  look obviously broken at a glance.
+- **A backup directory placed *inside* a git-managed deploy checkout must be gitignored, or the
+  next automated deploy silently deletes it** — once `pg_backup.sh`'s default moved to
+  `<repo root>/backups` (fixing the gotcha above), that directory sits inside the exact tree
+  `publish-deploy.yml`'s `deploy` job runs `git clean -fd` against on every single deploy.
+  `-fd` deletes any untracked file not covered by `.gitignore` — without an explicit
+  `/backups/` entry (added alongside the path fix, not as an afterthought), every real Postgres
+  dump ever taken would have been wiped by the very next deploy. The general form of this bug:
+  moving *any* generated, non-source data (logs, caches, backups, uploads) to live inside a
+  git-managed directory that a deploy pipeline resets is only safe if it's gitignored — verify
+  this every time such a path changes, not just when it's first introduced.

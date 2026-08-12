@@ -10,14 +10,22 @@
 #
 # Env overrides (all optional):
 #   SPOTDL_WEB_ENV_FILE              path to .env (default: repo root .env)
-#   SPOTDL_WEB_BACKUP_DIR            where dumps are written (default: /srv/spotdl-web/backups)
+#   SPOTDL_WEB_BACKUP_DIR            where dumps are written (default: <repo root>/backups)
 #   SPOTDL_WEB_BACKUP_RETENTION_DAYS how long to keep dumps (default: 14)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="${SPOTDL_WEB_ENV_FILE:-$REPO_ROOT/.env}"
-BACKUP_DIR="${SPOTDL_WEB_BACKUP_DIR:-/srv/spotdl-web/backups}"
+# v21 fix: this used to default to a hardcoded /srv/spotdl-web/backups -- a path that never
+# matched any real host layout and, on the actual production host, silently created a fresh
+# /srv/spotdl-web directory ON THE OS ROOT DISK (never the RAID array the real deploy checkout
+# and downloads live on) the first time this script ever ran for real. Deriving the default
+# from REPO_ROOT instead means it always lands next to whatever checkout is running the
+# script, on whatever disk that checkout actually lives on -- it can't drift from reality
+# again the way a second hardcoded absolute path could. Gitignored (see .gitignore) since it
+# lives inside the deploy checkout and `git clean -fd` must never touch it.
+BACKUP_DIR="${SPOTDL_WEB_BACKUP_DIR:-$REPO_ROOT/backups}"
 RETENTION_DAYS="${SPOTDL_WEB_BACKUP_RETENTION_DAYS:-14}"
 
 if [ ! -f "$ENV_FILE" ]; then

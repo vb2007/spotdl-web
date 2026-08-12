@@ -16,6 +16,14 @@
 /proxies.txt
 !proxies.txt.example
 
+# Postgres backups (v21, scripts/pg_backup.sh): default location is now inside the deploy
+# checkout itself (REPO_ROOT/backups). CRITICAL that this stays gitignored, exactly like
+# .env/proxies.txt above -- publish-deploy.yml's deploy job runs `git clean -fd` on every
+# automated deploy, which deletes any untracked file NOT covered by this file. Losing this
+# line would mean every real backup taken between one deploy and the next gets silently
+# wiped by the very next deploy.
+/backups/
+
 # backend
 backend/__pycache__/
 backend/**/__pycache__/
