@@ -1,196 +1,788 @@
-import { derived, writable } from 'svelte/store';
+import { derived, get, writable } from 'svelte/store';
 import * as api from '$lib/api';
-import type { Job, StreamEvent, Track, TrackState } from '$lib/api';
+import type {
+	Job,
+	JobsPage,
+	JobTracksPage,
+	StreamEvent,
+	Track,
+	TrackJobSummary,
+	TrackState,
+	TrackWithJob
+} from '$lib/api';
 
 /** States nothing in this app ever transitions a track *out of* -- `waiting`/
- * `lookup_failed`/`failed` don't qualify since retry-now can revive them back to
- * `waiting`. A track's own real (uninterruptible) download can keep publishing stray
- * `downloading` progress events for several seconds after a cancel has already landed
- * (spotdl's progress callback has no idea a cancel happened -- see CLAUDE.md's v10
- * gotchas); once a track is known to be in one of these states, any further event for
- * it is necessarily stale and must be ignored, not applied. */
+ * `lookup_failed` don't qualify since retry-now can revive them back to `waiting`. A
+ * track's own real (uninterruptible) download can keep publishing stray `downloading`
+ * progress events for several seconds after a cancel has already landed (spotdl's
+ * progress callback has no idea a cancel happened -- see CLAUDE.md's v10 gotchas); once
+ * a track is known to be in one of these states, any further event for it is necessarily
+ * stale and must be ignored, not applied. */
 const TRULY_TERMINAL_STATES = new Set<TrackState>(['completed', 'skipped_duplicate', 'cancelled']);
 
-export type LiveTrack = Track & { progress?: number; updatedAt: number };
+export type LiveTrack = Track & { progress?: number };
+export type LiveTrackWithJob = TrackWithJob & { progress?: number };
 
-/** State priority governs both color mapping and default table order — most-needs-
- * attention first, matching the "what's downloading right now" priority the direction
- * is built around. */
-export const TRACK_STATE_ORDER: Record<Track['state'], number> = {
-	downloading: 0,
-	waiting: 1,
-	queued: 2,
-	pending: 3,
-	lookup_failed: 4,
-	failed: 5,
-	completed: 6,
-	skipped_duplicate: 7,
-	cancelled: 8
+export type Scope = 'jobs' | 'tracks';
+
+export interface Filters {
+	scope: Scope;
+	q: string;
+	/** Job rollup-status tokens (`statusKey()` form) -- meaningful only in `scope: 'jobs'`. */
+	status: string[];
+	/** Track-state tokens -- meaningful only in `scope: 'tracks'`. */
+	state: string[];
+	includeArchived: boolean;
+	sort: string;
+	dir: 'asc' | 'desc';
+}
+
+const DEFAULT_FILTERS: Filters = {
+	scope: 'jobs',
+	q: '',
+	status: [],
+	state: [],
+	includeArchived: false,
+	sort: 'created_at',
+	dir: 'desc'
 };
 
+export type PageItem = Job | LiveTrackWithJob;
+
+export function isTrackItem(item: PageItem): item is LiveTrackWithJob {
+	return 'job' in item;
+}
+
+interface PageState {
+	items: PageItem[];
+	nextCursor: string | null;
+	totalEstimate: number;
+	countsByStatus: Record<string, number>;
+	loading: boolean;
+	loadingMore: boolean;
+	error: string;
+}
+
+const EMPTY_PAGE: PageState = {
+	items: [],
+	nextCursor: null,
+	totalEstimate: 0,
+	countsByStatus: {},
+	loading: false,
+	loadingMore: false,
+	error: ''
+};
+
+export interface ExpandedJob {
+	items: LiveTrack[];
+	nextCursor: string | null;
+	countsByState: Record<string, number>;
+	loading: boolean;
+	loadingMore: boolean;
+	error: string;
+}
+
+function newExpandedJob(): ExpandedJob {
+	return {
+		items: [],
+		nextCursor: null,
+		countsByState: {},
+		loading: false,
+		loadingMore: false,
+		error: ''
+	};
+}
+
+/** Groups a flat Tracks-scope page into per-job sections in the order each job's first
+ * matching track appears, preserving the server's own ordering within and across groups
+ * -- the "Tracks scope auto-expands matching jobs" view (v20 plan). Pure/derivable, not
+ * store state, so it's exposed as a plain function rather than another writable. */
+export function groupTracksByJob(
+	items: LiveTrackWithJob[]
+): { job: TrackJobSummary; tracks: LiveTrackWithJob[] }[] {
+	const order: string[] = [];
+	const groups: Record<string, { job: TrackJobSummary; tracks: LiveTrackWithJob[] }> = {};
+	for (const item of items) {
+		if (!groups[item.job.id]) {
+			groups[item.job.id] = { job: item.job, tracks: [] };
+			order.push(item.job.id);
+		}
+		groups[item.job.id].tracks.push(item);
+	}
+	return order.map((id) => groups[id]);
+}
+
 function createQueueStore() {
-	const jobs = writable<Record<string, Job>>({});
-	const tracks = writable<Record<string, LiveTrack>>({});
+	const filters = writable<Filters>({ ...DEFAULT_FILTERS });
+	const page = writable<PageState>({ ...EMPTY_PAGE });
+	const expanded = writable<Record<string, ExpandedJob>>({});
 
-	// Admin-only view scope (v17) -- module state, not a per-call argument, since SSE-
-	// triggered refreshes (applyJobEvent) need to honor whatever scope is currently
-	// active without every call site threading it through.
+	/** SSE-fed only, never REST-loaded -- Waterfall's "what's downloading right now" view.
+	 * `worker-dl` runs `--concurrency=1` (CLAUDE.md invariant), so this can never hold more
+	 * than one entry for a non-admin session; an admin's all-users pattern-subscribe sees
+	 * the same single global slot, not one per user. Because it can never exceed one entry,
+	 * there is no meaningful order to preserve and therefore nothing for an `updatedAt`
+	 * tiebreaker to do -- unlike the retired QueueTable, nothing here ever re-sorts a live
+	 * -patched row (every row below patches in place inside a server-ordered page), so the
+	 * v09 "completed track visibly jumps/vanishes" failure mode has no client sort left to
+	 * reintroduce it. */
+	const liveActive = writable<Record<string, LiveTrack>>({});
+
+	/** A job between "submitted" and "its tracks exist" (or one whose expansion failed
+	 * with zero tracks) has nothing else in the UI to represent it -- same v09 rationale as
+	 * before, just fed by push (SSE + the optimistic post-submit insert) instead of derived
+	 * from a full local mirror. */
+	const incoming = writable<Record<string, Job>>({});
+
 	let allUsers = false;
+	let pageFetchSeq = 0;
+	const expandedFetchSeq: Record<string, number> = {};
 
-	// Guards against an out-of-order REST response clobbering fresher state: the SSE
-	// `expanded`/reconnect paths can both trigger overlapping `refreshJobTracks` calls for
-	// the same job, and network timing gives no guarantee the one that started first is
-	// also the one that resolves first. Each call captures the sequence number current at
-	// call time and only applies its result if nothing newer has started since.
-	let jobsFetchSeq = 0;
-	let allTracksFetchSeq = 0;
-	const trackFetchSeq: Record<string, number> = {};
+	// Coarse-vs-fine event filtering: a `downloading` track can publish many same-state
+	// progress-percent ticks per second. Refreshing a job row's aggregate counts/rollup on
+	// every tick would hammer the API for no visible benefit (the row already shows
+	// "active" throughout); only an actual state *change* warrants re-fetching the row.
+	const lastKnownTrackState: Record<string, TrackState> = {};
+	const pendingJobRefresh = new Set<string>();
+	let jobRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
-	async function refreshJobs(): Promise<Job[]> {
-		const seq = ++jobsFetchSeq;
-		const list = await api.listJobs(allUsers);
-		if (seq !== jobsFetchSeq) return list;
-		jobs.update((current) => {
-			const next = { ...current };
-			for (const job of list) next[job.id] = job;
-			return next;
-		});
-		return list;
+	function scheduleJobRefresh(jobId: string): void {
+		pendingJobRefresh.add(jobId);
+		clearTimeout(jobRefreshTimer);
+		jobRefreshTimer = setTimeout(flushJobRefreshes, 400);
 	}
 
-	function mergeTrackList(list: Track[]): void {
-		tracks.update((current) => {
-			const next = { ...current };
-			for (const track of list) {
-				next[track.id] = { ...current[track.id], ...track, updatedAt: Date.now() };
+	async function flushJobRefreshes(): Promise<void> {
+		const ids = [...pendingJobRefresh];
+		pendingJobRefresh.clear();
+		await Promise.all(ids.map(refreshJobRow));
+	}
+
+	/** Single-row refresh, the same pattern every mutating action below already uses
+	 * (cancelJob/bumpJob/etc. all patch in exactly one row from their own response) --
+	 * not the "per-job request loop" the project's invariant warns against, since this is
+	 * one row reacting to one real event, never a loop issued while rendering a listing. */
+	async function refreshJobRow(jobId: string): Promise<void> {
+		let job: Job;
+		try {
+			job = await api.getJob(jobId);
+		} catch {
+			// 404 (deleted, or this session lost visibility) -- drop it from view.
+			page.update((p) => ({ ...p, items: p.items.filter((i) => i.id !== jobId) }));
+			return;
+		}
+		page.update((p) => {
+			if (get(filters).scope !== 'jobs') return p;
+			const idx = p.items.findIndex((i) => i.id === jobId);
+			if (idx === -1) return p;
+			const items = [...p.items];
+			items[idx] = job;
+			return { ...p, items };
+		});
+	}
+
+	function currentQueryParams() {
+		const f = get(filters);
+		return {
+			q: f.q || undefined,
+			includeArchived: f.includeArchived,
+			sort: f.sort,
+			dir: f.dir,
+			allUsers
+		};
+	}
+
+	async function reload(): Promise<void> {
+		const f = get(filters);
+		const seq = ++pageFetchSeq;
+		page.update((p) => ({ ...p, loading: true, error: '' }));
+		try {
+			if (f.scope === 'jobs') {
+				const result: JobsPage = await api.listJobsPage({
+					...currentQueryParams(),
+					status: f.status.length ? f.status : undefined
+				});
+				if (seq !== pageFetchSeq) return;
+				page.set({
+					items: result.items,
+					nextCursor: result.next_cursor,
+					totalEstimate: result.total_estimate,
+					countsByStatus: result.counts_by_status,
+					loading: false,
+					loadingMore: false,
+					error: ''
+				});
+			} else {
+				const result = await api.listTracksPage({
+					...currentQueryParams(),
+					status: f.status.length ? f.status : undefined,
+					state: f.state.length ? f.state : undefined
+				});
+				if (seq !== pageFetchSeq) return;
+				page.set({
+					items: result.items,
+					nextCursor: result.next_cursor,
+					totalEstimate: 0,
+					countsByStatus: {},
+					loading: false,
+					loadingMore: false,
+					error: ''
+				});
+			}
+		} catch (err) {
+			if (seq !== pageFetchSeq) return;
+			page.update((p) => ({
+				...p,
+				loading: false,
+				error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
+			}));
+		}
+	}
+
+	async function loadMore(): Promise<void> {
+		const current = get(page);
+		if (current.nextCursor === null || current.loadingMore) return;
+		const f = get(filters);
+		const seq = pageFetchSeq;
+		page.update((p) => ({ ...p, loadingMore: true }));
+		try {
+			if (f.scope === 'jobs') {
+				const result: JobsPage = await api.listJobsPage({
+					...currentQueryParams(),
+					status: f.status.length ? f.status : undefined,
+					cursor: current.nextCursor
+				});
+				if (seq !== pageFetchSeq) return;
+				page.update((p) => ({
+					...p,
+					items: [...p.items, ...result.items],
+					nextCursor: result.next_cursor,
+					totalEstimate: result.total_estimate,
+					countsByStatus: result.counts_by_status,
+					loadingMore: false
+				}));
+			} else {
+				const result = await api.listTracksPage({
+					...currentQueryParams(),
+					status: f.status.length ? f.status : undefined,
+					state: f.state.length ? f.state : undefined,
+					cursor: current.nextCursor
+				});
+				if (seq !== pageFetchSeq) return;
+				page.update((p) => ({
+					...p,
+					items: [...p.items, ...result.items],
+					nextCursor: result.next_cursor,
+					loadingMore: false
+				}));
+			}
+		} catch (err) {
+			if (seq !== pageFetchSeq) return;
+			page.update((p) => ({
+				...p,
+				loadingMore: false,
+				error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
+			}));
+		}
+	}
+
+	/** Merges a filter patch and reloads -- the sole entry point QueueControls uses, so a
+	 * scope switch resets the axis (status/state) that means nothing in the new scope
+	 * rather than silently carrying over a token the other scope's endpoint would 400 on. */
+	function setFilters(patch: Partial<Filters>): void {
+		filters.update((f) => {
+			const next = { ...f, ...patch };
+			if (patch.scope !== undefined && patch.scope !== f.scope) {
+				next.status = [];
+				next.state = [];
+				next.sort = 'created_at';
+				next.dir = 'desc';
 			}
 			return next;
 		});
+		reload();
 	}
 
-	async function refreshJobTracks(jobId: string): Promise<void> {
-		const seq = (trackFetchSeq[jobId] ?? 0) + 1;
-		trackFetchSeq[jobId] = seq;
-		const list = await api.listJobTracks(jobId);
-		if (trackFetchSeq[jobId] !== seq) return;
-		mergeTrackList(list);
+	/** Bumps a job's expanded-fetch sequence without starting a new fetch -- makes any
+	 * already-in-flight `loadExpandedTracks`/`loadMoreExpandedTracks` call for this job a
+	 * guaranteed no-op on resolve. Collapsing a row (or clearing the whole map on a scope
+	 * switch) must call this, or a slow/stale response for a job the user already closed
+	 * can land afterward and silently re-open it. */
+	function invalidateExpandedFetch(jobId: string): void {
+		expandedFetchSeq[jobId] = (expandedFetchSeq[jobId] ?? 0) + 1;
 	}
 
-	/** One request for every track across every job, not one request *per job* -- see
-	 * `GET /api/tracks`'s own comment for why the old per-job `Promise.all` approach
-	 * stopped being harmless once real usage accumulated 100+ historical jobs (100+
-	 * concurrent requests queued up behind the browser's/server's concurrent-stream
-	 * limit, starving any other in-flight request, e.g. a worker pause/resume click,
-	 * of its turn). Same overlapping-fetch guard as `refreshJobTracks`, just scoped to
-	 * this one bulk call instead of per job id. */
-	async function refreshAllTracks(): Promise<void> {
-		const seq = ++allTracksFetchSeq;
-		const list = await api.listTracks(allUsers);
-		if (seq !== allTracksFetchSeq) return;
-		mergeTrackList(list);
-	}
-
-	/** Full REST resync — used on first load and on every SSE reconnect, per the v08
-	 * documented contract (the stream never replays missed events). */
-	async function loadAll(): Promise<void> {
-		await Promise.all([refreshJobs(), refreshAllTracks()]);
-	}
-
-	/** Admin-only scope switch (v17): both stores accumulate by merge and never evict on
-	 * their own (see mergeTrackList/refreshJobs), so switching scope without clearing
-	 * first would leave the other scope's foreign rows resident forever. Caller is
-	 * responsible for calling loadAll() afterward and reconnecting the SSE stream with
-	 * the matching allUsers flag -- this only updates what the *next* fetch requests. */
 	function setAllUsers(value: boolean): void {
 		allUsers = value;
-		jobs.set({});
-		tracks.set({});
+		for (const jobId of Object.keys(expandedFetchSeq)) invalidateExpandedFetch(jobId);
+		expanded.set({});
+		incoming.set({});
+		liveActive.set({});
+		reload();
 	}
 
 	function getAllUsers(): boolean {
 		return allUsers;
 	}
 
-	/** Optimistic insert right after a successful `POST /api/jobs`, so the new job is
-	 * visible immediately rather than waiting for its own `expanding` SSE echo. */
-	function addJob(job: Job): void {
-		jobs.update((current) => ({ ...current, [job.id]: job }));
+	function toggleExpand(jobId: string): void {
+		const current = get(expanded);
+		if (current[jobId]) {
+			invalidateExpandedFetch(jobId);
+			const { [jobId]: _drop, ...rest } = current;
+			expanded.set(rest);
+			return;
+		}
+		expanded.update((e) => ({ ...e, [jobId]: newExpandedJob() }));
+		loadExpandedTracks(jobId);
 	}
 
-	function mergeTrack(track: Track): void {
-		tracks.update((current) => ({
-			...current,
-			[track.id]: { ...current[track.id], ...track, updatedAt: Date.now() }
+	function isExpanded(jobId: string): boolean {
+		return jobId in get(expanded);
+	}
+
+	async function loadExpandedTracks(jobId: string): Promise<void> {
+		const seq = (expandedFetchSeq[jobId] ?? 0) + 1;
+		expandedFetchSeq[jobId] = seq;
+		expanded.update((e) => ({
+			...e,
+			[jobId]: { ...(e[jobId] ?? newExpandedJob()), loading: true, error: '' }
 		}));
+		try {
+			const result: JobTracksPage = await api.listJobTracksPage(jobId);
+			if (expandedFetchSeq[jobId] !== seq) return;
+			expanded.update((e) => ({
+				...e,
+				[jobId]: {
+					items: result.items,
+					nextCursor: result.next_cursor,
+					countsByState: result.counts_by_state,
+					loading: false,
+					loadingMore: false,
+					error: ''
+				}
+			}));
+		} catch (err) {
+			if (expandedFetchSeq[jobId] !== seq) return;
+			expanded.update((e) => ({
+				...e,
+				[jobId]: {
+					...(e[jobId] ?? newExpandedJob()),
+					loading: false,
+					error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
+				}
+			}));
+		}
 	}
 
-	/** Same optimistic-then-resync pattern as `addJob`: apply the mutation's own response
-	 * immediately rather than waiting on the SSE echo, then pull the affected tracks via
-	 * REST since a job-level cancel can touch many tracks the response body doesn't list
-	 * individually (each still gets its own `track.state` SSE event, this just doesn't
-	 * wait on it). */
+	async function loadMoreExpandedTracks(jobId: string): Promise<void> {
+		const current = get(expanded)[jobId];
+		if (!current || current.nextCursor === null || current.loadingMore) return;
+		const seq = expandedFetchSeq[jobId];
+		expanded.update((e) => ({ ...e, [jobId]: { ...e[jobId], loadingMore: true } }));
+		try {
+			const result: JobTracksPage = await api.listJobTracksPage(jobId, {
+				cursor: current.nextCursor
+			});
+			if (expandedFetchSeq[jobId] !== seq) return;
+			expanded.update((e) => ({
+				...e,
+				[jobId]: {
+					...e[jobId],
+					items: [...e[jobId].items, ...result.items],
+					nextCursor: result.next_cursor,
+					countsByState: result.counts_by_state,
+					loadingMore: false
+				}
+			}));
+		} catch (err) {
+			if (expandedFetchSeq[jobId] !== seq) return;
+			expanded.update((e) => ({
+				...e,
+				[jobId]: {
+					...e[jobId],
+					loadingMore: false,
+					error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
+				}
+			}));
+		}
+	}
+
+	/** Optimistic insert right after a successful `POST /api/jobs`, so the new job is
+	 * visible immediately rather than waiting for its own `expanding` SSE echo. Only ever
+	 * needs the incoming overlay -- a brand-new job is essentially never on the current
+	 * page (it sorts last under the default created_at-desc... actually first; either way
+	 * it may not match the active filters, e.g. an archived-only view), so patching `page`
+	 * directly would be wrong more often than right. */
+	function addJob(job: Job): void {
+		incoming.update((current) => ({ ...current, [job.id]: job }));
+	}
+
+	function patchPageJob(job: Job): void {
+		page.update((p) => {
+			if (get(filters).scope !== 'jobs') return p;
+			const idx = p.items.findIndex((i) => i.id === job.id);
+			if (idx === -1) return p;
+			const items = [...p.items];
+			items[idx] = job;
+			return { ...p, items };
+		});
+	}
+
 	async function cancelJob(jobId: string): Promise<void> {
 		const job = await api.cancelJob(jobId);
-		jobs.update((current) => ({ ...current, [job.id]: job }));
-		await refreshJobTracks(jobId);
-	}
-
-	function mergeJob(job: Job): void {
-		jobs.update((current) => ({ ...current, [job.id]: job }));
+		patchPageJob(job);
+		incoming.update((current) => {
+			const { [jobId]: _drop, ...rest } = current;
+			return rest;
+		});
+		if (isExpanded(jobId)) await loadExpandedTracks(jobId);
 	}
 
 	async function bumpJob(jobId: string): Promise<void> {
-		mergeJob(await api.bumpJob(jobId));
+		patchPageJob(await api.bumpJob(jobId));
 	}
 
 	async function setJobPriority(jobId: string, priority: number): Promise<void> {
-		mergeJob(await api.setJobPriority(jobId, priority));
+		patchPageJob(await api.setJobPriority(jobId, priority));
 	}
 
-	async function cancelTrack(trackId: string): Promise<void> {
-		mergeTrack(await api.cancelTrack(trackId));
+	/** "Clear log" (`allSettled`) or a single job's archive button -- *this session's own*
+	 * action, straight from its direct HTTP response. On success, a job that no longer
+	 * matches the active `includeArchived` filter is dropped from view; one that still
+	 * matches (the "archived toggle already on" case) is patched in place -- either way,
+	 * no reload, per the plan's explicit "leaves the default view live" requirement.
+	 *
+	 * `archive_jobs`/`unarchive_jobs` (backend) also publish a `job.state` SSE event
+	 * (`archived: true/false`) for every job touched, including an ordinary single-job
+	 * action, and this session's own already-open stream receives that echo too -- and
+	 * can receive and process it *before* this function's own direct-response call runs,
+	 * since the backend commits and starts publishing before the HTTP response finishes
+	 * writing back (confirmed via a real-stack Playwright run measuring actual request
+	 * timing, not assumed). This function is the only caller with the complete,
+	 * trustworthy id list for an action, so it's the only place that decides "patch
+	 * precisely" vs. "bulk reload beyond the loaded page" -- but that decision alone
+	 * can't tell "this id is missing because it's genuinely part of a bulk action beyond
+	 * this page" apart from "this id is missing because the echo already removed it,
+	 * correctly, moments before I got here." `recentlyEchoRemovedArchiveIds` closes that
+	 * gap: `patchArchivedFlagFromEvent` marks an id there when *it* does a removal, and
+	 * this function treats a marked id as already accounted for rather than a sign of an
+	 * unloaded bulk job (see docs/GOTCHAS.md's v20 entry for the five-round history behind
+	 * this exact interaction). */
+	async function archiveJobs(opts: { jobIds?: string[]; allSettled?: boolean }): Promise<string[]> {
+		const result = await api.archiveJobs(opts);
+		applyOwnArchiveAction(result.archived_ids, true);
+		return result.archived_ids;
+	}
+
+	async function unarchiveJobs(jobIds: string[]): Promise<string[]> {
+		const result = await api.unarchiveJobs(jobIds);
+		applyOwnArchiveAction(result.unarchived_ids, false);
+		return result.unarchived_ids;
+	}
+
+	// `archive_jobs` (backend) publishes one SSE event *per archived job*, individually --
+	// for the "clear log" bulk case, that's potentially dozens of separate messages for
+	// one click. Debouncing collapses a reload that might otherwise seem needed once per
+	// message into the one reload actually needed, the same pattern
+	// `scheduleJobRefresh`/`flushJobRefreshes` already uses for the analogous per-track
+	// -event flood.
+	let archiveReloadTimer: ReturnType<typeof setTimeout> | undefined;
+	function scheduleArchiveReload(): void {
+		clearTimeout(archiveReloadTimer);
+		archiveReloadTimer = setTimeout(reload, 300);
+	}
+
+	// Ids `patchArchivedFlagFromEvent` has already removed from view (and already
+	// decremented counts for) via an SSE echo that arrived before this action's own
+	// direct HTTP response did. `applyOwnArchiveAction` consumes an entry here instead of
+	// treating that id as evidence of an unloaded bulk job -- the entry is removed the
+	// moment it's consumed, and the short timeout is only a safety net against a leaked
+	// entry if `applyOwnArchiveAction` is somehow never called for it (it always is, in
+	// practice, since it's this store's own action that caused the echo in the first
+	// place).
+	const recentlyEchoRemovedArchiveIds = new Set<string>();
+
+	function applyOwnArchiveAction(ids: string[], archived: boolean): void {
+		if (ids.length === 0) return;
+		const idSet = new Set(ids);
+		const f = get(filters);
+		if (f.scope !== 'jobs') return;
+
+		if (f.includeArchived) {
+			page.update((p) => ({
+				...p,
+				items: p.items.map((i) =>
+					idSet.has(i.id)
+						? { ...(i as Job), archived_at: archived ? new Date().toISOString() : null }
+						: i
+				)
+			}));
+			return;
+		}
+
+		// A job leaving view under the current (non-archived) filter also leaves the
+		// status-bucket it was counted under -- countsByStatus/totalEstimate are
+		// themselves scoped by include_archived server-side (job_listing.py builds them
+		// from the same archived-filtered base query), so an archived-away row must be
+		// subtracted from both here, not just removed from `items`, or the state-filter
+		// chip counts drift from what's actually rendered until the next reload.
+		const current = get(page);
+		const removed = current.items.filter((i) => idSet.has(i.id)) as Job[];
+		let alreadyHandledByEcho = 0;
+		for (const id of ids) {
+			const key = `${archived}:${id}`;
+			if (recentlyEchoRemovedArchiveIds.has(key)) {
+				recentlyEchoRemovedArchiveIds.delete(key);
+				alreadyHandledByEcho++;
+			}
+		}
+		if (removed.length + alreadyHandledByEcho < ids.length) {
+			// The "clear log" bulk action (`all_settled: true`) archives every eligible
+			// job for the user, not just whatever's on the currently loaded page
+			// (`archive.archive_jobs`'s whole reason to exist) -- `ids` can therefore
+			// contain jobs this store has no local record of, and there's no way to know
+			// which status bucket an unloaded job belonged to well enough to decrement it
+			// precisely. A single job's archive/unarchive button never hits this branch
+			// (the clicked row is always already loaded, or already accounted for via
+			// `alreadyHandledByEcho`); only the bulk path can.
+			scheduleArchiveReload();
+			return;
+		}
+
+		for (const job of removed) invalidateExpandedFetch(job.id);
+		// A row leaving view this way must also stop being "expanded" -- otherwise
+		// toggling the archived filter back on later re-shows it already-open with
+		// whatever track snapshot was last fetched before it was archived, instead of a
+		// fresh one.
+		expanded.update((e) => {
+			if (!removed.some((job) => job.id in e)) return e;
+			const next = { ...e };
+			for (const job of removed) delete next[job.id];
+			return next;
+		});
+
+		// Only `removed` (jobs still actually present in `p.items`) need their counts
+		// decremented here -- an id accounted for via `alreadyHandledByEcho` already had
+		// its bucket decremented by `patchArchivedFlagFromEvent` itself.
+		const countsByStatus = { ...current.countsByStatus };
+		for (const job of removed) {
+			const key = api.statusKey(job.status);
+			countsByStatus[key] = Math.max(0, (countsByStatus[key] ?? 0) - 1);
+		}
+		page.update((p) => ({
+			...p,
+			items: p.items.filter((i) => !idSet.has(i.id)),
+			totalEstimate: Math.max(0, p.totalEstimate - removed.length),
+			countsByStatus
+		}));
+	}
+
+	/** The SSE echo of an archive/unarchive action -- this session's own, or (v17's admin
+	 * all-users pattern-subscribe aside) nobody else's, since jobs are per-user. Genuinely
+	 * idempotent: safe to call any number of times, in any order relative to
+	 * `applyOwnArchiveAction`, because it only ever acts when the currently-loaded row's
+	 * `archived_at` doesn't already match the event, and records what it did (via
+	 * `recentlyEchoRemovedArchiveIds`) so `applyOwnArchiveAction` can recognize its own
+	 * action's effect already happened rather than mistaking the row's absence for an
+	 * unloaded bulk job. A *different* tab of the same user archiving a job leaves this
+	 * one's counts briefly stale until its own next reload/filter-change -- an accepted,
+	 * narrow trade, not something this function tries to solve too. */
+	function patchArchivedFlagFromEvent(jobId: string, archived: boolean): void {
+		const f = get(filters);
+		if (f.scope !== 'jobs') return;
+		const current = get(page);
+		const existing = current.items.find((i) => i.id === jobId) as Job | undefined;
+		if (!existing || (existing.archived_at !== null) === archived) return;
+
+		if (f.includeArchived) {
+			page.update((p) => ({
+				...p,
+				items: p.items.map((i) =>
+					i.id === jobId
+						? { ...(i as Job), archived_at: archived ? new Date().toISOString() : null }
+						: i
+				)
+			}));
+			return;
+		}
+
+		invalidateExpandedFetch(jobId);
+		expanded.update((e) => {
+			if (!(jobId in e)) return e;
+			const next = { ...e };
+			delete next[jobId];
+			return next;
+		});
+		const key = api.statusKey(existing.status);
+		page.update((p) => ({
+			...p,
+			items: p.items.filter((i) => i.id !== jobId),
+			totalEstimate: Math.max(0, p.totalEstimate - 1),
+			countsByStatus: {
+				...p.countsByStatus,
+				[key]: Math.max(0, (p.countsByStatus[key] ?? 0) - 1)
+			}
+		}));
+
+		const claimKey = `${archived}:${jobId}`;
+		recentlyEchoRemovedArchiveIds.add(claimKey);
+		setTimeout(() => recentlyEchoRemovedArchiveIds.delete(claimKey), 3000);
+	}
+
+	async function cancelTrack(trackId: string, jobId?: string): Promise<void> {
+		const track = await api.cancelTrack(trackId);
+		applyTrackPatch(track, jobId);
 	}
 
 	/** Returns whether the retry is held behind the global breaker, so the caller can
 	 * surface that precedence to the user rather than leaving a silent no-op. */
-	async function retryTrack(trackId: string): Promise<{ breakerHeld: boolean }> {
+	async function retryTrack(trackId: string, jobId?: string): Promise<{ breakerHeld: boolean }> {
 		const { breaker_held, ...track } = await api.retryTrack(trackId);
-		mergeTrack(track);
+		applyTrackPatch(track, jobId);
 		return { breakerHeld: breaker_held };
 	}
 
+	function applyTrackPatch(track: Track, jobId?: string): void {
+		const owningJobId = jobId ?? track.job_id;
+		if (isExpanded(owningJobId)) {
+			expanded.update((e) => {
+				const job = e[owningJobId];
+				if (!job) return e;
+				const idx = job.items.findIndex((t) => t.id === track.id);
+				if (idx === -1) return e;
+				const items = [...job.items];
+				items[idx] = { ...items[idx], ...track };
+				return { ...e, [owningJobId]: { ...job, items } };
+			});
+		}
+		page.update((p) => {
+			if (get(filters).scope !== 'tracks') return p;
+			const idx = p.items.findIndex((i) => i.id === track.id);
+			if (idx === -1) return p;
+			const items = [...p.items];
+			items[idx] = { ...(items[idx] as LiveTrackWithJob), ...track };
+			return { ...p, items };
+		});
+		scheduleJobRefresh(owningJobId);
+	}
+
+	function findCachedTrackMeta(trackId: string): Track | undefined {
+		const tracksScope = get(page).items;
+		for (const item of tracksScope) {
+			if (isTrackItem(item) && item.id === trackId) return item;
+		}
+		for (const job of Object.values(get(expanded))) {
+			const found = job.items.find((t) => t.id === trackId);
+			if (found) return found;
+		}
+		return undefined;
+	}
+
 	function applyTrackEvent(event: Extract<StreamEvent, { type: 'track.state' }>): void {
-		tracks.update((current) => {
-			const existing = current[event.track_id];
-			// A stray event arriving after a track already reached a truly terminal
-			// state is necessarily stale -- applying it would flip the track back to
-			// non-terminal for a moment (e.g. a cancelled track visibly "resuming" its
-			// download) before the eventual correcting event catches up. Ignoring it
-			// outright is simpler and more robust than trying to compare timestamps.
-			if (existing && TRULY_TERMINAL_STATES.has(existing.state)) {
-				return current;
+		// Coarse-vs-fine: only a genuine state change (including "first time seen") is
+		// worth a job-row refresh -- a same-state progress-percent tick is not.
+		if (lastKnownTrackState[event.track_id] !== event.state) {
+			lastKnownTrackState[event.track_id] = event.state;
+			scheduleJobRefresh(event.job_id);
+		}
+
+		liveActive.update((current) => {
+			if (event.state !== 'downloading') {
+				if (!(event.track_id in current)) return current;
+				const { [event.track_id]: _drop, ...rest } = current;
+				return rest;
 			}
-			const next: LiveTrack = {
-				...existing,
+			const existing = current[event.track_id];
+			if (existing && TRULY_TERMINAL_STATES.has(existing.state)) return current;
+			const seed = existing ?? findCachedTrackMeta(event.track_id);
+			const base: LiveTrack = existing ?? {
 				id: event.track_id,
 				job_id: event.job_id,
 				state: event.state,
-				updatedAt: Date.now()
-			} as LiveTrack;
-			if (event.progress !== undefined) next.progress = event.progress;
+				title: seed?.title ?? null,
+				artists: seed?.artists ?? null,
+				album: seed?.album ?? null,
+				spotify_track_id: seed?.spotify_track_id ?? '',
+				attempt_count: seed?.attempt_count ?? 0,
+				scheduled_at: null,
+				last_error: null,
+				last_error_type: null
+			};
+			const next: LiveTrack = {
+				...base,
+				state: event.state,
+				progress: event.progress ?? base.progress
+			};
 			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 			if (event.error !== undefined) next.last_error = event.error;
 			if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
 			return { ...current, [event.track_id]: next };
 		});
+
+		const patchOne = <T extends Track>(items: T[]): T[] => {
+			const idx = items.findIndex((t) => t.id === event.track_id);
+			if (idx === -1) return items;
+			const existing = items[idx];
+			if (TRULY_TERMINAL_STATES.has(existing.state)) return items;
+			const next = { ...existing, state: event.state } as T;
+			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
+			if (event.error !== undefined) next.last_error = event.error;
+			if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
+			if (event.progress !== undefined) (next as LiveTrack).progress = event.progress;
+			const copy = [...items];
+			copy[idx] = next;
+			return copy;
+		};
+
+		if (isExpanded(event.job_id)) {
+			expanded.update((e) => {
+				const job = e[event.job_id];
+				if (!job) return e;
+				return { ...e, [event.job_id]: { ...job, items: patchOne(job.items) } };
+			});
+		}
+		page.update((p) => {
+			if (get(filters).scope !== 'tracks') return p;
+			return { ...p, items: patchOne(p.items as LiveTrackWithJob[]) };
+		});
 	}
 
+	/** Unlike `track.state`, a job.state event has no high-frequency flood equivalent to a
+	 * downloading track's progress ticks (v10's ladder/breaker are the only thing that
+	 * repeatedly touches a track's state without ever touching its parent job's), so this
+	 * fetches the fresh row immediately rather than going through the debounced
+	 * `scheduleJobRefresh` path -- and needs the fetch either way, since the event itself
+	 * carries no title/track_counts/priority to populate the incoming overlay with. */
 	async function applyJobEvent(event: Extract<StreamEvent, { type: 'job.state' }>): Promise<void> {
-		await refreshJobs();
-		// Track creation itself is never published — expand_job only emits job.state
-		// events, so `expanded` is the signal that this job's tracks now exist to fetch.
-		if (event.state === 'expanded') {
-			await refreshJobTracks(event.job_id);
+		if (event.archived !== undefined) {
+			patchArchivedFlagFromEvent(event.job_id, event.archived);
+		}
+
+		let job: Job;
+		try {
+			job = await api.getJob(event.job_id);
+		} catch {
+			// 404 (deleted, or this session lost visibility) -- drop it from view everywhere.
+			incoming.update((current) => {
+				const { [event.job_id]: _drop, ...rest } = current;
+				return rest;
+			});
+			page.update((p) => ({ ...p, items: p.items.filter((i) => i.id !== event.job_id) }));
+			return;
+		}
+
+		if (job.state === 'expanding' || job.state === 'failed') {
+			incoming.update((current) => ({ ...current, [job.id]: job }));
+		} else {
+			incoming.update((current) => {
+				const { [job.id]: _drop, ...rest } = current;
+				return rest;
+			});
+		}
+		patchPageJob(job);
+		if (isExpanded(event.job_id) && event.state === 'expanded') {
+			await loadExpandedTracks(event.job_id);
 		}
 	}
 
@@ -202,56 +794,37 @@ function createQueueStore() {
 		}
 	}
 
-	/** State priority alone isn't enough of a sort key -- a track's row was sitting at the
-	 * very top while `downloading` (priority 0), and the instant it completed (priority 6)
-	 * it fell all the way to wherever it happened to land among every other same-priority
-	 * track, which for a track that only just joined the `tracks` record is dead last per
-	 * plain object insertion order. Confirmed via real-stack testing: a live completion
-	 * jumped from index 0 to index 25 of 38 rows, well below the fold -- reading as "the
-	 * track vanished" even though it was still in the DOM the whole time. Sorting newest
-	 * update first within a priority tier keeps a just-changed row visible near the top of
-	 * its own tier instead of wherever insertion order happened to leave it. */
-	const trackList = derived(tracks, ($tracks) =>
-		Object.values($tracks).sort(
-			(a, b) => TRACK_STATE_ORDER[a.state] - TRACK_STATE_ORDER[b.state] || b.updatedAt - a.updatedAt
+	const incomingJobs = derived(incoming, ($incoming) =>
+		Object.values($incoming).sort(
+			(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
 		)
 	);
-	const activeTracks = derived(trackList, ($t) => $t.filter((t) => t.state === 'downloading'));
-	const waitingTracks = derived(trackList, ($t) => $t.filter((t) => t.state === 'waiting'));
-	const lookupFailedTracks = derived(trackList, ($t) =>
-		$t.filter((t) => t.state === 'lookup_failed')
-	);
 
-	/** A job between "submitted" and "its tracks exist" has nothing else in the UI to
-	 * represent it -- expanding a URL takes several real seconds (a genuine Spotify
-	 * metadata round trip, not something to fake away), and with no visible trace of the
-	 * submission during that window a user has every reason to think the click didn't
-	 * register and try again. Also carries `failed` jobs (expansion errored out with zero
-	 * tracks ever created) since those otherwise vanish with no explanation anywhere. */
-	const incomingJobs = derived(jobs, ($jobs) =>
-		Object.values($jobs)
-			.filter((j) => j.state === 'expanding' || j.state === 'failed')
-			.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-	);
+	const activeTracks = derived(liveActive, ($liveActive) => Object.values($liveActive));
 
 	return {
-		jobs,
-		tracks,
-		trackList,
-		activeTracks,
-		waitingTracks,
-		lookupFailedTracks,
+		filters,
+		page,
+		expanded,
 		incomingJobs,
-		loadAll,
+		activeTracks,
+		setFilters,
+		reload,
+		loadMore,
 		setAllUsers,
 		getAllUsers,
+		toggleExpand,
+		isExpanded,
+		loadMoreExpandedTracks,
 		addJob,
 		applyEvent,
 		cancelJob,
 		cancelTrack,
 		retryTrack,
 		bumpJob,
-		setJobPriority
+		setJobPriority,
+		archiveJobs,
+		unarchiveJobs
 	};
 }
 

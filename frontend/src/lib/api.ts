@@ -24,6 +24,44 @@ const API_BASE = resolveApiBase();
 export type JobSourceType = 'track' | 'album' | 'playlist' | 'artist' | 'search';
 export type JobState = 'expanding' | 'expanded' | 'failed' | 'cancelled';
 
+/** v18's two derived rollup axes -- never stored, always computed server-side from the
+ * job's own state plus its tracks' states (see CLAUDE.md's "Job rollup status" section).
+ * `outcome` is only non-null once `lifecycle === 'settled'`. */
+export type JobLifecycle = 'expanding' | 'active' | 'waiting' | 'settled' | 'cancelled' | 'failed';
+export type JobOutcome = 'complete' | 'partial';
+export interface JobStatus {
+	lifecycle: JobLifecycle;
+	outcome: JobOutcome | null;
+}
+
+/** The wire/filter form `status=` params use -- `settled:partial`, or the bare lifecycle
+ * name otherwise. Mirrors `rollup.status_key` server-side. */
+export function statusKey(status: JobStatus): string {
+	return status.outcome ? `${status.lifecycle}:${status.outcome}` : status.lifecycle;
+}
+
+/** Every token the state filter can offer, in the server's own display rank order
+ * (`rollup.STATUS_ORDER`) -- still-in-flight first, dead ends last. */
+export const STATUS_TOKENS: string[] = [
+	'expanding',
+	'active',
+	'waiting',
+	'settled:partial',
+	'settled:complete',
+	'cancelled',
+	'failed'
+];
+
+export const STATUS_LABEL: Record<string, string> = {
+	expanding: 'tuning in',
+	active: 'active',
+	waiting: 'waiting',
+	'settled:partial': 'done — partial',
+	'settled:complete': 'done',
+	cancelled: 'cancelled',
+	failed: 'failed'
+};
+
 export interface Job {
 	id: string;
 	source_url: string;
@@ -32,12 +70,22 @@ export interface Job {
 	priority: number;
 	error: string | null;
 	created_at: string;
+	/** null while not archived -- v19. */
+	archived_at: string | null;
 	track_counts: Record<string, number>;
 	/** Whose job this is -- always present, but only interesting once an admin's "all
 	 * users" scope makes a foreign row visible at all. */
 	owner_email: string;
+	/** v18: derived display name (first track's playlist/album name, else its own song
+	 * name, else the raw source_url for a job with no tracks yet) -- `Job` itself has no
+	 * title column. */
+	title: string;
+	status: JobStatus;
 }
 
+/** v16 removed `TrackState.FAILED` (a migration, not just a rename) -- the backend has
+ * never sent this value since. Any lookup keyed on `TrackState` must cover exactly this
+ * set, no more. */
 export type TrackState =
 	| 'pending'
 	| 'queued'
@@ -45,7 +93,6 @@ export type TrackState =
 	| 'completed'
 	| 'waiting'
 	| 'lookup_failed'
-	| 'failed'
 	| 'skipped_duplicate'
 	| 'cancelled';
 
@@ -65,6 +112,22 @@ export interface Track {
 	last_error_type: TrackErrorType | null;
 }
 
+/** The parent-job summary `GET /api/tracks`/`?scope=track` embeds on every row -- not a
+ * full `Job` (no priority/state/status/track_counts: those describe the *whole* job, and
+ * this is one matching track's context, not a job-scoped fetch). `title` is the same
+ * v18 derived display name as `Job.title`, added in v20 so the Tracks-scope view can
+ * show a real album/playlist name instead of the raw URL without a per-job follow-up
+ * request. */
+export interface TrackJobSummary {
+	id: string;
+	source_url: string;
+	source_type: JobSourceType;
+	owner_email: string;
+	title: string;
+}
+
+export type TrackWithJob = Track & { job: TrackJobSummary };
+
 export interface TrackStateEvent {
 	type: 'track.state';
 	track_id: string;
@@ -82,6 +145,9 @@ export interface JobStateEvent {
 	job_id: string;
 	state: JobState;
 	error?: string;
+	/** v19: present (true/false) only on an archive/unarchive-triggered publish; absent
+	 * for every other job.state event. */
+	archived?: boolean;
 	ts: string;
 }
 
@@ -92,6 +158,10 @@ export interface WorkerStatus {
 	breaker_tripped_until: string | null;
 	breaker_trip_count: number;
 	consecutive_failures: number;
+	/** v20: true if *any* user's track is currently `downloading` -- global, not scoped
+	 * to the caller (`worker-dl` runs `--concurrency=1`, so this is 0-or-1 tracks system
+	 * -wide). Carries no id/title, only the boolean. */
+	busy: boolean;
 }
 
 export type ProxySource = 'file' | 'manual';
@@ -133,11 +203,42 @@ export interface OutputOptions {
 	bitrates: string[];
 }
 
+/** v19: per-user log-retention preference (settings/retention), open to every user --
+ * unlike OutputSettings, never admin-gated. `null` means "never auto-archive." */
+export interface RetentionSettings {
+	retention_days: number | null;
+}
+
 /** v17: every session carries the admin flag so the frontend can hide admin-only UI --
  * cosmetic only, the server-side `require_admin` gate is the real enforcement. */
 export interface SessionInfo {
 	email: string;
 	is_admin: boolean;
+}
+
+/** v18's shared paginated-listing envelope -- every cursor-paginated endpoint returns
+ * exactly this shape (plus endpoint-specific extras, see JobsPage/JobTracksPage). */
+export interface Page<T> {
+	items: T[];
+	next_cursor: string | null;
+}
+
+export interface JobsPage extends Page<Job> {
+	/** Capped (see backend's pagination.CAP) -- "at least this many," not exact, past
+	 * the cap. Good enough for "~3,000 tracks," never rendered as a precise count. */
+	total_estimate: number;
+	/** Grouped over the *pre-status-filter* result, so every status tab's count stays
+	 * visible regardless of which one is currently selected. Keys are `statusKey()`
+	 * tokens. */
+	counts_by_status: Record<string, number>;
+}
+
+export type TracksPage = Page<TrackWithJob>;
+
+export interface JobTracksPage extends Page<Track> {
+	/** Ignores this request's own `state` filter (so switching tabs keeps every tab's
+	 * count visible) -- the simple per-job breakdown, not q-aware. */
+	counts_by_state: Record<string, number>;
 }
 
 export class ApiError extends Error {
@@ -177,6 +278,80 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	return (await response.json()) as T;
 }
 
+/** Shared query-string builder for every v18 listing endpoint -- `undefined`/empty-array
+ * values are omitted entirely (never sent as `key=`) so an unset filter is indistinguishable
+ * from "not passed" server-side, and array values repeat the key (`status=a&status=b`),
+ * matching FastAPI's `Query(default=[])` parsing convention, not a comma-joined string. */
+function buildQuery(
+	params: Record<string, string | number | boolean | string[] | undefined>
+): string {
+	const qs = new URLSearchParams();
+	for (const [key, value] of Object.entries(params)) {
+		if (value === undefined) continue;
+		if (Array.isArray(value)) {
+			for (const v of value) qs.append(key, v);
+		} else {
+			qs.append(key, String(value));
+		}
+	}
+	const s = qs.toString();
+	return s ? `?${s}` : '';
+}
+
+export interface ListJobsParams {
+	q?: string;
+	status?: string[];
+	sourceType?: JobSourceType;
+	includeArchived?: boolean;
+	sort?: string;
+	dir?: 'asc' | 'desc';
+	limit?: number;
+	cursor?: string;
+	allUsers?: boolean;
+}
+
+export interface ListTracksParams {
+	q?: string;
+	status?: string[];
+	state?: string[];
+	sourceType?: JobSourceType;
+	includeArchived?: boolean;
+	sort?: string;
+	dir?: 'asc' | 'desc';
+	limit?: number;
+	cursor?: string;
+	allUsers?: boolean;
+}
+
+function jobsQuery(params: ListJobsParams): string {
+	return buildQuery({
+		q: params.q || undefined,
+		status: params.status,
+		source_type: params.sourceType,
+		include_archived: params.includeArchived || undefined,
+		sort: params.sort,
+		dir: params.dir,
+		limit: params.limit,
+		cursor: params.cursor,
+		all_users: params.allUsers || undefined
+	});
+}
+
+function tracksQuery(params: ListTracksParams): string {
+	return buildQuery({
+		q: params.q || undefined,
+		status: params.status,
+		state: params.state,
+		source_type: params.sourceType,
+		include_archived: params.includeArchived || undefined,
+		sort: params.sort,
+		dir: params.dir,
+		limit: params.limit,
+		cursor: params.cursor,
+		all_users: params.allUsers || undefined
+	});
+}
+
 export function login(email: string, password: string): Promise<SessionInfo> {
 	return request('/api/auth/login', {
 		method: 'POST',
@@ -199,23 +374,44 @@ export function createJob(url: string): Promise<Job> {
 	});
 }
 
-/** allUsers is honored only for an admin session -- the server silently ignores it
- * (never errors) from anyone else, so this is safe to pass unconditionally from the
- * non-admin-hidden toggle's default-off state. */
-export function listJobs(allUsers = false): Promise<Job[]> {
-	return request(`/api/jobs${allUsers ? '?all_users=true' : ''}`);
+export function listJobsPage(params: ListJobsParams = {}): Promise<JobsPage> {
+	return request(`/api/jobs${jobsQuery(params)}`);
 }
 
-export function listJobTracks(jobId: string): Promise<Track[]> {
-	return request(`/api/jobs/${jobId}/tracks`);
+export function getJob(jobId: string): Promise<Job> {
+	return request(`/api/jobs/${jobId}`);
 }
 
-/** Every track across every job in one request -- what `queue.ts`'s `loadAll()` uses
- * instead of firing one `listJobTracks` call per job. See `GET /api/tracks`'s own
- * comment for why: N concurrent per-job requests stopped being harmless once real usage
- * accumulated 100+ historical jobs. */
-export function listTracks(allUsers = false): Promise<Track[]> {
-	return request(`/api/tracks${allUsers ? '?all_users=true' : ''}`);
+export interface ListJobTracksParams {
+	q?: string;
+	state?: string[];
+	sort?: string;
+	dir?: 'asc' | 'desc';
+	limit?: number;
+	cursor?: string;
+}
+
+export function listJobTracksPage(
+	jobId: string,
+	params: ListJobTracksParams = {}
+): Promise<JobTracksPage> {
+	const qs = buildQuery({
+		q: params.q || undefined,
+		state: params.state,
+		sort: params.sort,
+		dir: params.dir,
+		limit: params.limit,
+		cursor: params.cursor
+	});
+	return request(`/api/jobs/${jobId}/tracks${qs}`);
+}
+
+/** The Tracks-scope listing -- search/filter/sort run over tracks, each with its parent
+ * job embedded, one page at a time. Identical query to `GET /api/jobs?scope=track`; this
+ * project's frontend always calls the dedicated `/api/tracks` URL (v18 left the choice of
+ * URL to the frontend, see docs/GOTCHAS.md's v18 entry). */
+export function listTracksPage(params: ListTracksParams = {}): Promise<TracksPage> {
+	return request(`/api/tracks${tracksQuery(params)}`);
 }
 
 export function cancelJob(jobId: string): Promise<Job> {
@@ -231,6 +427,24 @@ export function setJobPriority(jobId: string, priority: number): Promise<Job> {
 
 export function bumpJob(jobId: string): Promise<Job> {
 	return request(`/api/jobs/${jobId}/bump`, { method: 'POST' });
+}
+
+/** "Clear log": archives every eligible settled/failed/cancelled job for the caller with
+ * no age restriction. Pass explicit `jobIds` instead for a single-job archive action. */
+export function archiveJobs(opts: { jobIds?: string[]; allSettled?: boolean }): Promise<{
+	archived_ids: string[];
+}> {
+	return request('/api/jobs/archive', {
+		method: 'POST',
+		body: JSON.stringify({ job_ids: opts.jobIds ?? null, all_settled: opts.allSettled ?? false })
+	});
+}
+
+export function unarchiveJobs(jobIds: string[]): Promise<{ unarchived_ids: string[] }> {
+	return request('/api/jobs/unarchive', {
+		method: 'POST',
+		body: JSON.stringify({ job_ids: jobIds })
+	});
 }
 
 export function cancelTrack(trackId: string): Promise<Track> {
@@ -296,6 +510,17 @@ export function updateOutputSettings(
 	return request('/api/settings/output', {
 		method: 'PATCH',
 		body: JSON.stringify(patch)
+	});
+}
+
+export function getRetentionSettings(): Promise<RetentionSettings> {
+	return request('/api/settings/retention');
+}
+
+export function updateRetentionSettings(retentionDays: number | null): Promise<RetentionSettings> {
+	return request('/api/settings/retention', {
+		method: 'PATCH',
+		body: JSON.stringify({ retention_days: retentionDays })
 	});
 }
 

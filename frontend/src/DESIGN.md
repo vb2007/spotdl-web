@@ -181,14 +181,82 @@ reserved, not just a color-token comment. **Any future panel that wants to signa
 is currently active" should use this same neutral→signal-dim border-color swap pattern, not a
 persistent accent border.**
 
-### State → color/label mapping (`QueueTable.svelte`)
+**v20's "worker busy elsewhere" indicator is the sharpest test of this rule yet.** `worker-dl`'s
+global `--concurrency=1` means the waterfall is idle-for-this-session far more often than not —
+someone else's download, not a stall. The temptation is to reuse `--signal` for "something, out
+there, is alive," but that would spend the one committed live-signal color on a condition that
+isn't live _for this viewer_; the border stays neutral (`.waterfall` without `.live`) and only the
+idle-state text swaps to `"no signal here — worker busy elsewhere"`, still `--text-muted` via
+`.label.dim`, never amber. `--signal` is reserved for _this session's own_ active track, full
+stop, not "the global worker."
+
+### State → color/label mapping (`TrackRow.svelte`, v20; formerly `QueueTable.svelte`)
 
 Two parallel `Record<TrackState, string>` maps — `STATE_LABEL` (in-world copy: "receiving",
-"fading — waiting", "no signal — given up", "logged", "lost") and `STATE_COND` (one of the five
+"fading — waiting", "no signal — not found", "logged", "lost") and `STATE_COND` (one of the five
 `.cond-*` classes from §2) — are the single source of truth for how a track state renders. **Any
 new `TrackState` value added in a future version must get an entry in both maps in the same
 change**, never inferred or left to fall through to a default, or a new state will render with no
-label/color at all.
+label/color at all. v16 removed `TrackState.FAILED` entirely (a migration, not a rename) — both
+maps cover exactly the eight states that remain, no `failed` entry. v20 renamed
+`lookup_failed`'s copy from "no signal — given up" to "no signal — not found": the behavior was
+never "given up" (the state is terminal and never auto-retried, same as always), only the old
+wording implied abandonment rather than "this specific lookup came up empty."
+
+### Job status → color/label mapping (`JobRow.svelte`, v20)
+
+The job-level counterpart of the above, over `JobStatus`'s `statusKey()` token (`"expanding"`,
+`"active"`, `"waiting"`, `"settled:partial"`, `"settled:complete"`, `"cancelled"`, `"failed"`)
+rather than `TrackState` — same five `.cond-*` classes, reused rather than inventing a second
+vocabulary. `expanding` maps to `cond-live` (amber), matching `IncomingJobs.svelte`'s pre-existing
+pulsing-dot treatment for the same state, not `cond-idle` — a job actively being expanded reads as
+"something is happening right now," the same category as a track actively downloading.
+`settled:partial` maps to `cond-fail`: it is a genuinely terminal, no-further-action state with a
+real gap (≥1 track that didn't make it), the same bucket `lookup_failed` already occupies at the
+track level — never `cond-waiting`, which §2 reserves for recoverable backoff, not "done, but
+incomplete." The labels themselves (`api.STATUS_LABEL`) are shared between the state-filter chips
+and the job-row badge so the two can't drift apart: `"done — partial"` for `settled:partial`,
+never "failed" or "partial" alone, so a glance at either surface reads the same story.
+
+### Segmented job progress bar (`JobRow.svelte`, v20)
+
+A job row's per-state track counts render as a horizontal bar of proportionally-sized flex
+segments, each colored with the same five condition tokens used everywhere else (`--signal`,
+`--waiting`, `--settled`, `--fail`, `--line-bright` for idle/cancelled) — never a sixth palette.
+Segment width is `count / total` as a flex-basis percentage; a zero-track job (`expanding`/
+`failed`) renders no bar at all rather than an empty one, since a bar with nothing to show is
+worse than no bar. `role="img"` with an `aria-label` carrying the same text as the adjacent count
+breakdown (`"1,204 done · 12 waiting · 1 not found"`) rather than leaving the visual-only bar
+unannounced to a screen reader.
+
+### Sort headers (`QueueControls.svelte`, v20)
+
+Reuses the Filter-tabs convention below (`role="group"`, `aria-pressed` buttons) rather than an
+HTML `<table>`'s clickable `<th>` — this app has never used table markup for its dense lists (see
+the Mobile stacked layout note), so a sort control needed the same button-group idiom instead of
+relying on `aria-sort`. The active sort field's button additionally shows a `▲`/`▼` glyph
+(`aria-hidden`, the button's own `aria-pressed` state is what a screen reader announces) indicating
+direction; clicking the already-active field flips direction, clicking a different field switches
+to it at `dir=desc`. Available fields differ by scope (`created_at`/`title`/`status`/`track_count`/
+`next_retry` for Jobs, `created_at`/`title`/`state` for Tracks) — never the same fixed list for both,
+since the two endpoints' own `sort=` parameters genuinely differ.
+
+### Search box (`QueueControls.svelte`, v20)
+
+The first plain `<input type="search">` in the tree — every prior text input (`login`, URL submit,
+proxy add) mapped directly onto a single immediate action; this one debounces (300ms) before
+calling into the store, since every keystroke would otherwise fire a real paginated request. Still
+mono-free (`font-family: var(--font-sans)`) per §3's content-vs-chrome split — a search term is
+user-authored text, not a system/meta value, even though it lives inside the instrument-panel
+control bar.
+
+### Jobs/Tracks scope toggle and archived/all-users toggles (`QueueControls.svelte`, v20)
+
+All three reuse the Filter-tabs pattern (`role="group"`, `aria-pressed`, `--line-bright` pressed
+state) already established by `+page.svelte`'s mine/all-users toggle — none of them represent a
+live/active condition, so none of them use `--signal`, consistent with §2's exclusivity rule. The
+Jobs/Tracks toggle is a distinct control from the admin-only mine/all-users toggle; both can be
+visible at once and don't interact.
 
 ### Filter tabs
 
@@ -206,25 +274,46 @@ scope, not a live/active condition, so §2's amber-exclusivity rule applies: the
 indefinitely while "all users" is selected, which is exactly the "permanent chrome" amber must
 never represent.
 
-### Attempt-history fan-out (expand/collapse row detail)
+### Attempt-history fan-out (expand/collapse row detail) (`TrackRow.svelte`)
 
-Each queue row is itself a `<button>` (not a row with a separate expand icon) toggling a
-`SvelteSet` of expanded IDs, exposing `aria-expanded`. The revealed `.detail` block is plain mono
+Each track row is itself a `<button>` (not a row with a separate expand icon) toggling its own
+local `expanded` boolean, exposing `aria-expanded`. The revealed `.detail` block is plain mono
 text: attempt count, a live `Countdown` (only when `state === 'waiting'` and `scheduled_at` is
-set), and `last_error` in `--fail` color when present. **This whole row-as-button + `SvelteSet`
-pattern is the convention for any future expandable list row** (v10's cancel/retry-now controls
-will likely need a similar per-row disclosure).
+set), and `last_error` in `--fail` color when present. **This whole row-as-button disclosure
+pattern is the convention for any future expandable list row.**
 
-### Mobile stacked layout (`QueueTable.svelte`, ≤640px)
+### Job-row expansion (`JobRow.svelte`, v20)
 
-The five-column grid collapses to a fully stacked flex column, one cell per line, in an explicit
-`order` (state, title, artist, album, job). **Two rejected intermediate designs are recorded
-directly in the component's own comments and should not be re-attempted without new evidence**:
-squeezing all five columns proportionally became unreadable, and pairing cells onto shared
-sub-columns (title+job, artist+album) reintroduced the same failure one level down — an `auto`
-column sized to one row's longest value silently starved a _different_ row's column. The fix that
-shipped is "give every cell its own full-width line, nothing ever competes for width" — treat that
-as the standing rule for any future dense-table mobile collapse, not just this table's.
+A job row cannot reuse the plain row-as-`<button>` pattern above unmodified: it needs several
+_other_ real interactive controls (priority input, bump/cancel/archive buttons) alongside the
+expand toggle, and nesting a `<button>`/`<input>` inside another `<button>` is invalid HTML. The
+fix is structural, not a new visual pattern: the expand toggle is its own `<button>` wrapping only
+non-interactive content (chevron, badge, title, source-type, owner), and the action controls are
+separate sibling elements in the same flex row, never inside the toggle button. Expanding renders
+`JobTrackList.svelte` (a paginated `TrackRow` list scoped to that one job) below the row, fetched
+fresh on first expand — never all of a job's tracks eagerly. Expansion state lives in
+`stores/queue.ts`'s `expanded` map (keyed by job id), not component-local state, specifically so it
+survives a filter/search change within the same session (the plan's explicit requirement) rather
+than resetting every time the underlying page reloads.
+
+### Mobile stacked layout (`TrackRow.svelte`, `JobRow.svelte`, ≤640px)
+
+`TrackRow`'s five-column grid collapses to a fully stacked flex column, one cell per line, in an
+explicit `order` (state, title, artist, album, progress) — the same layout `QueueTable.svelte`
+originally established, carried over verbatim when v20 extracted the row into its own component.
+**Two rejected intermediate designs from that original build are worth restating so they aren't
+re-attempted**: squeezing all columns proportionally became unreadable, and pairing cells onto
+shared sub-columns (title+job, artist+album) reintroduced the same failure one level down — an
+`auto` column sized to one row's longest value silently starved a _different_ row's column. The
+fix that shipped is "give every cell its own full-width line, nothing ever competes for width" —
+the standing rule for any future dense-table mobile collapse.
+
+`JobRow` is flexbox (`flex-wrap: wrap`), not CSS Grid, so it was never exposed to that specific
+shared-column-track failure mode in the first place (each `JobRow` is visually self-contained, not
+sharing grid tracks with sibling rows the way `QueueTable`'s `<ul>` did) — but still gets an
+explicit ≤640px `flex-direction: column` breakpoint rather than relying on wrap-based reflow alone,
+confirmed against real, varied-length titles/album names at 390px (not assumed safe merely because
+flexbox degrades better than grid did).
 
 ### Command-line submit bar
 

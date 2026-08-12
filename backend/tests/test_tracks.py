@@ -119,6 +119,24 @@ def test_retry_track_rejects_non_retryable_states(authenticated_client, db_sessi
     assert response.status_code == 409
 
 
+def test_retry_track_rejects_when_job_is_archived(authenticated_client, db_session, owner):
+    """v20 gap: archiving is only ever reachable once a job is settled/failed/cancelled
+    (archive._ARCHIVABLE_LIFECYCLES), none of which can have a waiting/lookup_failed
+    track -- except by reviving one right back through this exact endpoint. Without this
+    gate, a track inside an archived (soft-deleted-from-view) job could still get
+    dispatched for a real download by the real running beat, silently breaking "archived
+    means settled, not just hidden.\""""
+    track = _make_track(db_session, owner, state=TrackState.LOOKUP_FAILED, scheduled_at=None)
+    job = db_session.get(Job, track.job_id)
+    job.archived_at = datetime.now(timezone.utc)
+    db_session.commit()
+
+    response = authenticated_client.post(f"/api/tracks/{track.id}/retry")
+
+    assert response.status_code == 409
+    assert db_session.get(Track, track.id).state == TrackState.LOOKUP_FAILED
+
+
 def test_retry_unknown_track_returns_404(authenticated_client, db_session):
     assert authenticated_client.post(f"/api/tracks/{uuid.uuid4()}/retry").status_code == 404
 

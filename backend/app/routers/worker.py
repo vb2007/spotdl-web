@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import exists
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import User, WorkerState
+from app.models import Track, TrackState, User, WorkerState
 from app.routers.auth import require_admin, require_session
 from app.services import retry
 
 router = APIRouter(prefix="/api/worker", tags=["worker"])
 
 
-def _status_dict(worker_state: WorkerState) -> dict:
+def _status_dict(worker_state: WorkerState, busy: bool) -> dict:
     return {
         "paused": worker_state.paused,
         "breaker_tripped_until": (
@@ -19,7 +20,17 @@ def _status_dict(worker_state: WorkerState) -> dict:
         ),
         "breaker_trip_count": worker_state.breaker_trip_count,
         "consecutive_failures": worker_state.consecutive_failures,
+        "busy": busy,
     }
+
+
+def _is_busy(db: Session) -> bool:
+    """`worker-dl` runs `--concurrency=1` (CLAUDE.md invariant), so at most one track
+    across *every* user is ever `downloading` at once -- this is a global signal, not
+    scoped to the caller, and deliberately carries no id/title so it can't leak which
+    user or track is running (v20's "worker busy elsewhere" indicator, see
+    `Waterfall.svelte`)."""
+    return db.query(exists().where(Track.state == TrackState.DOWNLOADING)).scalar()
 
 
 @router.get("/status")
@@ -31,7 +42,7 @@ def worker_status(
 ) -> dict:
     worker_state = retry.get_worker_state(db)
     db.commit()
-    return _status_dict(worker_state)
+    return _status_dict(worker_state, _is_busy(db))
 
 
 @router.post("/pause")
@@ -42,7 +53,7 @@ def pause_worker(
     worker_state = retry.get_worker_state(db)
     worker_state.paused = True
     db.commit()
-    return _status_dict(worker_state)
+    return _status_dict(worker_state, _is_busy(db))
 
 
 @router.post("/resume")
@@ -53,7 +64,7 @@ def resume_worker(
     worker_state = retry.get_worker_state(db)
     worker_state.paused = False
     db.commit()
-    return _status_dict(worker_state)
+    return _status_dict(worker_state, _is_busy(db))
 
 
 @router.post("/breaker/release")
@@ -67,4 +78,4 @@ def release_breaker(
     worker_state = retry.get_worker_state(db)
     worker_state.breaker_tripped_until = None
     db.commit()
-    return _status_dict(worker_state)
+    return _status_dict(worker_state, _is_busy(db))
