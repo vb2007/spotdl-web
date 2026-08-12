@@ -57,6 +57,12 @@ needed" claim — rather than silently deleted.
   *actual* enclosing `FROM`, not the table the subquery conceptually belongs to — passing an
   aggregated-subquery's column while asking to correlate against the raw table it was built from
   silently produces an uncorrelated subquery instead of an error → *v18*
+- A correlated subquery that references the *same mapped table* the outer statement already selects
+  raw (not through an aggregate) needs `.correlate_except(Track)` even with no explicit
+  `.correlate(...)` elsewhere — SQLAlchemy's auto-correlation matches by FROM-clause identity, not by
+  whether the subquery's WHERE actually reaches into the outer row, and silently strips the subquery
+  down to zero FROM clauses (`InvalidRequestError`) when both statements happen to share the same
+  table object → *v20*
 
 **Docker Compose & deployment**
 - Override files **merge** list keys (`ports`, `volumes`) and **replace** mapping keys
@@ -129,6 +135,10 @@ needed" claim — rather than silently deleted.
   becomes documentation, not the level source → *v12*
 - The pacing hook sat declared-but-unwired for four versions because nothing ever asserted it had
   an effect; raising it also requires raising `STALE_TRACK_AFTER_SECONDS` → *v15*
+- A manual retry endpoint that revives a terminal track state must itself gate on the parent job's
+  `archived_at` — nothing else can, since the archivable lifecycles by construction exclude a
+  `waiting` track, making the retry endpoint the *only* path back into a state `dispatch_due_tracks`
+  would act on → *v20*
 - `download_track` only gates on `CANCELLED` — a redelivered message for an already-`COMPLETED`
   track can regress it to `SKIPPED_DUPLICATE` (found, documented, not fixed) → *v15*
 - Verifying a new hourly (or longer) `beat_schedule` entry actually fires doesn't require waiting
@@ -155,6 +165,22 @@ needed" claim — rather than silently deleted.
   True)` filters `PSUBSCRIBE` confirmations exactly like `SUBSCRIBE` ones, and a `pmessage`'s
   payload lands at the same `message["data"]` key — the SSE forward loop needed no change for the
   admin pattern-subscribe path, only the subscribe call itself → *v17*
+- A client action that both (a) gets its own effect from a direct REST response and (b) is also
+  published as an SSE event to that same acting session's own channel will see both, in
+  non-deterministic order, and a bulk action over many ids makes this worse, not just duplicated —
+  individual per-id echoes can race ahead of and resolve *before* the bulk HTTP response that
+  triggered them. **Don't try to deduplicate the two signals through one shared function** (five
+  fixes across six review rounds, each patching one race and opening another, before this was
+  learned the hard way) — they carry genuinely different trust levels (the direct response has the
+  complete, authoritative id list; a lone echoed id never does) and belong in two separate handlers:
+  one, called only from the direct-response path, that's never invoked twice and can safely make
+  decisions requiring the full picture; another, called only from the SSE path, built to be
+  idempotent *by construction* (act only if current state doesn't already match the event) rather
+  than deduplicated against a shared claim/counter → *v20*
+- A store function that decides "reload the whole list" based on a per-event heuristic needs the
+  same debounce treatment as a high-frequency per-item event stream, even if each individual trigger
+  seems rare — a bulk backend action that publishes one event per affected row turns "rare" into "up
+  to N times in one click" → *v20*
 
 **Proxies & secrets**
 - Any proxy URL that is logged or persisted must go through `proxies.redact()`; spotdl's own error
@@ -192,6 +218,21 @@ needed" claim — rather than silently deleted.
   color is reserved for genuinely-live state (§2); a persistently-pressed view-scope toggle is
   exactly the "permanent chrome" the rule exists to prevent. Use a neutral token
   (`--line-bright`/`--text-primary`) instead → *v17*
+- `flex-wrap: wrap` on a flex container that also switches to `flex-direction: column` at a mobile
+  breakpoint defeats `align-items: stretch` for its children — a multi-line-capable container sizes
+  each line's cross axis (width, once direction is column) to that line's own content instead of the
+  full container width, so a child holding unbreakable content (e.g. a title-less job's raw
+  `source_url` fallback, a long unbroken string) gets measured at its full natural width instead of
+  the intended stretched width, overflowing the viewport even though the child itself already has
+  `min-width: 0`/`overflow: hidden`/`text-overflow: ellipsis`. The mobile media query must explicitly
+  set `flex-wrap: nowrap` to override the base (desktop) rule, not just `flex-direction: column` —
+  caught by a real 390px screenshot overflowing horizontally, invisible to `svelte-check`/`eslint`
+  since it's pure runtime layout → *v20*
+- A store function that clears/removes an entry another async fetch might still resolve into (e.g.
+  collapsing an expanded row, or a scope switch clearing the whole map) must bump that fetch's own
+  sequence guard at the point of removal, not only at the point the next fetch *starts* — otherwise a
+  slow response for an already-closed/cleared entry lands after the fact and silently recreates it,
+  since its sequence number still matches whatever was current when it was issued → *v20*
 
 **Testing & verification technique**
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
@@ -2137,3 +2178,142 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   `retention_days` set. All seeded rows, minted sessions, and both users' `user_settings` rows
   deleted afterward (shared dev database); confirmed job/track/`downloaded_tracks` counts identical
   to their pre-test values.
+
+### v20 job-centric-ui gotchas (learned building the job/track hierarchy UI, search/sort, archive
+controls, and the `/account` route)
+
+- **`GET /api/worker/status`'s `busy` flag (added this version) is deliberately a bare boolean, not
+  "which track"** — `worker-dl`'s global `--concurrency=1` invariant means at most one track across
+  *every* user is ever `downloading`, so the query behind it (`EXISTS (... WHERE state =
+  'downloading')`) is cheap and correct at any realistic scale, but it must never grow an id/title
+  field: doing so would leak a foreign track's identity to every session, the exact failure class
+  v17's per-user SSE channels exist to prevent. `Waterfall.svelte`'s "no signal here — worker busy
+  elsewhere" text is sourced from this flag specifically so an idle-for-this-session waterfall during
+  someone else's real download doesn't read as broken — confirmed live by setting another user's
+  track to `downloading` directly in the DB and watching the text appear within one 5s poll tick,
+  then reverting.
+- **`track_listing.list_tracks`'s embedded `job` object gained a `title` field this version**,
+  computed via the same `rollup.job_title_expr` the job listing already used — needed because the
+  Tracks-scope UI ("matching jobs auto-expand showing only their matching tracks") has nothing else
+  to show as a group header; the raw `job.source_url` embed alone would mean every group in that view
+  displays a URL instead of an album/playlist name. See the `correlate_except(Track)` gotcha above
+  (Database & migrations section) for the query bug this specific addition surfaced.
+- **The Tracks-scope state filter (`QueueControls.svelte`) intentionally has no live counts**, unlike
+  the Jobs-scope status filter (`counts_by_status`) — there is no equivalent global per-track-state
+  count endpoint, and adding one for a filter chip's cosmetic count wasn't judged worth a new backend
+  aggregate this version. Revisit if a future version's plan explicitly asks for it.
+- **A store function that clears or removes an entry another in-flight fetch might still resolve
+  into must invalidate that fetch's own sequence guard at the point of removal** — `queue.ts`'s
+  `toggleExpand` collapse path and `setAllUsers`'s full-map clear both call the new
+  `invalidateExpandedFetch(jobId)` helper before dropping state, specifically because a
+  fast expand-then-collapse (or a scope switch mid-fetch) could otherwise let a stale
+  `loadExpandedTracks` response land afterward and silently re-open a row the user had already
+  closed — its sequence number still matched what was current when the fetch was *issued*, since
+  nothing had bumped it at the point of removal. Found by an independent fresh-context code review
+  of this version before merge, not by the real-stack Playwright pass (which never happened to hit
+  the exact race window) — a reminder that live-stack verification and independent code review catch
+  different classes of bug and neither substitutes for the other.
+- **Archiving/unarchiving a job while `include_archived=false` must also decrement
+  `countsByStatus`/`totalEstimate` client-side, not just remove the row from `items`** —
+  `job_listing.list_jobs`'s `counts_by_status` and `total_estimate` are themselves computed over the
+  archived-filtered base query server-side, so a job leaving view under the current filter also
+  leaves whichever status bucket it was counted under; `queue.ts`'s `applyArchiveResult` adjusts both
+  in the same update rather than waiting for the next full reload to reconcile them. Same
+  independent-review finding as above.
+- **`JobRow`'s expand-toggle button cannot reuse `TrackRow`'s "the whole row is a `<button>`"
+  pattern verbatim** — a job row needs several *other* real interactive controls (priority input,
+  bump/cancel/archive buttons) alongside the expand toggle, and nesting a `<button>`/`<input>` inside
+  another `<button>` is invalid HTML. Fixed structurally: the toggle is its own `<button>` wrapping
+  only non-interactive content (chevron, badge, title, source-type, owner), and the action controls
+  are separate sibling elements in the same flex row.
+- **`GET /api/jobs`'s literal 3,000-track single-job "Done when" requirement was verified against a
+  real Postgres row, not assumed from the v18 precedent** — seeded directly (`bulk_save_objects`
+  -equivalent, staged at `/app/`, never `/tmp/`) with 2,700 `completed` / 250 `lookup_failed` / 50
+  `waiting`, plus one track ~1,500 rows deep with a unique searchable name. Against the real running
+  dev stack (`docker compose`, real Postgres): the job rendered as one collapsed row; expanding
+  fetched a bounded ≤50-row page in comparable time to a small job, never all 3,000; a Tracks-scope
+  search for the deep unique name returned exactly that one track without ever paginating through the
+  job first, proving the search runs server-side over the full history rather than over whatever
+  happened to already be loaded. All seeded rows deleted afterward; job/track/`downloaded_tracks`
+  counts confirmed identical to their pre-test values.
+- **The real upstream login requirement (CLAUDE.md, v15's testing entry) was satisfied via the
+  *admin* identity, not the non-admin test account** — `.env`'s `DEV_TEST_PASSWORD` turned out (by
+  trial, not by the comment text alone) to belong to `ADMIN_EMAIL`, not the `spotdlwebtest@example.com`
+  account the adjacent comment describes registering; the non-admin identity was verified via the
+  documented direct-session-mint fallback instead. Worth re-confirming which account a
+  `.env` credential comment actually describes before assuming — the two are adjacent in the file but
+  not for the account the placement might suggest.
+- **`POST /api/tracks/{id}/retry` had no awareness of the job-level archive flag at all** — a real
+  gap a *second* independent fresh-context code review caught (the first review round covered the
+  new frontend store logic; this one covered the interaction between v20's new archive UI and the
+  pre-existing `retry_track` endpoint from v10). `archive._ARCHIVABLE_LIFECYCLES` guarantees an
+  archived job is always `settled`/`failed`/`cancelled`, which by construction excludes a `waiting`
+  track — the *only* way a `waiting` track could exist under an archived job at all is `retry_track`
+  itself reviving a `lookup_failed` one, and once revived, the real running `dispatch_due_tracks`
+  (which filters purely on `Track.state`/`scheduled_at`, never on the parent job's `archived_at`)
+  would genuinely dispatch it for a live download — real rate-limit exposure from a job the UI still
+  labels "archived." Fixed at the one place the gate actually needs to live: `retry_track` now 409s
+  with `archived_at is not None` before checking retryability, rather than adding a redundant second
+  check to `dispatch_due_tracks` for a state it can no longer reach. `_get_track_or_404` now returns
+  `archived_at` alongside the existing owner id so this costs no second query. Confirmed against the
+  real running `api` container (a `lookup_failed` track under a freshly-archived job, real session,
+  real `POST .../retry` → `409 {"detail": "Job is archived; unarchive it first"}`), not just the new
+  `test_retry_track_rejects_when_job_is_archived` unit test; probe row and session deleted afterward.
+- **`applyArchiveResult` (the store function reacting to an archive/unarchive) went through six
+  independent review rounds and five distinct bug fixes before it stabilized — worth reading in
+  full, because the shape of the mistake (not just the final fix) is the reusable lesson.** The
+  starting bug was narrow: the single-job archive/unarchive path live-decremented
+  `countsByStatus`/`totalEstimate` using only `p.items.filter(...)`, which silently undercounted
+  whenever `archive.archive_jobs(job_ids=None, older_than=None)` (the "clear log" bulk action,
+  `all_settled: true`) archived more jobs than fit on one loaded page (`DEFAULT_LIMIT = 50`) —
+  confirmed by seeding 60 extra tiny settled jobs (68 total, 64 eligible) and watching the count
+  hint land inflated after a real "clear log" click. The natural-looking fix — detect
+  `removed.length < ids.length` (ids the API touched that this store has no local record of) and
+  fall back to a full `reload()` in that case — is where the real trouble started, because that
+  same signal turned out to fire for a completely different reason too: **the backend publishes a
+  `job.state` SSE event (`archived: true/false`) for *every* job an archive/unarchive call touches,
+  including an ordinary single-job action, not just the bulk one** — so the acting session's own
+  already-open `EventSource` receives an echo of its own action, and whichever of {the direct HTTP
+  response, that echo} arrived *second* always found its id already gone (removed by the first) and
+  misread that as "the API archived more than this page holds," firing a spurious reload for what
+  was really an ordinary single-job click. Two further rounds of trying to *deduplicate* the two
+  signals through one shared function each fixed one race and opened another — a flat 5-second time
+  window suppressed a genuinely new archive/unarchive of the *same* job issued within that window
+  (indistinguishable from "the expected echo of the earlier action"); replacing it with a
+  sighting-counter (claim on the first sighting, consume-and-delete on the second, so a third
+  sighting reads as fresh again) fixed that, but a further round found the counter's own safety-net
+  cleanup timer could still let a stale claim survive long enough to matter under enough manufactured
+  concurrent activity. **The fix that actually held was structural, not a smarter heuristic**: split
+  the one shared function into two genuinely different ones, because "my own direct response" and
+  "an SSE echo of unknown origin" are not the same kind of signal and were never going to be
+  reconciled by deduplicating them as if they were.
+  - `applyOwnArchiveAction` (renamed from `applyArchiveResult`) is called *only* from
+    `archiveJobs`/`unarchiveJobs`'s own awaited response, never from the SSE path — so it is
+    structurally impossible for it to be invoked twice for one real action, and it needs no dedup
+    logic at all. It alone decides "patch precisely" vs. "bulk reload," using the complete,
+    trustworthy id list the API actually returned.
+  - `patchArchivedFlagFromEvent` (new) handles the SSE echo, completely separately, and is
+    deliberately *idempotent by construction* rather than deduplicated: it only ever acts when a
+    currently-loaded row's `archived_at` doesn't already match the event, so calling it any number
+    of times, in any order, converges to the same correct state with no shared timing-sensitive
+    bookkeeping. It never triggers a reload and never needs to guess whether it's looking at a bulk
+    action, because a single echoed id was never the right unit to make that call from in the first
+    place — that ambiguity, not the dedup mechanism's precise shape, was the actual root cause across
+    all five fixes.
+  - One last wrinkle, closed by a `recentlyEchoRemovedArchiveIds` marker set: since the echo can
+    (confirmed via real request-timing measurement, not assumed) arrive and remove a row *before*
+    the direct HTTP response for the very same action resolves, `applyOwnArchiveAction` needs to
+    know "this id is already correctly gone because the echo got here first" so it doesn't
+    misidentify that as an unloaded bulk job and fire a needless reload. This is a one-directional,
+    single-purpose signal (echo → direct-response, for the *same* action only) rather than a
+    symmetric claim both sides write to, which is what kept it from reintroducing the earlier bugs.
+  - Verified against the real running stack, each scenario the earlier rounds' bugs actually
+    manifested in: a single-job archive now fires **0** extra `GET /api/jobs?...` requests; a
+    64-job "clear log" still fires exactly **1** (debounced via `scheduleArchiveReload`, since the
+    backend's per-job publish loop means dozens of individual echoes can each independently reach
+    the client before the slow bulk response does); archive → unarchive → re-archive the same job
+    three times within 3 seconds all genuinely take effect, confirmed via the archived-view toggle
+    each time, not just an optimistic patch. (Network-request counting had its own early false
+    positive worth remembering too: `GET /api/jobs/{id}` single-row refetches share the substring
+    `/api/jobs` with the list endpoint and were briefly miscounted as reloads in the verification
+    script itself, not the app.)

@@ -243,12 +243,22 @@ def job_title_expr(job_source_url_col: ColumnElement, job_id_col: ColumnElement)
     on the caller, and SQLAlchemy's default auto-correlation already finds whichever
     enclosing FROM actually provides them -- pinning it to a specific one here would
     silently turn into an uncorrelated subquery the moment a caller's outer query FROMs
-    the aggregate instead of `Job` directly (caught by test_rollup.py's fixture check)."""
+    the aggregate instead of `Job` directly (caught by test_rollup.py's fixture check).
+
+    `.correlate_except(Track)` *is* needed, though: `track_listing.list_tracks` (v20)
+    selects the raw `Track` entity directly in its own outer FROM to embed each track's
+    parent job title, and auto-correlation matches by FROM-clause identity, not by
+    whether a WHERE clause actually reaches into the outer row -- without this, it saw
+    the same `Track` table in both the outer statement and this subquery and correlated
+    the subquery's own `Track` away entirely, leaving it with zero FROM clauses
+    (`InvalidRequestError: ... returned no FROM clauses due to auto-correlation`, caught
+    by this module's own test running against the real query, not a hypothetical)."""
     first_list_name = (
         select(Track.song_json["list_name"].astext)
         .where(Track.job_id == job_id_col)
         .order_by(Track.created_at.asc())
         .limit(1)
+        .correlate_except(Track)
         .scalar_subquery()
     )
     first_name = (
@@ -256,6 +266,7 @@ def job_title_expr(job_source_url_col: ColumnElement, job_id_col: ColumnElement)
         .where(Track.job_id == job_id_col)
         .order_by(Track.created_at.asc())
         .limit(1)
+        .correlate_except(Track)
         .scalar_subquery()
     )
     return func.coalesce(first_list_name, first_name, job_source_url_col)

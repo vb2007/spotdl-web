@@ -1,7 +1,13 @@
 <script lang="ts">
 	import type { LiveTrack } from '$lib/stores/queue';
 
-	let { tracks }: { tracks: LiveTrack[] } = $props();
+	/** v20: `busy` reflects `GET /api/worker/status`'s global `busy` flag -- since
+	 * `worker-dl` runs `--concurrency=1`, an idle-for-me waterfall during someone else's
+	 * download is completely normal, not a sign anything is stuck. Distinct from
+	 * `tracks.length > 0` (this caller's own active track, which always takes the
+	 * amber-signal treatment per DESIGN.md §2's exclusivity rule) -- busy-elsewhere never
+	 * uses --signal, only a neutral note, since it isn't live *for this session*. */
+	let { tracks, busy = false }: { tracks: LiveTrack[]; busy?: boolean } = $props();
 
 	// A quiet noise floor, not a dead flatline — a real spectrum scope stays alive
 	// (low, uneven, still moving) when nothing is transmitting; "no signal" should
@@ -26,7 +32,11 @@
 					></span>
 				{/each}
 			</div>
-			<span class="label dim">no signal — queue idle</span>
+			{#if busy}
+				<span class="label dim">no signal here — worker busy elsewhere</span>
+			{:else}
+				<span class="label dim">no signal — queue idle</span>
+			{/if}
 		</div>
 	{:else}
 		<ul class="lanes">

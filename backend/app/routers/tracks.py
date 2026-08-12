@@ -18,11 +18,20 @@ _TERMINAL_TRACK_STATES = {TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE, Tr
 _RETRYABLE_TRACK_STATES = {TrackState.WAITING, TrackState.LOOKUP_FAILED}
 
 
-def _get_track_or_404(db: Session, track_id: uuid.UUID, user: User) -> tuple[Track, uuid.UUID]:
-    """Returns the track alongside its job's owner id -- ownership lives on `jobs`, not
-    `tracks` (v2's locked decision: no denormalized copy), so this always joins through
-    `Track.job_id`. A non-admin's foreign track 404s exactly like a nonexistent one."""
-    query = db.query(Track, Job.user_id).join(Job, Track.job_id == Job.id).filter(Track.id == track_id)
+def _get_track_or_404(
+    db: Session, track_id: uuid.UUID, user: User
+) -> tuple[Track, uuid.UUID, datetime | None]:
+    """Returns the track alongside its job's owner id and archived_at -- ownership lives
+    on `jobs`, not `tracks` (v2's locked decision: no denormalized copy), so this always
+    joins through `Track.job_id`. A non-admin's foreign track 404s exactly like a
+    nonexistent one. `archived_at` is returned (not just owner id) so callers that must
+    reject an action on an archived job's track (see `retry_track`) don't need a second
+    query to find out."""
+    query = (
+        db.query(Track, Job.user_id, Job.archived_at)
+        .join(Job, Track.job_id == Job.id)
+        .filter(Track.id == track_id)
+    )
     if not user.is_admin:
         query = query.filter(Job.user_id == user.id)
     row = query.one_or_none()
@@ -81,7 +90,7 @@ def cancel_track(
     """Same semantics as `DELETE /api/jobs/{id}` but for a single track — a track
     already `downloading` finishes but its result is discarded by `download_track`
     once it notices the state changed underneath it."""
-    track, owner_id = _get_track_or_404(db, track_id, user)
+    track, owner_id, _archived_at = _get_track_or_404(db, track_id, user)
     if track.state not in _TERMINAL_TRACK_STATES:
         track.state = TrackState.CANCELLED
         track.scheduled_at = None
@@ -100,8 +109,17 @@ def retry_track(
     respects the global circuit breaker — a manual retry must not be able to defeat the
     pause that exists specifically to stop hammering a rate-limited provider. The
     response's `breaker_held` field tells the caller whether this will dispatch on the
-    next beat tick or is deferred until the breaker clears."""
-    track, owner_id = _get_track_or_404(db, track_id, user)
+    next beat tick or is deferred until the breaker clears.
+
+    Rejects a track whose job is archived — archiving is only ever reachable once a job
+    is `settled`/`failed`/`cancelled` (`archive._ARCHIVABLE_LIFECYCLES`), none of which
+    can have a `waiting`/`lookup_failed` track that got there any way other than *this*
+    endpoint reviving one — so this is the one place that gate actually needs to live to
+    keep "archived means settled, not just hidden" true. An archived job must be
+    unarchived first, exactly like a re-download would need it visible again anyway."""
+    track, owner_id, archived_at = _get_track_or_404(db, track_id, user)
+    if archived_at is not None:
+        raise HTTPException(status_code=409, detail="Job is archived; unarchive it first")
     if track.state not in _RETRYABLE_TRACK_STATES:
         raise HTTPException(
             status_code=409, detail=f"Track is {track.state.value}, not retryable"

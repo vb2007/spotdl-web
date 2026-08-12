@@ -3,13 +3,19 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
-	import { queue } from '$lib/stores/queue';
+	import { queue, groupTracksByJob } from '$lib/stores/queue';
+	import type { Job } from '$lib/api';
+	import type { LiveTrackWithJob } from '$lib/stores/queue';
+	import { worker } from '$lib/stores/worker';
 	import Waterfall from '$lib/components/Waterfall.svelte';
-	import QueueTable from '$lib/components/QueueTable.svelte';
 	import IncomingJobs from '$lib/components/IncomingJobs.svelte';
 	import WorkerStatus from '$lib/components/WorkerStatus.svelte';
+	import QueueControls from '$lib/components/QueueControls.svelte';
+	import JobRow from '$lib/components/JobRow.svelte';
+	import TrackRow from '$lib/components/TrackRow.svelte';
 
-	const { activeTracks, trackList, jobs, incomingJobs } = queue;
+	const { filters, page, incomingJobs, activeTracks } = queue;
+	const { status: workerStatus } = worker;
 
 	let { data } = $props();
 	// Nullable per +layout.ts's type -- in practice never null here, since its `load`
@@ -18,10 +24,16 @@
 	// the same way the template's direct `data.session?.email` access already is.
 	const isAdmin = $derived(data.session?.is_admin ?? false);
 
+	let workerBusy = $derived($workerStatus?.busy ?? false);
+
 	// Admin-only (v17): mine/all-users scope. Off by default even for an admin --
 	// switching it clears the queue store (see queue.setAllUsers) and reconnects the
 	// SSE stream so both REST and live data agree on scope.
 	let allUsersView = $state(false);
+
+	let trackGroups = $derived(
+		$filters.scope === 'tracks' ? groupTracksByJob($page.items as LiveTrackWithJob[]) : []
+	);
 
 	let url = $state('');
 	let submitting = $state(false);
@@ -72,7 +84,7 @@
 			streamRetryDelayMs = 1000;
 			// Per the v08 contract: resync full REST state on every connect/reconnect
 			// rather than trying to replay whatever happened while disconnected.
-			queue.loadAll();
+			queue.reload();
 		};
 		source.onmessage = (event) => {
 			queue.applyEvent(JSON.parse(event.data));
@@ -89,22 +101,22 @@
 	}
 
 	/** Admin-only (v17): both REST and SSE must agree on scope, so switching requires
-	 * clearing the accumulated store (queue.setAllUsers), a fresh REST load, and a fresh
-	 * stream connection carrying the new all_users flag -- the existing connection has
-	 * no way to change what channel it's subscribed to mid-flight. */
-	async function onScopeChange(next: boolean) {
+	 * clearing the accumulated store (queue.setAllUsers, which also reloads the current
+	 * page under the new scope) and reconnecting the stream carrying the new all_users
+	 * flag -- the existing connection has no way to change what channel it's subscribed
+	 * to mid-flight. */
+	async function onAllUsersChange(next: boolean) {
 		if (next === allUsersView) return;
 		allUsersView = next;
-		queue.setAllUsers(next);
 		clearTimeout(streamRetryTimer);
 		streamRetryDelayMs = 1000;
 		source?.close();
-		await queue.loadAll();
+		queue.setAllUsers(next);
 		connectStream();
 	}
 
 	onMount(() => {
-		queue.loadAll();
+		queue.reload();
 		connectStream();
 
 		return () => {
@@ -128,21 +140,11 @@
 			{#if isAdmin}
 				<a class="settings-link mono" href={resolve('/settings')}>settings</a>
 			{/if}
+			<a class="settings-link mono" href={resolve('/account')}>account</a>
 			<span class="mono">{data.session?.email}</span>
 			<button type="button" class="logout" onclick={onLogout}>disconnect</button>
 		</div>
 	</header>
-
-	{#if isAdmin}
-		<div class="scope-toggle" role="group" aria-label="Viewing scope">
-			<button type="button" aria-pressed={!allUsersView} onclick={() => onScopeChange(false)}>
-				mine
-			</button>
-			<button type="button" aria-pressed={allUsersView} onclick={() => onScopeChange(true)}>
-				all users
-			</button>
-		</div>
-	{/if}
 
 	<form class="panel submit" {onsubmit}>
 		<span class="prompt mono" aria-hidden="true">&gt;</span>
@@ -162,8 +164,64 @@
 
 	<IncomingJobs jobs={$incomingJobs} />
 
-	<Waterfall tracks={$activeTracks} />
-	<QueueTable tracks={$trackList} jobs={$jobs} />
+	<Waterfall tracks={$activeTracks} busy={workerBusy} />
+
+	<QueueControls
+		{isAdmin}
+		allUsers={allUsersView}
+		{onAllUsersChange}
+		countsByStatus={$page.countsByStatus}
+	/>
+
+	{#if $filters.scope === 'jobs' && $page.totalEstimate > 0}
+		<p class="count-hint mono dim">
+			{$page.items.length} of {$page.totalEstimate >= 1000 ? '1000+' : $page.totalEstimate}
+		</p>
+	{/if}
+
+	{#if $page.loading}
+		<p class="hint mono">Loading…</p>
+	{:else if $page.error}
+		<p class="hint fail mono" role="alert">{$page.error}</p>
+	{:else if $page.items.length === 0}
+		<p class="hint mono">Nothing here.</p>
+	{:else if $filters.scope === 'jobs'}
+		<ul class="job-list panel">
+			{#each $page.items as item (item.id)}
+				<JobRow job={item as Job} allUsers={allUsersView} />
+			{/each}
+		</ul>
+	{:else}
+		<ul class="job-list panel">
+			{#each trackGroups as group (group.job.id)}
+				<li class="track-group">
+					<div class="group-header">
+						<span class="title">{group.job.title}</span>
+						<span class="source-type mono">{group.job.source_type}</span>
+						{#if allUsersView}
+							<span class="owner mono">{group.job.owner_email}</span>
+						{/if}
+					</div>
+					<ul class="rows">
+						{#each group.tracks as track (track.id)}
+							<TrackRow {track} jobId={group.job.id} />
+						{/each}
+					</ul>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+
+	{#if $page.nextCursor}
+		<button
+			type="button"
+			class="load-more panel"
+			disabled={$page.loadingMore}
+			onclick={() => queue.loadMore()}
+		>
+			{$page.loadingMore ? 'loading…' : 'load more'}
+		</button>
+	{/if}
 </main>
 
 <style>
@@ -190,36 +248,6 @@
 		gap: var(--space-1);
 	}
 
-	/* Same role=group + aria-pressed toggle-tab pattern as QueueTable.svelte's state
-	   filters (DESIGN.md §6) -- but the pressed state maps to --line-bright, not
-	   --signal: this switches a view scope, not a live/active condition, and DESIGN.md
-	   §2 reserves amber exclusively for the latter. */
-	.scope-toggle {
-		display: flex;
-		gap: var(--space-2);
-	}
-
-	.scope-toggle button {
-		background: var(--bg-2);
-		border: 1px solid var(--line);
-		border-radius: 4px;
-		padding: var(--space-1) var(--space-3);
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		color: var(--text-muted);
-		cursor: pointer;
-	}
-
-	.scope-toggle button[aria-pressed='true'] {
-		border-color: var(--line-bright);
-		color: var(--text-primary);
-	}
-
-	.scope-toggle button:hover:not([aria-pressed='true']),
-	.scope-toggle button:focus-visible {
-		border-color: var(--waiting-dim);
-	}
-
 	.ident .dim {
 		color: var(--text-dim);
 	}
@@ -227,6 +255,7 @@
 	.session {
 		display: flex;
 		align-items: center;
+		flex-wrap: wrap;
 		gap: var(--space-3);
 		font-size: 0.8125rem;
 		color: var(--text-muted);
@@ -307,5 +336,94 @@
 		margin-top: calc(var(--space-4) * -1);
 		color: var(--fail);
 		font-size: 0.8125rem;
+	}
+
+	.count-hint {
+		margin: calc(var(--space-3) * -1) 0 0;
+		color: var(--text-dim);
+		font-size: 0.75rem;
+	}
+
+	.hint {
+		margin: 0;
+		padding: var(--space-5) 0;
+		text-align: center;
+		color: var(--text-dim);
+	}
+
+	.hint.fail {
+		color: var(--fail);
+	}
+
+	.job-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.track-group {
+		border-bottom: 1px solid var(--line);
+	}
+
+	.track-group:last-child {
+		border-bottom: none;
+	}
+
+	.group-header {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-3) var(--space-4);
+		background: var(--bg-2);
+	}
+
+	.group-header .title {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-weight: 500;
+		flex: 1;
+	}
+
+	.group-header .source-type {
+		flex-shrink: 0;
+		color: var(--text-dim);
+		font-size: 0.6875rem;
+		text-transform: uppercase;
+	}
+
+	.group-header .owner {
+		flex-shrink: 0;
+		color: var(--text-muted);
+		font-size: 0.75rem;
+	}
+
+	.rows {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.load-more {
+		background: var(--bg-1);
+		border: 1px solid var(--line);
+		padding: var(--space-3);
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		cursor: pointer;
+		text-align: center;
+	}
+
+	.load-more:hover:not(:disabled),
+	.load-more:focus-visible {
+		border-color: var(--signal-dim);
+		color: var(--text-primary);
+	}
+
+	.load-more:disabled {
+		opacity: 0.6;
+		cursor: default;
 	}
 </style>

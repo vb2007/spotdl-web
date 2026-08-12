@@ -108,6 +108,21 @@ def test_job_tracks_endpoint_pagination_and_sort(authenticated_client, db_sessio
     assert page2["next_cursor"] is None
 
 
+def test_track_listing_embeds_derived_job_title(authenticated_client, db_session, owner):
+    """v20 needs a real display name for the job a matching track belongs to (the
+    Tracks-scope "matching jobs auto-expand" view) without a per-job follow-up request --
+    same `rollup.job_title_expr` the job listing itself uses, just selected alongside
+    each track row instead of aggregated per job."""
+    job = _make_job(db_session, owner)
+    _add_track(db_session, job, name="First Song")
+    _add_track(db_session, job, name="Second Song")
+
+    response = authenticated_client.get("/api/tracks")
+    items = response.json()["items"]
+    assert len(items) == 2
+    assert {i["job"]["title"] for i in items} == {"First Song"}
+
+
 def test_non_admin_all_users_flag_ignored_on_tracks_endpoint(client, db_session, make_user, session_cookie):
     owner = make_user("owner@example.com")
     other = make_user("other@example.com")
