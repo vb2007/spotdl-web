@@ -39,6 +39,16 @@ fi
 # plain postgresql:// URI it can actually parse.
 PG_URL="${DATABASE_URL/postgresql+psycopg:/postgresql:}"
 
+# v21: this script runs directly ON the host (never inside a container — see the header
+# comment), but DATABASE_URL is written for the *containers* (docker-compose.yml's
+# extra_hosts: host.docker.internal:host-gateway resolves it for them). That hostname is
+# NOT resolvable from the host's own DNS on Linux — Docker only wires it up inside
+# containers, unlike Docker Desktop on macOS/Windows, which also maps it on the host.
+# Confirmed the hard way: pg_dump failed with "could not translate host name
+# host.docker.internal" running this script for real on the production host before this
+# fix. Since Postgres is host-native (locked decision), the host reaches it as `localhost`.
+PG_URL="${PG_URL/host.docker.internal/localhost}"
+
 mkdir -p "$BACKUP_DIR"
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 DUMP_FILE="$BACKUP_DIR/spotdl_web_${TIMESTAMP}.dump"
