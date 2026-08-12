@@ -19,11 +19,6 @@ name: Release
     workflows: ["CI"]
     types: [completed]
   workflow_dispatch:
-  # TEMPORARY, removed before merge: same reasoning as publish-deploy.yml's temporary push
-  # trigger -- workflow_dispatch can't be invoked via API/CLI until this file exists on the
-  # default branch.
-  push:
-    branches: [dev-release-automation]
 
 # Never two releases racing each other -- a release run must fully finish (tag pushed, assets
 # uploaded) before the next one starts, so publish-deploy.yml never sees a half-finished release.
@@ -41,10 +36,8 @@ jobs:
     # push to main -- CI also runs on every PR and on manual dispatch, neither of which should
     # ever cut a release. workflow_dispatch on this workflow itself always proceeds (there is
     # no upstream CI run to check in that case).
-    # TEMPORARY `|| github.event_name == 'push'` clause, removed with the push trigger above
-    # before merge.
     if: >-
-      github.event_name == 'workflow_dispatch' || github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' &&
        github.event.workflow_run.head_branch == 'main')
@@ -53,12 +46,10 @@ jobs:
       # necessarily the commit that triggered the upstream CI run (see GitHub's workflow_run
       # docs) -- check out the exact commit CI just tested instead of trusting the default ref.
       # workflow_dispatch has no such upstream commit, so it explicitly targets `main`.
-      # TEMPORARY `github.event_name == 'push' && github.ref_name` branch, removed with the
-      # push trigger above before merge.
       - name: Checkout the exact commit CI tested
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.event_name == 'push' && github.ref_name || github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
       - name: Resolve version
@@ -106,7 +97,7 @@ jobs:
             --title "${{ steps.version.outputs.tag }}" \
             --generate-notes \
             --latest \
-            --target "${{ github.event_name == 'workflow_dispatch' && 'main' || github.event_name == 'push' && github.ref_name || github.event.workflow_run.head_sha }}" \
+            --target "${{ github.event_name == 'workflow_dispatch' && 'main' || github.event.workflow_run.head_sha }}" \
             "$BUNDLE_PATH" \
             "requirements-${{ steps.version.outputs.version }}.txt"
 

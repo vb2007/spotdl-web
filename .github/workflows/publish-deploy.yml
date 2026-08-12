@@ -22,12 +22,6 @@ name: Publish & Deploy
         description: "Branch, tag, or commit SHA to build and deploy"
         required: true
         default: "main"
-  # TEMPORARY, removed before merge: workflow_dispatch can't be invoked via API/CLI until a
-  # workflow file exists on the default branch, so this push trigger is the only way to
-  # exercise the real chain from a feature branch pre-merge. See docs/RELEASE_PIPELINE.md's
-  # verification notes.
-  push:
-    branches: [dev-release-automation]
 
 # Never two deploys racing each other against the one production host / one runner.
 concurrency:
@@ -47,9 +41,7 @@ jobs:
   # have to branch on github.event_name themselves.
   resolve:
     runs-on: self-hosted
-    # TEMPORARY `|| github.event_name == 'push'` clause, removed with the push trigger above
-    # before merge -- treated identically to workflow_dispatch below.
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     outputs:
       commit: ${{ steps.info.outputs.commit }}
       version: ${{ steps.info.outputs.version }}
@@ -64,8 +56,6 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "ref=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            echo "ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           else
             TAG="$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)"
             echo "ref=$TAG" >> "$GITHUB_OUTPUT"
@@ -89,16 +79,7 @@ jobs:
         run: |
           COMMIT="$(git rev-parse HEAD)"
           echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
-          # TEMPORARY: push now simulates RELEASE mode against the real v2.21.0 release, to
-          # verify the persist=true path (latest tag, images.json, skip logic) pre-merge.
-          # Removed with the push trigger above before merge.
-          if [ "${{ github.event_name }}" = "push" ]; then
-            VERSION="$(python3 .github/scripts/check_version.py)"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-            echo "image_tags=$VERSION,latest" >> "$GITHUB_OUTPUT"
-            echo "persist=true" >> "$GITHUB_OUTPUT"
-            echo "release_tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="manual-$(git rev-parse --short HEAD)"
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
             echo "image_tags=$VERSION" >> "$GITHUB_OUTPUT"
