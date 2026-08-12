@@ -238,8 +238,12 @@ jobs:
         run: |
           cd "$DEPLOY_DIR"
           git fetch origin --tags --prune
-          git checkout --detach "${{ needs.resolve.outputs.commit }}"
-          git reset --hard
+          # --force: discards any local drift on TRACKED files (e.g. a hand-edited script) so
+          # the checkout always lands exactly on the resolved commit rather than aborting with
+          # "local changes would be overwritten" -- found by a real hand-edited file blocking
+          # this exact step during v21's own verification.
+          git checkout --detach --force "${{ needs.resolve.outputs.commit }}"
+          git reset --hard "${{ needs.resolve.outputs.commit }}"
           # NOT -fdx: .env and proxies.txt are gitignored -- -x would delete the host's real
           # secrets and proxy pool along with any stray build artifacts.
           git clean -fd
