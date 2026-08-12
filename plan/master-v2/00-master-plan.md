@@ -136,6 +136,14 @@ never two in parallel.
 | **v20** | `dev-job-centric-ui` | The frontend rework: job rows expanding to tracks, job/track scope toggle, search box, sortable columns, state filter with live counts, archive view, per-user settings page |
 | **v21** | `dev-multi-user-hardening` | Real two-user verification on the live stack (data separation treated as a security property, not a feature), migration on the real host, `docs/` + `CLAUDE.md` reconciliation |
 
+> **2026-08-12 addendum:** this table is kept verbatim per this file's own policy above, but the
+> roadmap it describes has since changed — `dev-release-automation` was inserted as the new **v21**
+> (release/deploy automation, needed regardless of what ships next), and `dev-multi-user-hardening`
+> above shifted to **v22**. `CLAUDE.md`'s roadmap table is the current source of truth;
+> `plan/master-v2/v21-release-automation.md` and `plan/master-v2/v22-multi-user-hardening.md` are
+> the real per-version plans. Left here as a correction, not a silent edit, matching how
+> `docs/GOTCHAS.md` handles a stale claim.
+
 ### Why this order
 
 Schema (v16) before enforcement (v17) mirrors v1's successful v02→v03 split and keeps each PR

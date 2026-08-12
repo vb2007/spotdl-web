@@ -1,12 +1,17 @@
 # Deploying spotdl-web to the Debian 12 host
 
 Target host: **192.168.100.200** (Debian 12 "bookworm"), reachable on the local network.
-This host already has a working deployment from earlier versions (repo cloned to
-`/opt/spotdl-web`, compose stack previously brought up for testing) — **the primary path
-below is "Upgrading an existing deployment to v12,"** not a fresh install. The one-time
-host setup section further down is kept for reference (a from-scratch host, or
-troubleshooting something that looks like it was never done) but does **not** need to be
-re-run on this host.
+The real deploy checkout lives at **`/mnt/raid1/spotdl-web`** — this diverges from earlier
+versions of this doc, which described `/opt/spotdl-web`; corrected here rather than moved,
+since moving a live deploy directory isn't worth the churn. Likewise `DOWNLOADS_DIR` on this
+host is `/home/vb2007/spotdl`, not the `/srv/spotdl-web/downloads` this doc originally
+suggested — the two paths below don't have to match yours if you're setting up a *new* host,
+they're documented here as ground truth for *this* one.
+
+**As of v21, deployment is automated** — see [Automated deployment](#automated-deployment-v21)
+below, the primary path now. The manual steps further down (originally "Upgrading an existing
+deployment to v12") remain as the fallback for when the pipeline itself needs debugging, or
+for a genuinely fresh host.
 
 Ports are intentionally **not** exposed beyond the host's loopback interface (see
 [Firewall / network notes](#firewall--network-notes)) — the locked decision is Cloudflare
@@ -18,12 +23,55 @@ otherwise.
 
 ---
 
-## Upgrading an existing deployment to v12
+## Automated deployment (v21+)
+
+Every merge into `main` (that bumped the version — see `CLAUDE.md`'s versioning rule) flows
+through three chained GitHub Actions workflows, running on the self-hosted runner on this same
+host: **CI → Release → Publish & Deploy**. The last of those pulls the freshly-published
+`ghcr.io/vb2007/spotdl-web-backend`/`-frontend` images onto `/mnt/raid1/spotdl-web` and
+restarts the stack, with a pre-migration `pg_backup.sh` run and automatic rollback if the new
+stack doesn't come up healthy. Full pipeline detail, GHCR package layout, idempotency, and
+every manual-recovery lever live in **`docs/RELEASE_PIPELINE.md`** — this doc doesn't duplicate
+that, only what's specific to this host.
+
+**Deploying a branch before merging its PR:** the "Publish & Deploy" workflow also accepts
+`workflow_dispatch`, so you don't have to merge first to try something on the real host:
+
+```bash
+gh workflow run "Publish & Deploy" --repo vb2007/spotdl-web -f ref=<branch-or-tag-or-sha>
+```
+
+This builds a throwaway `manual-<short-sha>` image (never `:latest`, so a plain
+`docker compose pull` never picks it up by accident) and deploys it immediately — always, with
+no skip/idempotency checks, since it's an explicit on-demand request. The *next* real
+release-driven deploy always supersedes it.
+
+**Manual fallback**, if the pipeline itself is broken and you need to get a specific known-good
+version running directly:
+
+```bash
+cd /mnt/raid1/spotdl-web
+git fetch origin --tags
+git checkout --detach v2.21.0   # or whatever tag/commit you need
+sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=2.21.0/' .env   # match the tag, no leading "v"
+./scripts/pg_backup.sh
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+```
+
+If GHCR itself is unreachable, build from source instead of pulling — see the manual
+local-build steps in
+[Upgrading an existing deployment](#upgrading-an-existing-deployment-manual-fallback) below.
+
+---
+
+## Upgrading an existing deployment (manual fallback)
 
 ### 1. Pull the merged code
 
 ```bash
-cd /opt/spotdl-web
+cd /mnt/raid1/spotdl-web
 git pull origin main
 ```
 
@@ -34,7 +82,7 @@ Diff your existing `.env` against `.env.example` and add whatever's new for v12:
 | Key | What to set it to |
 |---|---|
 | `FRONTEND_ORIGINS` | `https://spotdl.vb2007.hu` (see §4 below — same-origin in prod, but still worth setting correctly as the fallback allowlist) |
-| `DOWNLOADS_DIR` | A real host path, e.g. `/srv/spotdl-web/downloads` — read only by `docker-compose.prod.yml`, see §3 |
+| `DOWNLOADS_DIR` | A real host path, e.g. `/home/vb2007/spotdl` (this host's actual value) — read only by `docker-compose.prod.yml`, see §3 |
 | `STALE_TRACK_AFTER_SECONDS` | Leave at the `.env.example` default (`1800`) for real production use — see §7's restart-survival test for why you might *temporarily* lower it during verification |
 
 **No longer needed:** a `frontend/.env` file, and a manual `alembic upgrade head` step —
@@ -57,16 +105,16 @@ re-fetching everything.
 # name is derived from the compose project (normally the directory name, "spotdl-web").
 docker volume ls | grep downloads
 
-sudo mkdir -p /srv/spotdl-web/downloads
+sudo mkdir -p /home/vb2007/spotdl   # or wherever you're pointing DOWNLOADS_DIR
 docker run --rm \
   -v spotdl-web_downloads:/from \
-  -v /srv/spotdl-web/downloads:/to \
+  -v /home/vb2007/spotdl:/to \
   alpine sh -c 'cp -a /from/. /to/ && echo "copied $(ls /to | wc -l) entries"'
 
 # Non-root containers (v12) run as uid/gid 1000 by default (backend/Dockerfile's
 # APP_UID/APP_GID build args) -- chown to match, or worker-dl/worker-meta will get
 # permission-denied writing new downloads.
-sudo chown -R 1000:1000 /srv/spotdl-web/downloads
+sudo chown -R 1000:1000 /home/vb2007/spotdl
 ```
 
 If your deploy user ended up with a different uid than 1000 and you'd rather match that
@@ -76,7 +124,7 @@ APP_GID=<gid>` instead — see step 4's build command.
 ### 4. Bring up the stack with the production overlay
 
 ```bash
-cd /opt/spotdl-web
+cd /mnt/raid1/spotdl-web
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --build
 ```
 
@@ -160,7 +208,7 @@ prerendered `login.html` file) — worth confirming explicitly, not assuming.
   ```bash
   crontab -e
   # add:
-  0 3 * * * /opt/spotdl-web/scripts/pg_backup.sh >> /var/log/spotdl-web-pg-backup.log 2>&1
+  0 3 * * * /mnt/raid1/spotdl-web/scripts/pg_backup.sh >> /home/vb2007/spotdl-web-pg-backup.log 2>&1
   ```
 - **`cloudflared` image**: deliberately left on a floating tag (see its comment in
   `docker-compose.yml`) since Cloudflare periodically deprecates old client versions.
@@ -169,14 +217,46 @@ prerendered `login.html` file) — worth confirming explicitly, not assuming.
   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull cloudflared
   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d cloudflared
   ```
-- **Disk/image pruning**: every deploy rebuilds the backend/frontend images, and dangling
-  layers accumulate on a host that's never rebooted for weeks. Worth a periodic (e.g.
-  weekly cron) check:
+- **Disk/image pruning**: `.github/workflows/publish-deploy.yml`'s `deploy` job already runs
+  `docker image prune -f` / `docker builder prune -f --keep-storage 5GB` after every successful
+  automated deploy (v21) — the periodic manual check below is now a belt-and-suspenders
+  fallback, not the only thing keeping this in check:
   ```bash
   docker system df
   docker image prune -f
   docker builder prune -f --keep-storage 5GB
   ```
+
+---
+
+## Rollback / recovery (v21)
+
+The automated pipeline (`.github/workflows/publish-deploy.yml`) already rolls back on its own
+when a fresh deploy fails its health gate — see `docs/RELEASE_PIPELINE.md` for exactly what that
+covers (code/image rollback only, never an Alembic downgrade). This section is for recovering
+**by hand**, when the workflow itself can't run or its own rollback didn't fully resolve things.
+
+**Roll back to a known-good version manually:**
+```bash
+cd /mnt/raid1/spotdl-web
+git fetch origin --tags
+git checkout --detach v<previous-good-version>
+sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=<previous-good-version>/" .env   # no leading "v"
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+```
+
+**A migration itself needs undoing** (rare — Alembic downgrades are never run automatically, by
+design): restore the pre-deploy `pg_dump` instead of attempting `alembic downgrade`, following
+the [Backups](#backups) restore procedure below, but against the real database this time (stop
+the stack first: `docker compose -f docker-compose.yml -f docker-compose.prod.yml down`, restore,
+then bring it back up on the rolled-back code from the step above).
+
+**The very first automated deploy fails** (no `PREV_TAG` to roll back to — the workflow will say
+so explicitly and exit non-zero rather than guessing): fix the underlying cause and re-run the
+workflow, or fall back to [Upgrading an existing deployment](#upgrading-an-existing-deployment-manual-fallback)
+to bring the stack up manually while you investigate.
 
 ---
 
@@ -257,10 +337,12 @@ sudo usermod -aG docker "$USER"   # newgrp docker, or log out/in
 ### 5. Clone the repo
 
 ```bash
-sudo mkdir -p /opt/spotdl-web
-sudo chown "$USER" /opt/spotdl-web
-git clone https://github.com/vb2007/spotdl-web.git /opt/spotdl-web
-cd /opt/spotdl-web
+# This host actually ended up at /mnt/raid1/spotdl-web (a RAID array, not /opt) --
+# pick whatever real path makes sense for your host; /opt is only this doc's example.
+sudo mkdir -p /mnt/raid1/spotdl-web
+sudo chown "$USER" /mnt/raid1/spotdl-web
+git clone https://github.com/vb2007/spotdl-web.git /mnt/raid1/spotdl-web
+cd /mnt/raid1/spotdl-web
 ```
 
 ### 6. Configure `.env`
@@ -312,12 +394,25 @@ Same command as the "Upgrading" section's step 4 — see there.
 ## Backups
 
 `scripts/pg_backup.sh` is a plain host script (Postgres isn't dockerized, so this isn't a
-compose service) — `pg_dump -Fc` (custom format, restorable with `pg_restore`) into
-`DOWNLOADS_DIR`'s sibling backup directory (default `/srv/spotdl-web/backups`, override
-via `SPOTDL_WEB_BACKUP_DIR`), pruning anything older than `SPOTDL_WEB_BACKUP_RETENTION_DAYS`
-(default 14). It reads `DATABASE_URL` straight out of this repo's own `.env` so backup
-credentials never drift out of sync with the real ones. Install it via the cron line in
-[Ongoing maintenance](#ongoing-maintenance) above.
+compose service). What it actually does, step by step:
+
+1. Reads `DATABASE_URL` straight out of this repo's own `.env` via `grep`/`cut` (deliberately
+   not `source`-ing the file — the real password contains shell-hostile characters like `!`),
+   so backup credentials never drift out of sync with the real ones.
+2. Strips SQLAlchemy's `+psycopg` driver suffix, since `pg_dump` doesn't understand it.
+3. Runs `pg_dump -Fc --no-owner` — **custom format**, compressed and restorable with
+   `pg_restore` (including `--clean` for a from-scratch overwrite), not a plain-SQL dump you'd
+   have to pipe into `psql` by hand.
+4. Writes to `$SPOTDL_WEB_BACKUP_DIR/spotdl_web_<UTC-timestamp>.dump` — default
+   `/srv/spotdl-web/backups` (this is a fixed default, **not** derived from `DOWNLOADS_DIR`,
+   despite the two happening to share a `/srv/spotdl-web` parent in this doc's original
+   greenfield example).
+5. Prunes any `.dump` file older than `SPOTDL_WEB_BACKUP_RETENTION_DAYS` (default 14) — a daily
+   cron therefore keeps roughly the last 14 dumps.
+
+v21's `publish-deploy.yml` also runs this script automatically before every real deploy, right
+before `alembic upgrade head` can touch the schema — on top of the daily cron below, not instead
+of it. Install the cron once via the line in [Ongoing maintenance](#ongoing-maintenance) above.
 
 **Restore verification — do this at least once, don't just trust that the script "should"
 work:**
@@ -349,6 +444,22 @@ docker rm -f pg-restore-check
 This exact sequence (against the real dev/shared database, not a fixture) was run once
 during v12 development: all 7 tables reconstructed, row counts matched the real data
 (73 jobs / 138 tracks / 87 downloaded_tracks at the time) exactly.
+
+**Restoring for real** (not into a scratch container — this replaces the live database, so stop
+the stack first):
+
+```bash
+cd /mnt/raid1/spotdl-web
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+LATEST=$(ls -t /srv/spotdl-web/backups/*.dump | head -1)   # or a specific older dump
+pg_restore --no-owner --clean --if-exists \
+  --dbname="$(grep -E '^DATABASE_URL=' .env | cut -d= -f2- | sed 's/postgresql+psycopg:/postgresql:/')" \
+  "$LATEST"
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build
+```
+
+This is also the recovery path if a deploy's Alembic migration needs undoing — see
+[Rollback / recovery](#rollback--recovery-v21) above; migrations are never auto-downgraded.
 
 ---
 

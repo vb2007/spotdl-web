@@ -1,4 +1,4 @@
-# v21 — Multi-User Hardening & Real-Stack Verification
+# v22 — Multi-User Hardening & Real-Stack Verification
 
 Branch: `dev-multi-user-hardening` → PR into `main`
 
@@ -36,7 +36,7 @@ So this version's tests are written to **try to break separation**, not to demon
 3. **Real second user.** Add the second account's email to `ALLOWED_EMAILS` on the host, confirm
    `users` row creation on first login, and that they are not admin.
 4. **Doc reconciliation** — everything v14–v20 invalidated:
-   - `CLAUDE.md`: v14–v21 gotchas sections; correct any v1 claim the audit found false (v12's
+   - `CLAUDE.md`: v14–v22 gotchas sections; correct any v1 claim the audit found false (v12's
      correction of v09's nginx note is the precedent for how to word these).
    - `docs/DEPLOYMENT.md`: `ADMIN_EMAIL`, the second user, the migration step.
    - `docs/LOCAL_DEV.md`: seeding a second local user for multi-user testing.
@@ -83,6 +83,6 @@ access so existence isn't confirmed:
 - Both real users can log in on the deployed instance, each sees only their own queue, and the
   admin's all-users toggle works there (not only locally).
 - Every doc in task 4 is updated; no doc still describes spotdl-web as single-user.
-- A final read-through of `plan/master-v2/` confirms every "Done when" bullet across v14–v21 was
+- A final read-through of `plan/master-v2/` confirms every "Done when" bullet across v14–v22 was
   actually checked with its own evidence — the same closing pass v13 did for master v1, and the
   reason two real gaps were caught there rather than shipped.

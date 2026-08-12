@@ -78,6 +78,12 @@ needed" claim — rather than silently deleted.
   tasks → *v12*
 - Arch local dev: a pending kernel update breaks all container networking (not project-specific)
   → *v01*
+- `image:`/`build: !reset null` must repeat on every service inheriting `build:` from a shared
+  anchor — a bare `image:` alongside an *inherited* `build:` still builds locally → *v21*
+- `git clean -fd`, never `-fdx`, in an automated deploy — `-x` deletes gitignored `.env`/secrets
+  along with build junk → *v21*
+- Documented deploy-host paths drift from reality; verify against the real host before wiring an
+  automated workflow that acts on them → *v21*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -284,6 +290,15 @@ needed" claim — rather than silently deleted.
   step → *v12*
 - Extend the existing workflow file; don't add a second one (`docs/CI_SELF_HOSTED_RUNNER.md` said
   so, and v12 ignored it and had to undo it) → *v12*
+- A release created with the default `GITHUB_TOKEN` doesn't trigger other workflows (GitHub's own
+  loop prevention) — chain via `workflow_run` instead of a downstream `release:`/`push` trigger
+  → *v21*
+- A `deploy` job polling another workflow's conclusion deadlocks against a single shared
+  self-hosted runner — chain from the upstream workflow instead of polling → *v21*
+- `workflow_run`'s own `github.sha`/`github.ref` are the default branch's current head, not the
+  triggering commit — resolve the real commit explicitly (e.g. from the release tag) → *v21*
+- `repos/.../actions/permissions/workflow`'s `default_workflow_permissions` caps what any
+  workflow's own `permissions:` block can grant, independent of that block → *v21*
 
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
@@ -2317,3 +2332,73 @@ controls, and the `/account` route)
     positive worth remembering too: `GET /api/jobs/{id}` single-row refetches share the substring
     `/api/jobs` with the list endpoint and were briefly miscounted as reloads in the verification
     script itself, not the app.)
+
+### v21 release-automation gotchas (learned building GitHub releases, GHCR image publishing, and
+automated deploy-to-host)
+
+- **A release/tag created with the default `GITHUB_TOKEN` does not trigger other workflows** —
+  this is GitHub's own loop-prevention rule, not a bug or a permissions gap. It means
+  `release: [published]` cannot drive `publish-deploy.yml` without adding a personal access token
+  as a repo secret. Chaining via `workflow_run` (release.yml → publish-deploy.yml) sidesteps this
+  entirely with no PAT anywhere in the pipeline — confirmed by reading GitHub's own events
+  documentation before designing around it, not discovered the expensive way via a silently
+  non-firing workflow.
+- **A `deploy` job that polls `ci.yml`'s conclusion would deadlock against a single self-hosted
+  runner** — this repo has exactly one runner (`vbServer`) shared across every workflow. A job
+  holding that runner's only slot while waiting on another workflow that needs the same runner to
+  even start is a real deadlock, not a theoretical one. The fix is structural, not a timeout:
+  chain `release.yml` off `ci.yml` via `workflow_run` (so "CI passed" is a precondition for the
+  job even being scheduled, never something a running job waits on), and `publish-deploy.yml` off
+  `release.yml` the same way.
+- **`workflow_run`'s own `github.sha`/`github.ref` are the default branch's current head, not
+  necessarily the commit that triggered the upstream run** — verified against GitHub's events
+  reference before relying on it. `release.yml` explicitly checks out
+  `github.event.workflow_run.head_sha`; `publish-deploy.yml` resolves everything from the
+  release's own tag (`gh release view --json tagName`) and the exact commit SHA that tag points
+  to, never the ambient event context.
+- **`docker checkout --detach <branch-name>` cannot reliably resolve a bare branch name to
+  `origin/<branch-name>` the way plain `git checkout <branch-name>` DWIMs it** — `--detach`
+  disables that convenience lookup. `publish-deploy.yml`'s `resolve` job therefore always resolves
+  to a concrete commit SHA (via a real `actions/checkout` at the human-readable ref, then
+  `git rev-parse HEAD`) before the `deploy` job ever runs `git checkout --detach`, so the target is
+  always unambiguous regardless of whether the input was a branch, a tag, or a SHA already.
+- **`git clean -fd`, never `-fdx`, in the deploy job** — `.env` and `proxies.txt` are gitignored on
+  purpose (they hold real secrets and the real proxy pool), which is exactly what `-x` also
+  removes. `-fd` alone leaves ignored files untouched while still clearing any stray untracked
+  build artifact.
+- **`docker-compose.prod.yml`'s `image:`/`build: !reset null` pair has to be repeated on every
+  service that needs it, not set once** — `build: ./backend` arrives at `migrate`/`api`/
+  `worker-dl`/`worker-meta`/`beat` via the base file's `x-backend` YAML anchor (`<<: *backend`),
+  so a bare `image:` on one of these services alongside the *inherited* `build:` still builds
+  locally and ignores the pulled tag (Compose prefers `build` when both keys are present after
+  merge). Each service needs its own `build: !reset null` to actually remove the anchor's value.
+  Confirmed with `docker compose config` rendering every service's resolved `build` as `null` and
+  `image` as the GHCR ref, not just eyeballing the YAML.
+- **The OCI `org.opencontainers.image.source` label is what links a GHCR package to its GitHub
+  repo** — without it, a pushed package shows up as an orphaned, unlinked entry under the
+  publishing account's Packages tab rather than appearing on the repo's own sidebar. Set at build
+  time (`docker build --label org.opencontainers.image.source=https://github.com/<repo> ...`),
+  not something fixable after the fact except through GHCR's manual "Connect repository" UI.
+- **`default_workflow_permissions: read` at the repo level silently caps what any workflow's own
+  `permissions:` block can grant** — found via `gh api repos/.../actions/permissions/workflow`
+  before the first real run, not after a mysterious 403. A workflow declaring
+  `permissions: { contents: write, packages: write }` still needs the repo-level setting raised to
+  "Read and write permissions" first (Settings → Actions → General); the per-workflow block is a
+  ceiling *within* that repo setting, not independent of it.
+- **The documented deploy host paths had drifted from reality** — `docs/DEPLOYMENT.md` and
+  `docs/CI_SELF_HOSTED_RUNNER.md` described `/opt/spotdl-web` and a dedicated `github-runner` OS
+  user; the real host has the deploy checkout at `/mnt/raid1/spotdl-web` and the runner at
+  `/home/vb2007/gh-actionrunners/spotdl-web` running as `vb2007` (the same user that owns the
+  deploy checkout, already in the `docker` group). Found only by actually SSHing in and checking —
+  never assume a runbook still matches the host without verifying against it first, especially
+  before wiring a workflow that will `git reset --hard`/`docker compose up -d` for real.
+- **The host's `.env` was missing `ADMIN_EMAIL`** — mandatory since v17 (every backend container
+  crash-loops at boot without it). Would have made the very first automated deploy fail on
+  something unrelated to the pipeline itself; caught and fixed in this slice's host pre-flight
+  before the pipeline ever ran for real, rather than discovered as a confusing first-deploy
+  failure.
+- **`docker manifest inspect` against a private GHCR image, unauthenticated, fails the same way as
+  "image doesn't exist yet"** — used deliberately as the already-published check in the `publish`
+  job: it doesn't need to distinguish "not published" from "published but I can't see it," since
+  both cases correctly mean "build and push."
+

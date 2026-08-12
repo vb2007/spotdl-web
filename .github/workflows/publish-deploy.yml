@@ -1,0 +1,284 @@
+name: Publish & Deploy
+
+# Second/third hop of the v21 release pipeline (see docs/RELEASE_PIPELINE.md for the full
+# chain and rationale) — builds + pushes both container images to GHCR, then pulls them onto
+# the production host and restarts the stack.
+#
+# Two independent ways in:
+#   - `workflow_run` on release.yml ("Release") completing — the normal, merge-driven path.
+#     Builds `:$VERSION` + `:latest` and persists as the host's new baseline IMAGE_TAG.
+#   - `workflow_dispatch` — deploy any branch/tag/commit manually, e.g. to try a branch on the
+#     real host before its PR is even merged. Builds a throwaway `manual-<short-sha>` tag
+#     (never `latest`, so it can never become what a plain `docker compose pull` gets by
+#     default) and always builds + deploys fresh — none of the skip/idempotency logic below
+#     applies to it, since every dispatch is an explicit, on-demand request.
+"on":
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or commit SHA to build and deploy"
+        required: true
+        default: "main"
+
+# Never two deploys racing each other against the one production host / one runner.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  BACKEND_IMAGE: ghcr.io/vb2007/spotdl-web-backend
+  FRONTEND_IMAGE: ghcr.io/vb2007/spotdl-web-frontend
+
+jobs:
+  # Picks the mode and computes everything the later jobs need, so `publish`/`deploy` never
+  # have to branch on github.event_name themselves.
+  resolve:
+    runs-on: self-hosted
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    outputs:
+      commit: ${{ steps.info.outputs.commit }}
+      version: ${{ steps.info.outputs.version }}
+      image_tags: ${{ steps.info.outputs.image_tags }}
+      persist: ${{ steps.info.outputs.persist }}
+      release_tag: ${{ steps.info.outputs.release_tag }}
+    steps:
+      - name: Determine the ref to build (latest release tag, or the manual dispatch input)
+        id: pick-ref
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG="$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)"
+            echo "ref=$TAG" >> "$GITHUB_OUTPUT"
+            echo "release_tag=$TAG" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Resolves whatever `ref` is (branch, tag, or commit) to a real checkout. `fetch-depth: 0`
+      # so the exact commit SHA below is always resolvable, regardless of how deep in a
+      # branch's history it is.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.pick-ref.outputs.ref }}
+          fetch-depth: 0
+
+      # Everything downstream keys off the resolved COMMIT SHA, not the human-readable ref --
+      # `git checkout --detach <branch-name>` in the deploy job below can't reliably DWIM a
+      # bare branch name to `origin/<branch-name>` the way plain `git checkout <branch-name>`
+      # does, so passing an unambiguous SHA sidesteps that entirely.
+      - name: Compute version, image tags, and persistence mode
+        id: info
+        run: |
+          COMMIT="$(git rev-parse HEAD)"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="manual-$(git rev-parse --short HEAD)"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "image_tags=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "persist=false" >> "$GITHUB_OUTPUT"
+          else
+            VERSION="$(python3 .github/scripts/check_version.py)"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "image_tags=$VERSION,latest" >> "$GITHUB_OUTPUT"
+            echo "persist=true" >> "$GITHUB_OUTPUT"
+            echo "release_tag=${{ steps.pick-ref.outputs.release_tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: resolve
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.commit }}
+
+      # Plain `docker build` + `docker push`, not `buildx --push` -- the default builder can't
+      # push directly, and building locally first means the deploy job's later `pull` resolves
+      # straight from layers already on this same machine/runner.
+      - name: Check whether this version is already published
+        id: check
+        run: |
+          if [ "${{ needs.resolve.outputs.persist }}" = "true" ] \
+             && docker manifest inspect "$BACKEND_IMAGE:${{ needs.resolve.outputs.version }}" >/dev/null 2>&1 \
+             && docker manifest inspect "$FRONTEND_IMAGE:${{ needs.resolve.outputs.version }}" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to GHCR
+        if: steps.check.outputs.skip == 'false'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build backend image
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          args=()
+          IFS=',' read -ra tags <<< "${{ needs.resolve.outputs.image_tags }}"
+          for t in "${tags[@]}"; do args+=(-t "$BACKEND_IMAGE:$t"); done
+          docker build "${args[@]}" \
+            --label org.opencontainers.image.source="https://github.com/${{ github.repository }}" \
+            --label org.opencontainers.image.version="${{ needs.resolve.outputs.version }}" \
+            --label org.opencontainers.image.revision="${{ needs.resolve.outputs.commit }}" \
+            ./backend
+
+      - name: Build frontend image
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          args=()
+          IFS=',' read -ra tags <<< "${{ needs.resolve.outputs.image_tags }}"
+          for t in "${tags[@]}"; do args+=(-t "$FRONTEND_IMAGE:$t"); done
+          # Empty PUBLIC_API_BASE_URL = same-origin, matching docker-compose.yml's existing
+          # build arg default (see frontend/nginx.conf's /api/ proxy).
+          docker build "${args[@]}" \
+            --build-arg PUBLIC_API_BASE_URL= \
+            --label org.opencontainers.image.source="https://github.com/${{ github.repository }}" \
+            --label org.opencontainers.image.version="${{ needs.resolve.outputs.version }}" \
+            --label org.opencontainers.image.revision="${{ needs.resolve.outputs.commit }}" \
+            ./frontend
+
+      - name: Push images
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          IFS=',' read -ra tags <<< "${{ needs.resolve.outputs.image_tags }}"
+          for t in "${tags[@]}"; do
+            docker push "$BACKEND_IMAGE:$t"
+            docker push "$FRONTEND_IMAGE:$t"
+          done
+
+      # The digests don't exist until the images are actually pushed, so this has to happen
+      # here, not in release.yml. Manual-mode runs have no release to attach to, and an
+      # already-published skip has nothing new to record -- both are skipped.
+      - name: Record image digests on the release
+        if: steps.check.outputs.skip == 'false' && needs.resolve.outputs.persist == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BACKEND_DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$BACKEND_IMAGE:${{ needs.resolve.outputs.version }}")"
+          FRONTEND_DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$FRONTEND_IMAGE:${{ needs.resolve.outputs.version }}")"
+          cat > images.json <<EOF
+          {
+            "version": "${{ needs.resolve.outputs.version }}",
+            "commit": "${{ needs.resolve.outputs.commit }}",
+            "backend": "$BACKEND_DIGEST",
+            "frontend": "$FRONTEND_DIGEST"
+          }
+          EOF
+          gh release upload "${{ needs.resolve.outputs.release_tag }}" images.json --clobber \
+            --repo "${{ github.repository }}"
+
+  deploy:
+    needs: [resolve, publish]
+    runs-on: self-hosted
+    timeout-minutes: 25
+    env:
+      DEPLOY_DIR: /mnt/raid1/spotdl-web
+    steps:
+      # This job's own steps below need this PR's scripts (wait_for_stack_health.sh) even on
+      # the very first run, before DEPLOY_DIR itself has been updated to carry them -- checked
+      # out into the job workspace, separate from DEPLOY_DIR itself.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.commit }}
+
+      - name: Preflight
+        run: |
+          test -d "$DEPLOY_DIR/.git" || { echo "::error::$DEPLOY_DIR is not a git checkout"; exit 1; }
+          test -f "$DEPLOY_DIR/.env" || { echo "::error::$DEPLOY_DIR/.env is missing"; exit 1; }
+          test -f "$DEPLOY_DIR/proxies.txt" || { echo "::error::$DEPLOY_DIR/proxies.txt is missing"; exit 1; }
+
+      - name: Read the currently-deployed IMAGE_TAG
+        id: prev
+        run: |
+          PREV="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.env" | tail -n1 | cut -d= -f2- || true)"
+          echo "tag=$PREV" >> "$GITHUB_OUTPUT"
+
+      # Release mode only: an unbumped merge produces the same VERSION as what's already
+      # deployed. A manual dispatch always proceeds -- see the workflow header.
+      - name: Skip if this version is already deployed and healthy
+        id: skip
+        if: needs.resolve.outputs.persist == 'true'
+        run: |
+          if [ "${{ steps.prev.outputs.tag }}" = "${{ needs.resolve.outputs.version }}" ] \
+             && bash .github/scripts/wait_for_stack_health.sh "$DEPLOY_DIR" 0; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Runs the CURRENTLY deployed pg_backup.sh (whatever version is in DEPLOY_DIR right now),
+      # before DEPLOY_DIR is switched to the new ref below -- must happen before anything can
+      # touch the schema, in both modes (a manual dispatch can still carry a pending migration).
+      - name: Back up Postgres before migrating
+        if: steps.skip.outputs.skip != 'true'
+        run: "$DEPLOY_DIR/scripts/pg_backup.sh"
+
+      - name: Update the deploy checkout and bring the stack up
+        id: deploy
+        if: steps.skip.outputs.skip != 'true'
+        run: |
+          cd "$DEPLOY_DIR"
+          git fetch origin --tags --prune
+          git checkout --detach "${{ needs.resolve.outputs.commit }}"
+          git reset --hard
+          # NOT -fdx: .env and proxies.txt are gitignored -- -x would delete the host's real
+          # secrets and proxy pool along with any stray build artifacts.
+          git clean -fd
+
+          if grep -q '^IMAGE_TAG=' .env; then
+            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${{ needs.resolve.outputs.version }}/" .env
+          else
+            echo "IMAGE_TAG=${{ needs.resolve.outputs.version }}" >> .env
+          fi
+
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel \
+            up -d --no-build --remove-orphans
+
+      - name: Wait for the stack to become healthy
+        if: steps.skip.outputs.skip != 'true'
+        run: bash .github/scripts/wait_for_stack_health.sh "$DEPLOY_DIR" 420
+
+      # Code rollback only -- Alembic migrations are never downgraded automatically (too risky
+      # unattended); the pre-deploy pg_backup above is the recovery path for a bad migration.
+      - name: Roll back to the previous image on failure
+        if: failure() && steps.skip.outputs.skip != 'true'
+        run: |
+          cd "$DEPLOY_DIR"
+          PREV="${{ steps.prev.outputs.tag }}"
+          if [ -z "$PREV" ]; then
+            echo "::error::No previous IMAGE_TAG was recorded (first-ever automated deploy) -- nothing to roll back to. See docs/RELEASE_PIPELINE.md for manual recovery."
+            exit 1
+          fi
+          echo "Rolling back to IMAGE_TAG=$PREV"
+          sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$PREV/" .env
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel \
+            up -d --no-build
+          bash "$GITHUB_WORKSPACE/.github/scripts/wait_for_stack_health.sh" "$DEPLOY_DIR" 420
+          exit 1
+
+      - name: Prune old images and build cache
+        if: steps.skip.outputs.skip != 'true' && success()
+        run: |
+          docker image prune -f
+          docker builder prune -f --keep-storage 5GB
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Deploy"
+            echo "- version: \`${{ needs.resolve.outputs.version }}\`"
+            echo "- mode: ${{ needs.resolve.outputs.persist == 'true' && 'release' || 'manual dispatch' }}"
+            echo "- skipped: ${{ steps.skip.outputs.skip || 'false' }}"
+            echo
+            cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+          } >> "$GITHUB_STEP_SUMMARY"

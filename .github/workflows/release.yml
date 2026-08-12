@@ -1,0 +1,116 @@
+name: Release
+
+# Cuts a versioned GitHub release with a generated changelog + deploy assets whenever CI
+# passes on `main` — the first hop of the v21 release pipeline (see docs/RELEASE_PIPELINE.md
+# for the full chain diagram and rationale).
+#
+# Chained from CI via `workflow_run`, deliberately NOT from `push` directly:
+#   - `push` would race CI itself -- nothing would stop a release being cut from code that
+#     fails its own tests.
+#   - A `release: [published]` trigger downstream would need a personal access token instead
+#     of GITHUB_TOKEN (GitHub's own loop-prevention rule: a release created with the default
+#     GITHUB_TOKEN does not fire other workflows) -- chaining via workflow_run avoids needing
+#     a PAT anywhere in this pipeline.
+# `workflow_dispatch` is also kept, same rationale as ci.yml's own dispatch trigger -- lets a
+# release be cut on demand (e.g. re-running after a transient failure) without waiting for a
+# fresh push to main.
+"on":
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+
+# Never two releases racing each other -- a release run must fully finish (tag pushed, assets
+# uploaded) before the next one starts, so publish-deploy.yml never sees a half-finished release.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: self-hosted
+    # Only follow a CI run that (a) actually succeeded and (b) was itself triggered by a real
+    # push to main -- CI also runs on every PR and on manual dispatch, neither of which should
+    # ever cut a release. workflow_dispatch on this workflow itself always proceeds (there is
+    # no upstream CI run to check in that case).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    steps:
+      # A workflow_run event's own GITHUB_SHA/GITHUB_REF are main's current head, not
+      # necessarily the commit that triggered the upstream CI run (see GitHub's workflow_run
+      # docs) -- check out the exact commit CI just tested instead of trusting the default ref.
+      # workflow_dispatch has no such upstream commit, so it explicitly targets `main`.
+      - name: Checkout the exact commit CI tested
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION="$(python3 .github/scripts/check_version.py)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Checked against the remote, not a local `git tag -l` (the reference this borrows its
+      # shape from, vb2007.hu-api's gh-release.yml, uses the latter) -- this is a fresh
+      # checkout every run, so a local tag list would always be empty regardless of what's
+      # already been released.
+      - name: Check whether this version was already released
+        id: tag-check
+        run: |
+          if git ls-remote --tags origin "refs/tags/${{ steps.version.outputs.tag }}" | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Self-sufficient deploy bundle: everything needed to run the published images without
+      # cloning the repo. Built even when the release will be skipped below is wasted work, so
+      # this (and everything after it) is gated on tag-check.
+      - name: Build deploy bundle
+        if: steps.tag-check.outputs.exists == 'false'
+        run: |
+          BUNDLE="spotdl-web-${{ steps.version.outputs.version }}-deploy.tar.gz"
+          tar czf "$BUNDLE" \
+            docker-compose.yml docker-compose.prod.yml \
+            .env.example proxies.txt.example scripts/
+          echo "BUNDLE_PATH=$BUNDLE" >> "$GITHUB_ENV"
+
+      - name: Copy backend requirements.txt
+        if: steps.tag-check.outputs.exists == 'false'
+        run: cp backend/requirements.txt "requirements-${{ steps.version.outputs.version }}.txt"
+
+      - name: Create GitHub release
+        if: steps.tag-check.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "${{ steps.version.outputs.tag }}" \
+            --generate-notes \
+            --latest \
+            --target "${{ github.event_name == 'workflow_dispatch' && 'main' || github.event.workflow_run.head_sha }}" \
+            "$BUNDLE_PATH" \
+            "requirements-${{ steps.version.outputs.version }}.txt"
+
+      # images.json (exact GHCR digests) is uploaded later by publish-deploy.yml's `publish`
+      # job -- the digests don't exist until those images are actually pushed, which can only
+      # happen after this release (and its tag) exists.
+      - name: Summary
+        run: |
+          {
+            echo "## Release ${{ steps.version.outputs.tag }}"
+            if [ "${{ steps.tag-check.outputs.exists }}" = "true" ]; then
+              echo "Already released -- skipped (no version bump since the last release)."
+            else
+              echo "Created with deploy bundle + requirements.txt. \`images.json\` follows from Publish & Deploy."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
