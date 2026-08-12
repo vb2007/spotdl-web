@@ -1,5 +1,13 @@
 # v21 — Release Automation
 
+> **Not in the original master v2 roadmap.** `plan/master-v2/00-master-plan.md` originally
+> planned v21 as `dev-multi-user-hardening` (now **v22**, `v22-multi-user-hardening.md`) — this
+> slice was inserted as a side track once v20 merged, at the user's request, because deployment
+> automation had become urgent enough to do before continuing the planned sequence (see "Why"
+> below). It did **not** break or reorder anything else in the chain: v22 is unchanged in scope,
+> only renumbered, and every other completed slice (v14–v20) is untouched. See
+> `00-master-plan.md`'s dated addendum and `CLAUDE.md`'s roadmap table for the same note.
+
 ## Why
 
 v20 shipped the job-centric UI; deployment to the Debian host is still entirely manual (`git
@@ -42,15 +50,17 @@ modes) lives in `docs/RELEASE_PIPELINE.md` — not duplicated here.
 
 ## Out of scope, flagged for later
 
-Found during this slice's live-host investigation, deliberately not fixed here:
+Found during this slice's live-host investigation:
 
-- `worker-meta` was observed `Restarting (137)` (OOM-killed against its 768M prod resource
-  limit) on the live host.
+- **`worker-meta`'s OOM crash loop (`Restarting (137)`, `OOMKilled=true`) was pre-existing and
+  originally flagged here as deferred — but it turned out to permanently block this slice's own
+  health gate from ever converging, so it was fixed as part of this PR after all** (capped
+  `--concurrency=2` in `docker-compose.yml`; see `docs/GOTCHAS.md`'s v21 section for the root
+  cause). Not a scope decision reversed lightly — confirmed with the user first, since it's a
+  base-file change outside release automation proper.
 - `DOWNLOADS_DIR` (`/home/vb2007/spotdl`) was empty despite 8 days of container uptime at the
-  time of inspection.
-
-Both predate this slice and are unrelated to release automation; see `docs/GOTCHAS.md`'s v21
-section.
+  time of inspection — still unexplained, still deferred. Unrelated to release automation and
+  did not block this slice's verification, so left for v22 or a dedicated follow-up.
 
 ## Host pre-flight (one-time, done as part of this slice — see `docs/RELEASE_PIPELINE.md`)
 
@@ -65,22 +75,38 @@ section.
 
 ## Done when
 
-- [ ] `backend/pyproject.toml` and `frontend/package.json` both read `2.21.0`.
-- [ ] CI's `version` job passes on matched versions, fails on deliberate drift, fails on a
-      `backend/`-touching diff with no bump, and passes on a docs-only diff with no bump.
-- [ ] `docker compose ... config --quiet` renders cleanly for both the dev and prod overlays
-      against the rewired `docker-compose.prod.yml`.
-- [ ] A manual `workflow_dispatch` of "Publish & Deploy" against this branch successfully builds
-      and pushes both images to GHCR (verified via `docker manifest inspect` and an
-      unauthenticated `docker pull` after flipping to public).
-- [ ] The same manual dispatch deploys cleanly to the real host: all services healthy,
-      `/api/health` returns `ok`, the v20 UI loads through the tunnel, `.env`/`proxies.txt`
-      survive `git clean -fd`, and a fresh Postgres dump lands in `/srv/spotdl-web/backups`.
-- [ ] A deliberately-broken manual dispatch triggers the rollback path: health gate fails,
-      previous `IMAGE_TAG` is restored, the stack comes back healthy, the workflow run itself is
-      marked failed.
-- [ ] `release.yml`'s tag-exists guard and asset generation verified (draft release, deleted
-      after).
+- [x] `backend/pyproject.toml` and `frontend/package.json` both read `2.21.0`.
+- [x] CI's `version` job passes on matched versions, fails on deliberate drift, fails on a
+      `backend/`-touching diff with no bump, and passes on a docs-only diff with no bump — all
+      four checked locally against `check_version.py` before relying on CI's own green run
+      (PR #23, `version` job passed in 8s on the real PR diff).
+- [x] `docker compose ... config --quiet` renders cleanly for both the dev and prod overlays
+      against the rewired `docker-compose.prod.yml` — confirmed locally and via PR #23's
+      `compose-config` job.
+- [x] A manual `workflow_dispatch`-equivalent (a temporary `push` trigger, since
+      `workflow_dispatch` can't be invoked via API until the workflow exists on `main` — see
+      `docs/RELEASE_PIPELINE.md`) of "Publish & Deploy" successfully built and pushed both
+      images to GHCR — confirmed via `docker manifest inspect` and an unauthenticated
+      `docker pull` from an outside machine after flipping both packages to public.
+- [x] The same run deployed cleanly to the real host: all services healthy (after fixing the
+      pre-existing `worker-meta` OOM that blocked this), `/api/health` returned `ok`, the v20 UI
+      loaded through the real tunnel, `.env`/`proxies.txt` survived `git clean -fd`, and a real
+      Postgres dump landed in `/srv/spotdl-web/backups` (confirmed with `pg_restore --list`).
+      The host was stuck on v12 eight slices behind `main` before this — its migrate step ran
+      the real v16–v19 migrations for the first time, successfully.
+- [x] A deliberately-broken push (a real crashing commit) triggered the rollback path: health
+      gate correctly failed after its full ~7min timeout, the previous `IMAGE_TAG` was restored,
+      the stack came back healthy, and the workflow run itself was still marked failed (by
+      design — a successful rollback doesn't mean the deploy succeeded).
+- [x] `release.yml`'s tag-exists guard and asset generation verified: a real `v2.21.0` release
+      was cut with a correct `--generate-notes` changelog (every merged PR from v00–v20 listed)
+      and both assets (deploy bundle extracted cleanly, `docker compose config` on its contents
+      rendered); a second push with no version change correctly skipped release creation,
+      image publish, and deploy alike (idempotency). Deleted (`gh release delete --cleanup-tag`)
+      afterward so the real merge cuts `v2.21.0` fresh against the actual merged history.
 - [ ] The real chain runs unattended end-to-end once merged: `v2.21.0` released with notes and
-      assets, images published, host detached at `v2.21.0`, stack healthy.
-- [ ] `graphify update .` run; this checklist re-read fresh before calling the PR merge-ready.
+      assets, images published, host detached at `v2.21.0`, stack healthy. **Can only be proven
+      after merge** — `workflow_run`/`workflow_dispatch` triggers only activate once the listening
+      workflow file exists on the default branch, so the CI→Release→Publish&Deploy chain itself
+      was untestable pre-merge by construction, not by oversight. This is the one open item.
+- [x] `graphify update .` run; this checklist re-read fresh before calling the PR merge-ready.

@@ -84,6 +84,14 @@ needed" claim — rather than silently deleted.
   along with build junk → *v21*
 - Documented deploy-host paths drift from reality; verify against the real host before wiring an
   automated workflow that acts on them → *v21*
+- A persistent self-hosted runner's `docker login` credential outlives the job and poisons later
+  pulls (even of public images) until an explicit `docker logout` → *v21*
+- `host.docker.internal` doesn't resolve from the host's own DNS on Linux — a script meant to run
+  on the host itself (not in a container) needs `localhost` instead → *v21*
+- `git checkout --detach` still needs `--force` to survive local drift on a tracked file, even
+  once resolved to an unambiguous commit SHA → *v21*
+- A service with no explicit Celery `--concurrency` defaults to `os.cpu_count()` prefork
+  children — reliably OOMs a heavy-dependency worker on a resource-limited container → *v21*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -2402,3 +2410,44 @@ automated deploy-to-host)
   job: it doesn't need to distinguish "not published" from "published but I can't see it," since
   both cases correctly mean "build and push."
 
+- **A persistent self-hosted runner's `docker login` credential outlives the job that created
+  it and poisons later, unrelated pulls** — unlike a GitHub-hosted runner's disposable VM, this
+  runner's `~/.docker/config.json` is shared across every job and every future run. The
+  `publish` job's `docker login ghcr.io` (needed to push) left a credential behind that was
+  still there — and by then invalid — when the `deploy` job tried a plain, unauthenticated
+  `docker compose pull` of the same (now public) images moments later; Docker sent the stale
+  credential instead of falling back to anonymous, and GHCR answered `denied: denied` for an
+  otherwise-public image. Reproduced and fixed live on the real runner (confirmed via
+  `~/.docker/config.json` and a manual `docker logout ghcr.io` unblocking the exact same pull)
+  before adding an unconditional `docker logout ghcr.io` (`if: always()`) as the `publish`
+  job's last step.
+- **`pg_backup.sh` (a pre-existing v12 script) had never actually succeeded on this host** —
+  it reads `DATABASE_URL` verbatim from `.env`, which is written for the *containers*
+  (`host.docker.internal`, resolved via `extra_hosts: host-gateway`). That hostname is **not**
+  resolvable from the host's own DNS on Linux (only Docker Desktop maps it on the host too) —
+  confirmed by running the unmodified script for real and getting
+  `could not translate host name "host.docker.internal"`. Fixed by substituting `localhost` for
+  that one hostname after the existing `+psycopg` strip, since the script only ever runs
+  directly on the host (Postgres is host-native, per the locked decision) — verified by
+  re-running it for real afterward and inspecting the resulting dump with `pg_restore --list`.
+- **`git checkout --detach --force`, not just `--detach`, is needed for an automated deploy
+  checkout** — even after resolving to an unambiguous commit SHA (see the DWIM gotcha above),
+  `git checkout` still refuses to switch when a *tracked* file has local, uncommitted drift
+  (`error: Your local changes ... would be overwritten by checkout`). Hit for real when a script
+  fix was hand-applied directly to the host checkout ahead of the pipeline deploying it itself —
+  a completely ordinary occurrence (anyone SSHing in and patching a file by hand), not an edge
+  case worth dismissing. `--force` makes the checkout always land exactly on the resolved commit
+  regardless of that drift; `git clean -fd` afterward is unrelated (it only ever touched
+  untracked files) and didn't need to change.
+- **`worker-meta` was mid-crash-loop from a real, pre-existing OOM** (not merely "observed
+  restarting" — confirmed via `docker inspect ...  --format 'OOMKilled={{.State.OOMKilled}}'` →
+  `true`, exit 137) **the entire time this slice's health gate was being built**, and it
+  permanently blocked the gate from ever reporting the stack healthy. Root cause: no
+  `--concurrency` flag on its Celery command, so it defaulted to `os.cpu_count()` (8 on this
+  host) prefork children, each importing the heavy spotdl/yt-dlp dependency tree — reliably
+  exceeding its 768M prod limit. Fixed with `--concurrency=2` (meta tasks are lightweight; two
+  workers is ample) rather than raising the memory limit, since the host's spare RAM is
+  genuinely tight (shared with Matrix/Vaultwarden/TubeArchivist, swap already full at the time).
+  A pre-existing bug outside this slice's stated scope became in-scope the moment it started
+  blocking the very thing being built — worth remembering next time a "flag for later" item
+  turns out to sit on the critical path.
