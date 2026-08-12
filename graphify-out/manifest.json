@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1786555212.4966474,
-    "ast_hash": "4997392a5598d4ca0d349b0b9dcb88fb",
+    "mtime": 1786560225.702165,
+    "ast_hash": "c59ea4dc6c653bc1b6dcb9266fdb8aaf",
     "semantic_hash": ""
   },
   "README.md": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1786555387.7309709,
-    "ast_hash": "bf22509f05a4048d3b768254d7a573b4",
+    "mtime": 1786560153.084162,
+    "ast_hash": "102c3e90f07561c77a4c3002c1588622",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -800,8 +800,8 @@
     "semantic_hash": ""
   },
   "plan/master-v2/v21-release-automation.md": {
-    "mtime": 1786555257.2975194,
-    "ast_hash": "6ad6e5db67ae15c86799c98229b73a5d",
+    "mtime": 1786560193.9758518,
+    "ast_hash": "99b6ec8d73fd3d60f690c7f2f510566a",
     "semantic_hash": ""
   },
   "plan/master-v2/v22-multi-user-hardening.md": {
