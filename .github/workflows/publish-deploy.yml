@@ -186,6 +186,19 @@ jobs:
           gh release upload "${{ needs.resolve.outputs.release_tag }}" images.json --clobber \
             --repo "${{ github.repository }}"
 
+      # CRITICAL on a persistent self-hosted runner (unlike a GitHub-hosted runner's disposable
+      # VM): `docker login` above writes a credential into this runner's own, shared
+      # ~/.docker/config.json, which survives long after this job's GITHUB_TOKEN expires. A
+      # left-behind stale credential makes Docker send that (now-invalid) token on every future
+      # pull from ghcr.io on this runner -- including the `deploy` job's plain `docker compose
+      # pull` below and completely unrelated future runs -- and the registry answers "denied"
+      # rather than falling back to anonymous access, even for a public image. Found by exactly
+      # that failure during this workflow's own live verification. `if: always()` so a login
+      # that happened before an earlier step failed still gets cleaned up.
+      - name: Log out of GHCR
+        if: always()
+        run: docker logout ghcr.io || true
+
   deploy:
     needs: [resolve, publish]
     runs-on: self-hosted
