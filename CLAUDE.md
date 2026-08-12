@@ -73,8 +73,14 @@ function still exists before acting on it**, since v2 changes schema, endpoints,
   `frontend/package.json`'s `version` must carry the identical `major.minor.patch` string
   (`major.minor` = master series . roadmap slice, e.g. v21 → `2.21.0`), and a PR touching
   `backend/`/`frontend/` isn't merge-ready until it bumps that string — CI's `version` job
-  (`.github/scripts/check_version.py`) enforces both the agreement and the bump. See
-  `docs/RELEASE_PIPELINE.md` for the release/deploy automation this feeds.
+  (`.github/scripts/check_version.py`) enforces both the agreement and the bump. **There is one
+  shared app version, not independent backend/frontend versions**: a PR touching only one side
+  still bumps *both* files to the same new string. The unchanged side's Docker image still gets
+  rebuilt and republished under the new tag by `publish-deploy.yml` — expect a byte-identical
+  rebuild there, not a bug to chase. A PR that touches neither `backend/` nor `frontend/` (docs,
+  workflows, plans) needs no bump at all, and `release.yml`/`publish-deploy.yml` correctly skip
+  cutting a new release or image for it. See `docs/RELEASE_PIPELINE.md` for the release/deploy
+  automation this feeds.
 - **Develop locally, deploy to verify.** The local stack is the iteration loop; the Debian host is
   a final-verification target, not a place to chase build errors one SSH round trip at a time. Only
   debug there for genuinely host-specific issues (shared Postgres, tunnel/ingress, restart survival).

@@ -30,6 +30,26 @@ python3 .github/scripts/check_version.py origin/main # also fail if backend/ or 
 branch) and the first form on every push to `main`. **A PR is not merge-ready until this job is
 green** — this is a standing project requirement (`CLAUDE.md`), not specific to this slice.
 
+**One shared app version, not independent backend/frontend versions.** `check_version.py`
+doesn't care *which* side a diff touches, only whether it touches `backend/` or `frontend/` at
+all — so a PR that changes only the backend still has to bump `frontend/package.json` to the
+same new string, and vice versa. The practical effect for `publish-deploy.yml`: it builds and
+pushes **both** images under the new tag every time, even when only one side's source actually
+changed. The unchanged side's build produces the exact same Docker layers as before, just
+published under a new version tag — a legitimate, expected redundant rebuild (Docker's
+content-addressed layers mean this costs registry storage overhead, not real work), not a sign
+the pipeline mis-detected what changed.
+
+A PR that touches **neither** `backend/` nor `frontend/` (docs, workflows, plan files — like the
+PR that added this sentence) needs no version bump at all. `release.yml`'s tag-exists check
+finds the current version already released and skips cutting a new one; `publish-deploy.yml`
+still runs (the upstream `Release` run still completes successfully) but both its
+already-published and already-deployed idempotency checks skip everything else — no new image,
+no host change. `ci.yml`'s `version` job passing on a docs-only diff with no bump was confirmed
+live on PR #24; the full skip-the-whole-chain behavior on merge is the same idempotency path
+already verified during v21's own pre-merge and post-merge testing (see the Idempotency section
+above).
+
 ---
 
 ## The chain
