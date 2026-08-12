@@ -1,3 +1,4 @@
+raise RuntimeError("v21 rollback test: deliberate crash, reverted immediately after")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
