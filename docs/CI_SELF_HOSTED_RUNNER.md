@@ -213,13 +213,18 @@ section already gave; worth listening to it next time before re-learning it.)
   `uv` → `uv python install 3.12` → fresh venv + `uv pip install ".[dev,report]"` → `pytest -v`
   generating three report formats (`test-reports/junit.xml`, `report.html`, `report.ods` — see
   Section 8) → uploads each as its own artifact, even on test failure.
-- **`publish-report` job**: `needs: pytest`, `if: always()` (runs even when `pytest` fails, so a
-  failing PR still gets a rendered summary) — downloads all three artifacts and renders
-  `junit.xml` as a markdown table directly on the run's **Summary** page via
-  `$GITHUB_STEP_SUMMARY` (`.github/scripts/junit_to_summary.py`, stdlib-only — this job doesn't
-  set up the backend venv at all). Its own pass/fail status only reflects whether the summary
-  was published, not whether the tests passed — that's `pytest`'s job to signal, not duplicated
-  here.
+- **`summary` job** (v21.1, renamed from `publish-report`): `needs: [version, pytest,
+  compose-config, frontend]`, `if: always()` — fans in from **every** job, not just `pytest`, so
+  the run's dependency graph reads as one pipeline instead of `pytest`→`publish-report` plus two
+  disconnected siblings (the original v12 shape — see `docs/GOTCHAS.md`'s v12 entry for why that
+  happened and stayed unnoticed). Publishes a combined table of all four jobs'
+  `needs.<job>.result` first, then downloads `pytest`'s three artifacts (`continue-on-error:
+  true` — a cancelled/pre-artifact `pytest` failure shouldn't take down the other three jobs'
+  results) and renders `junit.xml` as a markdown table via `$GITHUB_STEP_SUMMARY`
+  (`.github/scripts/junit_to_summary.py`, stdlib-only — this job doesn't set up the backend venv
+  at all). Its own pass/fail status only reflects whether the summary was published, not whether
+  any of the four checks passed — each already reports its own conclusion on the PR's checks
+  list; this job's job is purely to make the Summary page match that.
 - **`compose-config` job** (v12): static-only validation of `docker-compose.yml` merged against
   both `docker-compose.override.yml` (the real local-dev invocation) and
   `docker-compose.prod.yml` (the real deploy invocation), plus a syntax check of
@@ -327,21 +332,21 @@ pytest's built-in `--junit-xml`):
   extension slapped on; verified with `file report.ods` → `OpenDocument Spreadsheet` and
   re-reading it back with `pandas.read_excel(..., engine="odf")`, not just trusted from the
   plugin's own (Excel-oriented) docs.
-- **`junit.xml`** — the standard machine-readable format; this is what `publish-report`'s job
+- **`junit.xml`** — the standard machine-readable format; this is what `summary`'s job
   summary is generated from, and what any future tool (a badge, a dashboard, `dorny/test-
   reporter`-style PR annotations) should consume instead of re-parsing pytest's own output.
 
 **Each of these three is its own separate artifact** (`junit.xml`, `report.html`, `report.ods` —
 named after the file itself), not one zip bundling all three. `actions/upload-artifact`'s
 `archive: false` input uploads a single raw file as-is instead of zipping it, at the cost of one
-file per artifact — exactly the trade wanted here. `publish-report`'s download step uses
+file per artifact — exactly the trade wanted here. `summary`'s download step uses
 `pattern: "*"` + `merge-multiple: true` to grab all three into one flat directory without having
 to keep an explicit artifact-name list in sync between the upload and download steps.
 
 Find them on the run's **Summary** page (Actions → this run → Artifacts, bottom of the page) —
 each downloads and opens directly (`report.html` in a browser, `report.ods` in any spreadsheet
 program that reads OpenDocument — LibreOffice Calc, Excel with the ODS filter, Google Sheets via
-upload). The rendered markdown table on the Summary page itself (from `publish-report`) is
+upload). The rendered markdown table on the Summary page itself (from `summary`) is
 enough for an at-a-glance pass/fail count and a list of failing tests without downloading
 anything.
 
@@ -365,8 +370,8 @@ real assertion message and exits `1`, then restored the test file with no diff l
 | `uv pip install ".[dev]"` fails with a fastapi/uvicorn conflict | `pyproject.toml`'s `[tool.uv] override-dependencies` didn't get picked up | Confirm the install used `uv`, not plain `pip` — the workflow's `.venv/bin/uv pip install` step, not `.venv/bin/pip install` |
 | `pytest` fails on a fresh runner but passed locally | Dependency versions drifted between the runner's fresh venv and a stale local `backend/.venv` | Trust the runner — recreate the local venv (`rm -rf backend/.venv && uv venv` equivalent) and compare |
 | Runner works, but a *new* test needs real Postgres/Redis/ffmpeg | Expected — the current suite deliberately avoids needing any of these (see Section 5) | Add a GitHub Actions service container or point at the host's existing Postgres, scoped to that new test only |
-| `publish-report` fails with "artifact not found" | The `pytest` job never reached one of its three "Upload ..." steps (e.g. it failed before `mkdir -p test-reports`, or the whole job was cancelled) | Check the `pytest` job's own logs first — this is a downstream symptom, not the root cause |
-| Job summary is missing but the artifact download succeeded | `junit_to_summary.py` itself errored (bad XML, wrong path) | Check `publish-report`'s "Publish job summary" step logs directly — it's `|| true`'d so the job stays green even here, which trades a hard failure for needing to actually look |
+| `summary` fails with "artifact not found" | The `pytest` job never reached one of its three "Upload ..." steps (e.g. it failed before `mkdir -p test-reports`, or the whole job was cancelled) | Check the `pytest` job's own logs first — this is a downstream symptom, not the root cause |
+| Job summary is missing but the artifact download succeeded | `junit_to_summary.py` itself errored (bad XML, wrong path) | Check `summary`'s "Publish backend test detail" step logs directly — it's `|| true`'d so the job stays green even here, which trades a hard failure for needing to actually look |
 | `report.ods`/`report.html` artifacts missing but `junit.xml` is there | `pytest-html`/`pytest-excel` not installed — `uv pip install` used `.[dev]` instead of `.[dev,report]` | Confirm the "Install Python 3.12 and dependencies" step installs the `report` extra, not just `dev` |
 | `report.ods` exists but a spreadsheet program can't open it / errors | Missing `odfpy` — without it, pandas would raise at write time rather than silently writing an xlsx file with the wrong extension, so this should fail loudly in the `pytest` job, not show up as a bad download | Confirm `odfpy` is listed in `backend/pyproject.toml`'s `report` extra |
-| Manually inspecting a run's artifacts with `gh run download` extracts `report.ods` into loose files (`content.xml`, `mimetype`, `META-INF/`...), or `gh run download -n junit.xml`/`-n report.html` fails outright with `zip: not a valid zip file` | **`gh` CLI tooling quirk, not a workflow bug** — `gh run download` unconditionally tries to unzip every downloaded artifact; `actions/upload-artifact`'s `archive: false` (used by all three of this workflow's artifacts) stores the raw file as-is, which either isn't a zip at all (`junit.xml`, `report.html` → outright failure) or, for `report.ods` specifically, *is* a zip internally (ODF's own container format) → `gh` unzips one level too many and hands you its internal XML parts instead of the file itself. Confirmed by reading the real `publish-report` job's own log — `actions/download-artifact@v8` correctly logs `Downloading raw file (non-zip)` and leaves all three files intact; this only bites a human re-downloading via the CLI afterwards, not the pipeline itself | Use the **web UI**'s per-artifact download link instead (Actions → run → Artifacts) — that gives a real `.zip` containing the untouched file, one normal unzip away from `report.ods`/`report.html`/`junit.xml`. If scripting this, fetch `GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/zip` directly (e.g. via `gh api ... > file.zip`) and unzip it yourself exactly once, rather than `gh run download` |
+| Manually inspecting a run's artifacts with `gh run download` extracts `report.ods` into loose files (`content.xml`, `mimetype`, `META-INF/`...), or `gh run download -n junit.xml`/`-n report.html` fails outright with `zip: not a valid zip file` | **`gh` CLI tooling quirk, not a workflow bug** — `gh run download` unconditionally tries to unzip every downloaded artifact; `actions/upload-artifact`'s `archive: false` (used by all three of this workflow's artifacts) stores the raw file as-is, which either isn't a zip at all (`junit.xml`, `report.html` → outright failure) or, for `report.ods` specifically, *is* a zip internally (ODF's own container format) → `gh` unzips one level too many and hands you its internal XML parts instead of the file itself. Confirmed by reading the real `summary` job's own log — `actions/download-artifact@v8` correctly logs `Downloading raw file (non-zip)` and leaves all three files intact; this only bites a human re-downloading via the CLI afterwards, not the pipeline itself | Use the **web UI**'s per-artifact download link instead (Actions → run → Artifacts) — that gives a real `.zip` containing the untouched file, one normal unzip away from `report.ods`/`report.html`/`junit.xml`. If scripting this, fetch `GET /repos/{owner}/{repo}/actions/artifacts/{artifact_id}/zip` directly (e.g. via `gh api ... > file.zip`) and unzip it yourself exactly once, rather than `gh run download` |

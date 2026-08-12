@@ -1598,7 +1598,12 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   UI for no real reason — both files shared identical triggers and both existed purely
   to gate the same PRs. Fixed by merging everything into a single `.github/workflows/
   ci.yml` (`pytest` + `publish-report` + `compose-config` + `frontend` as four sibling
-  jobs, one shared `concurrency` group) and deleting the two predecessor files. **Read
+  jobs, one shared `concurrency` group) and deleting the two predecessor files.
+  (2026-08-12 correction: merging the files fixed the workflow-group split, but left
+  `compose-config`/`frontend` as true siblings with no downstream summary node — v21.1
+  renamed `publish-report` to `summary` and fanned it in from all four jobs, since the
+  underlying "one PR, one pipeline" intent this entry describes was still only half true
+  until then.) **Read
   this doc's own accumulated advice before adding a new workflow file**, not just before
   editing an existing one — this is exactly the kind of already-recorded lesson this
   file's "durable memory" premise exists to make available on the next read, not

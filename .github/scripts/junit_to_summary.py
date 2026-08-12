@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Render a pytest junit-xml file as a GitHub Actions job summary (markdown).
 
-Stdlib-only on purpose - this runs in the `publish-report` job, which deliberately doesn't
-set up the full backend venv (see .github/workflows/backend-tests.yml), just enough Python to
-parse XML.
+Stdlib-only on purpose - this runs in ci.yml's `summary` job, which deliberately doesn't set
+up the full backend venv, just enough Python to parse XML.
 """
 
 import sys
