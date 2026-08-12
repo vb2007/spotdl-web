@@ -21,6 +21,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # v21: standing requirement — backend/pyproject.toml and frontend/package.json must always
+  # carry the identical version, and any diff touching backend/ or frontend/ must bump it (a
+  # docs-only PR is exempt — see .github/scripts/check_version.py's path-aware check). This is
+  # the CI-enforced half of that rule; release.yml reads the same script's stdout as the single
+  # source of the version string for the tag it cuts, so there's no second parser to drift.
+  # `fetch-depth: 0` is required here, not just nice-to-have -- the script diffs against
+  # `origin/<base>`, which a shallow checkout wouldn't have.
+  version:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check backend/frontend version agreement and bump
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python3 .github/scripts/check_version.py "origin/${{ github.base_ref }}"
+          else
+            python3 .github/scripts/check_version.py
+          fi
+
   pytest:
     runs-on: self-hosted
     defaults:
@@ -168,7 +190,10 @@ jobs:
     # DOWNLOADS_DIR/REDIS_PASSWORD/CLOUDFLARE_TUNNEL_TOKEN are the only three variables
     # either compose file references at the Compose-interpolation level (as opposed to
     # values merely passed through to a container via env_file: .env, which `config`
-    # doesn't need populated to render correctly).
+    # doesn't need populated to render correctly). v21: docker-compose.prod.yml's backend/
+    # web services now render `image: ghcr.io/vb2007/spotdl-web-*:${IMAGE_TAG:-latest}` —
+    # needs no fourth placeholder here, the `:-latest` default already makes that
+    # interpolation resolve without IMAGE_TAG being set at all.
     env:
       DOWNLOADS_DIR: /tmp/ci-placeholder-downloads
       REDIS_PASSWORD: ci-placeholder

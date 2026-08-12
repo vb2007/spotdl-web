@@ -21,19 +21,21 @@ That inverts normal web-app priorities — durability beats throughput. A track 
 in the queue for days, and that is correct behavior, not a stall.
 
 **Status:** master v1 (v00–v13) is complete, merged, and deployed at `spotdl.vb2007.hu`.
-Current work is **master v2 (v14–v21)**: multi-user support, job/track hierarchy, search/archive.
+Current work is **master v2 (v14–v22)**: multi-user support, job/track hierarchy, search/archive,
+release automation.
 
 ### Where things are
 
 | What | Where |
 |---|---|
 | Current roadmap + rationale | `plan/master-v2/00-master-plan.md` |
-| Per-version implementation detail | `plan/master-v2/vNN-*.md` (v14–v21) |
+| Per-version implementation detail | `plan/master-v2/vNN-*.md` (v14–v22) |
 | Master v1 plans (historical, never edited) | `plan/master-v1/` |
 | **Accumulated gotchas from v01–v13** | **`docs/GOTCHAS.md`** — indexed by topic; read the relevant section before touching an area |
 | Deploy runbook (Debian host) | `docs/DEPLOYMENT.md` |
 | Local dev runbook | `docs/LOCAL_DEV.md` |
 | CI (self-hosted runner) | `docs/CI_SELF_HOSTED_RUNNER.md` |
+| Release pipeline (versioning, GHCR, deploy automation) | `docs/RELEASE_PIPELINE.md` |
 | Product brief / UX requirements | `PRODUCT.md` |
 | Frontend design system | `frontend/src/DESIGN.md` |
 
@@ -67,6 +69,12 @@ function still exists before acting on it**, since v2 changes schema, endpoints,
   reachable, and say so explicitly rather than silently substituting the fallback for all of it.
 - **Context comes from graphify, not exploration agents.** Run `graphify query` / `path` / `explain`
   before searching manually. Run `graphify update .` after every code-modifying version.
+- **Every version slice bumps the app version.** `backend/pyproject.toml`'s `version` and
+  `frontend/package.json`'s `version` must carry the identical `major.minor.patch` string
+  (`major.minor` = master series . roadmap slice, e.g. v21 → `2.21.0`), and a PR touching
+  `backend/`/`frontend/` isn't merge-ready until it bumps that string — CI's `version` job
+  (`.github/scripts/check_version.py`) enforces both the agreement and the bump. See
+  `docs/RELEASE_PIPELINE.md` for the release/deploy automation this feeds.
 - **Develop locally, deploy to verify.** The local stack is the iteration loop; the Debian host is
   a final-verification target, not a place to chase build errors one SSH round trip at a time. Only
   debug there for genuinely host-specific issues (shared Postgres, tunnel/ingress, restart survival).
@@ -242,7 +250,8 @@ v13 settings-ui. Detail in `plan/master-v1/`, findings in `docs/GOTCHAS.md`.
 | v18 | `dev-job-centric-api` | **Done.** Cursor-paginated/filtered/sorted/searchable `/api/jobs` and `/api/tracks`; rollup status + title computed in one aggregate query; `pg_trgm` search; unpaginated `list_tracks` removed. **Frontend now renders an empty/broken queue** — `queue.ts`/`api.ts` still expect the old bare-array shape; this is expected and left for v20, not a regression to chase |
 | v19 | `dev-archive-retention` | **Done.** `archive_jobs`/`unarchive_jobs` re-derive eligibility from real track states (settled/failed/cancelled, age from newest track activity); `/api/jobs/archive`+`/unarchive`, per-user `/api/settings/retention`, hourly `archive_due_jobs` sweep. `job_to_dict` now exposes `archived_at` (a v18 gap this version needed closed) |
 | v20 | `dev-job-centric-ui` | **Done.** `QueueTable.svelte` retired; job rows (rollup badge, segmented progress bar, actions) expand to paginated tracks; Jobs/Tracks scope toggle, server-side search/sort/state-filter, archive/unarchive with live status-chip counts, `/account` retention page. Also closed a real gap the UI newly exposed: `retry_track` now rejects a track whose job is archived |
-| v21 | `dev-multi-user-hardening` | Adversarial two-user verification, prod migration, doc reconciliation |
+| v21 | `dev-release-automation` | **PR #23 open, tested.** Unplanned insertion after v20 (see `plan/master-v2/v21-release-automation.md`'s header note) — v22 below is unchanged, only renumbered. Versioned GitHub releases + public GHCR images + automated deploy to the Debian host, with a CI gate, pre-migration backup, and health-gated rollback. Verified live pre-merge (publish/deploy/rollback/idempotency, a real cut-then-deleted `v2.21.0` release); only the actual chain trigger needs post-merge confirmation (GitHub only activates `workflow_run`/`workflow_dispatch` off the default branch). See `docs/RELEASE_PIPELINE.md` |
+| v22 | `dev-multi-user-hardening` | Adversarial two-user verification, prod migration, doc reconciliation |
 
 ---
 

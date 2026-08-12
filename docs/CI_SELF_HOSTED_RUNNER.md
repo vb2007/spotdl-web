@@ -41,12 +41,23 @@ should be verified explicitly rather than assumed:
 Beyond that repo setting, keep the blast radius contained on the host itself:
 
 - Run the runner as a **dedicated, unprivileged OS user** — not `root`, and ideally not the same
-  user that owns the `/opt/spotdl-web` deployment checkout. It needs `docker` group membership
-  only if a future workflow job needs `docker compose` (the current workflow doesn't).
-- The runner's own working directory (`/opt/actions-runner` below) is intentionally **separate
-  from** the deployed app's checkout (`/opt/spotdl-web`, per `docs/DEPLOYMENT.md`). Actions
-  checks out a fresh copy of the repo per job under its own `_work` directory — it never touches
-  `/opt/spotdl-web`, and the two should never be pointed at the same path.
+  user that owns the deployment checkout. It needs `docker` group membership only if a workflow
+  job needs `docker compose` (as of v21, it does — see below).
+- The runner's own working directory is intentionally **separate from** the deployed app's
+  checkout (`docs/DEPLOYMENT.md`). Actions checks out a fresh copy of the repo per job under its
+  own `_work` directory — it never touches the real deploy checkout on its own; only
+  `publish-deploy.yml`'s `deploy` job deliberately reaches into it, by design (see
+  `docs/RELEASE_PIPELINE.md`).
+
+> **Reality on this host, corrected here rather than left stale:** the runner actually lives at
+> `/home/vb2007/gh-actionrunners/spotdl-web`, running as **`vb2007`** — the same user that owns
+> the `/mnt/raid1/spotdl-web` deploy checkout, not a dedicated `github-runner` account as this
+> section originally recommended. That's a real deviation from the isolation advice above, not a
+> documentation typo; `vb2007` is also in the `docker` group already, which is what makes v21's
+> `docker compose`/`docker build`/`docker push` steps work without further setup. Revisit the
+> dedicated-user separation if this project ever gains outside contributors (see the repo setting
+> above) — not urgent for a single-maintainer public repo today, but worth not repeating as the
+> default for a *new* project's runner.
 
 ---
 
@@ -54,19 +65,20 @@ Beyond that repo setting, keep the blast radius contained on the host itself:
 
 From the GitHub repo → **Settings → Actions → Runners → New self-hosted runner**, which gives a
 one-time registration token and the exact `curl`/`tar` commands for Linux x64. In outline, this
-is what already happened on the host:
+is what already happened on the host (see the reality note above for the actual path/user used):
 
 ```bash
-sudo useradd -m -s /bin/bash github-runner   # dedicated unprivileged user, if not done already
+sudo useradd -m -s /bin/bash github-runner   # dedicated unprivileged user, recommended but NOT
+                                              # what this host actually did — see the note above
 sudo -iu github-runner
 mkdir -p /opt/actions-runner && cd /opt/actions-runner    # requires the directory owned by github-runner
 # (download + extract the runner tarball GitHub's UI gives you)
 ./config.sh --url https://github.com/vb2007/spotdl-web --token <REGISTRATION_TOKEN>
 ```
 
-`config.sh` prompts for a runner name (default: hostname) and labels (default: none extra) — the
+`config.sh` prompts for a runner name (default: hostname) and labels (default: none extra) — every
 workflow in this repo targets the always-present `self-hosted` label only, so no custom labels
-are required.
+are required. The real runner registered against this repo is named `vbServer`.
 
 ## 2. Install OS-level runner dependencies
 
@@ -74,7 +86,7 @@ The extracted runner package ships a helper for the handful of system packages t
 itself needs (independent of anything this project's tests need):
 
 ```bash
-cd /opt/actions-runner
+cd /opt/actions-runner   # or wherever config.sh actually ran, per the note above
 sudo ./bin/installdependencies.sh
 ```
 
@@ -85,17 +97,27 @@ the moment that session closes. Install it as a systemd service instead so it su
 and SSH disconnects:
 
 ```bash
-cd /opt/actions-runner
+cd /opt/actions-runner   # or wherever config.sh actually ran
 sudo ./svc.sh install github-runner   # runs as the github-runner user, not root
 sudo ./svc.sh start
 sudo ./svc.sh status
 ```
 
+> On this host, the runner is instead kept running as a long-lived `./run.sh` process under the
+> `vb2007` user (alongside this project's other self-hosted runners — `vb2007hu-api`,
+> `discordbot`, `nfctools-app`) rather than the `svc.sh`-installed systemd unit this section
+> recommends. It shows **online** in the GitHub UI either way; the systemd install above is the
+> more resilient option (survives a shell/session being torn down without something else keeping
+> `run.sh` alive) and is worth adopting on this host if it's ever seen going unexpectedly
+> **Offline**.
+
 ## 4. Verify registration
 
 GitHub repo → **Settings → Actions → Runners** should show the runner listed with a green
-**Idle** status. If it shows **Offline**, the systemd service isn't running — check
-`sudo ./svc.sh status` and `journalctl -u actions.runner.* -n 50` on the host.
+**Idle** status (already confirmed for `vbServer`, labels `self-hosted, Linux, X64`). If it shows
+**Offline**: check `sudo ./svc.sh status` + `journalctl -u actions.runner.* -n 50` if it's
+installed as a systemd service, or confirm the `run.sh` process is still alive otherwise (see the
+note above).
 
 ## 5. Project test dependencies
 
@@ -163,19 +185,30 @@ a PR is merge-ready): add it as a GitHub Actions **service container** in the wo
 it at this same host's existing Postgres instance the way `docs/DEPLOYMENT.md` does for the
 deployed app — don't reach for either preemptively while the suite doesn't need it.
 
-## 6. What the workflow actually runs
+## 6. What the workflows actually run
 
-`.github/workflows/ci.yml` — one workflow file, four jobs, covering everything a PR needs
-checked. (v12 briefly split `compose-config`/`frontend` into their own `deploy-checks.yml`
-before folding them back in here — right below is exactly the "rather than standing up a
-separate workflow preemptively" advice this section already gave; worth listening to it next
-time before re-learning it.)
+As of v21 there are **three** workflow files, chained rather than independently triggered — see
+`docs/RELEASE_PIPELINE.md` for the full chain diagram and design rationale. This section covers
+what each one does mechanically on the runner; that doc covers *why* they're wired the way they are.
+
+### `ci.yml` — "CI"
+
+One workflow file, five jobs, covering everything a PR needs checked. (v12 briefly split
+`compose-config`/`frontend` into their own `deploy-checks.yml` before folding them back in here —
+right below is exactly the "rather than standing up a separate workflow preemptively" advice this
+section already gave; worth listening to it next time before re-learning it.)
 
 - Triggers on every pull request (any target branch — this project only ever PRs into `main`),
   every push to `main`, and manual `workflow_dispatch` (useful for smoke-testing the runner setup
-  itself without opening a PR).
+  itself without opening a PR). `push` to `main` is also what `release.yml` chains off of via
+  `workflow_run`.
 - `concurrency` cancels a still-running job for the same ref if a new commit supersedes it, so
   pushing twice to the same PR doesn't queue two redundant runs.
+- **`version` job** (v21): runs `.github/scripts/check_version.py`, hard-failing on drift between
+  `backend/pyproject.toml` and `frontend/package.json`, or (on a `pull_request`, comparing against
+  `origin/<base-ref>`) when the diff touches `backend/`/`frontend/` without bumping the version —
+  the CI-enforced half of `CLAUDE.md`'s versioning rule. `release.yml` reads this same script's
+  stdout as the single source of the version string for the tag it cuts.
 - **`pytest` job** (`runs-on: self-hosted`, working directory `backend/`): checkout → install
   `uv` → `uv python install 3.12` → fresh venv + `uv pip install ".[dev,report]"` → `pytest -v`
   generating three report formats (`test-reports/junit.xml`, `report.html`, `report.ods` — see
@@ -202,6 +235,30 @@ time before re-learning it.)
   per-step — `svelte-check` needs it too (it runs `svelte-kit sync` first, which generates
   `$env/static/public`'s exports from whatever `PUBLIC_*` vars exist at that moment), not just
   the later `Build` step.
+
+### `release.yml` — "Release" (v21)
+
+Chains off `ci.yml` via `workflow_run` (only proceeds on a successful run that was itself
+triggered by a real `push` to `main`) plus its own `workflow_dispatch` for cutting a release on
+demand. One job: resolve the version via `check_version.py` → check whether `vX.Y.Z` is already
+tagged on the remote (`git ls-remote --tags origin`, not a local `git tag -l` — this is a fresh
+checkout every run) → if not, build a deploy bundle (`docker-compose*.yml`, `.env.example`,
+`proxies.txt.example`, `scripts/`) and `backend/requirements.txt`, then
+`gh release create --generate-notes --latest --target <commit>`. Skips everything past the
+tag-exists check on an unbumped merge (e.g. docs-only) — the run still concludes `success`, which
+is what lets `publish-deploy.yml` chain off it regardless.
+
+### `publish-deploy.yml` — "Publish & Deploy" (v21)
+
+Chains off `release.yml` via `workflow_run`, plus `workflow_dispatch` (`ref` input — branch, tag,
+or commit) for deploying anything to the host on demand, ahead of a PR merging. Three jobs:
+`resolve` (picks release-mode vs. manual-mode and computes the version/image tags/persist flag),
+`publish` (builds + pushes `ghcr.io/vb2007/spotdl-web-{backend,frontend}`, needs `docker` group
+membership — see the reality note in the Security section above for why `vb2007` already has it),
+and `deploy` (updates `/mnt/raid1/spotdl-web` in place, pre-migration `pg_backup.sh`, health gate
+via `.github/scripts/wait_for_stack_health.sh`, automatic rollback on failure). Full mechanics,
+idempotency rules, and every manual-recovery lever are in **`docs/RELEASE_PIPELINE.md`** — this
+doc intentionally doesn't duplicate that level of detail.
 
 Only the backend has real *tests* today (the frontend job above is lint/typecheck/build, not a
 test runner — `frontend/package.json` has no test script as of v09) — extend `pytest` with a

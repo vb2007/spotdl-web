@@ -78,6 +78,25 @@ needed" claim — rather than silently deleted.
   tasks → *v12*
 - Arch local dev: a pending kernel update breaks all container networking (not project-specific)
   → *v01*
+- `image:`/`build: !reset null` must repeat on every service inheriting `build:` from a shared
+  anchor — a bare `image:` alongside an *inherited* `build:` still builds locally → *v21*
+- `git clean -fd`, never `-fdx`, in an automated deploy — `-x` deletes gitignored `.env`/secrets
+  along with build junk → *v21*
+- Documented deploy-host paths drift from reality; verify against the real host before wiring an
+  automated workflow that acts on them → *v21*
+- A persistent self-hosted runner's `docker login` credential outlives the job and poisons later
+  pulls (even of public images) until an explicit `docker logout` → *v21*
+- `host.docker.internal` doesn't resolve from the host's own DNS on Linux — a script meant to run
+  on the host itself (not in a container) needs `localhost` instead → *v21*
+- `git checkout --detach` still needs `--force` to survive local drift on a tracked file, even
+  once resolved to an unambiguous commit SHA → *v21*
+- A service with no explicit Celery `--concurrency` defaults to `os.cpu_count()` prefork
+  children — reliably OOMs a heavy-dependency worker on a resource-limited container → *v21*
+- A hardcoded absolute path in a script/doc is a claim about the real host's layout — verify it
+  against the host, since a stray `mkdir -p` into a "normal-looking" path (e.g. `/srv`) is easy
+  to miss and can land on the wrong disk entirely → *v21*
+- A generated-data directory (backups, logs, caches) placed inside a git-managed deploy checkout
+  must be gitignored, or the next `git clean -fd` silently deletes it → *v21*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -284,6 +303,15 @@ needed" claim — rather than silently deleted.
   step → *v12*
 - Extend the existing workflow file; don't add a second one (`docs/CI_SELF_HOSTED_RUNNER.md` said
   so, and v12 ignored it and had to undo it) → *v12*
+- A release created with the default `GITHUB_TOKEN` doesn't trigger other workflows (GitHub's own
+  loop prevention) — chain via `workflow_run` instead of a downstream `release:`/`push` trigger
+  → *v21*
+- A `deploy` job polling another workflow's conclusion deadlocks against a single shared
+  self-hosted runner — chain from the upstream workflow instead of polling → *v21*
+- `workflow_run`'s own `github.sha`/`github.ref` are the default branch's current head, not the
+  triggering commit — resolve the real commit explicitly (e.g. from the release tag) → *v21*
+- `repos/.../actions/permissions/workflow`'s `default_workflow_permissions` caps what any
+  workflow's own `permissions:` block can grant, independent of that block → *v21*
 
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
@@ -2317,3 +2345,147 @@ controls, and the `/account` route)
     positive worth remembering too: `GET /api/jobs/{id}` single-row refetches share the substring
     `/api/jobs` with the list endpoint and were briefly miscounted as reloads in the verification
     script itself, not the app.)
+
+### v21 release-automation gotchas (learned building GitHub releases, GHCR image publishing, and
+automated deploy-to-host)
+
+- **A release/tag created with the default `GITHUB_TOKEN` does not trigger other workflows** —
+  this is GitHub's own loop-prevention rule, not a bug or a permissions gap. It means
+  `release: [published]` cannot drive `publish-deploy.yml` without adding a personal access token
+  as a repo secret. Chaining via `workflow_run` (release.yml → publish-deploy.yml) sidesteps this
+  entirely with no PAT anywhere in the pipeline — confirmed by reading GitHub's own events
+  documentation before designing around it, not discovered the expensive way via a silently
+  non-firing workflow.
+- **A `deploy` job that polls `ci.yml`'s conclusion would deadlock against a single self-hosted
+  runner** — this repo has exactly one runner (`vbServer`) shared across every workflow. A job
+  holding that runner's only slot while waiting on another workflow that needs the same runner to
+  even start is a real deadlock, not a theoretical one. The fix is structural, not a timeout:
+  chain `release.yml` off `ci.yml` via `workflow_run` (so "CI passed" is a precondition for the
+  job even being scheduled, never something a running job waits on), and `publish-deploy.yml` off
+  `release.yml` the same way.
+- **`workflow_run`'s own `github.sha`/`github.ref` are the default branch's current head, not
+  necessarily the commit that triggered the upstream run** — verified against GitHub's events
+  reference before relying on it. `release.yml` explicitly checks out
+  `github.event.workflow_run.head_sha`; `publish-deploy.yml` resolves everything from the
+  release's own tag (`gh release view --json tagName`) and the exact commit SHA that tag points
+  to, never the ambient event context.
+- **`docker checkout --detach <branch-name>` cannot reliably resolve a bare branch name to
+  `origin/<branch-name>` the way plain `git checkout <branch-name>` DWIMs it** — `--detach`
+  disables that convenience lookup. `publish-deploy.yml`'s `resolve` job therefore always resolves
+  to a concrete commit SHA (via a real `actions/checkout` at the human-readable ref, then
+  `git rev-parse HEAD`) before the `deploy` job ever runs `git checkout --detach`, so the target is
+  always unambiguous regardless of whether the input was a branch, a tag, or a SHA already.
+- **`git clean -fd`, never `-fdx`, in the deploy job** — `.env` and `proxies.txt` are gitignored on
+  purpose (they hold real secrets and the real proxy pool), which is exactly what `-x` also
+  removes. `-fd` alone leaves ignored files untouched while still clearing any stray untracked
+  build artifact.
+- **`docker-compose.prod.yml`'s `image:`/`build: !reset null` pair has to be repeated on every
+  service that needs it, not set once** — `build: ./backend` arrives at `migrate`/`api`/
+  `worker-dl`/`worker-meta`/`beat` via the base file's `x-backend` YAML anchor (`<<: *backend`),
+  so a bare `image:` on one of these services alongside the *inherited* `build:` still builds
+  locally and ignores the pulled tag (Compose prefers `build` when both keys are present after
+  merge). Each service needs its own `build: !reset null` to actually remove the anchor's value.
+  Confirmed with `docker compose config` rendering every service's resolved `build` as `null` and
+  `image` as the GHCR ref, not just eyeballing the YAML.
+- **The OCI `org.opencontainers.image.source` label is what links a GHCR package to its GitHub
+  repo** — without it, a pushed package shows up as an orphaned, unlinked entry under the
+  publishing account's Packages tab rather than appearing on the repo's own sidebar. Set at build
+  time (`docker build --label org.opencontainers.image.source=https://github.com/<repo> ...`),
+  not something fixable after the fact except through GHCR's manual "Connect repository" UI.
+- **`default_workflow_permissions: read` at the repo level silently caps what any workflow's own
+  `permissions:` block can grant** — found via `gh api repos/.../actions/permissions/workflow`
+  before the first real run, not after a mysterious 403. A workflow declaring
+  `permissions: { contents: write, packages: write }` still needs the repo-level setting raised to
+  "Read and write permissions" first (Settings → Actions → General); the per-workflow block is a
+  ceiling *within* that repo setting, not independent of it.
+- **The documented deploy host paths had drifted from reality** — `docs/DEPLOYMENT.md` and
+  `docs/CI_SELF_HOSTED_RUNNER.md` described `/opt/spotdl-web` and a dedicated `github-runner` OS
+  user; the real host has the deploy checkout at `/mnt/raid1/spotdl-web` and the runner at
+  `/home/vb2007/gh-actionrunners/spotdl-web` running as `vb2007` (the same user that owns the
+  deploy checkout, already in the `docker` group). Found only by actually SSHing in and checking —
+  never assume a runbook still matches the host without verifying against it first, especially
+  before wiring a workflow that will `git reset --hard`/`docker compose up -d` for real.
+- **The host's `.env` was missing `ADMIN_EMAIL`** — mandatory since v17 (every backend container
+  crash-loops at boot without it). Would have made the very first automated deploy fail on
+  something unrelated to the pipeline itself; caught and fixed in this slice's host pre-flight
+  before the pipeline ever ran for real, rather than discovered as a confusing first-deploy
+  failure.
+- **`docker manifest inspect` against a private GHCR image, unauthenticated, fails the same way as
+  "image doesn't exist yet"** — used deliberately as the already-published check in the `publish`
+  job: it doesn't need to distinguish "not published" from "published but I can't see it," since
+  both cases correctly mean "build and push."
+
+- **A persistent self-hosted runner's `docker login` credential outlives the job that created
+  it and poisons later, unrelated pulls** — unlike a GitHub-hosted runner's disposable VM, this
+  runner's `~/.docker/config.json` is shared across every job and every future run. The
+  `publish` job's `docker login ghcr.io` (needed to push) left a credential behind that was
+  still there — and by then invalid — when the `deploy` job tried a plain, unauthenticated
+  `docker compose pull` of the same (now public) images moments later; Docker sent the stale
+  credential instead of falling back to anonymous, and GHCR answered `denied: denied` for an
+  otherwise-public image. Reproduced and fixed live on the real runner (confirmed via
+  `~/.docker/config.json` and a manual `docker logout ghcr.io` unblocking the exact same pull)
+  before adding an unconditional `docker logout ghcr.io` (`if: always()`) as the `publish`
+  job's last step.
+- **`pg_backup.sh` (a pre-existing v12 script) had never actually succeeded on this host** —
+  it reads `DATABASE_URL` verbatim from `.env`, which is written for the *containers*
+  (`host.docker.internal`, resolved via `extra_hosts: host-gateway`). That hostname is **not**
+  resolvable from the host's own DNS on Linux (only Docker Desktop maps it on the host too) —
+  confirmed by running the unmodified script for real and getting
+  `could not translate host name "host.docker.internal"`. Fixed by substituting `localhost` for
+  that one hostname after the existing `+psycopg` strip, since the script only ever runs
+  directly on the host (Postgres is host-native, per the locked decision) — verified by
+  re-running it for real afterward and inspecting the resulting dump with `pg_restore --list`.
+- **`git checkout --detach --force`, not just `--detach`, is needed for an automated deploy
+  checkout** — even after resolving to an unambiguous commit SHA (see the DWIM gotcha above),
+  `git checkout` still refuses to switch when a *tracked* file has local, uncommitted drift
+  (`error: Your local changes ... would be overwritten by checkout`). Hit for real when a script
+  fix was hand-applied directly to the host checkout ahead of the pipeline deploying it itself —
+  a completely ordinary occurrence (anyone SSHing in and patching a file by hand), not an edge
+  case worth dismissing. `--force` makes the checkout always land exactly on the resolved commit
+  regardless of that drift; `git clean -fd` afterward is unrelated (it only ever touched
+  untracked files) and didn't need to change.
+- **`worker-meta` was mid-crash-loop from a real, pre-existing OOM** (not merely "observed
+  restarting" — confirmed via `docker inspect ...  --format 'OOMKilled={{.State.OOMKilled}}'` →
+  `true`, exit 137) **the entire time this slice's health gate was being built**, and it
+  permanently blocked the gate from ever reporting the stack healthy. Root cause: no
+  `--concurrency` flag on its Celery command, so it defaulted to `os.cpu_count()` (8 on this
+  host) prefork children, each importing the heavy spotdl/yt-dlp dependency tree — reliably
+  exceeding its 768M prod limit. Fixed with `--concurrency=2` (meta tasks are lightweight; two
+  workers is ample) rather than raising the memory limit, since the host's spare RAM is
+  genuinely tight (shared with Matrix/Vaultwarden/TubeArchivist, swap already full at the time).
+  A pre-existing bug outside this slice's stated scope became in-scope the moment it started
+  blocking the very thing being built — worth remembering next time a "flag for later" item
+  turns out to sit on the critical path.
+- **A "reasonable-looking" hardcoded default path can be silently wrong for the real host, and
+  nothing will tell you until it's already created something** — `scripts/pg_backup.sh`'s
+  original default (`/srv/spotdl-web/backups`, inherited from this doc's own original,
+  never-fully-reconciled greenfield example) had no relationship to this host's actual storage
+  layout: the real deploy checkout and downloads both live under `/mnt/raid1` (a RAID array,
+  also reachable from other machines via a Samba share literally named `srv-raid1` — a
+  coincidence of naming, not the same path as the bare `/srv` on the host's own root
+  filesystem). The first time the script actually ran for real on the host, it silently
+  `mkdir -p`'d a brand-new `/srv/spotdl-web/backups` on the **OS root disk**, not the RAID
+  array — a live production host running several other unrelated services, so a mistakenly
+  ballooning root filesystem is a real risk, not a hypothetical one. Caught only because the
+  user noticed `/srv` mentioned in a changelog and immediately knew it didn't belong (it hadn't
+  existed before this session). Fixed by deriving the default from the script's own
+  `REPO_ROOT` instead of a second hardcoded absolute path — a default that's *computed from
+  where the code actually is* can't independently drift from where the code actually is, the
+  way two independently-typed absolute paths always eventually can. **The general lesson**:
+  every hardcoded absolute path in a script or doc that will run for real on a specific host is
+  a claim about that host's layout — verify it against the real host (as this slice's other
+  path corrections already did for the deploy checkout and `DOWNLOADS_DIR`) rather than trusting
+  it because it "sounds like" a normal Linux convention. `/srv` is a real, common,
+  intentionally-empty-by-default FHS directory — that's exactly what makes a stray, wrong
+  `mkdir -p /srv/...` easy to miss, since finding an unexpected `/srv/<project-name>/` doesn't
+  look obviously broken at a glance.
+- **A backup directory placed *inside* a git-managed deploy checkout must be gitignored, or the
+  next automated deploy silently deletes it** — once `pg_backup.sh`'s default moved to
+  `<repo root>/backups` (fixing the gotcha above), that directory sits inside the exact tree
+  `publish-deploy.yml`'s `deploy` job runs `git clean -fd` against on every single deploy.
+  `-fd` deletes any untracked file not covered by `.gitignore` — without an explicit
+  `/backups/` entry (added alongside the path fix, not as an afterthought), every real Postgres
+  dump ever taken would have been wiped by the very next deploy. The general form of this bug:
+  moving *any* generated, non-source data (logs, caches, backups, uploads) to live inside a
+  git-managed directory that a deploy pipeline resets is only safe if it's gitignored — verify
+  this every time such a path changes, not just when it's first introduced.

@@ -1,6 +1,6 @@
 [project]
 name = "spotdl-web-backend"
-version = "0.1.0"
+version = "2.21.0"
 description = "Self-hosted spotdl web wrapper — API, Celery workers, and Alembic migrations"
 requires-python = ">=3.12,<3.13"
 dependencies = [

@@ -10,14 +10,22 @@
 #
 # Env overrides (all optional):
 #   SPOTDL_WEB_ENV_FILE              path to .env (default: repo root .env)
-#   SPOTDL_WEB_BACKUP_DIR            where dumps are written (default: /srv/spotdl-web/backups)
+#   SPOTDL_WEB_BACKUP_DIR            where dumps are written (default: <repo root>/backups)
 #   SPOTDL_WEB_BACKUP_RETENTION_DAYS how long to keep dumps (default: 14)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="${SPOTDL_WEB_ENV_FILE:-$REPO_ROOT/.env}"
-BACKUP_DIR="${SPOTDL_WEB_BACKUP_DIR:-/srv/spotdl-web/backups}"
+# v21 fix: this used to default to a hardcoded /srv/spotdl-web/backups -- a path that never
+# matched any real host layout and, on the actual production host, silently created a fresh
+# /srv/spotdl-web directory ON THE OS ROOT DISK (never the RAID array the real deploy checkout
+# and downloads live on) the first time this script ever ran for real. Deriving the default
+# from REPO_ROOT instead means it always lands next to whatever checkout is running the
+# script, on whatever disk that checkout actually lives on -- it can't drift from reality
+# again the way a second hardcoded absolute path could. Gitignored (see .gitignore) since it
+# lives inside the deploy checkout and `git clean -fd` must never touch it.
+BACKUP_DIR="${SPOTDL_WEB_BACKUP_DIR:-$REPO_ROOT/backups}"
 RETENTION_DAYS="${SPOTDL_WEB_BACKUP_RETENTION_DAYS:-14}"
 
 if [ ! -f "$ENV_FILE" ]; then
@@ -38,6 +46,16 @@ fi
 # pg_dump doesn't understand SQLAlchemy's "+psycopg" driver suffix — strip it back to a
 # plain postgresql:// URI it can actually parse.
 PG_URL="${DATABASE_URL/postgresql+psycopg:/postgresql:}"
+
+# v21: this script runs directly ON the host (never inside a container — see the header
+# comment), but DATABASE_URL is written for the *containers* (docker-compose.yml's
+# extra_hosts: host.docker.internal:host-gateway resolves it for them). That hostname is
+# NOT resolvable from the host's own DNS on Linux — Docker only wires it up inside
+# containers, unlike Docker Desktop on macOS/Windows, which also maps it on the host.
+# Confirmed the hard way: pg_dump failed with "could not translate host name
+# host.docker.internal" running this script for real on the production host before this
+# fix. Since Postgres is host-native (locked decision), the host reaches it as `localhost`.
+PG_URL="${PG_URL/host.docker.internal/localhost}"
 
 mkdir -p "$BACKUP_DIR"
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"

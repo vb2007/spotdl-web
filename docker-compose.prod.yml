@@ -2,13 +2,27 @@
 # WITHOUT docker-compose.override.yml (that file is dev-only and must never apply here).
 # Real invocation (see docs/DEPLOYMENT.md for the full runbook):
 #
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --build
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build
 #
 # Everything here is a concern specific to running unattended on a shared personal server
 # rather than behavior shared with local dev: resource limits sized for that server, and
 # the real host bind mount for downloaded files (the base file's named volume remains the
 # zero-config default for anyone who just clones and runs `docker compose up`).
+#
+# v21: prod now deploys published GHCR images rather than building locally — every backend-
+# based service (migrate/api/worker-dl/worker-meta/beat, via the base file's x-backend
+# anchor) and web get an `image:` here plus `build: !reset null` to actually remove the
+# anchor's `build: ./backend` (a bare `image:` alongside an inherited `build:` would still
+# build locally and ignore the pulled tag — Compose prefers `build` when both are present).
+# `${IMAGE_TAG:-latest}` — the empty/first-run default is `latest` so a fresh clone's `.env`
+# without IMAGE_TAG set still resolves to something pullable; .github/workflows/publish-
+# deploy.yml is what actually writes a real version into the host's .env after every deploy.
 services:
+  migrate:
+    image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
+    build: !reset null
+
   redis:
     # noeviction is deliberate, not an oversight: this is a message broker, not a cache.
     # redis's own default policy once maxmemory is set (allkeys-lru) would silently evict
@@ -37,6 +51,8 @@ services:
           cpus: "0.5"
 
   api:
+    image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
+    build: !reset null
     deploy:
       resources:
         limits:
@@ -48,6 +64,8 @@ services:
           cpus: "1.0"
 
   worker-dl:
+    image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
+    build: !reset null
     deploy:
       resources:
         limits:
@@ -71,6 +89,8 @@ services:
       - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads
 
   worker-meta:
+    image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
+    build: !reset null
     deploy:
       resources:
         limits:
@@ -81,6 +101,8 @@ services:
       - ./proxies.txt:/app/proxies.txt:ro
 
   beat:
+    image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
+    build: !reset null
     deploy:
       resources:
         limits:
@@ -88,6 +110,8 @@ services:
           cpus: "0.25"
 
   web:
+    image: ghcr.io/vb2007/spotdl-web-frontend:${IMAGE_TAG:-latest}
+    build: !reset null
     deploy:
       resources:
         limits:

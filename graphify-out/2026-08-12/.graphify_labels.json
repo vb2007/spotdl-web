@@ -131,17 +131,9 @@
   "129": "spotdl-web — Accumulated Gotchas (master v1, v01–v13)",
   "130": "stream",
   "131": "Base",
-  "132": "reconcile_disk",
   "133": "Track state machine",
   "134": "conftest.py",
-  "135": "Amendments",
   "136": "9e18f8d457c8_add_users_and_ownership_schema.py",
-  "137": "_get_track_or_404",
-  "138": "settings.py",
   "139": "User",
-  "140": "list_tracks",
-  "141": "list_jobs",
-  "142": "track_counts",
-  "143": "beat.py",
-  "144": "One-time host setup (already done on this host — kept for reference)"
+  "143": "beat.py"
 }
