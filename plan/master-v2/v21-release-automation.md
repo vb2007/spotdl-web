@@ -112,9 +112,17 @@ Found during this slice's live-host investigation:
       rendered); a second push with no version change correctly skipped release creation,
       image publish, and deploy alike (idempotency). Deleted (`gh release delete --cleanup-tag`)
       afterward so the real merge cuts `v2.21.0` fresh against the actual merged history.
-- [ ] The real chain runs unattended end-to-end once merged: `v2.21.0` released with notes and
-      assets, images published, host detached at `v2.21.0`, stack healthy. **Can only be proven
-      after merge** — `workflow_run`/`workflow_dispatch` triggers only activate once the listening
-      workflow file exists on the default branch, so the CI→Release→Publish&Deploy chain itself
-      was untestable pre-merge by construction, not by oversight. This is the one open item.
+- [x] The real chain ran unattended end-to-end once merged (2026-08-12): CI (`push` to `main`
+      from the merge) → Release → Publish & Deploy, all `workflow_run`-chained and all green.
+      `v2.21.0` was released with notes and assets; `publish` correctly found the images already
+      published from pre-merge testing and skipped rebuilding; `deploy` correctly found the host's
+      `IMAGE_TAG` already `2.21.0` and the stack already healthy, and skipped the pull/restart
+      entirely. Confirmed this was the *correct* outcome, not a stuck pipeline: the merge
+      introduced zero `backend/`/`frontend/` source changes beyond what pre-merge testing had
+      already built and deployed (`git diff` between the last pre-merge test commit and the
+      merged `main` head, scoped to `backend/`/`frontend/`, is empty) — everything after that
+      point was docs/workflow-scaffolding only. A live user report of unchanged container
+      `CREATED`/`Up` timestamps triggered this verification; see `docs/GOTCHAS.md`'s v21 section
+      for the general form of this (a content-identical rebuild is a legitimate, expected skip,
+      not a symptom of a broken deploy).
 - [x] `graphify update .` run; this checklist re-read fresh before calling the PR merge-ready.
