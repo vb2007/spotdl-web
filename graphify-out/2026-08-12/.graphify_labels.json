@@ -139,6 +139,9 @@
   "137": "_get_track_or_404",
   "138": "settings.py",
   "139": "User",
+  "140": "list_tracks",
+  "141": "list_jobs",
   "142": "track_counts",
-  "143": "beat.py"
+  "143": "beat.py",
+  "144": "One-time host setup (already done on this host — kept for reference)"
 }
