@@ -89,8 +89,16 @@ jobs:
         run: |
           COMMIT="$(git rev-parse HEAD)"
           echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
-          # TEMPORARY `|| ... == 'push'`, removed with the push trigger above before merge.
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "push" ]; then
+          # TEMPORARY: push now simulates RELEASE mode against the real v2.21.0 release, to
+          # verify the persist=true path (latest tag, images.json, skip logic) pre-merge.
+          # Removed with the push trigger above before merge.
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="$(python3 .github/scripts/check_version.py)"
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "image_tags=$VERSION,latest" >> "$GITHUB_OUTPUT"
+            echo "persist=true" >> "$GITHUB_OUTPUT"
+            echo "release_tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="manual-$(git rev-parse --short HEAD)"
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
             echo "image_tags=$VERSION" >> "$GITHUB_OUTPUT"
