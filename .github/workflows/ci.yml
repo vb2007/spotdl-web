@@ -97,7 +97,7 @@ jobs:
       #
       # Generates three human-readable report formats alongside the terminal output: a
       # self-contained HTML page, an ODS spreadsheet, and junit XML (the machine-readable input
-      # the publish-report job below turns into a job summary). `.ods` rather than `.xlsx` -
+      # the summary job below turns into a job summary). `.ods` rather than `.xlsx` -
       # pytest-excel writes via pandas' to_excel(), which auto-selects the write engine from
       # the file extension (odfpy for .ods, see pyproject.toml's `report` extra); verified this
       # produces a genuine OpenDocument Spreadsheet (`file report.ods` -> "OpenDocument
@@ -147,8 +147,13 @@ jobs:
           retention-days: 14
           archive: false
 
-  publish-report:
-    needs: pytest
+  # v21.1: fans in from every check, not just `pytest` — before this, `version`/
+  # `compose-config`/`frontend` were siblings with no downstream node, so the run's Summary
+  # page only ever showed backend results even once those three jobs existed (visible as two
+  # disconnected components in the Actions dependency graph). `needs` lists all four so the
+  # graph reads as one pipeline, and the summary reports on all of them, not only pytest's.
+  summary:
+    needs: [version, pytest, compose-config, frontend]
     if: always()
     runs-on: self-hosted
     steps:
@@ -158,12 +163,35 @@ jobs:
       # above, verified the same way (action.yml directly). `pattern: "*"` +
       # `merge-multiple: true` grabs all three separately-uploaded artifacts (junit.xml,
       # report.html, report.ods) into one flat directory rather than naming each individually -
-      # avoids keeping upload/download steps in sync by artifact name.
+      # avoids keeping upload/download steps in sync by artifact name. `continue-on-error`:
+      # `pytest` may have been cancelled or failed before uploading anything at all (as
+      # opposed to failing tests, which still upload) — a missing artifact here shouldn't
+      # take down the summary for the other three jobs' results.
       - uses: actions/download-artifact@v8
+        continue-on-error: true
         with:
           pattern: "*"
           path: test-reports
           merge-multiple: true
+
+      # One table for all four checks first — this is the part that didn't exist before
+      # v21.1, and is what makes the graph's fan-in actually mean something on the Summary
+      # page. `needs.<job>.result` reads each sibling's own conclusion regardless of whether
+      # it produced an artifact; bracket syntax for `compose-config` since GitHub Actions
+      # expressions parse a bare hyphen in dot-notation as subtraction, not an identifier
+      # character.
+      - name: Publish combined CI summary
+        run: |
+          {
+            echo "## CI summary"
+            echo
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| version | ${{ needs.version.result }} |"
+            echo "| pytest | ${{ needs.pytest.result }} |"
+            echo "| compose-config | ${{ needs['compose-config'].result }} |"
+            echo "| frontend | ${{ needs.frontend.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       # Renders junit.xml as a markdown table directly on the run's summary page — visible
       # without downloading anything, complementing the downloadable HTML/Excel artifacts from
@@ -173,7 +201,7 @@ jobs:
       # `|| true`: the script exits 1 when tests failed (useful running it standalone), but
       # that must not fail *this* job - the pytest job above is already the authoritative
       # pass/fail signal; this one's job is purely "did the summary get published".
-      - name: Publish job summary
+      - name: Publish backend test detail
         run: python3 .github/scripts/junit_to_summary.py test-reports/junit.xml >> "$GITHUB_STEP_SUMMARY" || true
 
   compose-config:
