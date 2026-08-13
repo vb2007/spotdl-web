@@ -263,6 +263,9 @@ needed" claim — rather than silently deleted.
 - A module-level store survives a client-side `goto()` navigation — it must be explicitly reset on
   logout, or an unconditionally-rendered overlay (`IncomingJobs`/`Waterfall`, no `loading` gate)
   leaks the previous user's data into the next same-tab identity → *v22*
+- The explicit "disconnect" button isn't the only door to `/login` — a session-check `load()` that
+  redirects on 401 is a second, independent trigger for the same store-reset requirement above,
+  reached by session expiry/revocation rather than a click → *v22*
 
 **Testing & verification technique**
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
@@ -312,6 +315,14 @@ needed" claim — rather than silently deleted.
 - A local dev stack sharing production's real database means local test writes are real production
   writes — confirm the blast radius (a distinct test identity, not the real admin account) before
   running anything destructive-looking, even "just local" verification → *v22*
+- Under `set -euo pipefail`, `var="$(failing-pipeline)"` aborts the script at that line even when
+  `var` was `local`-declared on a *separate*, prior statement — not only the more commonly-known
+  combined `local var=$(...)` form. A deliberate `if [ -z "$var" ]` diagnostic written right after
+  such an assignment is dead code unless the assignment itself is guarded with `|| true` → *v22*
+- An independent fresh-context review is worth its cost even on a version whose own author already
+  ran real verification — it found two real gaps a same-session author was structurally unlikely
+  to hit (a second, non-obvious trigger path to the same bug already fixed; a bash pitfall in the
+  reviewer's own newly-written script) → *v22*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -2554,6 +2565,49 @@ left unchecked, verifying production, and reconciling docs)
   Lesson: a "no leak observed" result from one render path proves nothing about a sibling store
   with different rendering logic — the sweep needed the actual persisted-store inventory (`page`,
   `expanded`, `incoming`, `liveActive`), not one representative check.
+- **`onLogout`'s explicit `queue.reset()` wasn't the only door to `/login` — a fresh-context
+  independent review of the PR caught a second one**: `frontend/src/routes/+layout.ts`'s `load()`
+  runs on every client-side navigation and redirects to `/login` on a 401, entirely independent of
+  the "disconnect" button. A session going invalid any other way (expiry, revocation, a wiped
+  `sessions` row) and the user then making *any* in-app navigation reaches this exact redirect
+  without ever running `onLogout`'s `reset()` — same unconditional `incoming`/`liveActive` leak,
+  different trigger. Fixed by calling `queue.reset()` from this one chokepoint too (right before
+  the redirect), so it's covered regardless of *why* the session is gone rather than only the one
+  explicit path. Reproduced and closed with the same before/after Playwright technique as the
+  first fix, this time via a raw `fetch('/api/auth/logout')` (bypassing the UI's own handler
+  entirely) followed by an ordinary in-app link click rather than the disconnect button.
+- **The reviewer also found a `set -e` dead-code path in `scripts/verify_separation_sse.sh`'s
+  `login()`**: `token="$(grep ... | head -n1 | sed ... | tr -d ...)"` under `set -euo pipefail`
+  aborts the whole script the instant the pipeline fails (e.g. a genuine 401 during login) —
+  *before* the deliberate `if [ -z "$token" ]` diagnostic ever runs. Reproduced directly (a
+  minimal repro with the same shape: declare-then-assign, not the more commonly-known
+  combined-`local`-assignment version of this gotcha, so worth remembering separately). Fixed
+  with `|| true` on the assignment, letting the emptiness check that follows be what actually
+  decides pass/fail. Also added: the SSE script's own sweep-table coverage was missing the row
+  for a *non-admin* B attempting `all_users=true` (only the reverse/admin direction was tested);
+  added, plus a `SPOTDL_WEB_USER_B_TOKEN` override so this check works even when only one spare
+  real non-admin identity is on hand (mint a session directly for a distinct third identity
+  rather than reusing the admin's credentials for both B and ADMIN — which was tried first here,
+  and produced a confusing FAIL that was actually a test-setup mistake, not a real leak; the
+  script now checks B isn't accidentally admin and fails loudly with a clear message instead).
+- **Re-verified with real captured SSE bytes this time, not only a narrative summary** — the
+  plan's own "Done when" explicitly wants the SSE capture pasted, not summarized. A clean
+  post-fix run's actual output:
+  ```
+  PASS: A's own stream saw its own job (...) -- events are flowing.
+  PASS: B's stream contains zero mention of A's job id.
+  PASS: B's all_users=true attempt was silently ignored -- zero mention of A's job id.
+  PASS: admin's all_users=true pattern-subscribe saw A's job id (reverse direction confirmed).
+  verify_separation_sse: all checks passed.
+  ```
+  and the raw captured admin-channel bytes for that same run (four real events, exactly as
+  expected — `job.state` expanding→expanded→cancelled and one `track.state`):
+  ```
+  data: {"ts": "...", "type": "job.state", "job_id": "...", "state": "expanding"}
+  data: {"ts": "...", "type": "job.state", "job_id": "...", "state": "expanded"}
+  data: {"ts": "...", "type": "track.state", "track_id": "...", "job_id": "...", "state": "skipped_duplicate"}
+  data: {"ts": "...", "type": "job.state", "job_id": "...", "state": "cancelled"}
+  ```
 - **v16's migration was already applied to production before this version started** — found via
   a direct table check (`users`/`user_settings` already existed, with 3 real users and 7 real
   jobs), not assumed from the plan's phrasing. v21's automated deploy pipeline (and pre-merge

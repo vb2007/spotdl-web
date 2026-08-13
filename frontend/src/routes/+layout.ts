@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import * as api from '$lib/api';
+import { queue } from '$lib/stores/queue';
 import type { LayoutLoad } from './$types';
 
 // Adapter-static has no server to run a `+layout.server.ts` load against at request
@@ -20,6 +21,12 @@ export const load: LayoutLoad = async ({ url }) => {
 	}
 
 	if (session === null && !onLoginPage) {
+		// `queue` is a module-level singleton that survives this client-side redirect (no
+		// hard reload) -- explicit onLogout isn't the only path here. A session can go
+		// invalid for other reasons (expiry, revocation) and surface through this exact
+		// `load()` re-running on the next in-app navigation, so this is the one chokepoint
+		// that must clear it regardless of *why* the session is gone.
+		queue.reset();
 		redirect(302, '/login');
 	}
 	if (session !== null && onLoginPage) {
