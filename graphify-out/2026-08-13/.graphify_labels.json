@@ -131,14 +131,9 @@
   "129": "spotdl-web — Accumulated Gotchas (master v1, v01–v13)",
   "130": "stream",
   "131": "Base",
-  "132": "_get_track_or_404",
   "133": "Track state machine",
   "134": "conftest.py",
-  "135": "auth.py",
   "136": "9e18f8d457c8_add_users_and_ownership_schema.py",
-  "137": "_ensure_spotify_client",
-  "138": "README.md",
   "139": "User",
-  "140": "verify_separation_sse.sh",
   "143": "beat.py"
 }

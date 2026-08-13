@@ -100,6 +100,11 @@ needed" claim — rather than silently deleted.
 - `docker compose ps`'s `CREATED`/`Up` columns show when a container last (re)started, not
   whether the most recent deploy did anything — an idempotency-skipped, content-identical deploy
   looks identical to a stuck one from that output alone → *v21*
+- The deploy host's on-disk git checkout can drift behind the release it's actually running
+  (containers come from the pulled GHCR image, independent of the working tree) — host-level
+  scripts invoked directly can silently run stale, already-fixed-on-GitHub code. A stale *local*
+  tag left over from pre-merge `workflow_dispatch` testing can also shadow the real tag of the
+  same name, rejecting `git fetch --tags` with "would clobber existing tag" → *v22*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -255,6 +260,9 @@ needed" claim — rather than silently deleted.
   sequence guard at the point of removal, not only at the point the next fetch *starts* — otherwise a
   slow response for an already-closed/cleared entry lands after the fact and silently recreates it,
   since its sequence number still matches whatever was current when it was issued → *v20*
+- A module-level store survives a client-side `goto()` navigation — it must be explicitly reset on
+  logout, or an unconditionally-rendered overlay (`IncomingJobs`/`Waterfall`, no `loading` gate)
+  leaks the previous user's data into the next same-tab identity → *v22*
 
 **Testing & verification technique**
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
@@ -297,6 +305,13 @@ needed" claim — rather than silently deleted.
 - `job_to_dict` never actually exposed `archived_at`, even after v18 wired `include_archived`
   filtering — the gap only surfaced hitting the real running API with `curl`, not from unit tests
   (which never assert exact response-body equality against every field) → *v19*
+- A "no leak observed" result proves nothing about a sibling store with different render logic —
+  one store's synchronous `loading:true` (set before any paint) happened to mask it there, but an
+  unconditionally-rendered sibling store leaked in the exact same scenario. Check the actual
+  persisted-store inventory, not one representative path → *v22*
+- A local dev stack sharing production's real database means local test writes are real production
+  writes — confirm the blast radius (a distinct test identity, not the real admin account) before
+  running anything destructive-looking, even "just local" verification → *v22*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -2511,3 +2526,77 @@ automated deploy-to-host)
   container, and that's the idempotency feature working, not a stuck pipeline. Verify via the
   deploy job's own logs (which step ran vs. skipped) and a source diff before assuming a deploy
   failed silently.
+
+### v22 multi-user-hardening gotchas (learned re-running the cross-user sweep at the seams v14–v20
+left unchecked, verifying production, and reconciling docs)
+
+- **A module-level frontend store is itself a data surface, and the REST-level sweep can't see
+  it.** `backend/tests/test_ownership.py` (extended per-version through v14–v20) already covered
+  every REST surface in the plan's sweep table before this version started — list isolation,
+  direct-id 404s, admin gating, search/scope, archive/retention. The one real gap was in
+  `frontend/src/lib/stores/queue.ts`: `queue` is a singleton created once at module load
+  (`export const queue = createQueueStore()`), and `onLogout()` (`frontend/src/routes/+page.svelte`)
+  navigated away with SvelteKit's `goto()` — a client-side transition that never reloads the page
+  or resets any JS module. A same-tab logout(A) → login(B) left A's `incoming` (just-submitted,
+  still-expanding jobs) and `liveActive` (currently-downloading track) entries sitting in memory,
+  and both render **unconditionally** (`IncomingJobs.svelte`/`Waterfall.svelte` have no
+  `page.loading`-style gate) — B's dashboard showed A's submitted Spotify URL. Fixed with
+  `queue.reset()`, called from `onLogout()` before the navigation, clearing
+  `page`/`expanded`/`incoming`/`liveActive`/`allUsers`/`filters` back to empty and invalidating any
+  in-flight fetch (bumps `pageFetchSeq` so a late-resolving stale response can't repopulate
+  anything). Confirmed both ways with a throwaway Playwright script against the real local stack:
+  reverting the fix reproduced the leak deterministically (not a timing race — an "incoming" entry
+  sits there indefinitely, no reload ever clears it on its own), and restoring the fix closed it.
+  **A first attempt at reproducing this was a false negative** — timing the check around
+  `page.items`/`$page.loading` (whose synchronous `loading:true` set in `reload()` happens to mask
+  that specific store within the same task, before any paint) suggested nothing leaked at all; only
+  targeting `incoming` specifically (which has no such gate) exposed the real, unconditional bug.
+  Lesson: a "no leak observed" result from one render path proves nothing about a sibling store
+  with different rendering logic — the sweep needed the actual persisted-store inventory (`page`,
+  `expanded`, `incoming`, `liveActive`), not one representative check.
+- **v16's migration was already applied to production before this version started** — found via
+  a direct table check (`users`/`user_settings` already existed, with 3 real users and 7 real
+  jobs), not assumed from the plan's phrasing. v21's automated deploy pipeline (and pre-merge
+  `workflow_dispatch` testing during v17–v20's own development) had already carried it out as a
+  side effect of shipping those versions to the real host. This version's actual work was
+  *verifying* that, not performing it: a fresh `pg_backup.sh` + restore-into-a-scratch-container
+  drill (row counts matched exactly: 4 users/16 jobs/35 tracks/93 downloaded_tracks before and
+  after), and confirming a track already in `downloaded_tracks` still resolves `skipped_duplicate`
+  rather than re-downloading when submitted by a brand-new second user. General lesson: a version
+  plan can be stale about what's *already true* on production by the time it's picked up,
+  especially once automated deploy is in the loop — check real state before executing a "perform
+  X" task literally.
+- **The production host's on-disk git checkout can drift behind the release it's actually
+  running, silently** — found while trying to bring the checkout in line with `IMAGE_TAG=2.21.0`
+  before running `pg_backup.sh`: the host was detached at an old pre-merge test commit
+  (`36c8293`, itself an ancestor of the real `v2.21.0` tag — left over from `workflow_dispatch`
+  testing during development, e.g. of `dev-ci-summary-consistency`), and `scripts/pg_backup.sh` at
+  that commit still had the pre-v21-fix hardcoded `/srv/spotdl-web/backups` default, which promptly
+  failed with a permission error on the OS root disk — the exact failure mode the real fix
+  (`d146697`) exists to prevent, resurfacing because the fixed version was never actually pulled
+  down. Worse: `git fetch origin --tags` was flat-out *rejected* ("would clobber existing tag")
+  because the host also had a **stale local `v2.21.0` tag** — created during v21's own pre-merge
+  testing before the real release process cut the authoritative tag with the same name — silently
+  shadowing the real one every git tag lookup would otherwise resolve. Fixed with
+  `git tag -d v2.21.0 && git fetch origin --tags && git checkout --detach v2.21.0`. This never
+  affected the *running containers* (those come from the already-pulled GHCR image, independent of
+  the working tree), but it means any host-level script invoked directly (backup, restore,
+  anything not baked into an image) can silently run stale code. Added to
+  `docs/DEPLOYMENT.md`'s troubleshooting table so this doesn't get rediscovered the expensive way.
+- **Local dev and production now genuinely share live data, not just a theoretical risk** — this
+  version's own local verification (Playwright leak repro, the SSE separation script) wrote real
+  rows into the same shared database production serves, confirmed by the second real test
+  identity's jobs showing up in a production-side query moments later. Harmless here because
+  ownership scoping kept it out of the admin's own view and everything created was cleaned up
+  (cancelled test jobs), but it's the first time this actually happened rather than being a
+  documented-but-unexercised risk. `docs/LOCAL_DEV.md` and `CLAUDE.md`'s dev-environment table
+  updated to say so plainly rather than "revisit once there's data worth protecting" — that
+  threshold has now been crossed.
+- **Registering a fresh real-upstream test account whose original password isn't on hand is
+  normal, not a blocker** — the pre-existing `spotdlwebtest@example.com` (from v17's own testing)
+  no longer authenticated with this session's known `DEV_TEST_PASSWORD`; rather than chase down or
+  reset its real password, a fresh account (`spotdlwebtestv22@example.com`, plain alphanumeric
+  username — the known hyphenated-username upstream bug still applies) was registered against the
+  live `https://api.vb2007.hu` with that same password, per the standing rule. Confirmed real login
+  for both `balazs@vb2007.hu` (existing admin) and the fresh identity before treating the sweep as
+  covering real auth, not only the direct-session-mint fallback.

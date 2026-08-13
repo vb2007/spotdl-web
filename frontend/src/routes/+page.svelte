@@ -60,6 +60,11 @@
 
 	async function onLogout() {
 		await api.logout();
+		// `queue` is a module-level singleton that survives this SPA navigation -- clear it
+		// before leaving, so a different identity logging in on the same tab next can never
+		// render a flash of this session's rows while its own reload() is still in flight.
+		queue.reset();
+		source?.close();
 		await goto(resolve('/login'));
 	}
 

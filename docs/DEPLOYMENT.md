@@ -367,6 +367,31 @@ Same command as the "Upgrading" section's step 4 — see there.
 
 ---
 
+## Adding a second (or third) user (v17+)
+
+Every allowlisted person gets their own private queue and job history (`jobs.user_id`, enforced
+end to end — see `CLAUDE.md`'s "Master v2 invariants"); adding one is a config change, not a
+migration:
+
+```bash
+# On the host, edit .env's ALLOWED_EMAILS to add the new address (comma-separated), then:
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps api
+```
+
+Only `api` needs recreating — it's the sole service that reads `ALLOWED_EMAILS` at request time
+(the login check); `worker-dl`/`worker-meta`/`beat` don't, so leaving them running avoids
+interrupting an in-flight download. The new person's `users` row is created automatically on their
+first successful login (`services.users.get_or_create_user`) — nothing to seed by hand. They are
+never admin unless their address also matches `ADMIN_EMAIL`. Confirm with:
+
+```bash
+curl -sS -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" \
+  -d '{"email":"<new-address>","password":"<their-real-password>"}' -D - -o /dev/null
+# expect: HTTP 200 and a Set-Cookie: SPOTDL_SESSION=... line
+```
+
+---
+
 ## Firewall / network notes
 
 - `api` (`8000`) and `web` (`5173`→`80`) are published as `127.0.0.1:<port>:<port>` in
@@ -541,3 +566,4 @@ Vaultwarden) that can't be rebooted just to verify this app's restart survival.
 | `GET /login` (or any non-`/` route) returns 404 through the tunnel | Stock nginx has no route for an extensionless path to a prerendered `.html` file | Confirm `frontend/nginx.conf`'s explicit `location = /login { try_files /login.html =404; }` block is actually in the built image (`docker compose exec web cat /etc/nginx/conf.d/default.conf`) |
 | `docker compose` command not found | compose plugin missing | re-run the one-time setup's step 4 |
 | Containers restart-looping | check `docker compose logs <service>` first — don't guess | |
+| A host-level script (e.g. `scripts/pg_backup.sh`) misbehaves in a way its current source on GitHub doesn't explain, or `git status`/`git log` on the deploy checkout shows an unexpected commit relative to the running `IMAGE_TAG` | The on-disk checkout at `/mnt/raid1/spotdl-web` only moves when a deploy (automated or manual) explicitly checks out a ref — a `workflow_dispatch` test deploy or interrupted release can leave it detached on an old commit, or (found in v22) a **stale local tag** left over from pre-release testing that no longer matches the real GitHub tag of the same name, silently shadowing it | `git fetch origin --tags`; if it's rejected with "would clobber existing tag", the local tag is stale — `git tag -d v<X.Y.Z> && git fetch origin --tags` to get the real one back, then `git checkout --detach v<X.Y.Z>` matching the `IMAGE_TAG` currently in `.env`. This only touches the working tree (compose files, scripts) — it does not affect the already-running containers |
