@@ -110,7 +110,7 @@ fi
 ME_B="$(curl -sS "$BASE_URL/api/auth/me" -H "Cookie: SPOTDL_SESSION=$TOKEN_B")"
 case "$ME_B" in
   *'"is_admin":true'*)
-    echo "SPOTDL_WEB_USER_B_EMAIL ($SPOTDL_WEB_USER_B_EMAIL) is admin -- the all_users=true check below would trivially pass for the wrong reason. Use a genuine non-admin identity for B." >&2
+    echo "B (${SPOTDL_WEB_USER_B_EMAIL:-via SPOTDL_WEB_USER_B_TOKEN}) is admin -- the all_users=true check below would trivially pass for the wrong reason. Use a genuine non-admin identity for B." >&2
     exit 1
     ;;
 esac
@@ -159,7 +159,10 @@ echo "Creating a real job as A..."
 CREATE_RESPONSE="$(curl -sS -X POST "$BASE_URL/api/jobs" \
   -H "Content-Type: application/json" -H "Cookie: SPOTDL_SESSION=$TOKEN_A" \
   -d "{\"url\":\"$TEST_TRACK_URL\"}")"
-JOB_ID="$(echo "$CREATE_RESPONSE" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f-]{36}"' | head -n1 | grep -oE '[0-9a-f-]{36}')"
+# `|| true`: same set -e/pipefail footgun as login()'s token extraction above -- without
+# it, a response with no "id" field (a real failure worth the diagnostic below) instead
+# aborts the script silently right here.
+JOB_ID="$(echo "$CREATE_RESPONSE" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f-]{36}"' | head -n1 | grep -oE '[0-9a-f-]{36}')" || true
 if [ -z "$JOB_ID" ]; then
   echo "Job creation did not return an id (response: $CREATE_RESPONSE)" >&2
   exit 1

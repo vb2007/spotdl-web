@@ -2590,6 +2590,19 @@ left unchecked, verifying production, and reconciling docs)
   rather than reusing the admin's credentials for both B and ADMIN — which was tried first here,
   and produced a confusing FAIL that was actually a test-setup mistake, not a real leak; the
   script now checks B isn't accidentally admin and fails loudly with a clear message instead).
+- **A second, independent review round caught two more instances of the exact same two bug
+  classes just fixed** — not new categories, but the first fix's own audit didn't sweep the rest
+  of the file. `JOB_ID="$(echo ... | grep ... | head ... | grep ...)"` (job creation) has the
+  identical `set -e`/pipefail dead-code shape as `login()`'s token extraction; fixed the same way
+  (`|| true`). And the new "is B accidentally admin" diagnostic introduced by the *previous* round
+  referenced `$SPOTDL_WEB_USER_B_EMAIL` unconditionally, which is unset under `set -u` when B was
+  supplied via the same round's own `SPOTDL_WEB_USER_B_TOKEN` alternative — an unbound-variable
+  crash in exactly the mode meant to make this check usable at all. Fixed with
+  `${SPOTDL_WEB_USER_B_EMAIL:-via SPOTDL_WEB_USER_B_TOKEN}`. Neither was a security-property false
+  pass (both still failed loudly, just with a worse message), but the general lesson holds: once a
+  bug class is found once in a file, audit the *whole* file for it, not just the one instance that
+  was reported — a fix applied to only the reported line invites the reviewer to find the sibling
+  instance in the next round instead of this one.
 - **Re-verified with real captured SSE bytes this time, not only a narrative summary** — the
   plan's own "Done when" explicitly wants the SSE capture pasted, not summarized. A clean
   post-fix run's actual output:
