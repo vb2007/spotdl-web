@@ -273,3 +273,24 @@ inventory recorded in `docs/GOTCHAS.md`'s v16 section.
 
 `TrackState.FAILED` was also removed in this version's migration, per the routing decision recorded
 in the previous amendment above. Verified zero test coverage depended on it.
+
+### 2026-08-13 — v22 complete; the v13-precedent closing pass performed, master v2 done
+
+v22 (`dev-multi-user-hardening`) shipped: the cross-user sweep re-confirmed at the seams v14–v20
+left unchecked (finding and fixing a real gap — a frontend store never cleared on logout, closed
+across both trigger paths after an independent review caught the second one), production
+verification (the v16 migration turned out already applied via v21's own pipeline, so this
+version verified rather than performed it), a second real user live on the deployed instance, and
+doc reconciliation. Full detail in `docs/GOTCHAS.md`'s v22 section.
+
+Its own last "Done when" bullet — the v13-precedent closing pass, re-reading every version's plan
+file to confirm each "Done when" bullet has real evidence rather than a bare assertion — was
+performed as its own step, not skipped. Result: 60 bullets audited across v14–v21, 50 with
+concrete evidence, 6 asserted-only (no contradicting evidence of a real regression, just thinner
+documentation than the rest), 4 the routine `graphify update .` bullet. Two of the six were
+spot-checked live rather than left as "probably fine" (a v20 admin-gating UI bullet, and v19's
+"dedup survives archiving" property, which its own plan text called the property that mattered
+most) — both confirmed genuinely working. Full audit trail in `docs/GOTCHAS.md`'s v22 section.
+
+This closes master v2 (v14–v22). The next roadmap, if any, starts fresh rather than continuing
+this table.

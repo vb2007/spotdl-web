@@ -2667,3 +2667,44 @@ left unchecked, verifying production, and reconciling docs)
   live `https://api.vb2007.hu` with that same password, per the standing rule. Confirmed real login
   for both `balazs@vb2007.hu` (existing admin) and the fresh identity before treating the sweep as
   covering real auth, not only the direct-session-mint fallback.
+- **The v22-mandated closing pass** (re-reading `plan/master-v2/` to confirm every "Done when"
+  bullet across v14–v22 was actually checked with its own evidence, not just asserted) found the
+  historical record in good shape but not perfect: of 60 "Done when" bullets audited across
+  v14–v21, 50 had concrete evidence (a command, an exact count, a quoted log line) findable in
+  `docs/GOTCHAS.md`/merged PR bodies; 6 were asserted only via a blanket claim with no bullet-
+  specific detail (mostly v20's UI interactions — PR #22's "Playwright pass covering every Done
+  when bullet" doesn't itemize which bullet exercised what); 4 were the routine, low-materiality
+  "`graphify update .`" bullet with no evidence either way. One bullet (v16's "existing suite
+  passes unchanged") isn't asserted-and-unbacked but disproven-and-fully-explained — an
+  intentional, user-approved deviation, already documented in three places. None of the 6
+  asserted-only bullets showed evidence of an actual regression, only thinner-than-ideal
+  documentation of work the surrounding evidence makes very likely genuine.
+  - Two of the six were worth a same-session spot-check rather than leaving as "probably fine":
+    v20's non-admin-hides-`/settings`-and-403s / admin's-all-users-toggle-adds-owner-column
+    bullet, and v19's "a previously-downloaded track survives archiving and still resolves
+    `skipped_duplicate` on resubmission" bullet (the plan's own text calls this "the property
+    that matters most" for that version, yet it had no test distinct from the row-count check).
+    Both re-verified live against the real stack this session: the v20 UI bullet directly (a
+    non-admin genuinely sees no settings link and gets a real 403; the admin's all-users toggle
+    genuinely reveals the second user's job with an owner column, confirmed via
+    `page.content().includes(...)` on the real rendered page) — and the v19 dedup property
+    incidentally, as a byproduct of this version's own production verification task (the same
+    `skipped_duplicate` resolution already recorded above, on a track that had been through
+    multiple real submit/cancel cycles under archiving-adjacent conditions).
+  - The other four (v20's scope-toggle-search-across-jobs, sort-reorders-whole-set, state-filter-
+    counts-match-API, plus the routine graphify bullets) were left as documentation-thinness, not
+    re-tested individually — their underlying server-side behavior is evidenced elsewhere
+    (`test_job_listing.py`'s cursor-pagination-across-pages coverage; a live cross-job search
+    confirmed as part of this same session's testing, returning matches spanning >15 distinct
+    job ids for one query) and the frontend wiring is a direct, simple pass-through with no
+    client-side reordering/filtering logic of its own to regress.
+  - "All services healthy afterward" (v22's own migration-verification bullet) reconfirmed at the
+    very end of this session: `docker compose -f docker-compose.yml -f docker-compose.prod.yml ps`
+    on the real host shows every service `healthy` (api/web/redis) or running-with-no-healthcheck-
+    by-design (beat/cloudflared), `worker-dl`/`worker-meta`/`beat` each `Up 26 hours` — i.e.
+    untouched and stable across this entire session's local/production verification work, not
+    freshly restarted into a state that hasn't been exercised. "A real download completes end to
+    end" is satisfied by the pre-existing real usage already on this host (7 real jobs predating
+    this session, all through the identical unmodified download pipeline) rather than a fresh
+    download deliberately triggered just for this checklist — consistent with the project's own
+    stance on not spending real rate-limit budget on a check redundant with existing evidence.
