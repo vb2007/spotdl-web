@@ -171,6 +171,12 @@ jobs:
   # pyproject.toml directly — nothing enforced the two staying in sync until now, so a
   # dependency change could ship without ever reaching the built image. `backend/uv.lock`
   # (tracked as of v23) is checked the same way, via uv's own built-in staleness check.
+  # Only does real work when one of these three files actually changed — they can only
+  # drift relative to each other when one of them does, so a PR/push touching none of
+  # them can't introduce new drift (the same reasoning check_version.py's path-aware
+  # check already applies to the version-bump requirement above). Gated at the job's own
+  # steps, not a top-level `paths:` trigger, since `version`/`pytest`/etc. must still run
+  # on every PR/push regardless of this file set.
   deps-sync:
     runs-on: self-hosted
     defaults:
@@ -178,16 +184,41 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # workflow_dispatch (and anything else) has no natural "base" to diff against, so
+      # it always runs for real — same "manual means you want the real check" reasoning
+      # as yt-dlp-freshness below.
+      - name: Check whether dependency files changed
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="origin/${{ github.base_ref }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            base="${{ github.event.before }}"
+          else
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$base"...HEAD -- pyproject.toml requirements.txt uv.lock | grep -q .; then
+            echo "relevant=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "relevant=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install uv
+        if: steps.changed.outputs.relevant == 'true'
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Check uv.lock is up to date with pyproject.toml
+        if: steps.changed.outputs.relevant == 'true'
         run: uv lock --check
 
       - name: Check requirements.txt matches pyproject.toml
+        if: steps.changed.outputs.relevant == 'true'
         # Must recompile in place (same -o path), not into a scratch file: uv treats an
         # existing output file's already-pinned versions as a preference baseline (kept
         # unless they no longer satisfy pyproject.toml's constraints), matching exactly
