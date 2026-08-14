@@ -20,17 +20,17 @@ YouTube-Music rate limiting as an expected, permanent condition rather than a fa
 That inverts normal web-app priorities — durability beats throughput. A track may legitimately sit
 in the queue for days, and that is correct behavior, not a stall.
 
-**Status:** master v1 (v00–v13) is complete, merged, and deployed at `spotdl.vb2007.hu`.
-Current work is **master v2 (v14–v22)**: multi-user support, job/track hierarchy, search/archive,
-release automation.
+**Status:** master v1 (v00–v13) and master v2 (v14–v22) are complete, merged, and deployed at
+`spotdl.vb2007.hu`. Current work is **master v3 (v23–v29)**: the production-readiness pass — fix the
+download outage, close diagnostic gaps, direct file downloads, sort & move into the real library.
 
 ### Where things are
 
 | What | Where |
 |---|---|
-| Current roadmap + rationale | `plan/master-v2/00-master-plan.md` |
-| Per-version implementation detail | `plan/master-v2/vNN-*.md` (v14–v22) |
-| Master v1 plans (historical, never edited) | `plan/master-v1/` |
+| Current roadmap + rationale | `plan/master-v3/00-master-plan.md` |
+| Per-version implementation detail | `plan/master-v3/vNN-*.md` (v23–v29) |
+| Master v1 / v2 plans (historical, never edited) | `plan/master-v1/`, `plan/master-v2/` |
 | **Accumulated gotchas from v01–v13** | **`docs/GOTCHAS.md`** — indexed by topic; read the relevant section before touching an area |
 | Deploy runbook (Debian host) | `docs/DEPLOYMENT.md` |
 | Local dev runbook | `docs/LOCAL_DEV.md` |
@@ -207,6 +207,21 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
 - **A `waiting` job is never archived on age alone.** It's deliberately in a 24h ladder step.
   Eligibility is measured from the newest track `updated_at`, not `job.created_at`.
 
+### Master v3 invariants
+
+- **Nothing is ever deleted on the target library filesystem** (`/mnt/raid1/media/music`). The only
+  deletions the sort & move performs are of the *source copy* on the downloads volume, and only
+  after the file is confirmed present at the target.
+- **Moving a file must repoint `downloaded_tracks.file_path`** in the same transaction.
+  `reconcile_disk()` prunes ledger rows whose file is missing, and a move looks exactly like a
+  deletion — get this wrong and every moved track silently re-downloads.
+- **"Already exists" is folder + filename only** — never content, bitrate or duration. A re-download
+  at a different bitrate still counts as already present.
+- **File-download availability keys on the file existing at its recorded path, never on
+  `archived_at`.** A retention-archived job still has its file and stays downloadable.
+- **`yt-dlp` floats to latest while everything else stays pinned.** Pinning the one dependency whose
+  job is chasing a moving target is what caused the v23 outage.
+
 ---
 
 ## Track state machine
@@ -261,19 +276,23 @@ v03 auth · v04 url-expansion · v05 downloader · v06 retry-engine · v07 proxy
 v08 live-progress · v09 frontend · v10 queue-controls · v11 priority · v12 deploy-hardening ·
 v13 settings-ui. Detail in `plan/master-v1/`, findings in `docs/GOTCHAS.md`.
 
-**Master v2 — in progress.**
+**Master v2 — complete, merged, deployed.** v14 v1-audit · v15 v1-gap-fixes · v16 users-schema ·
+v17 multi-user-auth · v18 job-centric-api · v19 archive-retention · v20 job-centric-ui ·
+v21 release-automation (unplanned insertion) · v22 multi-user-hardening. Detail in
+`plan/master-v2/`, findings in `docs/GOTCHAS.md`.
+
+**Master v3 — in progress.** The production-readiness pass. Full rationale in
+`plan/master-v3/00-master-plan.md`.
 
 | # | Branch | Scope |
 |---|---|---|
-| v14 | `dev-v1-audit` | Read-only audit of v1's code vs its plans; plan reorg. No app code changes |
-| v15 | `dev-v1-gap-fixes` | **Done.** Pacing hook wired, `list_jobs` N+1 collapsed, stale docs fixed, proxy settings polling, real-stack playlist/album-dedup verification. Deferred: `TrackState.FAILED` removal (v16, needs a migration), `list_tracks` pagination (v18) |
-| v16 | `dev-users-schema` | **Done.** `users`, `user_settings`, `jobs.user_id`/`archived_at`, `sessions.user_id` (NOT NULL, replacing `email`), `TrackState.FAILED` removed |
-| v17 | `dev-multi-user-auth` | **Done.** User creation on login, `ADMIN_EMAIL` seeding + reconciliation, owner-scoped REST queries (404 on non-owner), admin gating on settings/proxies/worker, per-user SSE channels + admin all-users pattern-subscribe |
-| v18 | `dev-job-centric-api` | **Done.** Cursor-paginated/filtered/sorted/searchable `/api/jobs` and `/api/tracks`; rollup status + title computed in one aggregate query; `pg_trgm` search; unpaginated `list_tracks` removed. **Frontend now renders an empty/broken queue** — `queue.ts`/`api.ts` still expect the old bare-array shape; this is expected and left for v20, not a regression to chase |
-| v19 | `dev-archive-retention` | **Done.** `archive_jobs`/`unarchive_jobs` re-derive eligibility from real track states (settled/failed/cancelled, age from newest track activity); `/api/jobs/archive`+`/unarchive`, per-user `/api/settings/retention`, hourly `archive_due_jobs` sweep. `job_to_dict` now exposes `archived_at` (a v18 gap this version needed closed) |
-| v20 | `dev-job-centric-ui` | **Done.** `QueueTable.svelte` retired; job rows (rollup badge, segmented progress bar, actions) expand to paginated tracks; Jobs/Tracks scope toggle, server-side search/sort/state-filter, archive/unarchive with live status-chip counts, `/account` retention page. Also closed a real gap the UI newly exposed: `retry_track` now rejects a track whose job is archived |
-| v21 | `dev-release-automation` | **Done** (PR #23). Unplanned insertion after v20 (see `plan/master-v2/v21-release-automation.md`'s header note) — v22 below is unchanged, only renumbered. Versioned GitHub releases + public GHCR images + automated deploy to the Debian host, with a CI gate, pre-migration backup, and health-gated rollback. Verified live pre-merge, then the real CI→Release→Publish&Deploy chain confirmed unattended post-merge: `v2.21.0` released and deployed correctly (the deploy step correctly no-op'd since the merge introduced no backend/frontend source change beyond what was already live from pre-merge testing — confirmed by diff, not assumed). See `docs/RELEASE_PIPELINE.md` |
-| v22 | `dev-multi-user-hardening` | **Done.** Adversarial cross-user sweep re-confirmed at the seams v14–v20 left unchecked (`backend/tests/test_ownership.py` + siblings for every REST surface, `scripts/verify_separation_sse.sh` for the wire itself); found and fixed a real gap exactly where the plan predicted one — a frontend `queue` store never cleared on logout, letting a same-tab identity switch leak the previous user's "incoming" submissions. Production: found v16's migration already applied via the v21 pipeline (not a fresh step), so this version verified it instead — backup+restore drill, dedup ledger survives, a second real user added and confirmed isolated + reachable via the admin's all-users toggle, live on the deployed instance. Also found and fixed the deploy host's on-disk checkout drifted behind its own running release (a stale local git tag shadowing the real one) |
+| v23 | `dev-download-reliability` | Root-cause + fix the download outage; yt-dlp unpinned + CI freshness check; typed no-output error that feeds the breaker; SSE events carry title/artist |
+| v24 | `dev-attempt-history` | `track_attempts` — what each attempt tried, direct vs which proxy, what failed |
+| v25 | `dev-username-ui` | Usernames from upstream `GET /user`; worker pause/resume moves to `/settings`, status pill stays |
+| v26 | `dev-id3-integrity` | Verify + repair embedded tags after each download. Prerequisite for v28 |
+| v27 | `dev-file-downloads` | `GET /api/tracks/{id}/file` — FastAPI authorizes, nginx streams via `X-Accel-Redirect` |
+| v28 | `dev-library-sort-move` | Admin-only sort & move into the real library; copy→verify→delete source; ledger repointed |
+| v29 | `dev-v3-hardening` | Production close: cross-user sweep over v3's surfaces, v27↔v28 proof, doc reconciliation |
 
 ---
 
