@@ -140,5 +140,19 @@
   "138": "README.md",
   "139": "User",
   "140": "verify_separation_sse.sh",
-  "143": "beat.py"
+  "141": "spotdl-web — Master Plan v3",
+  "142": "v28 — Library Sort & Move",
+  "143": "beat.py",
+  "144": "test_settings_retention.py",
+  "145": "v23 — Download Reliability & Live-View Correctness",
+  "146": "test_worker_busy_reflects_any_users_downloading_track",
+  "147": "v24 — Per-Attempt History",
+  "148": "test_app_settings.py",
+  "149": "spotdl-web — Accumulated Gotchas (master v1, v01–v13)",
+  "150": "v25 — Usernames & Control Placement",
+  "151": "v26 — ID3 Tag Integrity",
+  "152": "v29 — Production Hardening & Close",
+  "153": "v27 — Direct File Downloads",
+  "154": "Project: spotdl-web",
+  "155": "c1a9f0e2b3d4_add_no_output_track_error_type.py"
 }

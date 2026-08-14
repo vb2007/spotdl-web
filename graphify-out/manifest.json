@@ -345,13 +345,13 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1786726518.362089,
-    "ast_hash": "75536f028df10640a9d30dafa463e702",
+    "mtime": 1786727684.483964,
+    "ast_hash": "0b22b9ae55a97d9449f6deffd654cec9",
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
-    "mtime": 1786725217.0021484,
-    "ast_hash": "7a3f2300c51486b1ddbca0e95a9227a6",
+    "mtime": 1786727727.184857,
+    "ast_hash": "c5f67b4113c5cf05cb9bf5df6b659fed",
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
@@ -370,8 +370,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1786725875.3565376,
-    "ast_hash": "4e4bb49a9f209fe99853b481e2f947ae",
+    "mtime": 1786727684.4199612,
+    "ast_hash": "7e4b29a6aec185972c088f81242fe4f8",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -455,7 +455,7 @@
     "semantic_hash": ""
   },
   "backend/requirements.txt": {
-    "mtime": 1786726425.7353487,
+    "mtime": 1786727311.0504277,
     "ast_hash": "2b883d45f9840287df82555d1ce087e2",
     "semantic_hash": "2b883d45f9840287df82555d1ce087e2"
   },
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1786726943.6933894,
-    "ast_hash": "f8217b2e2266b2991f47f881c8a3dddc",
+    "mtime": 1786728122.7130263,
+    "ast_hash": "85ee7433c3f88ae232d10f68810d1f32",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {

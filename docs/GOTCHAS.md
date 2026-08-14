@@ -154,6 +154,14 @@ needed" claim — rather than silently deleted.
   be solved — every extraction that needs one fails via the swallowed-error path above. The
   production Docker image never installed Deno; `spotdl --download-deno` (run once, baked into the
   image as the `spotdl` user so it lands under that user's own config dir) fixes it → *v23*
+- `yt-dlp-ejs` (yt-dlp's companion package for solving YouTube's newer JS challenges, central to
+  the PO-token fix above) stays **pinned** via `requirements.txt` even though `yt-dlp` itself floats
+  to latest at build time (`backend/Dockerfile`'s `uv pip install --upgrade yt-dlp`, bare — no
+  `[default]` extra, so it can't cascade an upgrade to `yt-dlp-ejs` or anything else). This is
+  within the letter of "yt-dlp floats, everything else stays pinned," but it's a real fragility: a
+  future yt-dlp release that needs a newer `yt-dlp-ejs` than what's locked could silently
+  reintroduce a variant of this exact outage. Worth revisiting if the outage recurs after a yt-dlp
+  bump — check whether `yt-dlp-ejs` needs floating too before re-investigating from scratch → *v23*
 
 **Celery, tasks & durability**
 - `record_failure` computes the ladder delay **before** incrementing `attempt_count`; reversing it

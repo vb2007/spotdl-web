@@ -760,9 +760,16 @@ function createQueueStore() {
 			if (event.state !== 'downloading') {
 				if (!(event.track_id in current)) return current;
 				const existing = current[event.track_id];
-				// A truly terminal state (completed/skipped_duplicate/cancelled) is never
-				// coming back -- drop it immediately, no grace window to wait out.
-				if (TRULY_TERMINAL_STATES.has(existing.state)) {
+				// A truly terminal state is never coming back -- drop it immediately, no
+				// grace window to wait out. Must check the INCOMING event's state, not
+				// existing.state: existing still holds the pre-event value (typically
+				// 'downloading'), so checking it here would never match on the exact
+				// transition that matters most (downloading -> completed) and every
+				// finished/cancelled download would sit in the Waterfall at its last
+				// progress reading for the full grace window instead of vanishing right
+				// away -- caught by a fresh-eyes review, reproducing the very glitch this
+				// version fixes in a new shape.
+				if (TRULY_TERMINAL_STATES.has(event.state)) {
 					clearLiveRemovalTimer(event.track_id);
 					const { [event.track_id]: _drop, ...rest } = current;
 					return rest;
