@@ -71,7 +71,7 @@ def test_dispatch_due_tracks_dispatches_and_flips_state(db_session, monkeypatch)
 
     published = []
     monkeypatch.setattr(
-        events, "publish_track_event", lambda *args, **kwargs: published.append(args)
+        events, "publish_track_event", lambda *args, **kwargs: published.append((args, kwargs))
     )
 
     beat_task.dispatch_due_tracks()
@@ -79,7 +79,8 @@ def test_dispatch_due_tracks_dispatches_and_flips_state(db_session, monkeypatch)
     assert dispatched_ids == [str(due.id)]
     assert db_session.get(Track, due.id).state == TrackState.QUEUED
     assert db_session.get(Track, not_due.id).state == TrackState.WAITING
-    assert published == [(_owner(db_session).id, due.id, due.job_id, "queued")]
+    assert [args for args, _ in published] == [(_owner(db_session).id, due.id, due.job_id, "queued")]
+    assert published[0][1]["title"] == "Song A"
 
 
 def test_dispatch_due_tracks_skips_entirely_while_breaker_tripped(db_session, monkeypatch):
@@ -263,6 +264,10 @@ def test_dispatch_due_tracks_reclaims_stale_downloading_track(db_session, monkey
     assert dispatched_ids == [str(stuck.id)]
     published_states = [args[3] for args, kwargs in published]
     assert published_states == ["waiting", "queued"]
+    # v23: the reclaim path's RETURNING clause carries song_json alongside id/job_id
+    # specifically so this event isn't metadata-less -- a bulk update has no ORM `Track`
+    # to read title/artists/album off otherwise.
+    assert all(kwargs.get("title") == "Song A" for _, kwargs in published)
 
 
 def test_dispatch_due_tracks_leaves_recent_downloading_track_alone(db_session, monkeypatch):

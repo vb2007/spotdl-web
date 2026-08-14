@@ -24,6 +24,11 @@ class TrackErrorType(str, enum.Enum):
     AUDIO_PROVIDER = "audio_provider"
     LOOKUP = "lookup"
     OTHER = "other"
+    # v23: spotdl completing without producing a file (root cause: YouTube's PO-token
+    # bot-check swallowed internally by search_and_download -- see docs/GOTCHAS.md's v23
+    # entry) used to fall into OTHER, which shares the retry ladder but never feeds the
+    # circuit breaker -- so a 100% failure rate across every track never tripped it.
+    NO_OUTPUT = "no_output"
 
 
 class Track(Base):

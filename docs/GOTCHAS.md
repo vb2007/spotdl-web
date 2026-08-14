@@ -146,6 +146,22 @@ needed" claim — rather than silently deleted.
   home directory → *v12*
 - Valid `--format`/`--bitrate` values are introspected live from spotdl's own argparse rather than
   hardcoded → *v13*
+- `search_and_download` can swallow a real `AudioProviderError` (e.g. YouTube's PO-token bot-check)
+  entirely internally and return `(song, None)` instead of raising — the caller sees a bare missing
+  output path, not the underlying error → *v23*
+- Without a JS runtime, `spotdl.utils.deno.get_local_deno()` finds nothing and
+  `get_local_deno_yt_dlp_options()` wires no `js_runtimes`, so YouTube's PO-token challenge can never
+  be solved — every extraction that needs one fails via the swallowed-error path above. The
+  production Docker image never installed Deno; `spotdl --download-deno` (run once, baked into the
+  image as the `spotdl` user so it lands under that user's own config dir) fixes it → *v23*
+- `yt-dlp-ejs` (yt-dlp's companion package for solving YouTube's newer JS challenges, central to
+  the PO-token fix above) stays **pinned** via `requirements.txt` even though `yt-dlp` itself floats
+  to latest at build time (`backend/Dockerfile`'s `uv pip install --upgrade yt-dlp`, bare — no
+  `[default]` extra, so it can't cascade an upgrade to `yt-dlp-ejs` or anything else). This is
+  within the letter of "yt-dlp floats, everything else stays pinned," but it's a real fragility: a
+  future yt-dlp release that needs a newer `yt-dlp-ejs` than what's locked could silently
+  reintroduce a variant of this exact outage. Worth revisiting if the outage recurs after a yt-dlp
+  bump — check whether `yt-dlp-ejs` needs floating too before re-investigating from scratch → *v23*
 
 **Celery, tasks & durability**
 - `record_failure` computes the ladder delay **before** incrementing `attempt_count`; reversing it
@@ -172,6 +188,22 @@ needed" claim — rather than silently deleted.
   out the real interval — temporarily edit the schedule literal to a few seconds, `docker compose
   restart beat`, confirm `Scheduler: Sending due task ...` in real container logs, then revert the
   literal and restart again before committing → *v19*
+- Celery workers do **not** hot-reload on code changes the way `uvicorn --reload` does — a
+  long-running `worker-dl`/`worker-meta` process keeps executing whatever Python it imported at
+  boot even though the dev bind-mount already has newer source on disk. Concretely bit this
+  session: a worker process started *before* a new `TrackErrorType` enum member (`NO_OUTPUT`) was
+  added crash-looped with `LookupError("'no_output' is not among the defined enum values...")`
+  every time it tried to read back a row a *different*, already-restarted process had written with
+  the new value — the row was correct, the stale process's loaded enum class wasn't. Any session
+  that edits `app/models/*.py`, `app/services/*.py`, or `app/tasks/*.py` mid-session must
+  `docker compose restart api worker-dl worker-meta beat` before trusting further real-stack
+  verification, not just re-run the script → *v23*
+- A Docker daemon restart (e.g. to change `/etc/docker/daemon.json`) can leave a Celery worker's
+  broker connection stale even though the container itself reports `healthy` and `celery inspect
+  active`/`reserved` show it idle rather than stuck — `dispatch_due_tracks` kept "succeeding" every
+  30s without actually dispatching anything for several minutes until `worker-meta`/`beat` were
+  explicitly restarted. Confirm real progress via the Redis queue length (`LLEN downloads`) and the
+  worker's own log timestamps, not just container health/`inspect active` → *v23*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -208,6 +240,19 @@ needed" claim — rather than silently deleted.
   same debounce treatment as a high-frequency per-item event stream, even if each individual trigger
   seems rare — a bulk backend action that publishes one event per affected row turns "rare" into "up
   to N times in one click" → *v20*
+- The Waterfall's "appear/disappear/reappear" glitch (queue.ts's `liveActive`) is its own
+  add-on-`downloading`/remove-on-anything-else rule colliding with a fast failure-then-retry loop —
+  raw `curl -N` capture of a real repeatedly-failing track showed `downloading` → `waiting` landing
+  under a second apart, then the identical cycle repeating every ~30s (beat's own dispatch-tick
+  interval). The fix debounces the *removal*, not the add: a track leaving `downloading` stays in
+  `liveActive` (updated in place) for a grace window and only actually drops out if no further
+  `downloading` event arrives before the timer fires. The window has to be tuned against beat's own
+  30s tick latency, not just the ladder delay — a first cut at 4s (plausible-looking, matches
+  `scheduleJobRefresh`'s 400ms debounce in spirit) was proven too short by a live browser
+  measurement; 60s (covering beat's worst-case ~30s dispatch latency after a track becomes due, plus
+  jitter) is what actually bridged every observed cycle. This is a trivial fraction of the real
+  retry ladder's 15-minute floor either way, so it doesn't misrepresent a genuine multi-minute wait
+  as "still active" → *v23*
 
 **Proxies & secrets**
 - Any proxy URL that is logged or persisted must go through `proxies.redact()`; spotdl's own error
@@ -323,6 +368,36 @@ needed" claim — rather than silently deleted.
   ran real verification — it found two real gaps a same-session author was structurally unlikely
   to hit (a second, non-obvious trigger path to the same bug already fixed; a bash pitfall in the
   reviewer's own newly-written script) → *v22*
+- `uv pip compile pyproject.toml -o requirements.txt` treats an **already-existing** output file's
+  pinned versions as a preference baseline (kept unless they no longer satisfy `pyproject.toml`'s
+  constraints) — matching exactly what a human runs to regenerate the file. Recompiling into a
+  *different* path (e.g. a scratch file, to "check without touching the real file") skips that
+  baseline entirely and does a from-scratch resolve, which picks up every unrelated transitive
+  package's routine upstream patch release since the file was last locked — a real, observed false
+  positive on effectively every run, not a hypothetical. Always diff against an in-place recompile
+  (`cp requirements.txt requirements.txt.orig && uv pip compile ... -o requirements.txt && diff`),
+  never a separate output path, when checking for genuine drift → *v23*
+- A `SessionLocal()` opened by an ad-hoc verification script and left uncommitted can sit
+  `idle in transaction` in Postgres for hours without anything failing loudly — `pg_stat_activity`
+  (state, `xact_start`) and `pg_locks` (joined back to `pg_stat_activity`) are how to find one and
+  confirm what tables/rows it actually holds locks on, which is often unrelated to the query text
+  currently displayed (that column shows the backend's *last* statement, not its whole history).
+  One such leak was found and characterized this session (a `users` lookup pattern matching
+  `require_session`'s per-request query, ~2.7 hours old) but not chased to a root cause or fixed —
+  flagged here for whichever version next touches session/auth request handling, not silently
+  dropped → *v23*
+- This local dev machine's public IPv4 was, for the duration of this session, reputation-flagged by
+  YouTube (`Sign in to confirm you're not a bot` on essentially every `music.youtube.com`
+  extraction) while its IPv6 was completely clean — confirmed via `yt-dlp -4` vs `-6` on the same
+  host, same track, repeatedly. Docker's bridge network has no IPv6 route by default
+  (`docker network inspect`'s `EnableIPv6: false`), so every container was forced onto the flagged
+  IPv4 regardless of anything at the spotdl/yt-dlp level. Enabling it locally for testing needs a
+  daemon-level change (`/etc/docker/daemon.json`: `{"ip6tables": true}`, then
+  `docker network create --ipv6 --subnet <ULA>/48 <name>` + `docker network connect`) — this is
+  local-verification scaffolding only, never committed to any tracked compose file; production's
+  own IPv4 was independently confirmed clean by the project owner during this session, so it did
+  not need this. Don't assume a "some IPs are permanently blocked" finding generalizes across
+  physically different hosts/ISP connections without checking each one → *v23*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -341,6 +416,14 @@ needed" claim — rather than silently deleted.
   triggering commit — resolve the real commit explicitly (e.g. from the release tag) → *v21*
 - `repos/.../actions/permissions/workflow`'s `default_workflow_permissions` caps what any
   workflow's own `permissions:` block can grant, independent of that block → *v21*
+- `importlib.metadata.version("pkg")` reports the PyPI-normalized version string (`2026.7.4`);
+  a package's own `__version__` attribute can use a different, non-normalized format
+  (yt-dlp's is `2026.07.04`, zero-padded) — comparing a built image's installed version against
+  PyPI's `.../pypi/<pkg>/json` `info.version` needs the former, or every comparison spuriously
+  fails → *v23*
+- `uv lock --check` asserts `uv.lock` is up to date with `pyproject.toml` without writing —
+  the direct CI equivalent of the in-place-recompile-and-diff technique above, for the newer lock
+  format → *v23*
 
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
@@ -2708,3 +2791,44 @@ left unchecked, verifying production, and reconciling docs)
     this session, all through the identical unmodified download pipeline) rather than a fresh
     download deliberately triggered just for this checklist — consistent with the project's own
     stance on not spending real rate-limit budget on a check redundant with existing evidence.
+
+### v23 download-reliability gotchas (learned root-causing the download outage, fixing the
+live-view metadata gap, and root-causing the Waterfall appear/disappear/reappear glitch)
+
+- **The stale-yt-dlp-pin hypothesis was wrong, and only real-stack reproduction caught it.** The
+  master plan's leading hypothesis was that `yt-dlp==2026.7.4` had gone stale. Reproducing against
+  the real `worker-dl` container with `spotdl`/`yt-dlp` logging raised showed the actual failure:
+  a real `AudioProviderError` ("Sign in to confirm you're not a bot") raised deep inside spotdl's
+  `search_and_download`, caught and swallowed *by spotdl itself*, surfacing to `download_track` as
+  a bare `output_path is None` with no exception at all. Pulling yt-dlp's actual nightly build (a
+  month past the pinned stable — PyPI's own stable channel hadn't shipped anything newer) and
+  re-running the identical failing track reproduced the *exact same* failure — proving the pin
+  itself was not the cause before writing a single line of the fix. The real cause: the production
+  Docker image never installed a JS runtime, so `spotdl.utils.deno.get_local_deno()` found nothing
+  and YouTube's PO-token challenge could never be solved (see the spotdl-library entry above). This
+  is the scenario the plan's own "prove the root cause, don't bump and hope" instruction and its
+  4th review lens exist for — the visible symptom and the leading hypothesis coincided with the fix
+  that was actually planned, but the evidence didn't support it once actually gathered.
+- **The confirming end-to-end proof needed three layers, not one.** (1) A direct call to spotdl's
+  `Downloader.search_and_download` with Deno present succeeded and produced a real, `ffprobe`-
+  verified mp3 for a track that had failed in real production. (2) The exact same result reproduced
+  through the actual `download_track` Celery task (not a reimplementation), confirming the fix
+  works through the real code path, not just an isolated spotdl call. (3) A full real HTTP job
+  submission (`POST /api/jobs`) through the real API, real expansion, real dispatch, and real
+  worker, watched live in an actual browser, completed with a real downloaded file and correct
+  Waterfall behavior throughout. Each layer would have missed a different class of regression the
+  others couldn't have caught alone.
+- **A residential IP being reputation-flagged by YouTube is real but per-host, not per-session.**
+  This local dev machine's own public IPv4 was flagged for the session's duration (confirmed
+  `-4`/`-6` A/B, see the Docker Compose entry above); the project owner's live test on the actual
+  production host, from a different IP, succeeded immediately with the same Deno-based fix. Don't
+  generalize a single environment's network reputation to "the fix doesn't work" or "the fix always
+  works" without checking the specific host in question.
+- **The circuit breaker tripped on its own testing traffic during this session, and that was
+  correct behavior, not a bug to route around.** Repeatedly reproducing `AudioProviderError`/
+  `NoOutputFileError` failures against real tracks fed the same breaker the app relies on to
+  protect against a real outage — it tripped mid-investigation and correctly blocked all dispatch
+  for its escalating backoff window. Clearing it directly in the DB (`consecutive_failures = 0`,
+  `breaker_tripped_until = None`) was the right move to continue *testing*, but the trip itself is
+  exactly the behavior v06's breaker was built for; don't mistake "verification hit a hard stop I
+  understand" for "the breaker fired when it shouldn't have."

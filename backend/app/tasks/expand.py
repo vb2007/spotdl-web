@@ -6,6 +6,7 @@ from sqlalchemy import update
 from app.db import SessionLocal
 from app.models import Job, JobState, Track, TrackState
 from app.services import events, expansion
+from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
 
@@ -55,7 +56,13 @@ def expand_job(job_id: str) -> None:
                     track.state = TrackState.CANCELLED
                 db.commit()
                 for track in tracks:
-                    events.publish_track_event(job.user_id, track.id, track.job_id, track.state.value)
+                    events.publish_track_event(
+                        job.user_id,
+                        track.id,
+                        track.job_id,
+                        track.state.value,
+                        **track_song_meta(track.song_json),
+                    )
                 return
 
             events.publish_job_event(job.user_id, job.id, job.state.value)

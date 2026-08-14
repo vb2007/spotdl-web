@@ -66,7 +66,18 @@ def publish_track_event(
     scheduled_at: datetime | None = None,
     error: str | None = None,
     attempt_count: int | None = None,
+    title: str | None = None,
+    artists: list[str] | None = None,
+    album: str | None = None,
 ) -> None:
+    # v23: title/artists/album, straight from the same `song_json` the caller already
+    # has loaded -- zero extra cost. Before this, the frontend could only seed a live
+    # track's metadata from a prior REST fetch (queue.ts's findCachedTrackMeta), so a
+    # track that started and failed before ever being fetched rendered as
+    # unknown-artist/unknown-song (see docs/GOTCHAS.md's v23 entry). Optional (not
+    # required like `user_id`) since plenty of call sites -- job-level events, tests --
+    # have no song metadata to offer; findCachedTrackMeta stays as the frontend fallback
+    # for those and for events published before this field existed.
     event: dict[str, Any] = {
         "type": "track.state",
         "track_id": str(track_id),
@@ -81,6 +92,12 @@ def publish_track_event(
         event["error"] = error
     if attempt_count is not None:
         event["attempt_count"] = attempt_count
+    if title is not None:
+        event["title"] = title
+    if artists is not None:
+        event["artists"] = artists
+    if album is not None:
+        event["album"] = album
     publish(user_id, event)
 
 
@@ -101,7 +118,13 @@ def publish_job_event(
 
 
 def make_progress_callback(
-    user_id: uuid.UUID | str, track_id: Any, job_id: Any
+    user_id: uuid.UUID | str,
+    track_id: Any,
+    job_id: Any,
+    *,
+    title: str | None = None,
+    artists: list[str] | None = None,
+    album: str | None = None,
 ) -> Callable[[Any, str], None]:
     """Returns a callback for spotdl's `ProgressHandler.update_callback` hook — every
     `SongTracker.notify_*` call (searching/getting-meta/downloading/converting/complete)
@@ -110,9 +133,22 @@ def make_progress_callback(
     (spotdl/download/progress_handler.py): `update_callback` is a plain settable
     attribute on `ProgressHandler`, not a DownloaderOptions key — there is no other way
     to reach it than setting it directly on the constructed instance.
+
+    title/artists/album (v23) are captured in this closure rather than read from
+    `tracker` each call -- the caller already has `song_json` loaded once per track, and
+    every one of these callback invocations describes the same track.
     """
 
     def _callback(tracker: Any, message: str) -> None:
-        publish_track_event(user_id, track_id, job_id, "downloading", progress=int(tracker.progress))
+        publish_track_event(
+            user_id,
+            track_id,
+            job_id,
+            "downloading",
+            progress=int(tracker.progress),
+            title=title,
+            artists=artists,
+            album=album,
+        )
 
     return _callback

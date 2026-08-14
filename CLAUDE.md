@@ -286,7 +286,7 @@ v21 release-automation (unplanned insertion) · v22 multi-user-hardening. Detail
 
 | # | Branch | Scope |
 |---|---|---|
-| v23 | `dev-download-reliability` | Root-cause + fix the download outage; yt-dlp unpinned + CI freshness check; typed no-output error that feeds the breaker; SSE events carry title/artist |
+| v23 | `dev-download-reliability` | **Done.** Root-caused the outage: not the pinned yt-dlp version (proven wrong — the newest available build failed identically) but a missing Deno JS runtime, so spotdl could never solve YouTube's PO-token challenge and silently swallowed the resulting `AudioProviderError` into a bare `None` output path. Fixed by baking `spotdl --download-deno` into the image; yt-dlp still unpinned (floats to latest at build time) as standing policy plus a scheduled CI freshness check, since pinning it is what caused this outage regardless of today's specific root cause. `NO_OUTPUT` is now its own `TrackErrorType`, classified explicitly and feeding the breaker. `publish_track_event` carries title/artist/album everywhere a track event is published, closing the "unknown title" live-view gap. The Waterfall's appear/disappear/reappear glitch was root-caused via raw SSE capture (`liveActive`'s remove-on-any-non-downloading-state colliding with a fast retry loop) and fixed with a debounced removal |
 | v24 | `dev-attempt-history` | `track_attempts` — what each attempt tried, direct vs which proxy, what failed |
 | v25 | `dev-username-ui` | Usernames from upstream `GET /user`; worker pause/resume moves to `/settings`, status pill stays |
 | v26 | `dev-id3-integrity` | Verify + repair embedded tags after each download. Prerequisite for v28 |

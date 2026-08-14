@@ -7,6 +7,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Job, Track, TrackState, UserSettings
 from app.services import archive, events, retry
+from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
 
@@ -39,7 +40,7 @@ def _reclaim_stale_tracks(db) -> None:
             Track.updated_at < stale_cutoff,
         )
         .values(state=TrackState.WAITING, scheduled_at=now)
-        .returning(Track.id, Track.job_id)
+        .returning(Track.id, Track.job_id, Track.song_json)
     ).all()
     db.commit()
     if not reclaimed:
@@ -47,16 +48,21 @@ def _reclaim_stale_tracks(db) -> None:
 
     # One bulk lookup for every reclaimed track's owner, never a per-row query
     # (CLAUDE.md invariant) -- the RETURNING clause above only has job_id to offer.
-    job_ids = {job_id for _, job_id in reclaimed}
+    job_ids = {job_id for _, job_id, _ in reclaimed}
     owner_by_job = dict(db.execute(select(Job.id, Job.user_id).where(Job.id.in_(job_ids))).all())
-    for track_id, job_id in reclaimed:
+    for track_id, job_id, song_json in reclaimed:
         logger.warning(
             "dispatch_due_tracks: reclaimed stale track %s (stuck past %s)",
             track_id,
             threshold,
         )
         events.publish_track_event(
-            owner_by_job[job_id], track_id, job_id, TrackState.WAITING.value, scheduled_at=now
+            owner_by_job[job_id],
+            track_id,
+            job_id,
+            TrackState.WAITING.value,
+            scheduled_at=now,
+            **track_song_meta(song_json),
         )
 
 
@@ -90,7 +96,12 @@ def dispatch_due_tracks() -> None:
 
         for track, user_id in due_rows:
             events.publish_track_event(
-                user_id, track.id, track.job_id, track.state.value, attempt_count=track.attempt_count
+                user_id,
+                track.id,
+                track.job_id,
+                track.state.value,
+                attempt_count=track.attempt_count,
+                **track_song_meta(track.song_json),
             )
 
         for track in due_tracks:
