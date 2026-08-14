@@ -39,6 +39,10 @@ def test_classify_error_maps_known_exception_types():
     assert retry.classify_error(AudioProviderError("rate limited")) == TrackErrorType.AUDIO_PROVIDER
     assert retry.classify_error(LookupError("no result")) == TrackErrorType.LOOKUP
     assert retry.classify_error(RuntimeError("boom")) == TrackErrorType.OTHER
+    assert (
+        retry.classify_error(retry.NoOutputFileError("spotdl returned no output file"))
+        == TrackErrorType.NO_OUTPUT
+    )
 
 
 def test_next_delay_follows_ladder_and_caps_at_final_step(monkeypatch):
@@ -70,6 +74,28 @@ def test_record_failure_audio_provider_advances_ladder_and_breaker(db_session):
     before = datetime.now(timezone.utc)
 
     retry.record_failure(db_session, track, TrackErrorType.AUDIO_PROVIDER, "rate limited")
+    db_session.commit()
+
+    assert track.state == TrackState.WAITING
+    assert track.attempt_count == 1
+    assert track.scheduled_at is not None
+    assert _aware(track.scheduled_at) - before >= timedelta(minutes=14)
+
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.consecutive_failures == 1
+    assert worker_state.breaker_tripped_until is None
+
+
+def test_record_failure_no_output_advances_ladder_and_breaker(db_session):
+    """v23: NO_OUTPUT is spotdl swallowing a real AudioProviderError internally (see
+    retry.NoOutputFileError's docstring) -- it must feed the breaker exactly like a
+    directly-raised AudioProviderError does, unlike the OTHER bucket below."""
+    track = _make_track(db_session)
+    before = datetime.now(timezone.utc)
+
+    retry.record_failure(
+        db_session, track, TrackErrorType.NO_OUTPUT, "spotdl returned no output file for this track"
+    )
     db_session.commit()
 
     assert track.state == TrackState.WAITING

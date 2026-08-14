@@ -27,12 +27,36 @@ def test_publish_track_event_includes_optional_fields(monkeypatch):
 
     scheduled_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
     events.publish_track_event(
-        "user-1", "track-1", "job-1", "waiting", scheduled_at=scheduled_at, error="boom"
+        "user-1",
+        "track-1",
+        "job-1",
+        "waiting",
+        scheduled_at=scheduled_at,
+        error="boom",
+        title="Song",
+        artists=["Artist"],
+        album="Album",
     )
 
     assert captured["scheduled_at"] == scheduled_at.isoformat()
     assert captured["error"] == "boom"
+    assert captured["title"] == "Song"
+    assert captured["artists"] == ["Artist"]
+    assert captured["album"] == "Album"
     assert "progress" not in captured
+
+
+def test_publish_track_event_omits_metadata_when_not_given(monkeypatch):
+    """A call site with no song metadata to offer (job-level actions, tests) must not
+    pollute the wire payload with null title/artists/album fields."""
+    captured = {}
+    monkeypatch.setattr(events, "publish", lambda user_id, event: captured.update(event))
+
+    events.publish_track_event("user-1", "track-1", "job-1", "cancelled")
+
+    assert "title" not in captured
+    assert "artists" not in captured
+    assert "album" not in captured
 
 
 def test_publish_job_event_shape(monkeypatch):
@@ -52,7 +76,9 @@ def test_make_progress_callback_publishes_downloading_progress(monkeypatch):
 
     monkeypatch.setattr(events, "publish_track_event", fake_publish_track_event)
 
-    callback = events.make_progress_callback("user-1", "track-1", "job-1")
+    callback = events.make_progress_callback(
+        "user-1", "track-1", "job-1", title="Song", artists=["Artist"], album="Album"
+    )
     callback(_FakeSongTracker(progress=42), "Downloading")
 
     assert captured == {
@@ -61,6 +87,9 @@ def test_make_progress_callback_publishes_downloading_progress(monkeypatch):
         "job_id": "job-1",
         "state": "downloading",
         "progress": 42,
+        "title": "Song",
+        "artists": ["Artist"],
+        "album": "Album",
     }
 
 

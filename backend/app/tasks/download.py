@@ -10,6 +10,7 @@ from app.config import get_settings
 from app.db import SessionLocal
 from app.models import DownloadedTrack, Job, Track, TrackState
 from app.services import app_settings, dedup, downloads, events, proxies, retry
+from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ def download_track(track_id: str) -> None:
                 track.state.value,
                 scheduled_at=track.scheduled_at,
                 attempt_count=track.attempt_count,
+                **track_song_meta(track.song_json),
             )
             return
 
@@ -83,7 +85,9 @@ def download_track(track_id: str) -> None:
             track.state = TrackState.SKIPPED_DUPLICATE
             track.output_path = str(existing_path)
             db.commit()
-            events.publish_track_event(owner_id, track.id, track.job_id, track.state.value)
+            events.publish_track_event(
+                owner_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
+            )
             return
 
         # Pacing hook (declared since v07, actually consumed as of v15). Deliberately
@@ -133,7 +137,10 @@ def download_track(track_id: str) -> None:
                 proxies.redact(proxy_url),
             )
         db.commit()
-        events.publish_track_event(owner_id, track.id, track.job_id, track.state.value, progress=0)
+        track_meta = track_song_meta(track.song_json)
+        events.publish_track_event(
+            owner_id, track.id, track.job_id, track.state.value, progress=0, **track_meta
+        )
 
         try:
             song = Song.from_dict(track.song_json)
@@ -151,7 +158,7 @@ def download_track(track_id: str) -> None:
             # rebind this per attempt rather than threading track/job ids through
             # get_downloader's cache key.
             downloader.progress_handler.update_callback = events.make_progress_callback(
-                owner_id, track.id, track.job_id
+                owner_id, track.id, track.job_id, **track_meta
             )
             _, output_path = downloads.download_one(song, downloader)
 
@@ -179,11 +186,15 @@ def download_track(track_id: str) -> None:
                 # right state without needing a reload. Caught by live real-stack
                 # testing, not by REST-polling: REST already reflected `cancelled`,
                 # only the live view was stuck.
-                events.publish_track_event(owner_id, track.id, track.job_id, track.state.value)
+                events.publish_track_event(
+                    owner_id, track.id, track.job_id, track.state.value, **track_meta
+                )
                 return
 
             if output_path is None:
-                raise RuntimeError("spotdl returned no output file for this track")
+                raise retry.NoOutputFileError(
+                    "spotdl returned no output file for this track"
+                )
 
             track.state = TrackState.COMPLETED
             track.output_path = str(output_path)
@@ -199,7 +210,9 @@ def download_track(track_id: str) -> None:
                 proxies.record_proxy_result(db, proxy_id, success=True)
             retry.record_success(db, track)
             db.commit()
-            events.publish_track_event(owner_id, track.id, track.job_id, track.state.value)
+            events.publish_track_event(
+                owner_id, track.id, track.job_id, track.state.value, **track_meta
+            )
         except Exception as exc:
             # Some exceptions (e.g. spotdl's DownloaderError for a malformed proxy) echo
             # the proxy string verbatim — never let that reach worker logs or the
@@ -225,7 +238,9 @@ def download_track(track_id: str) -> None:
                     track_id,
                 )
                 # Same stray-progress-event race as the success path above.
-                events.publish_track_event(owner_id, track.id, track.job_id, track.state.value)
+                events.publish_track_event(
+                    owner_id, track.id, track.job_id, track.state.value, **track_meta
+                )
                 return
             error_type = retry.classify_error(exc)
             retry.record_failure(db, track, error_type, error_message)
@@ -240,6 +255,7 @@ def download_track(track_id: str) -> None:
                 scheduled_at=track.scheduled_at,
                 error=track.last_error,
                 attempt_count=track.attempt_count,
+                **track_meta,
             )
     finally:
         db.close()

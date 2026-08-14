@@ -152,6 +152,54 @@ function createQueueStore() {
 		jobRefreshTimer = setTimeout(flushJobRefreshes, 400);
 	}
 
+	/** v23: root-caused the Waterfall's appear/disappear/reappear glitch by raw-`curl -N`
+	 * capturing a real failing-then-retrying track -- `downloading` to `waiting` landed
+	 * under a second apart, then the identical cycle repeated every ~30s (beat's own
+	 * dispatch-tick interval -- app/tasks/celery_app.py's `dispatch-due-tracks` schedule)
+	 * for as long as the track kept failing fast (docs/GOTCHAS.md's v23 entry has the
+	 * full capture, including confirming a short first cut of this fix at 4s wasn't
+	 * enough to bridge that real gap). `liveActive`'s add-on-`downloading`/remove-on-
+	 * anything-else rule is otherwise correct -- the fix is to debounce the *removal* the
+	 * same way scheduleJobRefresh above debounces job-row refreshes: a track leaving
+	 * `downloading` stays in `liveActive` (updated in place) for this grace window, and
+	 * only actually drops out if no further `downloading` event arrives before the timer
+	 * fires. 60s covers the worst case of beat's own 30s tick landing just after a track
+	 * becomes due (up to another 30s of pure dispatch latency) -- the realistic minimum
+	 * gap between two attempts, e.g. a user clicking "retry now" right after a fast
+	 * failure -- while staying a tiny fraction of the real retry ladder's 15-minute
+	 * floor, so a genuine multi-minute-or-longer wait still correctly reads as "not
+	 * active" almost immediately rather than being misrepresented for its whole
+	 * duration. */
+	const LIVE_REMOVAL_GRACE_MS = 60000;
+	const liveRemovalTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+
+	function clearLiveRemovalTimer(trackId: string): void {
+		clearTimeout(liveRemovalTimers[trackId]);
+		delete liveRemovalTimers[trackId];
+	}
+
+	function scheduleLiveRemoval(trackId: string): void {
+		clearLiveRemovalTimer(trackId);
+		liveRemovalTimers[trackId] = setTimeout(() => {
+			delete liveRemovalTimers[trackId];
+			liveActive.update((current) => {
+				if (!(trackId in current)) return current;
+				const { [trackId]: _drop, ...rest } = current;
+				return rest;
+			});
+		}, LIVE_REMOVAL_GRACE_MS);
+	}
+
+	/** Every direct `liveActive.set({})` (a scope switch, a reset) must also cancel any
+	 * pending grace-window timers above -- otherwise one fires later against whatever
+	 * identity/scope is current by then. Harmless in practice (the timer's own
+	 * `trackId in current` guard no-ops against an unrelated store), but a leaked timer
+	 * outliving the state it was scheduled for is exactly the kind of thing the v22
+	 * store-reset gotcha exists to catch on sight, not just when it happens to matter. */
+	function clearAllLiveRemovalTimers(): void {
+		for (const trackId of Object.keys(liveRemovalTimers)) clearLiveRemovalTimer(trackId);
+	}
+
 	async function flushJobRefreshes(): Promise<void> {
 		const ids = [...pendingJobRefresh];
 		pendingJobRefresh.clear();
@@ -317,6 +365,7 @@ function createQueueStore() {
 		for (const jobId of Object.keys(expandedFetchSeq)) invalidateExpandedFetch(jobId);
 		expanded.set({});
 		incoming.set({});
+		clearAllLiveRemovalTimers();
 		liveActive.set({});
 		reload();
 	}
@@ -341,6 +390,7 @@ function createQueueStore() {
 		page.set({ ...EMPTY_PAGE });
 		expanded.set({});
 		incoming.set({});
+		clearAllLiveRemovalTimers();
 		liveActive.set({});
 	}
 
@@ -709,19 +759,40 @@ function createQueueStore() {
 		liveActive.update((current) => {
 			if (event.state !== 'downloading') {
 				if (!(event.track_id in current)) return current;
-				const { [event.track_id]: _drop, ...rest } = current;
-				return rest;
+				const existing = current[event.track_id];
+				// A truly terminal state (completed/skipped_duplicate/cancelled) is never
+				// coming back -- drop it immediately, no grace window to wait out.
+				if (TRULY_TERMINAL_STATES.has(existing.state)) {
+					clearLiveRemovalTimer(event.track_id);
+					const { [event.track_id]: _drop, ...rest } = current;
+					return rest;
+				}
+				scheduleLiveRemoval(event.track_id);
+				const next: LiveTrack = { ...existing, state: event.state };
+				if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
+				if (event.error !== undefined) next.last_error = event.error;
+				if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
+				return { ...current, [event.track_id]: next };
 			}
+			clearLiveRemovalTimer(event.track_id);
 			const existing = current[event.track_id];
 			if (existing && TRULY_TERMINAL_STATES.has(existing.state)) return current;
+			// v23: the event itself carries title/artists/album now (events.py's
+			// publish_track_event, backed by the same song_json the worker already has
+			// loaded) -- prefer that over findCachedTrackMeta, which only ever knew about
+			// rows the browser had separately fetched via REST. Still fall back to the
+			// cache for an event published before this field existed or a call site with
+			// nothing to offer, and still re-apply on every update (not just at creation)
+			// so a first event that happened to lack metadata doesn't permanently freeze
+			// this track as unknown once a later one supplies it.
 			const seed = existing ?? findCachedTrackMeta(event.track_id);
 			const base: LiveTrack = existing ?? {
 				id: event.track_id,
 				job_id: event.job_id,
 				state: event.state,
-				title: seed?.title ?? null,
-				artists: seed?.artists ?? null,
-				album: seed?.album ?? null,
+				title: event.title ?? seed?.title ?? null,
+				artists: event.artists ?? seed?.artists ?? null,
+				album: event.album ?? seed?.album ?? null,
 				spotify_track_id: seed?.spotify_track_id ?? '',
 				attempt_count: seed?.attempt_count ?? 0,
 				scheduled_at: null,
@@ -731,7 +802,10 @@ function createQueueStore() {
 			const next: LiveTrack = {
 				...base,
 				state: event.state,
-				progress: event.progress ?? base.progress
+				progress: event.progress ?? base.progress,
+				title: event.title ?? base.title,
+				artists: event.artists ?? base.artists,
+				album: event.album ?? base.album
 			};
 			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 			if (event.error !== undefined) next.last_error = event.error;

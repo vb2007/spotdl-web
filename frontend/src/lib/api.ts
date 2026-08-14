@@ -96,7 +96,7 @@ export type TrackState =
 	| 'skipped_duplicate'
 	| 'cancelled';
 
-export type TrackErrorType = 'audio_provider' | 'lookup' | 'other';
+export type TrackErrorType = 'audio_provider' | 'lookup' | 'other' | 'no_output';
 
 export interface Track {
 	id: string;
@@ -137,6 +137,13 @@ export interface TrackStateEvent {
 	scheduled_at?: string;
 	error?: string;
 	attempt_count?: number;
+	/** v23: present whenever the publishing call site has the track's song metadata to
+	 * offer (effectively always, as of this version) -- absent only for events published
+	 * before this field existed or a call site with none to give. See
+	 * queue.ts's findCachedTrackMeta for the fallback that covers that gap. */
+	title?: string | null;
+	artists?: string[] | null;
+	album?: string | null;
 	ts: string;
 }
 

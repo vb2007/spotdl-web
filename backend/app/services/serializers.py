@@ -69,15 +69,26 @@ def job_to_dict(job: Job, counts: dict[str, int], owner_email: str, title: str) 
     }
 
 
+def track_song_meta(song_json: dict) -> dict:
+    """title/artists/album straight from a track's `song_json` -- the single field
+    mapping both the REST projection (track_to_dict, below) and every live SSE
+    `track.state` event (events.publish_track_event call sites, v23) read from, so the
+    two can never drift into disagreeing about what a track is called. Takes the raw
+    dict rather than a `Track` so a bulk-update's `RETURNING` projection (no full ORM
+    object) can use it too, not just a loaded `Track` instance."""
+    return {
+        "title": song_json.get("name"),
+        "artists": song_json.get("artists"),
+        "album": song_json.get("album_name"),
+    }
+
+
 def track_to_dict(track: Track) -> dict:
-    song = track.song_json
     return {
         "id": str(track.id),
         "job_id": str(track.job_id),
         "state": track.state.value,
-        "title": song.get("name"),
-        "artists": song.get("artists"),
-        "album": song.get("album_name"),
+        **track_song_meta(track.song_json),
         "spotify_track_id": track.spotify_track_id,
         "attempt_count": track.attempt_count,
         "scheduled_at": track.scheduled_at.isoformat() if track.scheduled_at is not None else None,

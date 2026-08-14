@@ -183,6 +183,37 @@ def test_download_track_audio_provider_error_feeds_breaker(db_session, monkeypat
     assert worker_state.consecutive_failures == 1
 
 
+def test_download_track_no_output_path_feeds_breaker(db_session, monkeypatch):
+    """v23: spotdl completing without raising but returning a `None` output path is the
+    actual outage this version root-caused (docs/GOTCHAS.md's v23 entry) -- it must
+    classify as its own type and feed the breaker exactly like a directly-raised
+    AudioProviderError, not fall into the OTHER bucket that never trips it."""
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    published = _capture_events(monkeypatch)
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "download_one", lambda song, downloader: (song, None))
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.WAITING
+    assert updated.last_error == "spotdl returned no output file for this track"
+    assert updated.last_error_type == TrackErrorType.NO_OUTPUT
+    assert updated.attempt_count == 1
+    assert db_session.get(DownloadedTrack, "abc123") is None
+
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.consecutive_failures == 1
+
+    # Metadata (v23) rides along on every event, including the failure one -- a track
+    # that fails before ever being fetched via REST still renders with a real name.
+    _, final_kwargs = published[-1]
+    assert final_kwargs["title"] == "Song A"
+
+
 def test_download_track_lookup_error_is_terminal(db_session, monkeypatch):
     track = _make_track(db_session)
     _patch_common(monkeypatch, db_session)

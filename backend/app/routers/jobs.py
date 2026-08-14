@@ -11,7 +11,7 @@ from app.models import Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers.auth import require_session
 from app.services import archive, events, job_listing, rollup, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
-from app.services.serializers import job_to_dict, track_counts
+from app.services.serializers import job_to_dict, track_counts, track_song_meta
 from app.tasks.expand import expand_job
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -247,7 +247,9 @@ def cancel_job(
     # Published to the job's *owner*, not the acting session -- an admin cancelling a
     # foreign job must update that owner's live view, not the admin's own channel.
     for track in tracks:
-        events.publish_track_event(job.user_id, track.id, track.job_id, track.state.value)
+        events.publish_track_event(
+            job.user_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
+        )
     events.publish_job_event(job.user_id, job.id, job.state.value)
     # Read after the cancel commit above, not before -- counts must reflect the just
     # -cancelled tracks.

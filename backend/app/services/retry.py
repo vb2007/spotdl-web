@@ -14,11 +14,22 @@ BREAKER_TRIP_THRESHOLD = 5
 BREAKER_TRIP_DELAYS = [timedelta(minutes=30), timedelta(hours=2), timedelta(hours=6)]
 
 
+class NoOutputFileError(Exception):
+    """spotdl's search_and_download completed without raising but returned no output
+    path. Root-caused in v23 (docs/GOTCHAS.md): YouTube's PO-token bot-check raises a
+    real AudioProviderError deep inside spotdl, which spotdl itself catches and swallows,
+    returning `None` instead of propagating it. A bare RuntimeError here used to classify
+    as OTHER, which shares the retry ladder but never feeds the circuit breaker -- so a
+    100% failure rate across every track in the queue never tripped it."""
+
+
 def classify_error(exc: Exception) -> TrackErrorType:
     if isinstance(exc, AudioProviderError):
         return TrackErrorType.AUDIO_PROVIDER
     if isinstance(exc, LookupError):
         return TrackErrorType.LOOKUP
+    if isinstance(exc, NoOutputFileError):
+        return TrackErrorType.NO_OUTPUT
     return TrackErrorType.OTHER
 
 
@@ -70,9 +81,12 @@ def record_failure(db: Session, track: Track, error_type: TrackErrorType, messag
     track.state = TrackState.WAITING
     track.scheduled_at = datetime.now(timezone.utc) + delay
 
-    # Only AudioProviderError feeds the breaker — it's the rate-limit signal; "other"
-    # errors share the ladder but shouldn't trip a pause meant for YT-Music throttling.
-    if error_type == TrackErrorType.AUDIO_PROVIDER:
+    # AUDIO_PROVIDER and NO_OUTPUT both feed the breaker -- both are real YT-Music-side
+    # rate-limit/bot-check signals (v23: NO_OUTPUT is the same AudioProviderError, just
+    # swallowed internally by spotdl before it ever reaches this function's caller, see
+    # NoOutputFileError's docstring). Plain OTHER errors share the ladder but shouldn't
+    # trip a pause meant for that specific signal.
+    if error_type in (TrackErrorType.AUDIO_PROVIDER, TrackErrorType.NO_OUTPUT):
         worker_state = get_worker_state(db)
         worker_state.consecutive_failures += 1
         maybe_trip_breaker(db)

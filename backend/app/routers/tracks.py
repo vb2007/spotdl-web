@@ -10,7 +10,7 @@ from app.models import Job, JobSourceType, Track, TrackState, User
 from app.routers.auth import require_session
 from app.services import events, retry, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
-from app.services.serializers import track_to_dict
+from app.services.serializers import track_song_meta, track_to_dict
 
 router = APIRouter(prefix="/api/tracks", tags=["tracks"])
 
@@ -95,7 +95,9 @@ def cancel_track(
         track.state = TrackState.CANCELLED
         track.scheduled_at = None
         db.commit()
-        events.publish_track_event(owner_id, track.id, track.job_id, track.state.value)
+        events.publish_track_event(
+            owner_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
+        )
     return track_to_dict(track)
 
 
@@ -136,6 +138,7 @@ def retry_track(
         track.state.value,
         scheduled_at=track.scheduled_at,
         attempt_count=track.attempt_count,
+        **track_song_meta(track.song_json),
     )
 
     worker_state = retry.get_worker_state(db)
