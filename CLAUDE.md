@@ -84,12 +84,20 @@ function still exists before acting on it**, since v2 changes schema, endpoints,
 - **Develop locally, deploy to verify.** The local stack is the iteration loop; the Debian host is
   a final-verification target, not a place to chase build errors one SSH round trip at a time. Only
   debug there for genuinely host-specific issues (shared Postgres, tunnel/ingress, restart survival).
+  **Minimize SSH access to the host beyond that** — it runs other real production services
+  (Matrix/Synapse, Vaultwarden), not just this app. When a host-side action is genuinely needed,
+  batch it into as few SSH round trips as possible rather than a series of exploratory checks.
 - **Keep this file current — but keep it short.** See "Maintaining this file" at the bottom.
 
 ### Development environments
 
 Two environments share the physical Postgres server **and currently the same database on it**.
-Revisit once there's data worth protecting; everything else about the split stays the same.
+**As of v22, that threshold has been reached** — three real allowlisted users, real jobs, real
+downloaded files — so local runs now write into the same rows the deployed instance serves. Not
+yet split off (a dedicated `spotdl_web_dev` database, per `docs/LOCAL_DEV.md`) because it hasn't
+caused real friction yet, but the next session that hits friction from it should do the split
+rather than deferring again. Use a distinct test identity for anything exploratory, never the
+real `ADMIN_EMAIL` account. Everything else about the split stays the same.
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
 |---|---|---|
@@ -180,11 +188,19 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
 
 - **Data separation is a security property.** It fails silently — the UI looks right to everyone
   until someone spots a stranger's album. Any change to queries, endpoints, or events must re-run
-  the cross-user sweep, and must cover **direct-id endpoints**, not just list endpoints. Non-owner
-  access returns **404, not 403**, so an id's existence is never confirmed.
+  the cross-user sweep — `pytest backend/tests/test_ownership.py` (plus the archive/retention/
+  admin-gating cases living alongside their own features in `test_jobs.py`,
+  `test_settings_retention.py`, `test_proxies_router.py`, `test_worker.py`,
+  `test_settings_router.py`) for every REST surface, **and** `scripts/verify_separation_sse.sh`
+  against a running stack for the wire itself (v22) — and must cover **direct-id endpoints**, not
+  just list endpoints. Non-owner access returns **404, not 403**, so an id's existence is never
+  confirmed. A module-level frontend store (e.g. `queue` in `queue.ts`) is itself a data surface
+  too — it must be explicitly reset on logout, not just re-fetched on the next mount, or a same-tab
+  identity switch can flash the previous user's rows (the v22 finding: `queue.reset()`).
 - **The SSE stream is a data surface.** Before v17 it broadcast every user's ids to every client.
   `publish_*_event` takes the owning user as a **required** argument so a new call site can't
-  silently fall back to broadcasting. Verify by raw-capturing `curl -N /api/stream`, never via the UI.
+  silently fall back to broadcasting. Verify by raw-capturing `curl -N /api/stream`
+  (`scripts/verify_separation_sse.sh` automates exactly this), never via the UI.
 - **`downloaded_tracks` is never touched by archiving or retention.** It's the dedup ledger; if
   archiving dropped a row it would cause a re-download — extra rate-limit exposure, the one thing
   this app exists to avoid.
@@ -257,7 +273,7 @@ v13 settings-ui. Detail in `plan/master-v1/`, findings in `docs/GOTCHAS.md`.
 | v19 | `dev-archive-retention` | **Done.** `archive_jobs`/`unarchive_jobs` re-derive eligibility from real track states (settled/failed/cancelled, age from newest track activity); `/api/jobs/archive`+`/unarchive`, per-user `/api/settings/retention`, hourly `archive_due_jobs` sweep. `job_to_dict` now exposes `archived_at` (a v18 gap this version needed closed) |
 | v20 | `dev-job-centric-ui` | **Done.** `QueueTable.svelte` retired; job rows (rollup badge, segmented progress bar, actions) expand to paginated tracks; Jobs/Tracks scope toggle, server-side search/sort/state-filter, archive/unarchive with live status-chip counts, `/account` retention page. Also closed a real gap the UI newly exposed: `retry_track` now rejects a track whose job is archived |
 | v21 | `dev-release-automation` | **Done** (PR #23). Unplanned insertion after v20 (see `plan/master-v2/v21-release-automation.md`'s header note) — v22 below is unchanged, only renumbered. Versioned GitHub releases + public GHCR images + automated deploy to the Debian host, with a CI gate, pre-migration backup, and health-gated rollback. Verified live pre-merge, then the real CI→Release→Publish&Deploy chain confirmed unattended post-merge: `v2.21.0` released and deployed correctly (the deploy step correctly no-op'd since the merge introduced no backend/frontend source change beyond what was already live from pre-merge testing — confirmed by diff, not assumed). See `docs/RELEASE_PIPELINE.md` |
-| v22 | `dev-multi-user-hardening` | Adversarial two-user verification, prod migration, doc reconciliation |
+| v22 | `dev-multi-user-hardening` | **Done.** Adversarial cross-user sweep re-confirmed at the seams v14–v20 left unchecked (`backend/tests/test_ownership.py` + siblings for every REST surface, `scripts/verify_separation_sse.sh` for the wire itself); found and fixed a real gap exactly where the plan predicted one — a frontend `queue` store never cleared on logout, letting a same-tab identity switch leak the previous user's "incoming" submissions. Production: found v16's migration already applied via the v21 pipeline (not a fresh step), so this version verified it instead — backup+restore drill, dedup ledger survives, a second real user added and confirmed isolated + reachable via the admin's all-users toggle, live on the deployed instance. Also found and fixed the deploy host's on-disk checkout drifted behind its own running release (a stale local git tag shadowing the real one) |
 
 ---
 

@@ -100,6 +100,11 @@ needed" claim — rather than silently deleted.
 - `docker compose ps`'s `CREATED`/`Up` columns show when a container last (re)started, not
   whether the most recent deploy did anything — an idempotency-skipped, content-identical deploy
   looks identical to a stuck one from that output alone → *v21*
+- The deploy host's on-disk git checkout can drift behind the release it's actually running
+  (containers come from the pulled GHCR image, independent of the working tree) — host-level
+  scripts invoked directly can silently run stale, already-fixed-on-GitHub code. A stale *local*
+  tag left over from pre-merge `workflow_dispatch` testing can also shadow the real tag of the
+  same name, rejecting `git fetch --tags` with "would clobber existing tag" → *v22*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -255,6 +260,12 @@ needed" claim — rather than silently deleted.
   sequence guard at the point of removal, not only at the point the next fetch *starts* — otherwise a
   slow response for an already-closed/cleared entry lands after the fact and silently recreates it,
   since its sequence number still matches whatever was current when it was issued → *v20*
+- A module-level store survives a client-side `goto()` navigation — it must be explicitly reset on
+  logout, or an unconditionally-rendered overlay (`IncomingJobs`/`Waterfall`, no `loading` gate)
+  leaks the previous user's data into the next same-tab identity → *v22*
+- The explicit "disconnect" button isn't the only door to `/login` — a session-check `load()` that
+  redirects on 401 is a second, independent trigger for the same store-reset requirement above,
+  reached by session expiry/revocation rather than a click → *v22*
 
 **Testing & verification technique**
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
@@ -297,6 +308,21 @@ needed" claim — rather than silently deleted.
 - `job_to_dict` never actually exposed `archived_at`, even after v18 wired `include_archived`
   filtering — the gap only surfaced hitting the real running API with `curl`, not from unit tests
   (which never assert exact response-body equality against every field) → *v19*
+- A "no leak observed" result proves nothing about a sibling store with different render logic —
+  one store's synchronous `loading:true` (set before any paint) happened to mask it there, but an
+  unconditionally-rendered sibling store leaked in the exact same scenario. Check the actual
+  persisted-store inventory, not one representative path → *v22*
+- A local dev stack sharing production's real database means local test writes are real production
+  writes — confirm the blast radius (a distinct test identity, not the real admin account) before
+  running anything destructive-looking, even "just local" verification → *v22*
+- Under `set -euo pipefail`, `var="$(failing-pipeline)"` aborts the script at that line even when
+  `var` was `local`-declared on a *separate*, prior statement — not only the more commonly-known
+  combined `local var=$(...)` form. A deliberate `if [ -z "$var" ]` diagnostic written right after
+  such an assignment is dead code unless the assignment itself is guarded with `|| true` → *v22*
+- An independent fresh-context review is worth its cost even on a version whose own author already
+  ran real verification — it found two real gaps a same-session author was structurally unlikely
+  to hit (a second, non-obvious trigger path to the same bug already fixed; a bash pitfall in the
+  reviewer's own newly-written script) → *v22*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -2511,3 +2537,174 @@ automated deploy-to-host)
   container, and that's the idempotency feature working, not a stuck pipeline. Verify via the
   deploy job's own logs (which step ran vs. skipped) and a source diff before assuming a deploy
   failed silently.
+
+### v22 multi-user-hardening gotchas (learned re-running the cross-user sweep at the seams v14–v20
+left unchecked, verifying production, and reconciling docs)
+
+- **A module-level frontend store is itself a data surface, and the REST-level sweep can't see
+  it.** `backend/tests/test_ownership.py` (extended per-version through v14–v20) already covered
+  every REST surface in the plan's sweep table before this version started — list isolation,
+  direct-id 404s, admin gating, search/scope, archive/retention. The one real gap was in
+  `frontend/src/lib/stores/queue.ts`: `queue` is a singleton created once at module load
+  (`export const queue = createQueueStore()`), and `onLogout()` (`frontend/src/routes/+page.svelte`)
+  navigated away with SvelteKit's `goto()` — a client-side transition that never reloads the page
+  or resets any JS module. A same-tab logout(A) → login(B) left A's `incoming` (just-submitted,
+  still-expanding jobs) and `liveActive` (currently-downloading track) entries sitting in memory,
+  and both render **unconditionally** (`IncomingJobs.svelte`/`Waterfall.svelte` have no
+  `page.loading`-style gate) — B's dashboard showed A's submitted Spotify URL. Fixed with
+  `queue.reset()`, called from `onLogout()` before the navigation, clearing
+  `page`/`expanded`/`incoming`/`liveActive`/`allUsers`/`filters` back to empty and invalidating any
+  in-flight fetch (bumps `pageFetchSeq` so a late-resolving stale response can't repopulate
+  anything). Confirmed both ways with a throwaway Playwright script against the real local stack:
+  reverting the fix reproduced the leak deterministically (not a timing race — an "incoming" entry
+  sits there indefinitely, no reload ever clears it on its own), and restoring the fix closed it.
+  **A first attempt at reproducing this was a false negative** — timing the check around
+  `page.items`/`$page.loading` (whose synchronous `loading:true` set in `reload()` happens to mask
+  that specific store within the same task, before any paint) suggested nothing leaked at all; only
+  targeting `incoming` specifically (which has no such gate) exposed the real, unconditional bug.
+  Lesson: a "no leak observed" result from one render path proves nothing about a sibling store
+  with different rendering logic — the sweep needed the actual persisted-store inventory (`page`,
+  `expanded`, `incoming`, `liveActive`), not one representative check.
+- **`onLogout`'s explicit `queue.reset()` wasn't the only door to `/login` — a fresh-context
+  independent review of the PR caught a second one**: `frontend/src/routes/+layout.ts`'s `load()`
+  runs on every client-side navigation and redirects to `/login` on a 401, entirely independent of
+  the "disconnect" button. A session going invalid any other way (expiry, revocation, a wiped
+  `sessions` row) and the user then making *any* in-app navigation reaches this exact redirect
+  without ever running `onLogout`'s `reset()` — same unconditional `incoming`/`liveActive` leak,
+  different trigger. Fixed by calling `queue.reset()` from this one chokepoint too (right before
+  the redirect), so it's covered regardless of *why* the session is gone rather than only the one
+  explicit path. Reproduced and closed with the same before/after Playwright technique as the
+  first fix, this time via a raw `fetch('/api/auth/logout')` (bypassing the UI's own handler
+  entirely) followed by an ordinary in-app link click rather than the disconnect button.
+- **The reviewer also found a `set -e` dead-code path in `scripts/verify_separation_sse.sh`'s
+  `login()`**: `token="$(grep ... | head -n1 | sed ... | tr -d ...)"` under `set -euo pipefail`
+  aborts the whole script the instant the pipeline fails (e.g. a genuine 401 during login) —
+  *before* the deliberate `if [ -z "$token" ]` diagnostic ever runs. Reproduced directly (a
+  minimal repro with the same shape: declare-then-assign, not the more commonly-known
+  combined-`local`-assignment version of this gotcha, so worth remembering separately). Fixed
+  with `|| true` on the assignment, letting the emptiness check that follows be what actually
+  decides pass/fail. Also added: the SSE script's own sweep-table coverage was missing the row
+  for a *non-admin* B attempting `all_users=true` (only the reverse/admin direction was tested);
+  added, plus a `SPOTDL_WEB_USER_B_TOKEN` override so this check works even when only one spare
+  real non-admin identity is on hand (mint a session directly for a distinct third identity
+  rather than reusing the admin's credentials for both B and ADMIN — which was tried first here,
+  and produced a confusing FAIL that was actually a test-setup mistake, not a real leak; the
+  script now checks B isn't accidentally admin and fails loudly with a clear message instead).
+- **A second, independent review round caught two more instances of the exact same two bug
+  classes just fixed** — not new categories, but the first fix's own audit didn't sweep the rest
+  of the file. `JOB_ID="$(echo ... | grep ... | head ... | grep ...)"` (job creation) has the
+  identical `set -e`/pipefail dead-code shape as `login()`'s token extraction; fixed the same way
+  (`|| true`). And the new "is B accidentally admin" diagnostic introduced by the *previous* round
+  referenced `$SPOTDL_WEB_USER_B_EMAIL` unconditionally, which is unset under `set -u` when B was
+  supplied via the same round's own `SPOTDL_WEB_USER_B_TOKEN` alternative — an unbound-variable
+  crash in exactly the mode meant to make this check usable at all. Fixed with
+  `${SPOTDL_WEB_USER_B_EMAIL:-via SPOTDL_WEB_USER_B_TOKEN}`. Neither was a security-property false
+  pass (both still failed loudly, just with a worse message), but the general lesson holds: once a
+  bug class is found once in a file, audit the *whole* file for it, not just the one instance that
+  was reported — a fix applied to only the reported line invites the reviewer to find the sibling
+  instance in the next round instead of this one.
+- **Re-verified with real captured SSE bytes this time, not only a narrative summary** — the
+  plan's own "Done when" explicitly wants the SSE capture pasted, not summarized. A clean
+  post-fix run's actual output:
+  ```
+  PASS: A's own stream saw its own job (...) -- events are flowing.
+  PASS: B's stream contains zero mention of A's job id.
+  PASS: B's all_users=true attempt was silently ignored -- zero mention of A's job id.
+  PASS: admin's all_users=true pattern-subscribe saw A's job id (reverse direction confirmed).
+  verify_separation_sse: all checks passed.
+  ```
+  and the raw captured admin-channel bytes for that same run (four real events, exactly as
+  expected — `job.state` expanding→expanded→cancelled and one `track.state`):
+  ```
+  data: {"ts": "...", "type": "job.state", "job_id": "...", "state": "expanding"}
+  data: {"ts": "...", "type": "job.state", "job_id": "...", "state": "expanded"}
+  data: {"ts": "...", "type": "track.state", "track_id": "...", "job_id": "...", "state": "skipped_duplicate"}
+  data: {"ts": "...", "type": "job.state", "job_id": "...", "state": "cancelled"}
+  ```
+- **v16's migration was already applied to production before this version started** — found via
+  a direct table check (`users`/`user_settings` already existed, with 3 real users and 7 real
+  jobs), not assumed from the plan's phrasing. v21's automated deploy pipeline (and pre-merge
+  `workflow_dispatch` testing during v17–v20's own development) had already carried it out as a
+  side effect of shipping those versions to the real host. This version's actual work was
+  *verifying* that, not performing it: a fresh `pg_backup.sh` + restore-into-a-scratch-container
+  drill (row counts matched exactly: 4 users/16 jobs/35 tracks/93 downloaded_tracks before and
+  after), and confirming a track already in `downloaded_tracks` still resolves `skipped_duplicate`
+  rather than re-downloading when submitted by a brand-new second user. General lesson: a version
+  plan can be stale about what's *already true* on production by the time it's picked up,
+  especially once automated deploy is in the loop — check real state before executing a "perform
+  X" task literally.
+- **The production host's on-disk git checkout can drift behind the release it's actually
+  running, silently** — found while trying to bring the checkout in line with `IMAGE_TAG=2.21.0`
+  before running `pg_backup.sh`: the host was detached at an old pre-merge test commit
+  (`36c8293`, itself an ancestor of the real `v2.21.0` tag — left over from `workflow_dispatch`
+  testing during development, e.g. of `dev-ci-summary-consistency`), and `scripts/pg_backup.sh` at
+  that commit still had the pre-v21-fix hardcoded `/srv/spotdl-web/backups` default, which promptly
+  failed with a permission error on the OS root disk — the exact failure mode the real fix
+  (`d146697`) exists to prevent, resurfacing because the fixed version was never actually pulled
+  down. Worse: `git fetch origin --tags` was flat-out *rejected* ("would clobber existing tag")
+  because the host also had a **stale local `v2.21.0` tag** — created during v21's own pre-merge
+  testing before the real release process cut the authoritative tag with the same name — silently
+  shadowing the real one every git tag lookup would otherwise resolve. Fixed with
+  `git tag -d v2.21.0 && git fetch origin --tags && git checkout --detach v2.21.0`. This never
+  affected the *running containers* (those come from the already-pulled GHCR image, independent of
+  the working tree), but it means any host-level script invoked directly (backup, restore,
+  anything not baked into an image) can silently run stale code. Added to
+  `docs/DEPLOYMENT.md`'s troubleshooting table so this doesn't get rediscovered the expensive way.
+- **Local dev and production now genuinely share live data, not just a theoretical risk** — this
+  version's own local verification (Playwright leak repro, the SSE separation script) wrote real
+  rows into the same shared database production serves, confirmed by the second real test
+  identity's jobs showing up in a production-side query moments later. Harmless here because
+  ownership scoping kept it out of the admin's own view and everything created was cleaned up
+  (cancelled test jobs), but it's the first time this actually happened rather than being a
+  documented-but-unexercised risk. `docs/LOCAL_DEV.md` and `CLAUDE.md`'s dev-environment table
+  updated to say so plainly rather than "revisit once there's data worth protecting" — that
+  threshold has now been crossed.
+- **Registering a fresh real-upstream test account whose original password isn't on hand is
+  normal, not a blocker** — the pre-existing `spotdlwebtest@example.com` (from v17's own testing)
+  no longer authenticated with this session's known `DEV_TEST_PASSWORD`; rather than chase down or
+  reset its real password, a fresh account (`spotdlwebtestv22@example.com`, plain alphanumeric
+  username — the known hyphenated-username upstream bug still applies) was registered against the
+  live `https://api.vb2007.hu` with that same password, per the standing rule. Confirmed real login
+  for both `balazs@vb2007.hu` (existing admin) and the fresh identity before treating the sweep as
+  covering real auth, not only the direct-session-mint fallback.
+- **The v22-mandated closing pass** (re-reading `plan/master-v2/` to confirm every "Done when"
+  bullet across v14–v22 was actually checked with its own evidence, not just asserted) found the
+  historical record in good shape but not perfect: of 60 "Done when" bullets audited across
+  v14–v21, 50 had concrete evidence (a command, an exact count, a quoted log line) findable in
+  `docs/GOTCHAS.md`/merged PR bodies; 6 were asserted only via a blanket claim with no bullet-
+  specific detail (mostly v20's UI interactions — PR #22's "Playwright pass covering every Done
+  when bullet" doesn't itemize which bullet exercised what); 4 were the routine, low-materiality
+  "`graphify update .`" bullet with no evidence either way. One bullet (v16's "existing suite
+  passes unchanged") isn't asserted-and-unbacked but disproven-and-fully-explained — an
+  intentional, user-approved deviation, already documented in three places. None of the 6
+  asserted-only bullets showed evidence of an actual regression, only thinner-than-ideal
+  documentation of work the surrounding evidence makes very likely genuine.
+  - Two of the six were worth a same-session spot-check rather than leaving as "probably fine":
+    v20's non-admin-hides-`/settings`-and-403s / admin's-all-users-toggle-adds-owner-column
+    bullet, and v19's "a previously-downloaded track survives archiving and still resolves
+    `skipped_duplicate` on resubmission" bullet (the plan's own text calls this "the property
+    that matters most" for that version, yet it had no test distinct from the row-count check).
+    Both re-verified live against the real stack this session: the v20 UI bullet directly (a
+    non-admin genuinely sees no settings link and gets a real 403; the admin's all-users toggle
+    genuinely reveals the second user's job with an owner column, confirmed via
+    `page.content().includes(...)` on the real rendered page) — and the v19 dedup property
+    incidentally, as a byproduct of this version's own production verification task (the same
+    `skipped_duplicate` resolution already recorded above, on a track that had been through
+    multiple real submit/cancel cycles under archiving-adjacent conditions).
+  - The other four (v20's scope-toggle-search-across-jobs, sort-reorders-whole-set, state-filter-
+    counts-match-API, plus the routine graphify bullets) were left as documentation-thinness, not
+    re-tested individually — their underlying server-side behavior is evidenced elsewhere
+    (`test_job_listing.py`'s cursor-pagination-across-pages coverage; a live cross-job search
+    confirmed as part of this same session's testing, returning matches spanning >15 distinct
+    job ids for one query) and the frontend wiring is a direct, simple pass-through with no
+    client-side reordering/filtering logic of its own to regress.
+  - "All services healthy afterward" (v22's own migration-verification bullet) reconfirmed at the
+    very end of this session: `docker compose -f docker-compose.yml -f docker-compose.prod.yml ps`
+    on the real host shows every service `healthy` (api/web/redis) or running-with-no-healthcheck-
+    by-design (beat/cloudflared), `worker-dl`/`worker-meta`/`beat` each `Up 26 hours` — i.e.
+    untouched and stable across this entire session's local/production verification work, not
+    freshly restarted into a state that hasn't been exercised. "A real download completes end to
+    end" is satisfied by the pre-existing real usage already on this host (7 real jobs predating
+    this session, all through the identical unmodified download pipeline) rather than a fresh
+    download deliberately triggered just for this checklist — consistent with the project's own
+    stance on not spending real rate-limit budget on a check redundant with existing evidence.

@@ -9,12 +9,19 @@ genuinely ready to merge.
 
 Postgres itself is never dockerized, never duplicated (locked decision) — both environments
 reach the same physical instance on the Debian host over the network. **For now, both also
-point at the same database.** There's no real user data yet to protect, so the extra ceremony
-of a separate dev database isn't worth it while that's true. Revisit this (a dedicated,
-disposable `spotdl_web_dev` database) once the app holds anything a developer testing locally
-shouldn't be able to wipe out — realistically once v09 (frontend) or later makes it easy to
-generate real-looking state. Redis and every other container still run entirely locally and
+point at the same database.** Redis and every other container still run entirely locally and
 are never shared with the deployed instance, regardless.
+
+**This is no longer a hypothetical to "revisit later" — as of v22, real people are using the
+deployed instance for real** (three real allowlisted users, real jobs, real downloaded files).
+Anything you do locally — submitting a job, cancelling one, registering a test account — writes
+to that same shared database. v22's own adversarial verification did exactly this (see
+`docs/GOTCHAS.md`'s v22 section): local test-job creation showed up in the real deployed admin's
+job list under a distinct test-account owner, harmless because ownership scoping keeps it out of
+the admin's own view, but real rows in the real table nonetheless. Prefer a dedicated test
+identity (never the real `ADMIN_EMAIL` account) for anything exploratory, and switch to a
+dedicated disposable `spotdl_web_dev` database (§ "Once there's real data worth protecting"
+below) the next time this gets in the way rather than continuing to defer it.
 
 ---
 
@@ -65,7 +72,39 @@ Ports bound to `127.0.0.1` is fine and expected here too — this is your own ma
 about the Cloudflare-Tunnel-only ingress rule changes; it just happens to not matter locally
 since nothing here is reachable from anywhere else regardless.
 
-## 4. When a version is ready
+## 4. Seeding a second user for multi-user testing (v17+)
+
+Add a second address to `ALLOWED_EMAILS` (comma-separated, `ADMIN_EMAIL` stays whichever one
+should be the operator) and recreate `api`:
+
+```bash
+docker compose up -d api
+```
+
+The second identity's `users` row is created automatically on its first successful login — real
+login needs a real password against whichever upstream `UPSTREAM_AUTH_BASE_URL` points at
+(`host.docker.internal:3000` if the local `vb2007.hu-api` instance is running, otherwise the live
+`https://api.vb2007.hu`; see `docs/GOTCHAS.md`'s v17 standing rule). Registering a fresh test
+account against either is expected and fine — `POST /auth/register {username, email, password}`
+(plain alphanumeric username; a hyphenated one 500s on the upstream, a known upstream bug, not
+this app's). For a quick non-real-login identity instead (no password needed, but skips exercising
+the actual auth path), mint a session directly:
+
+```bash
+docker compose exec api python -c "
+from app.db import SessionLocal
+from app.services.users import get_or_create_user
+from app.services.sessions import create_session
+db = SessionLocal()
+user = get_or_create_user(db, 'second@example.com')
+session = create_session(db, user.id)
+db.commit()
+print(session.token)
+"
+# then: curl -H 'Cookie: SPOTDL_SESSION=<token>' http://localhost:8000/api/jobs
+```
+
+## 5. When a version is ready
 
 Push the branch and open/update the PR as usual. Before merging, do one final check on the
 real target per `docs/DEPLOYMENT.md` — that's the only remaining reason to touch the Debian

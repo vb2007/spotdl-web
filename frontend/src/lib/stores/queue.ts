@@ -325,6 +325,25 @@ function createQueueStore() {
 		return allUsers;
 	}
 
+	/** Wipes every accumulated row back to empty and invalidates any in-flight fetch, so a
+	 * stale response landing after a logout can never repopulate the store. `queue` is a
+	 * module-level singleton (survives SvelteKit's client-side `goto` navigation, which
+	 * never reloads the page) -- without this, a same-tab logout(A) -> login(B) leaves A's
+	 * jobs/tracks sitting in `page`/`expanded`/`liveActive`/`incoming` until B's own
+	 * post-mount `reload()` resolves and replaces them, a real window where B's freshly
+	 * mounted dashboard renders A's rows. Call this on logout, before the next identity's
+	 * session can start writing to these stores. */
+	function reset(): void {
+		pageFetchSeq++;
+		for (const jobId of Object.keys(expandedFetchSeq)) invalidateExpandedFetch(jobId);
+		allUsers = false;
+		filters.set({ ...DEFAULT_FILTERS });
+		page.set({ ...EMPTY_PAGE });
+		expanded.set({});
+		incoming.set({});
+		liveActive.set({});
+	}
+
 	function toggleExpand(jobId: string): void {
 		const current = get(expanded);
 		if (current[jobId]) {
@@ -813,6 +832,7 @@ function createQueueStore() {
 		loadMore,
 		setAllUsers,
 		getAllUsers,
+		reset,
 		toggleExpand,
 		isExpanded,
 		loadMoreExpandedTracks,

@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from app.models import Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers import jobs as jobs_router
@@ -312,6 +313,25 @@ def test_archive_with_job_ids_ignores_another_users_job(
     assert response.status_code == 200
     assert response.json()["archived_ids"] == []
     assert db_session.get(Job, theirs.id).archived_at is None
+
+
+def test_unarchive_with_job_ids_ignores_another_users_job(
+    authenticated_client, db_session, owner, make_user
+):
+    """The router-level sibling of test_archive_with_job_ids_ignores_another_users_job above
+    -- v22's sweep table pairs archive/unarchive together, and unarchive_jobs's own ownership
+    filter was previously only exercised at the service layer (test_archive.py), never through
+    the actual endpoint a caller would hit."""
+    stranger = make_user("stranger@example.com")
+    theirs = _make_job_with_tracks(db_session, stranger, states=(TrackState.COMPLETED,))
+    theirs.archived_at = datetime.now(timezone.utc)
+    db_session.commit()
+
+    response = authenticated_client.post("/api/jobs/unarchive", json={"job_ids": [str(theirs.id)]})
+
+    assert response.status_code == 200
+    assert response.json()["unarchived_ids"] == []
+    assert db_session.get(Job, theirs.id).archived_at is not None
 
 
 def test_archive_requires_job_ids_or_all_settled(authenticated_client, db_session):

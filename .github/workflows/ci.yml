@@ -95,6 +95,17 @@ jobs:
       # engine and mocks any real spotdl/network call (see docs/CI_SELF_HOSTED_RUNNER.md for
       # why, and what to add if a future test needs a real service).
       #
+      # v22's cross-user data-separation sweep (CLAUDE.md's "Data separation is a security
+      # property" invariant) runs here as an ordinary part of this suite for every REST
+      # surface — backend/tests/test_ownership.py, plus the archive/retention/admin-gating
+      # cases in test_jobs.py/test_settings_retention.py/test_proxies_router.py/
+      # test_worker.py/test_settings_router.py — since all of it is fixture-driven, no live
+      # stack needed. The one piece deliberately NOT run here: the SSE stream is real Redis
+      # pub/sub served over a real running process, so there is no fixture substitute for
+      # "does the wire itself ever carry another user's ids" — that's
+      # scripts/verify_separation_sse.sh, manual/real-stack-only by necessity, not a silent
+      # coverage gap.
+      #
       # Generates three human-readable report formats alongside the terminal output: a
       # self-contained HTML page, an ODS spreadsheet, and junit XML (the machine-readable input
       # the summary job below turns into a job summary). `.ods` rather than `.xlsx` -
