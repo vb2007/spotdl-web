@@ -117,7 +117,8 @@ Fix first, then features, then close. One feature per version, one `dev-<feature
 | **v26** | `dev-id3-integrity` | Verify embedded tags after each download (title, artist, album, track number, year, cover art) and re-embed from `song_json` when anything is missing. Prerequisite for v28, which reads tags off files |
 | **v27** | `dev-file-downloads` | `GET /api/tracks/{id}/file` — ownership-checked in FastAPI, streamed by nginx via `X-Accel-Redirect`. Owner or admin only; availability keyed on the file existing at its recorded path |
 | **v28** | `dev-library-sort-move` | Admin-only sort & move into the real library. Target dir, folder template and quarantine toggle as admin settings; copy → verify → delete source; conflicts by folder+filename only; ledger repointed and tracks marked in-library; moved jobs archived; new default output template |
-| **v29** | `dev-v3-hardening` | Production close: full real-stack verification of every v3 change, a genuine multi-user pass, docs + `CLAUDE.md` + `docs/GOTCHAS.md` reconciliation, and the closing re-read of every "Done when" bullet |
+| **v29** | `dev-network-path-escalation` | *(inserted — see Amendments)* IPv4/IPv6 as a real escalation rung before proxy, after a prerequisite check that production IPv6 works and daemon-level IPv6 is safe for the other services on that host |
+| **v30** | `dev-v3-hardening` | *(renumbered from v29)* Production close: full real-stack verification of every v3 change, a genuine multi-user pass, docs + `CLAUDE.md` + `docs/GOTCHAS.md` reconciliation, and the closing re-read of every "Done when" bullet |
 
 ### Why this order
 
@@ -199,3 +200,54 @@ each "Done when" bullet evidenced individually this session. Version-specific mu
    and every new query path is a new chance to drop the owner filter.
 7. **`graphify update .`** after every code-modifying version; version bumped in both
    `backend/pyproject.toml` and `frontend/package.json` to the identical `3.NN.0` string.
+
+---
+
+## Amendments
+
+The plan above is the approved text, kept verbatim. Changes directed after approval are recorded
+here rather than edited into it, so the original record stays readable.
+
+### 2026-08-09 — v23's root cause was not the stale yt-dlp pin
+
+The "Verified current state" table above lists `yt-dlp==2026.7.4` as stale, and the plan named it
+the leading hypothesis for the outage. **It was wrong.** v23's real-stack reproduction proved PyPI's
+latest stable was already what was pinned.
+
+The actual cause: the Docker image never installed a JS runtime, so
+`spotdl.utils.deno.get_local_deno()` found nothing and no JS runtime was wired into yt-dlp's
+options. Without it, YouTube's PO-token challenge can't be solved, yt-dlp raises a genuine
+`AudioProviderError`, and spotdl's `search_and_download` catches it internally and returns
+`(song, None)` — which arrived at `download_track` as a bare missing output path with the real error
+already discarded. Fixed by baking `python -m spotdl --download-deno` into the image.
+
+The plan's requirement to *prove* the root cause before declaring it fixed is what caught this;
+a bump-and-hope would have shipped a no-op and left the outage in place. Keeping the yt-dlp float
+and the CI freshness check as standing policy was still correct, just for a future break rather than
+this one.
+
+### 2026-08-09 — v23.1 inserted; v29 inserted; hardening close renumbered to v30
+
+Three changes after v23 shipped and deployed:
+
+1. **`v23.1-download-reliability-followup.md`** — a patch slice (`3.23.1`) for loose ends belonging
+   to v23's story: recording the production confirmation, fixing `yt-dlp-ejs` staying pinned while
+   `yt-dlp` floats (a future mismatch would reproduce the identical PO-token outage), and a real
+   production bug found immediately after deploy — a newly submitted job vanishing from the Jobs
+   list until a full refetch (`queue.ts`'s `patchPageJob` silently drops a job that isn't already in
+   the current page).
+2. **`v29-network-path-escalation.md`** — inserted on evidence from v23's session: this network's
+   public IPv4 was reputation-flagged by YouTube while IPv6 worked, **and all five configured
+   proxies failed identically**, proving the locked "direct → wait → proxy" ladder does not cover
+   this failure mode. Placed last before the close, per the owner's sequencing call. Gated on a
+   prerequisite check, since the production Docker daemon is shared with Matrix/Synapse and
+   Vaultwarden.
+3. **The hardening close moves from v29 to v30**, unchanged in content — the same treatment v21's
+   unplanned insertion gave v22. It also absorbs the deferred idle-in-transaction connection-leak
+   investigation.
+
+One reported loose end was **closed without a version**: the unexplained `Error: 'uri'` at expansion
+is already documented in `docs/GOTCHAS.md`'s v04 section — a syntactically-valid but nonexistent
+Spotify track ID raises a bare `KeyError('uri')` from inside spotdl's response parsing, which
+`expand_job`'s deliberately broad catch turns into a clean failed job. The track ID in question was
+typed from memory and never verified to exist. Known, correct behavior, not a bug.

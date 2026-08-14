@@ -219,8 +219,13 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
   at a different bitrate still counts as already present.
 - **File-download availability keys on the file existing at its recorded path, never on
   `archived_at`.** A retention-archived job still has its file and stays downloadable.
-- **`yt-dlp` floats to latest while everything else stays pinned.** Pinning the one dependency whose
-  job is chasing a moving target is what caused the v23 outage.
+- **`yt-dlp` floats to latest while everything else stays pinned** — and `yt-dlp-ejs` must float
+  with it (v23.1). They solve YouTube's PO-token challenge together; upgrading only one reproduces
+  the v23 outage.
+- **Proxy escalation does not cover IP-reputation bot-checks.** Proven in v23: when this network's
+  IPv4 was flagged, all five configured proxies failed identically — cheap datacenter IPs get the
+  same treatment. The locked "direct → wait → proxy" ladder is still correct for rate limiting, but
+  it is *not* a universal last resort. v29 adds the other IP family as a rung before proxy.
 
 ---
 
@@ -286,13 +291,15 @@ v21 release-automation (unplanned insertion) · v22 multi-user-hardening. Detail
 
 | # | Branch | Scope |
 |---|---|---|
-| v23 | `dev-download-reliability` | **Done.** Root-caused the outage: not the pinned yt-dlp version (proven wrong — the newest available build failed identically) but a missing Deno JS runtime, so spotdl could never solve YouTube's PO-token challenge and silently swallowed the resulting `AudioProviderError` into a bare `None` output path. Fixed by baking `spotdl --download-deno` into the image; yt-dlp still unpinned (floats to latest at build time) as standing policy plus a scheduled CI freshness check, since pinning it is what caused this outage regardless of today's specific root cause. `NO_OUTPUT` is now its own `TrackErrorType`, classified explicitly and feeding the breaker. `publish_track_event` carries title/artist/album everywhere a track event is published, closing the "unknown title" live-view gap. The Waterfall's appear/disappear/reappear glitch was root-caused via raw SSE capture (`liveActive`'s remove-on-any-non-downloading-state colliding with a fast retry loop) and fixed with a debounced removal |
+| v23 | `dev-download-reliability` | **Done, deployed.** Root cause was a missing Deno JS runtime for YouTube's PO-token challenge — **not** the stale yt-dlp pin (disproven). Typed `NO_OUTPUT` error that feeds the breaker; SSE events carry title/artist/album |
+| v23.1 | `dev-v23-followup` | `yt-dlp-ejs` must upgrade alongside `yt-dlp`; a new job vanishes from the Jobs list until a refetch (`patchPageJob` drops jobs not already on the page) |
 | v24 | `dev-attempt-history` | `track_attempts` — what each attempt tried, direct vs which proxy, what failed |
 | v25 | `dev-username-ui` | Usernames from upstream `GET /user`; worker pause/resume moves to `/settings`, status pill stays |
 | v26 | `dev-id3-integrity` | Verify + repair embedded tags after each download. Prerequisite for v28 |
 | v27 | `dev-file-downloads` | `GET /api/tracks/{id}/file` — FastAPI authorizes, nginx streams via `X-Accel-Redirect` |
 | v28 | `dev-library-sort-move` | Admin-only sort & move into the real library; copy→verify→delete source; ledger repointed |
-| v29 | `dev-v3-hardening` | Production close: cross-user sweep over v3's surfaces, v27↔v28 proof, doc reconciliation |
+| v29 | `dev-network-path-escalation` | IPv4/IPv6 as an escalation rung *before* proxy — proven gap: all 5 proxies failed the same bot-check. Gated on a prereq check (Docker daemon shared with other prod services) |
+| v30 | `dev-v3-hardening` | Production close: cross-user sweep over v3's surfaces, v27↔v28 proof, connection-leak root-cause, doc reconciliation |
 
 ---
 
