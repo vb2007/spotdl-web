@@ -155,13 +155,15 @@ needed" claim — rather than silently deleted.
   production Docker image never installed Deno; `spotdl --download-deno` (run once, baked into the
   image as the `spotdl` user so it lands under that user's own config dir) fixes it → *v23*
 - `yt-dlp-ejs` (yt-dlp's companion package for solving YouTube's newer JS challenges, central to
-  the PO-token fix above) stays **pinned** via `requirements.txt` even though `yt-dlp` itself floats
-  to latest at build time (`backend/Dockerfile`'s `uv pip install --upgrade yt-dlp`, bare — no
-  `[default]` extra, so it can't cascade an upgrade to `yt-dlp-ejs` or anything else). This is
-  within the letter of "yt-dlp floats, everything else stays pinned," but it's a real fragility: a
-  future yt-dlp release that needs a newer `yt-dlp-ejs` than what's locked could silently
-  reintroduce a variant of this exact outage. Worth revisiting if the outage recurs after a yt-dlp
-  bump — check whether `yt-dlp-ejs` needs floating too before re-investigating from scratch → *v23*
+  the PO-token fix above) stayed **pinned** via `requirements.txt` even though `yt-dlp` itself
+  floated to latest at build time (`backend/Dockerfile`'s `uv pip install --upgrade yt-dlp`, bare —
+  no `[default]` extra, so it couldn't cascade an upgrade to `yt-dlp-ejs` or anything else). This was
+  within the letter of "yt-dlp floats, everything else stays pinned," but was a real fragility: a
+  future yt-dlp release needing a newer `yt-dlp-ejs` than what was locked could have silently
+  reintroduced a variant of this exact outage. **Fixed in v23.1** — the Dockerfile step now upgrades
+  both in the same `uv pip install --upgrade yt-dlp yt-dlp-ejs`, and the scheduled `yt-dlp-freshness`
+  CI job (`ci.yml`) now compares both against PyPI's latest, each as its own step so a yt-dlp-ejs-only
+  drift can't be masked by the yt-dlp check passing → *v23, v23.1*
 
 **Celery, tasks & durability**
 - `record_failure` computes the ladder delay **before** incrementing `attempt_count`; reversing it
@@ -311,6 +313,11 @@ needed" claim — rather than silently deleted.
 - The explicit "disconnect" button isn't the only door to `/login` — a session-check `load()` that
   redirects on 401 is a second, independent trigger for the same store-reset requirement above,
   reached by session expiry/revocation rather than a click → *v22*
+- A `job.state` SSE event fires for the `expanding` state itself, not only for later transitions —
+  a naive "insert this row into the page if it's missing" fix must not do so while `expanding`
+  (still-`source_url`-titled) or `failed` (permanently zero-track), or the row gets sorted by a
+  throwaway value it can never correct later, since an already-present row is only ever patched in
+  place, never re-sorted → *v23.1*
 
 **Testing & verification technique**
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
@@ -367,7 +374,12 @@ needed" claim — rather than silently deleted.
 - An independent fresh-context review is worth its cost even on a version whose own author already
   ran real verification — it found two real gaps a same-session author was structurally unlikely
   to hit (a second, non-obvious trigger path to the same bug already fixed; a bash pitfall in the
-  reviewer's own newly-written script) → *v22*
+  reviewer's own newly-written script) → *v22*. Reconfirmed on a much smaller patch slice: two
+  independent reviewer agents, given only the diff and no implementation context, each
+  *independently* found the same real duplicate-row edge case in a "deliberately small" frontend
+  fix that had already passed real-browser verification across several scenarios — the author's
+  own tests never happened to exercise the specific pagination-boundary/multi-tab conditions that
+  triggered it → *v23.1*
 - `uv pip compile pyproject.toml -o requirements.txt` treats an **already-existing** output file's
   pinned versions as a preference baseline (kept unless they no longer satisfy `pyproject.toml`'s
   constraints) — matching exactly what a human runs to regenerate the file. Recompiling into a
@@ -398,6 +410,11 @@ needed" claim — rather than silently deleted.
   own IPv4 was independently confirmed clean by the project owner during this session, so it did
   not need this. Don't assume a "some IPs are permanently blocked" finding generalizes across
   physically different hosts/ISP connections without checking each one → *v23*
+- A real-browser verification's poll interval can itself hide the bug it's trying to catch: a 2s
+  poll against a fast-transitioning row missed an intermediate wrong-position state entirely and
+  read as a clean pass; re-running the identical scenario at 300-500ms surfaced it immediately.
+  When a fix touches how a live-updating row is first inserted/positioned, poll fast enough to
+  catch its very first paint, not just its eventual settled state → *v23.1*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -673,7 +690,10 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   nonexistent track ID raises a bare `KeyError('uri')` from deep inside spotdl's Spotify-response
   parsing, not a clean `QueryError`/`SpotifyError`. `expand_job`'s `except Exception` catch-all
   in `app/tasks/expand.py` is deliberately broad for exactly this reason — narrowing it to
-  specific spotdl exception types would miss cases like this.
+  specific spotdl exception types would miss cases like this. **Closed, not a bug**: v23's session
+  independently hit an unexplained `Error: 'uri'` and flagged it as a loose end; v23.1 traced it
+  back to this exact entry — the track ID in question was typed from memory and never verified to
+  exist. Known, correct behavior; don't re-investigate it a third time → *v04, v23, v23.1*
 - Verified against the real network (not mocked) during this version: a track URL, an album URL
   (13 tracks), and an artist URL (390 tracks across every album) all expand correctly end-to-end
   through `POST /api/jobs` → `worker-meta` → `GET /api/jobs/{id}/tracks`, every track landing and
@@ -2832,3 +2852,81 @@ live-view metadata gap, and root-causing the Waterfall appear/disappear/reappear
   `breaker_tripped_until = None`) was the right move to continue *testing*, but the trip itself is
   exactly the behavior v06's breaker was built for; don't mistake "verification hit a hard stop I
   understand" for "the breaker fired when it shouldn't have."
+
+### v23.1 download-reliability-followup gotchas (learned recording v23's production
+confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from the Jobs list)
+
+- **v23 confirmed working in production** by the project owner against the deployed instance
+  (release pipeline run [31832103988](https://github.com/vb2007/spotdl-web/actions/runs/31832103988)):
+  a real single-track submission downloaded successfully end to end, the Waterfall appear/
+  disappear/reappear glitch was gone, and live download metadata (title/artist) rendered
+  correctly from the first event. This closes v23's one previously-unverified item.
+- **A `job.state` SSE event fires for the `expanding` state itself, not only for later
+  transitions** — confirmed empirically via real-browser polling at 300ms granularity (a coarser
+  2s poll in an earlier pass of the same verification missed this window entirely and gave a
+  misleadingly clean-looking result). This matters because any code reacting to `job.state`
+  events must not assume the first event it sees for a given job already has real, track-derived
+  data (title, in particular) — the frontend's `derive`-style `Job.title` genuinely can be still
+  the raw `source_url` fallback at this point, for a job with zero tracks so far.
+- **`patchPageJob` (`frontend/src/lib/stores/queue.ts`) — the reported "new job vanishes from the
+  Jobs list until a full refetch" bug — had a second, deeper layer once the obvious
+  `idx === -1 return p` bail was fixed.** Simply inserting-if-missing on every `job.state` event
+  reintroduced a subtler version of the same class of bug: the *first* insertion often happened
+  while the job was still `expanding` (per the gotcha above), using its raw `source_url` as the
+  sort key under a title/track_count sort. Once a row exists, every later event for that job only
+  ever patches it in place (`idx !== -1` branch) and never re-sorts it — so the row's *text*
+  updated correctly to the real derived title once the job reached `expanded`, but its *position*
+  stayed wherever the URL had sorted it, permanently. Caught only by watching actual DOM order in
+  a real browser under a non-default sort with two known tracks whose titles bracket each other
+  alphabetically (`docs/GOTCHAS.md` testing-technique entries' own "mocked verification is not
+  verification" lesson, again) — invisible to `svelte-check`/`eslint`, and invisible to a coarser
+  poll interval that simply missed the intermediate wrong-position state. Fixed by never inserting
+  (only patching, which is already a safe no-op when absent) while `job.state` is `expanding` or
+  `failed` — the same two states `applyJobEvent` already keeps in the `incoming` overlay instead
+  of removing from it, so the two now agree on exactly when a job is allowed to have a page row at
+  all.
+- **This is the second real bug found in this store by production use rather than by tests** —
+  the same pattern as v09's sort-tiebreaker gotcha and v10's terminal-state guard (both listed
+  above): a live, stateful frontend store accumulating patches over time has failure modes a
+  request/response test never exercises, because nothing about a single request captures "what
+  does the *next* event do to state a *previous* event already wrote." Worth specifically
+  stress-testing any future change to this store against a sequence of live events, not just its
+  handling of one event in isolation.
+- **A third layer of the same `patchPageJob` fix, caught only by this version's mandatory
+  fresh-eyes review (two independent reviewer agents found it independently)**: appending a
+  newly-inserted job at the *tail* of the currently-loaded window is unsafe whenever
+  `page.nextCursor` is non-null. The cursor is keyed off the old last-loaded row's own
+  `(sort value, id)` tuple (`pagination.apply_cursor`, backend) and knows nothing about a
+  row spliced in locally after the fact — a tie or a value at/after that row is exactly what
+  the server's own "everything after the cursor" condition matches, so a later `loadMore()`
+  (which concatenates with no id dedup) can legitimately re-fetch the same job from the server
+  and render it twice. Confirmed directly against the real API: fetching
+  `GET /api/jobs?sort=track_count&dir=asc&limit=1` twice in sequence (second call using the
+  first's `next_cursor`) against three real jobs tied on `track_count=1` returned a different
+  job each time, purely by id tie-break — proving the cursor's tie-break is real id-based
+  state the frontend can't see or replicate locally. Fixed by treating "would append at the
+  tail, and more pages still exist" the same as the `q`/`next_retry` cases above: fall back to
+  `scheduleReload()` instead of guessing. Inserting strictly *before* an already-loaded row
+  stays safe regardless of `nextCursor`, since that row's own sort value is provably before
+  whatever the cursor holds.
+- **A fourth, broader layer, also caught only by review**: `patchPageJob`'s insert branch was
+  reachable from *any* `job.state` SSE event, not only ones for a job actually leaving the
+  `incoming` overlay — that event fires for every state change on every job the owning user's
+  channel carries (another tab/device acting on it, an admin, `beat`'s retention auto-archive
+  sweep — `cancel_job` publishes to the job's *owner*, not the acting session, precisely so
+  those other cases reach every open tab). A job sitting beyond the currently-loaded page
+  window that merely changes state is *not new* — it was already counted in the original
+  `total_estimate`/`counts_by_status` snapshot, and inserting it (double-counting it, and
+  risking the same tail/cursor duplicate above) has nothing to do with the reported bug at all.
+  Fixed by gating insertion behind an explicit `allowInsert` flag, true only where the caller
+  knows for certain this is legitimately new: `applyJobEvent`, gated on whether the job's id
+  was actually present in `incoming` a moment before this event (`wasIncoming`), and this
+  session's own `cancelJob` (always a job the acting session could already see somewhere).
+  Every other call site (`bumpJob`, `setJobPriority`, and `applyJobEvent` for a job that
+  `wasIncoming` says no to) keeps the original, safe "patch in place only if already loaded,
+  otherwise do nothing" behavior — the behavior this whole store had *before* the bug this
+  version set out to fix, which was correct all along for anything that isn't a job newly
+  leaving the overlay.
+- **The `KeyError('uri')` loose end from v23 is closed** — see the v04 section's entry above,
+  which already fully explained the mechanism; the ID in question was simply never verified to
+  exist. Not investigated further.
