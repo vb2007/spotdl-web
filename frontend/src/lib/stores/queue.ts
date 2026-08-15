@@ -487,20 +487,136 @@ function createQueueStore() {
 		incoming.update((current) => ({ ...current, [job.id]: job }));
 	}
 
-	function patchPageJob(job: Job): void {
+	/** Whether `job` belongs in the currently-loaded page under the active filters --
+	 * `includeArchived`/`status` are exact, since both live directly on `Job`. `q` (full-
+	 * text search) is deliberately not checked here: `search.job_matches()` (backend) also
+	 * matches on the job's *tracks*, which this store never holds for a job it hasn't
+	 * fetched tracks for, so a caller needing to honor an active `q` must treat "can't
+	 * tell" as its own case rather than trusting this to cover it. */
+	function jobMatchesFilters(job: Job, f: Filters): boolean {
+		if (!f.includeArchived && job.archived_at !== null) return false;
+		if (f.status.length > 0 && !f.status.includes(api.statusKey(job.status))) return false;
+		return true;
+	}
+
+	/** The value `job` sorts by under a given `sort` field, mirroring
+	 * `job_listing._sort_value` (backend) for every field this store can compute from a
+	 * single `Job` object. `next_retry` is deliberately absent: it's `next_retry_at`,
+	 * derived server-side from a track's `scheduled_at` and never returned on `Job` at all
+	 * -- a caller sorting by it can't place a row correctly from this alone and must fall
+	 * back to a reload instead of calling this. */
+	function jobSortValue(job: Job, sort: string): number | string {
+		switch (sort) {
+			case 'title':
+				return job.title;
+			case 'status':
+				return api.STATUS_TOKENS.indexOf(api.statusKey(job.status));
+			case 'track_count':
+				return Object.values(job.track_counts).reduce((sum, n) => sum + n, 0);
+			default:
+				return new Date(job.created_at).getTime();
+		}
+	}
+
+	/** Where `job` belongs among `items` (already in `sort`/`dir` order) -- a linear scan
+	 * against the loaded window only, since that's all this store has; a sort position
+	 * relative to rows on a not-yet-fetched page can't be known any more precisely than
+	 * the real backend query already guarantees once that page is actually loaded. */
+	function jobInsertIndex(items: PageItem[], job: Job, sort: string, dir: 'asc' | 'desc'): number {
+		const value = jobSortValue(job, sort);
+		const descending = dir === 'desc';
+		for (let i = 0; i < items.length; i++) {
+			const otherValue = jobSortValue(items[i] as Job, sort);
+			const belongsBefore = descending ? value > otherValue : value < otherValue;
+			if (belongsBefore) return i;
+		}
+		return items.length;
+	}
+
+	/** Patches a job already on the page in place, and -- only when `allowInsert` is true
+	 * -- inserts it if it's missing. `allowInsert` must stay opt-in: `applyJobEvent` below
+	 * runs for *every* `job.state` event this session's SSE channel carries, which is every
+	 * job change the owning user makes anywhere (this tab, another tab/device, an admin
+	 * acting on it, `beat`'s retention auto-archive sweep -- see `cancel_job`
+	 * (`backend/app/routers/jobs.py`) publishing to the job's *owner*, not the acting
+	 * session), not only ones for a job this store has ever seen before. A job sitting
+	 * beyond the currently-loaded page window (rank 50 in a 20-per-page list, say) that
+	 * merely changes state is *not* new -- it was already counted in the original
+	 * `totalEstimate`/`countsByStatus` snapshot, and its correct position in the full
+	 * (mostly unloaded) ordering could be anywhere, not just the tail. Blindly inserting it
+	 * here would double-count it and could still collide with `loadMore()` the same way
+	 * described below. The only two call sites that pass `allowInsert: true` are ones that
+	 * know for certain this job is (or just was) one this store is actively tracking as new
+	 * -- a job leaving the `incoming` overlay (`applyJobEvent`, gated on `wasIncoming`), and
+	 * this session's own `cancelJob` (reachable while a job is still `expanding` straight
+	 * from `IncomingJobs`). Without this gate at all, a brand-new job vanished from both the
+	 * overlay (removed by the caller) and the page (never inserted) until a full reload --
+	 * the original production bug this fixes.
+	 *
+	 * Insertion itself: `jobMatchesFilters` can't resolve an active `q`, and
+	 * `jobSortValue`/`jobInsertIndex` can't place a `next_retry` sort -- both fall back to
+	 * `scheduleReload()` rather than guessing, the same escape hatch `applyOwnArchiveAction`'s
+	 * bulk path already uses. Inserting strictly before an already-loaded row can never
+	 * duplicate a later page: that row's sort value is strictly before `p.nextCursor`'s own
+	 * (whatever produced it), so nothing about a not-yet-fetched page changes. Appending at
+	 * the *tail* is a different case -- if `p.nextCursor` is non-null, a real page beyond
+	 * this one still exists, keyed off the old last row's own (sort value, id) tuple
+	 * (`pagination.apply_cursor`, backend), which knows nothing about this brand-new job. A
+	 * tie or a value after that row is exactly what the server's own "everything after the
+	 * cursor" condition matches, so `loadMore()` (which concatenates with no id dedup) can
+	 * legitimately fetch this same job again from the server and duplicate it. Only safe
+	 * when there's nothing left to fetch (`p.nextCursor === null`); otherwise fall back to
+	 * `scheduleReload()` the same as the two cases above. */
+	function patchPageJob(job: Job, opts: { allowInsert?: boolean } = {}): void {
+		const f = get(filters);
+		if (f.scope !== 'jobs') return;
 		page.update((p) => {
-			if (get(filters).scope !== 'jobs') return p;
 			const idx = p.items.findIndex((i) => i.id === job.id);
-			if (idx === -1) return p;
+			if (idx !== -1) {
+				const items = [...p.items];
+				items[idx] = job;
+				return { ...p, items };
+			}
+			if (!opts.allowInsert) return p;
+			// `expanding`/`failed` belong only in the `incoming` overlay (the same check
+			// `applyJobEvent` uses to decide overlay membership) -- a zero-track job has no
+			// track-derived title yet (or, for `failed`, never will), so inserting it here
+			// on a real SSE echo of its *own* `expanding` state (confirmed happening in
+			// practice, not just a hypothetical) would sort it by its raw `source_url`
+			// under a title/track_count sort. That position would then be permanently
+			// wrong: once a row exists, the idx !== -1 branch above only ever patches it in
+			// place and never re-sorts it, so a later `expanded` event with the real title
+			// would update the text but never move the row.
+			if (job.state === 'expanding' || job.state === 'failed') return p;
+			if (!jobMatchesFilters(job, f)) return p;
+			if (f.q || f.sort === 'next_retry') {
+				scheduleReload();
+				return p;
+			}
 			const items = [...p.items];
-			items[idx] = job;
-			return { ...p, items };
+			const insertAt = jobInsertIndex(items, job, f.sort, f.dir);
+			if (insertAt === items.length && p.nextCursor !== null) {
+				scheduleReload();
+				return p;
+			}
+			items.splice(insertAt, 0, job);
+			const key = api.statusKey(job.status);
+			return {
+				...p,
+				items,
+				totalEstimate: p.totalEstimate + 1,
+				countsByStatus: { ...p.countsByStatus, [key]: (p.countsByStatus[key] ?? 0) + 1 }
+			};
 		});
 	}
 
 	async function cancelJob(jobId: string): Promise<void> {
 		const job = await api.cancelJob(jobId);
-		patchPageJob(job);
+		// `allowInsert: true` -- this is always a job the acting session could already see
+		// somewhere (either `IncomingJobs`, still `expanding`, or an in-page `JobRow`,
+		// already `idx !== -1` and so unaffected either way), never an arbitrary
+		// off-page job, so promoting it onto the page here is always legitimate.
+		patchPageJob(job, { allowInsert: true });
 		incoming.update((current) => {
 			const { [jobId]: _drop, ...rest } = current;
 			return rest;
@@ -550,16 +666,18 @@ function createQueueStore() {
 		return result.unarchived_ids;
 	}
 
-	// `archive_jobs` (backend) publishes one SSE event *per archived job*, individually --
-	// for the "clear log" bulk case, that's potentially dozens of separate messages for
-	// one click. Debouncing collapses a reload that might otherwise seem needed once per
-	// message into the one reload actually needed, the same pattern
+	// Shared "don't guess, ask the server" escape hatch for anywhere a precise local patch
+	// isn't possible: `archive_jobs` (backend) publishes one SSE event *per archived job*,
+	// individually -- for the "clear log" bulk case, that's potentially dozens of separate
+	// messages for one click, so debouncing collapses a reload that might otherwise seem
+	// needed once per message into the one reload actually needed (the same pattern
 	// `scheduleJobRefresh`/`flushJobRefreshes` already uses for the analogous per-track
-	// -event flood.
-	let archiveReloadTimer: ReturnType<typeof setTimeout> | undefined;
-	function scheduleArchiveReload(): void {
-		clearTimeout(archiveReloadTimer);
-		archiveReloadTimer = setTimeout(reload, 300);
+	// -event flood). `patchPageJob` below reuses it for the two cases it can't resolve
+	// from the `Job` object alone (an active search query, a `next_retry` sort).
+	let pendingReloadTimer: ReturnType<typeof setTimeout> | undefined;
+	function scheduleReload(): void {
+		clearTimeout(pendingReloadTimer);
+		pendingReloadTimer = setTimeout(reload, 300);
 	}
 
 	// Ids `patchArchivedFlagFromEvent` has already removed from view (and already
@@ -615,7 +733,7 @@ function createQueueStore() {
 			// precisely. A single job's archive/unarchive button never hits this branch
 			// (the clicked row is always already loaded, or already accounted for via
 			// `alreadyHandledByEcho`); only the bulk path can.
-			scheduleArchiveReload();
+			scheduleReload();
 			return;
 		}
 
@@ -872,6 +990,15 @@ function createQueueStore() {
 			return;
 		}
 
+		// Read before mutating: whether this store was tracking `job` as new (in
+		// `incoming`) is what tells `patchPageJob` whether inserting it is legitimate.
+		// This event fires for *every* state change on *every* job the owning user's SSE
+		// channel carries -- another tab/device acting on it, an admin, `beat`'s retention
+		// sweep -- not only ones this store has ever seen before, so `allowInsert` must
+		// stay narrowly scoped to "was actually in the overlay a moment ago", never a bare
+		// `idx === -1`.
+		const wasIncoming = event.job_id in get(incoming);
+
 		if (job.state === 'expanding' || job.state === 'failed') {
 			incoming.update((current) => ({ ...current, [job.id]: job }));
 		} else {
@@ -880,7 +1007,7 @@ function createQueueStore() {
 				return rest;
 			});
 		}
-		patchPageJob(job);
+		patchPageJob(job, { allowInsert: wasIncoming });
 		if (isExpanded(event.job_id) && event.state === 'expanded') {
 			await loadExpandedTracks(event.job_id);
 		}

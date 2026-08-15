@@ -34,7 +34,15 @@ RUN pip install --no-cache-dir uv \
 # this stays as standing policy so a *future* extraction break doesn't wait for someone
 # to notice and re-run `uv pip compile` by hand. The scheduled CI freshness check
 # (ci.yml) is the safety net for when this step can't reach PyPI at build time.
-RUN uv pip install --system --no-cache-dir --upgrade yt-dlp
+#
+# v23.1: yt-dlp-ejs upgrades in this same step, not just yt-dlp. It's the companion
+# package that actually solves YouTube's newer JS challenges alongside the Deno step
+# below -- upgrading yt-dlp alone while requirements.txt's yt-dlp-ejs==0.8.0 pin stayed
+# put would let a future yt-dlp release outrun the yt-dlp-ejs version it expects and
+# reproduce this exact outage's symptom under a different name (docs/GOTCHAS.md's
+# spotdl-library entry). No `[default]`/extras form of `pip install yt-dlp` pulls this in
+# automatically, so it has to be named explicitly here.
+RUN uv pip install --system --no-cache-dir --upgrade yt-dlp yt-dlp-ejs
 
 COPY app ./app
 COPY alembic ./alembic

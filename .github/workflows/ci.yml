@@ -234,9 +234,12 @@ jobs:
   # v23: standalone (not part of the `summary` fan-in below) since it never gates a PR —
   # it only ever runs on the daily schedule above or a manual dispatch. Builds the real
   # image and reads back what actually landed inside it, rather than trusting that
-  # backend/Dockerfile's `uv pip install --upgrade yt-dlp` step ran correctly, since a
-  # silent failure there (e.g. PyPI unreachable mid-build) would otherwise look identical
-  # to a healthy build from the outside.
+  # backend/Dockerfile's `uv pip install --upgrade yt-dlp yt-dlp-ejs` step ran correctly,
+  # since a silent failure there (e.g. PyPI unreachable mid-build) would otherwise look
+  # identical to a healthy build from the outside. v23.1 extends this to yt-dlp-ejs too —
+  # it upgrades alongside yt-dlp in that same Dockerfile step now, and a version drift
+  # between the two is exactly what reproduces the v23 outage under a different name (see
+  # docs/GOTCHAS.md's spotdl-library entry).
   yt-dlp-freshness:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: self-hosted
@@ -247,6 +250,8 @@ jobs:
         run: docker build -t spotdl-web-yt-dlp-freshness-check ./backend
 
       - name: Compare built image's yt-dlp version against PyPI's latest
+        id: yt-dlp
+        continue-on-error: true
         run: |
           BUILT=$(docker run --rm spotdl-web-yt-dlp-freshness-check python -c "from importlib.metadata import version; print(version('yt-dlp'))")
           LATEST=$(curl -sf https://pypi.org/pypi/yt-dlp/json | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
@@ -256,6 +261,27 @@ jobs:
             echo "::error::Built image's yt-dlp ($BUILT) does not match PyPI's latest ($LATEST) -- backend/Dockerfile's float step may have failed at build time."
             exit 1
           fi
+
+      # A separate step (not folded into the one above) so a yt-dlp-ejs-only drift is
+      # never masked by the first step's exit -- `continue-on-error` on both plus the
+      # explicit fan-in below is what lets this job report *both* mismatches from one run
+      # instead of stopping at the first.
+      - name: Compare built image's yt-dlp-ejs version against PyPI's latest
+        id: yt-dlp-ejs
+        continue-on-error: true
+        run: |
+          BUILT=$(docker run --rm spotdl-web-yt-dlp-freshness-check python -c "from importlib.metadata import version; print(version('yt-dlp-ejs'))")
+          LATEST=$(curl -sf https://pypi.org/pypi/yt-dlp-ejs/json | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
+          echo "Built image yt-dlp-ejs version: $BUILT"
+          echo "PyPI latest yt-dlp-ejs version: $LATEST"
+          if [ "$BUILT" != "$LATEST" ]; then
+            echo "::error::Built image's yt-dlp-ejs ($BUILT) does not match PyPI's latest ($LATEST) -- backend/Dockerfile's float step may have failed at build time."
+            exit 1
+          fi
+
+      - name: Fail if either version check failed
+        if: steps.yt-dlp.outcome == 'failure' || steps.yt-dlp-ejs.outcome == 'failure'
+        run: exit 1
 
   # v21.1: fans in from every check, not just `pytest` — before this, `version`/
   # `compose-config`/`frontend` were siblings with no downstream node, so the run's Summary
