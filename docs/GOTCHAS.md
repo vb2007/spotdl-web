@@ -128,6 +128,13 @@ needed" claim — rather than silently deleted.
   N+1 — left as is rather than restructured, since avoiding it would mean either deferring the
   session's idle-timeout commit past the point every downstream dependency has already read from
   the request, or duplicating the idle-timeout bump logic → *v17*
+- **httpx's own cookie jar cannot be trusted to forward the `VB-AUTH` token to a follow-up
+  request** — the local upstream instance's `COOKIE_TARGET_DOMAIN=localhost` means the login
+  response's `Set-Cookie` carries `Domain=localhost`, which fails RFC 6265 domain-matching against
+  any other request host (`host.docker.internal`, `api.vb2007.hu`), so a client relying on the jar
+  to auto-replay it on a second call gets silently unauthenticated. Fixed by extracting the token
+  from the raw `Set-Cookie` header text and forwarding it explicitly, which works regardless of
+  what `COOKIE_TARGET_DOMAIN` is set to → *v25*
 
 **spotdl library**
 - spotdl pins `fastapi<0.104`/`uvicorn<0.24` for a web UI we never run; resolved via `[tool.uv]
@@ -2994,3 +3001,47 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   exists to close — just outside v24's own scope, which named `download_track`'s six exit paths
   specifically and never touched `beat.py`. Left for whichever version next does deeper worker-
   reliability work (candidate: v30's hardening close) rather than folded into v24 unasked.
+
+### v25 username-ui gotchas (learned building `users.username` + moving worker controls)
+
+- **httpx's own client-side cookie jar cannot be trusted to replay the `VB-AUTH` token on a
+  follow-up request.** The obvious implementation — reuse one `httpx.AsyncClient` for both the
+  login `POST` and the `GET /user` that follows, letting the client's cookie jar carry the
+  session cookie across the two calls automatically — silently fails against the real local
+  upstream instance: `vb2007.hu-api`'s `.env` sets `COOKIE_TARGET_DOMAIN=localhost`, so its
+  `Set-Cookie: VB-AUTH=...; Domain=localhost` fails RFC 6265 domain-matching the moment the
+  request host is anything else (`host.docker.internal` from inside a container, or
+  `api.vb2007.hu` in production) — `http.cookiejar`'s domain-match rule requires the request
+  host to equal or be a dot-suffixed subdomain of the `Domain` attribute, and neither host
+  qualifies. The fix: extract the token directly from the raw `Set-Cookie` header text
+  (`upstream_auth._fetch_username`'s `_VB_AUTH_RE`) and hand it to a **second**, independent
+  `httpx.AsyncClient` via its `cookies=` constructor kwarg, bypassing domain-matching entirely.
+  Confirmed the failure mode is real (not just theorized) by first reproducing it with the
+  naive shared-client approach against the local upstream before writing the extraction fix —
+  the naive version returned `username=None` on every real login, silently degrading exactly the
+  way the "never fail login on a fetch failure" design intends, which would have made a
+  domain-mismatch bug indistinguishable from "upstream is just flaky" without checking.
+- **`users.username` reconciles asymmetrically to `is_admin`, on purpose.** `is_admin` is
+  re-derived unconditionally on every login (v17's pattern); `username` is only overwritten when
+  the current login's `GET /user` actually returned a fresh, non-`None` value —
+  `get_or_create_user`'s `if username is not None: user.username = username` guard. Reconciling
+  it the same way `is_admin` does would mean one flaky upstream call blanks out a previously
+  known-good display name for every page the user's jobs appear on (including in another user's
+  admin all-users view) until their next successful login. Verified against the real stack by
+  temporarily disabling the local upstream's `GET /user` route entirely (commented out in
+  `vb2007.hu-api`'s router, reverted after) and confirming a fresh test account still logged in
+  successfully with `username: null`, then re-enabling the route and confirming the very next
+  login populated it correctly.
+- **The upstream username-change test needs a *second* fresh login to get a live `VB-AUTH`
+  token** — `vb2007.hu-api`'s `/auth/login` regenerates `user.authentication.sessionToken` on
+  every successful login and persists it, invalidating any token captured from an *earlier*
+  login the moment a *later* one (even through spotdl-web's own proxy) succeeds for the same
+  account. A token captured, then used again after an intervening login elsewhere, gets a bare
+  `{"error": "You must be logged in to perform this action."}` — not a bug, just means
+  upstream-side test scripts that log in once and reuse the token across multiple steps must
+  re-login (or at least re-fetch the token) immediately before each authenticated call that
+  happens after another login could plausibly have occurred in between.
+- **`docker compose up -d <service>...` does recreate a container whose only changed input is
+  `.env`** (no `docker-compose.yml` edit needed) — confirmed by container start time jumping to
+  "5 seconds ago" immediately after an `ALLOWED_EMAILS` addition, needed here to allowlist a new
+  test account without restarting the entire stack.

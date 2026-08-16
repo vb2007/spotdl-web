@@ -1,9 +1,9 @@
 from app.routers import auth
 
 
-def _mock_upstream_login(monkeypatch, *, ok: bool) -> None:
-    async def fake_login(email: str, password: str) -> bool:
-        return ok
+def _mock_upstream_login(monkeypatch, *, ok: bool, username: str | None = None) -> None:
+    async def fake_login(email: str, password: str) -> tuple[bool, str | None]:
+        return ok, username
 
     monkeypatch.setattr(auth.upstream_auth, "login", fake_login)
 
@@ -16,12 +16,63 @@ def test_login_success_sets_cookie_and_me_returns_email(client, monkeypatch):
     )
 
     assert response.status_code == 200
-    assert response.json() == {"email": "allowed@example.com", "is_admin": False}
+    assert response.json() == {"email": "allowed@example.com", "username": None, "is_admin": False}
     assert "SPOTDL_SESSION" in response.cookies
 
     me_response = client.get("/api/auth/me")
     assert me_response.status_code == 200
-    assert me_response.json() == {"email": "allowed@example.com", "is_admin": False}
+    assert me_response.json() == {"email": "allowed@example.com", "username": None, "is_admin": False}
+
+
+def test_login_stores_and_returns_username_from_upstream(client, monkeypatch):
+    _mock_upstream_login(monkeypatch, ok=True, username="cooluser")
+
+    response = client.post(
+        "/api/auth/login", json={"email": "allowed@example.com", "password": "correct"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["username"] == "cooluser"
+
+    me_response = client.get("/api/auth/me")
+    assert me_response.json()["username"] == "cooluser"
+
+
+def test_login_with_failed_username_fetch_falls_back_to_email_and_still_succeeds(client, monkeypatch):
+    """upstream_auth.login degrades gracefully (username=None) when GET /user fails --
+    the login itself must still succeed and the frontend falls back to displaying
+    email."""
+    _mock_upstream_login(monkeypatch, ok=True, username=None)
+
+    response = client.post(
+        "/api/auth/login", json={"email": "allowed@example.com", "password": "correct"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["username"] is None
+    assert response.json()["email"] == "allowed@example.com"
+
+
+def test_second_login_with_new_username_overwrites_stale_one(client, monkeypatch):
+    """A username changed upstream must propagate on the next login (same reconciliation
+    pattern as is_admin)."""
+    _mock_upstream_login(monkeypatch, ok=True, username="oldname")
+    client.post("/api/auth/login", json={"email": "allowed@example.com", "password": "correct"})
+
+    _mock_upstream_login(monkeypatch, ok=True, username="newname")
+    response = client.post(
+        "/api/auth/login", json={"email": "allowed@example.com", "password": "correct"}
+    )
+
+    assert response.json()["username"] == "newname"
+
+    # A subsequent login whose username fetch fails keeps the last known-good value,
+    # rather than nulling it out.
+    _mock_upstream_login(monkeypatch, ok=True, username=None)
+    response = client.post(
+        "/api/auth/login", json={"email": "allowed@example.com", "password": "correct"}
+    )
+    assert response.json()["username"] == "newname"
 
 
 def test_wrong_password_and_disallowed_email_return_identical_response(client, monkeypatch):

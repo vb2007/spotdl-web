@@ -65,3 +65,38 @@ def test_get_or_create_user_bumps_last_login_at(db_session):
     db_session.commit()
 
     assert second.last_login_at >= first_login_at
+
+
+def test_get_or_create_user_stores_username_on_creation(db_session):
+    user = get_or_create_user(db_session, "allowed@example.com", "cooluser")
+    db_session.commit()
+    assert user.username == "cooluser"
+
+
+def test_get_or_create_user_refreshes_username_on_later_login(db_session):
+    get_or_create_user(db_session, "allowed@example.com", "oldname")
+    db_session.commit()
+
+    user = get_or_create_user(db_session, "allowed@example.com", "newname")
+    db_session.commit()
+
+    assert user.username == "newname"
+
+
+def test_get_or_create_user_keeps_stale_username_when_fetch_fails(db_session):
+    """A None username (upstream_auth's degrade-gracefully path, e.g. a flaky `GET
+    /user`) must never overwrite a previously known-good value -- unlike is_admin, which
+    reconciles unconditionally on every login."""
+    get_or_create_user(db_session, "allowed@example.com", "goodname")
+    db_session.commit()
+
+    user = get_or_create_user(db_session, "allowed@example.com", None)
+    db_session.commit()
+
+    assert user.username == "goodname"
+
+
+def test_get_or_create_user_defaults_username_to_none(db_session):
+    user = get_or_create_user(db_session, "allowed@example.com")
+    db_session.commit()
+    assert user.username is None

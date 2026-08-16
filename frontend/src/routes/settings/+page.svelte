@@ -3,6 +3,10 @@
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import Countdown from '$lib/components/Countdown.svelte';
+	import WorkerStatus from '$lib/components/WorkerStatus.svelte';
+
+	let { data } = $props();
+	const isAdmin = $derived(data.session?.is_admin ?? false);
 
 	let outputSettings = $state<api.OutputSettings | null>(null);
 	let outputOptions = $state<api.OutputOptions | null>(null);
@@ -181,6 +185,11 @@
 		<a class="back mono" href={resolve('/')}>‹ back to queue</a>
 	</header>
 
+	<div class="worker-section">
+		<h2 class="label">Worker control</h2>
+		<WorkerStatus {isAdmin} />
+	</div>
+
 	<section class="panel output-settings">
 		<h2 class="label">Output defaults</h2>
 		<p class="hint mono">Applies to the next download — no restart needed.</p>
@@ -335,6 +344,12 @@
 	.back:hover,
 	.back:focus-visible {
 		color: var(--signal-dim);
+	}
+
+	.worker-section {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
 	}
 
 	.output-settings,

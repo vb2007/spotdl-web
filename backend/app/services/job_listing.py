@@ -70,6 +70,7 @@ def list_jobs(
         Job.created_at,
         Job.archived_at,
         User.email.label("owner_email"),
+        User.username.label("owner_username"),
     ).join(User, Job.user_id == User.id)
 
     # all_users is honored only for an admin session -- a non-admin passing it is
@@ -130,7 +131,10 @@ def list_jobs(
     rows = db.execute(page_stmt).all()
 
     counts_map = track_counts_by_job(db, [row.id for row in rows])
-    items = [job_to_dict(row, counts_map.get(row.id, {}), row.owner_email, row.title) for row in rows]
+    items = [
+        job_to_dict(row, counts_map.get(row.id, {}), row.owner_email, row.owner_username, row.title)
+        for row in rows
+    ]
 
     next_cursor = None
     if len(rows) == limit:

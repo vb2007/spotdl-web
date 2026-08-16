@@ -39,15 +39,18 @@ def track_counts(db: Session, job_id: uuid.UUID) -> dict[str, int]:
     return track_counts_by_job(db, [job_id]).get(job_id, {})
 
 
-def job_to_dict(job: Job, counts: dict[str, int], owner_email: str, title: str) -> dict:
+def job_to_dict(
+    job: Job, counts: dict[str, int], owner_email: str, owner_username: str | None, title: str
+) -> dict:
     """counts is passed in, not queried -- dropping the Session parameter is what makes
     list_jobs's N+1 impossible to reintroduce by accident: this function has nothing left
     to query with, so the caller must decide up front how many jobs' counts to fetch.
-    counts, owner_email, and title are all required (no default) so a caller that forgets
-    any of them fails loudly at the call site instead of silently serializing empty/
-    missing data -- owner_email specifically so an admin's all-users view can actually
-    tell whose job is whose (v17), title because `Job` has no title column of its own
-    (see `rollup.derive_job_title`/`rollup.job_title`) and every caller must decide how to
+    counts, owner_email, owner_username, and title are all required (no default) so a
+    caller that forgets any of them fails loudly at the call site instead of silently
+    serializing empty/missing data -- owner_email/owner_username specifically so an
+    admin's all-users view can actually tell whose job is whose (v17, username added
+    v25), title because `Job` has no title column of its own (see
+    `rollup.derive_job_title`/`rollup.job_title`) and every caller must decide how to
     get one rather than this function silently querying for it.
 
     `status` (v18) is derived from `counts` and `job.state`, never stored -- see
@@ -64,6 +67,7 @@ def job_to_dict(job: Job, counts: dict[str, int], owner_email: str, title: str) 
         "archived_at": job.archived_at.isoformat() if job.archived_at is not None else None,
         "track_counts": counts,
         "owner_email": owner_email,
+        "owner_username": owner_username,
         "title": title,
         "status": {"lifecycle": rollup.lifecycle, "outcome": rollup.outcome},
     }

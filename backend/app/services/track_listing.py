@@ -60,6 +60,7 @@ def list_tracks(
             Job.source_url.label("job_source_url"),
             Job.source_type.label("job_source_type"),
             User.email.label("owner_email"),
+            User.username.label("owner_username"),
             rollup.job_title_expr(Job.source_url, Job.id).label("job_title"),
         )
         .join(Job, Track.job_id == Job.id)
@@ -103,6 +104,7 @@ def list_tracks(
             "source_url": row.job_source_url,
             "source_type": row.job_source_type.value,
             "owner_email": row.owner_email,
+            "owner_username": row.owner_username,
             "title": row.job_title,
         }
         items.append(item)

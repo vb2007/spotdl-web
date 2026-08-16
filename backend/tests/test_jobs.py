@@ -23,6 +23,7 @@ def test_create_job_enqueues_expansion_and_returns_expanding_state(authenticated
     assert body["source_type"] == "track"
     assert body["track_counts"] == {}
     assert body["owner_email"] == "allowed@example.com"
+    assert body["owner_username"] is None
     assert enqueued == [body["id"]]
 
 

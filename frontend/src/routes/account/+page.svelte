@@ -3,6 +3,8 @@
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 
+	let { data } = $props();
+
 	// v19: per-user retention, open to every user (unlike /settings, which stays
 	// admin-only) -- this route exists specifically so a non-admin has somewhere to
 	// reach it (v17's require_admin gate on /settings is the real enforcement either
@@ -60,6 +62,13 @@
 		</div>
 		<a class="back mono" href={resolve('/')}>‹ back to queue</a>
 	</header>
+
+	<section class="panel identity">
+		<h2 class="label">Signed in as</h2>
+		<p class="mono" title={data.session?.email}>
+			{api.displayName(data.session?.username ?? null, data.session?.email ?? '')}
+		</p>
+	</section>
 
 	<section class="panel retention">
 		<h2 class="label">Log retention</h2>
@@ -158,11 +167,16 @@
 		color: var(--signal-dim);
 	}
 
+	.identity,
 	.retention {
 		padding: var(--space-4);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
+	}
+
+	.identity p {
+		color: var(--text-primary);
 	}
 
 	.hint {

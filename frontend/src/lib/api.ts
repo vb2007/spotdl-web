@@ -76,6 +76,9 @@ export interface Job {
 	/** Whose job this is -- always present, but only interesting once an admin's "all
 	 * users" scope makes a foreign row visible at all. */
 	owner_email: string;
+	/** v25: null until the owner's first successful upstream `GET /user`. Display this,
+	 * falling back to owner_email -- see `displayName()`. */
+	owner_username: string | null;
 	/** v18: derived display name (first track's playlist/album name, else its own song
 	 * name, else the raw source_url for a job with no tracks yet) -- `Job` itself has no
 	 * title column. */
@@ -140,6 +143,7 @@ export interface TrackJobSummary {
 	source_url: string;
 	source_type: JobSourceType;
 	owner_email: string;
+	owner_username: string | null;
 	title: string;
 }
 
@@ -237,7 +241,16 @@ export interface RetentionSettings {
  * cosmetic only, the server-side `require_admin` gate is the real enforcement. */
 export interface SessionInfo {
 	email: string;
+	/** v25: null until the first successful upstream `GET /user`. Display this, falling
+	 * back to email -- see `displayName()`. */
+	username: string | null;
 	is_admin: boolean;
+}
+
+/** Shared display rule for username-or-email, everywhere either can appear (session
+ * header, job/track owner columns) -- username when known, email otherwise. */
+export function displayName(username: string | null, email: string): string {
+	return username ?? email;
 }
 
 /** v18's shared paginated-listing envelope -- every cursor-paginated endpoint returns
