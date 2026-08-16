@@ -99,6 +99,7 @@ mdurl==0.1.2
     # via markdown-it-py
 mutagen==1.48.1
     # via
+    #   spotdl-web-backend (pyproject.toml)
     #   spotdl
     #   yt-dlp
 packaging==26.2

@@ -171,6 +171,17 @@ needed" claim — rather than silently deleted.
   both in the same `uv pip install --upgrade yt-dlp yt-dlp-ejs`, and the scheduled `yt-dlp-freshness`
   CI job (`ci.yml`) now compares both against PyPI's latest, each as its own step so a yt-dlp-ejs-only
   drift can't be masked by the yt-dlp check passing → *v23, v23.1*
+- `spotdl.utils.metadata.embed_metadata`/`get_file_metadata` (both public, `__all__`-exported) are
+  a real read/write round-trip over mutagen that already handles mp3/flac/ogg/opus/m4a/wav — reuse
+  them rather than hand-rolling per-format mutagen calls. Two real gaps found by reading the source
+  and confirmed against real downloaded files, not assumed: **(1)** neither function writes/reads a
+  distinct "year" tag for flac/ogg/opus — only "date" (the full ISO string) — since `embed_metadata`
+  only special-cases `year` for mp3 (`TYER`) and m4a (`year` and `date` share the same `\xa9day`
+  atom); flac/ogg/opus need a direct one-line patch alongside the call. **(2)** `get_file_metadata`'s
+  read path for `.wav` reuses the generic Vorbis-comment-style key lookup, which never matches
+  WAVE's real ID3 frame ids — it reports every field missing on a `.wav` file regardless of what was
+  actually embedded, making WAV unusable as a "verify tags" target even though `embed_metadata` can
+  write WAV tags fine → *v26*
 
 **Celery, tasks & durability**
 - `record_failure` computes the ladder delay **before** incrementing `attempt_count`; reversing it
@@ -348,6 +359,12 @@ needed" claim — rather than silently deleted.
   once something finally renders that field → *v09*
 - Mocked verification is not verification: v07's proxy work passed fully mocked, then a real
   credentialed run immediately exposed a credential leak → *v07*
+- CI's backend-tests job deliberately has no ffmpeg (`ci.yml`'s own comment: "every test... mocks
+  any real spotdl/network call"), so a unit test needing a real per-format audio container (mp3/
+  flac/ogg/opus/m4a) can't generate one at test-run time. Pre-generate tiny (sub-10KB) silent
+  fixtures once with `ffmpeg -f lavfi -i anullsrc=... -t 0.2` on a machine that has it, check them
+  into `tests/fixtures/`, and have the test copy one into `tmp_path` per run — exercises the real
+  mutagen read/write path with zero ffmpeg dependency at test time → *v26*
 - `~/.cache/ms-playwright/` may already hold a working Chromium; launch it via `executablePath`
   rather than assuming a fresh install is needed (the download is what's blocked here) → *v13*
 - No query-counting utility existed before v15; a `before_cursor_execute` listener on
@@ -3045,3 +3062,81 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   `.env`** (no `docker-compose.yml` edit needed) — confirmed by container start time jumping to
   "5 seconds ago" immediately after an `ALLOWED_EMAILS` addition, needed here to allowlist a new
   test account without restarting the entire stack.
+
+### v26 id3-integrity gotchas (learned building tag verify/repair)
+
+- **`app.services.downloads.get_supported_output_options()` already existed** (added in v13,
+  introspects spotdl's own `--format`/`--bitrate` argparse choices) — the plan's "support what
+  `get_supported_output_options()` reports" referred to this existing function, not a spotdl
+  built-in of the same name (no such spotdl function exists in 4.5.2, confirmed by grepping the
+  installed package). `tagging.py`'s `SUPPORTED_FORMATS` is a narrower set than what that function
+  reports, though: `{"mp3", "flac", "ogg", "opus", "m4a"}`, excluding `"wav"` — see the "spotdl
+  library" entry above for why WAV can't be verified with `get_file_metadata`.
+- **spotdl's `get_file_metadata`/`embed_metadata` are the real read/write path** — see the "spotdl
+  library" topic entry for the two gaps found (flac/ogg/opus never get a distinct "year" tag; WAV
+  read-back is broken). `tagging.repair_tags` calls `embed_metadata` for everything it already
+  handles correctly, then patches "year" directly for flac/ogg/opus, then re-reads the file to
+  check whether cover art actually landed (spotdl's own `embed_cover` swallows fetch failures
+  silently and returns the file unchanged — there is no other way to detect "did the fetch actually
+  work" than reading the result back).
+- **The workers must be restarted (`docker compose restart worker-dl worker-meta api beat`) to pick
+  up new backend code**, even though `docker-compose.override.yml` bind-mounts `./backend/app` live
+  — that bind mount makes new files visible on disk, but Celery workers/uvicorn are long-running
+  processes that import modules once at startup; there's no `--reload`/autoreload wired for them
+  (unlike a typical `uvicorn --reload` dev setup). Editing files with a worker already running
+  silently keeps executing the pre-edit code with zero error — this cost real time in-session
+  before being caught (a "fixed" bug that reappeared identically because the fix hadn't loaded).
+- **An ad-hoc script invoked by absolute path (`python /tmp/foo.py`) puts the script's own directory
+  first on `sys.path`, not the process's cwd** — even with `docker compose exec -w /app`, the
+  bind-mounted `/app/app` loses to the stale baked-in `site-packages` copy the exact same way v11's
+  entry describes for a bare `python -c`. Piping the script via stdin (`python - < script.py`) with
+  `-w /app` set keeps `''` (cwd) as `sys.path[0]` instead, and does pick up the live bind-mounted
+  code — confirmed by re-running the identical script both ways against the same file.
+- **Importing `app.tasks.download` directly, as the first project import in a one-off script,
+  raises a circular-import `ImportError`** (`app.tasks.download` → `app.tasks.celery_app` →
+  `app.tasks.expand` → `app.tasks.download`, still mid-init). Every real entry point avoids this by
+  loading `-A app.tasks.celery_app` first (the Celery CLI's own convention); a script calling
+  `download_track` directly needs `import app.tasks.celery_app` before the `from app.tasks.download
+  import download_track` line for the same reason.
+- **Real end-to-end verification of all six "Done when" bullets this session**, against the real
+  local stack, real Postgres, and the real Spotify→YouTube Music pipeline (search via
+  `spotdl.utils.search.get_simple_songs` for a real track — never a guessed/fabricated Spotify URL):
+  a real downloaded mp3 (Daft Punk — "One More Time") read back with **all six fields present**,
+  verified independently via `ffprobe`; the same file's tags deliberately stripped with a raw
+  `mutagen.id3.ID3(...).delete()` call (independent of `tagging.py`), then repaired by the real
+  `tagging.repair_tags` using a real `Song` object, re-verified via `ffprobe` afterward; a track
+  whose `song_json.cover_url` was patched to an unreachable host (ABBA — "Dancing Queen") completed
+  successfully with the audio intact, no video/cover stream in `ffprobe`'s output, and a
+  `track_attempts` row reading `"tag warning: cover art missing: fetch from Spotify failed or no
+  cover art available"`; a second format (Fleetwood Mac — "Dreams", flac) round-tripped correctly
+  *and* exercised the flac year-tag-gap repair for real (`missing tags ['year'], repairing` in the
+  worker log, confirmed present afterward via `ffprobe`); a wav download (The Cure — "Friday I'm In
+  Love") logged `format .wav not supported for tag verification, skipping` and completed normally.
+  This network's YouTube bot-check (the same one v23/v29 already document) made roughly half of
+  real download attempts this session fail with the pre-existing `NO_OUTPUT` symptom — unrelated to
+  this version, retried with a fresh track each time rather than chased.
+- **One unexplained anomaly, not reproduced, not blocking**: during this session's testing, one
+  track (a "Coldplay — Yellow" test job, submitted through the real API while manually pausing/
+  patching/unpausing the worker via direct DB writes to force a specific timing window) ended up
+  `completed` in the database with a plausible `output_path` and a real-looking ~9-second
+  `track_attempts` row, but the file was never actually present on disk, and `docker compose logs
+  worker-dl` never showed a "received"/"succeeded" pair for that specific task invocation even after
+  the container had been up for over an hour with no restarts. Every other real attempt this session
+  (including several using the identical pause/patch/retry technique afterward) showed fully
+  consistent DB/filesystem/log state. Given it appeared exactly once, under a test methodology that
+  itself does something no real user flow ever does (writing directly to `WorkerState`/
+  `Track.song_json` mid-flight from a separate DB session while the real worker is running), this
+  reads as a testing-harness artifact rather than a `download_track`/tagging defect — `tagging.py`
+  never touches file existence or deletes anything, so it can't be the cause even in theory. Flagged
+  here rather than silently dropped; if it recurs under normal (non-test-harness) operation, it's
+  worth a dedicated investigation, but not chased further in this version given the `download_track`
+  code path itself has ordinary, well-covered failure modes and this doesn't match any of them.
+- **Deferred, found by fresh-eyes review**: a tag warning reuses `TrackAttempt.error_message` on a
+  `COMPLETED` outcome (per the plan's "reuse the attempt row" instruction), but the only consumer,
+  `frontend/src/lib/components/TrackRow.svelte:174-176`, renders *any* non-null `error_message`
+  through `.attempt-error` (`color: var(--fail)`, the same red used for genuine failures) regardless
+  of `outcome` — so a track that downloaded fine but had a cover-art fetch fail displays a green
+  "completed" badge next to failure-red text. The plan didn't ask for a frontend change here and
+  v26 doesn't touch the frontend at all (`package.json`'s version bump is the only frontend diff),
+  so left as-is rather than expanded out of scope — worth a small dedicated fix (outcome-aware
+  styling, or a distinct "warning" tone) whenever a version next touches `TrackRow.svelte`.

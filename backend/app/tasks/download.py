@@ -9,7 +9,7 @@ from spotdl.types.song import Song
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import DownloadedTrack, Job, Track, TrackAttemptOutcome, TrackState
-from app.services import app_settings, attempts, dedup, downloads, events, proxies, retry
+from app.services import app_settings, attempts, dedup, downloads, events, proxies, retry, tagging
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 
@@ -254,6 +254,37 @@ def download_track(track_id: str) -> None:
                     "spotdl returned no output file for this track"
                 )
 
+            # ID3 integrity (v26): read tags back off the actual file rather than
+            # trusting song_json, and repair anything missing before marking the track
+            # completed. Guarded broadly -- a tag-repair bug must never turn a
+            # successfully downloaded track into a failed one; the audio is already
+            # correct and on disk regardless of what happens here.
+            tag_warning = None
+            try:
+                if not tagging.is_supported_format(output_path):
+                    logger.info(
+                        "download_track: track %s format %s not supported for tag "
+                        "verification, skipping",
+                        track_id,
+                        output_path.suffix,
+                    )
+                else:
+                    missing = tagging.verify_tags(output_path)
+                    if missing:
+                        logger.info(
+                            "download_track: track %s missing tags %s, repairing",
+                            track_id,
+                            sorted(missing),
+                        )
+                        tag_warning = tagging.repair_tags(output_path, song, missing)
+            except Exception:
+                logger.exception(
+                    "download_track: track %s tag verification/repair failed "
+                    "unexpectedly; audio is downloaded and correct regardless",
+                    track_id,
+                )
+                tag_warning = "tag verification/repair failed unexpectedly"
+
             track.state = TrackState.COMPLETED
             track.output_path = str(output_path)
             db.merge(
@@ -275,6 +306,7 @@ def download_track(track_id: str) -> None:
                 datetime.now(timezone.utc),
                 TrackAttemptOutcome.COMPLETED,
                 proxy_id=proxy_id,
+                error_message=f"tag warning: {tag_warning}" if tag_warning else None,
             )
             db.commit()
             events.publish_track_event(

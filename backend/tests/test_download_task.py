@@ -18,7 +18,7 @@ from app.models import (
     User,
     WorkerState,
 )
-from app.services import dedup, downloads, events, proxies, retry
+from app.services import dedup, downloads, events, proxies, retry, tagging
 from app.tasks import download as download_task
 
 
@@ -92,6 +92,12 @@ def _attempts(db_session, track):
 def _patch_common(monkeypatch, db_session):
     monkeypatch.setattr(download_task, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(download_task.Song, "from_dict", classmethod(lambda cls, data: data))
+    # v26's tag verify/repair reads a real file off disk -- irrelevant to every test in
+    # this module except the ones dedicated to it below, and these tests' fake
+    # output_path values (e.g. "/downloads/song-a.mp3") never exist on disk. Defaulting
+    # to "unsupported format" here is a real, reachable download_track code path (see
+    # test_download_track_skips_tagging_for_unsupported_format), not a fake-only stub.
+    monkeypatch.setattr(tagging, "is_supported_format", lambda path: False)
 
 
 def test_download_track_skips_when_already_downloaded(db_session, monkeypatch):
@@ -149,7 +155,115 @@ def test_download_track_success_marks_completed_and_upserts_ledger(db_session, m
     assert rows[0].outcome == TrackAttemptOutcome.COMPLETED
     assert rows[0].proxy_id is None
     assert rows[0].error_type is None
+    assert rows[0].error_message is None
     assert rows[0].started_at <= rows[0].finished_at
+
+
+def test_download_track_skips_tagging_for_unsupported_format(db_session, monkeypatch):
+    """_patch_common's default (tagging.is_supported_format -> False) is itself a real
+    download_track code path (v26's "skip cleanly for a format the tag library can't
+    handle" -- e.g. wav), not just a test stub -- this pins that down explicitly."""
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(
+        downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.wav"))
+    )
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("verify_tags should not be called for an unsupported format")
+
+    monkeypatch.setattr(tagging, "verify_tags", _fail_if_called)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.COMPLETED
+
+    rows = _attempts(db_session, track)
+    assert rows[-1].error_message is None
+
+
+def test_download_track_success_with_no_missing_tags_skips_repair(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(
+        downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
+    )
+    monkeypatch.setattr(tagging, "is_supported_format", lambda path: True)
+    monkeypatch.setattr(tagging, "verify_tags", lambda path: set())
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("repair_tags should not run when nothing is missing")
+
+    monkeypatch.setattr(tagging, "repair_tags", _fail_if_called)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.COMPLETED
+
+    rows = _attempts(db_session, track)
+    assert rows[-1].error_message is None
+
+
+def test_download_track_success_records_tag_repair_warning(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(
+        downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
+    )
+    monkeypatch.setattr(tagging, "is_supported_format", lambda path: True)
+    monkeypatch.setattr(tagging, "verify_tags", lambda path: {"cover_art"})
+    monkeypatch.setattr(
+        tagging, "repair_tags", lambda path, song, missing: "cover art missing: fetch from Spotify failed"
+    )
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    # A tag-repair warning is diagnostic, never a failure -- the track still completes.
+    assert updated.state == TrackState.COMPLETED
+
+    rows = _attempts(db_session, track)
+    assert rows[-1].outcome == TrackAttemptOutcome.COMPLETED
+    assert rows[-1].error_message == "tag warning: cover art missing: fetch from Spotify failed"
+
+
+def test_download_track_success_survives_unexpected_tagging_exception(db_session, monkeypatch):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(
+        downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
+    )
+    monkeypatch.setattr(tagging, "is_supported_format", lambda path: True)
+
+    def _boom(path):
+        raise OSError("disk exploded")
+
+    monkeypatch.setattr(tagging, "verify_tags", _boom)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    # The audio is already downloaded and correct -- a tagging bug must never turn a
+    # successful download into a failed track.
+    assert updated.state == TrackState.COMPLETED
+
+    rows = _attempts(db_session, track)
+    assert rows[-1].outcome == TrackAttemptOutcome.COMPLETED
+    assert rows[-1].error_message == "tag warning: tag verification/repair failed unexpectedly"
 
 
 def test_download_track_other_error_reschedules_to_waiting(db_session, monkeypatch):
