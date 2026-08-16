@@ -8,8 +8,8 @@ from spotdl.types.song import Song
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import DownloadedTrack, Job, Track, TrackState
-from app.services import app_settings, dedup, downloads, events, proxies, retry
+from app.models import DownloadedTrack, Job, Track, TrackAttemptOutcome, TrackState
+from app.services import app_settings, attempts, dedup, downloads, events, proxies, retry
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 
@@ -52,12 +52,28 @@ def download_track(track_id: str) -> None:
             return
         track, owner_id = row
 
+        # One track_attempts row per invocation of this task (v24) -- attempt_number
+        # mirrors tracks.attempt_count as it stood at the *start* of this attempt, so it
+        # never moves mid-invocation even though record_failure below increments the
+        # real column before this function returns.
+        attempt_number = track.attempt_count
+        attempt_started_at = datetime.now(timezone.utc)
+
         # A cancel can land between beat's dispatch (or expand_job's immediate first
         # dispatch) and this task actually executing — e.g. a track sitting `queued` in
         # Celery's broker while the user cancels its job. Nothing upstream guarantees a
         # cancelled track is never enqueued, so this is the actual gate.
         if track.state == TrackState.CANCELLED:
             logger.info("download_track: track %s was cancelled before dispatch, skipping", track_id)
+            attempts.record_attempt(
+                db,
+                track.id,
+                attempt_number,
+                attempt_started_at,
+                datetime.now(timezone.utc),
+                TrackAttemptOutcome.CANCELLED,
+            )
+            db.commit()
             return
 
         # Covers the race where this task was already enqueued just before the breaker
@@ -68,6 +84,21 @@ def download_track(track_id: str) -> None:
         if retry.breaker_active(worker_state, now):
             track.state = TrackState.WAITING
             track.scheduled_at = worker_state.breaker_tripped_until or (now + retry.next_delay(0))
+            # Deliberately doesn't touch track.attempt_count -- doing so would make the
+            # real attempt that eventually follows read attempt_count >= 1 and wrongly
+            # reach for a proxy, breaking "attempt 1 is always direct". Consequence: this
+            # row's attempt_number can collide with that later real attempt's (see
+            # docs/GOTCHAS.md's v24 entry) -- accepted, since ordering relies on
+            # started_at and the frontend never renders attempt_number as a label.
+            attempts.record_attempt(
+                db,
+                track.id,
+                attempt_number,
+                attempt_started_at,
+                datetime.now(timezone.utc),
+                TrackAttemptOutcome.FAILED,
+                error_message="circuit breaker active; rescheduled without attempting",
+            )
             db.commit()
             events.publish_track_event(
                 owner_id,
@@ -84,6 +115,14 @@ def download_track(track_id: str) -> None:
         if existing_path is not None:
             track.state = TrackState.SKIPPED_DUPLICATE
             track.output_path = str(existing_path)
+            attempts.record_attempt(
+                db,
+                track.id,
+                attempt_number,
+                attempt_started_at,
+                datetime.now(timezone.utc),
+                TrackAttemptOutcome.SKIPPED_DUPLICATE,
+            )
             db.commit()
             events.publish_track_event(
                 owner_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
@@ -117,6 +156,15 @@ def download_track(track_id: str) -> None:
                     "skipping",
                     track_id,
                 )
+                attempts.record_attempt(
+                    db,
+                    track.id,
+                    attempt_number,
+                    attempt_started_at,
+                    datetime.now(timezone.utc),
+                    TrackAttemptOutcome.CANCELLED,
+                )
+                db.commit()
                 return
 
         output_settings = app_settings.get_output_settings(db)
@@ -189,6 +237,16 @@ def download_track(track_id: str) -> None:
                 events.publish_track_event(
                     owner_id, track.id, track.job_id, track.state.value, **track_meta
                 )
+                attempts.record_attempt(
+                    db,
+                    track.id,
+                    attempt_number,
+                    attempt_started_at,
+                    datetime.now(timezone.utc),
+                    TrackAttemptOutcome.CANCELLED,
+                    proxy_id=proxy_id,
+                )
+                db.commit()
                 return
 
             if output_path is None:
@@ -209,6 +267,15 @@ def download_track(track_id: str) -> None:
             if proxy_id is not None:
                 proxies.record_proxy_result(db, proxy_id, success=True)
             retry.record_success(db, track)
+            attempts.record_attempt(
+                db,
+                track.id,
+                attempt_number,
+                attempt_started_at,
+                datetime.now(timezone.utc),
+                TrackAttemptOutcome.COMPLETED,
+                proxy_id=proxy_id,
+            )
             db.commit()
             events.publish_track_event(
                 owner_id, track.id, track.job_id, track.state.value, **track_meta
@@ -241,11 +308,32 @@ def download_track(track_id: str) -> None:
                 events.publish_track_event(
                     owner_id, track.id, track.job_id, track.state.value, **track_meta
                 )
+                attempts.record_attempt(
+                    db,
+                    track.id,
+                    attempt_number,
+                    attempt_started_at,
+                    datetime.now(timezone.utc),
+                    TrackAttemptOutcome.CANCELLED,
+                    proxy_id=proxy_id,
+                )
+                db.commit()
                 return
             error_type = retry.classify_error(exc)
             retry.record_failure(db, track, error_type, error_message)
             if proxy_id is not None:
                 proxies.record_proxy_result(db, proxy_id, success=False)
+            attempts.record_attempt(
+                db,
+                track.id,
+                attempt_number,
+                attempt_started_at,
+                datetime.now(timezone.utc),
+                TrackAttemptOutcome.FAILED,
+                error_type=error_type,
+                error_message=error_message,
+                proxy_id=proxy_id,
+            )
             db.commit()
             events.publish_track_event(
                 owner_id,

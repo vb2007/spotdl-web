@@ -206,6 +206,15 @@ needed" claim — rather than silently deleted.
   30s without actually dispatching anything for several minutes until `worker-meta`/`beat` were
   explicitly restarted. Confirm real progress via the Redis queue length (`LLEN downloads`) and the
   worker's own log timestamps, not just container health/`inspect active` → *v23*
+- A per-attempt history row's ordinal can't both literally mirror `tracks.attempt_count` *and* be
+  unique per real invocation once a path exists that must log a row without consuming a real ladder
+  rung (the breaker-requeue early return) — no value of `attempt_count` satisfies both, so a
+  breaker-requeue row and the real attempt that follows it end up sharing a number. Left as-is
+  (harmless: ordering uses `started_at`, not rendered as a label) → *v24*
+- The stale-track reclaim sweep (`beat._reclaim_stale_tracks`) bypasses `download_track` entirely by
+  design, so a real worker crash mid-download leaves no per-attempt history row at all — a real,
+  reachable diagnostic gap, out of v24's scope (which named `download_track`'s own six exit paths,
+  not `beat.py`) → *v24*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -415,6 +424,32 @@ needed" claim — rather than silently deleted.
   read as a clean pass; re-running the identical scenario at 300-500ms surfaced it immediately.
   When a fix touches how a live-updating row is first inserted/positioned, poll fast enough to
   catch its very first paint, not just its eventual settled state → *v23.1*
+- A test track directly inserted with a real, non-terminal `state` (`QUEUED`/`WAITING`) sits
+  live in the shared dev/prod DB the moment it's committed — the real `beat` container (dev's
+  `STALE_TRACK_AFTER_SECONDS`/`LADDER_SECONDS` are both shortened for exactly this kind of testing)
+  can reclaim or dispatch it **while an ad-hoc script's own sleep is deliberately parking it there
+  between two direct, in-process `download_track()` calls**, causing a second, genuinely unmocked
+  execution against the same row from the real `worker-dl` process — observed directly (a stray
+  `track_attempts` row whose error text was the real, unmocked `NoOutputFileError` message, not one
+  of the script's own fake exceptions). Fixed by pushing the track's `scheduled_at` an hour into the
+  future immediately after each of the script's own calls, before sleeping, so beat's own
+  `scheduled_at <= now()` due-query never matches it during the window. A `db.commit()` right
+  before that push (or any other point mid-script) expires every ORM object in the session
+  (`expire_on_commit=True` default) — capture any value needed for a later calculation (e.g. the
+  real ladder delay) into a plain variable *before* that commit, not after → *v24*
+- This dev stack's `proxies` table is the **same, real, shared production table** (per this file's
+  "Development environments" note) — inserting a fresh test `Proxy` row for verification makes it
+  immediately eligible for **real production traffic**: `pick_proxy`'s LRU selection prefers a
+  never-used proxy (`last_used_at IS NULL`) over any already-rotating real one, so a genuine
+  in-flight real download can pick up a freshly-added throwaway test proxy before the test script
+  itself does. Conversely, once a test track's own attempt count is high enough to want a proxy and
+  its own test proxy has gone into cooldown (a real, expected consequence of a deliberately-failed
+  attempt), `pick_proxy` will genuinely reach past it to a real, already-configured production proxy
+  — observed directly: a verification run's final "successful" attempt used a real `source=file`
+  proxy from actual `proxies.txt` config, not the test's own, and left a harmless reset
+  (`consecutive_failures=0`, `last_success_at=now()`) on it. Don't assume a proxy-escalation test's
+  proxy_id assertions can be pinned to "the one proxy I created" past the point it's cooled down →
+  *v24*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -2930,3 +2965,32 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
 - **The `KeyError('uri')` loose end from v23 is closed** — see the v04 section's entry above,
   which already fully explained the mechanism; the ID in question was simply never verified to
   exist. Not investigated further.
+
+### v24 attempt-history gotchas (learned building `track_attempts`)
+
+- **A breaker-requeue row can share `attempt_number` with the real attempt that follows it.**
+  `download_track` captures `attempt_number = track.attempt_count` once at the top of the
+  function (`backend/app/tasks/download.py`), before any gate runs. The breaker-active early
+  return writes its `track_attempts` row from that same captured value but deliberately does
+  **not** increment `tracks.attempt_count` — bumping it there would make the next real attempt
+  read `attempt_count >= 1` and incorrectly reach for a proxy, breaking the locked "attempt 1 is
+  always direct" rule. So whenever a track is breaker-requeued and then, once the breaker clears,
+  actually attempted for real, both rows are stamped with the identical `attempt_number`. This is
+  a genuine tension between the schema's literal "mirrors `tracks.attempt_count`" definition and
+  "one row per attempt" being unique per real invocation — there is no `attempt_count` value that
+  satisfies both once a path exists that must log a row *without* consuming a real ladder rung.
+  Deliberately left as-is (schema kept literal) rather than switched to an independent row-sequence
+  counter: `started_at`/`finished_at` stay correctly ordered regardless via the endpoint's secondary
+  sort key, and the frontend never renders `attempt_number` as a visible label (`TrackRow.svelte`
+  shows outcome/direct-or-proxy/timestamp/error only), so the collision has no observed UI impact —
+  only a direct SQL/API query against `track_attempts` would ever see two rows sharing a number.
+- **The stale-track reclaim sweep (`beat._reclaim_stale_tracks`) writes no `track_attempts` row at
+  all.** It bulk-`UPDATE`s any `DOWNLOADING`/`QUEUED` track stuck past `STALE_TRACK_AFTER_SECONDS`
+  straight back to `WAITING`, bypassing `download_track` (and therefore `attempts.record_attempt`)
+  entirely — by design, since it exists precisely for a worker crash/OOM-kill/restart that never
+  got to run any of `download_track`'s own exit paths. A real crash mid-download is exactly the
+  scenario this project's Celery durability invariants (`task_acks_late` + this sweep) exist to
+  recover from, so it's a real, reachable gap in the "why does this one keep failing?" story v24
+  exists to close — just outside v24's own scope, which named `download_track`'s six exit paths
+  specifically and never touched `beat.py`. Left for whichever version next does deeper worker-
+  reliability work (candidate: v30's hardening close) rather than folded into v24 unasked.

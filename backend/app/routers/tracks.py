@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Job, JobSourceType, Track, TrackState, User
+from app.models import Job, JobSourceType, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
 from app.services import events, retry, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
-from app.services.serializers import track_song_meta, track_to_dict
+from app.services.serializers import track_attempt_to_dict, track_song_meta, track_to_dict
 
 router = APIRouter(prefix="/api/tracks", tags=["tracks"])
 
@@ -148,3 +148,22 @@ def retry_track(
     body = track_to_dict(track)
     body["breaker_held"] = breaker_held
     return body
+
+
+@router.get("/{track_id}/attempts")
+def list_track_attempts(
+    track_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> list[dict]:
+    """Per-attempt download history (v24) -- what each attempt tried (direct vs. which
+    proxy) and what happened, oldest first. Same owner-scoped 404-not-403 gate as every
+    other direct-id track endpoint."""
+    _track, _owner_id, _archived_at = _get_track_or_404(db, track_id, user)
+    rows = (
+        db.query(TrackAttempt)
+        .filter(TrackAttempt.track_id == track_id)
+        .order_by(TrackAttempt.attempt_number, TrackAttempt.started_at)
+        .all()
+    )
+    return [track_attempt_to_dict(row) for row in rows]

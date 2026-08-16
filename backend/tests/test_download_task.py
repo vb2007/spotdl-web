@@ -11,6 +11,8 @@ from app.models import (
     Proxy,
     ProxySource,
     Track,
+    TrackAttempt,
+    TrackAttemptOutcome,
     TrackErrorType,
     TrackState,
     User,
@@ -78,6 +80,15 @@ def _make_track(db_session):
     return track
 
 
+def _attempts(db_session, track):
+    return (
+        db_session.query(TrackAttempt)
+        .filter(TrackAttempt.track_id == track.id)
+        .order_by(TrackAttempt.started_at)
+        .all()
+    )
+
+
 def _patch_common(monkeypatch, db_session):
     monkeypatch.setattr(download_task, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(download_task.Song, "from_dict", classmethod(lambda cls, data: data))
@@ -99,6 +110,11 @@ def test_download_track_skips_when_already_downloaded(db_session, monkeypatch):
     updated = db_session.get(Track, track.id)
     assert updated.state == TrackState.SKIPPED_DUPLICATE
     assert updated.output_path == "/downloads/existing.mp3"
+
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.SKIPPED_DUPLICATE
+    assert rows[0].attempt_number == 0
 
 
 def test_download_track_success_marks_completed_and_upserts_ledger(db_session, monkeypatch):
@@ -127,6 +143,13 @@ def test_download_track_success_marks_completed_and_upserts_ledger(db_session, m
     # "downloading" (progress=0, right before the attempt) then "completed" once durable.
     states = [args[3] for args, _ in published]
     assert states == ["downloading", "completed"]
+
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.COMPLETED
+    assert rows[0].proxy_id is None
+    assert rows[0].error_type is None
+    assert rows[0].started_at <= rows[0].finished_at
 
 
 def test_download_track_other_error_reschedules_to_waiting(db_session, monkeypatch):
@@ -158,6 +181,14 @@ def test_download_track_other_error_reschedules_to_waiting(db_session, monkeypat
     _, final_kwargs = published[-1]
     assert final_kwargs["scheduled_at"] == updated.scheduled_at
     assert final_kwargs["error"] == "provider exploded"
+
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.FAILED
+    assert rows[0].error_type == TrackErrorType.OTHER
+    assert rows[0].error_message == "provider exploded"
+    assert rows[0].proxy_id is None
+    assert rows[0].attempt_number == 0
 
 
 def test_download_track_audio_provider_error_feeds_breaker(db_session, monkeypatch):
@@ -284,6 +315,50 @@ def test_download_track_skips_entirely_while_breaker_tripped(db_session, monkeyp
     # against real Postgres/psycopg.
     assert updated.scheduled_at.replace(tzinfo=timezone.utc) == tripped_until
 
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.FAILED
+    assert rows[0].error_type is None
+    assert rows[0].proxy_id is None
+
+
+def test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt(db_session, monkeypatch):
+    """Documented, accepted gap (docs/GOTCHAS.md's v24 entry), pinned here rather than left
+    as an untested edge case: the breaker-requeue row never bumps attempt_count (bumping it
+    would break "attempt 1 is always direct" for the real attempt that follows), so it and
+    that next real attempt share the same attempt_number. Ordering still relies on
+    started_at, and the frontend never renders attempt_number as a label -- if this test
+    ever needs updating because the collision was designed away, re-read that GOTCHAS entry
+    first to make sure the direct-first invariant is still intact."""
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+
+    tripped_until = datetime.now(timezone.utc) - timedelta(seconds=1)  # already cleared
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(hours=1)
+    db_session.commit()
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    download_task.download_track(str(track.id))  # 1st invocation: breaker-requeue row
+
+    # Clear the breaker, then run for real -- attempt_count is still 0, exactly like the
+    # first invocation left it.
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = tripped_until
+    db_session.commit()
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(
+        downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
+    )
+    download_task.download_track(str(track.id))  # 2nd invocation: the real attempt
+
+    rows = _attempts(db_session, track)
+    assert len(rows) == 2
+    assert rows[0].outcome == TrackAttemptOutcome.FAILED  # the breaker-requeue row
+    assert rows[1].outcome == TrackAttemptOutcome.COMPLETED  # the real attempt
+    assert rows[0].attempt_number == rows[1].attempt_number == 0
+    assert rows[0].started_at < rows[1].started_at  # chronological order still holds
+
 
 def test_download_track_unknown_track_is_a_noop(db_session, monkeypatch):
     monkeypatch.setattr(download_task, "SessionLocal", lambda: _NonClosingSession(db_session))
@@ -352,6 +427,12 @@ def test_download_track_retry_picks_proxy_and_records_success(db_session, monkey
     assert updated_proxy.last_success_at is not None
     assert updated_proxy.consecutive_failures == 0
 
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.COMPLETED
+    assert rows[0].proxy_id == proxy.id
+    assert rows[0].attempt_number == 1
+
 
 def test_download_track_retry_proxy_failure_sets_cooldown(db_session, monkeypatch):
     track = _make_track(db_session)
@@ -381,6 +462,11 @@ def test_download_track_retry_proxy_failure_sets_cooldown(db_session, monkeypatc
     assert updated_proxy.consecutive_failures == 1
     assert updated_proxy.cooldown_until is not None
 
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.FAILED
+    assert rows[0].proxy_id == proxy.id
+
 
 def test_download_track_retry_failure_redacts_proxy_credentials_from_last_error(db_session, monkeypatch):
     track = _make_track(db_session)
@@ -407,6 +493,13 @@ def test_download_track_retry_failure_redacts_proxy_credentials_from_last_error(
     assert "sneaky" not in updated.last_error
     assert "http://proxy-1:8080" in updated.last_error
 
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].error_message is not None
+    assert "hunter2" not in rows[0].error_message
+    assert "sneaky" not in rows[0].error_message
+    assert "http://proxy-1:8080" in rows[0].error_message
+
 
 def test_download_track_skips_entirely_when_already_cancelled(db_session, monkeypatch):
     track = _make_track(db_session)
@@ -423,6 +516,10 @@ def test_download_track_skips_entirely_when_already_cancelled(db_session, monkey
 
     updated = db_session.get(Track, track.id)
     assert updated.state == TrackState.CANCELLED
+
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.CANCELLED
 
 
 def test_download_track_discards_success_when_cancelled_mid_download(db_session, monkeypatch):
@@ -460,6 +557,10 @@ def test_download_track_discards_success_when_cancelled_mid_download(db_session,
     states = [args[3] for args, _ in published]
     assert states == ["downloading", "cancelled"]
 
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.CANCELLED
+
 
 def test_download_track_discards_failure_when_cancelled_mid_download(db_session, monkeypatch):
     track = _make_track(db_session)
@@ -491,6 +592,11 @@ def test_download_track_discards_failure_when_cancelled_mid_download(db_session,
     # as the success-path test above, just hitting the except branch instead.
     states = [args[3] for args, _ in published]
     assert states == ["downloading", "cancelled"]
+
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.CANCELLED
+    assert rows[0].error_message is None
 
 
 def test_download_track_retry_falls_back_to_direct_when_no_proxy_available(db_session, monkeypatch):
@@ -626,3 +732,6 @@ def test_download_track_cancelled_during_pacing_wait_skips_download(db_session, 
     download_task.download_track(str(track.id))
 
     assert db_session.get(Track, track.id).state == TrackState.CANCELLED
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.CANCELLED

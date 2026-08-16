@@ -26,6 +26,7 @@ from app.models import (
     Job,
     Proxy,
     Track,
+    TrackAttempt,
     User,
     UserSession,
     UserSettings,
@@ -56,6 +57,7 @@ def db_session():
     Job.__table__.create(engine)
     Proxy.__table__.create(engine)
     Track.__table__.create(engine)
+    TrackAttempt.__table__.create(engine)
     DownloadedTrack.__table__.create(engine)
     WorkerState.__table__.create(engine)
     AppSettings.__table__.create(engine)

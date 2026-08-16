@@ -112,6 +112,23 @@ export interface Track {
 	last_error_type: TrackErrorType | null;
 }
 
+export type TrackAttemptOutcome = 'completed' | 'failed' | 'cancelled' | 'skipped_duplicate';
+
+/** One row per `download_track` invocation (v24) -- `GET /api/tracks/{id}/attempts`,
+ * oldest first. `proxy_id` is `null` for a direct attempt, `error_type`/`error_message`
+ * are `null` for anything that isn't `failed`. Diagnostic only, not a headline feature --
+ * see TrackRow.svelte's rendering. */
+export interface TrackAttempt {
+	id: string;
+	attempt_number: number;
+	started_at: string;
+	finished_at: string;
+	outcome: TrackAttemptOutcome;
+	error_type: TrackErrorType | null;
+	error_message: string | null;
+	proxy_id: string | null;
+}
+
 /** The parent-job summary `GET /api/tracks`/`?scope=track` embeds on every row -- not a
  * full `Job` (no priority/state/status/track_counts: those describe the *whole* job, and
  * this is one matching track's context, not a job-scoped fetch). `title` is the same
@@ -460,6 +477,10 @@ export function cancelTrack(trackId: string): Promise<Track> {
 
 export function retryTrack(trackId: string): Promise<Track & { breaker_held: boolean }> {
 	return request(`/api/tracks/${trackId}/retry`, { method: 'POST' });
+}
+
+export function getTrackAttempts(trackId: string): Promise<TrackAttempt[]> {
+	return request(`/api/tracks/${trackId}/attempts`);
 }
 
 export function workerStatus(): Promise<WorkerStatus> {
