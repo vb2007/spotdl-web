@@ -558,7 +558,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_db",
-      "community": 4,
+      "community": 162,
       "norm_label": "db.py"
     },
     {
@@ -568,7 +568,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_db_base",
-      "community": 4,
+      "community": 29,
       "norm_label": "base"
     },
     {
@@ -578,7 +578,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "declarativebase",
-      "community": 4,
+      "community": 29,
       "norm_label": "declarativebase"
     },
     {
@@ -588,7 +588,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_db_get_db",
-      "community": 4,
+      "community": 162,
       "norm_label": "get_db()"
     },
     {
@@ -598,7 +598,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_db_py_session",
-      "community": 4,
+      "community": 162,
       "norm_label": "session"
     },
     {
@@ -748,7 +748,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 4,
+      "community": 162,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -778,7 +778,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_job",
-      "community": 4,
+      "community": 29,
       "norm_label": "job.py"
     },
     {
@@ -788,7 +788,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_job_jobsourcetype",
-      "community": 4,
+      "community": 29,
       "norm_label": "jobsourcetype"
     },
     {
@@ -798,7 +798,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "str",
-      "community": 4,
+      "community": 29,
       "norm_label": "str"
     },
     {
@@ -808,7 +808,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_models_job_jobstate",
-      "community": 4,
+      "community": 29,
       "norm_label": "jobstate"
     },
     {
@@ -838,7 +838,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_proxy",
-      "community": 4,
+      "community": 29,
       "norm_label": "proxy.py"
     },
     {
@@ -848,7 +848,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_proxy_proxysource",
-      "community": 4,
+      "community": 29,
       "norm_label": "proxysource"
     },
     {
@@ -858,7 +858,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_models_proxy_proxy",
-      "community": 4,
+      "community": 29,
       "norm_label": "proxy"
     },
     {
@@ -898,7 +898,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_track",
-      "community": 4,
+      "community": 29,
       "norm_label": "track.py"
     },
     {
@@ -908,7 +908,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_app_models_track_trackstate",
-      "community": 4,
+      "community": 29,
       "norm_label": "trackstate"
     },
     {
@@ -918,7 +918,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_models_track_trackerrortype",
-      "community": 4,
+      "community": 29,
       "norm_label": "trackerrortype"
     },
     {
@@ -948,7 +948,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt",
-      "community": 4,
+      "community": 29,
       "norm_label": "track_attempt.py"
     },
     {
@@ -958,7 +958,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_trackattemptoutcome",
-      "community": 4,
+      "community": 29,
       "norm_label": "trackattemptoutcome"
     },
     {
@@ -968,7 +968,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_trackattempt",
-      "community": 4,
+      "community": 29,
       "norm_label": "trackattempt"
     },
     {
@@ -978,7 +978,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_rationale_20",
-      "community": 4,
+      "community": 29,
       "norm_label": "one row per `download_track` invocation (v24) -- what it tried (direct vs. which"
     },
     {
@@ -988,7 +988,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_user",
-      "community": 4,
+      "community": 162,
       "norm_label": "user.py"
     },
     {
@@ -998,7 +998,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_user_user",
-      "community": 0,
+      "community": 63,
       "norm_label": "user"
     },
     {
@@ -1008,7 +1008,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_user_rationale_11",
-      "community": 0,
+      "community": 63,
       "norm_label": "row created on first successful login (v17). the `allowed_emails` env allowlist"
     },
     {
@@ -1018,7 +1018,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_user_settings",
-      "community": 4,
+      "community": 163,
       "norm_label": "user_settings.py"
     },
     {
@@ -1028,7 +1028,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_user_settings_usersettings",
-      "community": 4,
+      "community": 163,
       "norm_label": "usersettings"
     },
     {
@@ -1038,7 +1038,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_user_settings_rationale_11",
-      "community": 4,
+      "community": 163,
       "norm_label": "per-user preferences, get-or-create on first read -- same singleton-row pattern"
     },
     {
@@ -1048,7 +1048,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_worker_state",
-      "community": 4,
+      "community": 162,
       "norm_label": "worker_state.py"
     },
     {
@@ -1108,7 +1108,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "basemodel",
-      "community": 0,
+      "community": 128,
       "norm_label": "basemodel"
     },
     {
@@ -1508,7 +1508,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_proxies",
-      "community": 0,
+      "community": 128,
       "norm_label": "proxies.py"
     },
     {
@@ -1518,7 +1518,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_createproxyrequest",
-      "community": 0,
+      "community": 128,
       "norm_label": "createproxyrequest"
     },
     {
@@ -1528,7 +1528,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_updateproxyrequest",
-      "community": 0,
+      "community": 128,
       "norm_label": "updateproxyrequest"
     },
     {
@@ -1538,7 +1538,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_proxy_to_dict",
-      "community": 0,
+      "community": 128,
       "norm_label": "_proxy_to_dict()"
     },
     {
@@ -1548,7 +1548,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_py_proxy",
-      "community": 0,
+      "community": 128,
       "norm_label": "proxy"
     },
     {
@@ -1558,7 +1558,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_get_proxy_or_404",
-      "community": 0,
+      "community": 128,
       "norm_label": "_get_proxy_or_404()"
     },
     {
@@ -1568,7 +1568,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_py_session",
-      "community": 0,
+      "community": 128,
       "norm_label": "session"
     },
     {
@@ -1578,7 +1578,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_py_uuid",
-      "community": 0,
+      "community": 128,
       "norm_label": "uuid"
     },
     {
@@ -1588,7 +1588,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_list_proxies",
-      "community": 0,
+      "community": 128,
       "norm_label": "list_proxies()"
     },
     {
@@ -1598,7 +1598,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_create_proxy",
-      "community": 0,
+      "community": 128,
       "norm_label": "create_proxy()"
     },
     {
@@ -1608,7 +1608,7 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_update_proxy",
-      "community": 0,
+      "community": 128,
       "norm_label": "update_proxy()"
     },
     {
@@ -1618,7 +1618,7 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_delete_proxy",
-      "community": 0,
+      "community": 128,
       "norm_label": "delete_proxy()"
     },
     {
@@ -1628,7 +1628,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_py_response",
-      "community": 0,
+      "community": 128,
       "norm_label": "response"
     },
     {
@@ -1638,7 +1638,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_rationale_63",
-      "community": 0,
+      "community": 128,
       "norm_label": "adds a source=manual proxy -- pick_proxy() draws from it exactly like a     sour"
     },
     {
@@ -1648,7 +1648,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_rationale_108",
-      "community": 0,
+      "community": 128,
       "norm_label": "a source=manual proxy is hard-deleted -- there's no proxies.txt entry that could"
     },
     {
@@ -1658,7 +1658,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_settings",
-      "community": 0,
+      "community": 63,
       "norm_label": "settings.py"
     },
     {
@@ -1668,7 +1668,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_routers_settings_updateoutputsettingsrequest",
-      "community": 0,
+      "community": 63,
       "norm_label": "updateoutputsettingsrequest"
     },
     {
@@ -1678,7 +1678,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_app_routers_settings_updateretentionrequest",
-      "community": 0,
+      "community": 63,
       "norm_label": "updateretentionrequest"
     },
     {
@@ -1688,7 +1688,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_app_routers_settings_output_settings_to_dict",
-      "community": 0,
+      "community": 63,
       "norm_label": "_output_settings_to_dict()"
     },
     {
@@ -1698,7 +1698,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_routers_settings_get_output_settings",
-      "community": 0,
+      "community": 63,
       "norm_label": "get_output_settings()"
     },
     {
@@ -1708,7 +1708,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_settings_py_session",
-      "community": 0,
+      "community": 63,
       "norm_label": "session"
     },
     {
@@ -1718,7 +1718,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_app_routers_settings_get_output_options",
-      "community": 0,
+      "community": 63,
       "norm_label": "get_output_options()"
     },
     {
@@ -1728,7 +1728,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "backend_app_routers_settings_update_output_settings",
-      "community": 0,
+      "community": 63,
       "norm_label": "update_output_settings()"
     },
     {
@@ -1738,7 +1738,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "backend_app_routers_settings_retention_to_dict",
-      "community": 0,
+      "community": 63,
       "norm_label": "_retention_to_dict()"
     },
     {
@@ -1748,7 +1748,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "backend_app_routers_settings_get_retention_settings",
-      "community": 0,
+      "community": 63,
       "norm_label": "get_retention_settings()"
     },
     {
@@ -1758,7 +1758,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_app_routers_settings_update_retention_settings",
-      "community": 0,
+      "community": 63,
       "norm_label": "update_retention_settings()"
     },
     {
@@ -1768,7 +1768,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_50",
-      "community": 0,
+      "community": 63,
       "norm_label": "the real, live set of format/bitrate values the installed spotdl accepts --"
     },
     {
@@ -1778,7 +1778,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_62",
-      "community": 0,
+      "community": 63,
       "norm_label": "takes effect on the *next* download_track call, no restart needed -- get_downloa"
     },
     {
@@ -1788,7 +1788,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_90",
-      "community": 0,
+      "community": 63,
       "norm_label": "per-user, open to every user (unlike `/output`'s admin gating) -- retention is"
     },
     {
@@ -2008,7 +2008,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_worker",
-      "community": 0,
+      "community": 146,
       "norm_label": "worker.py"
     },
     {
@@ -2018,7 +2018,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_app_routers_worker_status_dict",
-      "community": 0,
+      "community": 146,
       "norm_label": "_status_dict()"
     },
     {
@@ -2028,7 +2028,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_routers_worker_is_busy",
-      "community": 0,
+      "community": 146,
       "norm_label": "_is_busy()"
     },
     {
@@ -2038,7 +2038,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_worker_py_session",
-      "community": 0,
+      "community": 146,
       "norm_label": "session"
     },
     {
@@ -2048,7 +2048,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_routers_worker_worker_status",
-      "community": 0,
+      "community": 146,
       "norm_label": "worker_status()"
     },
     {
@@ -2058,7 +2058,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_app_routers_worker_pause_worker",
-      "community": 0,
+      "community": 146,
       "norm_label": "pause_worker()"
     },
     {
@@ -2068,7 +2068,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "backend_app_routers_worker_resume_worker",
-      "community": 0,
+      "community": 146,
       "norm_label": "resume_worker()"
     },
     {
@@ -2078,7 +2078,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_app_routers_worker_release_breaker",
-      "community": 0,
+      "community": 146,
       "norm_label": "release_breaker()"
     },
     {
@@ -2088,7 +2088,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "backend_app_routers_worker_rationale_28",
-      "community": 0,
+      "community": 146,
       "norm_label": "`worker-dl` runs `--concurrency=1` (claude.md invariant), so at most one track"
     },
     {
@@ -2098,7 +2098,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "backend_app_routers_worker_rationale_75",
-      "community": 0,
+      "community": 146,
       "norm_label": "clears the countdown early without resetting `consecutive_failures` or     `brea"
     },
     {
@@ -2168,7 +2168,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_archive",
-      "community": 29,
+      "community": 5,
       "norm_label": "archive.py"
     },
     {
@@ -2178,7 +2178,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_services_archive_eligible_job_ids",
-      "community": 29,
+      "community": 5,
       "norm_label": "_eligible_job_ids()"
     },
     {
@@ -2188,7 +2188,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_session",
-      "community": 29,
+      "community": 5,
       "norm_label": "session"
     },
     {
@@ -2198,7 +2198,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_uuid",
-      "community": 29,
+      "community": 5,
       "norm_label": "uuid"
     },
     {
@@ -2208,7 +2208,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_timedelta",
-      "community": 29,
+      "community": 5,
       "norm_label": "timedelta"
     },
     {
@@ -2218,7 +2218,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_app_services_archive_archive_jobs",
-      "community": 29,
+      "community": 5,
       "norm_label": "archive_jobs()"
     },
     {
@@ -2228,7 +2228,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_job",
-      "community": 29,
+      "community": 5,
       "norm_label": "job"
     },
     {
@@ -2238,7 +2238,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "backend_app_services_archive_unarchive_jobs",
-      "community": 29,
+      "community": 5,
       "norm_label": "unarchive_jobs()"
     },
     {
@@ -2248,7 +2248,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_archive_rationale_1",
-      "community": 29,
+      "community": 5,
       "norm_label": "soft-archive lifecycle for jobs (v19). see `plan/master-v2/v19-archive-retention"
     },
     {
@@ -2258,7 +2258,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "backend_app_services_archive_rationale_78",
-      "community": 29,
+      "community": 5,
       "norm_label": "`job_ids=none, older_than=none` (the \"clear log\" case) archives every eligible j"
     },
     {
@@ -2268,7 +2268,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_attempts",
-      "community": 4,
+      "community": 164,
       "norm_label": "attempts.py"
     },
     {
@@ -2278,7 +2278,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_services_attempts_record_attempt",
-      "community": 4,
+      "community": 164,
       "norm_label": "record_attempt()"
     },
     {
@@ -2288,7 +2288,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_session",
-      "community": 4,
+      "community": 164,
       "norm_label": "session"
     },
     {
@@ -2298,7 +2298,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_uuid",
-      "community": 4,
+      "community": 164,
       "norm_label": "uuid"
     },
     {
@@ -2308,7 +2308,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_datetime",
-      "community": 4,
+      "community": 164,
       "norm_label": "datetime"
     },
     {
@@ -2318,7 +2318,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "trackattemptoutcome",
-      "community": 4,
+      "community": 164,
       "norm_label": "trackattemptoutcome"
     },
     {
@@ -2328,7 +2328,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_trackerrortype",
-      "community": 4,
+      "community": 164,
       "norm_label": "trackerrortype"
     },
     {
@@ -2338,7 +2338,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_1",
-      "community": 4,
+      "community": 164,
       "norm_label": "per-attempt download history (v24) -- see app/models/track_attempt.py's docstrin"
     },
     {
@@ -2718,7 +2718,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_job_listing",
-      "community": 11,
+      "community": 165,
       "norm_label": "job_listing.py"
     },
     {
@@ -2728,7 +2728,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_invalidlistparams",
-      "community": 11,
+      "community": 165,
       "norm_label": "invalidlistparams"
     },
     {
@@ -2748,7 +2748,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_list_jobs",
-      "community": 11,
+      "community": 165,
       "norm_label": "list_jobs()"
     },
     {
@@ -2758,7 +2758,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_py_session",
-      "community": 11,
+      "community": 165,
       "norm_label": "session"
     },
     {
@@ -2768,7 +2768,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_py_jobsourcetype",
-      "community": 11,
+      "community": 165,
       "norm_label": "jobsourcetype"
     },
     {
@@ -2778,7 +2778,7 @@
       "source_location": "L154",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_sort_key",
-      "community": 11,
+      "community": 165,
       "norm_label": "_sort_key()"
     },
     {
@@ -2788,7 +2788,7 @@
       "source_location": "L166",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_sort_value",
-      "community": 11,
+      "community": 165,
       "norm_label": "_sort_value()"
     },
     {
@@ -2798,7 +2798,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_rationale_1",
-      "community": 11,
+      "community": 165,
       "norm_label": "paginated/filtered/sorted/searchable job listing (v18) -- `get /api/jobs` (scope"
     },
     {
@@ -2978,7 +2978,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_proxies",
-      "community": 63,
+      "community": 133,
       "norm_label": "proxies.py"
     },
     {
@@ -2988,7 +2988,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_app_services_proxies_next_cooldown",
-      "community": 63,
+      "community": 133,
       "norm_label": "next_cooldown()"
     },
     {
@@ -2998,7 +2998,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_proxies_py_timedelta",
-      "community": 63,
+      "community": 133,
       "norm_label": "timedelta"
     },
     {
@@ -3008,7 +3008,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_app_services_proxies_redact",
-      "community": 63,
+      "community": 133,
       "norm_label": "redact()"
     },
     {
@@ -3018,7 +3018,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "backend_app_services_proxies_probe_reachable",
-      "community": 63,
+      "community": 133,
       "norm_label": "_probe_reachable()"
     },
     {
@@ -3028,7 +3028,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "backend_app_services_proxies_sync_from_file",
-      "community": 63,
+      "community": 133,
       "norm_label": "sync_from_file()"
     },
     {
@@ -3038,7 +3038,7 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "backend_app_services_proxies_pick_proxy",
-      "community": 63,
+      "community": 133,
       "norm_label": "pick_proxy()"
     },
     {
@@ -3048,7 +3048,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_proxies_py_session",
-      "community": 63,
+      "community": 133,
       "norm_label": "session"
     },
     {
@@ -3058,7 +3058,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_proxies_py_proxy",
-      "community": 63,
+      "community": 133,
       "norm_label": "proxy"
     },
     {
@@ -3068,7 +3068,7 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "backend_app_services_proxies_record_proxy_result",
-      "community": 63,
+      "community": 133,
       "norm_label": "record_proxy_result()"
     },
     {
@@ -3078,7 +3078,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_proxies_py_uuid",
-      "community": 63,
+      "community": 133,
       "norm_label": "uuid"
     },
     {
@@ -3088,7 +3088,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_proxies_rationale_1",
-      "community": 63,
+      "community": 133,
       "norm_label": "proxy pool: file sync (`proxies.txt`), lru selection, and per-proxy cooldown.  m"
     },
     {
@@ -3098,7 +3098,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "backend_app_services_proxies_rationale_42",
-      "community": 63,
+      "community": 133,
       "norm_label": "same \"failures before this one, computed before incrementing\" convention as"
     },
     {
@@ -3108,7 +3108,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "backend_app_services_proxies_rationale_48",
-      "community": 63,
+      "community": 133,
       "norm_label": "scheme://host:port for logging \u2014 never print a proxy url's user:pass in plaintex"
     },
     {
@@ -3118,7 +3118,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "backend_app_services_proxies_rationale_54",
-      "community": 63,
+      "community": 133,
       "norm_label": "best-effort tcp connect so an obviously dead new entry doesn't get picked first"
     },
     {
@@ -3128,7 +3128,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "backend_app_services_proxies_rationale_67",
-      "community": 63,
+      "community": 133,
       "norm_label": "run once on worker-meta boot (see celery_app.py). upserts proxies.txt's urls as"
     },
     {
@@ -3138,7 +3138,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "backend_app_services_proxies_rationale_125",
-      "community": 63,
+      "community": 133,
       "norm_label": "least-recently-used selection among enabled, out-of-cooldown proxies \u2014 simple lr"
     },
     {
@@ -3738,7 +3738,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_serializers",
-      "community": 0,
+      "community": 156,
       "norm_label": "serializers.py"
     },
     {
@@ -3748,7 +3748,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_counts_by_job",
-      "community": 0,
+      "community": 156,
       "norm_label": "track_counts_by_job()"
     },
     {
@@ -3758,7 +3758,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_serializers_py_session",
-      "community": 0,
+      "community": 156,
       "norm_label": "session"
     },
     {
@@ -3768,7 +3768,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_serializers_py_uuid",
-      "community": 0,
+      "community": 156,
       "norm_label": "uuid"
     },
     {
@@ -3778,7 +3778,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_counts",
-      "community": 0,
+      "community": 156,
       "norm_label": "track_counts()"
     },
     {
@@ -3808,7 +3808,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_song_meta",
-      "community": 131,
+      "community": 159,
       "norm_label": "track_song_meta()"
     },
     {
@@ -3838,7 +3838,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_attempt_to_dict",
-      "community": 131,
+      "community": 156,
       "norm_label": "track_attempt_to_dict()"
     },
     {
@@ -3848,7 +3848,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "trackattempt",
-      "community": 131,
+      "community": 156,
       "norm_label": "trackattempt"
     },
     {
@@ -3858,7 +3858,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_1",
-      "community": 0,
+      "community": 156,
       "norm_label": "shared rest projections for job/track \u2014 deliberate projections rather than expos"
     },
     {
@@ -3868,7 +3868,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_18",
-      "community": 0,
+      "community": 156,
       "norm_label": "one grouped aggregate covering every requested job -- replaces the per-job query"
     },
     {
@@ -3878,7 +3878,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_37",
-      "community": 0,
+      "community": 156,
       "norm_label": "single-job convenience over the bulk query -- for endpoints that serialize exact"
     },
     {
@@ -3898,7 +3898,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_77",
-      "community": 131,
+      "community": 159,
       "norm_label": "title/artists/album straight from a track's `song_json` -- the single field"
     },
     {
@@ -3975,7 +3975,7 @@
       "label": "is_supported_format()",
       "file_type": "code",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L49",
+      "source_location": "L47",
       "_origin": "ast",
       "id": "backend_app_services_tagging_is_supported_format",
       "community": 135,
@@ -3995,7 +3995,7 @@
       "label": "verify_tags()",
       "file_type": "code",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L53",
+      "source_location": "L51",
       "_origin": "ast",
       "id": "backend_app_services_tagging_verify_tags",
       "community": 135,
@@ -4005,7 +4005,7 @@
       "label": "repair_tags()",
       "file_type": "code",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L63",
+      "source_location": "L61",
       "_origin": "ast",
       "id": "backend_app_services_tagging_repair_tags",
       "community": 135,
@@ -4035,9 +4035,9 @@
       "label": "Returns the set of required field names missing or empty on the file. Caller",
       "file_type": "rationale",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L54",
+      "source_location": "L52",
       "_origin": "ast",
-      "id": "backend_app_services_tagging_rationale_54",
+      "id": "backend_app_services_tagging_rationale_52",
       "community": 135,
       "norm_label": "returns the set of required field names missing or empty on the file. caller"
     },
@@ -4045,9 +4045,9 @@
       "label": "Re-embeds whatever's missing from `song`. Cover art is only (re-)fetched when",
       "file_type": "rationale",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L64",
+      "source_location": "L62",
       "_origin": "ast",
-      "id": "backend_app_services_tagging_rationale_64",
+      "id": "backend_app_services_tagging_rationale_62",
       "community": 135,
       "norm_label": "re-embeds whatever's missing from `song`. cover art is only (re-)fetched when"
     },
@@ -4208,7 +4208,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_user_settings",
-      "community": 4,
+      "community": 163,
       "norm_label": "user_settings.py"
     },
     {
@@ -4218,7 +4218,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_services_user_settings_get_user_settings",
-      "community": 4,
+      "community": 163,
       "norm_label": "get_user_settings()"
     },
     {
@@ -4228,7 +4228,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_user_settings_py_session",
-      "community": 4,
+      "community": 163,
       "norm_label": "session"
     },
     {
@@ -4238,7 +4238,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_app_services_user_settings_update_retention",
-      "community": 4,
+      "community": 163,
       "norm_label": "update_retention()"
     },
     {
@@ -4248,7 +4248,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_user_settings_rationale_1",
-      "community": 4,
+      "community": 163,
       "norm_label": "per-user retention setting (v19) -- get-or-create singleton row per user, the sa"
     },
     {
@@ -4328,7 +4328,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_beat",
-      "community": 131,
+      "community": 159,
       "norm_label": "beat.py"
     },
     {
@@ -4338,7 +4338,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_stale_track_after",
-      "community": 131,
+      "community": 159,
       "norm_label": "stale_track_after()"
     },
     {
@@ -4348,7 +4348,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_py_timedelta",
-      "community": 131,
+      "community": 159,
       "norm_label": "timedelta"
     },
     {
@@ -4358,7 +4358,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_reclaim_stale_tracks",
-      "community": 131,
+      "community": 159,
       "norm_label": "_reclaim_stale_tracks()"
     },
     {
@@ -4368,7 +4368,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_dispatch_due_tracks",
-      "community": 131,
+      "community": 159,
       "norm_label": "dispatch_due_tracks()"
     },
     {
@@ -4378,7 +4378,7 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_archive_due_jobs",
-      "community": 131,
+      "community": 159,
       "norm_label": "archive_due_jobs()"
     },
     {
@@ -4388,7 +4388,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_18",
-      "community": 131,
+      "community": 159,
       "norm_label": "a track stuck in downloading/queued past this long means whatever was supposed t"
     },
     {
@@ -4398,7 +4398,7 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_115",
-      "community": 131,
+      "community": 159,
       "norm_label": "hourly (not every 30s like dispatch_due_tracks -- this is housekeeping, and it"
     },
     {
@@ -4408,7 +4408,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app",
-      "community": 63,
+      "community": 133,
       "norm_label": "celery_app.py"
     },
     {
@@ -4418,7 +4418,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
-      "community": 63,
+      "community": 133,
       "norm_label": "_reconcile_disk_on_boot()"
     },
     {
@@ -4428,7 +4428,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_sync_proxies_on_boot",
-      "community": 63,
+      "community": 133,
       "norm_label": "_sync_proxies_on_boot()"
     },
     {
@@ -4478,7 +4478,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 131,
+      "community": 162,
       "norm_label": "expand.py"
     },
     {
@@ -4488,7 +4488,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 131,
+      "community": 162,
       "norm_label": "expand_job()"
     },
     {
@@ -4681,7 +4681,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings",
-      "community": 2,
+      "community": 166,
       "norm_label": "test_app_settings.py"
     },
     {
@@ -4691,7 +4691,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_fakesettings",
-      "community": 2,
+      "community": 166,
       "norm_label": "_fakesettings"
     },
     {
@@ -4701,7 +4701,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_creates_row_seeded_from_env",
-      "community": 2,
+      "community": 166,
       "norm_label": "test_get_output_settings_creates_row_seeded_from_env()"
     },
     {
@@ -4711,7 +4711,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_returns_existing_row_without_reseeding",
-      "community": 2,
+      "community": 166,
       "norm_label": "test_get_output_settings_returns_existing_row_without_reseeding()"
     },
     {
@@ -4721,7 +4721,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_only_touches_given_fields",
-      "community": 2,
+      "community": 166,
       "norm_label": "test_update_output_settings_only_touches_given_fields()"
     },
     {
@@ -4731,7 +4731,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_creates_row_if_missing",
-      "community": 2,
+      "community": 166,
       "norm_label": "test_update_output_settings_creates_row_if_missing()"
     },
     {
@@ -6201,7 +6201,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task",
-      "community": 5,
+      "community": 139,
       "norm_label": "test_expand_task.py"
     },
     {
@@ -6211,7 +6211,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_owner",
-      "community": 5,
+      "community": 139,
       "norm_label": "_owner()"
     },
     {
@@ -6221,7 +6221,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_capture_job_events",
-      "community": 5,
+      "community": 139,
       "norm_label": "_capture_job_events()"
     },
     {
@@ -6231,7 +6231,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_fakesong",
-      "community": 5,
+      "community": 139,
       "norm_label": "_fakesong"
     },
     {
@@ -6241,7 +6241,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_fakesong_init",
-      "community": 5,
+      "community": 139,
       "norm_label": ".__init__()"
     },
     {
@@ -6251,7 +6251,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession",
-      "community": 5,
+      "community": 139,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -6261,7 +6261,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_init",
-      "community": 5,
+      "community": 139,
       "norm_label": ".__init__()"
     },
     {
@@ -6271,7 +6271,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_getattr",
-      "community": 5,
+      "community": 139,
       "norm_label": ".__getattr__()"
     },
     {
@@ -6281,7 +6281,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_close",
-      "community": 5,
+      "community": 139,
       "norm_label": ".close()"
     },
     {
@@ -6291,7 +6291,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_stub_download_track",
-      "community": 5,
+      "community": 139,
       "norm_label": "_stub_download_track()"
     },
     {
@@ -6301,7 +6301,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
-      "community": 5,
+      "community": 139,
       "norm_label": "test_expand_job_success_inserts_pending_tracks()"
     },
     {
@@ -6311,7 +6311,7 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
-      "community": 5,
+      "community": 139,
       "norm_label": "test_expand_job_failure_marks_job_failed_with_error()"
     },
     {
@@ -6321,7 +6321,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
-      "community": 5,
+      "community": 139,
       "norm_label": "test_expand_job_db_error_during_insert_marks_job_failed()"
     },
     {
@@ -6331,7 +6331,7 @@
       "source_location": "L133",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_never_dispatches_when_cancelled_mid_expansion",
-      "community": 5,
+      "community": 139,
       "norm_label": "test_expand_job_never_dispatches_when_cancelled_mid_expansion()"
     },
     {
@@ -6341,7 +6341,7 @@
       "source_location": "L171",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
-      "community": 5,
+      "community": 139,
       "norm_label": "test_expand_job_unknown_job_is_a_noop()"
     },
     {
@@ -6351,7 +6351,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_rationale_32",
-      "community": 5,
+      "community": 139,
       "norm_label": "wraps db_session so expand_job's db.close() doesn't detach objects the test"
     },
     {
@@ -6861,7 +6861,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config",
-      "community": 63,
+      "community": 32,
       "norm_label": "test_logging_config.py"
     },
     {
@@ -6871,7 +6871,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_format",
-      "community": 63,
+      "community": 32,
       "norm_label": "_format()"
     },
     {
@@ -6881,7 +6881,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "logrecord",
-      "community": 63,
+      "community": 32,
       "norm_label": "logrecord"
     },
     {
@@ -6891,7 +6891,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_make_record",
-      "community": 63,
+      "community": 32,
       "norm_label": "_make_record()"
     },
     {
@@ -6901,7 +6901,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_plain_message_passes_through_unchanged",
-      "community": 63,
+      "community": 32,
       "norm_label": "test_plain_message_passes_through_unchanged()"
     },
     {
@@ -6911,7 +6911,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_credentialed_url_in_message_is_redacted",
-      "community": 63,
+      "community": 32,
       "norm_label": "test_credentialed_url_in_message_is_redacted()"
     },
     {
@@ -6921,7 +6921,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_credentialed_url_in_exception_traceback_is_redacted",
-      "community": 63,
+      "community": 32,
       "norm_label": "test_credentialed_url_in_exception_traceback_is_redacted()"
     },
     {
@@ -6931,7 +6931,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_no_task_context_outside_a_running_task",
-      "community": 63,
+      "community": 32,
       "norm_label": "test_no_task_context_outside_a_running_task()"
     },
     {
@@ -6941,7 +6941,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_task_context_injected_when_running_inside_a_task",
-      "community": 63,
+      "community": 32,
       "norm_label": "test_task_context_injected_when_running_inside_a_task()"
     },
     {
@@ -6951,7 +6951,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_rationale_1",
-      "community": 63,
+      "community": 32,
       "norm_label": "structured json logging (v12). the one contract that matters most here: a creden"
     },
     {
@@ -7781,7 +7781,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_rollup",
-      "community": 128,
+      "community": 5,
       "norm_label": "test_rollup.py"
     },
     {
@@ -7791,7 +7791,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_tests_test_rollup_make_job_with_tracks",
-      "community": 128,
+      "community": 5,
       "norm_label": "_make_job_with_tracks()"
     },
     {
@@ -7801,7 +7801,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "backend_tests_test_rollup_test_derive_rollup_matches_every_named_branch",
-      "community": 128,
+      "community": 5,
       "norm_label": "test_derive_rollup_matches_every_named_branch()"
     },
     {
@@ -7811,7 +7811,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "backend_tests_test_rollup_test_job_to_dict_status_field_matches_every_named_branch",
-      "community": 128,
+      "community": 5,
       "norm_label": "test_job_to_dict_status_field_matches_every_named_branch()"
     },
     {
@@ -7821,7 +7821,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "backend_tests_test_rollup_test_list_jobs_status_filter_matches_every_named_branch_via_sql",
-      "community": 128,
+      "community": 5,
       "norm_label": "test_list_jobs_status_filter_matches_every_named_branch_via_sql()"
     },
     {
@@ -7831,7 +7831,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_tests_test_rollup_test_bare_settled_status_filter_matches_both_outcomes",
-      "community": 128,
+      "community": 5,
       "norm_label": "test_bare_settled_status_filter_matches_both_outcomes()"
     },
     {
@@ -7841,7 +7841,7 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "backend_tests_test_rollup_test_derive_job_title_prefers_list_name_then_track_name_then_source_url",
-      "community": 128,
+      "community": 5,
       "norm_label": "test_derive_job_title_prefers_list_name_then_track_name_then_source_url()"
     },
     {
@@ -7851,7 +7851,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_rollup_rationale_1",
-      "community": 128,
+      "community": 5,
       "norm_label": "v18's rollup status -- both derivations (`rollup.derive_rollup`, used by the sin"
     },
     {
@@ -7861,7 +7861,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_tests_test_rollup_rationale_55",
-      "community": 128,
+      "community": 5,
       "norm_label": "same branches, proven through the real single-job http response (`get     /api/j"
     },
     {
@@ -7871,7 +7871,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "backend_tests_test_rollup_rationale_67",
-      "community": 128,
+      "community": 5,
       "norm_label": "same branches again, this time through `get /api/jobs?status=...` -- the sql"
     },
     {
@@ -8308,7 +8308,7 @@
       "label": "_copy_fixture()",
       "file_type": "code",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L17",
+      "source_location": "L20",
       "_origin": "ast",
       "id": "backend_tests_test_tagging_copy_fixture",
       "community": 72,
@@ -8328,7 +8328,7 @@
       "label": "_make_song()",
       "file_type": "code",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L23",
+      "source_location": "L26",
       "_origin": "ast",
       "id": "backend_tests_test_tagging_make_song",
       "community": 72,
@@ -8348,7 +8348,7 @@
       "label": "test_is_supported_format()",
       "file_type": "code",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L51",
+      "source_location": "L54",
       "_origin": "ast",
       "id": "backend_tests_test_tagging_test_is_supported_format",
       "community": 72,
@@ -8358,7 +8358,7 @@
       "label": "test_verify_tags_reports_everything_missing_on_untagged_file()",
       "file_type": "code",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L64",
+      "source_location": "L67",
       "_origin": "ast",
       "id": "backend_tests_test_tagging_test_verify_tags_reports_everything_missing_on_untagged_file",
       "community": 72,
@@ -8368,7 +8368,7 @@
       "label": "test_repair_tags_fills_basic_fields_from_song()",
       "file_type": "code",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L73",
+      "source_location": "L76",
       "_origin": "ast",
       "id": "backend_tests_test_tagging_test_repair_tags_fills_basic_fields_from_song",
       "community": 72,
@@ -8378,21 +8378,61 @@
       "label": "test_repair_tags_warns_when_cover_art_unavailable()",
       "file_type": "code",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L87",
+      "source_location": "L90",
       "_origin": "ast",
       "id": "backend_tests_test_tagging_test_repair_tags_warns_when_cover_art_unavailable",
       "community": 72,
       "norm_label": "test_repair_tags_warns_when_cover_art_unavailable()"
     },
     {
+      "label": "test_repair_tags_does_not_clobber_correct_year_when_not_requested()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L104",
+      "_origin": "ast",
+      "id": "backend_tests_test_tagging_test_repair_tags_does_not_clobber_correct_year_when_not_requested",
+      "community": 72,
+      "norm_label": "test_repair_tags_does_not_clobber_correct_year_when_not_requested()"
+    },
+    {
+      "label": "test_repair_tags_skips_year_patch_when_song_year_is_none()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L121",
+      "_origin": "ast",
+      "id": "backend_tests_test_tagging_test_repair_tags_skips_year_patch_when_song_year_is_none",
+      "community": 72,
+      "norm_label": "test_repair_tags_skips_year_patch_when_song_year_is_none()"
+    },
+    {
       "label": "test_repair_tags_noop_when_nothing_missing()",
       "file_type": "code",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L98",
+      "source_location": "L136",
       "_origin": "ast",
       "id": "backend_tests_test_tagging_test_repair_tags_noop_when_nothing_missing",
       "community": 72,
       "norm_label": "test_repair_tags_noop_when_nothing_missing()"
+    },
+    {
+      "label": "Regression: the flac/ogg/opus year-tag patch (tagging.py's _YEAR_TAG_GAP_FORMATS",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L105",
+      "_origin": "ast",
+      "id": "backend_tests_test_tagging_rationale_105",
+      "community": 72,
+      "norm_label": "regression: the flac/ogg/opus year-tag patch (tagging.py's _year_tag_gap_formats"
+    },
+    {
+      "label": "Regression: writing str(None) into the year tag would read back as a non-empty",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L122",
+      "_origin": "ast",
+      "id": "backend_tests_test_tagging_rationale_122",
+      "community": 72,
+      "norm_label": "regression: writing str(none) into the year tag would read back as a non-empty"
     },
     {
       "label": "test_track_listing.py",
@@ -8681,7 +8721,7 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_test_list_track_attempts_returns_history_oldest_first_with_expected_fields",
-      "community": 4,
+      "community": 3,
       "norm_label": "test_list_track_attempts_returns_history_oldest_first_with_expected_fields()"
     },
     {
@@ -10196,7 +10236,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_jobrow",
-      "community": 25,
+      "community": 13,
       "norm_label": "$lib/components/jobrow.svelte"
     },
     {
@@ -10206,7 +10246,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "reactivity",
-      "community": 25,
+      "community": 13,
       "norm_label": "svelte/reactivity"
     },
     {
@@ -10217,7 +10257,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_components_jobtracklist",
-      "community": 25,
+      "community": 13,
       "norm_label": "jobtracklist.svelte"
     },
     {
@@ -10228,7 +10268,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_components_trackrow",
-      "community": 25,
+      "community": 13,
       "norm_label": "$lib/components/trackrow.svelte"
     },
     {
@@ -10503,7 +10543,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "community": 63,
+      "community": 32,
       "norm_label": "+layout.svelte"
     },
     {
@@ -10513,7 +10553,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_app_css",
-      "community": 63,
+      "community": 32,
       "norm_label": "../app.css"
     },
     {
@@ -10523,7 +10563,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_lib_assets_favicon_svg",
-      "community": 63,
+      "community": 32,
       "norm_label": "$lib/assets/favicon.svg"
     },
     {
@@ -10843,7 +10883,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "claude_project_spotdl_web",
-      "community": 31,
+      "community": 168,
       "norm_label": "project: spotdl-web"
     },
     {
@@ -10853,7 +10893,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "claude_where_things_are",
-      "community": 31,
+      "community": 168,
       "norm_label": "where things are"
     },
     {
@@ -10863,7 +10903,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "claude_workflow_rules_do_not_deviate_without_asking",
-      "community": 31,
+      "community": 168,
       "norm_label": "workflow rules (do not deviate without asking)"
     },
     {
@@ -10873,7 +10913,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "claude_development_environments",
-      "community": 31,
+      "community": 168,
       "norm_label": "development environments"
     },
     {
@@ -10903,7 +10943,7 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "claude_architecture",
-      "community": 164,
+      "community": 31,
       "norm_label": "architecture"
     },
     {
@@ -10913,7 +10953,7 @@
       "source_location": "L169",
       "_origin": "ast",
       "id": "claude_invariants_break_these_and_things_fail_silently",
-      "community": 164,
+      "community": 31,
       "norm_label": "invariants \u2014 break these and things fail silently"
     },
     {
@@ -10923,7 +10963,7 @@
       "source_location": "L187",
       "_origin": "ast",
       "id": "claude_master_v2_invariants",
-      "community": 164,
+      "community": 31,
       "norm_label": "master v2 invariants"
     },
     {
@@ -10933,7 +10973,7 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "claude_master_v3_invariants",
-      "community": 164,
+      "community": 31,
       "norm_label": "master v3 invariants"
     },
     {
@@ -11323,7 +11363,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "docs_deployment_upgrading_an_existing_deployment_manual_fallback",
-      "community": 162,
+      "community": 44,
       "norm_label": "upgrading an existing deployment (manual fallback)"
     },
     {
@@ -11333,7 +11373,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "docs_deployment_1_pull_the_merged_code",
-      "community": 162,
+      "community": 44,
       "norm_label": "1. pull the merged code"
     },
     {
@@ -11343,7 +11383,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "docs_deployment_2_update_env",
-      "community": 162,
+      "community": 44,
       "norm_label": "2. update `.env`"
     },
     {
@@ -11353,7 +11393,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "docs_deployment_3_migrate_the_downloads_directory_one_time_before_first_boot_with_the_new_bind_mount",
-      "community": 162,
+      "community": 44,
       "norm_label": "3. migrate the downloads directory (one-time, before first boot with the new bind mount)"
     },
     {
@@ -11363,7 +11403,7 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "docs_deployment_4_bring_up_the_stack_with_the_production_overlay",
-      "community": 162,
+      "community": 44,
       "norm_label": "4. bring up the stack with the production overlay"
     },
     {
@@ -11373,7 +11413,7 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "docs_deployment_5_configure_the_cloudflare_tunnel_zero_trust_dashboard",
-      "community": 162,
+      "community": 44,
       "norm_label": "5. configure the cloudflare tunnel (zero trust dashboard)"
     },
     {
@@ -11383,7 +11423,7 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "docs_deployment_6_verify",
-      "community": 162,
+      "community": 44,
       "norm_label": "6. verify"
     },
     {
@@ -11413,7 +11453,7 @@
       "source_location": "L263",
       "_origin": "ast",
       "id": "docs_deployment_one_time_host_setup_already_done_on_this_host_kept_for_reference",
-      "community": 159,
+      "community": 44,
       "norm_label": "one-time host setup (already done on this host \u2014 kept for reference)"
     },
     {
@@ -11423,7 +11463,7 @@
       "source_location": "L265",
       "_origin": "ast",
       "id": "docs_deployment_1_install_postgresql_host_native_not_a_container",
-      "community": 159,
+      "community": 44,
       "norm_label": "1. install postgresql (host-native \u2014 not a container)"
     },
     {
@@ -11433,7 +11473,7 @@
       "source_location": "L286",
       "_origin": "ast",
       "id": "docs_deployment_2_create_the_role_and_database",
-      "community": 159,
+      "community": 44,
       "norm_label": "2. create the role and database"
     },
     {
@@ -11443,7 +11483,7 @@
       "source_location": "L298",
       "_origin": "ast",
       "id": "docs_deployment_3_let_docker_containers_reach_postgres",
-      "community": 159,
+      "community": 44,
       "norm_label": "3. let docker containers reach postgres"
     },
     {
@@ -11453,7 +11493,7 @@
       "source_location": "L319",
       "_origin": "ast",
       "id": "docs_deployment_4_install_docker_the_compose_plugin",
-      "community": 159,
+      "community": 44,
       "norm_label": "4. install docker + the compose plugin"
     },
     {
@@ -11463,7 +11503,7 @@
       "source_location": "L337",
       "_origin": "ast",
       "id": "docs_deployment_5_clone_the_repo",
-      "community": 159,
+      "community": 44,
       "norm_label": "5. clone the repo"
     },
     {
@@ -11473,7 +11513,7 @@
       "source_location": "L348",
       "_origin": "ast",
       "id": "docs_deployment_6_configure_env",
-      "community": 159,
+      "community": 44,
       "norm_label": "6. configure `.env`"
     },
     {
@@ -11483,7 +11523,7 @@
       "source_location": "L364",
       "_origin": "ast",
       "id": "docs_deployment_7_bring_up_the_stack",
-      "community": 159,
+      "community": 44,
       "norm_label": "7. bring up the stack"
     },
     {
@@ -11543,7 +11583,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_gotchas",
-      "community": 14,
+      "community": 167,
       "norm_label": "gotchas.md"
     },
     {
@@ -11553,7 +11593,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_web_accumulated_gotchas_master_v1_v01_v13",
-      "community": 14,
+      "community": 167,
       "norm_label": "spotdl-web \u2014 accumulated gotchas (master v1, v01\u2013v13)"
     },
     {
@@ -11563,7 +11603,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "docs_gotchas_index_by_topic",
-      "community": 14,
+      "community": 167,
       "norm_label": "index by topic"
     },
     {
@@ -11573,7 +11613,7 @@
       "source_location": "L519",
       "_origin": "ast",
       "id": "docs_gotchas_verified_external_api_contracts",
-      "community": 14,
+      "community": 167,
       "norm_label": "verified external api contracts"
     },
     {
@@ -11583,7 +11623,7 @@
       "source_location": "L524",
       "_origin": "ast",
       "id": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
-      "community": 14,
+      "community": 167,
       "norm_label": "auth api \u2014 `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)"
     },
     {
@@ -11593,7 +11633,7 @@
       "source_location": "L542",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
-      "community": 14,
+      "community": 167,
       "norm_label": "spotdl 4.5.2 \u2014 verified api surface actually used"
     },
     {
@@ -25844,7 +25884,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L49",
+      "source_location": "L47",
       "weight": 1.0,
       "source": "backend_app_services_tagging",
       "target": "backend_app_services_tagging_is_supported_format",
@@ -25854,7 +25894,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L63",
+      "source_location": "L61",
       "weight": 1.0,
       "source": "backend_app_services_tagging",
       "target": "backend_app_services_tagging_repair_tags",
@@ -25864,7 +25904,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L53",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_app_services_tagging",
       "target": "backend_app_services_tagging_verify_tags",
@@ -25885,7 +25925,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L49",
+      "source_location": "L47",
       "weight": 1.0,
       "source": "backend_app_services_tagging_is_supported_format",
       "target": "backend_app_services_tagging_py_path",
@@ -25896,7 +25936,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L63",
+      "source_location": "L61",
       "weight": 1.0,
       "source": "backend_app_services_tagging_repair_tags",
       "target": "backend_app_services_tagging_py_path",
@@ -25907,7 +25947,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L53",
+      "source_location": "L51",
       "weight": 1.0,
       "source": "backend_app_services_tagging_verify_tags",
       "target": "backend_app_services_tagging_py_path",
@@ -25917,9 +25957,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L54",
+      "source_location": "L52",
       "weight": 1.0,
-      "source": "backend_app_services_tagging_rationale_54",
+      "source": "backend_app_services_tagging_rationale_52",
       "target": "backend_app_services_tagging_verify_tags",
       "confidence_score": 1.0
     },
@@ -25927,9 +25967,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L64",
+      "source_location": "L62",
       "weight": 1.0,
-      "source": "backend_app_services_tagging_rationale_64",
+      "source": "backend_app_services_tagging_rationale_62",
       "target": "backend_app_services_tagging_repair_tags",
       "confidence_score": 1.0
     },
@@ -25938,7 +25978,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/tagging.py",
-      "source_location": "L63",
+      "source_location": "L61",
       "weight": 1.0,
       "source": "backend_app_services_tagging_repair_tags",
       "target": "backend_app_services_tagging_py_song",
@@ -33656,7 +33696,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L17",
+      "source_location": "L20",
       "weight": 1.0,
       "source": "backend_tests_test_tagging",
       "target": "backend_tests_test_tagging_copy_fixture",
@@ -33666,7 +33706,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L23",
+      "source_location": "L26",
       "weight": 1.0,
       "source": "backend_tests_test_tagging",
       "target": "backend_tests_test_tagging_make_song",
@@ -33676,7 +33716,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L51",
+      "source_location": "L54",
       "weight": 1.0,
       "source": "backend_tests_test_tagging",
       "target": "backend_tests_test_tagging_test_is_supported_format",
@@ -33686,7 +33726,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L73",
+      "source_location": "L104",
+      "weight": 1.0,
+      "source": "backend_tests_test_tagging",
+      "target": "backend_tests_test_tagging_test_repair_tags_does_not_clobber_correct_year_when_not_requested",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L76",
       "weight": 1.0,
       "source": "backend_tests_test_tagging",
       "target": "backend_tests_test_tagging_test_repair_tags_fills_basic_fields_from_song",
@@ -33696,7 +33746,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L98",
+      "source_location": "L136",
       "weight": 1.0,
       "source": "backend_tests_test_tagging",
       "target": "backend_tests_test_tagging_test_repair_tags_noop_when_nothing_missing",
@@ -33706,7 +33756,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L87",
+      "source_location": "L121",
+      "weight": 1.0,
+      "source": "backend_tests_test_tagging",
+      "target": "backend_tests_test_tagging_test_repair_tags_skips_year_patch_when_song_year_is_none",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L90",
       "weight": 1.0,
       "source": "backend_tests_test_tagging",
       "target": "backend_tests_test_tagging_test_repair_tags_warns_when_cover_art_unavailable",
@@ -33716,7 +33776,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L64",
+      "source_location": "L67",
       "weight": 1.0,
       "source": "backend_tests_test_tagging",
       "target": "backend_tests_test_tagging_test_verify_tags_reports_everything_missing_on_untagged_file",
@@ -33727,7 +33787,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L17",
+      "source_location": "L20",
       "weight": 1.0,
       "source": "backend_tests_test_tagging_copy_fixture",
       "target": "backend_tests_test_tagging_py_path",
@@ -33738,7 +33798,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L74",
+      "source_location": "L110",
+      "weight": 1.0,
+      "source": "backend_tests_test_tagging_test_repair_tags_does_not_clobber_correct_year_when_not_requested",
+      "target": "backend_tests_test_tagging_copy_fixture",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L77",
       "weight": 1.0,
       "source": "backend_tests_test_tagging_test_repair_tags_fills_basic_fields_from_song",
       "target": "backend_tests_test_tagging_copy_fixture",
@@ -33749,7 +33820,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L99",
+      "source_location": "L137",
       "weight": 1.0,
       "source": "backend_tests_test_tagging_test_repair_tags_noop_when_nothing_missing",
       "target": "backend_tests_test_tagging_copy_fixture",
@@ -33760,7 +33831,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L88",
+      "source_location": "L125",
+      "weight": 1.0,
+      "source": "backend_tests_test_tagging_test_repair_tags_skips_year_patch_when_song_year_is_none",
+      "target": "backend_tests_test_tagging_copy_fixture",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L91",
       "weight": 1.0,
       "source": "backend_tests_test_tagging_test_repair_tags_warns_when_cover_art_unavailable",
       "target": "backend_tests_test_tagging_copy_fixture",
@@ -33771,7 +33853,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L65",
+      "source_location": "L68",
       "weight": 1.0,
       "source": "backend_tests_test_tagging_test_verify_tags_reports_everything_missing_on_untagged_file",
       "target": "backend_tests_test_tagging_copy_fixture",
@@ -33782,7 +33864,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L52",
+      "source_location": "L55",
       "weight": 1.0,
       "source": "backend_tests_test_tagging_test_is_supported_format",
       "target": "backend_tests_test_tagging_py_path",
@@ -33793,7 +33875,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L23",
+      "source_location": "L26",
       "weight": 1.0,
       "source": "backend_tests_test_tagging_make_song",
       "target": "backend_tests_test_tagging_py_song",
@@ -33804,7 +33886,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L75",
+      "source_location": "L111",
+      "weight": 1.0,
+      "source": "backend_tests_test_tagging_test_repair_tags_does_not_clobber_correct_year_when_not_requested",
+      "target": "backend_tests_test_tagging_make_song",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L78",
       "weight": 1.0,
       "source": "backend_tests_test_tagging_test_repair_tags_fills_basic_fields_from_song",
       "target": "backend_tests_test_tagging_make_song",
@@ -33815,7 +33908,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L100",
+      "source_location": "L138",
       "weight": 1.0,
       "source": "backend_tests_test_tagging_test_repair_tags_noop_when_nothing_missing",
       "target": "backend_tests_test_tagging_make_song",
@@ -33826,10 +33919,41 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_tagging.py",
-      "source_location": "L89",
+      "source_location": "L126",
+      "weight": 1.0,
+      "source": "backend_tests_test_tagging_test_repair_tags_skips_year_patch_when_song_year_is_none",
+      "target": "backend_tests_test_tagging_make_song",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L92",
       "weight": 1.0,
       "source": "backend_tests_test_tagging_test_repair_tags_warns_when_cover_art_unavailable",
       "target": "backend_tests_test_tagging_make_song",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L105",
+      "weight": 1.0,
+      "source": "backend_tests_test_tagging_rationale_105",
+      "target": "backend_tests_test_tagging_test_repair_tags_does_not_clobber_correct_year_when_not_requested",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_tagging.py",
+      "source_location": "L122",
+      "weight": 1.0,
+      "source": "backend_tests_test_tagging_rationale_122",
+      "target": "backend_tests_test_tagging_test_repair_tags_skips_year_patch_when_song_year_is_none",
       "confidence_score": 1.0
     },
     {
@@ -41783,5 +41907,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "512c793abd61a80642677c0658d53963820fdf6b"
+  "built_at_commit": "4509f40f786944874083c145638a8314b1cbaff9"
 }

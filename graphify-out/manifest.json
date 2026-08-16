@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1786882026.4493747,
-    "ast_hash": "34df58b83269227fbe94f7a0e2caac00",
+    "mtime": 1786882953.0344517,
+    "ast_hash": "43e8f8a8ca62b6ee5733132fbd3cc799",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -900,13 +900,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/tagging.py": {
-    "mtime": 1786880429.2987137,
-    "ast_hash": "0ca6286d866e64e991d4f83482550f60",
+    "mtime": 1786882796.7500663,
+    "ast_hash": "7d15611edc65cdf0a29eb4b59e4fb413",
     "semantic_hash": ""
   },
   "backend/tests/test_tagging.py": {
-    "mtime": 1786880351.7894535,
-    "ast_hash": "3b17e8d8c4dc5a6fdcd5c8dd24d9458c",
+    "mtime": 1786882855.8974848,
+    "ast_hash": "00b9ce0e3e8e7e1ac16f47bbb1657830",
     "semantic_hash": ""
   },
   "backend/tests/fixtures/silence.m4a": {

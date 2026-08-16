@@ -13,7 +13,7 @@ tags off files.
 import logging
 from pathlib import Path
 
-from mutagen._file import File as MutagenFile
+from mutagen import File as MutagenFile
 from spotdl.types.song import Song
 from spotdl.utils.metadata import embed_metadata, get_file_metadata
 
@@ -23,9 +23,7 @@ from spotdl.utils.metadata import embed_metadata, get_file_metadata
 # mp3 path (an explicit TYER frame) and m4a path (year shares m4a's own \xa9day atom with
 # date) both do. Left unpatched, "year" would show up missing on every flac/ogg/opus
 # file forever, no matter how many times repair_tags runs. See docs/GOTCHAS.md's v26
-# entry. Patched unconditionally alongside embed_metadata's own always-rewrite-every-
-# basic-field behavior below, not gated on "year" specifically being in `missing` --
-# embed_metadata itself has no such per-field granularity either.
+# entry.
 _YEAR_TAG_GAP_FORMATS = {"flac", "ogg", "opus"}
 
 logger = logging.getLogger(__name__)
@@ -74,7 +72,7 @@ def repair_tags(path: Path, song: Song, missing: set[str]) -> str | None:
     embed_metadata(path, song, skip_album_art=not needs_cover)
 
     encoding = path.suffix.lstrip(".").lower()
-    if encoding in _YEAR_TAG_GAP_FORMATS:
+    if "year" in missing and encoding in _YEAR_TAG_GAP_FORMATS and song.year is not None:
         audio_file = MutagenFile(str(path))
         audio_file["year"] = str(song.year)
         audio_file.save()

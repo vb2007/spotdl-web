@@ -3131,3 +3131,12 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   here rather than silently dropped; if it recurs under normal (non-test-harness) operation, it's
   worth a dedicated investigation, but not chased further in this version given the `download_track`
   code path itself has ordinary, well-covered failure modes and this doesn't match any of them.
+- **Deferred, found by fresh-eyes review**: a tag warning reuses `TrackAttempt.error_message` on a
+  `COMPLETED` outcome (per the plan's "reuse the attempt row" instruction), but the only consumer,
+  `frontend/src/lib/components/TrackRow.svelte:174-176`, renders *any* non-null `error_message`
+  through `.attempt-error` (`color: var(--fail)`, the same red used for genuine failures) regardless
+  of `outcome` — so a track that downloaded fine but had a cover-art fetch fail displays a green
+  "completed" badge next to failure-red text. The plan didn't ask for a frontend change here and
+  v26 doesn't touch the frontend at all (`package.json`'s version bump is the only frontend diff),
+  so left as-is rather than expanded out of scope — worth a small dedicated fix (outcome-aware
+  styling, or a distinct "warning" tone) whenever a version next touches `TrackRow.svelte`.
