@@ -107,10 +107,14 @@ needed" claim — rather than silently deleted.
   same name, rejecting `git fetch --tags` with "would clobber existing tag" → *v22*
 - Local dev's default `docker compose up` (with `docker-compose.override.yml` applied) runs Vite
   (`npm run dev`) for `web`, not nginx — any feature whose correctness depends specifically on
-  nginx behavior (an `internal` location, `X-Accel-Redirect`, a new `location` block) is
-  untestable through that default stack and needs either `docker compose -f docker-compose.yml
-  up` (bypassing the override) or a standalone container built from the same image, run
-  alongside the existing stack (see the Testing entry below) → *v27*
+  nginx behavior (an `internal` location, a new `location` block) is untestable through that
+  default stack and needs either `docker compose -f docker-compose.yml up` (bypassing the
+  override) or a standalone container built from the same image, run alongside the existing stack
+  (see the Testing entry below) → *v27*. **Corrected same version, same day**: for
+  `X-Accel-Redirect` specifically, this was fixed rather than left as a standing gap — see the
+  Frontend entry below (`vite.config.ts`'s `devFileDownloadFallback`). The general point (Vite
+  ≠ nginx, a *new* nginx-only mechanism won't automatically work through the dev override) still
+  holds for anything that isn't file-download-shaped.
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -372,8 +376,17 @@ needed" claim — rather than silently deleted.
   that doesn't understand that header at all (Vite's dev proxy just forwards the empty body
   through) — the resulting 0-byte blob triggers a real, correctly-named browser "Save As" with no
   error anywhere. Caught by fresh-eyes review, not by testing against the one stack (real nginx)
-  that's actually wired for it; fixed with a client-side `blob.size === 0` guard rather than
-  anything nginx/Vite-specific → *v27*
+  that's actually wired for it; fixed same session with a client-side `blob.size === 0` guard as a
+  backstop, kept in place → *v27*. **Same day, caught again by the project owner's own live
+  testing** (a documented, "accepted" gap can still surprise a real user in daily use, even with a
+  clean error message): the actual fix that shipped is `vite.config.ts`'s
+  `devFileDownloadFallback` plugin, a dev-only middleware that intercepts exactly this one route,
+  makes its own request to `api`, and — if the response carries `X-Accel-Redirect` — serves the
+  real file itself from disk instead of forwarding the empty body. Needed `docker-compose.override.yml`'s
+  `web` volumes fixed too: it had been merging in the *base file's* `downloads:/downloads:ro`
+  (a separate, always-empty, Docker-managed named volume) instead of `!override`-ing to the real
+  `./downloads` host bind worker-dl/worker-meta actually write into, so the plugin would otherwise
+  have 404'd against an empty mount even once it existed.
 
 **Testing & verification technique**
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
@@ -3210,9 +3223,24 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   2. `downloadTrackFile` (`frontend/src/lib/api.ts`) treated any `response.ok` as success, so under
      the local dev override (Vite fronting `web`, not nginx — see the Compose topic entry) a
      download silently "succeeded" with a real, correctly-named, 0-byte file. Fixed with a
-     `blob.size === 0` guard rather than anything nginx/Vite-specific, since the underlying dev/prod
-     infra difference is a known, accepted tradeoff (`docs/LOCAL_DEV.md`'s whole reason for
-     existing), not something to paper over at the compose-file level.
+     `blob.size === 0` guard, kept in place as a backstop.
+- **The `blob.size === 0` guard above was the wrong place to stop** — the project owner hit the
+  resulting "Downloaded file was empty" error on their own very next live test, immediately after
+  this PR's "merge-ready" review pass. A documented, "this is a known accepted gap" tradeoff still
+  reads as a broken feature to the person actually using it day to day; asked directly, the owner
+  chose to close the gap rather than leave it documented. Fixed with `vite.config.ts`'s
+  `devFileDownloadFallback` — a dev-only Vite middleware (registered only under `command ===
+  'serve'`, so it's genuinely absent from `vite build`'s output) that intercepts exactly
+  `/api/tracks/{id}/file`, makes its own request to `api`, and — when the response carries
+  `X-Accel-Redirect` — serves the real file itself from the same `/downloads` mount, instead of
+  forwarding the meaningless-to-Vite empty body. This needed `docker-compose.override.yml`'s own
+  `web` volumes fixed alongside it: it had been *merging* the base file's `downloads:/downloads:ro`
+  (a separate, permanently-empty, Docker-managed named volume — never the real files) instead of
+  `!override`-ing to the real `./downloads` host bind the way worker-dl/worker-meta already do, so
+  the new plugin would otherwise have 404'd against an empty mount regardless. Re-verified against
+  the real running dev-override stack afterward: owner download (exact sha256 match), unauthenticated
+  401, stranger 404, corrupted-path 404, and missing-file-on-disk 404 all pass through the Vite
+  fallback identically to how they pass through real nginx.
 - **Real end-to-end verification this session, against the real local stack** (real Postgres, real
   files already on disk from earlier versions' own testing — no fresh download was run purely for
   this version, since v23/v26 already prove the download pipeline itself and v27 only adds a

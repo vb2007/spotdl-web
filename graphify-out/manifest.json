@@ -120,14 +120,14 @@
     "semantic_hash": "c610e6d5aeb2c3bcf0b9f1b90599250e"
   },
   "frontend/vite.config.ts": {
-    "mtime": 1785882075.3591244,
-    "ast_hash": "7f6681af379831aab59749947904d69b",
-    "semantic_hash": "7f6681af379831aab59749947904d69b"
+    "mtime": 1786899185.5287712,
+    "ast_hash": "f86423df512b017400be9c4d6283e6d8",
+    "semantic_hash": ""
   },
   "docker-compose.override.yml": {
-    "mtime": 1785882075.3591244,
-    "ast_hash": "7741460b5c68ab0dbfa6a861c9a2a895",
-    "semantic_hash": "7741460b5c68ab0dbfa6a861c9a2a895"
+    "mtime": 1786899115.8468158,
+    "ast_hash": "6760ac7da8f724ebd248d0f04ef9abe0",
+    "semantic_hash": ""
   },
   "docker-compose.yml": {
     "mtime": 1786891061.6274238,
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
-    "mtime": 1786892566.110311,
-    "ast_hash": "2d7afcf6738717e58731a1eb123ef366",
+    "mtime": 1786899361.6076245,
+    "ast_hash": "5037e5256058427fab7ffb705e8eb8d9",
     "semantic_hash": ""
   },
   "backend/alembic/versions/ebc1d43e2c21_initial_schema.py": {
@@ -345,8 +345,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1786891725.8250074,
-    "ast_hash": "b9cc9189b961cb762e369571c07ee62a",
+    "mtime": 1786899166.335957,
+    "ast_hash": "8b9b4966260357e1e5911ed76ebc224d",
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1786892547.617501,
-    "ast_hash": "0d0cab0123e83e97c01d5139eb9673c3",
+    "mtime": 1786899348.7010512,
+    "ast_hash": "0e71dbde2db1f46e05cc2684cea44b46",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {

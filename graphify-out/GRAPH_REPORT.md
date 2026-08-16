@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-08-16)
 
 ## Corpus Check
-- 172 files · ~158,963 words
+- 172 files · ~159,930 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1631 nodes · 2512 edges · 169 communities (120 shown, 49 thin omitted)
+- 1633 nodes · 2514 edges · 167 communities (117 shown, 50 thin omitted)
 - Extraction: 88% EXTRACTED · 12% INFERRED · 0% AMBIGUOUS · INFERRED: 301 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `312aac62`
+- Built from commit: `3e5d439a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -57,6 +57,7 @@
 - [[_COMMUNITY_Track Event Schema|Track Event Schema]]
 - [[_COMMUNITY_Postgres Backup Script|Postgres Backup Script]]
 - [[_COMMUNITY_Frontend README|Frontend README]]
+- [[_COMMUNITY_Vite Config|Vite Config]]
 - [[_COMMUNITY_Backend Package Name|Backend Package Name]]
 - [[_COMMUNITY_Planning Version Doc|Planning Version Doc]]
 - [[_COMMUNITY_Auth Version Doc|Auth Version Doc]]
@@ -160,8 +161,6 @@
 - [[_COMMUNITY_ApiError|ApiError]]
 - [[_COMMUNITY_Upgrading an existing deployment (manual fallback)|Upgrading an existing deployment (manual fallback)]]
 - [[_COMMUNITY_proxies.py|proxies.py]]
-- [[_COMMUNITY_settings.py|settings.py]]
-- [[_COMMUNITY_UserSettings|UserSettings]]
 - [[_COMMUNITY_list_jobs|list_jobs]]
 - [[_COMMUNITY_track_counts|track_counts]]
 - [[_COMMUNITY__event_stream|_event_stream]]
@@ -197,19 +196,19 @@
 - **CI PR-checks pipeline (pytest, publish-report, compose-config, frontend)** — github_workflows_ci_pytest_job, github_workflows_ci_publish_report_job, github_workflows_ci_compose_config_job, github_workflows_ci_frontend_job [EXTRACTED 1.00]
 - **Docker Compose layered configuration (base/override/prod)** — docker_compose_doc, docker_compose_override_doc, docker_compose_prod_doc [EXTRACTED 1.00]
 
-## Communities (169 total, 49 thin omitted)
+## Communities (167 total, 50 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
 Cohesion: 0.16
-Nodes (29): archive_jobs(), ArchiveJobsRequest, bump_job(), cancel_job(), _classify_source_type(), create_job(), CreateJobRequest, get_job() (+21 more)
+Nodes (31): Row created on first successful login (v17). The `ALLOWED_EMAILS` env allowlist, User, archive_jobs(), ArchiveJobsRequest, bump_job(), cancel_job(), _classify_source_type(), create_job() (+23 more)
 
 ### Community 1 - "Config & Health Check"
 Cohesion: 0.33
 Nodes (6): get_settings(), health(), Response, download_track(), pacing_delay(), Seconds to wait before this track's download attempt -- a uniform sample from
 
 ### Community 2 - "Proxy Router Endpoints"
-Cohesion: 0.10
-Nodes (26): _aware(), _make_track(), datetime, v20 gap: archiving is only ever reachable once a job is settled/failed/cancelled, Fresh-eyes review finding: a bare `encode('ascii', 'ignore')` lets a literal CR/, The ledger is what v28's library move will repoint (CLAUDE.md's master-v3     in, v27's plan: availability keys on the file existing at its recorded path, never o, A corrupted/tampered output_path must never turn into an X-Accel-Redirect outsid (+18 more)
+Cohesion: 0.06
+Nodes (45): Base, JobSourceType, JobState, Proxy, ProxySource, One row per `download_track` invocation (v24) -- what it tried (direct vs. which, TrackAttempt, TrackAttemptOutcome (+37 more)
 
 ### Community 3 - "Track Model & Beat Tests"
 Cohesion: 0.09
@@ -296,8 +295,8 @@ Cohesion: 0.22
 Nodes (12): _mock_upstream_login(), upstream_auth.login degrades gracefully (username=None) when GET /user fails --, A username changed upstream must propagate on the next login (same reconciliatio, Unlike every other test in this file, this does NOT mock `upstream_auth.login` -, test_login_end_to_end_through_real_cookie_extraction_path_never_leaks_vb_auth(), test_login_stores_and_returns_username_from_upstream(), test_login_success_sets_cookie_and_me_returns_email(), test_login_with_failed_username_fetch_falls_back_to_email_and_still_succeeds() (+4 more)
 
 ### Community 29 - "Worker Router Tests"
-Cohesion: 0.08
-Nodes (30): Base, AppSettings, Single-row table (v13) backing the output-format defaults editable from the, JobSourceType, JobState, Proxy, ProxySource, One row per `download_track` invocation (v24) -- what it tried (direct vs. which (+22 more)
+Cohesion: 0.09
+Nodes (30): AppSettings, Single-row table (v13) backing the output-format defaults editable from the, Per-user preferences, get-or-create on first read -- same singleton-row pattern, UserSettings, get_output_options(), get_output_settings(), get_retention_settings(), _output_settings_to_dict() (+22 more)
 
 ### Community 30 - "Queue Store Actions"
 Cohesion: 0.09
@@ -476,8 +475,8 @@ Cohesion: 0.29
 Nodes (8): _make_job_with_tracks(), v18's rollup status -- both derivations (`rollup.derive_rollup`, used by the sin, Same branches, proven through the real single-job HTTP response (`GET     /api/j, Same branches again, this time through `GET /api/jobs?status=...` -- the SQL, test_bare_settled_status_filter_matches_both_outcomes(), test_derive_rollup_matches_every_named_branch(), test_job_to_dict_status_field_matches_every_named_branch(), test_list_jobs_status_filter_matches_every_named_branch_via_sql()
 
 ### Community 131 - "Base"
-Cohesion: 0.13
-Nodes (27): cancel_track(), _content_disposition(), download_track_file(), _get_track_or_404(), list_track_attempts(), list_tracks(), datetime, JobSourceType (+19 more)
+Cohesion: 0.14
+Nodes (25): cancel_track(), _content_disposition(), download_track_file(), _get_track_or_404(), list_track_attempts(), list_tracks(), datetime, JobSourceType (+17 more)
 
 ### Community 132 - "_get_track_or_404"
 Cohesion: 0.25
@@ -524,8 +523,8 @@ Cohesion: 0.25
 Nodes (7): Done when, Part 1 — Root-cause the download failure, Part 2 — Dependency policy (regardless of root cause), Part 3 — Typed error so the breaker can see a total failure, Part 4 — Live-view metadata and the render glitch, Scope, v23 — Download Reliability & Live-View Correctness
 
 ### Community 146 - "worker.py"
-Cohesion: 0.39
-Nodes (11): Row created on first successful login (v17). The `ALLOWED_EMAILS` env allowlist, User, _is_busy(), pause_worker(), Session, `worker-dl` runs `--concurrency=1` (CLAUDE.md invariant), so at most one track, Clears the countdown early without resetting `consecutive_failures` or     `brea, release_breaker() (+3 more)
+Cohesion: 0.47
+Nodes (9): _is_busy(), pause_worker(), Session, `worker-dl` runs `--concurrency=1` (CLAUDE.md invariant), so at most one track, Clears the countdown early without resetting `consecutive_failures` or     `brea, release_breaker(), resume_worker(), _status_dict() (+1 more)
 
 ### Community 147 - "v24 — Per-Attempt History"
 Cohesion: 0.29
@@ -583,21 +582,13 @@ Nodes (3): get_db(), Session, expand_job()
 Cohesion: 0.29
 Nodes (14): create_proxy(), CreateProxyRequest, delete_proxy(), _get_proxy_or_404(), list_proxies(), _proxy_to_dict(), Proxy, Response (+6 more)
 
-### Community 164 - "settings.py"
-Cohesion: 0.24
-Nodes (13): get_output_options(), get_output_settings(), get_retention_settings(), _output_settings_to_dict(), Session, The real, live set of format/bitrate values the installed spotdl accepts --, Takes effect on the *next* download_track call, no restart needed -- get_downloa, Per-user, open to every user (unlike `/output`'s admin gating) -- retention is (+5 more)
-
-### Community 165 - "UserSettings"
-Cohesion: 0.36
-Nodes (6): Per-user preferences, get-or-create on first read -- same singleton-row pattern, UserSettings, get_user_settings(), Session, Per-user retention setting (v19) -- get-or-create singleton row per user, the sa, update_retention()
-
 ### Community 166 - "list_jobs"
 Cohesion: 0.36
 Nodes (7): InvalidListParams, list_jobs(), JobSourceType, Session, Paginated/filtered/sorted/searchable job listing (v18) -- `GET /api/jobs` (scope, _sort_key(), _sort_value()
 
 ### Community 167 - "track_counts"
-Cohesion: 0.39
-Nodes (7): Session, UUID, Shared REST projections for Job/Track — deliberate projections rather than expos, One grouped aggregate covering every requested job -- replaces the per-job query, Single-job convenience over the bulk query -- for endpoints that serialize exact, track_counts(), track_counts_by_job()
+Cohesion: 0.29
+Nodes (9): Session, UUID, Shared REST projections for Job/Track — deliberate projections rather than expos, One grouped aggregate covering every requested job -- replaces the per-job query, Single-job convenience over the bulk query -- for endpoints that serialize exact, track_attempt_to_dict(), track_counts(), track_counts_by_job() (+1 more)
 
 ### Community 168 - "_event_stream"
 Cohesion: 0.60
@@ -610,9 +601,9 @@ Nodes (4): _event_stream(), Request, stream(), StreamingResponse
   frontend/src/lib/assets/favicon.svg · relation: semantically_similar_to
 
 ## Knowledge Gaps
-- **451 isolated node(s):** `wait_for_stack_health.sh script`, `spotdl-web-backend`, `gitignorePath`, `name`, `private` (+446 more)
+- **452 isolated node(s):** `wait_for_stack_health.sh script`, `spotdl-web-backend`, `gitignorePath`, `name`, `private` (+447 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **49 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **50 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
@@ -621,9 +612,9 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
 - **What is the exact relationship between `favicon.svg (Svelte default logo)` and `Instrument-panel THESIS (Operate mode)`?**
   _Edge tagged AMBIGUOUS (relation: semantically_similar_to) - confidence is low._
-- **Why does `Track` connect `Track Model & Beat Tests` to `Session Auth Routes`, `Config & Health Check`, `Upgrading an existing deployment (manual fallback)`, `Base`, `stream`, `Job Model & Expansion Tests`, `conftest.py`, `Circuit Breaker & Retry`, `Proxy Router Endpoints`, `SSE Event Publishing`, `Dedup Ledger & Reconciliation`, `Layout Load Guard`, `Worker Router Tests`, `One-time host setup (already done on this host — kept for reference)`?**
+- **Why does `Track` connect `Track Model & Beat Tests` to `Session Auth Routes`, `Config & Health Check`, `Proxy Router Endpoints`, `Base`, `Upgrading an existing deployment (manual fallback)`, `Job Model & Expansion Tests`, `conftest.py`, `Circuit Breaker & Retry`, `stream`, `SSE Event Publishing`, `Dedup Ledger & Reconciliation`, `Layout Load Guard`, `One-time host setup (already done on this host — kept for reference)`?**
   _High betweenness centrality (0.083) - this node is a cross-community bridge._
-- **Why does `User` connect `worker.py` to `Session Auth Routes`, `Stream Router Tests`, `Upgrading an existing deployment (manual fallback)`, `proxies.py`, `test_job_listing.py`, `settings.py`, `Base`, `list_jobs`, `_event_stream`, `Job Model & Expansion Tests`, `Layout Load Guard`, `Dedup Ledger & Reconciliation`, `Track Model & Beat Tests`, `Circuit Breaker & Retry`, `spotdl-web — Accumulated Gotchas (master v1, v01–v13)`, `Worker Router Tests`?**
+- **Why does `User` connect `Session Auth Routes` to `Stream Router Tests`, `Upgrading an existing deployment (manual fallback)`, `Proxy Router Endpoints`, `test_job_listing.py`, `proxies.py`, `Base`, `list_jobs`, `_event_stream`, `Job Model & Expansion Tests`, `Layout Load Guard`, `Dedup Ledger & Reconciliation`, `Track Model & Beat Tests`, `Circuit Breaker & Retry`, `worker.py`, `spotdl-web — Accumulated Gotchas (master v1, v01–v13)`, `Worker Router Tests`?**
   _High betweenness centrality (0.058) - this node is a cross-community bridge._
 - **Why does `$lib/api` connect `Frontend API Client` to `Worker Status UI`, `track_counts`, `Queue UI Components`, `Queue Store Actions`?**
   _High betweenness centrality (0.049) - this node is a cross-community bridge._

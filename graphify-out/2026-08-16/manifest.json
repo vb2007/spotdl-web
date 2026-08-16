@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
-    "mtime": 1786715933.337192,
-    "ast_hash": "58573179dca6af8e31b03b5b97d79067",
+    "mtime": 1786892566.110311,
+    "ast_hash": "2d7afcf6738717e58731a1eb123ef366",
     "semantic_hash": ""
   },
   "backend/alembic/versions/ebc1d43e2c21_initial_schema.py": {
@@ -350,13 +350,13 @@
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
-    "mtime": 1786805182.1655903,
-    "ast_hash": "6ce3fda4ef1dc319927a24127928e491",
+    "mtime": 1786892308.987021,
+    "ast_hash": "c16647449ec81edb33c232f7e69197db",
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
-    "mtime": 1786891076.9652016,
-    "ast_hash": "049c8385ba80c8fd308e1cc72eac780a",
+    "mtime": 1786892308.9030173,
+    "ast_hash": "c175cdf88f668164058a143c38ac9477",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/Countdown.svelte": {
@@ -400,8 +400,8 @@
     "semantic_hash": "f58377931697d47bb2d8a671f775fa7c"
   },
   "backend/app/routers/tracks.py": {
-    "mtime": 1786891051.8929286,
-    "ast_hash": "f71bae63f678656f127d6a9ef883389e",
+    "mtime": 1786892241.7930582,
+    "ast_hash": "67f6d9188aaf674b269d4c3ee4bf8f72",
     "semantic_hash": ""
   },
   "backend/app/routers/worker.py": {
@@ -415,8 +415,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_tracks.py": {
-    "mtime": 1786891133.877059,
-    "ast_hash": "227bba8ebe61655285e8dac7c2e09287",
+    "mtime": 1786892248.018333,
+    "ast_hash": "f35c071523adbdac2e513ce5456c1354",
     "semantic_hash": ""
   },
   "backend/tests/test_worker.py": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1786891024.3366578,
-    "ast_hash": "43e8f8a8ca62b6ee5733132fbd3cc799",
+    "mtime": 1786892547.617501,
+    "ast_hash": "0d0cab0123e83e97c01d5139eb9673c3",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {

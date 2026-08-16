@@ -163,8 +163,6 @@
   "161": "ApiError",
   "162": "Upgrading an existing deployment (manual fallback)",
   "163": "proxies.py",
-  "164": "settings.py",
-  "165": "UserSettings",
   "166": "list_jobs",
   "167": "track_counts",
   "168": "_event_stream"

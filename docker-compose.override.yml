@@ -54,9 +54,17 @@ services:
       context: ./frontend
       target: build
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
-    volumes:
+    # `!override` here, not a plain merge (v27) -- without it, this list would sit alongside
+    # the base file's `downloads:/downloads:ro` *named volume*, which is a second, empty,
+    # Docker-managed volume, never the real host directory worker-dl/worker-meta actually
+    # write into (those two `!override` their own `volumes:` to the real `./downloads` bind
+    # mount below, same as this one). Vite's own dev-proxy fallback (vite.config.ts) needs
+    # this container looking at the *same* real files, or it 404s trying to read a
+    # perpetually-empty volume that isn't the one anything ever downloads into.
+    volumes: !override
       - ./frontend:/app
       - /app/node_modules
+      - ./downloads:/downloads:ro
     # `ports` lists merge across compose files rather than replace (unlike `command`/`build`
     # above) — without `!override`, this would ADD to docker-compose.yml's `5173:80` mapping
     # instead of replacing it, leaving two host bindings on the same 127.0.0.1:5173 and a

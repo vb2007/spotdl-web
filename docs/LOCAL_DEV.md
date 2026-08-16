@@ -63,11 +63,13 @@ docker compose up
 the production host. Here, the override is the point.)
 
 **One gap this trades away:** the override runs `vite dev` for `web`, not nginx — anything whose
-correctness depends specifically on nginx behavior (an `internal` location, `X-Accel-Redirect`,
-a new `location` block) can't be exercised through this stack at all; it silently no-ops instead
-of erroring (see `docs/GOTCHAS.md`'s v27 entry for the concrete symptom this caused). Verifying
-that kind of change needs `docker compose -f docker-compose.yml up` (bypassing the override) or
-the deployed host instead.
+correctness depends specifically on nginx behavior (a new `internal` location, a new `location`
+block) can't be exercised through this stack at all; verifying that kind of change needs
+`docker compose -f docker-compose.yml up` (bypassing the override) or the deployed host instead.
+File downloads (`GET /api/tracks/{id}/file`) are the one exception: `frontend/vite.config.ts`'s
+`devFileDownloadFallback` plugin recognizes that route specifically and serves the file itself
+in dev, so it works through the normal override stack too (see `docs/GOTCHAS.md`'s v27 entry for
+why that needed doing, and why it wasn't the original design).
 
 ## 3. Verify
 
