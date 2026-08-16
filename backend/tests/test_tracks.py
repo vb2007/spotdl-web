@@ -257,6 +257,29 @@ def test_download_track_file_encodes_non_ascii_filename(authenticated_client, db
     assert "filename*=UTF-8''Bj%C3%B6rk%20-%20J%C3%B3ga.mp3" in disposition
 
 
+def test_download_track_file_strips_control_characters_from_ascii_fallback(
+    authenticated_client, db_session, owner
+):
+    """Fresh-eyes review finding: a bare `encode('ascii', 'ignore')` lets a literal CR/LF
+    in the (DB-sourced, not-actually-trusted) filename straight through into the
+    `Content-Disposition` header, which real ASGI servers reject with a 500 instead of the
+    clean response this endpoint is supposed to guarantee either way."""
+    track = _make_track(
+        db_session,
+        owner,
+        state=TrackState.COMPLETED,
+        output_path="/downloads/Evil\r\nX-Injected: yes.mp3",
+    )
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 200
+    disposition = response.headers["content-disposition"]
+    assert "\r" not in disposition
+    assert "\n" not in disposition
+    assert 'filename="EvilX-Injected: yes.mp3"' in disposition
+
+
 def test_download_track_file_prefers_ledger_path_over_track_output_path(authenticated_client, db_session, owner):
     """The ledger is what v28's library move will repoint (CLAUDE.md's master-v3
     invariants) -- this proves the endpoint reads from there first, which is what lets it

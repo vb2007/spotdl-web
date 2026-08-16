@@ -65,8 +65,18 @@ def _content_disposition(filename: str) -> str:
     """RFC 5987 `filename*` alongside a plain ASCII-sanitized `filename` fallback -- this
     library is full of non-ASCII artist/title names (v27's plan), and older clients that
     don't understand `filename*` still get a usable (if transliterated) name instead of a
-    header encoding error."""
-    ascii_fallback = filename.encode("ascii", "ignore").decode("ascii").replace('"', "").strip()
+    header encoding error.
+
+    The fallback strips every non-printable-ASCII byte, not just non-ASCII ones -- a bare
+    `encode("ascii", "ignore")` lets a literal CR/LF in `filename` straight through into a
+    response header, which ASGI servers reject outright (a 500, not the clean 404/200 this
+    endpoint is supposed to guarantee). `filename` is ultimately DB-sourced
+    (`Track.output_path`/the ledger's `file_path`), so it gets the same not-actually-trusted
+    treatment as the path-traversal check above rather than being assumed well-formed. The
+    `filename*` branch below needs no equivalent guard -- `quote(..., safe="")` already
+    percent-encodes every such byte."""
+    ascii_only = filename.encode("ascii", "ignore").decode("ascii")
+    ascii_fallback = "".join(ch for ch in ascii_only if 32 <= ord(ch) < 127 and ch != '"').strip()
     if not ascii_fallback:
         ascii_fallback = "track"
     return f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"

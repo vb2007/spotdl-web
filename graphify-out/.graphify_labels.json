@@ -162,10 +162,10 @@
   "160": "5ae734a0485b_add_track_attempts_table.py",
   "161": "ApiError",
   "162": "Upgrading an existing deployment (manual fallback)",
-  "163": "UserSettings",
-  "164": "Architecture",
-  "165": "list_jobs",
-  "166": "test_app_settings.py",
-  "167": "spotdl-web — Accumulated Gotchas (master v1, v01–v13)",
-  "168": "Project: spotdl-web"
+  "163": "proxies.py",
+  "164": "settings.py",
+  "165": "UserSettings",
+  "166": "list_jobs",
+  "167": "track_counts",
+  "168": "_event_stream"
 }

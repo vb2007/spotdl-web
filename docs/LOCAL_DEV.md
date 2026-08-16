@@ -62,6 +62,13 @@ docker compose up
 (No `-f docker-compose.yml` exclusion — that flag is specifically to *avoid* the override on
 the production host. Here, the override is the point.)
 
+**One gap this trades away:** the override runs `vite dev` for `web`, not nginx — anything whose
+correctness depends specifically on nginx behavior (an `internal` location, `X-Accel-Redirect`,
+a new `location` block) can't be exercised through this stack at all; it silently no-ops instead
+of erroring (see `docs/GOTCHAS.md`'s v27 entry for the concrete symptom this caused). Verifying
+that kind of change needs `docker compose -f docker-compose.yml up` (bypassing the override) or
+the deployed host instead.
+
 ## 3. Verify
 
 ```bash
