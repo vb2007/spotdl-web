@@ -496,6 +496,50 @@ export function getTrackAttempts(trackId: string): Promise<TrackAttempt[]> {
 	return request(`/api/tracks/${trackId}/attempts`);
 }
 
+/** `filename*=UTF-8''...` (RFC 5987) first, falling back to the plain quoted `filename=`
+ * -- matches the two forms the backend's `_content_disposition` (tracks.py) can send. */
+function parseContentDispositionFilename(header: string | null): string | null {
+	if (!header) return null;
+	const extended = header.match(/filename\*=UTF-8''([^;]+)/i);
+	if (extended) {
+		try {
+			return decodeURIComponent(extended[1]);
+		} catch {
+			// Malformed percent-encoding -- fall through to the plain form below.
+		}
+	}
+	const plain = header.match(/filename="([^"]*)"/);
+	return plain ? plain[1] : null;
+}
+
+/** Fetches a completed track's audio file (v27) -- not routed through the shared
+ * `request()` helper since a successful response here is a binary blob, not JSON. The
+ * caller (TrackRow's handleDownload) turns the result into a real browser "Save As" via
+ * an object URL, rather than a plain `<a href>` navigation, so a 404/error response
+ * renders as this app's own notice UI instead of replacing the page with raw JSON. */
+export async function downloadTrackFile(
+	trackId: string
+): Promise<{ blob: Blob; filename: string }> {
+	const response = await fetch(`${API_BASE}/api/tracks/${trackId}/file`, {
+		credentials: 'include'
+	});
+
+	if (!response.ok) {
+		let detail = response.statusText;
+		try {
+			const body = await response.json();
+			detail = body.detail ?? detail;
+		} catch {
+			// Non-JSON error body -- fall back to statusText.
+		}
+		throw new ApiError(response.status, detail);
+	}
+
+	const filename = parseContentDispositionFilename(response.headers.get('Content-Disposition'));
+	const blob = await response.blob();
+	return { blob, filename: filename ?? 'track' };
+}
+
 export function workerStatus(): Promise<WorkerStatus> {
 	return request('/api/worker/status');
 }

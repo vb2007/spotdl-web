@@ -66,6 +66,12 @@
 		'lookup_failed'
 	]);
 	const RETRYABLE_STATES = new Set<TrackState>(['waiting', 'lookup_failed']);
+	// The only two states download_track ever sets `output_path` from (backend/app/tasks/
+	// download.py) -- every other state never had a file, so the action simply doesn't
+	// render rather than rendering and failing (v27's plan: "nothing for tracks without a
+	// file"). A file deleted from disk after the fact still shows the button; that request
+	// 404s and surfaces through the same notice as any other action error.
+	const DOWNLOADABLE_STATES = new Set<TrackState>(['completed', 'skipped_duplicate']);
 
 	// v20: "no signal — given up" read as permanent even though a lookup_failed track is
 	// never retried automatically only, not literally abandoned -- the terminal/no-retry
@@ -123,6 +129,22 @@
 			showNotice(err instanceof api.ApiError ? err.message : 'Could not retry this track.');
 		}
 	}
+
+	async function handleDownload() {
+		try {
+			const { blob, filename } = await api.downloadTrackFile(track.id);
+			const url = URL.createObjectURL(blob);
+			const anchor = document.createElement('a');
+			anchor.href = url;
+			anchor.download = filename;
+			document.body.appendChild(anchor);
+			anchor.click();
+			anchor.remove();
+			URL.revokeObjectURL(url);
+		} catch (err) {
+			showNotice(err instanceof api.ApiError ? err.message : 'Could not download this file.');
+		}
+	}
 </script>
 
 <li>
@@ -148,6 +170,9 @@
 			<div class="actions">
 				{#if RETRYABLE_STATES.has(track.state)}
 					<button type="button" class="action" onclick={handleRetry}> retry now </button>
+				{/if}
+				{#if DOWNLOADABLE_STATES.has(track.state)}
+					<button type="button" class="action" onclick={handleDownload}> download </button>
 				{/if}
 				{#if CANCELLABLE_STATES.has(track.state)}
 					<button type="button" class="action danger" onclick={handleCancel}> cancel track </button>

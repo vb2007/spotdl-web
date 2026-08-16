@@ -1,7 +1,17 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from app.models import Job, JobSourceType, Proxy, ProxySource, Track, TrackAttempt, TrackAttemptOutcome, TrackState
+from app.models import (
+    DownloadedTrack,
+    Job,
+    JobSourceType,
+    Proxy,
+    ProxySource,
+    Track,
+    TrackAttempt,
+    TrackAttemptOutcome,
+    TrackState,
+)
 from app.services import retry
 
 
@@ -11,7 +21,9 @@ def _aware(dt: datetime) -> datetime:
     return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
 
 
-def _make_track(db_session, owner, *, state, scheduled_at=None, attempt_count=0):
+def _make_track(
+    db_session, owner, *, state, scheduled_at=None, attempt_count=0, output_path=None, spotify_track_id="abc123"
+):
     job = Job(
         source_url="https://open.spotify.com/track/abc",
         source_type=JobSourceType.TRACK,
@@ -22,11 +34,12 @@ def _make_track(db_session, owner, *, state, scheduled_at=None, attempt_count=0)
 
     track = Track(
         job_id=job.id,
-        spotify_track_id="abc123",
+        spotify_track_id=spotify_track_id,
         song_json={"name": "Song A"},
         state=state,
         scheduled_at=scheduled_at,
         attempt_count=attempt_count,
+        output_path=output_path,
     )
     db_session.add(track)
     db_session.commit()
@@ -208,3 +221,115 @@ def test_list_track_attempts_empty_for_a_track_with_no_history(authenticated_cli
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_download_track_file_returns_accel_redirect_and_disposition(authenticated_client, db_session, owner):
+    track = _make_track(
+        db_session,
+        owner,
+        state=TrackState.COMPLETED,
+        output_path="/downloads/Daft Punk - One More Time.mp3",
+    )
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 200
+    assert response.headers["x-accel-redirect"] == "/internal-downloads/Daft%20Punk%20-%20One%20More%20Time.mp3"
+    assert response.headers["content-disposition"] == (
+        'attachment; filename="Daft Punk - One More Time.mp3"; '
+        "filename*=UTF-8''Daft%20Punk%20-%20One%20More%20Time.mp3"
+    )
+
+
+def test_download_track_file_encodes_non_ascii_filename(authenticated_client, db_session, owner):
+    track = _make_track(
+        db_session,
+        owner,
+        state=TrackState.COMPLETED,
+        output_path="/downloads/Björk - Jóga.mp3",
+    )
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 200
+    disposition = response.headers["content-disposition"]
+    assert 'filename="Bjrk - Jga.mp3"' in disposition
+    assert "filename*=UTF-8''Bj%C3%B6rk%20-%20J%C3%B3ga.mp3" in disposition
+
+
+def test_download_track_file_prefers_ledger_path_over_track_output_path(authenticated_client, db_session, owner):
+    """The ledger is what v28's library move will repoint (CLAUDE.md's master-v3
+    invariants) -- this proves the endpoint reads from there first, which is what lets it
+    keep working unchanged once a move actually happens."""
+    track = _make_track(
+        db_session,
+        owner,
+        state=TrackState.COMPLETED,
+        output_path="/downloads/stale/Song.mp3",
+        spotify_track_id="moved-track",
+    )
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="moved-track",
+            file_path="/downloads/moved/Song.mp3",
+            format="mp3",
+        )
+    )
+    db_session.commit()
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 200
+    assert response.headers["x-accel-redirect"] == "/internal-downloads/moved/Song.mp3"
+
+
+def test_download_track_file_404_when_track_never_had_a_file(authenticated_client, db_session, owner):
+    track = _make_track(db_session, owner, state=TrackState.WAITING)
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 404
+
+
+def test_download_track_file_still_downloadable_when_job_archived(authenticated_client, db_session, owner):
+    """v27's plan: availability keys on the file existing at its recorded path, never on
+    archived_at -- a job archived by v19's retention sweep still has its file."""
+    track = _make_track(
+        db_session, owner, state=TrackState.COMPLETED, output_path="/downloads/Song.mp3"
+    )
+    job = db_session.get(Job, track.job_id)
+    job.archived_at = datetime.now(timezone.utc)
+    db_session.commit()
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 200
+
+
+def test_download_track_file_rejects_path_outside_allowed_root(authenticated_client, db_session, owner):
+    """A corrupted/tampered output_path must never turn into an X-Accel-Redirect outside
+    the downloads root -- this endpoint turns that column into an authorization boundary
+    (v27's plan)."""
+    track = _make_track(db_session, owner, state=TrackState.COMPLETED, output_path="/etc/passwd")
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 404
+
+
+def test_download_track_file_rejects_traversal_via_dotdot(authenticated_client, db_session, owner):
+    track = _make_track(
+        db_session, owner, state=TrackState.COMPLETED, output_path="/downloads/../secrets/leak.mp3"
+    )
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 404
+
+
+def test_download_unknown_track_file_returns_404(authenticated_client, db_session):
+    assert authenticated_client.get(f"/api/tracks/{uuid.uuid4()}/file").status_code == 404
+
+
+def test_download_track_file_requires_session(client):
+    assert client.get(f"/api/tracks/{uuid.uuid4()}/file").status_code == 401

@@ -185,6 +185,10 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:5173:80"
+    # Read-only (v27) -- nginx only ever serves these bytes back out via the `internal`
+    # X-Accel-Redirect location (nginx.conf); it has no reason to ever write here.
+    volumes:
+      - downloads:/downloads:ro
     logging:
       driver: json-file
       options:

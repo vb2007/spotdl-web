@@ -72,6 +72,7 @@ _DIRECT_ID_CASES = [
     ("DELETE", "/api/tracks/{track_id}"),
     ("POST", "/api/tracks/{track_id}/retry"),
     ("GET", "/api/tracks/{track_id}/attempts"),
+    ("GET", "/api/tracks/{track_id}/file"),
     ("PATCH", "/api/jobs/{job_id}/priority"),
     ("POST", "/api/jobs/{job_id}/bump"),
 ]
@@ -125,6 +126,30 @@ def test_admin_has_full_read_and_write_access_to_a_foreign_job(client, db_sessio
     assert _as(client, admin_cookie).post(f"/api/tracks/{track.id}/retry").status_code == 200
     assert _as(client, admin_cookie).get(f"/api/tracks/{track.id}/attempts").status_code == 200
     assert _as(client, admin_cookie).delete(f"/api/jobs/{job.id}").status_code == 200
+
+
+def test_download_track_file_404s_for_non_owner_and_200s_for_owner_and_admin(
+    client, db_session, make_user, session_cookie
+):
+    """The generic direct-id sweep above proves the 404 with a file-less track (ownership
+    is checked before file resolution, so either gate alone would produce that result).
+    This proves the *positive* case for v27's own endpoint specifically: a real file
+    resolves for its owner and for an admin, and a stranger still gets 404 even though the
+    file genuinely exists."""
+    owner = make_user("owner@example.com")
+    owner_cookie = session_cookie("owner@example.com")
+    stranger_cookie = session_cookie("stranger@example.com")
+    make_user("root@example.com", is_admin=True)
+    admin_cookie = session_cookie("root@example.com", is_admin=True)
+
+    job = _make_job(db_session, owner)
+    track = _make_track(db_session, job, state=TrackState.COMPLETED)
+    track.output_path = "/downloads/Song.mp3"
+    db_session.commit()
+
+    assert _as(client, owner_cookie).get(f"/api/tracks/{track.id}/file").status_code == 200
+    assert _as(client, admin_cookie).get(f"/api/tracks/{track.id}/file").status_code == 200
+    assert _as(client, stranger_cookie).get(f"/api/tracks/{track.id}/file").status_code == 404
 
 
 def test_all_users_flag_from_non_admin_is_silently_ignored(client, db_session, make_user, session_cookie):
