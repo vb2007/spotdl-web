@@ -166,6 +166,18 @@ def test_search_status_sort_and_pagination_compose_together_across_multiple_page
     assert len(seen_titles) == len(set(seen_titles))
 
 
+def test_job_listing_embeds_owner_username_when_set(authenticated_client, db_session, owner):
+    owner.username = "cooluser"
+    db_session.commit()
+    _make_job(db_session, owner, track_states=[TrackState.COMPLETED])
+
+    response = authenticated_client.get("/api/jobs")
+    items = response.json()["items"]
+    assert len(items) == 1
+    assert items[0]["owner_username"] == "cooluser"
+    assert items[0]["owner_email"] == "allowed@example.com"
+
+
 def test_scope_track_all_users_flag_from_non_admin_is_ignored(client, db_session, make_user, session_cookie):
     owner = make_user("owner@example.com")
     other = make_user("other@example.com")

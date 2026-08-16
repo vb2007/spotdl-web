@@ -100,3 +100,21 @@ def test_get_or_create_user_defaults_username_to_none(db_session):
     user = get_or_create_user(db_session, "allowed@example.com")
     db_session.commit()
     assert user.username is None
+
+
+def test_get_or_create_user_keeps_stale_username_on_empty_string(db_session):
+    """An empty-string username is treated the same as None -- neither is a real fetched
+    value, so neither should blank a previously known-good name."""
+    get_or_create_user(db_session, "allowed@example.com", "goodname")
+    db_session.commit()
+
+    user = get_or_create_user(db_session, "allowed@example.com", "")
+    db_session.commit()
+
+    assert user.username == "goodname"
+
+
+def test_get_or_create_user_creation_with_empty_string_stores_none(db_session):
+    user = get_or_create_user(db_session, "allowed@example.com", "")
+    db_session.commit()
+    assert user.username is None

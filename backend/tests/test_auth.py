@@ -1,3 +1,5 @@
+import httpx
+
 from app.routers import auth
 
 
@@ -73,6 +75,39 @@ def test_second_login_with_new_username_overwrites_stale_one(client, monkeypatch
         "/api/auth/login", json={"email": "allowed@example.com", "password": "correct"}
     )
     assert response.json()["username"] == "newname"
+
+
+def test_login_end_to_end_through_real_cookie_extraction_path_never_leaks_vb_auth(client, monkeypatch):
+    """Unlike every other test in this file, this does NOT mock `upstream_auth.login` --
+    it patches the underlying `httpx.AsyncClient` (via `httpx.MockTransport`) so the real
+    `_fetch_username`/cookie-extraction code actually runs, then asserts on the real
+    `/api/auth/login` FastAPI response. Closes the gap where every other test only proves
+    VB-AUTH doesn't leak when the extraction code never executes at all."""
+    real_client_cls = httpx.AsyncClient
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/auth/login":
+            return httpx.Response(
+                200, headers=[("set-cookie", "VB-AUTH=realtok456; Domain=localhost; HttpOnly")]
+            )
+        assert request.headers.get("cookie") == "VB-AUTH=realtok456"
+        return httpx.Response(200, json={"username": "realuser", "email": "allowed@example.com"})
+
+    def _client_with_mock_transport(*args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        return real_client_cls(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _client_with_mock_transport)
+
+    response = client.post(
+        "/api/auth/login", json={"email": "allowed@example.com", "password": "correct"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["username"] == "realuser"
+    assert "VB-AUTH" not in response.headers.get("set-cookie", "")
+    assert "realtok456" not in response.text
+    assert "VB-AUTH" not in response.text
 
 
 def test_wrong_password_and_disallowed_email_return_identical_response(client, monkeypatch):

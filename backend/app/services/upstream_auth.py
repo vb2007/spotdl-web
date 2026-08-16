@@ -50,7 +50,7 @@ async def _fetch_username(base_url: str, login_response: httpx.Response) -> str 
     for header in login_response.headers.get_list("set-cookie"):
         match = _VB_AUTH_RE.search(header)
         if match:
-            token = match.group(1)
+            token = match.group(1).strip('"')
             break
     if token is None:
         return None
@@ -66,7 +66,16 @@ async def _fetch_username(base_url: str, login_response: httpx.Response) -> str 
         logger.warning("Upstream GET /user returned %s", user_response.status_code)
         return None
     try:
-        return user_response.json().get("username")
+        body = user_response.json()
     except ValueError:
         logger.warning("Upstream GET /user returned non-JSON body", exc_info=True)
         return None
+    # `body` can parse as valid JSON that isn't an object at all (`null`, `[]`, a bare
+    # number/string) -- a transient upstream fluke (health-check page, unauthenticated-
+    # shape response served with a 200) must degrade the same as a hard failure, not
+    # raise AttributeError out of `.get(...)` and 500 an otherwise-successful login.
+    # An empty-string username is treated the same as "none fetched" for the same reason
+    # `get_or_create_user` only reconciles on a truthy value -- one flaky/odd response
+    # must never blank a previously known-good name.
+    username = body.get("username") if isinstance(body, dict) else None
+    return username or None

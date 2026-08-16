@@ -102,3 +102,58 @@ async def test_upstream_connection_error_returns_false_and_none(monkeypatch):
 
     assert ok is False
     assert username is None
+
+
+@pytest.mark.parametrize("body", [None, [], 42, "just a string"])
+@pytest.mark.asyncio
+async def test_get_user_non_object_json_body_degrades_to_none_without_crashing(monkeypatch, body):
+    """A 200 that parses as valid JSON but isn't an object (`null`, `[]`, a bare scalar --
+    e.g. a health-check page or an unauthenticated-shape response served with the wrong
+    status) must degrade the same as any other failure, not raise AttributeError out of
+    `.get(...)` and 500 an otherwise-successful login."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/auth/login":
+            return httpx.Response(200, headers=[("set-cookie", "VB-AUTH=tok123; Domain=localhost")])
+        return httpx.Response(200, json=body)
+
+    _install_transport(monkeypatch, handler)
+
+    ok, username = await upstream_auth.login("a@b.com", "pw")
+
+    assert ok is True
+    assert username is None
+
+
+@pytest.mark.asyncio
+async def test_get_user_empty_string_username_degrades_to_none(monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/auth/login":
+            return httpx.Response(200, headers=[("set-cookie", "VB-AUTH=tok123; Domain=localhost")])
+        return httpx.Response(200, json={"username": ""})
+
+    _install_transport(monkeypatch, handler)
+
+    ok, username = await upstream_auth.login("a@b.com", "pw")
+
+    assert ok is True
+    assert username is None
+
+
+@pytest.mark.asyncio
+async def test_quoted_cookie_value_is_unquoted(monkeypatch):
+    seen_cookie = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/auth/login":
+            return httpx.Response(200, headers=[("set-cookie", 'VB-AUTH="tok123"; Domain=localhost')])
+        seen_cookie["value"] = request.headers.get("cookie")
+        return httpx.Response(200, json={"username": "cooluser"})
+
+    _install_transport(monkeypatch, handler)
+
+    ok, username = await upstream_auth.login("a@b.com", "pw")
+
+    assert ok is True
+    assert username == "cooluser"
+    assert seen_cookie["value"] == "VB-AUTH=tok123"

@@ -123,6 +123,19 @@ def test_track_listing_embeds_derived_job_title(authenticated_client, db_session
     assert {i["job"]["title"] for i in items} == {"First Song"}
 
 
+def test_track_listing_embeds_owner_username_when_set(authenticated_client, db_session, owner):
+    owner.username = "cooluser"
+    db_session.commit()
+    job = _make_job(db_session, owner)
+    _add_track(db_session, job, name="A Song")
+
+    response = authenticated_client.get("/api/tracks")
+    items = response.json()["items"]
+    assert len(items) == 1
+    assert items[0]["job"]["owner_username"] == "cooluser"
+    assert items[0]["job"]["owner_email"] == "allowed@example.com"
+
+
 def test_non_admin_all_users_flag_ignored_on_tracks_endpoint(client, db_session, make_user, session_cookie):
     owner = make_user("owner@example.com")
     other = make_user("other@example.com")

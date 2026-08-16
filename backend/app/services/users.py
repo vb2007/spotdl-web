@@ -25,21 +25,22 @@ def get_or_create_user(db: Session, email: str, username: str | None = None) -> 
     just because they haven't logged in since ADMIN_EMAIL changed.
 
     `username` (v25) reconciles asymmetrically to `is_admin`: only overwritten when a
-    fresh, non-None value came back from this login's upstream `GET /user` call. A
-    failed fetch (`username=None`, upstream_auth's degrade-gracefully path) must never
-    erase a previously known-good username just because this one login was flaky."""
+    fresh, truthy value came back from this login's upstream `GET /user` call. A failed
+    fetch (`username=None`, upstream_auth's degrade-gracefully path) or an empty string
+    must never erase a previously known-good username just because this one login was
+    flaky."""
     normalized = normalize_email(email)
     is_admin = normalized == normalize_email(get_settings().admin_email)
     now = datetime.now(timezone.utc)
 
     user = db.query(User).filter(User.email == normalized).one_or_none()
     if user is None:
-        user = User(email=normalized, username=username, is_admin=is_admin, last_login_at=now)
+        user = User(email=normalized, username=username or None, is_admin=is_admin, last_login_at=now)
         db.add(user)
     else:
         user.is_admin = is_admin
         user.last_login_at = now
-        if username is not None:
+        if username:
             user.username = username
     db.flush()
 
