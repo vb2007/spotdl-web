@@ -424,6 +424,32 @@ needed" claim — rather than silently deleted.
   read as a clean pass; re-running the identical scenario at 300-500ms surfaced it immediately.
   When a fix touches how a live-updating row is first inserted/positioned, poll fast enough to
   catch its very first paint, not just its eventual settled state → *v23.1*
+- A test track directly inserted with a real, non-terminal `state` (`QUEUED`/`WAITING`) sits
+  live in the shared dev/prod DB the moment it's committed — the real `beat` container (dev's
+  `STALE_TRACK_AFTER_SECONDS`/`LADDER_SECONDS` are both shortened for exactly this kind of testing)
+  can reclaim or dispatch it **while an ad-hoc script's own sleep is deliberately parking it there
+  between two direct, in-process `download_track()` calls**, causing a second, genuinely unmocked
+  execution against the same row from the real `worker-dl` process — observed directly (a stray
+  `track_attempts` row whose error text was the real, unmocked `NoOutputFileError` message, not one
+  of the script's own fake exceptions). Fixed by pushing the track's `scheduled_at` an hour into the
+  future immediately after each of the script's own calls, before sleeping, so beat's own
+  `scheduled_at <= now()` due-query never matches it during the window. A `db.commit()` right
+  before that push (or any other point mid-script) expires every ORM object in the session
+  (`expire_on_commit=True` default) — capture any value needed for a later calculation (e.g. the
+  real ladder delay) into a plain variable *before* that commit, not after → *v24*
+- This dev stack's `proxies` table is the **same, real, shared production table** (per this file's
+  "Development environments" note) — inserting a fresh test `Proxy` row for verification makes it
+  immediately eligible for **real production traffic**: `pick_proxy`'s LRU selection prefers a
+  never-used proxy (`last_used_at IS NULL`) over any already-rotating real one, so a genuine
+  in-flight real download can pick up a freshly-added throwaway test proxy before the test script
+  itself does. Conversely, once a test track's own attempt count is high enough to want a proxy and
+  its own test proxy has gone into cooldown (a real, expected consequence of a deliberately-failed
+  attempt), `pick_proxy` will genuinely reach past it to a real, already-configured production proxy
+  — observed directly: a verification run's final "successful" attempt used a real `source=file`
+  proxy from actual `proxies.txt` config, not the test's own, and left a harmless reset
+  (`consecutive_failures=0`, `last_success_at=now()`) on it. Don't assume a proxy-escalation test's
+  proxy_id assertions can be pinned to "the one proxy I created" past the point it's cooled down →
+  *v24*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run

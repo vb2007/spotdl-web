@@ -968,7 +968,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_user_user",
-      "community": 154,
+      "community": 0,
       "norm_label": "user"
     },
     {
@@ -978,7 +978,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_user_rationale_11",
-      "community": 154,
+      "community": 0,
       "norm_label": "row created on first successful login (v17). the `allowed_emails` env allowlist"
     },
     {
@@ -1478,7 +1478,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_proxies",
-      "community": 143,
+      "community": 0,
       "norm_label": "proxies.py"
     },
     {
@@ -1488,7 +1488,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_createproxyrequest",
-      "community": 143,
+      "community": 0,
       "norm_label": "createproxyrequest"
     },
     {
@@ -1498,7 +1498,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_updateproxyrequest",
-      "community": 143,
+      "community": 0,
       "norm_label": "updateproxyrequest"
     },
     {
@@ -1508,7 +1508,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_proxy_to_dict",
-      "community": 143,
+      "community": 0,
       "norm_label": "_proxy_to_dict()"
     },
     {
@@ -1518,7 +1518,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_py_proxy",
-      "community": 143,
+      "community": 0,
       "norm_label": "proxy"
     },
     {
@@ -1528,7 +1528,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_get_proxy_or_404",
-      "community": 143,
+      "community": 0,
       "norm_label": "_get_proxy_or_404()"
     },
     {
@@ -1538,7 +1538,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_py_session",
-      "community": 143,
+      "community": 0,
       "norm_label": "session"
     },
     {
@@ -1548,7 +1548,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_py_uuid",
-      "community": 143,
+      "community": 0,
       "norm_label": "uuid"
     },
     {
@@ -1558,7 +1558,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_list_proxies",
-      "community": 143,
+      "community": 0,
       "norm_label": "list_proxies()"
     },
     {
@@ -1568,7 +1568,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_create_proxy",
-      "community": 143,
+      "community": 0,
       "norm_label": "create_proxy()"
     },
     {
@@ -1578,7 +1578,7 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_update_proxy",
-      "community": 143,
+      "community": 0,
       "norm_label": "update_proxy()"
     },
     {
@@ -1588,7 +1588,7 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_delete_proxy",
-      "community": 143,
+      "community": 0,
       "norm_label": "delete_proxy()"
     },
     {
@@ -1598,7 +1598,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_py_response",
-      "community": 143,
+      "community": 0,
       "norm_label": "response"
     },
     {
@@ -1608,7 +1608,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_rationale_63",
-      "community": 143,
+      "community": 0,
       "norm_label": "adds a source=manual proxy -- pick_proxy() draws from it exactly like a     sour"
     },
     {
@@ -1618,7 +1618,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "backend_app_routers_proxies_rationale_108",
-      "community": 143,
+      "community": 0,
       "norm_label": "a source=manual proxy is hard-deleted -- there's no proxies.txt entry that could"
     },
     {
@@ -1628,7 +1628,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_settings",
-      "community": 146,
+      "community": 0,
       "norm_label": "settings.py"
     },
     {
@@ -1638,7 +1638,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_routers_settings_updateoutputsettingsrequest",
-      "community": 146,
+      "community": 0,
       "norm_label": "updateoutputsettingsrequest"
     },
     {
@@ -1648,7 +1648,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_app_routers_settings_updateretentionrequest",
-      "community": 146,
+      "community": 0,
       "norm_label": "updateretentionrequest"
     },
     {
@@ -1658,7 +1658,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_app_routers_settings_output_settings_to_dict",
-      "community": 146,
+      "community": 0,
       "norm_label": "_output_settings_to_dict()"
     },
     {
@@ -1668,7 +1668,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_routers_settings_get_output_settings",
-      "community": 146,
+      "community": 0,
       "norm_label": "get_output_settings()"
     },
     {
@@ -1678,7 +1678,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_settings_py_session",
-      "community": 146,
+      "community": 0,
       "norm_label": "session"
     },
     {
@@ -1688,7 +1688,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_app_routers_settings_get_output_options",
-      "community": 146,
+      "community": 0,
       "norm_label": "get_output_options()"
     },
     {
@@ -1698,7 +1698,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "backend_app_routers_settings_update_output_settings",
-      "community": 146,
+      "community": 0,
       "norm_label": "update_output_settings()"
     },
     {
@@ -1708,7 +1708,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "backend_app_routers_settings_retention_to_dict",
-      "community": 146,
+      "community": 0,
       "norm_label": "_retention_to_dict()"
     },
     {
@@ -1718,7 +1718,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "backend_app_routers_settings_get_retention_settings",
-      "community": 146,
+      "community": 0,
       "norm_label": "get_retention_settings()"
     },
     {
@@ -1728,7 +1728,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_app_routers_settings_update_retention_settings",
-      "community": 146,
+      "community": 0,
       "norm_label": "update_retention_settings()"
     },
     {
@@ -1738,7 +1738,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_50",
-      "community": 146,
+      "community": 0,
       "norm_label": "the real, live set of format/bitrate values the installed spotdl accepts --"
     },
     {
@@ -1748,7 +1748,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_62",
-      "community": 146,
+      "community": 0,
       "norm_label": "takes effect on the *next* download_track call, no restart needed -- get_downloa"
     },
     {
@@ -1758,7 +1758,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_90",
-      "community": 146,
+      "community": 0,
       "norm_label": "per-user, open to every user (unlike `/output`'s admin gating) -- retention is"
     },
     {
@@ -1978,7 +1978,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_worker",
-      "community": 154,
+      "community": 0,
       "norm_label": "worker.py"
     },
     {
@@ -1988,7 +1988,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_app_routers_worker_status_dict",
-      "community": 154,
+      "community": 0,
       "norm_label": "_status_dict()"
     },
     {
@@ -1998,7 +1998,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_routers_worker_is_busy",
-      "community": 154,
+      "community": 0,
       "norm_label": "_is_busy()"
     },
     {
@@ -2008,7 +2008,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_worker_py_session",
-      "community": 154,
+      "community": 0,
       "norm_label": "session"
     },
     {
@@ -2018,7 +2018,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_routers_worker_worker_status",
-      "community": 154,
+      "community": 0,
       "norm_label": "worker_status()"
     },
     {
@@ -2028,7 +2028,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_app_routers_worker_pause_worker",
-      "community": 154,
+      "community": 0,
       "norm_label": "pause_worker()"
     },
     {
@@ -2038,7 +2038,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "backend_app_routers_worker_resume_worker",
-      "community": 154,
+      "community": 0,
       "norm_label": "resume_worker()"
     },
     {
@@ -2048,7 +2048,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_app_routers_worker_release_breaker",
-      "community": 154,
+      "community": 0,
       "norm_label": "release_breaker()"
     },
     {
@@ -2058,7 +2058,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "backend_app_routers_worker_rationale_28",
-      "community": 154,
+      "community": 0,
       "norm_label": "`worker-dl` runs `--concurrency=1` (claude.md invariant), so at most one track"
     },
     {
@@ -2068,7 +2068,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "backend_app_routers_worker_rationale_75",
-      "community": 154,
+      "community": 0,
       "norm_label": "clears the countdown early without resetting `consecutive_failures` or     `brea"
     },
     {
@@ -2318,7 +2318,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_dedup",
-      "community": 1,
+      "community": 63,
       "norm_label": "dedup.py"
     },
     {
@@ -2328,7 +2328,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_app_services_dedup_is_already_downloaded",
-      "community": 1,
+      "community": 63,
       "norm_label": "is_already_downloaded()"
     },
     {
@@ -2338,7 +2338,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_dedup_py_path",
-      "community": 1,
+      "community": 63,
       "norm_label": "path"
     },
     {
@@ -2348,7 +2348,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_services_dedup_reconcile_disk",
-      "community": 1,
+      "community": 63,
       "norm_label": "reconcile_disk()"
     },
     {
@@ -2358,7 +2358,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_dedup_rationale_1",
-      "community": 1,
+      "community": 63,
       "norm_label": "download dedup ledger (`downloaded_tracks`) and startup disk reconciliation."
     },
     {
@@ -2368,7 +2368,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_services_dedup_rationale_23",
-      "community": 1,
+      "community": 63,
       "norm_label": "drops ledger rows whose file no longer exists on disk, so a manually-deleted"
     },
     {
@@ -3708,7 +3708,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_serializers",
-      "community": 156,
+      "community": 0,
       "norm_label": "serializers.py"
     },
     {
@@ -3718,7 +3718,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_counts_by_job",
-      "community": 156,
+      "community": 0,
       "norm_label": "track_counts_by_job()"
     },
     {
@@ -3728,7 +3728,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_serializers_py_session",
-      "community": 156,
+      "community": 0,
       "norm_label": "session"
     },
     {
@@ -3738,7 +3738,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_serializers_py_uuid",
-      "community": 156,
+      "community": 0,
       "norm_label": "uuid"
     },
     {
@@ -3748,7 +3748,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_counts",
-      "community": 156,
+      "community": 0,
       "norm_label": "track_counts()"
     },
     {
@@ -3778,7 +3778,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_song_meta",
-      "community": 157,
+      "community": 131,
       "norm_label": "track_song_meta()"
     },
     {
@@ -3808,7 +3808,7 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_attempt_to_dict",
-      "community": 156,
+      "community": 131,
       "norm_label": "track_attempt_to_dict()"
     },
     {
@@ -3818,7 +3818,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "trackattempt",
-      "community": 156,
+      "community": 131,
       "norm_label": "trackattempt"
     },
     {
@@ -3828,7 +3828,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_1",
-      "community": 156,
+      "community": 0,
       "norm_label": "shared rest projections for job/track \u2014 deliberate projections rather than expos"
     },
     {
@@ -3838,7 +3838,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_18",
-      "community": 156,
+      "community": 0,
       "norm_label": "one grouped aggregate covering every requested job -- replaces the per-job query"
     },
     {
@@ -3848,7 +3848,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_37",
-      "community": 156,
+      "community": 0,
       "norm_label": "single-job convenience over the bulk query -- for endpoints that serialize exact"
     },
     {
@@ -3868,7 +3868,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_73",
-      "community": 157,
+      "community": 131,
       "norm_label": "title/artists/album straight from a track's `song_json` -- the single field"
     },
     {
@@ -4178,7 +4178,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_beat",
-      "community": 157,
+      "community": 131,
       "norm_label": "beat.py"
     },
     {
@@ -4188,7 +4188,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_stale_track_after",
-      "community": 157,
+      "community": 131,
       "norm_label": "stale_track_after()"
     },
     {
@@ -4198,7 +4198,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_py_timedelta",
-      "community": 157,
+      "community": 131,
       "norm_label": "timedelta"
     },
     {
@@ -4208,7 +4208,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_reclaim_stale_tracks",
-      "community": 157,
+      "community": 131,
       "norm_label": "_reclaim_stale_tracks()"
     },
     {
@@ -4218,7 +4218,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_dispatch_due_tracks",
-      "community": 157,
+      "community": 131,
       "norm_label": "dispatch_due_tracks()"
     },
     {
@@ -4228,7 +4228,7 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_archive_due_jobs",
-      "community": 157,
+      "community": 131,
       "norm_label": "archive_due_jobs()"
     },
     {
@@ -4238,7 +4238,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_18",
-      "community": 157,
+      "community": 131,
       "norm_label": "a track stuck in downloading/queued past this long means whatever was supposed t"
     },
     {
@@ -4248,7 +4248,7 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_115",
-      "community": 157,
+      "community": 131,
       "norm_label": "hourly (not every 30s like dispatch_due_tracks -- this is housekeeping, and it"
     },
     {
@@ -4258,7 +4258,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app",
-      "community": 4,
+      "community": 63,
       "norm_label": "celery_app.py"
     },
     {
@@ -4268,7 +4268,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
-      "community": 4,
+      "community": 63,
       "norm_label": "_reconcile_disk_on_boot()"
     },
     {
@@ -4328,7 +4328,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 2,
+      "community": 131,
       "norm_label": "expand.py"
     },
     {
@@ -4338,7 +4338,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 2,
+      "community": 131,
       "norm_label": "expand_job()"
     },
     {
@@ -5445,10 +5445,20 @@
       "norm_label": "test_download_track_skips_entirely_while_breaker_tripped()"
     },
     {
-      "label": "test_download_track_unknown_track_is_a_noop()",
+      "label": "test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
       "source_location": "L325",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
+      "community": 3,
+      "norm_label": "test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt()"
+    },
+    {
+      "label": "test_download_track_unknown_track_is_a_noop()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L363",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
       "community": 3,
@@ -5458,7 +5468,7 @@
       "label": "test_download_track_first_attempt_never_touches_proxy_pool()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L331",
+      "source_location": "L369",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
       "community": 3,
@@ -5468,7 +5478,7 @@
       "label": "test_download_track_retry_picks_proxy_and_records_success()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L359",
+      "source_location": "L397",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
       "community": 3,
@@ -5478,7 +5488,7 @@
       "label": "test_download_track_retry_proxy_failure_sets_cooldown()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L399",
+      "source_location": "L437",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "community": 3,
@@ -5488,7 +5498,7 @@
       "label": "test_download_track_retry_failure_redacts_proxy_credentials_from_last_error()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L433",
+      "source_location": "L471",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "community": 3,
@@ -5498,7 +5508,7 @@
       "label": "test_download_track_skips_entirely_when_already_cancelled()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L466",
+      "source_location": "L504",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
       "community": 3,
@@ -5508,7 +5518,7 @@
       "label": "test_download_track_discards_success_when_cancelled_mid_download()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L487",
+      "source_location": "L525",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "community": 3,
@@ -5518,7 +5528,7 @@
       "label": "test_download_track_discards_failure_when_cancelled_mid_download()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L527",
+      "source_location": "L565",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "community": 3,
@@ -5528,7 +5538,7 @@
       "label": "test_download_track_retry_falls_back_to_direct_when_no_proxy_available()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L564",
+      "source_location": "L602",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "community": 3,
@@ -5538,7 +5548,7 @@
       "label": "test_pacing_delay_is_zero_when_unconfigured()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L592",
+      "source_location": "L630",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_pacing_delay_is_zero_when_unconfigured",
       "community": 3,
@@ -5548,7 +5558,7 @@
       "label": "test_pacing_delay_samples_inside_the_configured_window()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L604",
+      "source_location": "L642",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_pacing_delay_samples_inside_the_configured_window",
       "community": 3,
@@ -5558,7 +5568,7 @@
       "label": "test_download_track_sleeps_before_the_attempt_when_pacing_configured()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L617",
+      "source_location": "L655",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
       "community": 3,
@@ -5568,7 +5578,7 @@
       "label": "test_download_track_does_not_pace_a_skipped_duplicate()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L649",
+      "source_location": "L687",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
       "community": 3,
@@ -5578,7 +5588,7 @@
       "label": "test_download_track_cancelled_during_pacing_wait_skips_download()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L671",
+      "source_location": "L709",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
       "community": 3,
@@ -5615,12 +5625,22 @@
       "norm_label": "v23: spotdl completing without raising but returning a `none` output path is the"
     },
     {
+      "label": "Documented, accepted gap (docs/GOTCHAS.md's v24 entry), pinned here rather than",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L326",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_rationale_326",
+      "community": 3,
+      "norm_label": "documented, accepted gap (docs/gotchas.md's v24 entry), pinned here rather than"
+    },
+    {
       "label": "The regression guard for the drift itself -- PACING_MAX_SEC=0 (the default) must",
       "file_type": "rationale",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L593",
+      "source_location": "L631",
       "_origin": "ast",
-      "id": "backend_tests_test_download_task_rationale_593",
+      "id": "backend_tests_test_download_task_rationale_631",
       "community": 3,
       "norm_label": "the regression guard for the drift itself -- pacing_max_sec=0 (the default) must"
     },
@@ -5628,9 +5648,9 @@
       "label": "The placement guard from the plan: a track that never touches the network must",
       "file_type": "rationale",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L650",
+      "source_location": "L688",
       "_origin": "ast",
-      "id": "backend_tests_test_download_task_rationale_650",
+      "id": "backend_tests_test_download_task_rationale_688",
       "community": 3,
       "norm_label": "the placement guard from the plan: a track that never touches the network must"
     },
@@ -6561,7 +6581,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config",
-      "community": 32,
+      "community": 63,
       "norm_label": "test_logging_config.py"
     },
     {
@@ -6571,7 +6591,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_format",
-      "community": 32,
+      "community": 63,
       "norm_label": "_format()"
     },
     {
@@ -6581,7 +6601,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "logrecord",
-      "community": 32,
+      "community": 63,
       "norm_label": "logrecord"
     },
     {
@@ -6591,7 +6611,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_make_record",
-      "community": 32,
+      "community": 63,
       "norm_label": "_make_record()"
     },
     {
@@ -6601,7 +6621,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_plain_message_passes_through_unchanged",
-      "community": 32,
+      "community": 63,
       "norm_label": "test_plain_message_passes_through_unchanged()"
     },
     {
@@ -6611,7 +6631,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_credentialed_url_in_message_is_redacted",
-      "community": 32,
+      "community": 63,
       "norm_label": "test_credentialed_url_in_message_is_redacted()"
     },
     {
@@ -6621,7 +6641,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_credentialed_url_in_exception_traceback_is_redacted",
-      "community": 32,
+      "community": 63,
       "norm_label": "test_credentialed_url_in_exception_traceback_is_redacted()"
     },
     {
@@ -6631,7 +6651,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_no_task_context_outside_a_running_task",
-      "community": 32,
+      "community": 63,
       "norm_label": "test_no_task_context_outside_a_running_task()"
     },
     {
@@ -6641,7 +6661,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_task_context_injected_when_running_inside_a_task",
-      "community": 32,
+      "community": 63,
       "norm_label": "test_task_context_injected_when_running_inside_a_task()"
     },
     {
@@ -6651,7 +6671,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_rationale_1",
-      "community": 32,
+      "community": 63,
       "norm_label": "structured json logging (v12). the one contract that matters most here: a creden"
     },
     {
@@ -8271,7 +8291,7 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_test_list_track_attempts_returns_history_oldest_first_with_expected_fields",
-      "community": 2,
+      "community": 3,
       "norm_label": "test_list_track_attempts_returns_history_oldest_first_with_expected_fields()"
     },
     {
@@ -9862,7 +9882,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "community": 4,
+      "community": 63,
       "norm_label": "+layout.svelte"
     },
     {
@@ -9872,7 +9892,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_app_css",
-      "community": 4,
+      "community": 63,
       "norm_label": "../app.css"
     },
     {
@@ -9882,7 +9902,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_lib_assets_favicon_svg",
-      "community": 4,
+      "community": 63,
       "norm_label": "$lib/assets/favicon.svg"
     },
     {
@@ -10929,7 +10949,7 @@
       "label": "Verified external API contracts",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L460",
+      "source_location": "L469",
       "_origin": "ast",
       "id": "docs_gotchas_verified_external_api_contracts",
       "community": 14,
@@ -10939,7 +10959,7 @@
       "label": "Auth API \u2014 `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L465",
+      "source_location": "L474",
       "_origin": "ast",
       "id": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
       "community": 14,
@@ -10949,7 +10969,7 @@
       "label": "spotdl 4.5.2 \u2014 verified API surface actually used",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L483",
+      "source_location": "L492",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
       "community": 14,
@@ -10959,7 +10979,7 @@
       "label": "Version log",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L507",
+      "source_location": "L516",
       "_origin": "ast",
       "id": "docs_gotchas_version_log",
       "community": 14,
@@ -10969,7 +10989,7 @@
       "label": "v01 deployment gotchas (learned deploying to the real host and local dev)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L510",
+      "source_location": "L519",
       "_origin": "ast",
       "id": "docs_gotchas_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
       "community": 14,
@@ -10979,7 +10999,7 @@
       "label": "v02 schema gotchas (learned building the SQLAlchemy models + initial migration)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L549",
+      "source_location": "L558",
       "_origin": "ast",
       "id": "docs_gotchas_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
       "community": 14,
@@ -10989,7 +11009,7 @@
       "label": "v03 auth gotchas (learned building the upstream login proxy + session cookie)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L589",
+      "source_location": "L598",
       "_origin": "ast",
       "id": "docs_gotchas_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
       "community": 14,
@@ -10999,7 +11019,7 @@
       "label": "v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L647",
+      "source_location": "L656",
       "_origin": "ast",
       "id": "docs_gotchas_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
       "community": 14,
@@ -11009,7 +11029,7 @@
       "label": "v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L732",
+      "source_location": "L741",
       "_origin": "ast",
       "id": "docs_gotchas_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
       "community": 14,
@@ -11019,7 +11039,7 @@
       "label": "v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L802",
+      "source_location": "L811",
       "_origin": "ast",
       "id": "docs_gotchas_v06_retry_engine_gotchas_learned_building_error_classification_ladder_breaker_beat_dispatch",
       "community": 14,
@@ -11029,7 +11049,7 @@
       "label": "v07 proxy-rotation gotchas (learned building `proxies.txt` sync + pick/cooldown + wiring)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L858",
+      "source_location": "L867",
       "_origin": "ast",
       "id": "docs_gotchas_v07_proxy_rotation_gotchas_learned_building_proxies_txt_sync_pick_cooldown_wiring",
       "community": 14,
@@ -11039,7 +11059,7 @@
       "label": "v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L938",
+      "source_location": "L947",
       "_origin": "ast",
       "id": "docs_gotchas_v08_live_progress_gotchas_learned_building_the_redis_pub_sub_event_bus_sse_stream",
       "community": 14,
@@ -11049,7 +11069,7 @@
       "label": "v09 frontend gotchas (learned building the SvelteKit login/dashboard UI)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1013",
+      "source_location": "L1022",
       "_origin": "ast",
       "id": "docs_gotchas_v09_frontend_gotchas_learned_building_the_sveltekit_login_dashboard_ui",
       "community": 14,
@@ -11059,7 +11079,7 @@
       "label": "v10 queue-controls gotchas (learned building cancel/retry-now/pause/breaker-release)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1247",
+      "source_location": "L1256",
       "_origin": "ast",
       "id": "docs_gotchas_v10_queue_controls_gotchas_learned_building_cancel_retry_now_pause_breaker_release",
       "community": 14,
@@ -11069,7 +11089,7 @@
       "label": "v11 priority gotchas (learned building job-priority-ordered dispatch + bump/priority endpoints)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1364",
+      "source_location": "L1373",
       "_origin": "ast",
       "id": "docs_gotchas_v11_priority_gotchas_learned_building_job_priority_ordered_dispatch_bump_priority_endpoints",
       "community": 14,
@@ -11079,7 +11099,7 @@
       "label": "v12 deploy-hardening gotchas (learned building durability fixes, same-origin nginx, non-root, JSON logging, backups)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1431",
+      "source_location": "L1440",
       "_origin": "ast",
       "id": "docs_gotchas_v12_deploy_hardening_gotchas_learned_building_durability_fixes_same_origin_nginx_non_root_json_logging_backups",
       "community": 14,
@@ -11089,7 +11109,7 @@
       "label": "v13 settings-UI gotchas (learned building proxy management + output-config override UI)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1741",
+      "source_location": "L1750",
       "_origin": "ast",
       "id": "docs_gotchas_v13_settings_ui_gotchas_learned_building_proxy_management_output_config_override_ui",
       "community": 14,
@@ -11099,7 +11119,7 @@
       "label": "v15 gap-fixes gotchas (learned closing v14's audit findings \u2014 pacing hook, N+1, stale docs)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1942",
+      "source_location": "L1951",
       "_origin": "ast",
       "id": "docs_gotchas_v15_gap_fixes_gotchas_learned_closing_v14_s_audit_findings_pacing_hook_n_1_stale_docs",
       "community": 14,
@@ -11109,7 +11129,7 @@
       "label": "v16 users-schema gotchas (learned building `users`/`user_settings` and ownership columns)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2044",
+      "source_location": "L2053",
       "_origin": "ast",
       "id": "docs_gotchas_v16_users_schema_gotchas_learned_building_users_user_settings_and_ownership_columns",
       "community": 14,
@@ -11119,7 +11139,7 @@
       "label": "v17 multi-user-auth gotchas (learned wiring user-creation-on-login + owner scoping + per-user SSE)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2101",
+      "source_location": "L2110",
       "_origin": "ast",
       "id": "docs_gotchas_v17_multi_user_auth_gotchas_learned_wiring_user_creation_on_login_owner_scoping_per_user_sse",
       "community": 14,
@@ -11129,7 +11149,7 @@
       "label": "v18 job-centric-api gotchas (learned building cursor pagination, rollup status, and search)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2193",
+      "source_location": "L2202",
       "_origin": "ast",
       "id": "docs_gotchas_v18_job_centric_api_gotchas_learned_building_cursor_pagination_rollup_status_and_search",
       "community": 14,
@@ -11139,7 +11159,7 @@
       "label": "v19 archive-retention gotchas (learned building soft-archive lifecycle + per-user retention)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2290",
+      "source_location": "L2299",
       "_origin": "ast",
       "id": "docs_gotchas_v19_archive_retention_gotchas_learned_building_soft_archive_lifecycle_per_user_retention",
       "community": 14,
@@ -11149,7 +11169,7 @@
       "label": "v20 job-centric-ui gotchas (learned building the job/track hierarchy UI, search/sort, archive",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2347",
+      "source_location": "L2356",
       "_origin": "ast",
       "id": "docs_gotchas_v20_job_centric_ui_gotchas_learned_building_the_job_track_hierarchy_ui_search_sort_archive",
       "community": 14,
@@ -11159,7 +11179,7 @@
       "label": "v21 release-automation gotchas (learned building GitHub releases, GHCR image publishing, and",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2486",
+      "source_location": "L2495",
       "_origin": "ast",
       "id": "docs_gotchas_v21_release_automation_gotchas_learned_building_github_releases_ghcr_image_publishing_and",
       "community": 14,
@@ -11169,7 +11189,7 @@
       "label": "v22 multi-user-hardening gotchas (learned re-running the cross-user sweep at the seams v14\u2013v20",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2644",
+      "source_location": "L2653",
       "_origin": "ast",
       "id": "docs_gotchas_v22_multi_user_hardening_gotchas_learned_re_running_the_cross_user_sweep_at_the_seams_v14_v20",
       "community": 14,
@@ -11179,7 +11199,7 @@
       "label": "v23 download-reliability gotchas (learned root-causing the download outage, fixing the",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2815",
+      "source_location": "L2824",
       "_origin": "ast",
       "id": "docs_gotchas_v23_download_reliability_gotchas_learned_root_causing_the_download_outage_fixing_the",
       "community": 14,
@@ -11189,11 +11209,21 @@
       "label": "v23.1 download-reliability-followup gotchas (learned recording v23's production",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2856",
+      "source_location": "L2865",
       "_origin": "ast",
       "id": "docs_gotchas_v23_1_download_reliability_followup_gotchas_learned_recording_v23_s_production",
       "community": 14,
       "norm_label": "v23.1 download-reliability-followup gotchas (learned recording v23's production"
+    },
+    {
+      "label": "v24 attempt-history gotchas (learned building `track_attempts`)",
+      "file_type": "document",
+      "source_file": "docs/GOTCHAS.md",
+      "source_location": "L2943",
+      "_origin": "ast",
+      "id": "docs_gotchas_v24_attempt_history_gotchas_learned_building_track_attempts",
+      "community": 14,
+      "norm_label": "v24 attempt-history gotchas (learned building `track_attempts`)"
     },
     {
       "label": "LOCAL_DEV.md",
@@ -16517,7 +16547,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L195",
+      "source_location": "L201",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_config_get_settings"
@@ -17245,7 +17275,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L254",
+      "source_location": "L260",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -17311,7 +17341,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L512",
+      "source_location": "L550",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -18413,7 +18443,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L696",
+      "source_location": "L734",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
       "target": "backend_app_models_track_track"
@@ -18424,7 +18454,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L546",
+      "source_location": "L584",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_app_models_track_track"
@@ -18435,7 +18465,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L509",
+      "source_location": "L547",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_app_models_track_track"
@@ -18446,7 +18476,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L668",
+      "source_location": "L706",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
       "target": "backend_app_models_track_track"
@@ -18457,7 +18487,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L355",
+      "source_location": "L393",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
       "target": "backend_app_models_track_track"
@@ -18501,7 +18531,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L453",
+      "source_location": "L491",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "target": "backend_app_models_track_track"
@@ -18512,7 +18542,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L587",
+      "source_location": "L625",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "target": "backend_app_models_track_track"
@@ -18523,7 +18553,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L384",
+      "source_location": "L422",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
       "target": "backend_app_models_track_track"
@@ -18534,7 +18564,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L419",
+      "source_location": "L457",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "target": "backend_app_models_track_track"
@@ -18545,7 +18575,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L479",
+      "source_location": "L517",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
       "target": "backend_app_models_track_track"
@@ -18578,7 +18608,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L645",
+      "source_location": "L683",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
       "target": "backend_app_models_track_track"
@@ -19625,7 +19655,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L550",
+      "source_location": "L588",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_app_models_worker_state_workerstate"
@@ -24971,7 +25001,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L104",
+      "source_location": "L110",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_services_serializers_track_song_meta"
@@ -25592,7 +25622,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L131",
+      "source_location": "L137",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_tasks_download_pacing_delay",
@@ -27571,6 +27601,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L325",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
       "source_location": "L194",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
@@ -27581,7 +27621,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L671",
+      "source_location": "L709",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
@@ -27591,7 +27631,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L527",
+      "source_location": "L565",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
@@ -27601,7 +27641,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L487",
+      "source_location": "L525",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
@@ -27611,7 +27651,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L649",
+      "source_location": "L687",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
@@ -27621,7 +27661,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L331",
+      "source_location": "L369",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
@@ -27661,7 +27701,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L433",
+      "source_location": "L471",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
@@ -27671,7 +27711,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L564",
+      "source_location": "L602",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
@@ -27681,7 +27721,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L359",
+      "source_location": "L397",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
@@ -27691,7 +27731,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L399",
+      "source_location": "L437",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
@@ -27701,7 +27741,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L466",
+      "source_location": "L504",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
@@ -27731,7 +27771,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L617",
+      "source_location": "L655",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
@@ -27761,7 +27801,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L325",
+      "source_location": "L363",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
@@ -27771,7 +27811,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L592",
+      "source_location": "L630",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_pacing_delay_is_zero_when_unconfigured",
@@ -27781,7 +27821,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L604",
+      "source_location": "L642",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_pacing_delay_samples_inside_the_configured_window",
@@ -27803,7 +27843,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L530",
+      "source_location": "L568",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_capture_events",
@@ -27814,7 +27854,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L490",
+      "source_location": "L528",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_capture_events",
@@ -27920,7 +27960,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L326",
+      "source_location": "L364",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
       "target": "backend_tests_test_download_task_nonclosingsession",
@@ -27962,6 +28002,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L349",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
+      "target": "backend_tests_test_download_task_fakedownloader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
       "source_location": "L199",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_audio_provider_error_feeds_breaker",
@@ -27973,7 +28024,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L533",
+      "source_location": "L571",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_fakedownloader",
@@ -27984,7 +28035,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L493",
+      "source_location": "L531",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_fakedownloader",
@@ -28028,7 +28079,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L444",
+      "source_location": "L482",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "target": "backend_tests_test_download_task_fakedownloader",
@@ -28039,7 +28090,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L410",
+      "source_location": "L448",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "target": "backend_tests_test_download_task_fakedownloader",
@@ -28050,7 +28101,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L633",
+      "source_location": "L671",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
       "target": "backend_tests_test_download_task_fakedownloader",
@@ -28083,6 +28134,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L333",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
       "source_location": "L195",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_audio_provider_error_feeds_breaker",
@@ -28094,7 +28156,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L672",
+      "source_location": "L710",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
       "target": "backend_tests_test_download_task_make_track",
@@ -28105,7 +28167,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L528",
+      "source_location": "L566",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_make_track",
@@ -28116,7 +28178,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L488",
+      "source_location": "L526",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_make_track",
@@ -28127,7 +28189,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L652",
+      "source_location": "L690",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
       "target": "backend_tests_test_download_task_make_track",
@@ -28138,7 +28200,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L332",
+      "source_location": "L370",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
       "target": "backend_tests_test_download_task_make_track",
@@ -28182,7 +28244,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L434",
+      "source_location": "L472",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "target": "backend_tests_test_download_task_make_track",
@@ -28193,7 +28255,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L565",
+      "source_location": "L603",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "target": "backend_tests_test_download_task_make_track",
@@ -28204,7 +28266,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L360",
+      "source_location": "L398",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
       "target": "backend_tests_test_download_task_make_track",
@@ -28215,7 +28277,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L400",
+      "source_location": "L438",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "target": "backend_tests_test_download_task_make_track",
@@ -28226,7 +28288,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L467",
+      "source_location": "L505",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
       "target": "backend_tests_test_download_task_make_track",
@@ -28259,7 +28321,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L618",
+      "source_location": "L656",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
       "target": "backend_tests_test_download_task_make_track",
@@ -28292,7 +28354,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L697",
+      "source_location": "L355",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
+      "target": "backend_tests_test_download_task_attempts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L735",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
       "target": "backend_tests_test_download_task_attempts",
@@ -28303,7 +28376,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L558",
+      "source_location": "L596",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_attempts",
@@ -28314,7 +28387,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L522",
+      "source_location": "L560",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_attempts",
@@ -28336,7 +28409,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L458",
+      "source_location": "L496",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "target": "backend_tests_test_download_task_attempts",
@@ -28347,7 +28420,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L392",
+      "source_location": "L430",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
       "target": "backend_tests_test_download_task_attempts",
@@ -28358,7 +28431,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L427",
+      "source_location": "L465",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "target": "backend_tests_test_download_task_attempts",
@@ -28369,7 +28442,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L482",
+      "source_location": "L520",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
       "target": "backend_tests_test_download_task_attempts",
@@ -28413,6 +28486,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L334",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
       "source_location": "L196",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_audio_provider_error_feeds_breaker",
@@ -28424,7 +28508,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L673",
+      "source_location": "L711",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28435,7 +28519,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L529",
+      "source_location": "L567",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28446,7 +28530,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L489",
+      "source_location": "L527",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28457,7 +28541,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L653",
+      "source_location": "L691",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28468,7 +28552,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L333",
+      "source_location": "L371",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28512,7 +28596,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L437",
+      "source_location": "L475",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28523,7 +28607,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L568",
+      "source_location": "L606",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28534,7 +28618,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L363",
+      "source_location": "L401",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28545,7 +28629,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L403",
+      "source_location": "L441",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28556,7 +28640,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L470",
+      "source_location": "L508",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28589,7 +28673,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L619",
+      "source_location": "L657",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
       "target": "backend_tests_test_download_task_patch_common",
@@ -28631,9 +28715,19 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L593",
+      "source_location": "L326",
       "weight": 1.0,
-      "source": "backend_tests_test_download_task_rationale_593",
+      "source": "backend_tests_test_download_task_rationale_326",
+      "target": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L631",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_rationale_631",
       "target": "backend_tests_test_download_task_test_pacing_delay_is_zero_when_unconfigured",
       "confidence_score": 1.0
     },
@@ -28641,9 +28735,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L650",
+      "source_location": "L688",
       "weight": 1.0,
-      "source": "backend_tests_test_download_task_rationale_650",
+      "source": "backend_tests_test_download_task_rationale_688",
       "target": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
       "confidence_score": 1.0
     },
@@ -36104,7 +36198,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L460",
+      "source_location": "L469",
       "weight": 1.0,
       "source": "docs_gotchas_spotdl_web_accumulated_gotchas_master_v1_v01_v13",
       "target": "docs_gotchas_verified_external_api_contracts",
@@ -36114,7 +36208,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L507",
+      "source_location": "L516",
       "weight": 1.0,
       "source": "docs_gotchas_spotdl_web_accumulated_gotchas_master_v1_v01_v13",
       "target": "docs_gotchas_version_log",
@@ -36124,7 +36218,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L465",
+      "source_location": "L474",
       "weight": 1.0,
       "source": "docs_gotchas_verified_external_api_contracts",
       "target": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
@@ -36134,7 +36228,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L483",
+      "source_location": "L492",
       "weight": 1.0,
       "source": "docs_gotchas_verified_external_api_contracts",
       "target": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
@@ -36144,7 +36238,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L510",
+      "source_location": "L519",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
@@ -36154,7 +36248,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L549",
+      "source_location": "L558",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
@@ -36164,7 +36258,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L589",
+      "source_location": "L598",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
@@ -36174,7 +36268,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L647",
+      "source_location": "L656",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
@@ -36184,7 +36278,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L732",
+      "source_location": "L741",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
@@ -36194,7 +36288,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L802",
+      "source_location": "L811",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v06_retry_engine_gotchas_learned_building_error_classification_ladder_breaker_beat_dispatch",
@@ -36204,7 +36298,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L858",
+      "source_location": "L867",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v07_proxy_rotation_gotchas_learned_building_proxies_txt_sync_pick_cooldown_wiring",
@@ -36214,7 +36308,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L938",
+      "source_location": "L947",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v08_live_progress_gotchas_learned_building_the_redis_pub_sub_event_bus_sse_stream",
@@ -36224,7 +36318,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1013",
+      "source_location": "L1022",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v09_frontend_gotchas_learned_building_the_sveltekit_login_dashboard_ui",
@@ -36234,7 +36328,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1247",
+      "source_location": "L1256",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v10_queue_controls_gotchas_learned_building_cancel_retry_now_pause_breaker_release",
@@ -36244,7 +36338,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1364",
+      "source_location": "L1373",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v11_priority_gotchas_learned_building_job_priority_ordered_dispatch_bump_priority_endpoints",
@@ -36254,7 +36348,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1431",
+      "source_location": "L1440",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v12_deploy_hardening_gotchas_learned_building_durability_fixes_same_origin_nginx_non_root_json_logging_backups",
@@ -36264,7 +36358,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1741",
+      "source_location": "L1750",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v13_settings_ui_gotchas_learned_building_proxy_management_output_config_override_ui",
@@ -36274,7 +36368,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1942",
+      "source_location": "L1951",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v15_gap_fixes_gotchas_learned_closing_v14_s_audit_findings_pacing_hook_n_1_stale_docs",
@@ -36284,7 +36378,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2044",
+      "source_location": "L2053",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v16_users_schema_gotchas_learned_building_users_user_settings_and_ownership_columns",
@@ -36294,7 +36388,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2101",
+      "source_location": "L2110",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v17_multi_user_auth_gotchas_learned_wiring_user_creation_on_login_owner_scoping_per_user_sse",
@@ -36304,7 +36398,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2193",
+      "source_location": "L2202",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v18_job_centric_api_gotchas_learned_building_cursor_pagination_rollup_status_and_search",
@@ -36314,7 +36408,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2290",
+      "source_location": "L2299",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v19_archive_retention_gotchas_learned_building_soft_archive_lifecycle_per_user_retention",
@@ -36324,7 +36418,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2347",
+      "source_location": "L2356",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v20_job_centric_ui_gotchas_learned_building_the_job_track_hierarchy_ui_search_sort_archive",
@@ -36334,7 +36428,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2486",
+      "source_location": "L2495",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v21_release_automation_gotchas_learned_building_github_releases_ghcr_image_publishing_and",
@@ -36344,7 +36438,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2644",
+      "source_location": "L2653",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v22_multi_user_hardening_gotchas_learned_re_running_the_cross_user_sweep_at_the_seams_v14_v20",
@@ -36354,7 +36448,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2856",
+      "source_location": "L2865",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v23_1_download_reliability_followup_gotchas_learned_recording_v23_s_production",
@@ -36364,10 +36458,20 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2815",
+      "source_location": "L2824",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v23_download_reliability_gotchas_learned_root_causing_the_download_outage_fixing_the",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/GOTCHAS.md",
+      "source_location": "L2943",
+      "weight": 1.0,
+      "source": "docs_gotchas_version_log",
+      "target": "docs_gotchas_v24_attempt_history_gotchas_learned_building_track_attempts",
       "confidence_score": 1.0
     },
     {

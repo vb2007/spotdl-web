@@ -265,8 +265,8 @@
     "semantic_hash": "fb51fb830079ae9b9e6c3b424529080b"
   },
   "backend/app/tasks/download.py": {
-    "mtime": 1786804959.026983,
-    "ast_hash": "64238c1c47574b55b6a1a7385af30349",
+    "mtime": 1786873977.3796196,
+    "ast_hash": "e21ba46133857816f84edf25bf9df0f5",
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
@@ -275,8 +275,8 @@
     "semantic_hash": "f9fc5f6c54ec82cfd862d984fe538c79"
   },
   "backend/tests/test_download_task.py": {
-    "mtime": 1786805133.2484844,
-    "ast_hash": "f62a7103a2484f538f9cf480c92e6f1e",
+    "mtime": 1786874005.6098056,
+    "ast_hash": "a8cb82f504ecb6b2eb914b2ac6d59f48",
     "semantic_hash": ""
   },
   "backend/tests/test_downloads.py": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1786804890.0480125,
-    "ast_hash": "1491ec6b6badbb34728c1272aa419f5f",
+    "mtime": 1786873967.0191844,
+    "ast_hash": "9d2985aed76765f9997feb25ff6ece22",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
