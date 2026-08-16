@@ -210,8 +210,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/upstream_auth.py": {
-    "mtime": 1786876486.5788672,
-    "ast_hash": "3cca4e6ea4f1a97f15b15ecdd8f2c9cb",
+    "mtime": 1786877372.2069993,
+    "ast_hash": "2cc142d6c328776ee16fc939fc53947e",
     "semantic_hash": ""
   },
   "backend/tests/conftest.py": {
@@ -220,8 +220,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_auth.py": {
-    "mtime": 1786876055.3027844,
-    "ast_hash": "90397b0d0f5081c403257694d64a0891",
+    "mtime": 1786877427.1623034,
+    "ast_hash": "b14bd1c0662365a0087f3e218ea8db82",
     "semantic_hash": ""
   },
   "backend/app/routers/jobs.py": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1786875941.2680032,
-    "ast_hash": "7a868fd29b0a3b502ed3d8abe4febcb4",
+    "mtime": 1786876944.7360766,
+    "ast_hash": "4a93f7f0f08f97d60afe4cd80fc211cb",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -665,8 +665,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/users.py": {
-    "mtime": 1786875973.1423397,
-    "ast_hash": "3b83fe1fa6b28eca980bc6ede57ef2c2",
+    "mtime": 1786877386.6126034,
+    "ast_hash": "429b637c2c992f2f69d0f8851e74df66",
     "semantic_hash": ""
   },
   "backend/tests/test_ownership.py": {
@@ -675,8 +675,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_users.py": {
-    "mtime": 1786876066.9882746,
-    "ast_hash": "c6fadeb3bbf5daa6672b4be8d9d87d63",
+    "mtime": 1786877412.3086808,
+    "ast_hash": "84b02818fa6d3643ef0959ebbda06c5c",
     "semantic_hash": ""
   },
   "backend/alembic/versions/b6dde562e77a_add_trigram_search_indexes.py": {
@@ -710,8 +710,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_job_listing.py": {
-    "mtime": 1786482752.6791358,
-    "ast_hash": "ca3e3565cdc36eaa9a6d63b5d549dc58",
+    "mtime": 1786877449.2042277,
+    "ast_hash": "f1f4adfe099a6542ce9cfbf43d14719b",
     "semantic_hash": ""
   },
   "backend/tests/test_pagination.py": {
@@ -725,8 +725,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_track_listing.py": {
-    "mtime": 1786553171.1068642,
-    "ast_hash": "e3dd2bd1e849eba0e37099e5e9d03ad0",
+    "mtime": 1786877443.605993,
+    "ast_hash": "0f30bfabcb2272b421ead48c82faa9b2",
     "semantic_hash": ""
   },
   "backend/app/services/archive.py": {
@@ -890,8 +890,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_upstream_auth.py": {
-    "mtime": 1786876079.6978073,
-    "ast_hash": "5bd58ae0632200863fa47194c2207e4c",
+    "mtime": 1786877401.1822143,
+    "ast_hash": "66c5276f8588156f408cfc62ce27b148",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/WorkerStatusPill.svelte": {

@@ -158,6 +158,10 @@
   "156": "spotdl-web — Accumulated Gotchas (master v1, v01–v13)",
   "157": "a1c7f4d8e2b0_add_username_to_users.py",
   "158": "Amendments",
+  "159": "One-time host setup (already done on this host — kept for reference)",
   "160": "5ae734a0485b_add_track_attempts_table.py",
-  "161": "ApiError"
+  "161": "ApiError",
+  "162": "Upgrading an existing deployment (manual fallback)",
+  "163": "test_app_settings.py",
+  "164": "Architecture"
 }
