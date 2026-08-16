@@ -1,12 +1,15 @@
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import get_db
-from app.models import Job, JobSourceType, Track, TrackAttempt, TrackState, User
+from app.models import DownloadedTrack, Job, JobSourceType, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
 from app.services import events, retry, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
@@ -38,6 +41,45 @@ def _get_track_or_404(
     if row is None:
         raise HTTPException(status_code=404, detail="Track not found")
     return row
+
+
+# The nginx `internal` location (frontend/nginx.conf) that aliases the downloads root --
+# `X-Accel-Redirect` values must be prefixed with this, never the raw filesystem path.
+_INTERNAL_DOWNLOADS_PREFIX = "/internal-downloads/"
+
+
+def _resolve_track_file_path(db: Session, track: Track) -> Path | None:
+    """The dedup ledger (`downloaded_tracks`, keyed by spotify_track_id) is the field v28's
+    library move will repoint -- see CLAUDE.md's master-v3 invariants -- so it's consulted
+    first and `Track.output_path` is only a fallback for the (expected-never) case where a
+    completed/skipped-duplicate track has no matching ledger row. This is what lets this
+    endpoint keep working unchanged once v28 starts moving files."""
+    ledger_row = db.get(DownloadedTrack, track.spotify_track_id)
+    raw_path = ledger_row.file_path if ledger_row is not None else track.output_path
+    if raw_path is None:
+        return None
+    return Path(raw_path)
+
+
+def _content_disposition(filename: str) -> str:
+    """RFC 5987 `filename*` alongside a plain ASCII-sanitized `filename` fallback -- this
+    library is full of non-ASCII artist/title names (v27's plan), and older clients that
+    don't understand `filename*` still get a usable (if transliterated) name instead of a
+    header encoding error.
+
+    The fallback strips every non-printable-ASCII byte, not just non-ASCII ones -- a bare
+    `encode("ascii", "ignore")` lets a literal CR/LF in `filename` straight through into a
+    response header, which ASGI servers reject outright (a 500, not the clean 404/200 this
+    endpoint is supposed to guarantee). `filename` is ultimately DB-sourced
+    (`Track.output_path`/the ledger's `file_path`), so it gets the same not-actually-trusted
+    treatment as the path-traversal check above rather than being assumed well-formed. The
+    `filename*` branch below needs no equivalent guard -- `quote(..., safe="")` already
+    percent-encodes every such byte."""
+    ascii_only = filename.encode("ascii", "ignore").decode("ascii")
+    ascii_fallback = "".join(ch for ch in ascii_only if 32 <= ord(ch) < 127 and ch != '"').strip()
+    if not ascii_fallback:
+        ascii_fallback = "track"
+    return f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
 
 
 @router.get("")
@@ -167,3 +209,42 @@ def list_track_attempts(
         .all()
     )
     return [track_attempt_to_dict(row) for row in rows]
+
+
+@router.get("/{track_id}/file")
+def download_track_file(
+    track_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> Response:
+    """Streams a completed track's audio file via nginx `X-Accel-Redirect` (v27) -- no
+    audio bytes pass through this process; FastAPI only decides *whether* nginx may serve
+    the file and *which* one. Same owner-scoped 404-not-403 gate as every other direct-id
+    track endpoint; availability is keyed on the file existing at its recorded path, never
+    on the job's `archived_at` (a retention-archived job's track stays downloadable)."""
+    track, _owner_id, _archived_at = _get_track_or_404(db, track_id, user)
+
+    raw_path = _resolve_track_file_path(db, track)
+    if raw_path is None:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # `output_path`/the ledger's `file_path` are app-generated today, but this endpoint
+    # turns them into an authorization boundary -- confirm the resolved path is actually
+    # inside the allowed downloads root before ever handing it to nginx, rather than
+    # trusting it as already-safe input (v27's plan, path-traversal guard). `.resolve()`
+    # on an absolute, possibly-nonexistent path is purely lexical (no filesystem access
+    # required), so this needs no volume mount into this container.
+    root = Path(get_settings().download_output_dir).resolve()
+    resolved = raw_path if raw_path.is_absolute() else (root / raw_path)
+    resolved = resolved.resolve()
+    if not resolved.is_relative_to(root) or resolved == root:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    accel_uri = _INTERNAL_DOWNLOADS_PREFIX + "/".join(
+        quote(part, safe="") for part in resolved.relative_to(root).parts
+    )
+    headers = {
+        "X-Accel-Redirect": accel_uri,
+        "Content-Disposition": _content_disposition(resolved.name),
+    }
+    return Response(status_code=200, headers=headers)

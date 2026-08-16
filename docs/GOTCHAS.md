@@ -105,6 +105,16 @@ needed" claim — rather than silently deleted.
   scripts invoked directly can silently run stale, already-fixed-on-GitHub code. A stale *local*
   tag left over from pre-merge `workflow_dispatch` testing can also shadow the real tag of the
   same name, rejecting `git fetch --tags` with "would clobber existing tag" → *v22*
+- Local dev's default `docker compose up` (with `docker-compose.override.yml` applied) runs Vite
+  (`npm run dev`) for `web`, not nginx — any feature whose correctness depends specifically on
+  nginx behavior (an `internal` location, a new `location` block) is untestable through that
+  default stack and needs either `docker compose -f docker-compose.yml up` (bypassing the
+  override) or a standalone container built from the same image, run alongside the existing stack
+  (see the Testing entry below) → *v27*. **Corrected same version, same day**: for
+  `X-Accel-Redirect` specifically, this was fixed rather than left as a standing gap — see the
+  Frontend entry below (`vite.config.ts`'s `devFileDownloadFallback`). The general point (Vite
+  ≠ nginx, a *new* nginx-only mechanism won't automatically work through the dev override) still
+  holds for anything that isn't file-download-shaped.
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -293,6 +303,21 @@ needed" claim — rather than silently deleted.
 - Deleting a proxy is source-conditional: `manual` rows hard-delete, `file` rows soft-disable →
   *v13*
 
+**File serving & HTTP headers**
+- A response header built from DB-sourced/app-generated-but-not-actually-trusted text (here:
+  `Content-Disposition`'s ASCII fallback filename, built from `Track.output_path`/the ledger's
+  `file_path`) needs every non-printable byte stripped, not just non-ASCII ones —
+  `str.encode("ascii", "ignore")` passes a literal CR/LF straight through, and a real ASGI server
+  (confirmed against live uvicorn, not just the `TestClient`) rejects a header value containing
+  one outright, crashing the response instead of the intended clean 404/200. The RFC 5987
+  `filename*` form needs no equivalent guard — `urllib.parse.quote(..., safe="")` already
+  percent-encodes those bytes → *v27*
+- nginx's `X-Accel-Redirect` internal-redirect response keeps the *original* response's other
+  headers (e.g. `Content-Disposition`) even though the served bytes/`Content-Type`/`Content-Length`
+  come fresh from the internal location's own file lookup — confirmed live: the app never sets
+  `Content-Type` at all, and nginx fills in `audio/mpeg` from its own `mime.types` purely off the
+  file extension → *v27*
+
 **Frontend (SvelteKit)**
 - `adapter-static` can't run a server load; routes use `ssr = false` + `prerender = true` **and**
   each needs its own explicit nginx `location` block (missing the second half shipped a `/login`
@@ -345,6 +370,23 @@ needed" claim — rather than silently deleted.
   (still-`source_url`-titled) or `failed` (permanently zero-track), or the row gets sorted by a
   throwaway value it can never correct later, since an already-present row is only ever patched in
   place, never re-sorted → *v23.1*
+- A `fetch()` response whose success is defined by a *header* (here: `X-Accel-Redirect`, meaningful
+  only to a real nginx sitting in front of the app) rather than by its body reads as fully
+  successful (`response.ok`, a parseable `Content-Disposition`) even when fronted by something
+  that doesn't understand that header at all (Vite's dev proxy just forwards the empty body
+  through) — the resulting 0-byte blob triggers a real, correctly-named browser "Save As" with no
+  error anywhere. Caught by fresh-eyes review, not by testing against the one stack (real nginx)
+  that's actually wired for it; fixed same session with a client-side `blob.size === 0` guard as a
+  backstop, kept in place → *v27*. **Same day, caught again by the project owner's own live
+  testing** (a documented, "accepted" gap can still surprise a real user in daily use, even with a
+  clean error message): the actual fix that shipped is `vite.config.ts`'s
+  `devFileDownloadFallback` plugin, a dev-only middleware that intercepts exactly this one route,
+  makes its own request to `api`, and — if the response carries `X-Accel-Redirect` — serves the
+  real file itself from disk instead of forwarding the empty body. Needed `docker-compose.override.yml`'s
+  `web` volumes fixed too: it had been merging in the *base file's* `downloads:/downloads:ro`
+  (a separate, always-empty, Docker-managed named volume) instead of `!override`-ing to the real
+  `./downloads` host bind worker-dl/worker-meta actually write into, so the plugin would otherwise
+  have 404'd against an empty mount even once it existed.
 
 **Testing & verification technique**
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
@@ -474,6 +516,20 @@ needed" claim — rather than silently deleted.
   (`consecutive_failures=0`, `last_success_at=now()`) on it. Don't assume a proxy-escalation test's
   proxy_id assertions can be pinned to "the one proxy I created" past the point it's cooled down →
   *v24*
+- A standalone `docker run --network <project>_default ...` container resolves compose service
+  names (e.g. `api`) through Docker's embedded DNS exactly like a real compose-managed container
+  would, since that resolution is per-network, not per-project — useful for testing a service
+  variant (here: a real nginx `web` build, to get around the dev-override-runs-Vite gap above)
+  alongside an already-running dev stack without recreating anything the rest of it depends on →
+  *v27*
+- Playwright's `download.suggestedFilename()` reads the *browser's own* `Content-Disposition`
+  parsing — the actual thing the "Done when" bullet asked to verify (a curl-based header check
+  proves the header is well-formed, not that a real browser decodes it the same way) → *v27*
+- httpx's `TestClient` and a real live uvicorn process don't always agree on what counts as an
+  invalid response — a header value containing a raw CR/LF was accepted (if garbled) by the
+  `TestClient` in this project's own test suite, but crashed a real running `api` container.
+  Confirming a fix for anything touching raw header construction needs at least one curl against
+  the actual running container, not just a green pytest run → *v27*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -3140,3 +3196,68 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   v26 doesn't touch the frontend at all (`package.json`'s version bump is the only frontend diff),
   so left as-is rather than expanded out of scope — worth a small dedicated fix (outcome-aware
   styling, or a distinct "warning" tone) whenever a version next touches `TrackRow.svelte`.
+
+### v27 file-downloads gotchas (learned building `GET /api/tracks/{id}/file`)
+
+- **`_resolve_track_file_path` reads the `downloaded_tracks` ledger (keyed on `spotify_track_id`)
+  before falling back to `Track.output_path`, deliberately** — both `COMPLETED` and
+  `SKIPPED_DUPLICATE` set `Track.output_path` directly (`download_track`, `app/tasks/download.py`),
+  but the ledger is the field the master-v3 invariants say v28's library move will repoint, not the
+  per-track column. Reading the ledger first is what lets this endpoint "keep working unchanged"
+  once v28 starts moving files, per the plan's own explicit requirement — verified now with a test
+  where the ledger and the track's own `output_path` deliberately disagree
+  (`test_download_track_file_prefers_ledger_path_over_track_output_path`), proving the ledger wins.
+- **The path-traversal guard needs no filesystem access, and `api` gets no `/downloads` mount at
+  all** — `Path(...).resolve(strict=False)` on an absolute, possibly-nonexistent path is purely
+  lexical (no I/O), so confirming a candidate path is `is_relative_to` the configured downloads
+  root doesn't require the file (or even its parent directories) to actually exist in this
+  container's mount namespace. Only `web` (nginx) needs the real mount, since it's the one that
+  actually serves bytes — see the compose diff.
+- **Two real bugs surfaced by fresh-eyes review, both fixed and re-verified against the real
+  running stack** (not just re-run through pytest):
+  1. `_content_disposition`'s ASCII fallback stripped non-ASCII bytes but not non-printable ones,
+     so a filename containing a literal CR/LF crashed a real running `api` container's response
+     (confirmed via direct curl to the container's published port, both before and after the fix)
+     instead of the clean 404/200 this endpoint is supposed to guarantee either way — see the "File
+     serving & HTTP headers" topic entry for the general lesson.
+  2. `downloadTrackFile` (`frontend/src/lib/api.ts`) treated any `response.ok` as success, so under
+     the local dev override (Vite fronting `web`, not nginx — see the Compose topic entry) a
+     download silently "succeeded" with a real, correctly-named, 0-byte file. Fixed with a
+     `blob.size === 0` guard, kept in place as a backstop.
+- **The `blob.size === 0` guard above was the wrong place to stop** — the project owner hit the
+  resulting "Downloaded file was empty" error on their own very next live test, immediately after
+  this PR's "merge-ready" review pass. A documented, "this is a known accepted gap" tradeoff still
+  reads as a broken feature to the person actually using it day to day; asked directly, the owner
+  chose to close the gap rather than leave it documented. Fixed with `vite.config.ts`'s
+  `devFileDownloadFallback` — a dev-only Vite middleware (registered only under `command ===
+  'serve'`, so it's genuinely absent from `vite build`'s output) that intercepts exactly
+  `/api/tracks/{id}/file`, makes its own request to `api`, and — when the response carries
+  `X-Accel-Redirect` — serves the real file itself from the same `/downloads` mount, instead of
+  forwarding the meaningless-to-Vite empty body. This needed `docker-compose.override.yml`'s own
+  `web` volumes fixed alongside it: it had been *merging* the base file's `downloads:/downloads:ro`
+  (a separate, permanently-empty, Docker-managed named volume — never the real files) instead of
+  `!override`-ing to the real `./downloads` host bind the way worker-dl/worker-meta already do, so
+  the new plugin would otherwise have 404'd against an empty mount regardless. Re-verified against
+  the real running dev-override stack afterward: owner download (exact sha256 match), unauthenticated
+  401, stranger 404, corrupted-path 404, and missing-file-on-disk 404 all pass through the Vite
+  fallback identically to how they pass through real nginx.
+- **Real end-to-end verification this session, against the real local stack** (real Postgres, real
+  files already on disk from earlier versions' own testing — no fresh download was run purely for
+  this version, since v23/v26 already prove the download pipeline itself and v27 only adds a
+  read/serve path over files that already exist): a standalone nginx container built from this
+  version's own `frontend/Dockerfile`, attached to the running compose project's network and
+  mounted read-only at the real `./downloads` host path, alongside two identities that went
+  through the *real* upstream login (`https://api.vb2007.hu`, since the local instance wasn't up
+  this session) — the existing admin (`balazs@vb2007.hu`) and a non-admin test account
+  (`spotdlwebtestv22@example.com`) — plus one direct-session-mint stranger identity. Confirmed:
+  owner downloads a real file with an **exact sha256 match** against the file on disk; a stranger
+  gets 404 on that same track id; the admin gets 200 on it too; a corrupted `output_path` pointing
+  at `/etc/passwd` and at a `../`-escaping relative path both 404; a track whose recorded path
+  doesn't exist on disk 404s; a retention-archived job's track still downloads; curling the
+  `internal` nginx location directly from outside returns 404; and — via a real Chromium driven by
+  Playwright (the cached browser at `~/.cache/ms-playwright/`, per the v13 entry) — a non-ASCII
+  track (`ADÉLA - Ain't In LA.mp3`) downloads through the real UI with `download.suggestedFilename()`
+  correctly reading `ADÉLA - Ain't In LA.mp3` and an exact sha256 match on the saved bytes. All
+  test DB rows (jobs/tracks/the one throwaway stranger user) deleted afterward; `.env`'s temporary
+  `UPSTREAM_AUTH_BASE_URL` override reverted and the `api` container recreated once more to restore
+  the pre-session state.

@@ -117,6 +117,13 @@ services:
         limits:
           memory: 128M
           cpus: "0.25"
+    # Same real host bind mount as worker-dl/worker-meta above, read-only (v27) -- `web`
+    # only ever serves these bytes back out via nginx's `internal` X-Accel-Redirect
+    # location. `!override` replaces rather than merges (same trap as worker-dl/-meta's
+    # own comment above) -- without it this would sit alongside the base file's named
+    # `downloads` volume as a second, conflicting mount at the same target.
+    volumes: !override
+      - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads:ro
 
   cloudflared:
     deploy:
