@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import Job, Track
+from app.models import Job, Track, TrackAttempt
 from app.services.rollup import derive_rollup
 
 
@@ -94,4 +94,17 @@ def track_to_dict(track: Track) -> dict:
         "scheduled_at": track.scheduled_at.isoformat() if track.scheduled_at is not None else None,
         "last_error": track.last_error,
         "last_error_type": track.last_error_type.value if track.last_error_type is not None else None,
+    }
+
+
+def track_attempt_to_dict(attempt: TrackAttempt) -> dict:
+    return {
+        "id": str(attempt.id),
+        "attempt_number": attempt.attempt_number,
+        "started_at": attempt.started_at.isoformat(),
+        "finished_at": attempt.finished_at.isoformat(),
+        "outcome": attempt.outcome.value,
+        "error_type": attempt.error_type.value if attempt.error_type is not None else None,
+        "error_message": attempt.error_message,
+        "proxy_id": str(attempt.proxy_id) if attempt.proxy_id is not None else None,
     }

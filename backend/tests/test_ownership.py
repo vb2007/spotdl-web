@@ -71,6 +71,7 @@ _DIRECT_ID_CASES = [
     ("DELETE", "/api/jobs/{job_id}"),
     ("DELETE", "/api/tracks/{track_id}"),
     ("POST", "/api/tracks/{track_id}/retry"),
+    ("GET", "/api/tracks/{track_id}/attempts"),
     ("PATCH", "/api/jobs/{job_id}/priority"),
     ("POST", "/api/jobs/{job_id}/bump"),
 ]
@@ -122,6 +123,7 @@ def test_admin_has_full_read_and_write_access_to_a_foreign_job(client, db_sessio
 
     assert _as(client, admin_cookie).post(f"/api/jobs/{job.id}/bump").status_code == 200
     assert _as(client, admin_cookie).post(f"/api/tracks/{track.id}/retry").status_code == 200
+    assert _as(client, admin_cookie).get(f"/api/tracks/{track.id}/attempts").status_code == 200
     assert _as(client, admin_cookie).delete(f"/api/jobs/{job.id}").status_code == 200
 
 

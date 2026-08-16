@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from app.models import Job, JobSourceType, Track, TrackState
+from app.models import Job, JobSourceType, Proxy, ProxySource, Track, TrackAttempt, TrackAttemptOutcome, TrackState
 from app.services import retry
 
 
@@ -156,3 +156,55 @@ def test_list_tracks_returns_every_track_across_every_job_in_one_call(authentica
     assert response.status_code == 200
     ids = {row["id"] for row in response.json()["items"]}
     assert ids == {str(a.id), str(b.id)}
+
+
+def test_list_track_attempts_returns_history_oldest_first_with_expected_fields(
+    authenticated_client, db_session, owner
+):
+    track = _make_track(db_session, owner, state=TrackState.WAITING, attempt_count=2)
+    proxy = Proxy(url="http://proxy-1:8080", source=ProxySource.FILE, enabled=True)
+    db_session.add(proxy)
+    db_session.commit()
+
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        TrackAttempt(
+            track_id=track.id,
+            attempt_number=0,
+            started_at=now - timedelta(hours=2),
+            finished_at=now - timedelta(hours=2),
+            outcome=TrackAttemptOutcome.FAILED,
+            error_message="provider exploded",
+        )
+    )
+    db_session.add(
+        TrackAttempt(
+            track_id=track.id,
+            attempt_number=1,
+            started_at=now - timedelta(hours=1),
+            finished_at=now - timedelta(hours=1),
+            outcome=TrackAttemptOutcome.FAILED,
+            proxy_id=proxy.id,
+            error_message="proxy also failed",
+        )
+    )
+    db_session.commit()
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/attempts")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [row["attempt_number"] for row in body] == [0, 1]
+    assert body[0]["proxy_id"] is None
+    assert body[1]["proxy_id"] == str(proxy.id)
+    assert body[1]["error_message"] == "proxy also failed"
+    assert body[1]["outcome"] == "failed"
+
+
+def test_list_track_attempts_empty_for_a_track_with_no_history(authenticated_client, db_session, owner):
+    track = _make_track(db_session, owner, state=TrackState.PENDING)
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/attempts")
+
+    assert response.status_code == 200
+    assert response.json() == []
