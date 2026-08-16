@@ -9,7 +9,7 @@
 	import { worker } from '$lib/stores/worker';
 	import Waterfall from '$lib/components/Waterfall.svelte';
 	import IncomingJobs from '$lib/components/IncomingJobs.svelte';
-	import WorkerStatus from '$lib/components/WorkerStatus.svelte';
+	import WorkerStatusPill from '$lib/components/WorkerStatusPill.svelte';
 	import QueueControls from '$lib/components/QueueControls.svelte';
 	import JobRow from '$lib/components/JobRow.svelte';
 	import TrackRow from '$lib/components/TrackRow.svelte';
@@ -142,11 +142,14 @@
 			<span class="label dim">SIGNAL RECEIVER</span>
 		</div>
 		<div class="session">
+			<WorkerStatusPill />
 			{#if isAdmin}
 				<a class="settings-link mono" href={resolve('/settings')}>settings</a>
 			{/if}
 			<a class="settings-link mono" href={resolve('/account')}>account</a>
-			<span class="mono">{data.session?.email}</span>
+			<span class="mono" title={data.session?.email}
+				>{api.displayName(data.session?.username ?? null, data.session?.email ?? '')}</span
+			>
 			<button type="button" class="logout" onclick={onLogout}>disconnect</button>
 		</div>
 	</header>
@@ -164,8 +167,6 @@
 		<button type="submit" disabled={submitting}>{submitting ? 'SENDING…' : 'SUBMIT'}</button>
 	</form>
 	<p id="submit-error" class="submit-error mono" role="alert">{submitError}</p>
-
-	<WorkerStatus {isAdmin} />
 
 	<IncomingJobs jobs={$incomingJobs} />
 
@@ -204,7 +205,9 @@
 						<span class="title">{group.job.title}</span>
 						<span class="source-type mono">{group.job.source_type}</span>
 						{#if allUsersView}
-							<span class="owner mono">{group.job.owner_email}</span>
+							<span class="owner mono" title={group.job.owner_email}
+								>{api.displayName(group.job.owner_username, group.job.owner_email)}</span
+							>
 						{/if}
 					</div>
 					<ul class="rows">
@@ -264,6 +267,16 @@
 		gap: var(--space-3);
 		font-size: 0.8125rem;
 		color: var(--text-muted);
+	}
+
+	/* Same one-cell-per-line mobile rule as JobRow/TrackRow (DESIGN.md §6) -- the pill
+	   is new real content in this row, not just a style tweak, so re-confirmed against a
+	   real 390px screenshot rather than assumed safe because flex-wrap already reflows. */
+	@media (max-width: 640px) {
+		.session {
+			flex-direction: column;
+			align-items: stretch;
+		}
 	}
 
 	.settings-link {

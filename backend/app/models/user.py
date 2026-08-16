@@ -16,6 +16,12 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(Text, unique=True, index=True, nullable=False)
+    # Nullable (v25): a row can exist before a successful `GET /user` -- e.g. a user who
+    # logged in before this column existed, or whose upstream call has never once
+    # succeeded. Refreshed on every login (services.users.get_or_create_user), same
+    # reconciliation pattern as is_admin, but only when a fresh value was actually
+    # fetched -- a flaky upstream call must never null out a previously known-good name.
+    username: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     last_login_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)

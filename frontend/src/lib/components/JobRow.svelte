@@ -140,7 +140,9 @@
 			<span class="title">{job.title}</span>
 			<span class="source-type mono">{job.source_type}</span>
 			{#if allUsers}
-				<span class="owner mono">{job.owner_email}</span>
+				<span class="owner mono" title={job.owner_email}
+					>{api.displayName(job.owner_username, job.owner_email)}</span
+				>
 			{/if}
 		</button>
 

@@ -64,7 +64,7 @@ def create_job(
     db.add(job)
     db.commit()
     expand_job.delay(str(job.id))
-    return job_to_dict(job, track_counts(db, job.id), user.email, rollup.job_title(db, job))
+    return job_to_dict(job, track_counts(db, job.id), user.email, user.username, rollup.job_title(db, job))
 
 
 @router.get("")
@@ -154,12 +154,17 @@ def unarchive_jobs(
     return {"unarchived_ids": [str(job.id) for job in jobs]}
 
 
-def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, str]:
-    """Returns the job alongside its owner's email in one join -- and, for a non-admin,
-    filters by ownership in the same query rather than loading the row and checking
-    after, so a foreign job is indistinguishable from a nonexistent one (404, never 403,
-    per the threat model: an id's existence must never be confirmed to a non-owner)."""
-    query = db.query(Job, User.email).join(User, Job.user_id == User.id).filter(Job.id == job_id)
+def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, str, str | None]:
+    """Returns the job alongside its owner's email and username in one join -- and, for a
+    non-admin, filters by ownership in the same query rather than loading the row and
+    checking after, so a foreign job is indistinguishable from a nonexistent one (404,
+    never 403, per the threat model: an id's existence must never be confirmed to a
+    non-owner)."""
+    query = (
+        db.query(Job, User.email, User.username)
+        .join(User, Job.user_id == User.id)
+        .filter(Job.id == job_id)
+    )
     if not user.is_admin:
         query = query.filter(Job.user_id == user.id)
     row = query.one_or_none()
@@ -174,8 +179,10 @@ def get_job(
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
 ) -> dict:
-    job, owner_email = _get_job_or_404(db, job_id, user)
-    return job_to_dict(job, track_counts(db, job.id), owner_email, rollup.job_title(db, job))
+    job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
+    return job_to_dict(
+        job, track_counts(db, job.id), owner_email, owner_username, rollup.job_title(db, job)
+    )
 
 
 @router.get("/{job_id}/tracks")
@@ -233,7 +240,7 @@ def cancel_job(
     `downloading` isn't interrupted (spotdl's call is synchronous, not cleanly
     interruptible) — it's marked `cancelled` here and `download_track` discards its
     result once the blocking call returns, rather than trying to stop it mid-flight."""
-    job, owner_email = _get_job_or_404(db, job_id, user)
+    job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
     tracks = (
         db.query(Track)
         .filter(Track.job_id == job_id, Track.state.in_(_CANCELLABLE_TRACK_STATES))
@@ -253,7 +260,9 @@ def cancel_job(
     events.publish_job_event(job.user_id, job.id, job.state.value)
     # Read after the cancel commit above, not before -- counts must reflect the just
     # -cancelled tracks.
-    return job_to_dict(job, track_counts(db, job.id), owner_email, rollup.job_title(db, job))
+    return job_to_dict(
+        job, track_counts(db, job.id), owner_email, owner_username, rollup.job_title(db, job)
+    )
 
 
 @router.patch("/{job_id}/priority")
@@ -263,10 +272,12 @@ def set_job_priority(
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
 ) -> dict:
-    job, owner_email = _get_job_or_404(db, job_id, user)
+    job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
     job.priority = payload.priority
     db.commit()
-    return job_to_dict(job, track_counts(db, job.id), owner_email, rollup.job_title(db, job))
+    return job_to_dict(
+        job, track_counts(db, job.id), owner_email, owner_username, rollup.job_title(db, job)
+    )
 
 
 @router.post("/{job_id}/bump")
@@ -280,8 +291,10 @@ def bump_job(
     day-to-day (per the v11 plan) rather than a full manual ranking scheme. The max is
     global, not scoped to the caller: queue fairness is a locked, global decision for
     v2 (no per-user slots), so "front" means front of everyone's queue."""
-    job, owner_email = _get_job_or_404(db, job_id, user)
+    job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
     max_priority = db.query(func.max(Job.priority)).scalar() or 0
     job.priority = max_priority + 1
     db.commit()
-    return job_to_dict(job, track_counts(db, job.id), owner_email, rollup.job_title(db, job))
+    return job_to_dict(
+        job, track_counts(db, job.id), owner_email, owner_username, rollup.job_title(db, job)
+    )

@@ -84,8 +84,8 @@ def client(db_session):
 
 
 def _login(client: TestClient, monkeypatch, email: str) -> None:
-    async def fake_login(email_: str, password: str) -> bool:
-        return True
+    async def fake_login(email_: str, password: str) -> tuple[bool, str | None]:
+        return True, None
 
     monkeypatch.setattr(auth_router.upstream_auth, "login", fake_login)
     response = client.post("/api/auth/login", json={"email": email, "password": "x"})

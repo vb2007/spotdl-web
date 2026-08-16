@@ -70,18 +70,18 @@ def _set_session_cookie(response: Response, token: str) -> None:
 async def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> dict:
     settings = get_settings()
 
-    upstream_ok = await upstream_auth.login(payload.email, payload.password)
+    upstream_ok, username = await upstream_auth.login(payload.email, payload.password)
     allowed = payload.email.strip().lower() in {e.strip().lower() for e in settings.allowed_emails}
 
     # Upstream failure and allowlist rejection must be indistinguishable to the caller.
     if not upstream_ok or not allowed:
         raise _INVALID_CREDENTIALS
 
-    user = get_or_create_user(db, payload.email)
+    user = get_or_create_user(db, payload.email, username)
     session = create_session(db, user.id)
     db.commit()
     _set_session_cookie(response, session.token)
-    return {"email": user.email, "is_admin": user.is_admin}
+    return {"email": user.email, "username": user.username, "is_admin": user.is_admin}
 
 
 @router.post("/logout")
@@ -98,4 +98,4 @@ def logout(
 
 @router.get("/me")
 def me(user: User = Depends(require_session)) -> dict:
-    return {"email": user.email, "is_admin": user.is_admin}
+    return {"email": user.email, "username": user.username, "is_admin": user.is_admin}
