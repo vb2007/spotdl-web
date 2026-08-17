@@ -3375,6 +3375,21 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   service..." entry, just triggered by a stale cache instead of a config gap — worth remembering
   that *any* mid-session compose-file edit to a service's `build`/`volumes` can require an explicit
   rebuild, not just a recreate, if that image tag has ever been built a different way before.
+- **Deferred, found while triaging fresh-eyes review (not fixed this version): a disk-full/I/O
+  failure mid-`copy_verify` leaves a partial, corrupt file at `dest` that the *next* sweep attempt
+  would silently adopt as though it were a legitimate pre-existing library file.** `copy_verify`
+  correctly leaves a failed copy in place rather than deleting it (`library.py`'s own docstring:
+  "nothing is ever deleted on the target filesystem, not once, not under any flag"), and the ledger
+  row correctly stays un-repointed on that first attempt (satisfies the plan's own "Done when"
+  bullet as literally tested: source intact, ledger unchanged). But retrying that same row later
+  computes the identical `dest`, finds it already exists, and — because "already exists" is
+  deliberately content-blind (rule 3) — treats the corrupt partial as a genuine duplicate: quarantines
+  or deletes the actually-good source and repoints the ledger onto the corrupt file. Distinguishing
+  "our own failed leftover" from "a real pre-existing library file" would need some content signal,
+  which directly contradicts the plan's explicit content-blind design — a real tension in the plan
+  itself, not a straightforward coding bug, and not observed in this session's real testing (would
+  need an actual disk-full/IO fault mid-copy to trigger). Flagged here rather than silently dropped,
+  for whichever version next touches this path (v30's hardening close is the natural owner).
 - **Real end-to-end verification this session, against the real local stack** (real Postgres, a
   throwaway `./test-library` directory bind-mounted over `worker-meta`/`web` — never the live
   ~120k-track directory, per the plan's own testing rule): real downloaded files already on disk
