@@ -106,7 +106,7 @@
 						aria-valuemin={0}
 						aria-valuemax={100}
 					>
-						<div class="progress-fill" style:width="{percent}%"></div>
+						<div class="progress-fill" style:transform="scaleX({percent / 100})"></div>
 					</div>
 					<p class="hint mono">{run.processed} / {run.total} ({percent}%)</p>
 				{/if}
@@ -243,8 +243,11 @@
 
 	.progress-fill {
 		height: 100%;
+		width: 100%;
 		background: var(--signal-dim);
-		transition: width 0.3s ease;
+		transform-origin: left;
+		transform: scaleX(0);
+		transition: transform 0.3s ease;
 	}
 
 	.report {
