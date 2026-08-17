@@ -25,6 +25,10 @@ def test_get_output_settings_returns_existing_row_without_reseeding(db_session, 
         default_format="flac",
         default_bitrate="disable",
         output_template="{title}.{output-ext}",
+        library_target_dir="/mnt/library",
+        library_folder_template="{artist}",
+        library_quarantine_enabled=True,
+        library_quarantine_dir="/downloads/quarantine",
     )
     db_session.add(existing)
     db_session.commit()
@@ -60,3 +64,38 @@ def test_update_output_settings_creates_row_if_missing(db_session, monkeypatch):
 
     assert row.default_bitrate == "256k"
     assert row.default_format == "mp3"
+
+
+def test_get_library_settings_creates_row_seeded_with_defaults(db_session, monkeypatch):
+    monkeypatch.setattr(app_settings, "get_settings", lambda: _FakeSettings())
+
+    row = app_settings.get_library_settings(db_session)
+    db_session.commit()
+
+    assert row.library_target_dir == app_settings.DEFAULT_LIBRARY_TARGET_DIR
+    assert row.library_folder_template == app_settings.DEFAULT_LIBRARY_FOLDER_TEMPLATE
+    assert row.library_quarantine_enabled is True
+    assert row.library_quarantine_dir == app_settings.DEFAULT_LIBRARY_QUARANTINE_DIR
+
+
+def test_get_library_settings_and_output_settings_share_one_row(db_session, monkeypatch):
+    monkeypatch.setattr(app_settings, "get_settings", lambda: _FakeSettings())
+
+    app_settings.update_output_settings(db_session, default_format="flac")
+    db_session.commit()
+
+    row = app_settings.get_library_settings(db_session)
+
+    assert row.default_format == "flac"  # same singleton row, not a second table
+
+
+def test_update_library_settings_only_touches_given_fields(db_session, monkeypatch):
+    monkeypatch.setattr(app_settings, "get_settings", lambda: _FakeSettings())
+    app_settings.get_library_settings(db_session)
+    db_session.commit()
+
+    row = app_settings.update_library_settings(db_session, library_quarantine_enabled=False)
+    db_session.commit()
+
+    assert row.library_quarantine_enabled is False
+    assert row.library_target_dir == app_settings.DEFAULT_LIBRARY_TARGET_DIR

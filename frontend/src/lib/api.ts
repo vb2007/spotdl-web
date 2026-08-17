@@ -179,7 +179,23 @@ export interface JobStateEvent {
 	ts: string;
 }
 
-export type StreamEvent = TrackStateEvent | JobStateEvent;
+/** v28: library sort & move progress -- published only to the triggering admin's own
+ * per-user channel (there's exactly one sweep at a time, admin-only), so any session
+ * subscribed to its own channel can render this the same way it renders track/job
+ * events, without a separate connection. */
+export interface LibraryProgressEvent {
+	type: 'library.progress';
+	processed: number;
+	total: number;
+	moved: number;
+	skipped_present: number;
+	quarantined: number;
+	current_file?: string;
+	done: boolean;
+	ts: string;
+}
+
+export type StreamEvent = TrackStateEvent | JobStateEvent | LibraryProgressEvent;
 
 export interface WorkerStatus {
 	paused: boolean;
@@ -235,6 +251,34 @@ export interface OutputOptions {
  * unlike OutputSettings, never admin-gated. `null` means "never auto-archive." */
 export interface RetentionSettings {
 	retention_days: number | null;
+}
+
+/** v28: admin-only library sort & move config -- target directory and folder template
+ * for the real music library, plus the quarantine toggle/directory for a folder+filename
+ * conflict. All four live on the same settings row as OutputSettings above. */
+export interface LibrarySettings {
+	library_target_dir: string;
+	library_folder_template: string;
+	library_quarantine_enabled: boolean;
+	library_quarantine_dir: string;
+}
+
+export type EditableLibrarySettings = LibrarySettings;
+
+export type LibrarySortState = 'idle' | 'running';
+
+/** v28: `GET /api/library/sort/status` -- the same row serves both live progress while
+ * `state === 'running'` and the last finished sweep's report once it's idle again. */
+export interface LibrarySortRun {
+	state: LibrarySortState;
+	started_at: string | null;
+	finished_at: string | null;
+	total: number;
+	processed: number;
+	moved: number;
+	skipped_present: number;
+	quarantined: number;
+	errors: { file: string; error: string }[];
 }
 
 /** v17: every session carries the admin flag so the frontend can hide admin-only UI --
@@ -620,6 +664,27 @@ export function updateRetentionSettings(retentionDays: number | null): Promise<R
 		method: 'PATCH',
 		body: JSON.stringify({ retention_days: retentionDays })
 	});
+}
+
+export function getLibrarySettings(): Promise<LibrarySettings> {
+	return request('/api/settings/library');
+}
+
+export function updateLibrarySettings(
+	patch: Partial<EditableLibrarySettings>
+): Promise<LibrarySettings> {
+	return request('/api/settings/library', {
+		method: 'PATCH',
+		body: JSON.stringify(patch)
+	});
+}
+
+export function getLibrarySortStatus(): Promise<LibrarySortRun> {
+	return request('/api/library/sort/status');
+}
+
+export function startLibrarySort(): Promise<LibrarySortRun> {
+	return request('/api/library/sort', { method: 'POST' });
 }
 
 /** `EventSource` needs `withCredentials: true` for the (now rare, see resolveApiBase)

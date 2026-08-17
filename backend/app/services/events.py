@@ -117,6 +117,34 @@ def publish_job_event(
     publish(user_id, event)
 
 
+def publish_library_progress(
+    user_id: uuid.UUID | str,
+    *,
+    processed: int,
+    total: int,
+    moved: int,
+    skipped_present: int,
+    quarantined: int,
+    current_file: str | None = None,
+    done: bool = False,
+) -> None:
+    """v28: library sort & move progress, published only to the admin who triggered the
+    sweep (their own per-user channel) -- there is exactly one sweep at a time and it's
+    admin-only, so this needs no broader audience the way track/job events do."""
+    event: dict[str, Any] = {
+        "type": "library.progress",
+        "processed": processed,
+        "total": total,
+        "moved": moved,
+        "skipped_present": skipped_present,
+        "quarantined": quarantined,
+        "done": done,
+    }
+    if current_file is not None:
+        event["current_file"] = current_file
+    publish(user_id, event)
+
+
 def make_progress_callback(
     user_id: uuid.UUID | str,
     track_id: Any,
