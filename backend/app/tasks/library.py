@@ -38,7 +38,13 @@ def _sync_tracks_and_archive_jobs(db, moved_spotify_ids: set[str]) -> None:
     shared across the whole dedup ledger regardless of who originally downloaded it.
     Reuses archive.archive_jobs, which already re-derives eligibility from real track
     states per user -- a job with another still-active/waiting track is correctly left
-    alone rather than archived out from under it."""
+    alone rather than archived out from under it.
+
+    Called only after every ledger repoint in this sweep has already been committed
+    (see sort_library) -- a failure in here (caught by the caller) leaves that real,
+    correct ledger state untouched; only this secondary output_path/archival bookkeeping
+    is left for a future sweep to redo, since it re-derives moved_spotify_ids fresh from
+    `in_library` each run rather than depending on this function ever completing."""
     ledger_rows = (
         db.query(DownloadedTrack)
         .filter(DownloadedTrack.spotify_track_id.in_(moved_spotify_ids))
@@ -73,103 +79,153 @@ def _sync_tracks_and_archive_jobs(db, moved_spotify_ids: set[str]) -> None:
             events.publish_job_event(user_id, job.id, job.state.value, archived=True)
 
 
+def _publish_progress(run: LibrarySortRun, admin_user_id: str, **kwargs) -> None:
+    events.publish_library_progress(
+        admin_user_id,
+        processed=run.processed,
+        total=run.total,
+        moved=run.moved,
+        skipped_present=run.skipped_present,
+        quarantined=run.quarantined,
+        **kwargs,
+    )
+
+
+def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
+    settings_row = app_settings.get_library_settings(db)
+    target_dir = Path(settings_row.library_target_dir)
+    quarantine_dir = Path(settings_row.library_quarantine_dir)
+    quarantine_enabled = settings_row.library_quarantine_enabled
+    folder_template = settings_row.library_folder_template
+
+    ledger_rows = db.query(DownloadedTrack).filter(DownloadedTrack.in_library.is_(False)).all()
+    run.total = len(ledger_rows)
+    db.commit()
+    _publish_progress(run, admin_user_id)
+
+    moved_spotify_ids: set[str] = set()
+    # Destinations already claimed by an earlier row *in this same sweep* -- distinct
+    # from "already exists" (a file present before this sweep even started, e.g. a
+    # manual library import or an earlier run). Two different spotify_track_ids that
+    # compute the same destination in one sweep are a genuine collision (e.g. an old,
+    # pre-v28-template filename shared by two otherwise-unrelated tracks) and must be
+    # flagged as an error, never silently merged the way a real pre-existing duplicate
+    # is -- merging would repoint the second track's ledger row onto the first track's
+    # file and quarantine/delete the second track's own, actually-different audio.
+    claimed_destinations: dict[Path, str] = {}
+
+    for row in ledger_rows:
+        source = Path(row.file_path)
+        try:
+            if not source.exists():
+                _record_error(run, row.file_path, "source file missing on disk")
+                continue
+
+            tags = library.read_sort_tags(source)
+            if tags is None:
+                _record_error(run, row.file_path, "unsupported or unreadable format for tag read")
+                continue
+
+            dest = library.destination_path(target_dir, folder_template, tags, source)
+
+            claimant = claimed_destinations.get(dest)
+            if claimant is not None:
+                _record_error(
+                    run,
+                    row.file_path,
+                    f"destination collides with track {claimant} moved earlier in this sweep",
+                )
+                continue
+
+            if dest.exists():
+                # Pre-existing (from before this sweep) -- folder+filename match is
+                # enough regardless of content (the plan's dedup rule). Repoint the
+                # ledger to the existing target *before* touching the source and
+                # commit it immediately: a crash between this commit and the
+                # quarantine/delete below leaks a redundant source file (recoverable
+                # manually), instead of losing track of the real, already-correct file
+                # the way committing only at the end of the row would.
+                row.file_path = str(dest)
+                row.in_library = True
+                db.commit()
+                if quarantine_enabled:
+                    library.quarantine(source, quarantine_dir)
+                    run.quarantined += 1
+                else:
+                    source.unlink()
+                    run.skipped_present += 1
+            else:
+                if not library.copy_verify(source, dest):
+                    _record_error(
+                        run, row.file_path, "copy verification failed; source left intact"
+                    )
+                    continue
+                # Same crash-safety ordering as the conflict branch above: the ledger
+                # is repointed and committed to the *verified* copy before the source
+                # is ever deleted.
+                row.file_path = str(dest)
+                row.in_library = True
+                db.commit()
+                source.unlink()
+                run.moved += 1
+
+            claimed_destinations[dest] = row.spotify_track_id
+            moved_spotify_ids.add(row.spotify_track_id)
+        except Exception as exc:
+            logger.exception("library: error processing %s", row.file_path)
+            _record_error(run, row.file_path, str(exc))
+        finally:
+            run.processed += 1
+            db.commit()
+            _publish_progress(run, admin_user_id, current_file=source.name)
+
+    if moved_spotify_ids:
+        try:
+            _sync_tracks_and_archive_jobs(db, moved_spotify_ids)
+        except Exception as exc:
+            # The ledger repoint for every moved track is already committed above --
+            # this is secondary bookkeeping (Track.output_path, job archiving), and a
+            # failure here must not be reported as though the move itself failed.
+            logger.exception("library: track/job sync-and-archive failed after a successful move pass")
+            db.rollback()
+            _record_error(
+                run,
+                "<post-move sync>",
+                f"repointing Track.output_path / archiving jobs failed: {exc}",
+            )
+            db.commit()
+
+    run.state = LibrarySortState.IDLE
+    run.finished_at = datetime.now(timezone.utc)
+    db.commit()
+    _publish_progress(run, admin_user_id, done=True)
+
+
 @celery_app.task(name="app.tasks.library.sort_library")
 def sort_library(admin_user_id: str) -> None:
     """Admin-triggered, on-demand sweep (v28) -- runs on worker-meta like every other
     housekeeping task. Iterates the dedup ledger (one row per unique physical file,
     never the tracks table -- multiple tracks/users can share the same downloaded_tracks
-    row via dedup), skipping rows already marked in_library by a prior run."""
+    row via dedup), skipping rows already marked in_library by a prior run.
+
+    Everything past the per-row loop (which already catches its own exceptions) is
+    wrapped in a second, outer guard: a crash while loading settings, querying the
+    ledger, or elsewhere outside that loop must still reset `run.state` back to IDLE,
+    or `POST /api/library/sort`'s 409-if-running gate wedges permanently with no
+    recovery short of a manual DB edit."""
     db = SessionLocal()
     try:
         run = _get_run(db)
-        settings_row = app_settings.get_library_settings(db)
-        target_dir = Path(settings_row.library_target_dir)
-        quarantine_dir = Path(settings_row.library_quarantine_dir)
-        quarantine_enabled = settings_row.library_quarantine_enabled
-        folder_template = settings_row.library_folder_template
-
-        ledger_rows = (
-            db.query(DownloadedTrack).filter(DownloadedTrack.in_library.is_(False)).all()
-        )
-        run.total = len(ledger_rows)
-        db.commit()
-        events.publish_library_progress(
-            admin_user_id, processed=0, total=run.total, moved=0, skipped_present=0, quarantined=0
-        )
-
-        moved_spotify_ids: set[str] = set()
-
-        for row in ledger_rows:
-            source = Path(row.file_path)
-            try:
-                if not source.exists():
-                    _record_error(run, row.file_path, "source file missing on disk")
-                    continue
-
-                tags = library.read_sort_tags(source)
-                if tags is None:
-                    _record_error(
-                        run, row.file_path, "unsupported or unreadable format for tag read"
-                    )
-                    continue
-
-                dest = library.destination_path(target_dir, folder_template, tags, source)
-
-                if dest.exists():
-                    # Folder+filename conflict -- treated as "already present" regardless
-                    # of the two files' actual content (the plan's dedup rule). The
-                    # existing target file becomes this track's new canonical location
-                    # either way, so the ledger is repointed to it in both branches below.
-                    if quarantine_enabled:
-                        library.quarantine(source, quarantine_dir)
-                        run.quarantined += 1
-                    else:
-                        source.unlink()
-                        run.skipped_present += 1
-                else:
-                    if not library.copy_verify(source, dest):
-                        _record_error(
-                            run,
-                            row.file_path,
-                            "copy verification failed; source left intact",
-                        )
-                        continue
-                    source.unlink()
-                    run.moved += 1
-
-                row.file_path = str(dest)
-                row.in_library = True
-                moved_spotify_ids.add(row.spotify_track_id)
-            except Exception as exc:
-                logger.exception("library: error processing %s", row.file_path)
-                _record_error(run, row.file_path, str(exc))
-            finally:
-                run.processed += 1
-                db.commit()
-                events.publish_library_progress(
-                    admin_user_id,
-                    processed=run.processed,
-                    total=run.total,
-                    moved=run.moved,
-                    skipped_present=run.skipped_present,
-                    quarantined=run.quarantined,
-                    current_file=source.name,
-                )
-
-        if moved_spotify_ids:
-            _sync_tracks_and_archive_jobs(db, moved_spotify_ids)
-
-        run.state = LibrarySortState.IDLE
-        run.finished_at = datetime.now(timezone.utc)
-        db.commit()
-        events.publish_library_progress(
-            admin_user_id,
-            processed=run.processed,
-            total=run.total,
-            moved=run.moved,
-            skipped_present=run.skipped_present,
-            quarantined=run.quarantined,
-            done=True,
-        )
+        try:
+            _run_sweep(db, run, admin_user_id)
+        except Exception as exc:
+            logger.exception("sort_library: sweep crashed outside the per-row loop")
+            db.rollback()
+            run = _get_run(db)
+            _record_error(run, "<sweep>", f"sweep crashed: {exc}")
+            run.state = LibrarySortState.IDLE
+            run.finished_at = datetime.now(timezone.utc)
+            db.commit()
+            _publish_progress(run, admin_user_id, done=True)
     finally:
         db.close()

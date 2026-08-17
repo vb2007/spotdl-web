@@ -115,6 +115,14 @@ needed" claim — rather than silently deleted.
   Frontend entry below (`vite.config.ts`'s `devFileDownloadFallback`). The general point (Vite
   ≠ nginx, a *new* nginx-only mechanism won't automatically work through the dev override) still
   holds for anything that isn't file-download-shaped.
+- Editing a service's `volumes:`/`build:` mid-session and running `docker compose up -d` recreates
+  the container but does **not** rebuild it — if that service's image tag was ever built a
+  *different* way before (e.g. a plain prod-style build reusing the same tag a dev `target:` build
+  also uses), the recreated container silently runs the stale image instead of the one the current
+  compose file describes. Confirmed live: a `web` container recreated for a new bind mount
+  crash-looped with `exec: npm: not found` because it picked up an old final-nginx-stage image under
+  the same `spotdl-web-web` tag. `docker compose build <service>` (respecting the override's own
+  `target:`), then `docker compose up -d <service>`, not just `up -d` alone → *v28*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -243,6 +251,17 @@ needed" claim — rather than silently deleted.
   design, so a real worker crash mid-download leaves no per-attempt history row at all — a real,
   reachable diagnostic gap, out of v24's scope (which named `download_track`'s own six exit paths,
   not `beat.py`) → *v24*
+- A per-row loop that mutates the filesystem (delete/quarantine a source file) and the DB row for it
+  must commit the DB change *before* the filesystem mutation, not after — committing after leaves a
+  crash-window where the file's real location and the DB's belief about it disagree, and nothing
+  downstream (a reconciliation sweep, a retry) can tell "moved but not yet recorded" apart from
+  "genuinely missing" → *v28*
+- A singleton run/status row toggled by an HTTP endpoint (e.g. "start this background sweep, 409 if
+  already running") needs a real `SELECT ... FOR UPDATE` on the read-then-write, or two concurrent
+  requests both observe the pre-toggle state and both proceed → *v28*
+- Any task loop with its own per-item try/except still needs a second, outer try/except around
+  everything *outside* that loop (setup, a final cross-cutting step) — an uncaught exception there
+  has nothing to reset a "this is running" flag back down, permanently wedging it → *v28*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -317,6 +336,13 @@ needed" claim — rather than silently deleted.
   come fresh from the internal location's own file lookup — confirmed live: the app never sets
   `Content-Type` at all, and nginx fills in `audio/mpeg` from its own `mime.types` purely off the
   file extension → *v27*
+- A file-serving endpoint backed by more than one possible storage root (here: the original
+  downloads volume, plus v28's new sorted-library location) needs the path-traversal/authorization
+  check run against *each* root, picking whichever one the resolved path actually falls under —
+  and every place that stands in for the real reverse proxy (nginx's own `internal` locations, plus
+  the dev-only Vite fallback middleware that impersonates it locally) needs the second root added
+  too, or a moved file silently 404s in exactly one of those environments while working in the
+  others → *v28*
 
 **Frontend (SvelteKit)**
 - `adapter-static` can't run a server load; routes use `ssr = false` + `prerender = true` **and**
@@ -3261,3 +3287,112 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   test DB rows (jobs/tracks/the one throwaway stranger user) deleted afterward; `.env`'s temporary
   `UPSTREAM_AUTH_BASE_URL` override reverted and the `api` container recreated once more to restore
   the pre-session state.
+
+### v28 library-sort-move gotchas (learned building the admin-only sort & move sweep)
+
+- **`reconcile_disk()`'s v12 mount-not-attached guard was originally left unextended for the new
+  library root — caught only by fresh-eyes review, not the author's own real-stack testing.** The
+  author's own live verification happened to run against a stack where both mounts were healthy the
+  whole time, so the gap never surfaced. The fix is per-root, not a second blanket check: skip
+  pruning only the ledger rows whose `file_path` actually lives under whichever specific root
+  (`download_output_dir` or `library_target_dir`) looks missing/empty, rather than refusing to prune
+  *anything* the moment either root looks bad. A blanket "refuse if either root is unhealthy" version
+  was tried first and rejected — a freshly deployed/dev instance where v28's sweep has simply never
+  run yet has a genuinely empty `library_target_dir` by construction, and a blanket check would
+  permanently block the far more commonly needed downloads-root reconciliation until the first sweep
+  ever succeeds. Regression tests: `test_reconcile_disk_skips_only_library_rooted_rows_when_library_dir_missing`,
+  `test_reconcile_disk_prunes_downloads_root_normally_when_library_never_used`.
+- **Per-row DB commit ordering matters for crash safety, and the first draft got it backwards.**
+  The original per-row loop did `unlink()`/`quarantine()` the source *then* commit the ledger
+  repoint in a shared `finally` a few lines later — a worker crash/OOM/redeploy in that window
+  leaves the DB still pointing at a now-deleted source path with `in_library` still `False`, and
+  the *next* sweep (or `reconcile_disk()`) finds nothing at that stale path and either records a
+  permanent "source missing" error or silently drops the ledger row — exactly the re-download
+  exposure this whole app exists to avoid, and the file is still sitting there, correctly moved,
+  completely untracked. Fixed by committing the ledger repoint (`file_path` + `in_library`)
+  **immediately after** the copy is verified (or the pre-existing target is confirmed) and
+  **before** the source is ever deleted or quarantined — a crash in the new gap between that commit
+  and the delete instead just leaks a redundant source file (recoverable manually, `find
+  <downloads> -newer <ledger repoint time>` or similar), which is a far better failure mode.
+- **"Already exists" (folder+filename, content-blind) has two genuinely different cases that look
+  identical in code but must not be handled identically: a file already there from *before this
+  sweep started*, vs. two different tracks whose destinations collide *within the same sweep*.**
+  The plan's dedup rule (`v28-library-sort-move.md` rule 3) is explicitly about the first case —
+  a pre-existing library file (manual import, an earlier sweep, a bitrate re-download) correctly
+  absorbs the "duplicate" without content comparison. Naively applying the exact same `dest.exists()`
+  check to the *second* case means the second of two same-sweep colliding tracks (e.g. two
+  genuinely different songs that both predate v28's track-numbered filename template and happen to
+  share a generic name under the same artist/album/year) gets treated as a duplicate of the first,
+  silently repointing its ledger row onto the *first* track's file and quarantining/deleting its
+  own, actually-different audio — permanent data loss with no error surfaced. Fixed by tracking
+  every destination this sweep has already claimed (`spotify_track_id` -> `Path`) and treating a
+  second, different-track claim on the same path as an **error**, never a merge. Verified against
+  real audio (two ledger rows pointing at two copies of the same real downloaded file under
+  different source paths but an identical basename): the first moves normally, the second is
+  recorded in `run.errors` as `"destination collides with track <id> moved earlier in this sweep"`
+  and its own source file is left completely untouched (`test_sort_library_flags_intra_sweep_destination_collision_as_an_error`).
+- **A crash anywhere outside the per-row loop (settings load, the ledger query itself, or the
+  post-loop `Track.output_path`/job-archival sync) left `library_sort_runs.state` wedged at
+  `running` forever, permanently 409-ing every future sweep with no recovery short of a manual DB
+  edit.** The per-row loop already had its own try/except; nothing wrapped the rest of the task
+  body. Fixed with two layers: `_sync_tracks_and_archive_jobs`'s call is wrapped so a failure there
+  (secondary bookkeeping — the ledger repoints that actually matter are already committed per-row by
+  that point) records an error and still lets the run finish `idle`; and the whole sweep body is
+  wrapped in an outer try/except that resets `state` to `idle` and records a top-level error on any
+  other uncaught exception. Both paths verified with a monkeypatched crash
+  (`test_sort_library_resets_to_idle_when_sync_and_archive_raises`,
+  `test_sort_library_resets_to_idle_when_settings_load_raises`).
+- **`POST /api/library/sort`'s "already running" check was a plain read-then-write with no lock** —
+  two concurrent triggers (e.g. an admin double-clicking the "start sweep" button) could both
+  observe `idle` before either commits `running`, dispatching two sweeps against an overlapping
+  ledger snapshot. Fixed with a real `SELECT ... FOR UPDATE` (`db.get(..., with_for_update=True)`)
+  on the singleton run row, so the second request blocks until the first's transaction commits and
+  then correctly sees `running`. Not hardened against the one-time race before any run row exists at
+  all (nothing to lock yet) — an astronomically narrower window than the routine double-click case,
+  and not practically testable against SQLite's single in-process test session anyway (real
+  concurrent-transaction locking needs the real Postgres stack, per this file's existing "Direct-DB
+  tests of beat behavior race the real beat container" entry).
+- **v27's file-serving endpoint needed a real code change, not just "the ledger already handles
+  it"** — the master plan's own critical-interactions section predicted this, and it was still an
+  easy miss: `download_track_file` (`app/routers/tracks.py`) had exactly one allowed root
+  (`download_output_dir`); a track moved into `library_target_dir` fell entirely outside it and
+  404'd. Fixed by accepting either root and picking the matching nginx `X-Accel-Redirect` prefix
+  (`/internal-downloads/` vs. the new `/internal-library/`). This needed three coordinated changes,
+  not one: the FastAPI endpoint's dual-root resolution, a second `internal` location block in
+  `nginx.conf` aliasing `library_target_dir`'s default path, **and** `vite.config.ts`'s
+  `devFileDownloadFallback` (the v27-era dev-only Vite middleware that stands in for real nginx
+  under `docker compose up`'s override) — missing the third one specifically produced a silent
+  404 in local dev even after the first two were correct, caught only by an actual curl against the
+  real running dev stack, not by pytest (which never exercises Vite at all).
+- **A stale image tag from an earlier non-override build silently shadowed the dev Vite image.**
+  After adding a new bind mount to `docker-compose.override.yml`'s `web` service, `docker compose up
+  -d` recreated the container but reused whatever image was last built under the plain
+  `spotdl-web-web` tag — which, on this machine, was a previous **prod-style** build (the final
+  nginx stage, no `npm`), not the override's own `target: build` stage. The container crash-looped
+  with `exec: npm: not found`. `docker compose up -d` alone never rebuilds; `docker compose build
+  web` (respecting the override's `target: build`) followed by `docker compose up -d web` fixed it.
+  Same root cause as this file's existing "`image:`/`build: !reset null` must repeat on every
+  service..." entry, just triggered by a stale cache instead of a config gap — worth remembering
+  that *any* mid-session compose-file edit to a service's `build`/`volumes` can require an explicit
+  rebuild, not just a recreate, if that image tag has ever been built a different way before.
+- **Real end-to-end verification this session, against the real local stack** (real Postgres, a
+  throwaway `./test-library` directory bind-mounted over `worker-meta`/`web` — never the live
+  ~120k-track directory, per the plan's own testing rule): real downloaded files already on disk
+  from earlier versions' testing were used as ledger rows (real tags read via `tagging.read_tags`,
+  e.g. Muse — "Ruled by Secrecy" resolving to `Muse - Absolution - (2004)`); a real sweep moved
+  three files, repointed their ledger rows and one real `Track.output_path`, and archived that
+  track's job; a fourth, cross-user job (a second, non-admin test identity's job) was archived in
+  the same sweep, confirmed via direct DB read and its own `job.state` SSE event; the moved track
+  was re-downloaded through the real dev stack's `X-Accel-Redirect`/Vite-fallback path with an
+  **exact sha256 match**; a real folder+filename conflict was exercised both with quarantine on
+  (source moved to `./downloads/quarantine`, pre-existing target file byte-for-byte untouched) and
+  off (source deleted directly, target still untouched) using deliberately different-content files
+  standing in for a different-bitrate re-download; `reconcile_disk()` was run for real via a
+  `worker-meta` restart both before and after the fixes above, confirming all moved rows survive
+  (`checked N ledger rows, removed 0`); the real intra-sweep collision case was reproduced with two
+  ledger rows pointing at two copies of the same real file under an identical basename; `docker
+  compose config` validated for both dev and prod, confirming the library mount resolves to exactly
+  one bind target per service with no merge conflicts; and the raw SSE stream was captured live
+  (`curl -N /api/stream`) during a real sweep, showing `library.progress` events with `done: true`
+  on completion. All ad-hoc test ledger rows/jobs/users were created under clearly-named
+  `v28-*`/`*testv28*` identities, never the real `ADMIN_EMAIL` account.

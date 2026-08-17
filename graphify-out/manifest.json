@@ -255,9 +255,9 @@
     "semantic_hash": ""
   },
   "backend/app/services/dedup.py": {
-    "mtime": 1785882075.3591244,
-    "ast_hash": "5c1dd20ba7bd2776d08ce44a03398335",
-    "semantic_hash": "5c1dd20ba7bd2776d08ce44a03398335"
+    "mtime": 1786960648.765769,
+    "ast_hash": "68c1ffcf7661416f7d49b15c336637f8",
+    "semantic_hash": ""
   },
   "backend/app/services/downloads.py": {
     "mtime": 1786225178.2575214,
@@ -270,9 +270,9 @@
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
-    "mtime": 1785882075.3591244,
-    "ast_hash": "f9fc5f6c54ec82cfd862d984fe538c79",
-    "semantic_hash": "f9fc5f6c54ec82cfd862d984fe538c79"
+    "mtime": 1786960727.2673795,
+    "ast_hash": "1e1384a613dc3e532b081769080a82e8",
+    "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
     "mtime": 1786891024.3366578,
@@ -345,8 +345,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1786959682.0068753,
-    "ast_hash": "52d9cdca25617dcbb3e48d99c9c3586d",
+    "mtime": 1786960083.8098643,
+    "ast_hash": "677a297c014ac8208e3cadeb80f7b5c2",
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1786958679.8992262,
-    "ast_hash": "0e71dbde2db1f46e05cc2684cea44b46",
+    "mtime": 1786961004.2448547,
+    "ast_hash": "62dee5008dd210377319d399949de852",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -935,8 +935,8 @@
     "semantic_hash": ""
   },
   "backend/app/routers/library.py": {
-    "mtime": 1786958855.8127713,
-    "ast_hash": "f5639b66468216497885815ab983bd1a",
+    "mtime": 1786960626.5197856,
+    "ast_hash": "01b65e8a3eb048b86706f48b7e26b3c8",
     "semantic_hash": ""
   },
   "backend/app/services/library.py": {
@@ -945,8 +945,8 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/library.py": {
-    "mtime": 1786958831.903748,
-    "ast_hash": "902ac03719a4b5587d8b03e0cc364a1b",
+    "mtime": 1786960598.529604,
+    "ast_hash": "dbf9c96f59d22e4fa2eb34327467cba4",
     "semantic_hash": ""
   },
   "backend/tests/test_library.py": {
@@ -960,13 +960,13 @@
     "semantic_hash": ""
   },
   "backend/tests/test_library_task.py": {
-    "mtime": 1786959265.2352123,
-    "ast_hash": "94b744a02c9e9c2b5473d0d94c27f42b",
+    "mtime": 1786960779.2357488,
+    "ast_hash": "5a0a007ff499f7ce3fbed458d26e5c58",
     "semantic_hash": ""
   },
   "frontend/src/routes/library/+page.svelte": {
-    "mtime": 1786959407.4112449,
-    "ast_hash": "fbf1e1f2b67e412acada543fa4854582",
+    "mtime": 1786960083.6958594,
+    "ast_hash": "93c3c0620a0b674b22578c85adc0cee9",
     "semantic_hash": ""
   }
 }

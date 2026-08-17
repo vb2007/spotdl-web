@@ -11,8 +11,8 @@ from app.tasks.library import sort_library
 router = APIRouter(prefix="/api/library", tags=["library"])
 
 
-def _get_or_create_run(db: Session) -> LibrarySortRun:
-    run = db.get(LibrarySortRun, 1)
+def _get_or_create_run(db: Session, *, for_update: bool = False) -> LibrarySortRun:
+    run = db.get(LibrarySortRun, 1, with_for_update=for_update)
     if run is None:
         run = LibrarySortRun(id=1, state=LibrarySortState.IDLE, errors=[])
         db.add(run)
@@ -54,8 +54,15 @@ def start_sort(
     """Admin-only, on-demand -- one sweep at a time (409 if one is already running).
     Resets the singleton run row up front, in this request, so a client polling
     /sort/status immediately after this returns already sees RUNNING/zeroed counts
-    rather than racing the task's own first commit."""
-    run = _get_or_create_run(db)
+    rather than racing the task's own first commit.
+
+    `for_update=True` takes a row lock on this singleton row (a real `SELECT ... FOR
+    UPDATE` against Postgres) so two concurrent POSTs can't both observe IDLE and both
+    dispatch a sweep -- the second blocks until the first's transaction commits, then
+    correctly sees RUNNING and 409s. Doesn't protect the one-time, first-call-ever race
+    before any row exists at all (nothing to lock yet); that's an astronomically
+    narrower window than the routine "double-clicked the button" case this guards."""
+    run = _get_or_create_run(db, for_update=True)
     if run.state == LibrarySortState.RUNNING:
         raise HTTPException(status_code=409, detail="A library sort is already running")
 
