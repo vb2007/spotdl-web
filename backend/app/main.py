@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import auth, health, jobs, proxies, settings, stream, tracks, worker
+from app.routers import auth, health, jobs, library, proxies, settings, stream, tracks, worker
 
 app = FastAPI(title="spotdl-web")
 
@@ -23,6 +23,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(jobs.router)
+app.include_router(library.router)
 app.include_router(proxies.router)
 app.include_router(settings.router)
 app.include_router(stream.router)

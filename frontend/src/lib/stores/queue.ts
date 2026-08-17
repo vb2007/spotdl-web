@@ -1016,9 +1016,11 @@ function createQueueStore() {
 	async function applyEvent(event: StreamEvent): Promise<void> {
 		if (event.type === 'track.state') {
 			applyTrackEvent(event);
-		} else {
+		} else if (event.type === 'job.state') {
 			await applyJobEvent(event);
 		}
+		// 'library.progress' (v28) has nothing to do with the job/track queue this store
+		// manages -- the /library page reads it directly off its own EventSource.
 	}
 
 	const incomingJobs = derived(incoming, ($incoming) =>

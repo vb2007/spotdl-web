@@ -60,6 +60,7 @@ celery_app.conf.update(
 from app.tasks import download  # noqa: E402,F401
 from app.tasks import expand  # noqa: E402,F401
 from app.tasks import beat  # noqa: E402,F401
+from app.tasks import library  # noqa: E402,F401
 
 
 @worker_ready.connect

@@ -99,6 +99,12 @@ services:
     volumes: !override
       - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads
       - ./proxies.txt:/app/proxies.txt:ro
+      # v28: the real music library this app sorts files into -- read-write, the only
+      # service that ever writes here. Matches AppSettings's library_target_dir default
+      # (/mnt/raid1/media/music); repointing that setting to somewhere this mount
+      # doesn't cover is a real footgun, same accepted tradeoff as the setting being
+      # admin-editable at all (see docs/GOTCHAS.md's v28 entry).
+      - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music
 
   beat:
     image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
@@ -124,6 +130,7 @@ services:
     # `downloads` volume as a second, conflicting mount at the same target.
     volumes: !override
       - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads:ro
+      - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music:ro
 
   cloudflared:
     deploy:

@@ -161,6 +161,8 @@ services:
     volumes:
       - downloads:/downloads
       - ./proxies.txt:/app/proxies.txt:ro
+      # v28: read-write -- the only service that ever writes into the sorted library.
+      - library:/mnt/raid1/media/music
 
   beat:
     <<: *backend
@@ -185,10 +187,12 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:5173:80"
-    # Read-only (v27) -- nginx only ever serves these bytes back out via the `internal`
-    # X-Accel-Redirect location (nginx.conf); it has no reason to ever write here.
+    # Read-only (v27, and v28's library mount below) -- nginx only ever serves these
+    # bytes back out via an `internal` X-Accel-Redirect location (nginx.conf); it has no
+    # reason to ever write here.
     volumes:
       - downloads:/downloads:ro
+      - library:/mnt/raid1/media/music:ro
     logging:
       driver: json-file
       options:
@@ -236,3 +240,4 @@ services:
 volumes:
   redis-data:
   downloads:
+  library:

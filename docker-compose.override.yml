@@ -44,6 +44,11 @@ services:
       - ./backend/app:/app/app
       - ./downloads:/downloads
       - ./proxies.txt:/app/proxies.txt:ro
+      # v28: a throwaway local test library, never the real ~120k-track directory --
+      # see docs/GOTCHAS.md's v28 entry and plan/master-v3/v28-library-sort-move.md's
+      # "Done when" ("verified against a copy of the library structure, never the live
+      # 120k directory on the first run"). Gitignored, same as ./downloads.
+      - ./test-library:/mnt/raid1/media/music
 
   beat:
     volumes:
@@ -65,6 +70,7 @@ services:
       - ./frontend:/app
       - /app/node_modules
       - ./downloads:/downloads:ro
+      - ./test-library:/mnt/raid1/media/music:ro
     # `ports` lists merge across compose files rather than replace (unlike `command`/`build`
     # above) — without `!override`, this would ADD to docker-compose.yml's `5173:80` mapping
     # instead of replacing it, leaving two host bindings on the same 127.0.0.1:5173 and a

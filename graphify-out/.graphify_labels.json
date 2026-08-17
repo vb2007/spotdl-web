@@ -163,7 +163,12 @@
   "161": "ApiError",
   "162": "Upgrading an existing deployment (manual fallback)",
   "163": "proxies.py",
+  "164": "archive_jobs",
+  "165": "_get_or_create_run",
   "166": "list_jobs",
   "167": "track_counts",
-  "168": "_event_stream"
+  "168": "_event_stream",
+  "169": "record_attempt",
+  "170": "sort_library",
+  "171": "d2f4a6b8c1e3_add_library_sort_and_move.py"
 }
