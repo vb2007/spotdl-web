@@ -10,7 +10,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from app.models import TrackAttempt, TrackAttemptOutcome, TrackErrorType
+from app.models import NetworkPath, TrackAttempt, TrackAttemptOutcome, TrackErrorType
 
 
 def record_attempt(
@@ -24,6 +24,7 @@ def record_attempt(
     error_type: TrackErrorType | None = None,
     error_message: str | None = None,
     proxy_id: uuid.UUID | None = None,
+    network_path: NetworkPath | None = None,
 ) -> None:
     db.add(
         TrackAttempt(
@@ -35,5 +36,6 @@ def record_attempt(
             error_type=error_type,
             error_message=error_message,
             proxy_id=proxy_id,
+            network_path=network_path,
         )
     )

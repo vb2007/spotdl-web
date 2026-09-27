@@ -414,6 +414,76 @@ curl -sS -X POST http://localhost:8000/api/auth/login -H "Content-Type: applicat
   Docker manipulates iptables directly for container traffic, so this doesn't need a
   separate allow rule for Docker→Postgres.
 
+### IPv6 escalation rung (v29) — production rollout, deferred by design
+
+v29 adds a direct-IPv6 rung to the download retry ladder (attempt 2, between direct-IPv4 and proxy —
+see `CLAUDE.md`'s "Retry engine numbers"). The app-level code works on any host; it needs no daemon
+change to *ship*. But it can't do anything useful on this host until the container network actually
+has a routable IPv6 path, which today it doesn't.
+
+**Prerequisite check, run during v29's session (2026-09-27) — record here, don't re-derive:**
+
+- This host's public IPv6 is real and working: `curl -6 -m 5 https://www.youtube.com` returned `200`
+  directly from the host (outside any container).
+- `/etc/docker/daemon.json` does not exist on this host — Docker's containers are IPv4-only by
+  default, exactly as `docker-compose.override.yml`'s own v29 comment describes for local dev.
+- This Docker daemon (29.7.2) is shared with several other real services on this host: the Matrix
+  homeserver stack (Synapse + several `mautrix-*` bridges + LiveKit + coturn + a router), Vaultwarden,
+  and a few smaller apps (Arcane, SearXNG, tubearchivist, zuti-clicker). Enabling daemon-level IPv6
+  requires a full `dockerd` restart, which recreates every container's NAT rules — this is real blast
+  radius, not a local-only concern the way the compose-level `docker-compose.override.yml` change is.
+
+**Deliberately deferred**: per the owner's own call, this session did **not** touch
+`/etc/docker/daemon.json` or restart the daemon on this host. The rollout below is written for
+whoever (owner or a future session, explicitly asked) actually applies it — not applied yet.
+
+**Rollout** (do this on the production host, not local dev — local dev's own IPv6 is
+`docker-compose.override.yml`'s job, already in place):
+
+```bash
+# 1. Back up the current daemon config (it may not exist -- that's fine, `cp` just no-ops)
+sudo cp /etc/docker/daemon.json /etc/docker/daemon.json.bak 2>/dev/null || true
+
+# 2. Add (don't replace, if the file already has other keys) ip6tables support
+sudo tee /etc/docker/daemon.json <<'EOF'
+{
+  "ip6tables": true
+}
+EOF
+
+# 3. Restart the daemon -- this recreates every container's network attachment.
+#    Expect a brief (seconds) network blip for every running container, not downtime of
+#    the containers themselves (they keep running, just re-attach).
+sudo systemctl restart docker
+
+# 4. Confirm every OTHER service on this host is still healthy before touching this app's
+#    own stack -- Matrix (Element/any client), Vaultwarden (web vault), the others.
+docker ps --format 'table {{.Names}}\t{{.Status}}'
+
+# 5. Only then, bring this app's own stack up with IPv6 enabled on its network (same
+#    enable_ipv6 + ipam.config shape as docker-compose.override.yml, but for the prod
+#    overlay -- add this to docker-compose.prod.yml, not the dev-only override file which
+#    never applies here):
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d
+```
+
+**Rollback** (if any other service on this daemon misbehaves after the restart):
+
+```bash
+sudo mv /etc/docker/daemon.json.bak /etc/docker/daemon.json  # or: sudo rm /etc/docker/daemon.json
+sudo systemctl restart docker
+```
+
+Removing the `networks:` block from `docker-compose.prod.yml` (once added) and re-running
+`docker compose up -d` reverts this app's own containers to IPv4-only without needing the daemon
+change reverted too, if the daemon-level change itself turns out safe but this app's own IPv6 usage
+needs to be paused independently.
+
+**Verify it worked**: `docker compose exec worker-dl python -c "import socket;
+print(socket.getaddrinfo(socket.gethostname(), None))"` should list an `AF_INET6` address alongside
+the existing `AF_INET` one (confirmed with this exact command against local dev after its own
+compose-level change — see `docs/GOTCHAS.md`'s v29 entry).
+
 ---
 
 ## Backups

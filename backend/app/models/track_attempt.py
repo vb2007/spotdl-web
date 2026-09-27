@@ -16,6 +16,18 @@ class TrackAttemptOutcome(str, enum.Enum):
     SKIPPED_DUPLICATE = "skipped_duplicate"
 
 
+class NetworkPath(str, enum.Enum):
+    """Which network path an attempt actually used (v29). Only the two *direct* rungs are
+    forced by app code -- PROXY is recorded but never forced, since a proxy's destination is
+    always a literal IPv4 host (proxies.PROXY_URL_RE) and forcing a family for it would be
+    meaningless at best. NULL on rows where no real network attempt happened (breaker-active,
+    dedup-skip, cancelled-before-dispatch) -- see download.py."""
+
+    DIRECT_IPV4 = "direct-ipv4"
+    DIRECT_IPV6 = "direct-ipv6"
+    PROXY = "proxy"
+
+
 class TrackAttempt(Base):
     """One row per `download_track` invocation (v24) -- what it tried (direct vs. which
     proxy) and what happened, so a recurring failure is diagnosable from the UI instead
@@ -57,4 +69,12 @@ class TrackAttempt(Base):
     # tracks.last_error (docs/GOTCHAS.md v07), not re-redacted here.
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     proxy_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("proxies.id"), nullable=True)
+    network_path: Mapped[NetworkPath | None] = mapped_column(
+        Enum(
+            NetworkPath,
+            name="track_network_path",
+            values_callable=lambda cls: [e.value for e in cls],
+        ),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)

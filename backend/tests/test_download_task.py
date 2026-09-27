@@ -8,6 +8,7 @@ from app.models import (
     DownloadedTrack,
     Job,
     JobSourceType,
+    NetworkPath,
     Proxy,
     ProxySource,
     Track,
@@ -129,7 +130,7 @@ def test_download_track_success_marks_completed_and_upserts_ledger(db_session, m
     published = _capture_events(monkeypatch)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
     monkeypatch.setattr(
         downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
     )
@@ -167,7 +168,7 @@ def test_download_track_skips_tagging_for_unsupported_format(db_session, monkeyp
     _patch_common(monkeypatch, db_session)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
     monkeypatch.setattr(
         downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.wav"))
     )
@@ -191,7 +192,7 @@ def test_download_track_success_with_no_missing_tags_skips_repair(db_session, mo
     _patch_common(monkeypatch, db_session)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
     monkeypatch.setattr(
         downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
     )
@@ -217,7 +218,7 @@ def test_download_track_success_records_tag_repair_warning(db_session, monkeypat
     _patch_common(monkeypatch, db_session)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
     monkeypatch.setattr(
         downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
     )
@@ -243,7 +244,7 @@ def test_download_track_success_survives_unexpected_tagging_exception(db_session
     _patch_common(monkeypatch, db_session)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
     monkeypatch.setattr(
         downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
     )
@@ -272,7 +273,7 @@ def test_download_track_other_error_reschedules_to_waiting(db_session, monkeypat
     published = _capture_events(monkeypatch)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
 
     def fake_download_one(song, downloader):
         raise RuntimeError("provider exploded")
@@ -310,7 +311,7 @@ def test_download_track_audio_provider_error_feeds_breaker(db_session, monkeypat
     _patch_common(monkeypatch, db_session)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
 
     def fake_download_one(song, downloader):
         raise AudioProviderError("rate limited")
@@ -338,7 +339,7 @@ def test_download_track_no_output_path_feeds_breaker(db_session, monkeypatch):
     published = _capture_events(monkeypatch)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
     monkeypatch.setattr(downloads, "download_one", lambda song, downloader: (song, None))
 
     download_task.download_track(str(track.id))
@@ -365,7 +366,7 @@ def test_download_track_lookup_error_is_terminal(db_session, monkeypatch):
     published = _capture_events(monkeypatch)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
 
     def fake_download_one(song, downloader):
         raise LookupError("no result on any provider")
@@ -395,7 +396,7 @@ def test_download_track_success_resets_breaker_state(db_session, monkeypatch):
     db_session.commit()
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
     monkeypatch.setattr(
         downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
     )
@@ -460,7 +461,7 @@ def test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt(db_s
     worker_state = retry.get_worker_state(db_session)
     worker_state.breaker_tripped_until = tripped_until
     db_session.commit()
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
     monkeypatch.setattr(
         downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
     )
@@ -492,8 +493,9 @@ def test_download_track_first_attempt_never_touches_proxy_pool(db_session, monke
 
     captured = {}
 
-    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None):
+    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None, network_path=None):
         captured["proxy"] = proxy
+        captured["network_path"] = network_path
         return _FakeDownloader()
 
     monkeypatch.setattr(downloads, "get_downloader", fake_get_downloader)
@@ -504,13 +506,56 @@ def test_download_track_first_attempt_never_touches_proxy_pool(db_session, monke
     download_task.download_track(str(track.id))
 
     assert captured["proxy"] is None
+    assert captured["network_path"] == NetworkPath.DIRECT_IPV4
     updated = db_session.get(Track, track.id)
     assert updated.used_proxy_id is None
+
+    rows = _attempts(db_session, track)
+    assert rows[0].network_path == NetworkPath.DIRECT_IPV4
+
+
+def test_download_track_second_attempt_forces_ipv6_never_touches_proxy_pool(db_session, monkeypatch):
+    # v29 inserts the forced-other-family rung between direct-default and proxy -- attempt
+    # 2 (attempt_count == 1) must not reach the proxy pool at all, unlike before this
+    # version, when attempt_count >= 1 went straight to proxy.
+    track = _make_track(db_session)
+    track.attempt_count = 1
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+
+    def _fail_if_called(db):
+        raise AssertionError("pick_proxy should not be called on the forced-family attempt")
+
+    monkeypatch.setattr(proxies, "pick_proxy", _fail_if_called)
+
+    captured = {}
+
+    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None, network_path=None):
+        captured["proxy"] = proxy
+        captured["network_path"] = network_path
+        return _FakeDownloader()
+
+    monkeypatch.setattr(downloads, "get_downloader", fake_get_downloader)
+    monkeypatch.setattr(
+        downloads, "download_one", lambda song, downloader: (song, Path("/downloads/song-a.mp3"))
+    )
+
+    download_task.download_track(str(track.id))
+
+    assert captured["proxy"] is None
+    assert captured["network_path"] == NetworkPath.DIRECT_IPV6
+    updated = db_session.get(Track, track.id)
+    assert updated.used_proxy_id is None
+
+    rows = _attempts(db_session, track)
+    assert rows[0].network_path == NetworkPath.DIRECT_IPV6
+    assert rows[0].attempt_number == 1
 
 
 def test_download_track_retry_picks_proxy_and_records_success(db_session, monkeypatch):
     track = _make_track(db_session)
-    track.attempt_count = 1
+    track.attempt_count = 2  # v29: proxy is now the *third* rung (attempt_count >= 2)
     db_session.commit()
     _patch_common(monkeypatch, db_session)
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
@@ -521,8 +566,9 @@ def test_download_track_retry_picks_proxy_and_records_success(db_session, monkey
 
     captured = {}
 
-    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None):
+    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None, network_path=None):
         captured["proxy"] = proxy
+        captured["network_path"] = network_path
         return _FakeDownloader()
 
     monkeypatch.setattr(downloads, "get_downloader", fake_get_downloader)
@@ -533,6 +579,7 @@ def test_download_track_retry_picks_proxy_and_records_success(db_session, monkey
     download_task.download_track(str(track.id))
 
     assert captured["proxy"] == "http://proxy-1"
+    assert captured["network_path"] == NetworkPath.PROXY
     updated = db_session.get(Track, track.id)
     assert updated.state == TrackState.COMPLETED
     assert updated.used_proxy_id == proxy.id
@@ -545,12 +592,13 @@ def test_download_track_retry_picks_proxy_and_records_success(db_session, monkey
     assert len(rows) == 1
     assert rows[0].outcome == TrackAttemptOutcome.COMPLETED
     assert rows[0].proxy_id == proxy.id
-    assert rows[0].attempt_number == 1
+    assert rows[0].attempt_number == 2
+    assert rows[0].network_path == NetworkPath.PROXY
 
 
 def test_download_track_retry_proxy_failure_sets_cooldown(db_session, monkeypatch):
     track = _make_track(db_session)
-    track.attempt_count = 1
+    track.attempt_count = 2  # v29: proxy is now the third rung
     db_session.commit()
     _patch_common(monkeypatch, db_session)
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
@@ -559,7 +607,7 @@ def test_download_track_retry_proxy_failure_sets_cooldown(db_session, monkeypatc
     db_session.add(proxy)
     db_session.commit()
 
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
 
     def fake_download_one(song, downloader):
         raise RuntimeError("provider exploded")
@@ -584,7 +632,7 @@ def test_download_track_retry_proxy_failure_sets_cooldown(db_session, monkeypatc
 
 def test_download_track_retry_failure_redacts_proxy_credentials_from_last_error(db_session, monkeypatch):
     track = _make_track(db_session)
-    track.attempt_count = 1
+    track.attempt_count = 2  # v29: proxy is now the third rung
     db_session.commit()
     _patch_common(monkeypatch, db_session)
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
@@ -593,7 +641,7 @@ def test_download_track_retry_failure_redacts_proxy_credentials_from_last_error(
     db_session.add(proxy)
     db_session.commit()
 
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
 
     def fake_download_one(song, downloader):
         raise RuntimeError(f"Invalid proxy server: {proxy.url}")
@@ -642,7 +690,7 @@ def test_download_track_discards_success_when_cancelled_mid_download(db_session,
     published = _capture_events(monkeypatch)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
 
     def fake_download_one(song, downloader):
         # A `DELETE /api/tracks/{id}` (separate request/session) landing while this
@@ -682,7 +730,7 @@ def test_download_track_discards_failure_when_cancelled_mid_download(db_session,
     published = _capture_events(monkeypatch)
 
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
 
     def fake_download_one(song, downloader):
         db_session.query(Track).filter(Track.id == track.id).update(
@@ -715,7 +763,7 @@ def test_download_track_discards_failure_when_cancelled_mid_download(db_session,
 
 def test_download_track_retry_falls_back_to_direct_when_no_proxy_available(db_session, monkeypatch):
     track = _make_track(db_session)
-    track.attempt_count = 1
+    track.attempt_count = 2  # v29: proxy is now the third rung
     db_session.commit()
     _patch_common(monkeypatch, db_session)
     monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
@@ -724,7 +772,7 @@ def test_download_track_retry_falls_back_to_direct_when_no_proxy_available(db_se
 
     captured = {}
 
-    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None):
+    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None, network_path=None):
         captured["proxy"] = proxy
         return _FakeDownloader()
 
@@ -781,7 +829,7 @@ def test_download_track_sleeps_before_the_attempt_when_pacing_configured(db_sess
     monkeypatch.setattr(
         downloads,
         "get_downloader",
-        lambda fmt, bitrate, output_dir, output_template, proxy=None: (
+        lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: (
             calls.append(("download", None)) or _FakeDownloader()
         ),
     )

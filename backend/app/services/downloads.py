@@ -14,13 +14,25 @@ from spotdl.types.song import Song
 from spotdl.utils.arguments import create_parser
 
 from app.config import get_settings
+from app.models import NetworkPath
 from app.services.expansion import _ensure_spotify_client
+
+# yt-dlp's own -4/-6 flags (see get_downloader below) -- confirmed against the installed
+# yt_dlp source (yt_dlp/options.py) to set source_address to '0.0.0.0'/'::' and nothing else.
+_YT_DLP_ARGS_BY_PATH = {
+    NetworkPath.DIRECT_IPV4: "-4",
+    NetworkPath.DIRECT_IPV6: "-6",
+}
 
 # format/bitrate/output_dir/output_template are now sourced from the DB-backed
 # app.services.app_settings (v13), passed in by the caller -- keeping them in the cache
 # key (rather than a separate version counter) is what makes a settings change actually
-# invalidate the right cached Downloader instances.
-_downloader_cache: dict[tuple[str, str, str, str, str | None], Downloader] = {}
+# invalidate the right cached Downloader instances. `network_path` (v29) joins proxy as a
+# construction-time setting baked into yt_dlp_args -- a Downloader built with `-4` baked
+# in must never be reused for a `-6` attempt.
+_downloader_cache: dict[
+    tuple[str, str, str, str, str | None, str | None], Downloader
+] = {}
 _cache_lock = threading.Lock()
 
 
@@ -30,8 +42,16 @@ def get_downloader(
     output_dir: str,
     output_template: str,
     proxy: str | None = None,
+    network_path: NetworkPath | None = None,
 ) -> Downloader:
-    key = (format, bitrate, output_dir, output_template, proxy)
+    key = (
+        format,
+        bitrate,
+        output_dir,
+        output_template,
+        proxy,
+        network_path.value if network_path else None,
+    )
     if key in _downloader_cache:
         return _downloader_cache[key]
 
@@ -59,6 +79,9 @@ def get_downloader(
         }
         if proxy:
             options["proxy"] = proxy
+        yt_dlp_args = _YT_DLP_ARGS_BY_PATH.get(network_path) if network_path else None
+        if yt_dlp_args:
+            options["yt_dlp_args"] = yt_dlp_args
 
         downloader = Downloader(options)
         _downloader_cache[key] = downloader
