@@ -3585,3 +3585,17 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   meaningless once this ships — no migration needed (the columns were always correctly typed for
   their *intended* meaning), just a fact worth knowing before reading history off a live/deployed
   `proxies` table older than this version.
+- **Deferred, not fixed this version**: `download_track`'s credential-redaction guard
+  (`download.py`'s except-block, `if proxy_url in error_message: ...`, shipped in v07) is an exact
+  substring match against the full `scheme://user:pass@host:port` string. Before this version, the
+  proxy rung never actually reached a real connection, so this guard was essentially never exercised
+  against a real proxy-related exception. It now is, for the first time — a fresh-eyes review
+  correctly flagged that a `requests`/`urllib3` `ProxyError` or a yt-dlp network exception isn't
+  guaranteed to embed the credentialed URL in exactly this form, which could in principle let a raw
+  URL slip past the guard. **Checked against this session's own 5 real proxy failures** (403,
+  YouTube's bot-check text, a 407 auth error, and a `LookupError`) — none of the real captured
+  messages embedded the proxy URL in any form, so this hasn't manifested in practice. Left as-is:
+  this guard is pre-existing v07 logic this version's plan explicitly didn't touch ("this fix changes
+  whether the proxy is used, not the ... logic around it"), and hardening it into a
+  pattern-based (not exact-string) redaction is a good candidate for v31's hardening pass, not a v30
+  regression.
