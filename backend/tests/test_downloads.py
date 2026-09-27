@@ -120,8 +120,8 @@ def test_get_downloader_sets_yt_dlp_args_for_forced_family(monkeypatch):
 
 def test_get_downloader_sets_no_yt_dlp_args_for_proxy_or_unforced(monkeypatch):
     # A proxy attempt's destination is a literal IPv4 host (proxies.PROXY_URL_RE) --
-    # forcing a family for it would be meaningless, so PROXY (like None) leaves
-    # yt_dlp_args unset rather than baking in a redundant/wrong flag.
+    # forcing a family for it would be meaningless, so PROXY with no proxy URL given
+    # (like None) leaves yt_dlp_args unset rather than baking in a redundant/wrong flag.
     monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
     monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
 
@@ -132,6 +132,67 @@ def test_get_downloader_sets_no_yt_dlp_args_for_proxy_or_unforced(monkeypatch):
 
     assert "yt_dlp_args" not in unforced.options
     assert "yt_dlp_args" not in proxied.options
+
+
+def test_get_downloader_sets_proxy_flag_in_yt_dlp_args_when_proxy_given(monkeypatch):
+    # v30: yt-dlp's own requests (search-result extraction and the actual media download)
+    # need their own --proxy flag -- spotdl's `options["proxy"]` never reaches them (only
+    # piped/bandcamp/sliderkz/lyrics providers read GlobalConfig's proxies parameter).
+    monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
+    monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
+
+    downloader = downloads.get_downloader(
+        "mp3",
+        "320k",
+        "/downloads",
+        "{title}.{output-ext}",
+        proxy="http://203.0.113.5:8080",
+        network_path=NetworkPath.PROXY,
+    )
+
+    assert downloader.options["yt_dlp_args"] == "--proxy http://203.0.113.5:8080"
+
+
+def test_get_downloader_shlex_quotes_a_credentialed_proxy_in_yt_dlp_args(monkeypatch):
+    monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
+    monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
+
+    downloader = downloads.get_downloader(
+        "mp3",
+        "320k",
+        "/downloads",
+        "{title}.{output-ext}",
+        proxy="http://user:pass@203.0.113.5:8080",
+        network_path=NetworkPath.PROXY,
+    )
+
+    assert downloader.options["yt_dlp_args"] == "--proxy http://user:pass@203.0.113.5:8080"
+    # Round-trips through shlex.split the same way spotdl's own base.py consumes it.
+    import shlex
+
+    assert shlex.split(downloader.options["yt_dlp_args"]) == [
+        "--proxy",
+        "http://user:pass@203.0.113.5:8080",
+    ]
+
+
+def test_get_downloader_combines_family_and_proxy_flags(monkeypatch):
+    # Today's ladder never actually needs both on the same attempt (PROXY never forces a
+    # family), but the merge is built generally rather than asserting that exclusivity --
+    # see v30's plan doc.
+    monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
+    monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
+
+    downloader = downloads.get_downloader(
+        "mp3",
+        "320k",
+        "/downloads",
+        "{title}.{output-ext}",
+        proxy="http://203.0.113.5:8080",
+        network_path=NetworkPath.DIRECT_IPV4,
+    )
+
+    assert downloader.options["yt_dlp_args"] == "-4 --proxy http://203.0.113.5:8080"
 
 
 def test_download_one_delegates_to_search_and_download(monkeypatch):

@@ -230,10 +230,15 @@ def download_track(track_id: str) -> None:
             downloader.progress_handler.update_callback = events.make_progress_callback(
                 owner_id, track.id, track.job_id, **track_meta
             )
-            # Covers ytmusicapi's search calls too, which have no family-forcing knob of
-            # their own (see network_path.py's docstring) -- yt-dlp's own requests are
-            # additionally forced via get_downloader's yt_dlp_args above.
-            with network_path_svc.force_family(chosen_path):
+            # force_family covers ytmusicapi's search calls too, which have no
+            # family-forcing knob of their own (see network_path.py's docstring) -- yt-dlp's
+            # own requests are additionally forced via get_downloader's yt_dlp_args above.
+            # force_proxy (v30) is the ytmusicapi-side half of the proxy fix: yt-dlp's own
+            # requests already got a --proxy flag baked into yt_dlp_args by get_downloader
+            # above, but ytmusicapi's search client is spotdl-hardcoded with no proxy knob
+            # of its own -- see proxies.force_proxy's docstring for why this has to patch
+            # the client-construction classmethod rather than an already-built instance.
+            with network_path_svc.force_family(chosen_path), proxies.force_proxy(proxy_url, downloader):
                 _, output_path = downloads.download_one(song, downloader)
 
             # search_and_download is synchronous and not cleanly interruptible, so a

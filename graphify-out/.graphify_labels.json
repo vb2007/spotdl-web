@@ -176,5 +176,9 @@
   "174": "v31 — Production Hardening & Close",
   "175": "_event_stream",
   "176": "force_family",
-  "177": "e7c1f9a4d2b6_add_track_attempt_network_path.py"
+  "177": "e7c1f9a4d2b6_add_track_attempt_network_path.py",
+  "178": "list_jobs",
+  "179": "track_counts",
+  "180": "spotdl-web — Accumulated Gotchas (master v1, v01–v13)",
+  "181": "Project: spotdl-web"
 }

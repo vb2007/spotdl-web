@@ -333,6 +333,10 @@ needed" claim — rather than silently deleted.
   → *v07, v13*
 - Deleting a proxy is source-conditional: `manual` rows hard-delete, `file` rows soft-disable →
   *v13*
+- A provider class's client built once at construction time (`YouTubeMusic.__init__` ->
+  `self.client = self._create_client()`) sits on the *cached* `Downloader`/provider instance for
+  every subsequent attempt — patching only the construction classmethod misses whatever's already
+  sitting on `.client`, since a search that succeeds on its first try never rebuilds it → *v30*
 
 **File serving & HTTP headers**
 - A response header built from DB-sourced/app-generated-but-not-actually-trusted text (here:
@@ -3533,3 +3537,51 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   itself once IPv6 is actually enabled per this file's rollout section — flagged here because a
   fresh-eyes reviewer correctly asked whether the owner still wants it live exactly this way in the
   meantime, and the answer wasn't re-litigated as part of this version.
+
+### v30 proxy-routing-fix gotchas (learned making the proxy rung actually route real traffic)
+
+- **Patching `YouTubeMusic._create_client` alone is not enough — a real end-to-end run caught this,
+  not a unit test.** `get_downloader`'s cache means a `Downloader` (and its already-constructed
+  `YouTubeMusic` provider) can outlive many attempts; `YouTubeMusic.__init__` calls
+  `self.client = self._create_client()` exactly once, at construction time, which happens in
+  `download.py` *before* `force_proxy`'s context is ever entered. The first version of `force_proxy`
+  patched only the classmethod (so a *future* client rebuild would pick up the proxy) and passed
+  every one of its own unit tests, since those tests called `_create_client()` directly rather than
+  going through an already-built provider. The very first real run against the live stack (a real
+  credentialed proxy, `socket.socket.connect` observation, ytmusicapi's `get_results` called on a
+  real cached-Downloader-shaped provider) showed one connection going straight to a real Google IP
+  before two others correctly hit the proxy — the search succeeded on its first attempt, so
+  `YouTubeMusic.get_results`'s own "rebuild the client and retry" path (the only place that would
+  have called the patched classmethod) never ran. Fixed by having `force_proxy` also reach into
+  `downloader.audio_providers`, swap `.client` on every `YouTubeMusic` instance directly for the
+  duration of the attempt, and restore the original object on exit. **Any future context manager
+  that patches a classmethod meant to affect an object that might already be constructed and cached
+  must also patch the existing instance directly** — patching only the constructor is invisible to
+  anything built before the patch went active.
+- **Verified against the real running stack, real credentialed proxies from `proxies.txt`, nothing
+  mocked**: a `socket.socket.connect` monkeypatch (same technique v29 used) recording every real
+  connection during (a) a real `ytmusicapi` search, (b) a real `yt-dlp` `extract_info` metadata
+  fetch, and (c) three full, real `Downloader.search_and_download()` attempts against three
+  different real Spotify tracks/proxies — every single observed connection for the audio-provider
+  path (search + download) went to the configured proxy's address, zero went to origin. The
+  no-proxy control path (attempt 1/2 of the ladder, `force_proxy(None, ...)`) was separately
+  confirmed to still connect directly, unaffected.
+- **All 5 of this project's real configured proxies failed the actual media-stream download step**,
+  each for its own distinct, already-documented, orthogonal reason: `HTTP Error 403: Forbidden` (x2),
+  YouTube's bot-check challenge ("Sign in to confirm you're not a bot"), `407 Proxy Authentication
+  Required` (a stale/duplicate `proxies.txt` entry), and a `LookupError` (search returned no usable
+  result through that specific proxy). None of these is a routing bug — every failure happened *after*
+  the connection log confirmed the attempt actually reached the proxy address, not origin. This is
+  the exact IP-reputation/bot-check gap `CLAUDE.md`'s "Proxy escalation does not cover IP-reputation
+  bot-checks" invariant already documents (proven in v23/v29): now that the proxy rung genuinely
+  routes traffic, it inherits that gap for real, rather than never encountering it at all. **A real,
+  fully successful end-to-end download through one of these specific 5 proxies was not achieved this
+  session** — the fix's own correctness (does the connection reach the proxy) is proven independently
+  of whether any specific cheap datacenter proxy is currently good enough to fool YouTube's own
+  defenses, the same reasoning v29's IPv6-forcing entry above already applied to its own environment
+  limitation.
+- **Every proxy's `last_success_at`/`consecutive_failures`/`cooldown_until` value recorded before this
+  version landed reflects direct-connection health, not proxy health**, and should be treated as
+  meaningless once this ships — no migration needed (the columns were always correctly typed for
+  their *intended* meaning), just a fact worth knowing before reading history off a live/deployed
+  `proxies` table older than this version.
