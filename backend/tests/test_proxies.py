@@ -1,5 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+from spotdl.providers.audio.ytmusic import YouTubeMusic
+
 from app.models import Proxy, ProxySource
 from app.services import proxies
 
@@ -279,3 +282,144 @@ def test_sync_from_file_marks_unreachable_new_proxy_with_cooldown(db_session, mo
     row = db_session.query(Proxy).filter(Proxy.url == "http://dead").one()
     assert row.enabled is True
     assert row.cooldown_until is not None
+
+
+class _FakeDownloaderForProxy:
+    """Stands in for spotdl's Downloader -- force_proxy only ever touches
+    .audio_providers, so that's all this needs."""
+
+    def __init__(self, audio_providers):
+        self.audio_providers = audio_providers
+
+
+def _fake_youtube_music_provider(client):
+    # A real YouTubeMusic instance built without calling __init__ (which would try a real
+    # network call via _create_client) -- isinstance(provider, YouTubeMusic) is exactly
+    # what force_proxy checks, so this has to be the real class, not a stand-in.
+    provider = YouTubeMusic.__new__(YouTubeMusic)
+    provider.client = client
+    return provider
+
+
+def test_force_proxy_none_is_a_noop():
+    original = YouTubeMusic._create_client
+    provider = _fake_youtube_music_provider(client="original-client")
+    downloader = _FakeDownloaderForProxy(audio_providers=[provider])
+
+    with proxies.force_proxy(None, downloader):
+        assert YouTubeMusic._create_client is original
+        assert provider.client == "original-client"
+
+    assert YouTubeMusic._create_client is original
+    assert provider.client == "original-client"
+
+
+def test_force_proxy_patches_create_client_with_the_given_proxy(monkeypatch):
+    seen = []
+
+    def _fake_ytmusic(*, language, proxies=None):
+        seen.append((language, proxies))
+        return "fake-client"
+
+    monkeypatch.setattr(proxies, "YTMusic", _fake_ytmusic)
+    original = YouTubeMusic._create_client
+    downloader = _FakeDownloaderForProxy(audio_providers=[])
+
+    with proxies.force_proxy("http://user:pass@203.0.113.5:8080", downloader):
+        client = YouTubeMusic._create_client()
+
+    assert client == "fake-client"
+    assert seen == [
+        (
+            "de",
+            {
+                "http": "http://user:pass@203.0.113.5:8080",
+                "https": "http://user:pass@203.0.113.5:8080",
+            },
+        )
+    ]
+    assert YouTubeMusic._create_client is original
+
+
+def test_force_proxy_swaps_an_already_constructed_providers_client(monkeypatch):
+    # The real bug this version's end-to-end proof caught: get_downloader caches
+    # Downloaders (and their providers) across attempts, and YouTubeMusic.__init__ builds
+    # self.client exactly once, at construction time -- before this context is ever
+    # entered. Patching only the classmethod left that already-built, unproxied client on
+    # the provider for the whole attempt, since a search that succeeds on its first try
+    # never calls _create_client() again. force_proxy must swap the *existing* client too.
+    monkeypatch.setattr(proxies, "YTMusic", lambda **kwargs: kwargs)
+    provider = _fake_youtube_music_provider(client="original-unproxied-client")
+    downloader = _FakeDownloaderForProxy(audio_providers=[provider])
+
+    with proxies.force_proxy("http://203.0.113.5:8080", downloader):
+        assert provider.client == {
+            "language": "de",
+            "proxies": {"http": "http://203.0.113.5:8080", "https": "http://203.0.113.5:8080"},
+        }
+
+    assert provider.client == "original-unproxied-client"
+
+
+def test_force_proxy_only_swaps_youtube_music_providers(monkeypatch):
+    monkeypatch.setattr(proxies, "YTMusic", lambda **kwargs: "proxied-client")
+    provider = _fake_youtube_music_provider(client="original-client")
+    non_ytmusic_provider = object()
+    downloader = _FakeDownloaderForProxy(audio_providers=[provider, non_ytmusic_provider])
+
+    with proxies.force_proxy("http://203.0.113.5:8080", downloader):
+        assert provider.client == "proxied-client"
+        # Untouched -- not a YouTubeMusic instance, nothing to swap.
+        assert not hasattr(non_ytmusic_provider, "client")
+
+    assert provider.client == "original-client"
+
+
+def test_force_proxy_restores_create_client_after_exception(monkeypatch):
+    monkeypatch.setattr(proxies, "YTMusic", lambda **kwargs: "fake-client")
+    original = YouTubeMusic._create_client
+    downloader = _FakeDownloaderForProxy(audio_providers=[])
+
+    with pytest.raises(ValueError):
+        with proxies.force_proxy("http://203.0.113.5:8080", downloader):
+            raise ValueError("boom mid-search")
+
+    assert YouTubeMusic._create_client is original
+
+
+def test_force_proxy_restores_client_after_exception(monkeypatch):
+    monkeypatch.setattr(proxies, "YTMusic", lambda **kwargs: "proxied-client")
+    provider = _fake_youtube_music_provider(client="original-client")
+    downloader = _FakeDownloaderForProxy(audio_providers=[provider])
+
+    with pytest.raises(ValueError):
+        with proxies.force_proxy("http://203.0.113.5:8080", downloader):
+            assert provider.client == "proxied-client"
+            raise ValueError("boom mid-search")
+
+    assert provider.client == "original-client"
+
+
+def test_force_proxy_rejects_reentry():
+    downloader = _FakeDownloaderForProxy(audio_providers=[])
+    with proxies.force_proxy("http://203.0.113.5:8080", downloader):
+        with pytest.raises(RuntimeError):
+            with proxies.force_proxy("http://203.0.113.6:8080", downloader):
+                pass
+
+
+def test_force_proxy_releases_the_reentry_guard_even_if_the_downloader_has_no_audio_providers():
+    # Regression: a real Downloader always has .audio_providers, but the first version of
+    # this fix only wrapped `yield` in try/finally -- an AttributeError walking
+    # downloader.audio_providers (as a bare object without that attribute raises) escaped
+    # before the cleanup ran, leaving _force_proxy_active stuck True forever and
+    # deadlocking every subsequent attempt in the process via the reentry guard above.
+    downloader_without_providers = object()
+
+    with pytest.raises(AttributeError):
+        with proxies.force_proxy("http://203.0.113.5:8080", downloader_without_providers):
+            pass
+
+    # Must not be stuck active -- a following attempt (even a no-op direct one) must work.
+    with proxies.force_proxy(None, downloader_without_providers):
+        pass

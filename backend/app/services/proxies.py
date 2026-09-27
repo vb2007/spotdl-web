@@ -4,19 +4,27 @@ Mirrors app/services/retry.py's ladder shape but on a shorter cap — a bad prox
 just swapped for another rather than nursed back with the full 24h track ladder.
 """
 
+import contextlib
 import logging
 import re
 import socket
+import threading
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, Iterator
 from urllib.parse import urlsplit
 
+from spotdl.providers.audio.ytmusic import YouTubeMusic
 from sqlalchemy.orm import Session
+from ytmusicapi import YTMusic
 
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Proxy, ProxySource
+
+if TYPE_CHECKING:
+    from spotdl.download.downloader import Downloader
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +56,84 @@ def redact(url: str) -> str:
     """scheme://host:port for logging — never print a proxy URL's user:pass in plaintext."""
     parsed = urlsplit(url)
     return f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
+
+
+_force_proxy_lock = threading.Lock()
+_force_proxy_active = False
+
+
+@contextlib.contextmanager
+def force_proxy(proxy_url: str | None, downloader: "Downloader") -> Iterator[None]:
+    """Makes ytmusicapi's search calls actually route through the configured proxy (v30).
+
+    spotdl's own proxy wiring (Downloader.__init__ -> GlobalConfig.set_parameter) never
+    reaches youtube-music, the only audio provider this app configures -- verified against
+    the installed spotdl source, see v30's plan doc. YouTubeMusic._create_client is a bare
+    staticmethod hardcoding `YTMusic(language="de")` with no proxies= argument.
+
+    Patches two things, both required -- proven necessary by a real end-to-end run that
+    caught this the classmethod-only version missed: get_downloader caches Downloader
+    instances (and therefore their already-constructed YouTubeMusic providers) across
+    attempts, and YouTubeMusic.__init__ builds `self.client` exactly once, at Downloader
+    construction time -- which happens in download.py *before* this context is entered.
+    Patching only the classmethod leaves that already-built client (real, unproxied)
+    sitting on `downloader.audio_providers[N].client` for the entire attempt; a search
+    that succeeds on its first try (the common case) never calls `_create_client()` again
+    and so never picks up the patch at all.
+    - The classmethod patch covers `YouTubeMusic.get_results`' own retry-on-empty-search
+      path, which calls `self._create_client()` again for a fresh client mid-attempt.
+    - The explicit `.client` swap below covers the already-built client for *this*
+      specific attempt, restored to the original object on exit so a later attempt on
+      this cached Downloader (direct, or via a different proxy) isn't left pointing at a
+      stale proxied client.
+
+    No-op for None, symmetric with network_path.force_family. Same non-reentrancy
+    discipline and the same justification: process-global (the classmethod patch is),
+    so two attempts wanting different proxies must never run concurrently in the same
+    process (worker-dl's --concurrency=1 invariant makes this safe in practice) -- a
+    separate lock from force_family's own, so the two compose regardless of whether
+    today's ladder ever actually needs both active at once.
+    """
+    if proxy_url is None:
+        yield
+        return
+
+    global _force_proxy_active
+    with _force_proxy_lock:
+        if _force_proxy_active:
+            raise RuntimeError(
+                "proxies.force_proxy: already active in this process -- "
+                "worker-dl must run --concurrency=1 for this to be safe"
+            )
+        _force_proxy_active = True
+
+    # Everything from here on must be inside this try/finally, not just the yield --
+    # anything that can raise (patching the classmethod, walking audio_providers, building
+    # a patched client) must not be able to leave _force_proxy_active stuck True forever,
+    # which would permanently deadlock every subsequent attempt in this worker process via
+    # the reentry guard above. Caught by a real unit test whose fake Downloader has no
+    # audio_providers attribute at all -- the AttributeError used to escape before the
+    # cleanup below ever ran.
+    previous_create_client = YouTubeMusic._create_client
+    patched_clients: list[tuple[YouTubeMusic, object]] = []
+    try:
+        def _patched_create_client() -> YTMusic:
+            return YTMusic(language="de", proxies={"http": proxy_url, "https": proxy_url})
+
+        YouTubeMusic._create_client = staticmethod(_patched_create_client)
+
+        for provider in downloader.audio_providers:
+            if isinstance(provider, YouTubeMusic):
+                patched_clients.append((provider, provider.client))
+                provider.client = _patched_create_client()
+
+        yield
+    finally:
+        for provider, previous_client in patched_clients:
+            provider.client = previous_client
+        YouTubeMusic._create_client = previous_create_client
+        with _force_proxy_lock:
+            _force_proxy_active = False
 
 
 def _probe_reachable(url: str, timeout: float = 2.0) -> bool:

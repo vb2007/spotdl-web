@@ -60,10 +60,13 @@ class _FakeProgressHandler:
 
 class _FakeDownloader:
     """Stands in for a real spotdl Downloader — just enough surface for download_track
-    to bind its progress_handler.update_callback hook (see v08's events.py wiring)."""
+    to bind its progress_handler.update_callback hook (see v08's events.py wiring) and for
+    proxies.force_proxy (v30) to walk .audio_providers (empty here -- none of these tests
+    need a real YouTubeMusic instance to swap a client on)."""
 
     def __init__(self):
         self.progress_handler = _FakeProgressHandler()
+        self.audio_providers = []
 
 
 def _make_track(db_session):

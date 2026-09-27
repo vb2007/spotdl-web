@@ -5,6 +5,7 @@ audio/lyrics provider, so it must be cached per (format, bitrate, output_dir,
 output_template, proxy) rather than built per track (see get_downloader).
 """
 
+import shlex
 import threading
 from pathlib import Path
 
@@ -78,10 +79,29 @@ def get_downloader(
             "simple_tui": True,
         }
         if proxy:
+            # Reaches spotdl's GlobalConfig (piped/bandcamp/sliderkz/lyrics providers) --
+            # never youtube-music, the only audio provider this app configures. Kept
+            # anyway since it's harmless and genuinely proxies the lyrics providers; the
+            # yt_dlp_args --proxy fragment below is what actually reaches yt-dlp's own
+            # connection for the youtube-music download itself (v30).
             options["proxy"] = proxy
-        yt_dlp_args = _YT_DLP_ARGS_BY_PATH.get(network_path) if network_path else None
-        if yt_dlp_args:
-            options["yt_dlp_args"] = yt_dlp_args
+
+        # Combined from up to two independent fragments (v30) rather than the old
+        # either/or mapping: the family flag (only for the two direct rungs) and a
+        # --proxy flag (only when a proxy was selected). Built generally, not asserting
+        # today's ladder never wants both at once -- see v30's plan doc.
+        yt_dlp_arg_parts = []
+        family_flag = _YT_DLP_ARGS_BY_PATH.get(network_path) if network_path else None
+        if family_flag:
+            yt_dlp_arg_parts.append(family_flag)
+        if proxy:
+            # shlex-quoted defensively: proxies.txt's format is a bare IPv4 host today
+            # (proxies.PROXY_URL_RE), but a credentialed user:pass@host:port is already
+            # accepted and a future format loosening could introduce shlex-special
+            # characters -- quote now rather than assume the regex is forever.
+            yt_dlp_arg_parts.append(f"--proxy {shlex.quote(proxy)}")
+        if yt_dlp_arg_parts:
+            options["yt_dlp_args"] = " ".join(yt_dlp_arg_parts)
 
         downloader = Downloader(options)
         _downloader_cache[key] = downloader
