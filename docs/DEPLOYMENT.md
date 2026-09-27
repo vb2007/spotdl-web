@@ -414,12 +414,19 @@ curl -sS -X POST http://localhost:8000/api/auth/login -H "Content-Type: applicat
   Docker manipulates iptables directly for container traffic, so this doesn't need a
   separate allow rule for Docker→Postgres.
 
-### IPv6 escalation rung (v29) — production rollout, deferred by design
+### IPv6 escalation rung (v29) — production rollout
 
 v29 adds a direct-IPv6 rung to the download retry ladder (attempt 2, between direct-IPv4 and proxy —
 see `CLAUDE.md`'s "Retry engine numbers"). The app-level code works on any host; it needs no daemon
 change to *ship*. But it can't do anything useful on this host until the container network actually
-has a routable IPv6 path, which today it doesn't.
+has a routable IPv6 path.
+
+**Status as of 2026-09-27: fully applied on this host.** Both halves are done — the owner enabled
+daemon-level IPv6 (`/etc/docker/daemon.json`) and confirmed every other service on the shared daemon
+stayed healthy afterward, and `docker-compose.prod.yml` now carries its own `enable_ipv6` block.
+`worker-dl` was confirmed to actually receive a real `AF_INET6` address after both halves landed.
+Left in place below as the record of what was actually done and verified, and as the rollback/
+reference for anyone rebuilding this host from scratch.
 
 **Prerequisite check, run during v29's session (2026-09-27) — record here, don't re-derive:**
 
@@ -433,9 +440,12 @@ has a routable IPv6 path, which today it doesn't.
   requires a full `dockerd` restart, which recreates every container's NAT rules — this is real blast
   radius, not a local-only concern the way the compose-level `docker-compose.override.yml` change is.
 
-**Deliberately deferred**: per the owner's own call, this session did **not** touch
-`/etc/docker/daemon.json` or restart the daemon on this host. The rollout below is written for
-whoever (owner or a future session, explicitly asked) actually applies it — not applied yet.
+**Deliberately deferred during v29's own session**: per the owner's own call, that session did
+**not** touch `/etc/docker/daemon.json` or restart the daemon, and left `docker-compose.prod.yml`'s
+own network block unwritten — both were explicitly left to the owner to apply on their own schedule.
+The owner applied the daemon-level half directly afterward (below); the compose-level half was added
+in a small follow-up PR once the owner asked for it, verified via `docker compose config` to have no
+effect on any other compose project's network on this shared daemon before being applied.
 
 **Rollout** (do this on the production host, not local dev — local dev's own IPv6 is
 `docker-compose.override.yml`'s job, already in place):
@@ -460,10 +470,16 @@ sudo systemctl restart docker
 #    own stack -- Matrix (Element/any client), Vaultwarden (web vault), the others.
 docker ps --format 'table {{.Names}}\t{{.Status}}'
 
-# 5. Only then, bring this app's own stack up with IPv6 enabled on its network (same
-#    enable_ipv6 + ipam.config shape as docker-compose.override.yml, but for the prod
-#    overlay -- add this to docker-compose.prod.yml, not the dev-only override file which
-#    never applies here):
+# 5. Only then, bring this app's own stack up -- docker-compose.prod.yml already carries its
+#    own enable_ipv6 + ipam.config block (same shape as docker-compose.override.yml's
+#    dev-only version, never applies to each other), scoped to this project's own network
+#    alone -- confirmed via `docker compose config` to have no effect on any other compose
+#    project's network on this shared daemon (Matrix, Vaultwarden, etc. each get their own).
+#    A full down/up (not just `up -d` again) is needed the first time this applies, since
+#    changing a network's own config recreates it -- see this file's own IPv6 gotcha in
+#    docs/GOTCHAS.md's v29 entry (a container `up -d` doesn't also recreate is left with
+#    broken embedded-DNS service-name resolution).
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel down
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d
 ```
 

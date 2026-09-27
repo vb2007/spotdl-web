@@ -138,3 +138,18 @@ services:
         limits:
           memory: 128M
           cpus: "0.25"
+
+# v29 rollout, applied once the host's docker daemon has IPv6 enabled (`ip6tables: true` in
+# /etc/docker/daemon.json, see docs/DEPLOYMENT.md's rollout section) -- daemon-level IPv6 alone
+# doesn't give any container an IPv6 address; each project's own network needs this too, same
+# shape as docker-compose.override.yml's dev-only version. This network is scoped to this
+# project alone (Compose creates one bridge network per project, e.g. spotdl-web_default) --
+# it has no effect on any other compose project's own network on this shared daemon (Matrix,
+# Vaultwarden, etc. each get their own). Confirmed via docker network inspect that this daemon
+# already runs several isolated per-project networks side by side.
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd00:cafe:babe::/64
