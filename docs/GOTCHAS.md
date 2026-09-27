@@ -3509,3 +3509,27 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   and `plan/master-v3/v30-proxy-routing-fix.md` — inserted as its own version per the owner's explicit
   direction rather than folded into this one, since it's a correctness fix to a rung that already
   existed, not part of adding the new ones.
+- **Caught by this version's own mandatory fresh-eyes review, not the author's real-stack testing**:
+  the first draft set `chosen_path = NetworkPath.PROXY` unconditionally *before* calling
+  `proxies.pick_proxy(db)`, rather than deriving it from what that call actually returned.
+  `pick_proxy` returns `None` whenever every proxy is disabled or in cooldown — routine for a
+  personal tool's handful of proxies, not an edge case — and when that happens the real attempt is
+  an unforced, un-proxied direct connection, while `track_attempts.network_path` still recorded
+  `'proxy'`. Directly violated this version's own "Done when" bullet (network_path must record the
+  path actually *used*). The one existing test built for exactly this branch
+  (`test_download_track_retry_falls_back_to_direct_when_no_proxy_available`) captured `proxy` but
+  never asserted on `network_path`, which is why it shipped once already. Fixed by deriving
+  `chosen_path` from `pick_proxy`'s actual return value, falling back to a forced `DIRECT_IPV4` (not
+  an unforced connection) so the fallback stays deterministic the same way attempt 1 already is.
+  Re-verified against real Postgres with `pick_proxy` forced to return `None`.
+- **Accepted, not fixed: forcing the IPv6 rung unconditionally costs one extra ladder wait per
+  retrying track in any environment where IPv6 isn't actually routable yet** — which is every
+  currently-deployed environment (production's daemon change is deliberately deferred, see this
+  version's own `docs/DEPLOYMENT.md` section). Attempt 2 reliably fails fast (`OSError`, classified
+  `OTHER`, doesn't trip the breaker) rather than reaching the proxy rung immediately, pushing the
+  first proxy attempt from attempt 2 to attempt 3 and adding one ladder step's delay
+  (`retry.next_delay(1)`, currently 1h) before it. This is the plan's own explicit design (`v29-*.md`:
+  "escalation-only is the conservative start and what this plan assumes"), not a bug, and resolves
+  itself once IPv6 is actually enabled per this file's rollout section — flagged here because a
+  fresh-eyes reviewer correctly asked whether the owner still wants it live exactly this way in the
+  meantime, and the answer wasn't re-litigated as part of this version.

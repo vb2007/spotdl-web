@@ -774,6 +774,7 @@ def test_download_track_retry_falls_back_to_direct_when_no_proxy_available(db_se
 
     def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None, network_path=None):
         captured["proxy"] = proxy
+        captured["network_path"] = network_path
         return _FakeDownloader()
 
     monkeypatch.setattr(downloads, "get_downloader", fake_get_downloader)
@@ -784,9 +785,16 @@ def test_download_track_retry_falls_back_to_direct_when_no_proxy_available(db_se
     download_task.download_track(str(track.id))
 
     assert captured["proxy"] is None
+    # The fallback must not be mislabeled as NetworkPath.PROXY -- no proxy was actually
+    # used, so both get_downloader's forced family and the stored track_attempts row must
+    # honestly reflect a direct (forced-ipv4) attempt instead.
+    assert captured["network_path"] == NetworkPath.DIRECT_IPV4
     updated = db_session.get(Track, track.id)
     assert updated.state == TrackState.COMPLETED
     assert updated.used_proxy_id is None
+
+    rows = _attempts(db_session, track)
+    assert rows[0].network_path == NetworkPath.DIRECT_IPV4
 
 
 def test_pacing_delay_is_zero_when_unconfigured(monkeypatch):

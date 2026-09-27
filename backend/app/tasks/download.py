@@ -184,8 +184,16 @@ def download_track(track_id: str) -> None:
             chosen_path = NetworkPath.DIRECT_IPV6
             proxy = None
         else:
-            chosen_path = NetworkPath.PROXY
+            # pick_proxy returns None whenever every proxy is disabled/in cooldown -- a
+            # routine state, not an edge case, for a handful of proxies. chosen_path must
+            # be derived from what pick_proxy actually returned, not assumed, or a
+            # no-proxy-available fallback attempt (a plain, unforced direct connection)
+            # gets mislabeled as NetworkPath.PROXY in track_attempts even though no proxy
+            # was used. Falling back to DIRECT_IPV4 (not leaving it unforced) matches
+            # attempt 1's own "forced explicitly, not left to whatever the OS picks"
+            # determinism above, and keeps every stored network_path value truthful.
             proxy = proxies.pick_proxy(db)
+            chosen_path = NetworkPath.PROXY if proxy is not None else NetworkPath.DIRECT_IPV4
         proxy_id = proxy.id if proxy is not None else None
         proxy_url = proxy.url if proxy is not None else None
 
