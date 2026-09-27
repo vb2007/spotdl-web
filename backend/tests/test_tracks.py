@@ -350,6 +350,30 @@ def test_download_track_file_rejects_traversal_via_dotdot(authenticated_client, 
     assert response.status_code == 404
 
 
+def test_download_track_file_serves_a_moved_track_via_library_root(authenticated_client, db_session, owner):
+    """v28: a track whose ledger row was repointed to the sorted library root (not the
+    downloads root) must still resolve -- CLAUDE.md's "Sort & move vs. file downloads"
+    invariant. Uses the default library_target_dir (AppSettings seeds it on first read)
+    rather than overriding it, since this endpoint must work against that default."""
+    from app.services import app_settings
+
+    library_root = app_settings.DEFAULT_LIBRARY_TARGET_DIR
+    track = _make_track(
+        db_session,
+        owner,
+        state=TrackState.COMPLETED,
+        output_path=f"{library_root}/Daft Punk - Discovery - (2001)/01 - One More Time.mp3",
+    )
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 200
+    assert (
+        response.headers["x-accel-redirect"]
+        == "/internal-library/Daft%20Punk%20-%20Discovery%20-%20%282001%29/01%20-%20One%20More%20Time.mp3"
+    )
+
+
 def test_download_unknown_track_file_returns_404(authenticated_client, db_session):
     assert authenticated_client.get(f"/api/tracks/{uuid.uuid4()}/file").status_code == 404
 

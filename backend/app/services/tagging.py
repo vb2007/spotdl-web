@@ -48,6 +48,18 @@ def is_supported_format(path: Path) -> bool:
     return path.suffix.lstrip(".").lower() in SUPPORTED_FORMATS
 
 
+def read_tags(path: Path) -> dict | None:
+    """Raw tag dict for library sort/move (v28) -- unlike verify_tags below (which only
+    reports *which* of REQUIRED_FIELDS are missing), the sorter needs the actual values
+    to build a destination path from a file that may never have gone through this app's
+    own download path at all. Same is_supported_format gate as everything else in this
+    module; None for anything outside it (the caller records that as a per-file error,
+    never a crash)."""
+    if not is_supported_format(path):
+        return None
+    return get_file_metadata(path)
+
+
 def verify_tags(path: Path) -> set[str]:
     """Returns the set of required field names missing or empty on the file. Caller
     must have already checked is_supported_format(path)."""

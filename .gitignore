@@ -12,6 +12,10 @@
 # local dev: bind-mounted download output (see docker-compose.override.yml)
 /downloads/
 
+# local dev: throwaway test library for v28's sort & move -- never the real ~120k-track
+# directory (see docker-compose.override.yml)
+/test-library/
+
 # proxy pool (v07): plain-file config, never commit real proxy credentials
 /proxies.txt
 !proxies.txt.example

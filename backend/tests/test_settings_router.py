@@ -98,3 +98,48 @@ def test_settings_endpoints_reject_non_admin(authenticated_client):
     assert authenticated_client.get("/api/settings/output").status_code == 403
     assert authenticated_client.get("/api/settings/output/options").status_code == 403
     assert authenticated_client.patch("/api/settings/output", json={}).status_code == 403
+
+
+def test_get_library_settings_seeds_from_defaults(admin_client, db_session):
+    response = admin_client.get("/api/settings/library")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "library_target_dir": app_settings.DEFAULT_LIBRARY_TARGET_DIR,
+        "library_folder_template": app_settings.DEFAULT_LIBRARY_FOLDER_TEMPLATE,
+        "library_quarantine_enabled": True,
+        "library_quarantine_dir": app_settings.DEFAULT_LIBRARY_QUARANTINE_DIR,
+    }
+
+
+def test_update_library_settings_persists_partial_update(admin_client, db_session):
+    updated = admin_client.patch(
+        "/api/settings/library",
+        json={"library_target_dir": "/mnt/library", "library_quarantine_enabled": False},
+    )
+
+    assert updated.status_code == 200
+    body = updated.json()
+    assert body["library_target_dir"] == "/mnt/library"
+    assert body["library_quarantine_enabled"] is False
+    # Untouched fields survive the partial update.
+    assert body["library_folder_template"] == app_settings.DEFAULT_LIBRARY_FOLDER_TEMPLATE
+
+    refetched = admin_client.get("/api/settings/library")
+    assert refetched.json()["library_target_dir"] == "/mnt/library"
+
+
+def test_update_library_settings_rejects_blank_path_fields(admin_client, db_session):
+    response = admin_client.patch("/api/settings/library", json={"library_target_dir": "   "})
+
+    assert response.status_code == 400
+
+
+def test_library_settings_endpoints_require_session(client):
+    assert client.get("/api/settings/library").status_code == 401
+    assert client.patch("/api/settings/library", json={}).status_code == 401
+
+
+def test_library_settings_endpoints_reject_non_admin(authenticated_client):
+    assert authenticated_client.get("/api/settings/library").status_code == 403
+    assert authenticated_client.patch("/api/settings/library", json={}).status_code == 403

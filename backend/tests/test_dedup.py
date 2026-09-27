@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from app.models import DownloadedTrack
-from app.services import dedup
+from app.services import app_settings, dedup
 
 
 class _NonClosingSession:
@@ -72,7 +72,10 @@ def test_reconcile_disk_refuses_to_prune_when_output_dir_missing(db_session, mon
 
     db_session.add(
         DownloadedTrack(
-            spotify_track_id="abc123", file_path=str(tmp_path / "song.mp3"), format="mp3", bitrate="320k"
+            spotify_track_id="abc123",
+            file_path=str(not_yet_mounted / "song.mp3"),
+            format="mp3",
+            bitrate="320k",
         )
     )
     db_session.commit()
@@ -100,3 +103,88 @@ def test_reconcile_disk_refuses_to_prune_when_output_dir_empty(db_session, monke
 
     remaining = {row.spotify_track_id for row in db_session.query(DownloadedTrack).all()}
     assert remaining == {"abc123"}
+
+
+def test_reconcile_disk_skips_only_library_rooted_rows_when_library_dir_missing(
+    db_session, monkeypatch, tmp_path
+):
+    """v28: a moved track's file_path lives under library_target_dir instead of
+    download_output_dir -- that root needs the exact same "don't prune if the mount
+    looks unmounted" protection as the original v12 guard, scoped to just the rows that
+    actually live under it so a healthy downloads root is still reconciled normally."""
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads_dir = tmp_path / "downloads"
+    downloads_dir.mkdir()
+    (downloads_dir / "present.mp3").write_text("audio")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads_dir)))
+
+    library_dir = tmp_path / "library-not-mounted-yet"
+    app_settings.update_library_settings(db_session, library_target_dir=str(library_dir))
+    db_session.commit()
+
+    db_session.add_all(
+        [
+            # Downloads root is healthy -- this row's file is genuinely gone and must
+            # still be pruned normally.
+            DownloadedTrack(
+                spotify_track_id="downloads-missing-file",
+                file_path=str(downloads_dir / "gone.mp3"),
+                format="mp3",
+                bitrate="320k",
+            ),
+            # Library root looks unmounted -- this row must survive even though its
+            # file "looks" missing, since that's indistinguishable from the mount
+            # itself not being attached yet.
+            DownloadedTrack(
+                spotify_track_id="library-row",
+                file_path=str(library_dir / "Artist - Album - (2020)" / "song.mp3"),
+                format="mp3",
+                bitrate="320k",
+                in_library=True,
+            ),
+        ]
+    )
+    db_session.commit()
+
+    dedup.reconcile_disk()
+
+    remaining = {row.spotify_track_id for row in db_session.query(DownloadedTrack).all()}
+    assert remaining == {"library-row"}
+
+
+def test_reconcile_disk_prunes_downloads_root_normally_when_library_never_used(
+    db_session, monkeypatch, tmp_path
+):
+    """A fresh install where v28's sort & move has never run yet has a genuinely empty
+    (never-populated) library_target_dir by construction -- that must not permanently
+    block the far more commonly needed downloads-root reconciliation."""
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads_dir = tmp_path / "downloads"
+    downloads_dir.mkdir()
+    (downloads_dir / "present.mp3").write_text("audio")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads_dir)))
+    # library_target_dir left at its default and never created -- exactly the
+    # "nobody has ever run a sweep" state.
+
+    db_session.add_all(
+        [
+            DownloadedTrack(
+                spotify_track_id="present-id",
+                file_path=str(downloads_dir / "present.mp3"),
+                format="mp3",
+                bitrate="320k",
+            ),
+            DownloadedTrack(
+                spotify_track_id="missing-id",
+                file_path=str(downloads_dir / "missing.mp3"),
+                format="mp3",
+                bitrate="320k",
+            ),
+        ]
+    )
+    db_session.commit()
+
+    dedup.reconcile_disk()
+
+    remaining = {row.spotify_track_id for row in db_session.query(DownloadedTrack).all()}
+    assert remaining == {"present-id"}

@@ -144,6 +144,7 @@
 		<div class="session">
 			<WorkerStatusPill />
 			{#if isAdmin}
+				<a class="settings-link mono" href={resolve('/library')}>library</a>
 				<a class="settings-link mono" href={resolve('/settings')}>settings</a>
 			{/if}
 			<a class="settings-link mono" href={resolve('/account')}>account</a>

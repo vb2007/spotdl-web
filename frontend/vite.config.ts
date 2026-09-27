@@ -6,6 +6,10 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, type Plugin } from 'vite';
 
 const DOWNLOADS_ROOT = '/downloads';
+// v28: the sorted library root -- matches AppSettings's library_target_dir default and
+// nginx.conf's own /internal-library/ alias target (docker-compose.override.yml mounts
+// the real ./test-library here for local dev).
+const LIBRARY_ROOT = '/mnt/raid1/media/music';
 
 // spotdl's actually-supported output formats (app/services/tagging.py's SUPPORTED_FORMATS,
 // plus wav) -- close enough to nginx's own mime.types-driven guess for what this app ever
@@ -59,12 +63,17 @@ function devFileDownloadFallback(): Plugin {
 						return;
 					}
 
-					// accelUri looks like "/internal-downloads/<percent-encoded relative path>" --
-					// same prefix nginx's own `internal` location (frontend/nginx.conf) aliases to
-					// DOWNLOADS_ROOT.
-					const relative = decodeURIComponent(accelUri.replace(/^\/internal-downloads\//, ''));
-					const resolved = path.resolve(DOWNLOADS_ROOT, relative);
-					if (resolved !== DOWNLOADS_ROOT && !resolved.startsWith(DOWNLOADS_ROOT + path.sep)) {
+					// accelUri looks like "/internal-downloads/<percent-encoded relative path>" or
+					// (v28, a track already moved into the sorted library) "/internal-library/...".
+					// Same two prefixes nginx's own `internal` locations (frontend/nginx.conf) alias
+					// to DOWNLOADS_ROOT/LIBRARY_ROOT respectively.
+					const root = accelUri.startsWith('/internal-library/') ? LIBRARY_ROOT : DOWNLOADS_ROOT;
+					const prefix = accelUri.startsWith('/internal-library/')
+						? '/internal-library/'
+						: '/internal-downloads/';
+					const relative = decodeURIComponent(accelUri.slice(prefix.length));
+					const resolved = path.resolve(root, relative);
+					if (resolved !== root && !resolved.startsWith(root + path.sep)) {
 						// FastAPI already guards this server-side; this is a defensive second
 						// check on a value that's otherwise trusted (it came from our own backend,
 						// not directly from the request), not a real expected path.

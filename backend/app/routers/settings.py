@@ -21,6 +21,13 @@ class UpdateRetentionRequest(BaseModel):
     retention_days: int | None
 
 
+class UpdateLibrarySettingsRequest(BaseModel):
+    library_target_dir: str | None = None
+    library_folder_template: str | None = None
+    library_quarantine_enabled: bool | None = None
+    library_quarantine_dir: str | None = None
+
+
 def _output_settings_to_dict(row: AppSettings) -> dict:
     return {
         "default_format": row.default_format,
@@ -76,6 +83,41 @@ def update_output_settings(
     row = app_settings.update_output_settings(db, **fields)
     db.commit()
     return _output_settings_to_dict(row)
+
+
+def _library_settings_to_dict(row: AppSettings) -> dict:
+    return {
+        "library_target_dir": row.library_target_dir,
+        "library_folder_template": row.library_folder_template,
+        "library_quarantine_enabled": row.library_quarantine_enabled,
+        "library_quarantine_dir": row.library_quarantine_dir,
+    }
+
+
+@router.get("/library")
+def get_library_settings(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    row = app_settings.get_library_settings(db)
+    db.commit()
+    return _library_settings_to_dict(row)
+
+
+@router.patch("/library")
+def update_library_settings(
+    payload: UpdateLibrarySettingsRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    fields = payload.model_dump(exclude_unset=True)
+    for key in ("library_target_dir", "library_folder_template", "library_quarantine_dir"):
+        if key in fields and not fields[key].strip():
+            raise HTTPException(status_code=400, detail=f"{key} must not be blank")
+
+    row = app_settings.update_library_settings(db, **fields)
+    db.commit()
+    return _library_settings_to_dict(row)
 
 
 def _retention_to_dict(row: UserSettings) -> dict:

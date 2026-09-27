@@ -11,7 +11,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import DownloadedTrack, Job, JobSourceType, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
-from app.services import events, retry, track_listing
+from app.services import app_settings, events, retry, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import track_attempt_to_dict, track_song_meta, track_to_dict
 
@@ -43,9 +43,11 @@ def _get_track_or_404(
     return row
 
 
-# The nginx `internal` location (frontend/nginx.conf) that aliases the downloads root --
-# `X-Accel-Redirect` values must be prefixed with this, never the raw filesystem path.
+# The nginx `internal` locations (frontend/nginx.conf) that alias the downloads root and
+# (v28) the sorted library root -- `X-Accel-Redirect` values must be prefixed with
+# whichever one actually contains the resolved path, never the raw filesystem path.
 _INTERNAL_DOWNLOADS_PREFIX = "/internal-downloads/"
+_INTERNAL_LIBRARY_PREFIX = "/internal-library/"
 
 
 def _resolve_track_file_path(db: Session, track: Track) -> Path | None:
@@ -221,7 +223,12 @@ def download_track_file(
     audio bytes pass through this process; FastAPI only decides *whether* nginx may serve
     the file and *which* one. Same owner-scoped 404-not-403 gate as every other direct-id
     track endpoint; availability is keyed on the file existing at its recorded path, never
-    on the job's `archived_at` (a retention-archived job's track stays downloadable)."""
+    on the job's `archived_at` (a retention-archived job's track stays downloadable).
+
+    v28's library move repoints the ledger's `file_path` to the sorted library root
+    instead of the downloads root -- this endpoint accepts either, resolving whichever
+    one the path actually falls under, so a moved track stays downloadable exactly as
+    the master plan requires (see CLAUDE.md's "Sort & move vs. file downloads")."""
     track, _owner_id, _archived_at = _get_track_or_404(db, track_id, user)
 
     raw_path = _resolve_track_file_path(db, track)
@@ -230,17 +237,25 @@ def download_track_file(
 
     # `output_path`/the ledger's `file_path` are app-generated today, but this endpoint
     # turns them into an authorization boundary -- confirm the resolved path is actually
-    # inside the allowed downloads root before ever handing it to nginx, rather than
+    # inside one of the two allowed roots before ever handing it to nginx, rather than
     # trusting it as already-safe input (v27's plan, path-traversal guard). `.resolve()`
     # on an absolute, possibly-nonexistent path is purely lexical (no filesystem access
     # required), so this needs no volume mount into this container.
-    root = Path(get_settings().download_output_dir).resolve()
-    resolved = raw_path if raw_path.is_absolute() else (root / raw_path)
+    downloads_root = Path(get_settings().download_output_dir).resolve()
+    library_root = Path(app_settings.get_library_settings(db).library_target_dir).resolve()
+    db.commit()
+
+    resolved = raw_path if raw_path.is_absolute() else (downloads_root / raw_path)
     resolved = resolved.resolve()
-    if not resolved.is_relative_to(root) or resolved == root:
+
+    if resolved.is_relative_to(downloads_root) and resolved != downloads_root:
+        root, prefix = downloads_root, _INTERNAL_DOWNLOADS_PREFIX
+    elif resolved.is_relative_to(library_root) and resolved != library_root:
+        root, prefix = library_root, _INTERNAL_LIBRARY_PREFIX
+    else:
         raise HTTPException(status_code=404, detail="File not found")
 
-    accel_uri = _INTERNAL_DOWNLOADS_PREFIX + "/".join(
+    accel_uri = prefix + "/".join(
         quote(part, safe="") for part in resolved.relative_to(root).parts
     )
     headers = {

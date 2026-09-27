@@ -19,6 +19,17 @@
 	let outputSaved = $state(false);
 	let outputError = $state('');
 
+	let librarySettings = $state<api.LibrarySettings | null>(null);
+	let libraryForm = $state<api.EditableLibrarySettings>({
+		library_target_dir: '',
+		library_folder_template: '',
+		library_quarantine_enabled: true,
+		library_quarantine_dir: ''
+	});
+	let librarySaving = $state(false);
+	let librarySaved = $state(false);
+	let libraryError = $state('');
+
 	let proxyList = $state<api.Proxy[]>([]);
 	let proxiesLoading = $state(true);
 	let proxiesError = $state('');
@@ -48,6 +59,15 @@
 			api.getOutputOptions()
 		]);
 		syncOutputForm(outputSettings);
+	}
+
+	function syncLibraryForm(settings: api.LibrarySettings) {
+		libraryForm = { ...settings };
+	}
+
+	async function loadLibrarySettings() {
+		librarySettings = await api.getLibrarySettings();
+		syncLibraryForm(librarySettings);
 	}
 
 	async function loadProxies() {
@@ -86,6 +106,9 @@
 		loadOutputSettings().catch((err) => {
 			outputError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		});
+		loadLibrarySettings().catch((err) => {
+			libraryError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+		});
 		loadProxies();
 
 		const id = setInterval(refreshProxiesSilently, PROXY_POLL_MS);
@@ -105,6 +128,22 @@
 			outputError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		} finally {
 			outputSaving = false;
+		}
+	}
+
+	async function onLibrarySubmit(event: SubmitEvent) {
+		event.preventDefault();
+		librarySaving = true;
+		librarySaved = false;
+		libraryError = '';
+		try {
+			librarySettings = await api.updateLibrarySettings(libraryForm);
+			syncLibraryForm(librarySettings);
+			librarySaved = true;
+		} catch (err) {
+			libraryError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+		} finally {
+			librarySaving = false;
 		}
 	}
 
@@ -240,6 +279,74 @@
 		<p class="form-error mono" role="alert">{outputError}</p>
 	</section>
 
+	<section class="panel library-settings">
+		<h2 class="label">Library sort &amp; move</h2>
+		<p class="hint mono">
+			Where the sweep sorts downloaded files into the real music library —
+			<a class="inline-link" href={resolve('/library')}>trigger a sweep from its own page</a>.
+		</p>
+
+		{#if librarySettings === null}
+			<p class="hint mono">Loading…</p>
+		{:else}
+			<form class="output-form" onsubmit={onLibrarySubmit}>
+				<label class="field wide">
+					<span class="label">Target directory</span>
+					<input type="text" bind:value={libraryForm.library_target_dir} disabled={librarySaving} />
+				</label>
+
+				<label class="field wide">
+					<span class="label">Folder template</span>
+					<input
+						type="text"
+						bind:value={libraryForm.library_folder_template}
+						disabled={librarySaving}
+					/>
+				</label>
+
+				<div class="field">
+					<span class="label" id="quarantine-label">Quarantine conflicts</span>
+					<div class="option-group" role="group" aria-labelledby="quarantine-label">
+						<button
+							type="button"
+							aria-pressed={libraryForm.library_quarantine_enabled}
+							disabled={librarySaving}
+							onclick={() => (libraryForm.library_quarantine_enabled = true)}
+						>
+							on
+						</button>
+						<button
+							type="button"
+							aria-pressed={!libraryForm.library_quarantine_enabled}
+							disabled={librarySaving}
+							onclick={() => (libraryForm.library_quarantine_enabled = false)}
+						>
+							off
+						</button>
+					</div>
+				</div>
+
+				<label class="field wide">
+					<span class="label">Quarantine directory</span>
+					<input
+						type="text"
+						bind:value={libraryForm.library_quarantine_dir}
+						disabled={librarySaving}
+					/>
+				</label>
+
+				<button type="submit" class="save" disabled={librarySaving}>
+					{librarySaving ? 'SAVING…' : 'SAVE'}
+				</button>
+			</form>
+		{/if}
+
+		{#if librarySaved && !librarySaving}
+			<p class="saved mono" role="status">Saved.</p>
+		{/if}
+		<p class="form-error mono" role="alert">{libraryError}</p>
+	</section>
+
 	<section class="panel proxy-settings">
 		<h2 class="label">Proxy pool</h2>
 		<p class="hint mono">
@@ -352,7 +459,17 @@
 		gap: var(--space-2);
 	}
 
+	.inline-link {
+		color: var(--signal-dim);
+	}
+
+	.inline-link:hover,
+	.inline-link:focus-visible {
+		color: var(--signal);
+	}
+
 	.output-settings,
+	.library-settings,
 	.proxy-settings {
 		padding: var(--space-4);
 		display: flex;

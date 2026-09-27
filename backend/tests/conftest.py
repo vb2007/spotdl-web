@@ -24,6 +24,7 @@ from app.models import (
     AppSettings,
     DownloadedTrack,
     Job,
+    LibrarySortRun,
     Proxy,
     Track,
     TrackAttempt,
@@ -62,6 +63,7 @@ def db_session():
     WorkerState.__table__.create(engine)
     AppSettings.__table__.create(engine)
     UserSettings.__table__.create(engine)
+    LibrarySortRun.__table__.create(engine)
     testing_session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     session = testing_session_local()
     try:
