@@ -63,6 +63,10 @@ needed" claim — rather than silently deleted.
   whether the subquery's WHERE actually reaches into the outer row, and silently strips the subquery
   down to zero FROM clauses (`InvalidRequestError`) when both statements happen to share the same
   table object → *v20*
+- A brand-new native enum column added via a bare `op.add_column` (not inside `create_table`) needs
+  an explicit `.create(op.get_bind(), checkfirst=True)` first, or `ALTER TABLE ... ADD COLUMN` fails
+  against real Postgres with "type does not exist" — every prior enum here was created as a
+  `create_table` side effect, never standalone → *v29*
 
 **Docker Compose & deployment**
 - Override files **merge** list keys (`ports`, `volumes`) and **replace** mapping keys
@@ -123,6 +127,10 @@ needed" claim — rather than silently deleted.
   crash-looped with `exec: npm: not found` because it picked up an old final-nginx-stage image under
   the same `spotdl-web-web` tag. `docker compose build <service>` (respecting the override's own
   `target:`), then `docker compose up -d <service>`, not just `up -d` alone → *v28*
+- Changing a compose network's own config (e.g. enabling IPv6) recreates the network; any running
+  container `docker compose up -d` doesn't *also* recreate is left with broken embedded-DNS
+  service-name resolution (`redis` → `gaierror`) even though it still looks "running"/"healthy" —
+  needs a full `down` then `up`, never just another `up -d` → *v29*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -262,6 +270,10 @@ needed" claim — rather than silently deleted.
 - Any task loop with its own per-item try/except still needs a second, outer try/except around
   everything *outside* that loop (setup, a final cross-cutting step) — an uncaught exception there
   has nothing to reset a "this is running" flag back down, permanently wedging it → *v28*
+- A context manager that monkeypatches process-global state (e.g. `socket.getaddrinfo`) is safe only
+  because `worker-dl` runs `--concurrency=1` — restore from a value snapshotted locally at entry,
+  never from a mutable module-level name, or a test/attempt that rebinds that name leaks its
+  replacement into the restored global process-wide → *v29*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -556,6 +568,11 @@ needed" claim — rather than silently deleted.
   `TestClient` in this project's own test suite, but crashed a real running `api` container.
   Confirming a fix for anything touching raw header construction needs at least one curl against
   the actual running container, not just a green pytest run → *v27*
+- No tcpdump in this sandbox session; a `socket.socket.connect` monkeypatch recording every real
+  `(family, address)` a process actually dials is an equally rigorous, arguably more precise
+  substitute for "prove which network path a real connection used" — precise enough that it caught
+  a real, years-old bug (the proxy setting never reaching the network at all) that trusting a
+  passed-in flag would have missed entirely → *v29*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -1075,6 +1092,19 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   `last_error` string before it's persisted. **Any future code that logs or persists a
   proxy URL must go through `proxies.redact()`** — never log/store `proxy.url` or a raw
   exception message directly when a proxy was involved.
+- **Corrected 2026-09-27 (found in v29's session, fixed in v30):** the "real downloads succeed
+  through a real proxy end-to-end" claim two bullets up was true about the download's outcome and
+  wrong about *why* — the connection never actually went through the proxy at all. spotdl's
+  `Downloader.__init__` only wires the `proxy` setting into `GlobalConfig`, which the
+  `piped`/`bandcamp`/`sliderkz` audio providers and the lyrics providers read; `youtube-music` (the
+  only audio provider this app has ever configured) reads neither `GlobalConfig` nor any per-call
+  proxy argument, for either ytmusicapi's search or yt-dlp's own download. This session's real,
+  credentialed-proxy test watched the wrong signal (that the download succeeded) instead of the one
+  that mattered (which IP address the connection actually used) — confirmed empirically in v29 via
+  `socket.socket.connect` observation, which showed a real search connecting straight to a real
+  Google IP while a real proxy sat configured and unused. Left in place rather than deleted, per
+  this file's own "know a past claim was wrong" convention — see `plan/master-v3/v30-proxy-routing-fix.md`
+  for the fix.
 
 ### v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream)
 
@@ -3411,3 +3441,95 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   (`curl -N /api/stream`) during a real sweep, showing `library.progress` events with `done: true`
   on completion. All ad-hoc test ledger rows/jobs/users were created under clearly-named
   `v28-*`/`*testv28*` identities, never the real `ADMIN_EMAIL` account.
+
+### v29 network-path-escalation gotchas (learned building the IPv4/IPv6 escalation rung)
+
+- **The plan's own claim that `track_attempts` "already carries the nullable network-path column
+  reserved by v24" was stale/wrong** — checked against the real model, the real v24 migration
+  (`5ae734a0485b_add_track_attempts_table.py`), and the real installed schema before writing a
+  single line: no such column exists anywhere. v24 never reserved one. Added fresh in this version's
+  own migration rather than assuming the plan's premise — exactly the "verify a referenced
+  file/function still exists before acting on it" rule this file's own header states.
+- **A brand-new native enum column added via a plain `op.add_column` (not as part of
+  `op.create_table`) needs an explicit `.create(op.get_bind(), checkfirst=True)` first, or the
+  `ALTER TABLE ... ADD COLUMN` fails against real Postgres with `type "..." does not exist"`.**
+  Every prior enum in this project was created as a side effect of its own table's `create_table`
+  (which auto-creates the type); this is the first one added to an *existing* table on its own.
+  Confirmed by actually running the migration against the real dev Postgres, not assumed — the first
+  draft failed exactly this way. Downgrade still needs the usual explicit `DROP TYPE` (CLAUDE.md's
+  standing enum invariant), unaffected by this.
+- **Two independent mechanisms are needed to force an IP family across yt-dlp's and ytmusicapi's
+  stacks, because only one of them exposes a knob for it.** yt-dlp's own `-4`/`-6` (via spotdl's
+  `yt_dlp_args` option, merged through `args_to_ytdlp_options`) is real and verified safe against the
+  installed source: that function's merge logic only lets a bare-default flag's value through when
+  the flag didn't already change it, so `-4`/`-6` can't clobber the deno `js_runtimes` options this
+  app also depends on (v23). But ytmusicapi's client is built with a hardcoded `YTMusic(language="de")`
+  (`spotdl/providers/audio/ytmusic.py`) — no family/session override exists on that call at all — so
+  `network_path.force_family` instead monkeypatches `socket.getaddrinfo` process-wide for the
+  duration of a single attempt, which covers *both* stacks since both ultimately resolve DNS through
+  it. Safe only because `worker-dl` is `--concurrency=1`; guarded with a re-entrancy lock that raises
+  loudly rather than silently leaking one attempt's forced family into another's.
+- **`force_family`'s restore path must snapshot `socket.getaddrinfo` locally at entry, not read it
+  back from the module-level `_real_getaddrinfo` name at exit.** The first draft restored from that
+  module attribute directly; a test that monkeypatches `_real_getaddrinfo` (to avoid making real DNS
+  calls) then leaves `socket.getaddrinfo` pointed at the test's own fake function *process-wide*
+  once the context manager exits — a real test-isolation bug caught by the test's own assertions
+  failing, not by inspection. Fixed by capturing `previous_getaddrinfo = socket.getaddrinfo` at
+  entry and restoring exactly that in `finally`.
+- **Real per-stack proof needed two different techniques, not tcpdump (unavailable in this sandbox
+  session).** A `socket.socket.connect` monkeypatch recording every `(family, address)` the process
+  actually dialed, wrapped around (a) a real `requests.get()` (standing in for ytmusicapi's own
+  session mechanism) and (b) a real `yt_dlp.YoutubeDL(...).extract_info(...)` call built with the
+  real `args_to_ytdlp_options(["-4"]/["-6"], ...)` merge `get_downloader` uses — both against real
+  YouTube/Google traffic, nothing mocked. Forcing IPv4 connected successfully to a real Google IP for
+  both stacks. Forcing IPv6 correctly restricted *every* connection attempt to IPv6-only addresses
+  for both stacks (confirmed zero IPv4 addresses ever attempted), and then failed at the network
+  level — this local dev sandbox has no real IPv6 route (`curl -6` to youtube.com times out here),
+  separately confirmed via SSH that the actual production host *does* have real, working IPv6
+  connectivity. This is the correct, honest result for this environment: the forcing mechanism is
+  proven correct independently of whether this specific box's uplink can complete the connection.
+- **Editing `docker-compose.override.yml` to enable IPv6 on the project's default network
+  (`enable_ipv6: true` + an `ipam.config` subnet) recreates the Docker network, and any already-running
+  container *not* otherwise recreated by that same `docker compose up` is left attached to nothing —
+  its embedded-DNS-based service-name resolution (e.g. `redis`) breaks with `socket.gaierror: Name
+  or service not known` even though the container itself keeps running and looks "healthy" in
+  whatever state compose last observed.** Confirmed live: after this edit, `api`/`beat`/`worker-dl`/
+  `worker-meta` were recreated onto the new network (compose detected their command/environment
+  needed no change but *something* triggered recreation) while `redis`/`web` initially were not,
+  and `api`'s health check started failing on real Redis DNS lookups. A full `docker compose down`
+  followed by `docker compose up -d` (not just another `up -d`) put every container on the same,
+  consistent network and resolved it. **Any future compose network-level change (not just this one)
+  should be verified with a full down/up on the real stack, never just `up -d` again**, and checked
+  against real service-to-service DNS (not just container health) before considering it safe.
+  Confirmed harmless for docker-compose.prod.yml -- `docker compose -f docker-compose.yml -f
+  docker-compose.prod.yml config` never sees this override-only change at all.
+- **A significant, unrelated-to-this-version bug was found while proving each rung's mechanism
+  empirically**: the existing proxy escalation rung has never actually routed real traffic through a
+  configured proxy, for either HTTP stack, since v07. See the v07 section's own corrected entry above
+  and `plan/master-v3/v30-proxy-routing-fix.md` — inserted as its own version per the owner's explicit
+  direction rather than folded into this one, since it's a correctness fix to a rung that already
+  existed, not part of adding the new ones.
+- **Caught by this version's own mandatory fresh-eyes review, not the author's real-stack testing**:
+  the first draft set `chosen_path = NetworkPath.PROXY` unconditionally *before* calling
+  `proxies.pick_proxy(db)`, rather than deriving it from what that call actually returned.
+  `pick_proxy` returns `None` whenever every proxy is disabled or in cooldown — routine for a
+  personal tool's handful of proxies, not an edge case — and when that happens the real attempt is
+  an unforced, un-proxied direct connection, while `track_attempts.network_path` still recorded
+  `'proxy'`. Directly violated this version's own "Done when" bullet (network_path must record the
+  path actually *used*). The one existing test built for exactly this branch
+  (`test_download_track_retry_falls_back_to_direct_when_no_proxy_available`) captured `proxy` but
+  never asserted on `network_path`, which is why it shipped once already. Fixed by deriving
+  `chosen_path` from `pick_proxy`'s actual return value, falling back to a forced `DIRECT_IPV4` (not
+  an unforced connection) so the fallback stays deterministic the same way attempt 1 already is.
+  Re-verified against real Postgres with `pick_proxy` forced to return `None`.
+- **Accepted, not fixed: forcing the IPv6 rung unconditionally costs one extra ladder wait per
+  retrying track in any environment where IPv6 isn't actually routable yet** — which is every
+  currently-deployed environment (production's daemon change is deliberately deferred, see this
+  version's own `docs/DEPLOYMENT.md` section). Attempt 2 reliably fails fast (`OSError`, classified
+  `OTHER`, doesn't trip the breaker) rather than reaching the proxy rung immediately, pushing the
+  first proxy attempt from attempt 2 to attempt 3 and adding one ladder step's delay
+  (`retry.next_delay(1)`, currently 1h) before it. This is the plan's own explicit design (`v29-*.md`:
+  "escalation-only is the conservative start and what this plan assumes"), not a bug, and resolves
+  itself once IPv6 is actually enabled per this file's rollout section — flagged here because a
+  fresh-eyes reviewer correctly asked whether the owner still wants it live exactly this way in the
+  meantime, and the answer wasn't re-litigated as part of this version.

@@ -21,7 +21,7 @@ That inverts normal web-app priorities — durability beats throughput. A track 
 in the queue for days, and that is correct behavior, not a stall.
 
 **Status:** master v1 (v00–v13) and master v2 (v14–v22) are complete, merged, and deployed at
-`spotdl.vb2007.hu`. Current work is **master v3 (v23–v29)**: the production-readiness pass — fix the
+`spotdl.vb2007.hu`. Current work is **master v3 (v23–v31)**: the production-readiness pass — fix the
 download outage, close diagnostic gaps, direct file downloads, sort & move into the real library.
 
 ### Where things are
@@ -29,7 +29,7 @@ download outage, close diagnostic gaps, direct file downloads, sort & move into 
 | What | Where |
 |---|---|
 | Current roadmap + rationale | `plan/master-v3/00-master-plan.md` |
-| Per-version implementation detail | `plan/master-v3/vNN-*.md` (v23–v29) |
+| Per-version implementation detail | `plan/master-v3/vNN-*.md` (v23–v31) |
 | Master v1 / v2 plans (historical, never edited) | `plan/master-v1/`, `plan/master-v2/` |
 | **Accumulated gotchas from v01–v13** | **`docs/GOTCHAS.md`** — indexed by topic; read the relevant section before touching an area |
 | Deploy runbook (Debian host) | `docs/DEPLOYMENT.md` |
@@ -226,6 +226,13 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
   IPv4 was flagged, all five configured proxies failed identically — cheap datacenter IPs get the
   same treatment. The locked "direct → wait → proxy" ladder is still correct for rate limiting, but
   it is *not* a universal last resort. v29 adds the other IP family as a rung before proxy.
+- **A proxy setting reaching `download_track` is not proof it reached the network.** Found in v29's
+  session, fixed in v30: since v07, spotdl's own `GlobalConfig` proxy wiring only reaches the
+  `piped`/`bandcamp`/`sliderkz`/lyrics providers, never `youtube-music` — this app's only configured
+  audio provider — so every "proxy" attempt silently went out directly for years. Any future change
+  touching the download path's network layer must verify the real connection destination
+  (`socket.socket.connect` observation, or tcpdump) before trusting that a proxy/family flag changed
+  anything.
 
 ---
 
@@ -299,7 +306,8 @@ v21 release-automation (unplanned insertion) · v22 multi-user-hardening. Detail
 | v27 | `dev-file-downloads` | `GET /api/tracks/{id}/file` — FastAPI authorizes, nginx streams via `X-Accel-Redirect` |
 | v28 | `dev-library-sort-move` | Admin-only sort & move into the real library; copy→verify→delete source; ledger repointed |
 | v29 | `dev-network-path-escalation` | IPv4/IPv6 as an escalation rung *before* proxy — proven gap: all 5 proxies failed the same bot-check. Gated on a prereq check (Docker daemon shared with other prod services) |
-| v30 | `dev-v3-hardening` | Production close: cross-user sweep over v3's surfaces, v27↔v28 proof, connection-leak root-cause, doc reconciliation |
+| v30 | `dev-proxy-routing-fix` | Fix the proxy rung itself — found in v29's session to have never actually routed traffic through a configured proxy since v07, for either HTTP stack |
+| v31 | `dev-v3-hardening` | Production close: cross-user sweep over v3's surfaces, v27↔v28 proof, connection-leak root-cause, doc reconciliation |
 
 ---
 

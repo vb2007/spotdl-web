@@ -8,8 +8,9 @@ from spotdl.types.song import Song
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import DownloadedTrack, Job, Track, TrackAttemptOutcome, TrackState
+from app.models import DownloadedTrack, Job, NetworkPath, Track, TrackAttemptOutcome, TrackState
 from app.services import app_settings, attempts, dedup, downloads, events, proxies, retry, tagging
+from app.services import network_path as network_path_svc
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 
@@ -169,10 +170,30 @@ def download_track(track_id: str) -> None:
 
         output_settings = app_settings.get_output_settings(db)
 
-        # Attempt 1 is always direct (per the locked "direct first -> wait out the ladder
-        # -> then proxy" strategy); only the *following* attempt, once its ladder wait has
-        # already elapsed, prefers a proxy.
-        proxy = proxies.pick_proxy(db) if track.attempt_count >= 1 else None
+        # Ladder rungs (v29 inserts the forced-other-family rung before proxy, per the
+        # locked "direct first -> wait out the ladder -> then proxy" strategy): attempt 1
+        # is direct on the default family (IPv4 -- forced explicitly rather than left to
+        # "whatever the OS picks", so this row's recorded network_path is deterministic;
+        # harmless since IPv4 is already the only routable family in every environment
+        # this has shipped to so far, see docs/GOTCHAS.md's v29 entry). Attempt 2 is
+        # direct, forced onto the *other* family. Only attempt 3+ reaches for a proxy.
+        if track.attempt_count == 0:
+            chosen_path = NetworkPath.DIRECT_IPV4
+            proxy = None
+        elif track.attempt_count == 1:
+            chosen_path = NetworkPath.DIRECT_IPV6
+            proxy = None
+        else:
+            # pick_proxy returns None whenever every proxy is disabled/in cooldown -- a
+            # routine state, not an edge case, for a handful of proxies. chosen_path must
+            # be derived from what pick_proxy actually returned, not assumed, or a
+            # no-proxy-available fallback attempt (a plain, unforced direct connection)
+            # gets mislabeled as NetworkPath.PROXY in track_attempts even though no proxy
+            # was used. Falling back to DIRECT_IPV4 (not leaving it unforced) matches
+            # attempt 1's own "forced explicitly, not left to whatever the OS picks"
+            # determinism above, and keeps every stored network_path value truthful.
+            proxy = proxies.pick_proxy(db)
+            chosen_path = NetworkPath.PROXY if proxy is not None else NetworkPath.DIRECT_IPV4
         proxy_id = proxy.id if proxy is not None else None
         proxy_url = proxy.url if proxy is not None else None
 
@@ -201,6 +222,7 @@ def download_track(track_id: str) -> None:
                 get_settings().download_output_dir,
                 output_settings.output_template,
                 proxy=proxy_url,
+                network_path=chosen_path,
             )
             # worker-dl runs a single track at a time (--concurrency=1), so it's safe to
             # rebind this per attempt rather than threading track/job ids through
@@ -208,7 +230,11 @@ def download_track(track_id: str) -> None:
             downloader.progress_handler.update_callback = events.make_progress_callback(
                 owner_id, track.id, track.job_id, **track_meta
             )
-            _, output_path = downloads.download_one(song, downloader)
+            # Covers ytmusicapi's search calls too, which have no family-forcing knob of
+            # their own (see network_path.py's docstring) -- yt-dlp's own requests are
+            # additionally forced via get_downloader's yt_dlp_args above.
+            with network_path_svc.force_family(chosen_path):
+                _, output_path = downloads.download_one(song, downloader)
 
             # search_and_download is synchronous and not cleanly interruptible, so a
             # cancel requested while this was running couldn't stop it — it instead set
@@ -245,6 +271,7 @@ def download_track(track_id: str) -> None:
                     datetime.now(timezone.utc),
                     TrackAttemptOutcome.CANCELLED,
                     proxy_id=proxy_id,
+                    network_path=chosen_path,
                 )
                 db.commit()
                 return
@@ -307,6 +334,7 @@ def download_track(track_id: str) -> None:
                 TrackAttemptOutcome.COMPLETED,
                 proxy_id=proxy_id,
                 error_message=f"tag warning: {tag_warning}" if tag_warning else None,
+                network_path=chosen_path,
             )
             db.commit()
             events.publish_track_event(
@@ -348,6 +376,7 @@ def download_track(track_id: str) -> None:
                     datetime.now(timezone.utc),
                     TrackAttemptOutcome.CANCELLED,
                     proxy_id=proxy_id,
+                    network_path=chosen_path,
                 )
                 db.commit()
                 return
@@ -365,6 +394,7 @@ def download_track(track_id: str) -> None:
                 error_type=error_type,
                 error_message=error_message,
                 proxy_id=proxy_id,
+                network_path=chosen_path,
             )
             db.commit()
             events.publish_track_event(

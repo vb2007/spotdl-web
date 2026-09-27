@@ -1,3 +1,4 @@
+from app.models import NetworkPath
 from app.services import downloads
 
 
@@ -82,6 +83,55 @@ def test_get_downloader_sets_proxy_only_when_given(monkeypatch):
     )
 
     assert downloader.options["proxy"] == "http://proxy:8080"
+
+
+def test_get_downloader_builds_new_instance_for_different_network_path(monkeypatch):
+    # v29: a Downloader built with `-4` baked into yt_dlp_args must never be reused for a
+    # `-6` (or unforced) attempt -- see get_downloader's own docstring comment.
+    monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
+    monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
+
+    unforced = downloads.get_downloader("mp3", "320k", "/downloads", "{title}.{output-ext}")
+    ipv4 = downloads.get_downloader(
+        "mp3", "320k", "/downloads", "{title}.{output-ext}", network_path=NetworkPath.DIRECT_IPV4
+    )
+    ipv6 = downloads.get_downloader(
+        "mp3", "320k", "/downloads", "{title}.{output-ext}", network_path=NetworkPath.DIRECT_IPV6
+    )
+
+    assert len({id(d) for d in (unforced, ipv4, ipv6)}) == 3
+    assert len(_FakeDownloader.instances) == 3
+
+
+def test_get_downloader_sets_yt_dlp_args_for_forced_family(monkeypatch):
+    monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
+    monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
+
+    ipv4 = downloads.get_downloader(
+        "mp3", "320k", "/downloads", "{title}.{output-ext}", network_path=NetworkPath.DIRECT_IPV4
+    )
+    ipv6 = downloads.get_downloader(
+        "mp3", "320k", "/downloads", "{title}.{output-ext}", network_path=NetworkPath.DIRECT_IPV6
+    )
+
+    assert ipv4.options["yt_dlp_args"] == "-4"
+    assert ipv6.options["yt_dlp_args"] == "-6"
+
+
+def test_get_downloader_sets_no_yt_dlp_args_for_proxy_or_unforced(monkeypatch):
+    # A proxy attempt's destination is a literal IPv4 host (proxies.PROXY_URL_RE) --
+    # forcing a family for it would be meaningless, so PROXY (like None) leaves
+    # yt_dlp_args unset rather than baking in a redundant/wrong flag.
+    monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
+    monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
+
+    unforced = downloads.get_downloader("mp3", "320k", "/downloads", "{title}.{output-ext}")
+    proxied = downloads.get_downloader(
+        "mp3", "320k", "/downloads", "{title}.{output-ext}", network_path=NetworkPath.PROXY
+    )
+
+    assert "yt_dlp_args" not in unforced.options
+    assert "yt_dlp_args" not in proxied.options
 
 
 def test_download_one_delegates_to_search_and_download(monkeypatch):

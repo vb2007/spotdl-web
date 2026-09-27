@@ -118,7 +118,8 @@ Fix first, then features, then close. One feature per version, one `dev-<feature
 | **v27** | `dev-file-downloads` | `GET /api/tracks/{id}/file` — ownership-checked in FastAPI, streamed by nginx via `X-Accel-Redirect`. Owner or admin only; availability keyed on the file existing at its recorded path |
 | **v28** | `dev-library-sort-move` | Admin-only sort & move into the real library. Target dir, folder template and quarantine toggle as admin settings; copy → verify → delete source; conflicts by folder+filename only; ledger repointed and tracks marked in-library; moved jobs archived; new default output template |
 | **v29** | `dev-network-path-escalation` | *(inserted — see Amendments)* IPv4/IPv6 as a real escalation rung before proxy, after a prerequisite check that production IPv6 works and daemon-level IPv6 is safe for the other services on that host |
-| **v30** | `dev-v3-hardening` | *(renumbered from v29)* Production close: full real-stack verification of every v3 change, a genuine multi-user pass, docs + `CLAUDE.md` + `docs/GOTCHAS.md` reconciliation, and the closing re-read of every "Done when" bullet |
+| **v30** | `dev-proxy-routing-fix` | *(inserted — see Amendments)* Fix the proxy escalation rung, found during v29's session to have never actually routed real traffic through a configured proxy since v07 — for both yt-dlp's own requests and ytmusicapi's search calls |
+| **v31** | `dev-v3-hardening` | *(renumbered from v29, then v30)* Production close: full real-stack verification of every v3 change, a genuine multi-user pass, docs + `CLAUDE.md` + `docs/GOTCHAS.md` reconciliation, and the closing re-read of every "Done when" bullet |
 
 ### Why this order
 
@@ -198,7 +199,12 @@ each "Done when" bullet evidenced individually this session. Version-specific mu
 6. **v29 re-runs v22's cross-user separation sweep** (`scripts/verify_separation_sse.sh` plus
    `pytest backend/tests/test_ownership.py`) — v3 adds new endpoints and a new file-serving surface,
    and every new query path is a new chance to drop the owner filter.
-7. **`graphify update .`** after every code-modifying version; version bumped in both
+7. **v30 proves both HTTP stacks actually connect through the configured proxy** — by observation
+   (real connection destination, e.g. `socket.socket.connect` monkeypatching or tcpdump), never by
+   trusting that a proxy flag was passed. This is exactly the class of gap v29's own session found:
+   the ladder's *selection* logic looked correct and had passing tests for years while the actual
+   network call silently bypassed the proxy underneath it.
+8. **`graphify update .`** after every code-modifying version; version bumped in both
    `backend/pyproject.toml` and `frontend/package.json` to the identical `3.NN.0` string.
 
 ---
@@ -251,3 +257,29 @@ is already documented in `docs/GOTCHAS.md`'s v04 section — a syntactically-val
 Spotify track ID raises a bare `KeyError('uri')` from inside spotdl's response parsing, which
 `expand_job`'s deliberately broad catch turns into a clean failed job. The track ID in question was
 typed from memory and never verified to exist. Known, correct behavior, not a bug.
+
+### 2026-09-27 — v30 inserted; hardening close renumbered again, to v31
+
+Found during v29's own session, while empirically proving each new rung's mechanism the same way the
+plan requires (`00-master-plan.md`'s own "prove it, don't trust the flag" standard, first applied to
+v23's root cause): the *existing* proxy escalation rung (attempt 3+, shipped and locked since v07)
+has never actually routed real traffic through a configured proxy. A real search through a real
+configured proxy, observed via `socket.socket.connect`, connected straight to a real Google IP —
+never touching the proxy at all. Root cause: `Downloader.__init__`'s proxy setting only reaches
+`GlobalConfig`, which `piped`/`bandcamp`/`sliderkz`/the lyrics providers read — never `youtube-music`,
+the only audio provider this app has ever configured. Neither ytmusicapi's search calls nor yt-dlp's
+own download connection has ever seen the configured proxy.
+
+This is a real, previously-undiscovered bug in a locked, supposedly-verified feature, not merely an
+adjacent cheap win — v07's own "real proxy, real download, real success" verification was watching
+the wrong signal (that the download succeeded) rather than the one that mattered (which IP it went
+out on), and every version since has inherited the same blind spot. Per the owner's explicit
+direction: **v30 is a new, fully-planned slice** (`v30-proxy-routing-fix.md`) dedicated to fixing this
+for both HTTP stacks, inserted between v29 and the hardening close. The hardening close moves from
+v30 to **v31**, unchanged in content apart from the renumber and a new re-verification bullet for
+v30's fix — the same treatment v21's insertion gave v22, and v23's own session gave v29/v30.
+
+v29 itself is unaffected by this finding and proceeds as planned: the new direct-ipv4/direct-ipv6
+rungs are direct connections, not proxy, so this gap neither blocks nor changes v29's own
+correctness — it only means the rung v29's new rungs sit *ahead of* wasn't doing what everyone
+believed.

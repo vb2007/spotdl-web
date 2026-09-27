@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-09-27)
 
 ## Corpus Check
-- 185 files · ~175,451 words
+- 185 files · ~174,992 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1797 nodes · 2833 edges · 178 communities (127 shown, 51 thin omitted)
+- 1797 nodes · 2832 edges · 178 communities (127 shown, 51 thin omitted)
 - Extraction: 88% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 324 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3c8133e8`
+- Built from commit: `85c341a3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -218,7 +218,7 @@ Cohesion: 0.10
 Nodes (28): _aware(), _make_track(), datetime, v20 gap: archiving is only ever reachable once a job is settled/failed/cancelled, Fresh-eyes review finding: a bare `encode('ascii', 'ignore')` lets a literal CR/, The ledger is what v28's library move will repoint (CLAUDE.md's master-v3     in, v27's plan: availability keys on the file existing at its recorded path, never o, A corrupted/tampered output_path must never turn into an X-Accel-Redirect outsid (+20 more)
 
 ### Community 3 - "Track Model & Beat Tests"
-Cohesion: 0.07
+Cohesion: 0.06
 Nodes (76): DownloadedTrack, Dedup ledger, independent of `tracks` so it survives job/track deletion and powe, One row per individual song discovered while expanding a job — the unit the retr, Track, _make_job(), _make_track(), _NonClosingSession, _owner() (+68 more)
 
 ### Community 4 - "test_job_listing.py"

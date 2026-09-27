@@ -1,6 +1,23 @@
 # Dev conveniences: bind-mounted source + hot reload. Applied automatically by
 # `docker compose up` alongside docker-compose.yml; omit with `-f docker-compose.yml`
 # for a prod-like run.
+#
+# v29: IPv6 on the project's default network, dev-only -- this file never applies in
+# production (docker-compose.prod.yml's own header comment), so this has zero effect on
+# the production Docker daemon until someone deliberately mirrors it there per
+# docs/DEPLOYMENT.md's rollout section. Requires nothing beyond a per-network opt-in on
+# Docker 27+ (confirmed against this host's Docker 29.8.0) -- no daemon.json change needed
+# for a *user-defined* network's own IPv6 support, unlike the host-wide NAT question the
+# production prerequisite check is actually about. Whether a given dev machine's own
+# uplink can complete an IPv6 connection at all is a separate, environment-specific fact
+# this compose config can't provide -- see docs/GOTCHAS.md's v29 entry.
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd00:dead:beef::/64
+
 services:
   api:
     volumes:
