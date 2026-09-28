@@ -208,6 +208,21 @@ needed" claim — rather than silently deleted.
   WAVE's real ID3 frame ids — it reports every field missing on a `.wav` file regardless of what was
   actually embedded, making WAV unusable as a "verify tags" target even though `embed_metadata` can
   write WAV tags fine → *v26*
+- yt-dlp's own default player-client selection for the URLs this app hits can land on a client
+  that's currently outright blocked (`android_vr` returning a bare `403 Forbidden`, even via the
+  `android_vr` client specifically — the one client that historically *doesn't* need a PO-token at
+  all) while other clients (`android`, `web`, `mweb`) succeed cleanly from the exact same IP, same
+  proxy, same everything. Proven by direct CLI tests on the deployed host: raw `yt-dlp` cycling
+  through every real client one at a time, and `spotdl --yt-dlp-args '--extractor-args
+  "youtube:player_client=..."'` against the two real albums that were failing in production.
+  **Not an IP-reputation block** — that was the first, wrong theory (three different clients
+  succeeding from the same IP in the same test run rules it out) — it's yt-dlp's own client
+  *choice* being the broken option, not the network. Fixed by always forwarding
+  `--extractor-args youtube:player_client=...` via `yt_dlp_args` (`downloads.py`'s
+  `get_downloader`), independent of family/proxy forcing. The client list is a configurable
+  setting (`YOUTUBE_PLAYER_CLIENTS`, default `android,web,mweb`), not hardcoded — this is exactly
+  the kind of yt-dlp/YouTube arms-race surface that will need retuning again without a redeploy,
+  same reasoning `LADDER_SECONDS`/`PACING_*_SEC` already get → *v31.1*
 
 **Celery, tasks & durability**
 - `record_failure` computes the ladder delay **before** incrementing `attempt_count`; reversing it
@@ -3738,6 +3753,25 @@ a core correctness gap in `download_track` itself, and doc reconciliation)
   real `ffmpeg`) outside Docker entirely, to rule out anything overlay-filesystem- or
   bind-mount-specific — not completed this session (host Python is 3.14, newer than the pinned
   stack targets; dependency resolution wasn't attempted before time ran out).
+
+  **Correction, v31.1, with much lower alarm than the above:** the exact ledger row this entry's own
+  `strace` session found missing (`.../09 - The Weeknd - Blinding Lights.mp3`) was re-checked the
+  next day, cold, with no manual retries in between — it existed, real content, correct size,
+  matched by a fresh dedup lookup exactly as designed. Nothing in this codebase touches that file
+  between one day and the next except the normal, patient, ladder-driven retry `beat` already runs
+  every 30s regardless of anyone watching. A second, freshly-submitted, never-before-attempted
+  track (the same Chopin piece this file's v31 entry used for its `strace` test) completed on its
+  very first real attempt under this session's *own* patient, un-hammered testing — real file,
+  correct size, all six tag fields, cover art. The most likely explanation, now that a working
+  comparison point exists: **v31's own investigation was largely chasing an artifact of its own
+  aggressive testing methodology** — rapid manual retries, direct out-of-process `download_one()`
+  calls competing with the real `--concurrency=1` worker for the same IP, and several rapid
+  `worker-dl` container restarts mid-investigation, all overlapping in ways ordinary usage never
+  would. Left as "very likely, not proven" rather than fully closed — the `strace` session's own
+  zero-syscalls-observed result during a live "completed" event is real evidence that doesn't
+  simply vanish, and this correction doesn't re-explain it. But weighed against a clean, gentle,
+  first-attempt real success the very next day, the balance tips toward "an artifact of the
+  investigation, not a standing bug" rather than the reverse.
   Regression test added: `test_download_track_nonexistent_output_path_feeds_breaker`. Also required
   updating 12 existing "success"-path tests in `test_download_task.py` that mocked `download_one`
   to return a hardcoded, never-real `Path("/downloads/song-a.mp3")` — every one of them was, from
@@ -3891,3 +3925,32 @@ a core correctness gap in `download_track` itself, and doc reconciliation)
   a live downgrade would momentarily change the schema out from under whatever the deployed instance
   is doing mid-request. Skipped this session rather than risk it — another data point for the DB
   split, not a substitute for actually doing it.
+
+### v31.1 followup gotchas (learned closing out v31's one deferred item, plus a second,
+independently-found production bug from the same conversation)
+
+- **The real root cause of most "spotdl returned no output file for this track" failures on the
+  deployed instance: yt-dlp's own default player-client choice, not an app bug and not an IP block.**
+  Diagnosed live with the repo owner directly on the production host, not in this sandbox: raw
+  `yt-dlp` (bypassing spotdl and this app entirely) 403'd identically to the app's own failures on
+  the exact two albums that had just failed in production. The first hypothesis — this network's
+  IP being reputation-flagged the same way v23/v29/v30 already documented — turned out to be wrong,
+  disproven by looping the same URL through every real yt-dlp player client one at a time:
+  `android_vr` (yt-dlp's own default pick here, and the *one* client that's specifically designed to
+  never need a PO-token) 403'd every single time — direct, `-4`, `-6`, through a real configured
+  proxy, with `deno` forced — while `android`, `web`, and `mweb` all succeeded cleanly, from the
+  *same* IP, in the *same* test run. That rules out an IP-level block completely: the IP can
+  clearly still talk to YouTube; only the one client the app was implicitly relying on happens to be
+  broken right now. Confirmed via `spotdl --yt-dlp-args '--extractor-args
+  "youtube:player_client=android,web,mweb"'` against both originally-failing albums — both
+  downloaded cleanly, including the one via `music.youtube.com` (this app's actual configured
+  provider). Fixed by always forwarding that same `--extractor-args` fragment through
+  `get_downloader`'s `yt_dlp_args` (`backend/app/services/downloads.py`), independent of the
+  family/proxy fragments already there — new `YOUTUBE_PLAYER_CLIENTS` setting (default
+  `android,web,mweb`), not hardcoded, since this is exactly the kind of extractor-arms-race surface
+  that will need retuning again without a redeploy. Real-stack verified: a track that needed 4+
+  failed attempts the day before completed on its very first real attempt after this fix, direct
+  connection, no proxy, full tags and cover art, real file confirmed on disk.
+- **A reminder that a version bump needs `uv lock` run again, not just the `pyproject.toml` edit** —
+  CI's `deps-sync` job caught this on v31's own PR (`uv.lock --check` failed: the lockfile still said
+  the old version). `uv lock` after every version-string bump, before pushing, not after CI says so.

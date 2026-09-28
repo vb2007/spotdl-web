@@ -4,6 +4,7 @@ from app.services import downloads
 
 class _FakeSettings:
     cookie_file = None
+    youtube_player_clients = "android,web,mweb"
 
 
 class _FakeDownloader:
@@ -114,14 +115,16 @@ def test_get_downloader_sets_yt_dlp_args_for_forced_family(monkeypatch):
         "mp3", "320k", "/downloads", "{title}.{output-ext}", network_path=NetworkPath.DIRECT_IPV6
     )
 
-    assert ipv4.options["yt_dlp_args"] == "-4"
-    assert ipv6.options["yt_dlp_args"] == "-6"
+    assert ipv4.options["yt_dlp_args"] == "-4 --extractor-args youtube:player_client=android,web,mweb"
+    assert ipv6.options["yt_dlp_args"] == "-6 --extractor-args youtube:player_client=android,web,mweb"
 
 
-def test_get_downloader_sets_no_yt_dlp_args_for_proxy_or_unforced(monkeypatch):
+def test_get_downloader_sets_only_player_client_for_proxy_or_unforced(monkeypatch):
     # A proxy attempt's destination is a literal IPv4 host (proxies.PROXY_URL_RE) --
     # forcing a family for it would be meaningless, so PROXY with no proxy URL given
-    # (like None) leaves yt_dlp_args unset rather than baking in a redundant/wrong flag.
+    # (like None) omits the family flag rather than baking in a redundant/wrong one.
+    # yt_dlp_args itself is never absent though (v31.1) -- the player-client override
+    # always applies, regardless of family/proxy forcing.
     monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
     monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
 
@@ -130,8 +133,9 @@ def test_get_downloader_sets_no_yt_dlp_args_for_proxy_or_unforced(monkeypatch):
         "mp3", "320k", "/downloads", "{title}.{output-ext}", network_path=NetworkPath.PROXY
     )
 
-    assert "yt_dlp_args" not in unforced.options
-    assert "yt_dlp_args" not in proxied.options
+    expected = "--extractor-args youtube:player_client=android,web,mweb"
+    assert unforced.options["yt_dlp_args"] == expected
+    assert proxied.options["yt_dlp_args"] == expected
 
 
 def test_get_downloader_sets_proxy_flag_in_yt_dlp_args_when_proxy_given(monkeypatch):
@@ -150,7 +154,9 @@ def test_get_downloader_sets_proxy_flag_in_yt_dlp_args_when_proxy_given(monkeypa
         network_path=NetworkPath.PROXY,
     )
 
-    assert downloader.options["yt_dlp_args"] == "--proxy http://203.0.113.5:8080"
+    assert downloader.options["yt_dlp_args"] == (
+        "--proxy http://203.0.113.5:8080 --extractor-args youtube:player_client=android,web,mweb"
+    )
 
 
 def test_get_downloader_shlex_quotes_a_credentialed_proxy_in_yt_dlp_args(monkeypatch):
@@ -166,14 +172,34 @@ def test_get_downloader_shlex_quotes_a_credentialed_proxy_in_yt_dlp_args(monkeyp
         network_path=NetworkPath.PROXY,
     )
 
-    assert downloader.options["yt_dlp_args"] == "--proxy http://user:pass@203.0.113.5:8080"
+    assert downloader.options["yt_dlp_args"] == (
+        "--proxy http://user:pass@203.0.113.5:8080 "
+        "--extractor-args youtube:player_client=android,web,mweb"
+    )
     # Round-trips through shlex.split the same way spotdl's own base.py consumes it.
     import shlex
 
     assert shlex.split(downloader.options["yt_dlp_args"]) == [
         "--proxy",
         "http://user:pass@203.0.113.5:8080",
+        "--extractor-args",
+        "youtube:player_client=android,web,mweb",
     ]
+
+
+def test_get_downloader_reads_player_client_list_from_settings(monkeypatch):
+    # v31.1: configurable, not hardcoded -- YOUTUBE_PLAYER_CLIENTS needs to be retunable
+    # without a redeploy the same way LADDER_SECONDS/PACING_*_SEC already are, since
+    # yt-dlp/YouTube's own client-blocking behavior is a moving target.
+    class _CustomSettings(_FakeSettings):
+        youtube_player_clients = "tv,ios"
+
+    monkeypatch.setattr(downloads, "get_settings", lambda: _CustomSettings())
+    monkeypatch.setattr(downloads, "Downloader", _FakeDownloader)
+
+    downloader = downloads.get_downloader("mp3", "320k", "/downloads", "{title}.{output-ext}")
+
+    assert downloader.options["yt_dlp_args"] == "--extractor-args youtube:player_client=tv,ios"
 
 
 def test_get_downloader_combines_family_and_proxy_flags(monkeypatch):
@@ -192,7 +218,9 @@ def test_get_downloader_combines_family_and_proxy_flags(monkeypatch):
         network_path=NetworkPath.DIRECT_IPV4,
     )
 
-    assert downloader.options["yt_dlp_args"] == "-4 --proxy http://203.0.113.5:8080"
+    assert downloader.options["yt_dlp_args"] == (
+        "-4 --proxy http://203.0.113.5:8080 --extractor-args youtube:player_client=android,web,mweb"
+    )
 
 
 def test_download_one_delegates_to_search_and_download(monkeypatch):
