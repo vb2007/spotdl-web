@@ -86,10 +86,11 @@ def get_downloader(
             # connection for the youtube-music download itself (v30).
             options["proxy"] = proxy
 
-        # Combined from up to two independent fragments (v30) rather than the old
-        # either/or mapping: the family flag (only for the two direct rungs) and a
-        # --proxy flag (only when a proxy was selected). Built generally, not asserting
-        # today's ladder never wants both at once -- see v30's plan doc.
+        # Combined from up to three independent fragments (v30, v31.1) rather than the old
+        # either/or mapping: the family flag (only for the two direct rungs), a --proxy
+        # flag (only when a proxy was selected), and the player-client override (always).
+        # Built generally, not asserting today's ladder never wants more than one at once
+        # -- see v30's plan doc.
         yt_dlp_arg_parts = []
         family_flag = _YT_DLP_ARGS_BY_PATH.get(network_path) if network_path else None
         if family_flag:
@@ -100,8 +101,13 @@ def get_downloader(
             # accepted and a future format loosening could introduce shlex-special
             # characters -- quote now rather than assume the regex is forever.
             yt_dlp_arg_parts.append(f"--proxy {shlex.quote(proxy)}")
-        if yt_dlp_arg_parts:
-            options["yt_dlp_args"] = " ".join(yt_dlp_arg_parts)
+        # v31.1: always applied, independent of family/proxy forcing -- see
+        # youtube_player_clients's own docstring in config.py for why this exists at all.
+        yt_dlp_arg_parts.append(
+            "--extractor-args "
+            + shlex.quote(f"youtube:player_client={settings.youtube_player_clients}")
+        )
+        options["yt_dlp_args"] = " ".join(yt_dlp_arg_parts)
 
         downloader = Downloader(options)
         _downloader_cache[key] = downloader

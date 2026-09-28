@@ -75,6 +75,17 @@ class Settings(BaseSettings):
     pacing_min_sec: int = Field(default=0, alias="PACING_MIN_SEC")
     pacing_max_sec: int = Field(default=0, alias="PACING_MAX_SEC")
 
+    # YouTube player client selection (v31.1) -- yt-dlp's own default client selection for
+    # this app's URLs currently lands on android_vr, which 403s outright while android/web/
+    # mweb all still succeed from the same IP (proven with real CLI tests against the
+    # deployed host -- see docs/GOTCHAS.md's v31.1 entry). Forwarded to yt-dlp's own
+    # `--extractor-args youtube:player_client=...` on every attempt, unconditionally --
+    # this is a client-selection concern, independent of network_path/proxy forcing.
+    # Configurable rather than hardcoded because this is exactly the kind of yt-dlp/
+    # YouTube arms-race surface that needs retuning without a redeploy, same reasoning
+    # LADDER_SECONDS/PACING_*_SEC above already get.
+    youtube_player_clients: str = Field(default="android,web,mweb", alias="YOUTUBE_PLAYER_CLIENTS")
+
     # Proxy rotation (v07) — plain file; v13 adds UI-managed (source=manual) proxies
     # alongside these file-sourced ones, both drawn from equally by pick_proxy().
     proxy_file: str = Field(default="/app/proxies.txt", alias="PROXY_FILE")
