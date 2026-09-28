@@ -156,8 +156,14 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                     run.skipped_present += 1
             else:
                 if not library.copy_verify(source, dest):
+                    # v31: copy_verify itself renames the corrupt copy off dest's exact
+                    # path (never deletes it) precisely so this failure can never be
+                    # mistaken for "already exists" by a later sweep -- see its docstring.
                     _record_error(
-                        run, row.file_path, "copy verification failed; source left intact"
+                        run,
+                        row.file_path,
+                        f"copy verification failed; source left intact, corrupt "
+                        f"partial copy renamed under {dest.parent}",
                     )
                     continue
                 # Same crash-safety ordering as the conflict branch above: the ledger

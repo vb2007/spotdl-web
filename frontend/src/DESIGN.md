@@ -190,6 +190,38 @@ idle-state text swaps to `"no signal here — worker busy elsewhere"`, still `--
 `.label.dim`, never amber. `--signal` is reserved for _this session's own_ active track, full
 stop, not "the global worker."
 
+### Worker status pill + settings-page worker controls (`WorkerStatusPill.svelte`, `WorkerStatus.svelte`, `stores/worker.ts`, v25)
+
+The "worker busy elsewhere" indicator above used to live inside one full `WorkerStatus` panel
+rendered on the dashboard for every user, with the pause/resume toggle and breaker-release button
+sitting right alongside it, gated only by `isAdmin` at render time (the server-side `require_admin`
+check was always the real enforcement — see the component's own comment). v25 splits that one
+component in two. The always-visible half becomes `WorkerStatusPill.svelte`, a compact
+`role="status"` pill now living in `+page.svelte`'s header `.session` row (L145), next to the
+library/settings/account links and the disconnect button — **not** between the submit form and the
+queue, where the old full panel would have competed with the waterfall for space above the fold.
+The admin-only pause/resume toggle and breaker-release button stay in `WorkerStatus.svelte`
+verbatim, unchanged except that it now only ever renders on `/settings`, under a "Worker control"
+heading (`routes/settings/+page.svelte` L227-230) — reachable via every user's own `/settings` link
+but functionally inert for a non-admin, same as before the split.
+
+The pill has three states, on the same 5s poll the old panel used (still no SSE event for
+worker/breaker state): `cond-fail` "breaker tripped" (+ a live `Countdown`), `cond-fail` "receiver
+paused", or the default `cond-idle` "receiving" (`WorkerStatusPill.svelte` L28-39). Paused/tripped
+reuse `--fail`, the same token the old toggle's `aria-pressed` state and breaker banner already
+used, so the meaning doesn't shift just because the surface did. The default state is `cond-idle`,
+not `--signal` — a "nothing's wrong" pill visible to every user on every page load is exactly the
+kind of near-permanent chrome §2's amber-exclusivity rule exists to keep amber out of.
+
+v25 also threads a `username` (nullable, populated from the upstream `GET /user`) through
+`SessionInfo` and the pre-existing job/track `owner_username`/`owner_email` fields. One
+`api.displayName(username, email)` helper (`api.ts` L296-298) is now the single place that decides
+username-vs-email, called from the dashboard header (`+page.svelte` L152), the tracks-view group
+header, and `JobRow.svelte`'s owner column — so the three surfaces can't drift into showing
+different identities for the same person. No new token: identity strings were already rendered
+`.mono` before v25 (a system/meta value, not song content, per §3's split), and username just
+extends that existing convention rather than starting a second one.
+
 ### State → color/label mapping (`TrackRow.svelte`, v20; formerly `QueueTable.svelte`)
 
 Two parallel `Record<TrackState, string>` maps — `STATE_LABEL` (in-world copy: "receiving",
@@ -228,6 +260,33 @@ Segment width is `count / total` as a flex-basis percentage; a zero-track job (`
 worse than no bar. `role="img"` with an `aria-label` carrying the same text as the adjacent count
 breakdown (`"1,204 done · 12 waiting · 1 not found"`) rather than leaving the visual-only bar
 unannounced to a screen reader.
+
+### Library sweep page (`routes/library/+page.svelte`, v28)
+
+The admin-only sort-and-move sweep gets its own route rather than a modal or an inline panel on
+`/settings` — reachable from the dashboard header's `library` link (`+page.svelte` L147, admin-only
+alongside `settings`) and cross-linked both ways with `/settings`'s "Library sort & move" section,
+which holds the actual target-directory / folder-template / quarantine form fields (`settings/
++page.svelte` L282-348) and only links out to `/library` to trigger a run. Config lives on
+`/settings`, the run/report view gets its own page — the same split `/settings` (config) vs. `/`
+(live queue) already establishes system-wide, rather than growing a third pattern for this one
+feature.
+
+Progress reuses the existing `role="progressbar"` convention (§7) over the sweep's `processed` /
+`total` counts, but its fill color is `--signal-dim`, not the full `--signal` a live per-track
+download uses (`Waterfall.svelte`, `JobRow.svelte`'s segmented bar) — the same carve-out v20 already
+established for "something is genuinely happening, but not _this session's own active track_" (see
+the Hero-marking border and worker-status-pill notes above): a background admin sweep is real and
+running, but it isn't the one thing `--signal` is reserved for. Progress arrives over the same
+shared SSE stream as everything else (a `library.progress` event type, `+page.svelte` L44) rather
+than a dedicated poll or a second connection — consistent with this app having exactly one
+live-update channel, not one per feature.
+
+The finished-run report (moved / already-present / quarantined / error counts, `+page.svelte`
+L114-133) colors only the error count `--fail` when non-zero (`.count.fail`) and lists individual
+file errors in `--fail` text — the same "hold red back for genuinely terminal/failed outcomes" rule
+§2 applies to track and job states applies here too, one level up: at the level of a whole sweep
+run instead of one track.
 
 ### Sort headers (`QueueControls.svelte`, v20)
 
@@ -281,6 +340,29 @@ local `expanded` boolean, exposing `aria-expanded`. The revealed `.detail` block
 text: attempt count, a live `Countdown` (only when `state === 'waiting'` and `scheduled_at` is
 set), and `last_error` in `--fail` color when present. **This whole row-as-button disclosure
 pattern is the convention for any future expandable list row.**
+
+### File-download action (`TrackRow.svelte`, v27)
+
+The expanded row's `.actions` group (retry / cancel, above) gains a third button, `download`,
+rendered only when `track.state` is `completed` or `skipped_duplicate` — the only two states
+`download_track` (`backend/app/tasks/download.py`) ever sets `output_path` from, so the button
+simply doesn't render for any other state rather than rendering and then 404ing (v27's own plan:
+"nothing for tracks without a file"). A file deleted from disk after the fact still shows the
+button; that request 404s and surfaces through the same per-row `notice` a failed retry/cancel
+already uses, not a special-cased error path.
+
+`handleDownload` (`TrackRow.svelte` L133-147) deliberately does not do a plain `<a href={...}>`
+navigation to the file endpoint: it fetches the blob itself (`api.downloadTrackFile`, `api.ts`
+L564-598) and turns it into a real browser "Save As" via a temporary object URL and a synthetic
+`<a>` click, specifically so a 404/error response renders through this app's own notice UI instead
+of the browser replacing the whole page with raw JSON. The same function also guards against a
+0-byte "successful" response — FastAPI's side of the endpoint is headers-only, with nginx's
+`X-Accel-Redirect` supplying the actual bytes, so a proxy in front that doesn't understand that
+header (Vite's dev proxy, not real nginx — see `vite.config.ts`) forwards the empty body straight
+through as if it were a correctly-named, successful download; without the explicit `blob.size ===
+0` check that reads as silent success everywhere except a byte-count diff. The button itself reuses
+the plain `.action` class already shared with retry/cancel — no new visual affordance for what is,
+from the design system's point of view, just a third row action.
 
 ### Job-row expansion (`JobRow.svelte`, v20)
 

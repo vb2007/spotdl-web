@@ -95,12 +95,22 @@ def copy_verify(source: Path, dest: Path) -> bool:
     """Copies source to dest (creating parent directories), verifies by size+checksum.
     Returns whether verification passed -- the source is never touched here; the caller
     decides whether it's now safe to delete it. A failed verification's now-suspect copy
-    at `dest` is deliberately left in place, never removed: "nothing is ever deleted on
-    the target library filesystem, not once, not under any flag" (the plan's own words)
-    means even a copy this function itself just wrote a moment ago."""
+    is never removed: "nothing is ever deleted on the target library filesystem, not
+    once, not under any flag" (the plan's own words) means even a copy this function
+    itself just wrote a moment ago. It is, however, renamed *off* `dest`'s exact path --
+    a later sweep's "already exists" check is folder+filename only (deliberately
+    content-blind, per the plan's dedup rule), so a corrupt partial file left sitting at
+    the real expected filename would be silently adopted as "the file already exists"
+    next time, causing that later sweep to quarantine or delete a perfectly good source
+    over it instead of retrying the copy. Renaming (not deleting) keeps the bytes
+    available for manual inspection while freeing the real filename for a real retry."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, dest)
-    return files_match(source, dest)
+    if files_match(source, dest):
+        return True
+    corrupt_dest = dest.with_name(f"{dest.name}.verify-failed-{uuid.uuid4().hex[:8]}")
+    dest.rename(corrupt_dest)
+    return False
 
 
 def _quarantine_destination(quarantine_dir: Path, source: Path) -> Path:

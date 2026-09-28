@@ -1,6 +1,16 @@
 from datetime import datetime, timedelta, timezone
 
-from app.models import Job, JobSourceType, JobState, Track, TrackState, User, UserSettings
+from app.models import (
+    Job,
+    JobSourceType,
+    JobState,
+    Track,
+    TrackAttempt,
+    TrackAttemptOutcome,
+    TrackState,
+    User,
+    UserSettings,
+)
 from app.services import events, retry
 from app.tasks import beat as beat_task
 
@@ -268,6 +278,29 @@ def test_dispatch_due_tracks_reclaims_stale_downloading_track(db_session, monkey
     # specifically so this event isn't metadata-less -- a bulk update has no ORM `Track`
     # to read title/artists/album off otherwise.
     assert all(kwargs.get("title") == "Song A" for _, kwargs in published)
+
+
+def test_dispatch_due_tracks_reclaim_records_a_track_attempt(db_session, monkeypatch):
+    """v31: a track stuck past the staleness threshold used to be reclaimed with no
+    `track_attempts` row at all -- the one gap in v24's per-attempt history."""
+    _patch_session(monkeypatch, db_session)
+    stuck_since = datetime.now(timezone.utc) - beat_task.stale_track_after() - timedelta(minutes=1)
+    stuck = _make_track(db_session, state=TrackState.DOWNLOADING)
+    stuck.attempt_count = 2
+    stuck.updated_at = stuck_since
+    db_session.commit()
+
+    monkeypatch.setattr(beat_task.download_track, "delay", lambda track_id: None)
+    monkeypatch.setattr(events, "publish_track_event", lambda *args, **kwargs: None)
+
+    beat_task.dispatch_due_tracks()
+
+    attempt = db_session.query(TrackAttempt).filter(TrackAttempt.track_id == stuck.id).one()
+    assert attempt.attempt_number == 2
+    assert attempt.outcome == TrackAttemptOutcome.FAILED
+    assert attempt.error_type is None
+    assert "stuck" in attempt.error_message
+    assert attempt.started_at.replace(tzinfo=timezone.utc) == stuck_since.replace(tzinfo=timezone.utc)
 
 
 def test_dispatch_due_tracks_leaves_recent_downloading_track_alone(db_session, monkeypatch):

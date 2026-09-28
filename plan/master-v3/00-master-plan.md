@@ -283,3 +283,21 @@ v29 itself is unaffected by this finding and proceeds as planned: the new direct
 rungs are direct connections, not proxy, so this gap neither blocks nor changes v29's own
 correctness — it only means the rung v29's new rungs sit *ahead of* wasn't doing what everyone
 believed.
+
+### 2026-09-28 — v31 merged with one item deferred; v31.1 patch slice inserted
+
+v31's own real-album verification (`00-master-plan.md`'s own standard, applied to itself) found
+that every ledger row created during that session's testing pointed at a `file_path` that didn't
+exist on disk — a correctness gap in `download_track`/`dedup` (neither ever checked a file actually
+existed before calling something done/duplicate) that was found, fixed, and regression-tested. What
+wasn't found in time: *why* the file wasn't there in the first place. Per the owner's explicit
+direction, v31 merges as-is rather than holding the whole hardening close hostage to that open
+question — the fixes that did land are real and independently valuable regardless of the root
+cause. **v31.1** (`dev-v31-followup`, `3.31.1`) is a patch slice, not a new roadmap number, for:
+closing that question out, and a second, unrelated, more concrete finding from the same
+conversation — this app's yt-dlp invocation lands on the `android_vr` player client by default,
+which is currently 403ing outright on the deployed host's IP while `web`/`android`/`mweb` all still
+succeed from that same IP (proven via direct CLI tests, both raw `yt-dlp` and `spotdl --yt-dlp-args`
+against the two real albums that were originally failing in production). Doesn't get its own
+plan file, the same treatment v23.1 got for the same reason: a bounded, single-concern follow-up to
+the version immediately before it, not a new independent piece of scope.

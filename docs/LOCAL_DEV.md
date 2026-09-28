@@ -21,7 +21,10 @@ job list under a distinct test-account owner, harmless because ownership scoping
 the admin's own view, but real rows in the real table nonetheless. Prefer a dedicated test
 identity (never the real `ADMIN_EMAIL` account) for anything exploratory, and switch to a
 dedicated disposable `spotdl_web_dev` database (§ "Once there's real data worth protecting"
-below) the next time this gets in the way rather than continuing to defer it.
+below) the next time this gets in the way rather than continuing to defer it. **v31: that next
+time already happened** — local `worker-meta`'s own boot-time disk reconciliation pruned a real
+`downloaded_tracks` row belonging to the deployed instance (`docs/GOTCHAS.md`'s v31 section). The
+split is overdue, not hypothetical, from here on.
 
 ---
 
@@ -113,7 +116,38 @@ print(session.token)
 # then: curl -H 'Cookie: SPOTDL_SESSION=<token>' http://localhost:8000/api/jobs
 ```
 
-## 5. When a version is ready
+## 5. Exercising sort & move locally (v28)
+
+Never point `library_target_dir` at the real ~120k-track directory for a first run (the plan's
+own words) — `docker-compose.override.yml` already wires a throwaway local stand-in for exactly
+this, gitignored the same way `./downloads` is:
+
+```yaml
+worker-meta:
+  volumes: !override
+    - ./test-library:/mnt/raid1/media/music
+web:
+  volumes: !override
+    - ./test-library:/mnt/raid1/media/music:ro
+```
+
+`./test-library` starts out empty (create it if `docker compose up` didn't already). As admin,
+point the app's own `library_target_dir` setting at the *container path* the mount above uses —
+not some other path, or the sweep writes into the container's ephemeral overlay filesystem
+instead of the bind mount, "succeeds," and nothing shows up on disk or through nginx:
+
+```bash
+curl -b <admin cookie jar> -X PATCH http://localhost:8000/api/settings/library \
+  -H "Content-Type: application/json" \
+  -d '{"library_target_dir":"/mnt/raid1/media/music"}'
+```
+
+Download a track, `POST /api/library/sort` as admin, and confirm the file landed under
+`./test-library/<Artist> - <Album> - (<Year>)/` on the host, the `downloaded_tracks` row's
+`file_path` was repointed, and `GET /api/tracks/{id}/file` still serves it afterward (v31 proved
+this exact sequence — see `docs/GOTCHAS.md`'s v31 section).
+
+## 6. When a version is ready
 
 Push the branch and open/update the PR as usual. Before merging, do one final check on the
 real target per `docs/DEPLOYMENT.md` — that's the only remaining reason to touch the Debian

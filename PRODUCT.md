@@ -59,6 +59,15 @@ retention setting) has shipped since v09/v20 — deployed and in real use at `sp
   security property, not a display filter — see the "Users" section above. Every allowlisted
   person has their own private queue and job history; only the downloaded files and the dedup
   ledger are shared.
+- Confirmed (master v3, v23–v31): each completed track has a direct file-download action
+  (owner/admin only, non-owner 404s exactly like any other direct-id endpoint), verified/repaired
+  ID3 tags (title, artist, album, track number, year, cover art), and a per-attempt download
+  history for diagnosing a recurring failure without reading worker logs. An admin-only, on-demand
+  sort & move sweep relocates completed downloads into a real library folder structure
+  (`{artist} - {album} - ({year})`) without ever deleting anything already at the target — moved
+  tracks stay downloadable. Usernames (fetched from the same upstream identity service at login)
+  display everywhere email used to; a compact live status pill on the dashboard shows worker
+  health to every user, with the actual pause/resume control moved to admin-only `/settings`.
 - Constraint: keyboard-only navigation must work for every interactive element in the UI.
 - Terminology: a "job" is one submitted URL; a "track" is one individual song being downloaded.
 
@@ -70,7 +79,7 @@ identity exists yet.
 ## Evidence on Hand
 
 No curated screenshots or demo content compiled here — the real, running UI at
-`spotdl.vb2007.hu` and `frontend/src/DESIGN.md` (updated through v20) are the source of truth for
+`spotdl.vb2007.hu` and `frontend/src/DESIGN.md` (updated through v31) are the source of truth for
 what's actually built. Future design work must not fabricate testimonials, sample libraries, or
 usage data.
 
@@ -82,8 +91,10 @@ usage data.
 3. Shared trust, private data — allowlisted people share one instance, one download library, and
    one dedup ledger, but each person's own queue and job history is private from the others (v16–
    v22); the admin's "all users" view is an explicit, off-by-default exception for troubleshooting.
-4. Config over UI, until proven necessary — proxy list and output settings are currently
-   config-file driven; UI management is deliberately deferred to the project's final version.
+4. Config over UI, until proven necessary — but this narrowed over time, not stayed fixed: proxy
+   management (v13), output/library settings (v13, v28) and worker pause/resume (v25) all moved
+   into the settings UI once they proved to need routine adjustment. The proxy list file
+   (`proxies.txt`) itself and a few one-off deploy-time values remain config/env-only.
 
 ## Accessibility & Inclusion
 

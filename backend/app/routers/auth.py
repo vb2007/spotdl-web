@@ -55,6 +55,45 @@ def require_admin(user: User = Depends(require_session)) -> User:
     return user
 
 
+def require_session_for_streaming(request: Request) -> User:
+    """v31: root-caused a Postgres connection sitting `idle in transaction` for hours
+    (docs/GOTCHAS.md's v23 entry) to `/api/stream`. Starlette doesn't tear down a
+    `yield`-based dependency like `get_db` until the *whole* response completes -- for a
+    `StreamingResponse` that's when the SSE connection itself closes, not when the route
+    function returns. `require_session`'s shared per-request `db` (via `Depends(get_db)`)
+    would therefore sit open, holding `require_session`'s own post-commit `SELECT ...
+    FROM users` transaction, for as long as the browser tab stays open. This variant
+    drives `get_db` (or its test override, resolved the same way FastAPI itself would)
+    by hand instead of through `Depends`, so the generator's `finally: db.close()` runs
+    right after the auth check -- not deferred to the end of the streamed response. Only
+    `/api/stream` should use this -- every other route's response completes immediately
+    after the handler returns, so `require_session` there is correctly scoped already."""
+    token = request.cookies.get(COOKIE_NAME)
+    if token is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    db_factory = request.app.dependency_overrides.get(get_db, get_db)
+    db_gen = db_factory()
+    db = next(db_gen)
+    try:
+        session = get_valid_session(db, token)
+        if session is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+
+        user = db.get(User, session.user_id)
+        if user is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        db.commit()
+        # Re-touch *after* commit, while the session is still open -- `expire_on_commit`
+        # (the sessionmaker default) marks attributes stale on commit, and reading them
+        # here while still attached reloads them so they survive the session closing
+        # below (a detached instance raises on any access that would otherwise re-query).
+        _ = (user.id, user.is_admin)
+        return user
+    finally:
+        next(db_gen, None)
+
+
 def _set_session_cookie(response: Response, token: str) -> None:
     response.set_cookie(
         COOKIE_NAME,

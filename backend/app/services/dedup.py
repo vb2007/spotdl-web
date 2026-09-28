@@ -12,10 +12,21 @@ logger = logging.getLogger(__name__)
 
 
 def is_already_downloaded(spotify_track_id: str) -> Path | None:
+    """None means "attempt a real download" -- to the caller, a stale ledger row (file
+    genuinely gone, see reconcile_disk()) must be indistinguishable from no row at all.
+    v31: this used to trust `row.file_path` completely, the same gap `download_track`'s
+    own success path had -- a track could be marked `SKIPPED_DUPLICATE` pointing at a
+    ledger entry whose file doesn't exist, which is strictly worse than a false
+    `COMPLETED` (it never even attempts a real download to fix itself). Doesn't touch or
+    delete the stale row here -- that's reconcile_disk()'s job at boot, kept as the one
+    place that mutates the ledger for "file is gone," so this function stays read-only."""
     db = SessionLocal()
     try:
         row = db.get(DownloadedTrack, spotify_track_id)
-        return Path(row.file_path) if row is not None else None
+        if row is None:
+            return None
+        path = Path(row.file_path)
+        return path if path.exists() else None
     finally:
         db.close()
 

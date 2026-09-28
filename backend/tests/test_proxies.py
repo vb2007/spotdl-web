@@ -37,6 +37,30 @@ def test_redact_strips_credentials():
     assert proxies.redact("http://203.0.113.5:8080") == "http://203.0.113.5:8080"
 
 
+def test_redact_text_strips_a_credentialed_url_embedded_in_other_text():
+    """v31: the exact-substring guard this replaces only caught a leak when the message
+    contained the literal, already-known proxy_url string byte-for-byte -- this must
+    catch it purely from shape, with no proxy_url to compare against at all."""
+    message = (
+        "ProxyError: Unable to connect via proxy http://scraper9:hunter2@203.0.113.5:8080 "
+        "to music.youtube.com"
+    )
+    redacted = proxies.redact_text(message)
+    assert "hunter2" not in redacted
+    assert "scraper9" not in redacted
+    assert "http://203.0.113.5:8080" in redacted
+
+
+def test_redact_text_handles_a_url_with_no_port_or_no_credentials():
+    assert "user:" not in proxies.redact_text("via http://user:pass@198.51.100.9")
+    assert proxies.redact_text("via http://198.51.100.9:1234") == "via http://198.51.100.9:1234"
+
+
+def test_redact_text_is_a_no_op_on_a_message_with_nothing_embedded():
+    message = "AudioProviderError: YT-DLP download error - https://music.youtube.com/watch?v=x"
+    assert proxies.redact_text(message) == message
+
+
 def test_next_cooldown_follows_ladder_and_caps_at_final_step():
     assert proxies.next_cooldown(0) == timedelta(minutes=15)
     assert proxies.next_cooldown(1) == timedelta(hours=1)
@@ -339,6 +363,31 @@ def test_force_proxy_patches_create_client_with_the_given_proxy(monkeypatch):
         )
     ]
     assert YouTubeMusic._create_client is original
+
+
+def test_force_proxy_leaves_create_client_callable_as_an_instance_method_after_exit(monkeypatch):
+    """v31: a real end-to-end run caught this, no unit test did -- every existing test here
+    calls `YouTubeMusic._create_client()` off the *class*, which stays a callable either way.
+    The actual bug only shows up calling it the way spotdl's own retry-rebuild path does:
+    `self._create_client()` off a real *instance*, with no arguments. The old restore
+    (`YouTubeMusic._create_client = previous_create_client`, capturing the plain function a
+    staticmethod unwraps to when read off the class) left a bare function sitting on the
+    class -- itself a descriptor, so the next instance call implicitly binds `self` as an
+    unwanted first argument. Confirmed live: every download in the process failed with
+    `_create_client() takes 0 positional arguments but 1 was given` immediately after the
+    first real proxied attempt succeeded anywhere in that worker."""
+
+    def _fake_ytmusic(*, language, proxies=None):
+        return "fake-client"
+
+    monkeypatch.setattr(proxies, "YTMusic", _fake_ytmusic)
+    downloader = _FakeDownloaderForProxy(audio_providers=[])
+
+    with proxies.force_proxy("http://203.0.113.5:8080", downloader):
+        pass
+
+    provider = _fake_youtube_music_provider(client="whatever")
+    assert provider._create_client() is not None
 
 
 def test_force_proxy_swaps_an_already_constructed_providers_client(monkeypatch):

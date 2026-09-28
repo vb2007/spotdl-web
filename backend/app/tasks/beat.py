@@ -5,8 +5,8 @@ from sqlalchemy import select, update
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Job, Track, TrackState, UserSettings
-from app.services import archive, events, retry
+from app.models import Job, Track, TrackAttemptOutcome, TrackState, UserSettings
+from app.services import archive, attempts, events, retry
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -33,12 +33,28 @@ def _reclaim_stale_tracks(db) -> None:
     now = datetime.now(timezone.utc)
     threshold = stale_track_after()
     stale_cutoff = now - threshold
+
+    # Snapshot attempt_count/updated_at *before* the update below, rather than reading
+    # them back via that update's own RETURNING -- SQLAlchemy 2.0's ORM-enabled bulk
+    # UPDATE (built from the mapped class, as below) still populates a column's
+    # Python-side `onupdate` for every row it touches even when that column is never
+    # named in `.values()`, so `Track.updated_at` in the RETURNING result would already
+    # be "now", not the moment this track actually got stuck.
+    stale_before = {
+        row.id: (row.attempt_count, row.updated_at)
+        for row in db.execute(
+            select(Track.id, Track.attempt_count, Track.updated_at).where(
+                Track.state.in_([TrackState.DOWNLOADING, TrackState.QUEUED]),
+                Track.updated_at < stale_cutoff,
+            )
+        )
+    }
+    if not stale_before:
+        return
+
     reclaimed = db.execute(
         update(Track)
-        .where(
-            Track.state.in_([TrackState.DOWNLOADING, TrackState.QUEUED]),
-            Track.updated_at < stale_cutoff,
-        )
+        .where(Track.id.in_(stale_before.keys()))
         .values(state=TrackState.WAITING, scheduled_at=now)
         .returning(Track.id, Track.job_id, Track.song_json)
     ).all()
@@ -51,10 +67,27 @@ def _reclaim_stale_tracks(db) -> None:
     job_ids = {job_id for _, job_id, _ in reclaimed}
     owner_by_job = dict(db.execute(select(Job.id, Job.user_id).where(Job.id.in_(job_ids))).all())
     for track_id, job_id, song_json in reclaimed:
+        attempt_count, stuck_since = stale_before[track_id]
         logger.warning(
             "dispatch_due_tracks: reclaimed stale track %s (stuck past %s)",
             track_id,
             threshold,
+        )
+        # v31: this sweep used to be the one code path that could silently swallow an
+        # attempt -- a track stuck past the staleness threshold got reset with no
+        # `track_attempts` row at all, an invisible gap in the per-attempt history v24
+        # exists specifically to close. Whatever invocation got this track stuck never
+        # reached its own record_attempt call (that's what "stuck" means here), so this
+        # sweep records it on that invocation's behalf: FAILED, no known error_type since
+        # the real cause (crashed worker, hard-killed container) was never observed.
+        attempts.record_attempt(
+            db,
+            track_id,
+            attempt_count,
+            stuck_since,
+            now,
+            TrackAttemptOutcome.FAILED,
+            error_message=f"reclaimed: stuck past staleness threshold ({threshold})",
         )
         events.publish_track_event(
             owner_by_job[job_id],
@@ -64,6 +97,7 @@ def _reclaim_stale_tracks(db) -> None:
             scheduled_at=now,
             **track_song_meta(song_json),
         )
+    db.commit()
 
 
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")

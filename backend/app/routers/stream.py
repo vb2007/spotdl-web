@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 
 from app.config import get_settings
 from app.models import User
-from app.routers.auth import require_session
+from app.routers.auth import require_session_for_streaming
 from app.services.events import ADMIN_CHANNEL_PATTERN, channel_for
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ async def _event_stream(request: Request, user: User, all_users: bool):
 async def stream(
     request: Request,
     all_users: bool = False,
-    user: User = Depends(require_session),
+    user: User = Depends(require_session_for_streaming),
 ) -> StreamingResponse:
     return StreamingResponse(
         _event_stream(request, user, all_users),
