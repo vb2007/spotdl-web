@@ -93,11 +93,14 @@ function still exists before acting on it**, since v2 changes schema, endpoints,
 
 Two environments share the physical Postgres server **and currently the same database on it**.
 **As of v22, that threshold has been reached** — three real allowlisted users, real jobs, real
-downloaded files — so local runs now write into the same rows the deployed instance serves. Not
-yet split off (a dedicated `spotdl_web_dev` database, per `docs/LOCAL_DEV.md`) because it hasn't
-caused real friction yet, but the next session that hits friction from it should do the split
-rather than deferring again. Use a distinct test identity for anything exploratory, never the
-real `ADMIN_EMAIL` account. Everything else about the split stays the same.
+downloaded files — so local runs now write into the same rows the deployed instance serves. **v31
+hit the predicted friction**: local dev's own `worker-meta` boot-time disk reconciliation pruned a
+real `downloaded_tracks` ledger row because the file it pointed at only exists on the deployed
+instance's own downloads volume, not locally visible (`docs/GOTCHAS.md`'s v31 section). The split
+(a dedicated `spotdl_web_dev` database, per `docs/LOCAL_DEV.md`) is now overdue rather than
+theoretical — do it at the start of the next version that touches the backend, before anything
+else. Until then, avoid restarting local `worker-meta` more than necessary, and use a distinct test
+identity for anything exploratory, never the real `ADMIN_EMAIL` account.
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
 |---|---|---|
@@ -307,7 +310,8 @@ v21 release-automation (unplanned insertion) · v22 multi-user-hardening. Detail
 | v28 | `dev-library-sort-move` | Admin-only sort & move into the real library; copy→verify→delete source; ledger repointed |
 | v29 | `dev-network-path-escalation` | IPv4/IPv6 as an escalation rung *before* proxy — proven gap: all 5 proxies failed the same bot-check. Gated on a prereq check (Docker daemon shared with other prod services) |
 | v30 | `dev-proxy-routing-fix` | Fix the proxy rung itself — found in v29's session to have never actually routed traffic through a configured proxy since v07, for either HTTP stack |
-| v31 | `dev-v3-hardening` | Production close: cross-user sweep over v3's surfaces, v27↔v28 proof, connection-leak root-cause, doc reconciliation |
+| v31 | `dev-v3-hardening` | **Done, merged.** Cross-user sweep re-run clean; connection leak root-caused and fixed (`/api/stream`'s `Depends(get_db)` held open for a `StreamingResponse`'s whole life); a real v30 regression found and fixed (`force_proxy`'s `staticmethod` restore); `download_track`/`dedup` now verify a file actually exists before calling anything done/duplicate. **Deferred to v31.1**: the deeper question of what writes (or doesn't) the file itself — see `docs/GOTCHAS.md`'s v31 section |
+| v31.1 | `dev-v31-followup` | Patch slice. `yt-dlp`'s default client selection for this app's URLs lands on `android_vr`, which is currently 403ing outright — `web`/`android`/`mweb` all still work from the same IP, proven via real CLI tests on the deployed host. Root-causing and fixing the remaining "file missing after COMPLETED" question is folded in here too |
 
 ---
 

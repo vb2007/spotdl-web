@@ -258,7 +258,17 @@ needed" claim — rather than silently deleted.
 - The stale-track reclaim sweep (`beat._reclaim_stale_tracks`) bypasses `download_track` entirely by
   design, so a real worker crash mid-download leaves no per-attempt history row at all — a real,
   reachable diagnostic gap, out of v24's scope (which named `download_track`'s own six exit paths,
-  not `beat.py`) → *v24*
+  not `beat.py`) → *v24*. **Fixed, v31**: the sweep now snapshots each stale track's
+  `attempt_count`/`updated_at` *before* its bulk `UPDATE` (reading them back via that same
+  `RETURNING` would already show post-update values — see this file's own v31 section) and records
+  a `FAILED` `track_attempts` row on the abandoned invocation's behalf.
+- A `FAILED`/`COMPLETED`-only "already exists" check that's deliberately content-blind (folder +
+  filename match, never a checksum) will just as happily adopt a *corrupt* file left at that exact
+  path as it would a genuinely-complete one — a disk-full or other I/O failure mid-`copy_verify`
+  leaves a bad partial file sitting at the real destination name, and the next sweep run treats it
+  as "already there," quarantining or deleting the actually-good source over it. Fixed by having
+  `copy_verify` rename (never delete) its own failed copy off the exact destination filename on a
+  checksum mismatch, freeing that name for a real retry → *v31*
 - A per-row loop that mutates the filesystem (delete/quarantine a source file) and the DB row for it
   must commit the DB change *before* the filesystem mutation, not after — committing after leaves a
   crash-window where the file's real location and the DB's belief about it disagree, and nothing
@@ -274,6 +284,13 @@ needed" claim — rather than silently deleted.
   because `worker-dl` runs `--concurrency=1` — restore from a value snapshotted locally at entry,
   never from a mutable module-level name, or a test/attempt that rebinds that name leaks its
   replacement into the restored global process-wide → *v29*
+- `reconcile_disk()`'s "mount looks missing" guard protects against an unmounted/empty root, not
+  against a root that's mounted and non-empty but is a *different environment's* files — confirmed
+  live: local dev's `worker-meta` boot pruned a real ledger row because the shared dev/prod database
+  pointed at a completed download that only exists on the deployed instance's own, separate
+  downloads volume. The dev/prod DB split this file's "Development environments" section already
+  names as a deferred TODO is the actual fix; until then, avoid restarting local `worker-meta`
+  (or anything that re-triggers `RUN_DISK_RECONCILE`) more than necessary → *v31*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -323,6 +340,15 @@ needed" claim — rather than silently deleted.
   jitter) is what actually bridged every observed cycle. This is a trivial fraction of the real
   retry ladder's 15-minute floor either way, so it doesn't misrepresent a genuine multi-minute wait
   as "still active" → *v23*
+- A `StreamingResponse` route's `Depends(...)` dependency chain isn't torn down until the whole
+  streamed body finishes, not when the route function returns — a `yield`-based dependency
+  (`get_db`) used there holds its DB session (and whatever transaction its last query left open)
+  for the entire life of the connection, hours for an SSE tab left open. Confirmed live via
+  `pg_stat_activity` (a `SELECT ... FROM users` sitting `idle in transaction` for the whole time a
+  test SSE connection stayed open, clearing the instant it disconnected). Fix: don't route a
+  long-lived response's auth check through a `Depends(get_db)`-shaped dependency at all — resolve
+  and close its own session immediately, driving `get_db` (or its test override) by hand instead of
+  through `Depends` → *v31*
 
 **Proxies & secrets**
 - Any proxy URL that is logged or persisted must go through `proxies.redact()`; spotdl's own error
@@ -337,6 +363,21 @@ needed" claim — rather than silently deleted.
   `self.client = self._create_client()`) sits on the *cached* `Downloader`/provider instance for
   every subsequent attempt — patching only the construction classmethod misses whatever's already
   sitting on `.client`, since a search that succeeds on its first try never rebuilds it → *v30*
+- Reading a `@staticmethod` off its *class* (to save and later restore it) unwraps the descriptor
+  down to the plain underlying function — restoring it by assigning that plain function straight
+  back leaves a bare function on the class, which is itself a descriptor: the next instance call
+  implicitly binds `self` as an unwanted first argument. Re-wrap in `staticmethod(...)` before
+  storing it. A real v30 regression (`force_proxy`'s own restore of `YouTubeMusic._create_client`)
+  that broke every download in a `worker-dl` process after the first successful proxied attempt,
+  found only by an actual real-stack album download, not any unit test (every existing test calls
+  the method off the class, which stays callable either way) → *v31*
+- The exact-substring credential-redaction guard (`if proxy_url in error_message: ...`, v07)
+  only caught a leak that embedded that literal, already-known `proxy_url` string byte-for-byte —
+  a re-wrapped or differently-formatted exception could embed the same credentials in a form that
+  guard would miss. Replaced with `proxies.redact_text()`: a regex that redacts anything
+  *shaped* like a credentialed URL anywhere in a message (requires an actual `user:pass@` to be
+  present, so it never touches a message with nothing to redact), applied unconditionally rather
+  than gated behind a match against one specific `proxy_url` → *v31*
 
 **File serving & HTTP headers**
 - A response header built from DB-sourced/app-generated-but-not-actually-trusted text (here:
@@ -3134,6 +3175,7 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   exists to close — just outside v24's own scope, which named `download_track`'s six exit paths
   specifically and never touched `beat.py`. Left for whichever version next does deeper worker-
   reliability work (candidate: v30's hardening close) rather than folded into v24 unasked.
+  **Fixed, v31**: see this file's own v31 section.
 
 ### v25 username-ui gotchas (learned building `users.username` + moving worker controls)
 
@@ -3424,6 +3466,8 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   itself, not a straightforward coding bug, and not observed in this session's real testing (would
   need an actual disk-full/IO fault mid-copy to trigger). Flagged here rather than silently dropped,
   for whichever version next touches this path (v30's hardening close is the natural owner).
+  **Fixed, v31**: `copy_verify` now renames (never deletes) its own failed copy off the exact
+  destination filename on a checksum mismatch — see this file's own v31 section.
 - **Real end-to-end verification this session, against the real local stack** (real Postgres, a
   throwaway `./test-library` directory bind-mounted over `worker-meta`/`web` — never the live
   ~120k-track directory, per the plan's own testing rule): real downloaded files already on disk
@@ -3527,9 +3571,14 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   an unforced connection) so the fallback stays deterministic the same way attempt 1 already is.
   Re-verified against real Postgres with `pick_proxy` forced to return `None`.
 - **Accepted, not fixed: forcing the IPv6 rung unconditionally costs one extra ladder wait per
-  retrying track in any environment where IPv6 isn't actually routable yet** — which is every
-  currently-deployed environment (production's daemon change is deliberately deferred, see this
-  version's own `docs/DEPLOYMENT.md` section). Attempt 2 reliably fails fast (`OSError`, classified
+  retrying track in any environment where IPv6 isn't actually routable yet.** At the time this
+  version shipped, that was every currently-deployed environment (production's daemon change was
+  deliberately deferred). **Correction, v31:** production's own IPv6 rollout has since happened, as
+  a separate follow-up (PR #39, `docker-compose.prod.yml`'s `enable_ipv6`/`ipam.config` block,
+  `docs/DEPLOYMENT.md` updated to reflect it as applied) — the "every currently-deployed
+  environment" framing above is now stale for production specifically; this whole paragraph's cost
+  analysis still applies to any environment where IPv6 genuinely isn't routable (a fresh local dev
+  setup, say). Attempt 2 reliably fails fast (`OSError`, classified
   `OTHER`, doesn't trip the breaker) rather than reaching the proxy rung immediately, pushing the
   first proxy attempt from attempt 2 to attempt 3 and adding one ladder step's delay
   (`retry.next_delay(1)`, currently 1h) before it. This is the plan's own explicit design (`v29-*.md`:
@@ -3598,4 +3647,247 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   this guard is pre-existing v07 logic this version's plan explicitly didn't touch ("this fix changes
   whether the proxy is used, not the ... logic around it"), and hardening it into a
   pattern-based (not exact-string) redaction is a good candidate for v31's hardening pass, not a v30
-  regression.
+  regression. **Fixed, v31**: see this file's own v31 section — `proxies.redact_text()`.
+
+### v31 v3-hardening gotchas (learned closing out master v3: the cross-user sweep, three
+named-candidate fixes from v24/v28/v30, a real production connection leak, a real v30 regression,
+a core correctness gap in `download_track` itself, and doc reconciliation)
+
+- **The single most important, and least-resolved, finding of this version — found only because
+  task 4 insists on a real album downloading end to end rather than trusting the DB:
+  `download_track` marked tracks `COMPLETED` — real ~10-20 second attempts, sometimes with a real
+  proxy, real `TrackAttempt` rows — whose files never existed anywhere on disk. This was not a rare
+  edge case: an audit of every `downloaded_tracks` ledger row created this session (26 rows, a mix
+  of singles and every one of a real 20-track album) found **zero** whose recorded `file_path`
+  actually existed, checked both from `worker-dl` (the container that actually writes files) and
+  from the real host bind mount.**
+
+  **What this is not**, ruled out directly: not the local/prod shared-database cross-environment
+  hazard this file's own dev/prod-DB entry describes (Redis — and therefore the actual Celery task
+  execution — is never shared between environments, confirmed by watching these exact tasks run to
+  completion in this session's own `docker compose logs worker-dl`, with real per-track search/
+  download/proxy log lines); not spotdl reporting `None` (already handled, a different code path);
+  not a disk-space or permission problem (86G free, correct uid ownership throughout). **A
+  hypothesized mechanism that turned out to be wrong, recorded so it isn't retried the same way**:
+  spotdl's output-template renderer (`spotdl/utils/formatter.py`) does replace `{track-number}`
+  with an empty string when a song's `track_number` is `0`/`None`, which looked like it explained one
+  observed case (a file present on disk under a name missing its `"05 - "` prefix) — but a live,
+  isolated re-fetch of that exact track's metadata immediately afterward returned a perfectly normal
+  `track_number: 5`, contradicting the theory as the general explanation. Repeated attempts to
+  force a second, cleanly-observed success (direct call to `download_one` in isolation, checking
+  `Path.exists()` in the same process immediately on return) were blocked by this network's own
+  real rate-limiting exhausting every configured proxy in turn during this session's investigation
+  window — a real, currently-live condition, not a test artifact, and consistent with this file's
+  own IP-reputation findings from v23/v29/v30. **Root cause not found this session.**
+
+  The reason this went unnoticed for as long as it did: the v26 tag-verification step
+  (`tagging.verify_tags`, which *does* touch the file) was wrapped in a broad `except Exception`
+  specifically so a tagging bug could never fail an otherwise-good download — but that same guard
+  silently swallowed the `FileNotFoundError` a missing file raises there too, turning "the download
+  never actually happened" into an indistinguishable, harmless-looking "tag warning" on a track the
+  rest of the code then marked `COMPLETED` anyway. **Fixed, as a correctness floor rather than a
+  root-cause fix**: `download_track` now checks `output_path.exists()` immediately after the
+  existing `output_path is None` check and *before* tag verification ever runs, raising the same
+  `NoOutputFileError`/`NO_OUTPUT` classification (so it correctly feeds the breaker and re-enters
+  the retry ladder) instead of ever reaching the tagging step on a file that was never written.
+  Given this was found to be universal this session, this fix's honest consequence is that **no
+  track may currently be able to reach genuine `COMPLETED` at all** until the real root cause is
+  found — correctly retrying forever rather than lying is still strictly better than the status quo
+  ante, but this is flagged as the clearest, most urgent priority this file has ever recorded for
+  the very next session, ideally with its own dedicated time budget rather than as a side-thread of
+  another version's own work (which is exactly how this session lost significant time to it).
+  **Second update, same session, with `strace` (installed via `sudo pacman -S strace` — this
+  sandbox didn't have it): the mystery is not "the file gets deleted."** `strace -f -e
+  trace=unlink,unlinkat,rename,renameat,renameat2` attached to *both* the celery parent and its
+  actual prefork worker PID (`docker top` to find the real child — the container's PID 1 alone
+  isn't the task-executing process) captured **zero matching syscalls** across a real, freshly
+  reproduced `COMPLETED` track during the trace window. Combined with `/downloads`'s entry count
+  never once changing all session (99 at the very start, 99 at every check since, including
+  immediately after this traced completion) — the file is never created under the reported name
+  at all; nothing deletes it afterward, because there was never anything there to delete. The one
+  early case that looked like a real, persistent file (`Pharrell Williams - Happy...mp3`, no
+  `track-number` prefix) is now suspect for a much more mundane reason: that exact filename could
+  already have existed from a prior, unrelated local test session — `/downloads`'s entry count
+  never actually grew to confirm a new write happened, which this session should have checked
+  immediately and didn't.
+
+  Repeated, isolated, direct `downloads.download_one()` calls (bypassing `download_track`/Celery
+  entirely, run back-to-back against several different known-good tracks, with and without a
+  proxy) made **immediately after** this finding **all failed honestly** — real `AudioProviderError`s,
+  a real `None` return, no phantom success to inspect. This network's own IP-reputation problem
+  (documented since v23/v29/v30) reads as significantly worse right now than earlier in this same
+  session, plausibly *because of* this session's own unusually high request volume (many rapid
+  manual retries, direct out-of-band `download_one()` calls competing with the real
+  `--concurrency=1` worker for the same IP/proxies). **This session could not, in the time
+  remaining, force and directly observe a fresh, cleanly-isolated success to inspect the exact
+  moment `search_and_download` claims one** — every attempt after installing `strace` failed at
+  the network layer before ever reaching that code path. A bare `yt-dlp` CLI call (bypassing spotdl
+  entirely) also hit a 403 with a "no JS runtime found" warning even though spotdl's own
+  `is_deno_installed()` correctly reports the locally-installed deno as available — a real
+  difference between the two invocation paths, but a red herring for this specific bug once
+  confirmed spotdl's own wiring finds deno correctly; not itself the cause of a phantom success.
+
+  Concrete next steps for a future session, revised: **do not hammer this network again for this
+  specific investigation** — let real, normally-paced traffic (the actual ladder, not rapid manual
+  retries) run for a while first so the IP-reputation state genuinely recovers, then attach `strace
+  -f -e trace=%file` (broader than just unlink/rename — cover every file-path syscall so a write
+  under a completely unanticipated name is caught too) to the real `worker-dl` prefork child
+  *before* triggering a single real attempt, and watch one happen end to end without interrupting
+  it. Also worth trying, per the project owner's own suggestion mid-session: running spotdl
+  natively on the host (a plain venv, `pip install spotdl==4.5.2` matching `requirements.txt`,
+  real `ffmpeg`) outside Docker entirely, to rule out anything overlay-filesystem- or
+  bind-mount-specific — not completed this session (host Python is 3.14, newer than the pinned
+  stack targets; dependency resolution wasn't attempted before time ran out).
+  Regression test added: `test_download_track_nonexistent_output_path_feeds_breaker`. Also required
+  updating 12 existing "success"-path tests in `test_download_task.py` that mocked `download_one`
+  to return a hardcoded, never-real `Path("/downloads/song-a.mp3")` — every one of them was, from
+  this check's perspective, already testing a false-success scenario and just didn't know it; they
+  now write a real (fake-content) file under `tmp_path` first. **The same gap existed a second way**:
+  `dedup.is_already_downloaded()` also trusted a ledger row's `file_path` with no existence check,
+  so a stale row (the exact shape this file's cross-environment-pruning entry above already
+  describes) could mark a track `SKIPPED_DUPLICATE` against a file that doesn't exist — arguably
+  worse than the `COMPLETED` case, since a duplicate-skip never even attempts a real download that
+  might fix itself. Fixed the same way: returns `None` (never-downloaded) instead of a path that
+  doesn't exist, without touching or deleting the stale row itself (`reconcile_disk()` stays the
+  one place that mutates the ledger for a missing file, at boot).
+
+  **Critical update, same session, after the fix above was live and restarted into `worker-dl`**:
+  the exact same failure mode kept recurring on *fresh* tracks submitted after the fix — a track
+  reaching real `COMPLETED` (real ~10-30s attempt duration, sometimes a real `proxy_id`) whose
+  recorded file still did not exist moments later. Since `output_path.exists()` is checked
+  immediately after `download_one` returns and *before* anything else runs, a track reaching
+  `COMPLETED` at all is only possible if that check saw `True` — meaning either (a) the file
+  genuinely exists at check time and is deleted afterward by something not yet identified, or
+  (b) the fix is somehow not executing for these attempts despite being confirmed present in the
+  running container's source (`docker compose exec worker-dl grep` confirmed the new line's text
+  in `/app/app/tasks/download.py` throughout). Investigated and ruled out this session: a second,
+  lingering "zombie" `worker-dl` node from an overlapping restart (`celery inspect ping`/
+  `active_queues` showed exactly one `worker-dl@<hostname>` connected, matching the current
+  container, every time this was checked); stale bytecode in `__pycache__` (found — every `.pyc`
+  under `backend/app/**/__pycache__` is root-owned and dated to the original image build in
+  July/August, far older than the bind-mounted `.py` sources — but a fresh `python -c` import in
+  the same container always reflected current source correctly, and Python's default mtime-based
+  invalidation should recompile regardless of a stale `.pyc`'s presence, so this is flagged as a
+  real image-hygiene smell worth cleaning up but not confirmed as this bug's cause); spotdl's own
+  `embed_metadata`/`repair_tags` doing an unsafe temp-file swap (read directly from the installed
+  package source — every write is a plain in-place `mutagen`/`ID3` `.save()`, no delete or rename
+  of the target path visible anywhere in that call chain). A tight, second-by-second filesystem
+  watch (`ls /downloads` polled every 1s in `worker-dl` for up to ~280s, spanning submit-through-
+  well-past-completion) across three separate fresh single-track attempts that each reached
+  `COMPLETED` **never observed the file count change at all** — meaning by the time any external
+  observer (even a 1-second-resolution poll) can look, the file is already gone, or was never
+  visible to anything outside the exact process instant of the internal check. This session lacked
+  `strace`/`inotifywait`/`auditd` to pin down the actual deleting party with certainty; it isn't
+  installed in this sandbox and couldn't be added within this session's remaining time.
+  **Status: still unresolved, more severe than first understood** — the existence-check fix is
+  still correct and necessary (it stops a lie from reaching the database), but on its own it has
+  **not** been shown to stop a track from reaching `COMPLETED` with no real file behind it in this
+  environment. Whatever removes the file appears to act inside the same narrow window the check
+  itself runs in, which is the single strongest lead for the next session: instrument
+  `download_one`'s *caller* (not spotdl's own internals) with a stat/watch loop spanning from
+  immediately after `search_and_download` returns through several seconds later, ideally with
+  `strace -f -e trace=unlink,unlinkat,rename,renameat` attached to the live `worker-dl` process
+  during a real attempt, to catch the exact syscall and its caller.
+- **A genuine, currently-shipped v30 regression, found only by actually running a real album
+  through the final merged code (task 4's own reason to exist): every download in a `worker-dl`
+  process breaks with `YouTubeMusic._create_client() takes 0 positional arguments but 1 was given`
+  the moment *any* attempt anywhere in that process's life first uses a real proxy successfully.**
+  Root cause in `proxies.force_proxy`: `YouTubeMusic._create_client` is a `@staticmethod`; reading
+  it off the *class* (`YouTubeMusic._create_client`) to save/restore it unwraps the staticmethod
+  descriptor down to the plain underlying function — capturing exactly that plain function and
+  restoring it later by assigning it straight back onto the class leaves a bare function sitting
+  there, and a bare function is *itself* a descriptor: the next `self._create_client()` called on
+  any instance implicitly binds `self` as an unwanted first positional argument to a function
+  defined to take none. Confirmed with a two-line repro (`prev = Cls.static_method; Cls.static_method
+  = prev; instance.static_method()` raises the identical `TypeError` shape) and live in this
+  session: a real 20-track album's every track failed identically, one proxy-download success
+  after another success, until this was fixed and `worker-dl` restarted. Fixed by wrapping the
+  captured value back in `staticmethod(...)` before storing it (`previous_create_client =
+  staticmethod(YouTubeMusic._create_client)`) — every existing unit test for `force_proxy` missed
+  this because they all call `_create_client()` off the *class*, which stays callable either way;
+  the bug only shows calling it off an *instance* with no arguments, exactly how spotdl's own
+  retry-rebuild path (`YouTubeMusic.get_results`) actually calls it. New regression test added
+  (`test_force_proxy_leaves_create_client_callable_as_an_instance_method_after_exit`), confirmed to
+  fail without the fix and pass with it.
+- **An intermittent, not-fully-root-caused anomaly, recorded honestly rather than silently dropped**:
+  three separate times this session, a real failed download attempt's next `scheduled_at` matched
+  `DEFAULT_LADDER_SECONDS` (900s/3600s/14400s — the *production* ladder) instead of this local
+  dev's `.env`-overridden `LADDER_SECONDS=5,10,15,20,30`, on the same `worker-dl` container/process
+  where every direct check (`docker compose exec worker-dl env`, and a fresh one-off `python -c
+  "from app.config import get_settings; ..."` in the same container) consistently showed the
+  correct override. Ruled out: container-level env staleness (`docker compose restart` doesn't
+  re-resolve env, but a full `--force-recreate` was tried too and the anomaly still appeared once
+  more after it); the `retry_track` endpoint itself (reads correctly, just sets `scheduled_at =
+  now`); a stale-object/import mismatch (module `__file__` and settings `id()` were sane).
+  A temporary debug log placed directly inside `next_delay()` then showed *correct* resolved
+  settings for at least one real call in the same session, and a subsequent clean, isolated
+  single-track test (a track untouched by the rest of the session's activity) got the correct 5s
+  first-retry delay — so this does not reproduce on demand, and may be specific to this sandbox's
+  handling of the multiple rapid worker-dl restarts/recreates performed in quick succession while
+  chasing the proxy bug above, not a bug in the ladder code itself. Flagged here rather than
+  investigated to exhaustion given the disproportionate effort already spent versus the bounded,
+  non-corrupting consequence (a longer wait before a retry, never a wrong or lost one) — worth
+  a look if a future session sees it recur with cleaner reproduction conditions.
+- **The deferred idle-in-transaction connection leak (flagged in v23) is real, root-caused, and
+  fixed.** `/api/stream` returns a `StreamingResponse`; Starlette doesn't tear down a
+  `yield`-based dependency (`Depends(get_db)`) until the *entire* response completes, which for a
+  streamed body means "whenever the SSE connection itself closes," not when the route function
+  returns. `require_session`'s own `db.get(User, ...)` (issued *after* `current_session`'s commit)
+  therefore sat in an open transaction for the full life of the connection — confirmed live by
+  opening a real `curl -N /api/stream` connection and watching `pg_stat_activity`: a `SELECT ...
+  FROM users` row sitting `idle in transaction`, clearing the instant the connection was killed.
+  Fixed with a dedicated `require_session_for_streaming` dependency (`backend/app/routers/auth.py`)
+  that drives `get_db` (or its test override, resolved via `request.app.dependency_overrides`) by
+  hand instead of through `Depends`, closing its session immediately after the auth check rather
+  than leaving it open for the stream's lifetime. Re-confirmed clean over a 23s+ open connection
+  after the fix. Every other route is unaffected — a normal JSON response completes immediately
+  after the handler returns, so `require_session`'s shared per-request `db` there was never the
+  problem; only a route returning a genuinely long-lived response needs this treatment.
+- **A real, live cross-environment data-integrity hazard, found while setting up this version's own
+  local verification, not induced by it.** The shared dev/prod database's `downloaded_tracks`
+  ledger was already empty (0 rows) at the start of this session, despite `tracks` holding real
+  `COMPLETED` rows referencing files that don't exist in local dev's own downloads volume. The
+  `worker-meta` boot log (from before this session started) showed `reconcile_disk: checked 1
+  ledger rows, removed 1 with missing files` — local dev's disk reconciliation pruned a real ledger
+  row because the file it pointed at only exists on the deployed instance's own, separate downloads
+  volume. `reconcile_disk()`'s existing "mount looks missing" guard (v12) protects against an
+  unmounted/empty root; it has no protection against a root that's mounted, non-empty, but simply
+  *a different environment's files* — which is exactly local dev's shape. Not fixed this version
+  (the real fix is the dev/prod DB split `CLAUDE.md`'s "Development environments" section already
+  named as a deferred TODO, now overdue rather than theoretical) — `worker-meta` was not restarted
+  again for the remainder of this session to avoid pruning further real rows.
+- **Three gaps prior versions explicitly flagged by name as "a v31 candidate," fixed:**
+  1. `beat._reclaim_stale_tracks` now records a `FAILED` `track_attempts` row for the invocation it
+     reclaims — snapshotting `attempt_count`/`updated_at` via a plain `SELECT` *before* the bulk
+     `UPDATE`, not by reading them back from that update's own `RETURNING`. Learned the hard way:
+     SQLAlchemy 2.0's ORM-enabled bulk `update(Track)` (built from the mapped class, not
+     `Track.__table__`) still re-evaluates a column's Python-side `onupdate` for every row it
+     touches even when that column is never named in `.values()` — the first version of this fix
+     read `updated_at` straight off the `RETURNING` clause and got back "now" instead of the moment
+     the track actually got stuck, silently defeating the whole point.
+  2. `library.copy_verify` no longer lets a corrupt partial file (a disk-full/I/O failure mid-copy)
+     sit at its real destination filename. Folder+filename "already exists" is deliberately
+     content-blind (the plan's own dedup rule), so a bad copy left at the exact expected path would
+     be silently adopted as "the real file" by the next sweep, which would then quarantine or
+     delete a perfectly good source over it. Fixed by renaming (never deleting — the target
+     filesystem invariant holds even for a copy the sweep itself just wrote) the failed copy off
+     its real filename on a checksum mismatch.
+  3. `download_track`'s credential-redaction guard is pattern-based now (`proxies.redact_text()`),
+     not an exact match against one already-known `proxy_url` string — see this file's own v30
+     section for the gap this closes. Requires an actual `user:pass@` to be present before touching
+     anything, so a message with nothing to redact (the overwhelmingly common case) passes through
+     completely unchanged.
+- Browser-driven verification (Playwright/chromium) is not available in this sandbox — no
+  `apt-get` for its system dependencies, and its browser-binary CDN download times out (a
+  network-restricted sandbox, not an app problem). The v25 UI bullets that specifically need a real
+  browser (status pill placement, mobile layout, keyboard focus ring) were not independently
+  re-verified this session as a result — noted plainly rather than silently skipped; this project's
+  own established technique for the one property that *does* need the real wire (SSE isolation) is
+  curl-based anyway (`scripts/verify_separation_sse.sh`), not browser-based, and that was re-run
+  clean against the real local stack with two freshly-registered real-login identities.
+- Running a full `alembic upgrade head → downgrade -1 → upgrade head` round-trip check against this
+  project's actual database is not safe to do from local dev anymore, for the same reason as the
+  ledger-pruning finding above: local dev and the deployed instance share one physical database, and
+  a live downgrade would momentarily change the schema out from under whatever the deployed instance
+  is doing mid-request. Skipped this session rather than risk it — another data point for the DB
+  split, not a substitute for actually doing it.

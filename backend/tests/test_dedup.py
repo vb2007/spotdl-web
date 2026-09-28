@@ -28,12 +28,27 @@ def test_is_already_downloaded_returns_path_when_present(db_session, monkeypatch
     monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
 
     file_path = tmp_path / "song.mp3"
+    file_path.write_bytes(b"fake audio bytes")
     db_session.add(
         DownloadedTrack(spotify_track_id="abc123", file_path=str(file_path), format="mp3", bitrate="320k")
     )
     db_session.commit()
 
     assert dedup.is_already_downloaded("abc123") == file_path
+
+
+def test_is_already_downloaded_returns_none_for_a_stale_ledger_row(db_session, monkeypatch, tmp_path):
+    """v31: a ledger row whose file is genuinely gone must read as "not already
+    downloaded," not as a false SKIPPED_DUPLICATE that never attempts a real download."""
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+
+    file_path = tmp_path / "song.mp3"  # never written
+    db_session.add(
+        DownloadedTrack(spotify_track_id="abc123", file_path=str(file_path), format="mp3", bitrate="320k")
+    )
+    db_session.commit()
+
+    assert dedup.is_already_downloaded("abc123") is None
 
 
 class _FakeSettings:

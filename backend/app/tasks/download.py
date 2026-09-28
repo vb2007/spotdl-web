@@ -286,6 +286,27 @@ def download_track(track_id: str) -> None:
                     "spotdl returned no output file for this track"
                 )
 
+            # v31: found live, by this version's own real-album verification --
+            # search_and_download's returned path is trusted completely with no check
+            # that anything actually landed there. It can point at a file that was never
+            # written (the confirmed mechanism: spotdl's own output-template renderer
+            # drops the `{track-number} - ` segment entirely when a song's track_number
+            # is 0/None, so a template built assuming that segment is always present
+            # produces a path that doesn't match the real, differently-named file spotdl
+            # actually wrote -- other, rarer causes are plausible too and this check
+            # doesn't need to know which one applies). Before this check existed, a
+            # missing file at this point wasn't just unnoticed -- the broad `except
+            # Exception` around tag verification below would silently swallow the
+            # FileNotFoundError that verify_tags raises against a nonexistent path,
+            # turning "the download never actually happened" into a harmless-looking
+            # "tag warning" on an otherwise-COMPLETED track. Classified the same as
+            # `output_path is None` -- both mean spotdl didn't actually leave a file
+            # where this app was told to expect one.
+            if not output_path.exists():
+                raise retry.NoOutputFileError(
+                    f"spotdl reported {output_path} but no file exists there"
+                )
+
             # ID3 integrity (v26): read tags back off the actual file rather than
             # trusting song_json, and repair anything missing before marking the track
             # completed. Guarded broadly -- a tag-repair bug must never turn a
@@ -353,8 +374,14 @@ def download_track(track_id: str) -> None:
             # real traceback object, so file/line info is untouched.
             error_message = str(exc)
             log_exc = exc
-            if proxy_url is not None and proxy_url in error_message:
-                error_message = error_message.replace(proxy_url, proxies.redact(proxy_url))
+            # v31: pattern-based, not an exact match against this attempt's own
+            # proxy_url -- catches a credentialed URL embedded in a re-wrapped or
+            # differently-formatted exception too (docs/GOTCHAS.md's v30 entry).
+            # redact_text is a no-op on a message with nothing embedded, which is the
+            # common case (spotdl/yt-dlp errors rarely echo the URL at all).
+            redacted_message = proxies.redact_text(error_message)
+            if redacted_message != error_message:
+                error_message = redacted_message
                 log_exc = type(exc)(error_message)
             logger.error(
                 "download_track: track %s failed",

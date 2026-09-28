@@ -88,9 +88,16 @@ def test_copy_verify_failure_leaves_both_files_in_place(tmp_path, monkeypatch):
     ok = library.copy_verify(source, dest)
 
     assert ok is False
-    # Never deleted, per the plan's "nothing is ever deleted on the target filesystem,
-    # not once, not under any flag" -- not even a copy this function itself just wrote.
-    assert dest.exists()
+    # v31: never deleted, per the plan's "nothing is ever deleted on the target
+    # filesystem, not once, not under any flag" -- not even a copy this function itself
+    # just wrote. But also never left at the exact expected filename, or a later sweep's
+    # content-blind "already exists" check would silently adopt this corrupt copy as the
+    # real file and quarantine/delete a good source over it.
+    assert not dest.exists()
+    siblings = list(dest.parent.iterdir())
+    assert len(siblings) == 1
+    assert siblings[0].name.startswith(f"{dest.name}.verify-failed-")
+    assert siblings[0].read_bytes() == b"the audio bytes"
     assert source.exists()
 
 
