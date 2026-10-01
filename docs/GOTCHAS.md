@@ -4004,8 +4004,12 @@ independently-found production bug from the same conversation)
   Error messages name the database, never the URL, because the URL carries the password.
 - **`alembic downgrade base && upgrade head` is clean on every revision through `e7c1f9a4d2b6`.**
   First time it was ever safe to run (no disposable database before v32). All 11 downgrades ran,
-  and the following upgrade recreated every native enum without a "type already exists" error, so
-  no `downgrade()` is missing its `DROP TYPE`. `pg_trgm` stays installed after `base` by design
+  then all 11 upgrades. A clean re-upgrade alone doesn't prove every `DROP TYPE` is there:
+  `e7c1f9a4d2b6` creates its enum with `checkfirst=True`, so a leftover type would be silently
+  reused. The direct check does: every migration that *creates* a native enum
+  (`ebc1d43e2c21` ×5, `5ae734a0485b`, `d2f4a6b8c1e3`, `e7c1f9a4d2b6`) drops it in `downgrade()`.
+  `5ae734a0485b`'s second enum reference reuses `track_error_type` with `create_type=False`, so
+  it correctly drops nothing. `pg_trgm` stays installed after `base` by design
   (`b6dde562e77a`'s own comment).
 - **A fresh dev database re-seeds through the app's normal paths.** `users` rows come back on first
   real login (admin from the dev `.env`'s `ADMIN_EMAIL`, a test account), file-sourced proxies on
