@@ -323,7 +323,9 @@ jobs:
         if: steps.skip.outputs.skip != 'true'
         run: |
           cd "$DEPLOY_DIR"
-          git fetch origin --tags --prune
+          # No fetch here (v33): the preflight fetched moments ago, and keeping this step's
+          # first command a host mutation means "this step started" really means "the host
+          # moved", which is what triggers the rollback below.
           # --force: discards any local drift on TRACKED files (e.g. a hand-edited script) so
           # the checkout always lands exactly on the resolved commit rather than aborting with
           # "local changes would be overwritten" -- found by a real hand-edited file blocking
@@ -401,7 +403,7 @@ jobs:
           done
           guard_rc=0
           { IMAGE_TAG="$PREV_TAG" \
-              GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $TMP/docker-compose.yml -f $TMP/docker-compose.prod.yml" \
+              GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $TMP/docker-compose.yml -f $TMP/docker-compose.prod.yml --profile tunnel" \
               bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" 2>&1 \
               | python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env"; } || guard_rc=$?
           if [ "$guard_rc" -eq 3 ]; then
@@ -548,8 +550,12 @@ jobs:
                   rollback="not needed, the new version passed its health gate (a later step failed, see the run)"
                 elif [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ] || [ "$DEPLOY_STEP" = "cancelled" ]; then
                   rollback="not attempted, the host may be mid-deploy"
-                else
+                elif [ "$DEPLOY_STEP" = "skipped" ]; then
                   rollback="not needed, nothing on the host was changed"
+                else
+                  # No step outcomes at all: the job never reported (runner died, host
+                  # rebooted). Don't guess.
+                  rollback="UNKNOWN, the deploy job reported nothing. Check the host"
                 fi
                 ;;
             esac

@@ -41,8 +41,12 @@ def secrets(env_file: str) -> list[str]:
             candidates = [whole, whole.replace('"', '\\"'), *whole.split()]
         for v in candidates:
             for form in (v, v.strip("'\"")):
-                if len(form) >= 3:
-                    found.add(form)
+                # Also as compose (Go) quotes it in errors, `"` -> `\"` and `\` -> `\\`, and
+                # with a double-quoted value's escapes already applied.
+                for shown in (form, form.replace("\\", "\\\\").replace('"', '\\"'),
+                              form.replace("\\n", "\n").replace('\\"', '"')):
+                    if len(shown) >= 3:
+                        found.add(shown)
     # Longest first, so a value containing a shorter one is masked whole.
     return sorted(found, key=len, reverse=True)
 

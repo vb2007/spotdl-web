@@ -219,7 +219,8 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
    version of the script, since this runs before the checkout below switches it), before anything
    can touch the schema. Both modes run this — a manual dispatch can still carry a pending
    migration. The dump's path is kept (v33): a refused rollback has to hand it to a human.
-6. **Update the checkout**: `git fetch origin --tags --prune`, then
+6. **Update the checkout** (already fetched by the preflight, so this step's first command
+   moves the host, and "the deploy step ran" means "the host moved"):
    `git checkout --detach --force <commit-sha>` (the exact commit resolved by the `resolve` job,
    not a human-readable ref — see the chain section above for why), `git reset --hard`, **`git
    clean -fd -e /.last-good`**. Deliberately **not** `-fdx`: `.env` and `proxies.txt` are
