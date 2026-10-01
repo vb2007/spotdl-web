@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1790849304.724804,
-    "ast_hash": "5ce412896ad6e0590b24a3d74622a365",
+    "mtime": 1790870965.8273425,
+    "ast_hash": "768c1ec6cfbf41da2a83abdf2ed3f559",
     "semantic_hash": ""
   },
   "README.md": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
-    "mtime": 1790848452.207495,
-    "ast_hash": "87281ec6e0d5401db1c2aeb0405e8c96",
+    "mtime": 1790873628.9294205,
+    "ast_hash": "6587ed8c144be45dd309bd4c1d332482",
     "semantic_hash": ""
   },
   "frontend/.vscode/extensions.json": {
@@ -80,8 +80,8 @@
     "semantic_hash": "c727963dee0c5743b26f3d2fc99abfb6"
   },
   "frontend/package.json": {
-    "mtime": 1790848452.209495,
-    "ast_hash": "124ed17f05900d9f58c8cb33acae5709",
+    "mtime": 1790873628.9302807,
+    "ast_hash": "b6101bbeb09a2a72b4209a383a89c19c",
     "semantic_hash": ""
   },
   "frontend/prettier.config.js": {
@@ -155,8 +155,8 @@
     "semantic_hash": "a0d1b540c1b9a2a920d5f6cae983118a"
   },
   "docs/DEPLOYMENT.md": {
-    "mtime": 1790857153.5290685,
-    "ast_hash": "4338d98ba40261a24199a6c46805c27a",
+    "mtime": 1790870965.827448,
+    "ast_hash": "0ffae2b9e4692d54cdbc475e0b0e7389",
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
@@ -460,12 +460,12 @@
     "semantic_hash": ""
   },
   "docker-compose.prod.yml": {
-    "mtime": 1790857155.0606332,
+    "mtime": 1790868668.0140967,
     "ast_hash": "b789a628523f04aa2995a6deb8f77c03",
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1790857153.5287828,
+    "mtime": 1790864874.5053136,
     "ast_hash": "9c74f132b02dc00c98ca0a4834b78e11",
     "semantic_hash": ""
   },
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1790857153.5295694,
-    "ast_hash": "f9565088e6475289b98b263fb7ad369a",
+    "mtime": 1790870965.8277385,
+    "ast_hash": "03965735d0d380ce6eb613600bd98c85",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -780,23 +780,23 @@
     "semantic_hash": ""
   },
   ".github/scripts/wait_for_stack_health.sh": {
-    "mtime": 1790857153.5275693,
-    "ast_hash": "e13119536010b978ec031ba259b129ec",
+    "mtime": 1790870965.8267384,
+    "ast_hash": "17eaecb49152118204d6c46b68aacf6f",
     "semantic_hash": ""
   },
   ".github/workflows/publish-deploy.yml": {
-    "mtime": 1790857153.5288596,
-    "ast_hash": "cde0480e09649ba2050bf3fb19ff8b2a",
+    "mtime": 1790870965.8272734,
+    "ast_hash": "8d58dd8a63a578d3d414bba0736796ce",
     "semantic_hash": ""
   },
   ".github/workflows/release.yml": {
-    "mtime": 1790852219.2548451,
+    "mtime": 1790864874.5054288,
     "ast_hash": "afe6935d305a8236aca62fc8684e1667",
     "semantic_hash": ""
   },
   "docs/RELEASE_PIPELINE.md": {
-    "mtime": 1790857153.5302038,
-    "ast_hash": "27c368bf4e74b46993f26c07f6d2bf39",
+    "mtime": 1790870965.828867,
+    "ast_hash": "2eaaaa389470b982e66b268b1e04de8b",
     "semantic_hash": ""
   },
   "plan/master-v2/v21-release-automation.md": {
@@ -995,8 +995,8 @@
     "semantic_hash": ""
   },
   "plan/master-v4/00-master-plan.md": {
-    "mtime": 1790848452.2164953,
-    "ast_hash": "0971d2ace0b5af988a342b6406f6ca4b",
+    "mtime": 1790870965.828982,
+    "ast_hash": "f9365ec2eb564d067894e5c0618b5c09",
     "semantic_hash": ""
   },
   "plan/master-v4/IMPLEMENTATION_PROMPT.md": {
@@ -1090,22 +1090,22 @@
     "semantic_hash": ""
   },
   ".github/scripts/check_required_env.py": {
-    "mtime": 1790848688.4872937,
+    "mtime": 1790864874.5043006,
     "ast_hash": "143a1fa3ebfffa06473e96f24e4f907d",
     "semantic_hash": ""
   },
   ".github/scripts/matrix_notify.py": {
-    "mtime": 1790857153.5275693,
-    "ast_hash": "22a97496aa2039373f15aaefe159b53f",
+    "mtime": 1790870965.8267384,
+    "ast_hash": "6285cbfcb24568314a9529556041e412",
     "semantic_hash": ""
   },
   ".github/scripts/migration_guard.sh": {
-    "mtime": 1790849080.062761,
+    "mtime": 1790868667.799387,
     "ast_hash": "eb8dcc080655d37f883cb51fd9a41ce4",
     "semantic_hash": ""
   },
   ".github/scripts/redact_env.py": {
-    "mtime": 1790857153.5275693,
+    "mtime": 1790864874.5043006,
     "ast_hash": "aacf742b27baca4b9913a39e908dffb0",
     "semantic_hash": ""
   }
