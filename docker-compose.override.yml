@@ -36,17 +36,18 @@ services:
     # such as `volumes:`/`ports:` — see CLAUDE.md's v01 gotcha) — the base file's
     # `--log-config logging.json` (v12) must be repeated here too, or dev silently loses
     # structured JSON logging entirely while prod keeps it.
+    #
+    # v32: settings are validated once *before* uvicorn starts. `--reload`'s supervisor
+    # process never imports the app itself -- only its child does -- so when the child dies
+    # on a config error (above all the production-database guard in app/config.py) the
+    # supervisor keeps running and the container never exits. The pre-check makes a refused
+    # config exit non-zero, same as every other backend service. `exec` keeps uvicorn at
+    # PID 1 for signal handling.
     command:
       [
-        "uvicorn",
-        "app.main:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000",
-        "--reload",
-        "--log-config",
-        "logging.json",
+        "sh",
+        "-c",
+        "python -c 'from app.config import get_settings; get_settings()' && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-config logging.json",
       ]
 
   migrate:
