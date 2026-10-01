@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-10-01)
 
 ## Corpus Check
-- 209 files · ~222,695 words
+- 209 files · ~223,061 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2035 nodes · 3105 edges · 209 communities (156 shown, 53 thin omitted)
+- 2035 nodes · 3105 edges · 210 communities (157 shown, 53 thin omitted)
 - Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 342 edges (avg confidence: 0.76)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7e8035e8`
+- Built from commit: `aea1df79`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -201,6 +201,7 @@
 - [[_COMMUNITY__event_stream|_event_stream]]
 - [[_COMMUNITY_sync_from_file|sync_from_file]]
 - [[_COMMUNITY_Upgrading an existing deployment (manual fallback)|Upgrading an existing deployment (manual fallback)]]
+- [[_COMMUNITY_Architecture|Architecture]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `$lib/api` - 96 edges
@@ -233,7 +234,7 @@
 - **CI PR-checks pipeline (pytest, publish-report, compose-config, frontend)** — github_workflows_ci_pytest_job, github_workflows_ci_publish_report_job, github_workflows_ci_compose_config_job, github_workflows_ci_frontend_job [EXTRACTED 1.00]
 - **Docker Compose layered configuration (base/override/prod)** — docker_compose_doc, docker_compose_override_doc, docker_compose_prod_doc [EXTRACTED 1.00]
 
-## Communities (209 total, 53 thin omitted)
+## Communities (210 total, 53 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
 Cohesion: 0.16
@@ -340,8 +341,8 @@ Cohesion: 0.08
 Nodes (31): archiveJobs(), bumpJob(), cancelJob(), cancelTrack(), createJob(), createProxy(), deleteProxy(), getJob() (+23 more)
 
 ### Community 31 - "Version Roadmap Plans"
-Cohesion: 0.14
-Nodes (13): Architecture, graphify, Invariants — break these and things fail silently, Job rollup status (v2) — two derived axes, never one stored flag, Locked decisions, Maintaining this file, Master v2 additions, Master v2 invariants (+5 more)
+Cohesion: 0.20
+Nodes (9): graphify, Job rollup status (v2) — two derived axes, never one stored flag, Locked decisions, Maintaining this file, Master v2 additions, Master v4 additions, Retry engine numbers, Track state machine (+1 more)
 
 ### Community 32 - "Stream Router Tests"
 Cohesion: 0.14
@@ -766,6 +767,10 @@ Nodes (6): _probe_reachable(), Best-effort TCP connect so an obviously dead new 
 ### Community 208 - "Upgrading an existing deployment (manual fallback)"
 Cohesion: 0.29
 Nodes (7): 1. Pull the merged code, 2. Update `.env`, 3. Migrate the downloads directory (one-time, before first boot with the new bind mount), 4. Bring up the stack with the production overlay, 5. Configure the Cloudflare Tunnel (Zero Trust dashboard), 6. Verify, Upgrading an existing deployment (manual fallback)
+
+### Community 209 - "Architecture"
+Cohesion: 0.50
+Nodes (4): Architecture, Invariants — break these and things fail silently, Master v2 invariants, Master v3 invariants
 
 ## Ambiguous Edges - Review These
 - `PRODUCT.md` → `frontend/static/robots.txt`  [AMBIGUOUS]

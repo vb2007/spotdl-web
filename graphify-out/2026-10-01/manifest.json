@@ -370,8 +370,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1790877822.8477046,
-    "ast_hash": "d2bce52b9b745be9aeb93a096f845b3d",
+    "mtime": 1790879197.2110262,
+    "ast_hash": "c53c2513c1fefce1af6346c3801ff378",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1790870965.8277385,
-    "ast_hash": "03965735d0d380ce6eb613600bd98c85",
+    "mtime": 1790879250.894504,
+    "ast_hash": "e843397376f0cd05821829e3d59d2cd4",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1110,8 +1110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.test.ts": {
-    "mtime": 1790877808.9893146,
-    "ast_hash": "f1844eeeb22802ce9983c43de0e8ed7a",
+    "mtime": 1790879197.2111702,
+    "ast_hash": "096a7e72c2829a3b77c60cdcc2c9db8f",
     "semantic_hash": ""
   }
 }

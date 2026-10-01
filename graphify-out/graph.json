@@ -13046,7 +13046,7 @@
       "label": "queue",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1217",
+      "source_location": "L1237",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_queue",
       "community": 13,
@@ -13539,7 +13539,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "claude_architecture",
-      "community": 31,
+      "community": 209,
       "norm_label": "architecture"
     },
     {
@@ -13549,7 +13549,7 @@
       "source_location": "L186",
       "_origin": "ast",
       "id": "claude_invariants_break_these_and_things_fail_silently",
-      "community": 31,
+      "community": 209,
       "norm_label": "invariants \u2014 break these and things fail silently"
     },
     {
@@ -13559,7 +13559,7 @@
       "source_location": "L204",
       "_origin": "ast",
       "id": "claude_master_v2_invariants",
-      "community": 31,
+      "community": 209,
       "norm_label": "master v2 invariants"
     },
     {
@@ -13569,7 +13569,7 @@
       "source_location": "L227",
       "_origin": "ast",
       "id": "claude_master_v3_invariants",
-      "community": 31,
+      "community": 209,
       "norm_label": "master v3 invariants"
     },
     {
@@ -45942,7 +45942,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1207",
+      "source_location": "L1227",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_canceljob"
@@ -45953,7 +45953,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1211",
+      "source_location": "L1231",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_setjobpriority"
@@ -45964,7 +45964,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1210",
+      "source_location": "L1230",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_bumpjob"
@@ -45975,7 +45975,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1212",
+      "source_location": "L1232",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_archivejobs"
@@ -45986,7 +45986,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1213",
+      "source_location": "L1233",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_unarchivejobs"
@@ -45997,7 +45997,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1208",
+      "source_location": "L1228",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_canceltrack"
@@ -46008,7 +46008,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1209",
+      "source_location": "L1229",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_retrytrack"
@@ -46236,7 +46236,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1217",
+      "source_location": "L1237",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_queue",
@@ -52958,5 +52958,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "7e8035e852e0270fea2773d86abd7be27d54284f"
+  "built_at_commit": "aea1df7905c5f388352d22fafdc3315eb7c11739"
 }
