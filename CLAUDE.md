@@ -20,17 +20,18 @@ YouTube-Music rate limiting as an expected, permanent condition rather than a fa
 That inverts normal web-app priorities — durability beats throughput. A track may legitimately sit
 in the queue for days, and that is correct behavior, not a stall.
 
-**Status:** master v1 (v00–v13) and master v2 (v14–v22) are complete, merged, and deployed at
-`spotdl.vb2007.hu`. Current work is **master v3 (v23–v31)**: the production-readiness pass — fix the
-download outage, close diagnostic gaps, direct file downloads, sort & move into the real library.
+**Status:** master v1 (v00–v13), v2 (v14–v22) and v3 (v23–v31.1) are complete, merged, and deployed
+at `spotdl.vb2007.hu`. Current work is **master v4 (v32–v47)**: operational safety (dev DB split,
+deploy rollback), correctness, Matrix alerting + stats, and an impeccable-driven UI/UX overhaul with
+full (Hungarian-QWERTZ-first) keyboard navigation and Hungarian/English i18n. Implementation sessions start from `plan/master-v4/IMPLEMENTATION_PROMPT.md`.
 
 ### Where things are
 
 | What | Where |
 |---|---|
-| Current roadmap + rationale | `plan/master-v3/00-master-plan.md` |
-| Per-version implementation detail | `plan/master-v3/vNN-*.md` (v23–v31) |
-| Master v1 / v2 plans (historical, never edited) | `plan/master-v1/`, `plan/master-v2/` |
+| Current roadmap + rationale | `plan/master-v4/00-master-plan.md` |
+| Per-version implementation detail | `plan/master-v4/vNN-*.md` (v32–v47); agent prompt template `plan/master-v4/IMPLEMENTATION_PROMPT.md` |
+| Master v1–v3 plans (historical, never edited) | `plan/master-v1/`, `plan/master-v2/`, `plan/master-v3/` |
 | **Accumulated gotchas from v01–v13** | **`docs/GOTCHAS.md`** — indexed by topic; read the relevant section before touching an area |
 | Deploy runbook (Debian host) | `docs/DEPLOYMENT.md` |
 | Local dev runbook | `docs/LOCAL_DEV.md` |
@@ -96,10 +97,10 @@ Two environments share the physical Postgres server **and currently the same dat
 downloaded files — so local runs now write into the same rows the deployed instance serves. **v31
 hit the predicted friction**: local dev's own `worker-meta` boot-time disk reconciliation pruned a
 real `downloaded_tracks` ledger row because the file it pointed at only exists on the deployed
-instance's own downloads volume, not locally visible (`docs/GOTCHAS.md`'s v31 section). The split
-(a dedicated `spotdl_web_dev` database, per `docs/LOCAL_DEV.md`) is now overdue rather than
-theoretical — do it at the start of the next version that touches the backend, before anything
-else. Until then, avoid restarting local `worker-meta` more than necessary, and use a distinct test
+instance's own downloads volume, not locally visible (`docs/GOTCHAS.md`'s v31 section). The owner
+has created the dedicated dev database **`spotdlwebtest`**, and the local `.env` already points at
+it. v32 builds its schema, adds the fail-closed guard and rewrites `docs/LOCAL_DEV.md`. It is the
+first master v4 slice, and no other slice starts before it. Until v32 merges, avoid restarting local `worker-meta` more than necessary, and use a distinct test
 identity for anything exploratory, never the real `ADMIN_EMAIL` account.
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
@@ -154,6 +155,19 @@ Settled. Don't re-litigate without asking.
 | Search/sort | Server-side, always. Cursor pagination, not offset |
 
 ---
+
+### Master v4 additions
+
+| Area | Decision |
+|---|---|
+| Production data | **No longer disposable.** No API back-compat needed, but a migration that drops/rewrites data says so in its plan and takes a `pg_backup` first |
+| Dev database | Dedicated **`spotdlwebtest`** (already created, local `.env` points at it), mandatory from v32; local dev refuses to boot against the prod DB name `spotdl_web` |
+| Alerts | One Matrix room (host's Synapse, bot token) for pipeline and app alerts; unconfigured = off; an alert never blocks work |
+| Rollback | Restores the last healthy `persist=true` release's commit **and** tag together; never automatic across a migration |
+| UI work | Every UI slice goes through the impeccable skill; all monitoring information is kept, only its presentation changes |
+| Browser tests | Playwright suite run locally against the real stack; no CI browser job (the runner is the prod host) |
+| Keyboard | Full mouse-free operation, bindings designed for **Hungarian QWERTZ** (no AltGr, no `Y`/`Z`, match `event.key`); single-key shortcuts inert in inputs and turn-off-able per user |
+| i18n | `hu` + `en`, full coverage. Locale = saved preference → pre-login choice → `navigator.languages` → `en`. Backend stays language-neutral (error `code`s); track metadata/raw errors/alerts/logs untranslated |
 
 ## Architecture
 
@@ -296,22 +310,32 @@ v17 multi-user-auth · v18 job-centric-api · v19 archive-retention · v20 job-c
 v21 release-automation (unplanned insertion) · v22 multi-user-hardening. Detail in
 `plan/master-v2/`, findings in `docs/GOTCHAS.md`.
 
-**Master v3 — in progress.** The production-readiness pass. Full rationale in
-`plan/master-v3/00-master-plan.md`.
+**Master v3 — complete, merged, deployed.** v23 download-reliability (root cause: missing Deno
+runtime, not the yt-dlp pin) · v23.1 followup · v24 attempt-history · v25 username-ui ·
+v26 id3-integrity · v27 file-downloads · v28 library-sort-move · v29 network-path-escalation ·
+v30 proxy-routing-fix · v31 v3-hardening · v31.1 player-client fix (`YOUTUBE_PLAYER_CLIENTS`).
+Detail in `plan/master-v3/`, findings in `docs/GOTCHAS.md`.
+
+**Master v4 — in progress.** Full rationale in `plan/master-v4/00-master-plan.md`. Strictly in order.
 
 | # | Branch | Scope |
 |---|---|---|
-| v23 | `dev-download-reliability` | **Done, deployed.** Root cause was a missing Deno JS runtime for YouTube's PO-token challenge — **not** the stale yt-dlp pin (disproven). Typed `NO_OUTPUT` error that feeds the breaker; SSE events carry title/artist/album |
-| v23.1 | `dev-v23-followup` | `yt-dlp-ejs` must upgrade alongside `yt-dlp`; a new job vanishes from the Jobs list until a refetch (`patchPageJob` drops jobs not already on the page) |
-| v24 | `dev-attempt-history` | `track_attempts` — what each attempt tried, direct vs which proxy, what failed |
-| v25 | `dev-username-ui` | Usernames from upstream `GET /user`; worker pause/resume moves to `/settings`, status pill stays |
-| v26 | `dev-id3-integrity` | Verify + repair embedded tags after each download. Prerequisite for v28 |
-| v27 | `dev-file-downloads` | `GET /api/tracks/{id}/file` — FastAPI authorizes, nginx streams via `X-Accel-Redirect` |
-| v28 | `dev-library-sort-move` | Admin-only sort & move into the real library; copy→verify→delete source; ledger repointed |
-| v29 | `dev-network-path-escalation` | IPv4/IPv6 as an escalation rung *before* proxy — proven gap: all 5 proxies failed the same bot-check. Gated on a prereq check (Docker daemon shared with other prod services) |
-| v30 | `dev-proxy-routing-fix` | Fix the proxy rung itself — found in v29's session to have never actually routed traffic through a configured proxy since v07, for either HTTP stack |
-| v31 | `dev-v3-hardening` | **Done, merged.** Cross-user sweep re-run clean; connection leak root-caused and fixed (`/api/stream`'s `Depends(get_db)` held open for a `StreamingResponse`'s whole life); a real v30 regression found and fixed (`force_proxy`'s `staticmethod` restore); `download_track`/`dedup` now verify a file actually exists before calling anything done/duplicate. **Deferred to v31.1**: the deeper question of what writes (or doesn't) the file itself — see `docs/GOTCHAS.md`'s v31 section |
-| v31.1 | `dev-v31-followup` | Patch slice. Root cause of most production download failures: yt-dlp's own default player-client choice (`android_vr`) is currently blocked outright while `android`/`web`/`mweb` all work from the same IP — not an IP-reputation block, proven by real CLI tests on the deployed host. Fixed via a new configurable `YOUTUBE_PLAYER_CLIENTS` setting. The deferred "file missing after `COMPLETED`" question from v31 is now assessed as very likely an artifact of that session's own aggressive testing, not a standing bug — see `docs/GOTCHAS.md`'s v31.1 section |
+| v32 | `dev-dev-database` | **Mandatory first.** Local dev moves to `spotdlwebtest`; fail-closed guard against booting dev on the prod DB |
+| v33 | `dev-deploy-safety` | Required-var preflight, rollback restores previous commit + tag, `.last-good`, migration guard, Matrix notify, CI drift check. No bump |
+| v34 | `dev-live-hydration` | "Active signal"/incoming jobs vanish on refresh — hydrate both from REST on reload |
+| v35 | `dev-correctness-sweep` | Attempt counting, `network_path` in API, redelivery guard, warning flag, streamed download, `.pyc`, state counts |
+| v36 | `dev-alerting` | Matrix alerts: breaker, failure spikes, stale beat, library sweep |
+| v37 | `dev-e2e-harness` | Committed Playwright suite against the local stack (local-only) |
+| v38 | `dev-ui-audit` | impeccable critique + audit → `v38-ui-audit-report.md`; owner approves direction |
+| v39 | `dev-ambient-field` | Cursor-following background glow |
+| v40 | `dev-track-detail-redesign` | Job/track expanded detail — same information, calmer presentation |
+| v41 | `dev-dashboard-redesign` | Rest of `/`, type scale, panel material, tablet breakpoint |
+| v42 | `dev-secondary-surfaces` | `/settings` `/library` `/account` `/login` + destructive-action confirmations |
+| v43 | `dev-admin-stats` | Admin stats page from `track_attempts` + `breaker_events` |
+| v44 | `dev-keyboard-navigation` | Complete mouse-free operation for **Hungarian QWERTZ** first, help overlay, per-user off switch |
+| v45 | `dev-i18n` | Full Hungarian + English i18n: auto-detected locale, per-user language switch |
+| v46 | `dev-ui-polish` | impeccable polish + harden, re-audit vs v38, regenerate DESIGN.md |
+| v47 | `dev-v4-hardening` | Production close |
 
 ---
 
