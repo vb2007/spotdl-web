@@ -7,10 +7,13 @@
 # backend service (which depends on migrate) would never start. That's exactly the state v29's
 # hand recovery ended in (plan/master-v4/00-master-plan.md, "The pipeline incident").
 #
-# Run it with DEPLOY_DIR already restored to the rollback commit and its .env IMAGE_TAG to the
-# rollback tag, so `migrate` resolves to the rollback image with production's own env_file and
-# extra_hosts. It reads the database's alembic_version and the image's own revision graph, both
-# from inside that image (a read-only SELECT, no schema change), and compares them:
+# Compose must resolve `migrate` to the *rollback* image, with production's own env_file and
+# extra_hosts. publish-deploy.yml does that without moving anything yet: the rollback commit's
+# compose files extracted to a temp dir (GUARD_COMPOSE_ARGS, with --project-directory pointing at
+# DEPLOY_DIR for its .env) and IMAGE_TAG=<rollback tag> in the environment, which beats .env's.
+# A checkout already restored to the rollback commit and tag works too, with no extra arguments.
+# It reads the database's alembic_version and the image's own revision graph, both from inside
+# that image (a read-only SELECT, no schema change), and compares them:
 #
 #   exit 0  every database revision is known to the image (equal or behind: its migrate will
 #           no-op or upgrade, both fine)
@@ -18,9 +21,9 @@
 #   exit 1  the comparison itself failed: fail closed, since "unknown" isn't "safe"
 #
 # Usage: migration_guard.sh <deploy_dir> [backup_path]
-# GUARD_COMPOSE_ARGS replaces the compose arguments (default: the prod pair). The local-stack
-# verification uses it to add `-p <name>`, so the probe's one-off container doesn't share a
-# network with the running dev stack.
+# GUARD_COMPOSE_ARGS replaces the compose arguments (default: the prod pair in DEPLOY_DIR). The
+# local-stack verification also uses it to add `-p <name>`, so the probe's one-off container
+# doesn't share a network with the running dev stack. Space-separated, so no spaces in paths.
 set -euo pipefail
 
 DEPLOY_DIR="${1:?usage: migration_guard.sh <deploy_dir> [backup_path]}"
