@@ -4168,4 +4168,8 @@ independently-found production bug from the same conversation)
 - **A frontend unit-test runner exists from v34:** `npm run test:unit` (vitest) in `frontend/`.
   It mocks `$lib/api` with `vi.mock(..., importOriginal)` and drives the singleton `queue` store,
   calling `queue.reset()` between tests. Not wired into CI.
-
+- **Verification downloads are real rate-limit exposure.** About 20 single-track and album
+  downloads across this session tripped dev's breaker (5 consecutive `AudioProviderError`s, proxy
+  attempts included). Reproducing download-shaped bugs needs a few tracks each. Reuse a long
+  track, or hold a `downloading` snapshot with Playwright's `route.fetch()`, rather than
+  submitting fresh tracks per run; don't release the breaker to keep testing.
