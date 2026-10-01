@@ -18,8 +18,17 @@ networks:
       config:
         - subnet: fd00:dead:beef::/64
 
+# v32: the dev marker, on every backend service (api, migrate, both workers, beat).
+# app/config.py refuses to start a SPOTDL_ENV=dev process whose DATABASE_URL names the
+# production database. Lives only in this file, which never applies in production, so
+# production never carries it. `environment` is a mapping, so it merges by key with
+# worker-meta's own RUN_DISK_RECONCILE/RUN_PROXY_SYNC rather than replacing them.
+x-dev-env: &dev-env
+  SPOTDL_ENV: dev
+
 services:
   api:
+    environment: *dev-env
     volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
@@ -41,6 +50,7 @@ services:
       ]
 
   migrate:
+    environment: *dev-env
     # Same bind-mount convenience as `api` below -- a new local Alembic revision file is
     # picked up on the next `docker compose up` without needing `--build` first.
     volumes:
@@ -48,6 +58,7 @@ services:
       - ./backend/alembic:/app/alembic
 
   worker-dl:
+    environment: *dev-env
     # Bind-mounted to the project root instead of the base file's named `downloads` volume,
     # so downloaded files are directly browsable on the host during local dev. `!override`
     # replaces rather than merges (v01 gotcha) — without it this would sit alongside the
@@ -57,6 +68,7 @@ services:
       - ./downloads:/downloads
 
   worker-meta:
+    environment: *dev-env
     volumes: !override
       - ./backend/app:/app/app
       - ./downloads:/downloads
@@ -68,6 +80,7 @@ services:
       - ./test-library:/mnt/raid1/media/music
 
   beat:
+    environment: *dev-env
     volumes:
       - ./backend/app:/app/app
 
