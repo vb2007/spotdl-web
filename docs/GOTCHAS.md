@@ -392,6 +392,13 @@ needed" claim — rather than silently deleted.
   long-lived response's auth check through a `Depends(get_db)`-shaped dependency at all — resolve
   and close its own session immediately, driving `get_db` (or its test override) by hand instead of
   through `Depends` → *v31*
+- `queue.ts`'s `liveActive`/`incoming` were SSE-only until v34, so a hard reload or stream
+  reconnect emptied the Waterfall and the incoming list until the next event (forever, for a
+  failed zero-track job). Both now re-hydrate from REST on every `reload()`; an SSE event stamped
+  after a hydration started beats its snapshot → *v34*
+- Vite's dev `/api` proxy never closes the browser's SSE response when `api` dies, so in the
+  normal `docker compose up` loop an `api` restart never triggers a reconnect at all (production
+  nginx does close it). Test reconnect behavior through the real `web` image → *v34*
 
 **Proxies & secrets**
 - Any proxy URL that is logged or persisted must go through `proxies.redact()`; spotdl's own error
@@ -4110,4 +4117,55 @@ independently-found production bug from the same conversation)
   for. Caught by blind review, not by my own test, because I had run the extracted script
   with plain `bash`. **Test extracted Actions scripts with `bash --noprofile --norc -eo pipefail`**,
   never plain `bash`, and use if/else (or `|| true` inside the substitution) for conditional text.
+
+### v34 live-hydration gotchas (learned fixing "Active signal"/incoming jobs vanishing on refresh)
+
+- **Root cause, reproduced on the real stack before the fix (every shape):** `liveActive`
+  (Waterfall) and `incoming` (IncomingJobs) in `frontend/src/lib/stores/queue.ts` were fed only by
+  SSE and the post-submit optimistic insert; `reload()` (mount, every stream `onopen`) loaded only
+  `page`. After a hard reload both started empty:
+  - (a) an `expanding` job (expansion held by stopping `worker-meta`) was gone from incoming; it
+    stays visible as a "tuning in" row in the main list, so the overlay was the casualty. Its SSE
+    capture carried only heartbeats, so nothing would ever bring it back until expansion ended.
+  - (b) a failed zero-track job (`https://open.spotify.com/track/0000000000000000000001`,
+    `KeyError('uri')`) vanished for good: nothing publishes for it again until it's dismissed.
+    **Timing trap when reproducing:** reload while it's still `expanding` and the later `failed`
+    event re-adds it over SSE, which looks like "survives". Reload only after it shows failed.
+  - (c) a downloading track: progress ticks are sparse (0% → 25% within ~1.5s, then 25% → 40%
+    ~2–6s, and a ~29s silent stretch on another run), so a reload in a gap showed "0 lanes" while
+    the worker was mid-download. A reload a few seconds after the gap "survives" only because
+    the next tick lands, which looks like no bug.
+  - (d) a paced track: `download_track` sets `downloading` only *after* `pacing_delay()`'s sleep and
+    publishes nothing during it; the track was `pending` (not even `queued`) in the DB for the
+    whole 94.6s pacing log line. Nothing disappeared on reload, since nothing was ever shown.
+    Recorded decision: no "next up — pacing" lane, because the backend can't tell pacing from
+    queued, and the job row already shows it active.
+- **Merge rule: SSE beats an older REST snapshot via per-id stamps, not timestamps.** Every SSE
+  event (and the session's own submit/cancel) stamps its id from a counter; a hydration notes the
+  counter at start and leaves stamped ids alone. Safe because every publisher commits before it
+  publishes, so any change the REST read missed arrives as an event *after* the hydration started.
+  A `job.state` event is stamped on arrival, before its own `getJob` resolves. A *complete*
+  snapshot (no `next_cursor`) also prunes: a lane still marked `downloading` but absent from it
+  missed its ending event while disconnected and drops; a lane in its v23 grace window is left to
+  its timer. Before v34 such a lane (the track completed while `api` was restarting) stuck at its
+  last progress until a manual reload; now the reconnect's snapshot clears it.
+- **Progress isn't persisted server-side**, so a hard-reloaded lane renders 0% (`Waterfall`'s
+  `progress ?? 0`) until the next tick, typically seconds. Title/artist come from REST and are
+  correct immediately.
+- **Hydration limits:** failed jobs stay `failed` until dismissed (`cancel` → `cancelled`) or
+  archived, so the default page size (50) silently hid older ones. Both hydrations ask for the
+  backend cap (1000) and stop pruning when a snapshot comes back truncated. Found by blind review.
+- **Vite's dev proxy keeps a dead SSE stream open.** With `api` restarted, `curl -N` through
+  `:5173` hung until its 90s timeout, while the same curl straight to `:8000` exited at once
+  (`rc=18`). The browser's EventSource therefore never errors, never reconnects and never
+  re-hydrates in the normal dev loop. Production nginx closes the stream
+  (`ERR_INCOMPLETE_CHUNKED_ENCODING` → 502s → `200 /api/stream` → hydration). The reconnect bullet
+  was evidenced by running the real `web` image beside the dev stack:
+  `docker build -t <tag> frontend && docker run --rm --network spotdl-web_default -p 127.0.0.1:8081:80 <tag>`.
+- **Dev `.env`'s `STALE_TRACK_AFTER_SECONDS=20` is shorter than a real download** (~10–30s),
+  so beat's stale sweep re-queued a track mid-download; the redelivered task then hit dedup.
+  Raise it while testing anything download-shaped (v35's redelivery guard is the real fix).
+- **A frontend unit-test runner exists from v34:** `npm run test:unit` (vitest) in `frontend/`.
+  It mocks `$lib/api` with `vi.mock(..., importOriginal)` and drives the singleton `queue` store,
+  calling `queue.reset()` between tests. Not wired into CI.
 
