@@ -435,7 +435,7 @@ jobs:
             echo "- rollback: ${{ steps.rollback.outputs.result || 'not attempted' }}"
             echo "- deploy checkout HEAD: \`$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || echo unknown)\`"
             echo "- .env: \`$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.env" 2>/dev/null | tail -n1 || true)\`"
-            echo "- .last-good: \`$(tr '\n' ' ' < "$DEPLOY_DIR/.last-good" 2>/dev/null || echo absent)\`"
+            echo "- .last-good: \`$(tr '\n' ' ' 2>/dev/null < "$DEPLOY_DIR/.last-good" || echo absent)\`"
             echo
             echo '```'
             cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps 2>&1 || true
