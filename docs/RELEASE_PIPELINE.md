@@ -210,7 +210,7 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
    - `docker compose ... config --quiet` then catches anything else a render can trip on. Its
      stdout is suppressed (a full render holds every secret), and its stderr goes through
      `redact_env.py`, which masks every `.env` value: compose echoes a bad value, or a whole
-     malformed line, back in its errors. The Summary's `compose ps` goes through it too.
+     malformed line, back in its errors. The Summary's `compose ps` stderr goes through it too.
 
    A failure here ends the run with nothing changed: no backup, no checkout, no `IMAGE_TAG`
    write. That's the gap that broke v28's deploy *and* its rollback on 2026-09-27.

@@ -367,7 +367,7 @@ jobs:
       - name: Roll back to the previous commit and image on failure
         id: rollback
         if: >-
-          (failure() || cancelled()) &&
+          (failure() || cancelled()) && steps.health.outcome != 'success' &&
           (steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure' ||
            steps.deploy.outcome == 'cancelled')
         env:
@@ -394,18 +394,20 @@ jobs:
           done
 
           # Migration guard first, before anything moves: the previous commit's compose files
-          # out of git, with the previous tag, exactly as the old stack would start. Its output
-          # goes through the redactor: these files were never preflighted against today's .env.
+          # out of git, with the previous tag, exactly as the old stack would start. Its stderr
+          # (compose's) goes through the redactor: these files were never preflighted against
+          # today's .env. Its stdout is only revision ids and its own messages.
           TMP="$(mktemp -d)"
           trap 'rm -rf "$TMP"' EXIT
           for f in docker-compose.yml docker-compose.prod.yml; do
             git -C "$DEPLOY_DIR" show "$PREV_COMMIT:$f" > "$TMP/$f"
           done
           guard_rc=0
-          { IMAGE_TAG="$PREV_TAG" \
-              GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $TMP/docker-compose.yml -f $TMP/docker-compose.prod.yml --profile tunnel" \
-              bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" 2>&1 \
-              | python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env"; } || guard_rc=$?
+          IMAGE_TAG="$PREV_TAG" \
+            GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $TMP/docker-compose.yml -f $TMP/docker-compose.prod.yml --profile tunnel" \
+            bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" \
+            2> "$TMP/guard.err" || guard_rc=$?
+          python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" < "$TMP/guard.err" >&2
           if [ "$guard_rc" -eq 3 ]; then
             echo "result=refused" >> "$GITHUB_OUTPUT"
             echo "::error::Rollback refused: the database is ahead of $PREV_TAG. The failed deploy's checkout and containers are left as they are. Restore the pre-deploy pg_backup at ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>} or roll forward; see docs/DEPLOYMENT.md, 'Rollback / recovery'."
@@ -480,10 +482,12 @@ jobs:
             echo "- .last-good: \`$(tr '\n' ' ' 2>/dev/null < "$DEPLOY_DIR/.last-good" || echo absent)\`"
             echo
             echo '```'
-            # stderr included (it's the diagnostic when ps fails), but through the redactor:
-            # a .env compose can't parse gets echoed back in the error.
-            (cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps 2>&1) \
-              | python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" || true
+            # stdout (the container list) as is; stderr, the diagnostic when ps fails, through
+            # the redactor, since a .env compose can't parse gets echoed back in the error.
+            (cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps \
+              2> "$RUNNER_TEMP/summary-ps.err") || true
+            python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" \
+              < "$RUNNER_TEMP/summary-ps.err" 2>&1 || true
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
@@ -550,7 +554,7 @@ jobs:
                   rollback="not needed, the new version passed its health gate (a later step failed, see the run)"
                 elif [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ] || [ "$DEPLOY_STEP" = "cancelled" ]; then
                   rollback="not attempted, the host may be mid-deploy"
-                elif [ "$DEPLOY_STEP" = "skipped" ]; then
+                elif [ "$DEPLOY_STEP" = "skipped" ] || [ "$DEPLOY_RESULT" = "skipped" ]; then
                   rollback="not needed, nothing on the host was changed"
                 else
                   # No step outcomes at all: the job never reported (runner died, host
