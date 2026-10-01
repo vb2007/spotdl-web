@@ -300,11 +300,17 @@ git fetch origin --tags
 git checkout --detach --force <COMMIT from .last-good>
 git reset --hard <COMMIT from .last-good>
 sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=<IMAGE_TAG from .last-good>/" .env
+# Before starting anything: is the database ahead of this image? (the guard is new in v33, so
+# take it from main). Exit 3 = stop here and follow "The database is ahead" below.
+git show origin/main:.github/scripts/migration_guard.sh > /tmp/migration_guard.sh
+bash /tmp/migration_guard.sh "$PWD"
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build --remove-orphans
 bash .github/scripts/wait_for_stack_health.sh "$PWD" 420
 ```
-Always move the commit and the tag **together**. An old image under new compose files (or the
+Always move the commit and the tag **together**. Afterwards, if you recovered by hand onto a
+*newer* healthy release than `.last-good` names, update it (`IMAGE_TAG=<tag>` and
+`COMMIT=<sha>`), since only a release-mode run writes it. An old image under new compose files (or the
 reverse) is exactly what broke the 2026-09-27 recovery.
 
 **The database is ahead of the rollback image** (the migration guard refused, v33). The failed

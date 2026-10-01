@@ -4085,4 +4085,6 @@ independently-found production bug from the same conversation)
   runner, which is why a scratch dispatch can sit `queued` for a while, but they never touch the
   host or send a notification. `.last-good` therefore first appears on the first release-mode run
   after v33 merges (main's push → CI → `Release`, which succeeds with the tag already existing →
-  `Publish & Deploy`, idempotency-skipped and healthy).
+  `Publish & Deploy`, idempotency-skipped if the host is on that release's tag; if a
+  `manual-*` dispatch is what's running, it redeploys the release instead, and records it once
+  healthy).

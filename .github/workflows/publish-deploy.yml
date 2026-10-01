@@ -204,6 +204,7 @@ jobs:
       health: ${{ steps.health.outcome }}
       rollback: ${{ steps.rollback.outputs.result }}
       rollback_tag: ${{ steps.prev.outputs.tag }}
+      backup_path: ${{ steps.backup.outputs.path }}
     steps:
       # This job's own steps below need this PR's scripts (wait_for_stack_health.sh) even on
       # the very first run, before DEPLOY_DIR itself has been updated to carry them -- checked
@@ -543,12 +544,15 @@ jobs:
           HEALTH: ${{ needs.deploy.outputs.health }}
           ROLLBACK: ${{ needs.deploy.outputs.rollback }}
           ROLLBACK_TAG: ${{ needs.deploy.outputs.rollback_tag }}
+          BACKUP_PATH: ${{ needs.deploy.outputs.backup_path }}
+          EVENT: ${{ github.event_name }}
         run: |
           failed=""
           for pair in "resolve=$RESOLVE_RESULT" "publish=$PUBLISH_RESULT" "deploy=$DEPLOY_RESULT"; do
             case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*} (${pair#*=})" ;; esac
           done
-          [ "$PERSIST" = "true" ] && mode="release" || mode="manual dispatch"
+          # From the event, not resolve's output: a failed resolve leaves PERSIST empty.
+          [ "$EVENT" = "workflow_dispatch" ] && mode="manual dispatch" || mode="release"
           release="${RELEASE_TAG:-none} (version ${VERSION:-unresolved}, $mode)"
 
           if [ -z "$failed" ]; then
@@ -561,7 +565,7 @@ jobs:
           else
             case "$ROLLBACK" in
               succeeded) rollback="succeeded, back on ${ROLLBACK_TAG}" ;;
-              refused) rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup or roll forward (path in the run log)" ;;
+              refused) rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup (${BACKUP_PATH:-path in the run log}) or roll forward" ;;
               guard-error) rollback="NOT STARTED: the migration guard couldn't compare revisions, so the old stack was left alone. See the run log" ;;
               not-started) rollback="NOT STARTED: the rollback stopped before moving anything (see the run log); the failed deploy is still in place" ;;
               failed) rollback="FAILED, the stack may be down" ;;

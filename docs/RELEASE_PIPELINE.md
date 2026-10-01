@@ -305,7 +305,11 @@ COMMIT=<sha of the deploy checkout's HEAD>
   `.env` instead.
 - A failed run never writes it.
 - Gitignored (`/.last-good`), and every `git clean` in the job also passes `-e /.last-good`, so a
-  dispatch of a pre-v33 ref (whose `.gitignore` lacks the entry) can't delete it either. Written
+  dispatch of a pre-v33 *ref* (whose `.gitignore` lacks the entry) can't delete it either. A
+  dispatch run *from* a pre-v33 copy of the workflow (`gh workflow run --ref <old tag>`) still
+  uses its old plain `git clean -fd` and will delete it; the next release-mode run recreates it.
+- Only release mode writes it. After a recovery by dispatch or by hand onto a newer healthy
+  version, it still names the previous release; update it by hand if that matters. Written
   to `.last-good.tmp` and renamed into place.
 
 ### First deploy
@@ -365,9 +369,11 @@ exactly what broke v28's deploy and its rollback on 2026-09-27. The checklist:
 
 ## Manual recovery levers
 
-- **Re-run a failed deploy**: fix whatever broke, then re-dispatch — `gh workflow run "Publish &
-  Deploy" -f ref=main` (or re-run the failed run from the Actions UI, which re-resolves the same
-  release). Idempotency means a clean re-run of an already-correctly-deployed version is a no-op.
+- **Re-run a failed deploy**: fix whatever broke, then **re-run the failed run** from the Actions
+  UI. That re-resolves the same release in release mode, so it also records `.last-good`, and a
+  clean re-run of an already-correctly-deployed version is a no-op. A fresh dispatch
+  (`gh workflow run "Publish & Deploy" -f ref=main`) works too, but it's a `manual-*` deploy: it
+  never skips and never updates `.last-good`.
 - **Deploy an older release by hand**: see `docs/DEPLOYMENT.md`'s manual fallback section — same
   `git checkout --detach vX.Y.Z` + `IMAGE_TAG` + `pull`/`up` sequence the workflow itself runs.
 - **Delete a bad release**: `gh release delete vX.Y.Z --repo vb2007/spotdl-web --cleanup-tag` —
