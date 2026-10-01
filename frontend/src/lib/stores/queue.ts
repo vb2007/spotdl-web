@@ -133,11 +133,12 @@ function createQueueStore() {
 	 * its job row already shows it as active. (v34's recorded decision: no invented
 	 * "next up -- pacing" lane.)
 	 *
-	 * `worker-dl` runs `--concurrency=1` (CLAUDE.md invariant), so this can never hold more
-	 * than one entry for a non-admin session; an admin's all-users pattern-subscribe sees
-	 * the same single global slot, not one per user. Because it can never exceed one entry,
-	 * there is no meaningful order to preserve and therefore nothing for an `updatedAt`
-	 * tiebreaker to do -- unlike the retired QueueTable, nothing here ever re-sorts a live
+	 * `worker-dl` runs `--concurrency=1` (CLAUDE.md invariant), so this normally holds at
+	 * most one entry; an admin's all-users pattern-subscribe sees the same single global
+	 * slot, not one per user. (Since v34 hydrates every `downloading` row, a row orphaned by
+	 * a crashed worker can briefly add a second lane until beat's stale sweep reclaims it --
+	 * the database's truth, shown as-is.) With so few entries there is no meaningful order
+	 * to preserve and therefore nothing for an `updatedAt` tiebreaker to do -- unlike the retired QueueTable, nothing here ever re-sorts a live
 	 * -patched row (every row below patches in place inside a server-ordered page), so the
 	 * v09 "completed track visibly jumps/vanishes" failure mode has no client sort left to
 	 * reintroduce it. */
@@ -164,6 +165,9 @@ function createQueueStore() {
 	 * usual `pageFetchSeq`-style guard: a hydration superseded by a newer one, a scope
 	 * switch or a reset is dropped on arrival. */
 	let liveHydrateSeq = 0;
+	/** Bumped by `reset()` and `setAllUsers()`: an async SSE handler that awaited across
+	 * one of them is acting for a previous identity/scope and must drop its result. */
+	let storeEpoch = 0;
 	let liveEventCounter = 0;
 	const liveTrackTouchedAt: Record<string, number> = {};
 	const incomingTouchedAt: Record<string, number> = {};
@@ -322,8 +326,10 @@ function createQueueStore() {
 			mergeActive(activeResult.value, startedAt);
 		}
 		// A stamp at or before this hydration's start can't matter to any later one (each
-		// starts from a counter value at least this high), so drop them -- otherwise both
-		// maps grow by one key per id that ever sent an event, for as long as the tab lives.
+		// starts from a counter value at least this high), so drop them. This bounds the
+		// maps to the ids touched since the last applied hydration, not since the tab
+		// opened; on a long-lived stream with no reloads they still grow, the same way
+		// `lastKnownTrackState` does.
 		for (const touchedAt of [liveTrackTouchedAt, incomingTouchedAt]) {
 			for (const [id, stamp] of Object.entries(touchedAt)) {
 				if (stamp <= startedAt) delete touchedAt[id];
@@ -509,6 +515,7 @@ function createQueueStore() {
 
 	function setAllUsers(value: boolean): void {
 		allUsers = value;
+		storeEpoch++;
 		for (const jobId of Object.keys(expandedFetchSeq)) invalidateExpandedFetch(jobId);
 		expanded.set({});
 		incoming.set({});
@@ -533,6 +540,7 @@ function createQueueStore() {
 	function reset(): void {
 		pageFetchSeq++;
 		liveHydrateSeq++;
+		storeEpoch++;
 		for (const jobId of Object.keys(expandedFetchSeq)) invalidateExpandedFetch(jobId);
 		allUsers = false;
 		filters.set({ ...DEFAULT_FILTERS });
@@ -762,7 +770,11 @@ function createQueueStore() {
 	}
 
 	async function cancelJob(jobId: string): Promise<void> {
+		const epoch = storeEpoch;
 		const job = await api.cancelJob(jobId);
+		// The cancel itself happened; only its local patch is dropped if the identity or
+		// scope changed meanwhile -- `allowInsert` below must never insert into the new one.
+		if (epoch !== storeEpoch) return;
 		// `allowInsert: true` -- this is always a job the acting session could already see
 		// somewhere (either `IncomingJobs`, still `expanding`, or an in-page `JobRow`,
 		// already `idx !== -1` and so unaffected either way), never an arbitrary
@@ -1126,9 +1138,11 @@ function createQueueStore() {
 	 * `scheduleJobRefresh` path -- and needs the fetch either way, since the event itself
 	 * carries no title/track_counts/priority to populate the incoming overlay with. */
 	async function applyJobEvent(event: Extract<StreamEvent, { type: 'job.state' }>): Promise<void> {
-		// Stamped on arrival, not after the fetch below resolves -- a hydration that starts
-		// while that fetch is in flight must already know this job has newer news coming.
+		// Stamped on arrival, not after the fetch below resolves -- a hydration already in
+		// flight when this event lands may resolve before that fetch does, and must not
+		// apply its (older) snapshot of this job in the meantime.
 		touchIncoming(event.job_id);
+		const epoch = storeEpoch;
 		if (event.archived !== undefined) {
 			patchArchivedFlagFromEvent(event.job_id, event.archived);
 		}
@@ -1137,6 +1151,7 @@ function createQueueStore() {
 		try {
 			job = await api.getJob(event.job_id);
 		} catch {
+			if (epoch !== storeEpoch) return;
 			// 404 (deleted, or this session lost visibility) -- drop it from view everywhere.
 			incoming.update((current) => {
 				const { [event.job_id]: _drop, ...rest } = current;
@@ -1153,9 +1168,14 @@ function createQueueStore() {
 		// sweep -- not only ones this store has ever seen before, so `allowInsert` must
 		// stay narrowly scoped to "was actually in the overlay a moment ago", never a bare
 		// `idx === -1`.
+		// A reset (logout) or scope switch while the fetch was in flight: this row belongs
+		// to the previous identity/scope and must not land in the new one's stores.
+		if (epoch !== storeEpoch) return;
 		const wasIncoming = event.job_id in get(incoming);
 
-		if (job.state === 'expanding' || job.state === 'failed') {
+		// Same membership rule as `hydrateLive`'s snapshot (`include_archived` off), so a
+		// job "clear log" archives leaves the overlay live, not only on the next reload.
+		if ((job.state === 'expanding' || job.state === 'failed') && job.archived_at === null) {
 			incoming.update((current) => ({ ...current, [job.id]: job }));
 		} else {
 			incoming.update((current) => {

@@ -285,4 +285,56 @@ describe('v34 live hydration', () => {
 		await queue.reload();
 		expect(get(queue.activeTracks)[0]).toMatchObject({ state: 'downloading', progress: undefined });
 	});
+
+	it('a job event whose fetch resolves after reset() never lands in the next identity', async () => {
+		routeLists({});
+		const fetched = deferred<Job>();
+		getJob.mockReturnValue(fetched.promise);
+		const handling = queue.applyEvent({
+			type: 'job.state',
+			job_id: 'a-job',
+			state: 'failed',
+			ts: '2026-10-01T18:00:03+00:00'
+		});
+		queue.reset();
+		fetched.resolve(job('a-job', 'failed', 'failed'));
+		await handling;
+		expect(get(queue.incomingJobs)).toHaveLength(0);
+	});
+
+	it('a job event whose fetch resolves after a scope switch never lands in the new scope', async () => {
+		routeLists({});
+		const fetched = deferred<Job>();
+		getJob.mockReturnValue(fetched.promise);
+		queue.setAllUsers(true);
+		const handling = queue.applyEvent({
+			type: 'job.state',
+			job_id: 'someone-elses',
+			state: 'expanding',
+			ts: '2026-10-01T18:00:03+00:00'
+		});
+		queue.setAllUsers(false);
+		// Let the new scope's hydration fully merge first, so it can't mask the late fetch
+		// by pruning it afterwards -- the order that actually leaks.
+		for (let i = 0; i < 20; i++) await Promise.resolve();
+		fetched.resolve(job('someone-elses', 'expanding', 'expanding'));
+		await handling;
+		expect(get(queue.incomingJobs)).toHaveLength(0);
+	});
+
+	it('an archived failed job leaves the overlay live, matching the hydration rule', async () => {
+		queue.addJob(job('bad', 'failed', 'failed'));
+		getJob.mockResolvedValue({
+			...job('bad', 'failed', 'failed'),
+			archived_at: '2026-10-01T18:05:00+00:00'
+		});
+		await queue.applyEvent({
+			type: 'job.state',
+			job_id: 'bad',
+			state: 'failed',
+			archived: true,
+			ts: '2026-10-01T18:05:00+00:00'
+		});
+		expect(get(queue.incomingJobs)).toHaveLength(0);
+	});
 });
