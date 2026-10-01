@@ -81,7 +81,9 @@ function still exists before acting on it**, since v2 changes schema, endpoints,
   rebuild there, not a bug to chase. A PR that touches neither `backend/` nor `frontend/` (docs,
   workflows, plans) needs no bump at all, and `release.yml`/`publish-deploy.yml` correctly skip
   cutting a new release or image for it. See `docs/RELEASE_PIPELINE.md` for the release/deploy
-  automation this feeds.
+  automation this feeds. **A slice adding a required compose variable (`${VAR:?}`)** follows that
+  doc's "Adding a required env var" checklist and lists the variable under its plan's and PR's
+  "Deploy notes" (v33: the deploy preflight and CI's drift check both fail on a missing one).
 - **Develop locally, deploy to verify.** The local stack is the iteration loop; the Debian host is
   a final-verification target, not a place to chase build errors one SSH round trip at a time. Only
   debug there for genuinely host-specific issues (shared Postgres, tunnel/ingress, restart survival).

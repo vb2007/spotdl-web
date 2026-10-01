@@ -191,9 +191,20 @@ jobs:
   deploy:
     needs: [resolve, publish]
     runs-on: self-hosted
-    timeout-minutes: 25
+    # v33: 40, not 25. A failing deploy can now spend 420s in the health gate AND up to 420s in
+    # the rollback's own wait, plus pulls and the guard; a timeout mid-rollback would leave the
+    # host half rolled back.
+    timeout-minutes: 40
     env:
       DEPLOY_DIR: /mnt/raid1/spotdl-web
+    # Read by the `notify` job below. Outputs are kept even when this job fails.
+    outputs:
+      skipped: ${{ steps.skip.outputs.skip || 'false' }}
+      deploy_step: ${{ steps.deploy.outcome }}
+      health: ${{ steps.health.outcome }}
+      rollback: ${{ steps.rollback.outputs.result }}
+      rollback_tag: ${{ steps.prev.outputs.tag }}
+      backup_path: ${{ steps.backup.outputs.path }}
     steps:
       # This job's own steps below need this PR's scripts (wait_for_stack_health.sh) even on
       # the very first run, before DEPLOY_DIR itself has been updated to carry them -- checked
@@ -202,17 +213,86 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.commit }}
 
+      # v33: the pipeline's own tools (check_required_env.py, migration_guard.sh) come from the
+      # commit this workflow file is running from, not the ref being deployed: a dispatch of a
+      # pre-v33 tag would otherwise have no such scripts, and fail its preflight (or refuse its
+      # rollback) for that reason alone. Release mode runs from main, so it's always current.
+      - name: Check out the pipeline's own scripts
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: .pipeline
+          sparse-checkout: .github/scripts
+
       - name: Preflight
         run: |
           test -d "$DEPLOY_DIR/.git" || { echo "::error::$DEPLOY_DIR is not a git checkout"; exit 1; }
           test -f "$DEPLOY_DIR/.env" || { echo "::error::$DEPLOY_DIR/.env is missing"; exit 1; }
           test -f "$DEPLOY_DIR/proxies.txt" || { echo "::error::$DEPLOY_DIR/proxies.txt is missing"; exit 1; }
 
-      - name: Read the currently-deployed IMAGE_TAG
+      # v33: records, before anything moves, both what is running now (`current_tag`, used by
+      # the skip check) and what a rollback returns to (`tag` + `commit`, together). The
+      # rollback target is `.last-good`, written only after a healthy release-mode deploy, so a
+      # throwaway `manual-*` dispatch tag can never become the baseline (it did on 2026-09-27).
+      # `.env` + the checkout's HEAD is the fallback for the first deploy after v33 lands, when
+      # `.last-good` doesn't exist yet.
+      - name: Record the current deployment and the rollback target
         id: prev
         run: |
-          PREV="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.env" | tail -n1 | cut -d= -f2- || true)"
-          echo "tag=$PREV" >> "$GITHUB_OUTPUT"
+          CURRENT_TAG="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.env" | tail -n1 | cut -d= -f2- || true)"
+          HEAD_COMMIT="$(git -C "$DEPLOY_DIR" rev-parse HEAD)"
+          echo "current_tag=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
+          echo "Deploy checkout HEAD: $HEAD_COMMIT"
+          echo "Deployed IMAGE_TAG:   ${CURRENT_TAG:-(none)}"
+          if [ -f "$DEPLOY_DIR/.last-good" ]; then
+            TAG="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.last-good" | tail -n1 | cut -d= -f2- || true)"
+            COMMIT="$(grep -E '^COMMIT=' "$DEPLOY_DIR/.last-good" | tail -n1 | cut -d= -f2- || true)"
+            SOURCE=.last-good
+          else
+            TAG="$CURRENT_TAG"
+            COMMIT="$HEAD_COMMIT"
+            SOURCE=".env + checkout HEAD (no .last-good yet)"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "Rollback target:      IMAGE_TAG=${TAG:-(none)} commit=${COMMIT:-(none)} from $SOURCE"
+
+      # v33: the 2026-09-27 incident started with a new `${VAR:?}` in the new commit's compose
+      # files that the host's .env didn't have; `pull` only found out after the checkout and
+      # IMAGE_TAG had already moved. This reads the new commit's compose files out of git into a
+      # temp dir, without touching the deploy checkout, and validates them against the real
+      # .env first. Nothing here prints a .env value: check_required_env.py prints only names,
+      # and `config --quiet` writes nothing to stdout (its full output would hold secrets).
+      - name: Preflight required variables against the host .env
+        env:
+          COMMIT: ${{ needs.resolve.outputs.commit }}
+        run: |
+          git -C "$DEPLOY_DIR" fetch origin --tags --prune
+          TMP="$(mktemp -d)"
+          trap 'rm -rf "$TMP"' EXIT
+          for f in docker-compose.yml docker-compose.prod.yml; do
+            git -C "$DEPLOY_DIR" show "$COMMIT:$f" > "$TMP/$f"
+          done
+
+          if ! python3 .pipeline/.github/scripts/check_required_env.py --require-value \
+               --env-file "$DEPLOY_DIR/.env" \
+               --hint "Add each to $DEPLOY_DIR/.env, see docs/DEPLOYMENT.md (and docs/RELEASE_PIPELINE.md, 'Adding a required env var'). Nothing on the host was changed." \
+               "$TMP/docker-compose.yml" "$TMP/docker-compose.prod.yml"; then
+            echo "::error::Preflight: the new commit needs .env variables the host doesn't have (names listed above). Nothing on the host was changed."
+            exit 1
+          fi
+
+          # Belt and braces for everything else a render can trip on. stderr is the only output,
+          # and compose does echo .env content in some errors (a bad value, a malformed line), so
+          # it goes through redact_env.py, which masks every .env value, before the log.
+          if ! docker compose --project-directory "$DEPLOY_DIR" \
+               -f "$TMP/docker-compose.yml" -f "$TMP/docker-compose.prod.yml" --profile tunnel \
+               config --quiet 2> "$TMP/config.err"; then
+            python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" < "$TMP/config.err"
+            echo "::error::Preflight: the new commit's compose files don't render against the host .env (redacted error above). Nothing on the host was changed."
+            exit 1
+          fi
+          echo "Preflight: the new commit's compose files render against $DEPLOY_DIR/.env"
 
       # Release mode only: an unbumped merge produces the same VERSION as what's already
       # deployed. A manual dispatch always proceeds -- see the workflow header.
@@ -220,7 +300,7 @@ jobs:
         id: skip
         if: needs.resolve.outputs.persist == 'true'
         run: |
-          if [ "${{ steps.prev.outputs.tag }}" = "${{ needs.resolve.outputs.version }}" ] \
+          if [ "${{ steps.prev.outputs.current_tag }}" = "${{ needs.resolve.outputs.version }}" ] \
              && bash .github/scripts/wait_for_stack_health.sh "$DEPLOY_DIR" 0; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
@@ -230,16 +310,23 @@ jobs:
       # Runs the CURRENTLY deployed pg_backup.sh (whatever version is in DEPLOY_DIR right now),
       # before DEPLOY_DIR is switched to the new ref below -- must happen before anything can
       # touch the schema, in both modes (a manual dispatch can still carry a pending migration).
+      # v33: the dump's path is kept as an output, since a rollback the migration guard refuses
+      # has to hand it to the human.
       - name: Back up Postgres before migrating
+        id: backup
         if: steps.skip.outputs.skip != 'true'
-        run: "$DEPLOY_DIR/scripts/pg_backup.sh"
+        run: |
+          "$DEPLOY_DIR/scripts/pg_backup.sh" | tee "$RUNNER_TEMP/pg_backup.log"
+          echo "path=$(sed -n 's/^pg_backup: dumping to //p' "$RUNNER_TEMP/pg_backup.log" | tail -n1)" >> "$GITHUB_OUTPUT"
 
       - name: Update the deploy checkout and bring the stack up
         id: deploy
         if: steps.skip.outputs.skip != 'true'
         run: |
           cd "$DEPLOY_DIR"
-          git fetch origin --tags --prune
+          # No fetch here (v33): the preflight fetched moments ago, and keeping this step's
+          # first command a host mutation means "this step started" really means "the host
+          # moved", which is what triggers the rollback below.
           # --force: discards any local drift on TRACKED files (e.g. a hand-edited script) so
           # the checkout always lands exactly on the resolved commit rather than aborting with
           # "local changes would be overwritten" -- found by a real hand-edited file blocking
@@ -247,8 +334,9 @@ jobs:
           git checkout --detach --force "${{ needs.resolve.outputs.commit }}"
           git reset --hard "${{ needs.resolve.outputs.commit }}"
           # NOT -fdx: .env and proxies.txt are gitignored -- -x would delete the host's real
-          # secrets and proxy pool along with any stray build artifacts.
-          git clean -fd
+          # secrets and proxy pool along with any stray build artifacts. `-e /.last-good` on
+          # top of its .gitignore entry, so even a dispatch of a pre-v33 ref keeps it.
+          git clean -fd -e /.last-good
 
           if grep -q '^IMAGE_TAG=' .env; then
             sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${{ needs.resolve.outputs.version }}/" .env
@@ -261,33 +349,141 @@ jobs:
             up -d --no-build --remove-orphans
 
       - name: Wait for the stack to become healthy
+        id: health
         if: steps.skip.outputs.skip != 'true'
         run: bash .github/scripts/wait_for_stack_health.sh "$DEPLOY_DIR" 420
 
       # Code rollback only -- Alembic migrations are never downgraded automatically (too risky
       # unattended); the pre-deploy pg_backup above is the recovery path for a bad migration.
-      - name: Roll back to the previous image on failure
-        if: failure() && steps.skip.outputs.skip != 'true'
+      #
+      # v33: returns to the previous commit AND tag together. Before, it reset only IMAGE_TAG
+      # and re-ran `up` in the NEW checkout, against the same compose file that had just failed
+      # (2026-09-27: both directions died on the same missing variable). Only runs once the
+      # deploy step has actually started moving the host; a preflight or backup failure left
+      # nothing to roll back. A run cancelled by hand rolls back too, since a cancel mid-`up`
+      # leaves the host half-deployed. (Whether GitHub also runs this after a job-level
+      # `timeout-minutes` cut is not verified; the generous timeout is there so it never has to.) `result` is for the notify job:
+      # not-started (stopped before moving anything), refused (the database is ahead),
+      # guard-error (the guard couldn't tell, so nothing was started), failed (broke after the
+      # checkout began), succeeded.
+      - name: Roll back to the previous commit and image on failure
+        id: rollback
+        if: >-
+          (failure() || cancelled()) && steps.health.outcome != 'success' &&
+          (steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure' ||
+           steps.deploy.outcome == 'cancelled')
+        env:
+          PREV_TAG: ${{ steps.prev.outputs.tag }}
+          PREV_COMMIT: ${{ steps.prev.outputs.commit }}
+          BACKUP_PATH: ${{ steps.backup.outputs.path }}
         run: |
-          cd "$DEPLOY_DIR"
-          PREV="${{ steps.prev.outputs.tag }}"
-          if [ -z "$PREV" ]; then
-            echo "::error::No previous IMAGE_TAG was recorded (first-ever automated deploy) -- nothing to roll back to. See docs/RELEASE_PIPELINE.md for manual recovery."
+          # not-started until the checkout below begins moving the host; failed after that.
+          echo "result=not-started" >> "$GITHUB_OUTPUT"
+          echo "Pre-deploy pg_backup: ${BACKUP_PATH:-(path not recorded)}"
+          if [ -z "$PREV_TAG" ] || [ -z "$PREV_COMMIT" ]; then
+            echo "::error::No previous IMAGE_TAG/commit was recorded (first-ever automated deploy) -- nothing to roll back to. See docs/RELEASE_PIPELINE.md for manual recovery."
             exit 1
           fi
-          echo "Rolling back to IMAGE_TAG=$PREV"
-          sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$PREV/" .env
+
+          # A cancel mid-`up` stops compose, not the new `migrate` container: let a migration
+          # still in flight finish (or die) first, or the guard reads a revision that's about
+          # to change under it.
+          # Fails closed: still running after 5 minutes, or unknown, means no guard and no
+          # rollback, rather than one that kills a migration mid-flight.
+          state=unknown
+          for _ in $(seq 60); do
+            state="$(docker compose -f "$DEPLOY_DIR/docker-compose.yml" -f "$DEPLOY_DIR/docker-compose.prod.yml" \
+              --project-directory "$DEPLOY_DIR" ps -a --format '{{.State}}' migrate 2>/dev/null)" || state=unknown
+            # grep, not `=`: more than one migrate container (a leftover one-off) is several lines.
+            printf '%s\n' "$state" | grep -qx running || break
+            echo "Waiting for the new migrate container to exit before the guard..."
+            sleep 5
+          done
+          if printf '%s\n' "$state" | grep -qx running || [ "$state" = "unknown" ]; then
+            state="$(printf '%s' "$state" | tr '\n' ' ')"
+            echo "result=guard-error" >> "$GITHUB_OUTPUT"
+            echo "::error::Rollback not attempted: the new migrate container is ${state} (a migration may still be in flight), so nothing was started. Pre-deploy pg_backup: ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>}."
+            exit 1
+          fi
+
+          # Migration guard first, before anything moves: the previous commit's compose files
+          # out of git, with the previous tag, exactly as the old stack would start. Its stderr
+          # (compose's) goes through the redactor: these files were never preflighted against
+          # today's .env. Its stdout is only revision ids and its own messages.
+          TMP="$(mktemp -d)"
+          trap 'rm -rf "$TMP"' EXIT
+          for f in docker-compose.yml docker-compose.prod.yml; do
+            git -C "$DEPLOY_DIR" show "$PREV_COMMIT:$f" > "$TMP/$f"
+          done
+          guard_rc=0
+          IMAGE_TAG="$PREV_TAG" \
+            GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $TMP/docker-compose.yml -f $TMP/docker-compose.prod.yml --profile tunnel" \
+            bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" \
+            2> "$TMP/guard.err" || guard_rc=$?
+          # `|| true`: a redactor failure (it prints nothing then) mustn't abort a rollback the
+          # guard has just cleared.
+          python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" < "$TMP/guard.err" >&2 || true
+          if [ "$guard_rc" -eq 3 ]; then
+            echo "result=refused" >> "$GITHUB_OUTPUT"
+            echo "::error::Rollback refused: the database is ahead of $PREV_TAG. The failed deploy's checkout and containers are left as they are. Restore the pre-deploy pg_backup at ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>} or roll forward; see docs/DEPLOYMENT.md, 'Rollback / recovery'."
+            exit 1
+          elif [ "$guard_rc" -ne 0 ]; then
+            echo "result=guard-error" >> "$GITHUB_OUTPUT"
+            echo "::error::Rollback not attempted: the migration guard couldn't compare revisions (exit $guard_rc, see above), so the old stack was not started. The failed deploy's checkout and containers are left as they are. Pre-deploy pg_backup: ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>}."
+            exit 1
+          fi
+
+          echo "Rolling back to commit $PREV_COMMIT, IMAGE_TAG=$PREV_TAG"
+          echo "result=failed" >> "$GITHUB_OUTPUT"
+          cd "$DEPLOY_DIR"
+          git checkout --detach --force "$PREV_COMMIT"
+          git reset --hard "$PREV_COMMIT"
+          git clean -fd -e /.last-good
+          if grep -q '^IMAGE_TAG=' .env; then
+            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$PREV_TAG/" .env
+          else
+            echo "IMAGE_TAG=$PREV_TAG" >> .env
+          fi
           docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel \
-            up -d --no-build
-          bash "$GITHUB_WORKSPACE/.github/scripts/wait_for_stack_health.sh" "$DEPLOY_DIR" 420
+            up -d --no-build --remove-orphans
+          # The previous commit's own health script: its compose files are the ones in effect.
+          bash "$DEPLOY_DIR/.github/scripts/wait_for_stack_health.sh" "$DEPLOY_DIR" 420
+          echo "result=succeeded" >> "$GITHUB_OUTPUT"
+          echo "Rollback succeeded: commit $(git rev-parse HEAD), IMAGE_TAG=$PREV_TAG"
           exit 1
 
+      # v33: the durable rollback baseline. Only a healthy release-mode deploy writes it (a
+      # `manual-*` dispatch never does), including an idempotency-skipped run, whose skip check
+      # just confirmed this same version healthy. Only when the checkout is actually on the
+      # release's own commit: the skip check compares tags, not commits, and a tag paired with
+      # some other commit is exactly the mismatch this file exists to prevent. Gitignored, so
+      # `git clean -fd` leaves it; written via rename so a crash can't leave half a file.
+      - name: Record last-known-good
+        if: success() && needs.resolve.outputs.persist == 'true'
+        env:
+          COMMIT: ${{ needs.resolve.outputs.commit }}
+        run: |
+          HEAD_COMMIT="$(git -C "$DEPLOY_DIR" rev-parse HEAD)"
+          if [ "$HEAD_COMMIT" != "$COMMIT" ]; then
+            echo "::warning::.last-good not updated: the deploy checkout is at $HEAD_COMMIT, not the release's $COMMIT."
+            exit 0
+          fi
+          printf 'IMAGE_TAG=%s\nCOMMIT=%s\n' "${{ needs.resolve.outputs.version }}" \
+            "$HEAD_COMMIT" > "$DEPLOY_DIR/.last-good.tmp"
+          mv "$DEPLOY_DIR/.last-good.tmp" "$DEPLOY_DIR/.last-good"
+          echo "Wrote $DEPLOY_DIR/.last-good:"
+          cat "$DEPLOY_DIR/.last-good"
+
+      # v33: housekeeping on an already-healthy deploy, so a prune error is a warning, not a
+      # failed run (which would also send a false "deploy failed" alert).
       - name: Prune old images and build cache
         if: steps.skip.outputs.skip != 'true' && success()
         run: |
-          docker image prune -f
-          docker builder prune -f --keep-storage 5GB
+          docker image prune -f || echo "::warning::docker image prune failed"
+          docker builder prune -f --keep-storage 5GB || echo "::warning::docker builder prune failed"
 
+      # Also echoed to the log (tee), so a run's end state is evidence without SSH. HEAD, the
+      # IMAGE_TAG line and .last-good aren't secret; compose's own output is redacted.
       - name: Summary
         if: always()
         run: |
@@ -296,6 +492,104 @@ jobs:
             echo "- version: \`${{ needs.resolve.outputs.version }}\`"
             echo "- mode: ${{ needs.resolve.outputs.persist == 'true' && 'release' || 'manual dispatch' }}"
             echo "- skipped: ${{ steps.skip.outputs.skip || 'false' }}"
+            echo "- rollback: ${{ steps.rollback.outputs.result || 'not attempted' }}"
+            echo "- deploy checkout HEAD: \`$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || echo unknown)\`"
+            echo "- .env: \`$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.env" 2>/dev/null | tail -n1 || true)\`"
+            echo "- .last-good: \`$(tr '\n' ' ' 2>/dev/null < "$DEPLOY_DIR/.last-good" || echo absent)\`"
             echo
-            cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
-          } >> "$GITHUB_STEP_SUMMARY"
+            echo '```'
+            # stdout (the container list) as is; stderr, the diagnostic when ps fails, through
+            # the redactor, since a .env compose can't parse gets echoed back in the error.
+            (cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps \
+              2> "$RUNNER_TEMP/summary-ps.err") || true
+            python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" \
+              < "$RUNNER_TEMP/summary-ps.err" 2>&1 || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # v33: nobody was told on 2026-09-27. One Matrix message for any failed or cancelled run, and
+  # one for every real (release-mode, not idempotency-skipped) deploy that succeeded, so silence
+  # means "nothing happened", never "maybe it failed". Unconfigured secrets = a warning and exit
+  # 0 (matrix_notify.py), so missing alert config can't turn a green run red. A Release failure
+  # never reaches this workflow's jobs (resolve is skipped), so release.yml has its own notify.
+  notify:
+    needs: [resolve, publish, deploy]
+    runs-on: self-hosted
+    if: >-
+      always() && (
+        contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') ||
+        (needs.deploy.result == 'success' && needs.resolve.outputs.persist == 'true' &&
+         needs.deploy.outputs.skipped != 'true')
+      )
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Send the Matrix notification
+        env:
+          MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
+          MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+          MATRIX_ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
+          MATRIX_TXN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW: ${{ github.workflow }}
+          RESOLVE_RESULT: ${{ needs.resolve.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
+          PERSIST: ${{ needs.resolve.outputs.persist }}
+          DEPLOY_STEP: ${{ needs.deploy.outputs.deploy_step }}
+          HEALTH: ${{ needs.deploy.outputs.health }}
+          ROLLBACK: ${{ needs.deploy.outputs.rollback }}
+          ROLLBACK_TAG: ${{ needs.deploy.outputs.rollback_tag }}
+          BACKUP_PATH: ${{ needs.deploy.outputs.backup_path }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          failed=""
+          for pair in "resolve=$RESOLVE_RESULT" "publish=$PUBLISH_RESULT" "deploy=$DEPLOY_RESULT"; do
+            case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*} (${pair#*=})" ;; esac
+          done
+          # From the event, not resolve's output: a failed resolve leaves PERSIST empty.
+          [ "$EVENT" = "workflow_dispatch" ] && mode="manual dispatch" || mode="release"
+          release="${RELEASE_TAG:-none} (version ${VERSION:-unresolved}, $mode)"
+
+          if [ -z "$failed" ]; then
+            {
+              echo "✅ spotdl-web deployed ${VERSION} to production"
+              echo "Workflow: $WORKFLOW"
+              echo "Release: $release"
+              echo "Run: $RUN_URL"
+            } > "$RUNNER_TEMP/message.txt"
+          else
+            case "$ROLLBACK" in
+              succeeded) rollback="succeeded, back on ${ROLLBACK_TAG}" ;;
+              refused) rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup (${BACKUP_PATH:-path in the run log}) or roll forward" ;;
+              guard-error) rollback="NOT STARTED: the migration guard couldn't compare revisions, so the old stack was left alone. See the run log" ;;
+              not-started) rollback="NOT STARTED: the rollback stopped before moving anything (see the run log); the failed deploy is still in place" ;;
+              failed) rollback="FAILED, the stack may be down" ;;
+              *)
+                if [ "$DEPLOY_STEP" = "success" ] && [ "$HEALTH" = "success" ]; then
+                  rollback="not needed, the new version passed its health gate (a later step failed, see the run)"
+                elif [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ] || [ "$DEPLOY_STEP" = "cancelled" ]; then
+                  rollback="not attempted, the host may be mid-deploy"
+                elif [ "$DEPLOY_STEP" = "skipped" ] || [ "$DEPLOY_RESULT" = "skipped" ]; then
+                  rollback="not needed, nothing on the host was changed"
+                else
+                  # No step outcomes at all: the job never reported (runner died, host
+                  # rebooted). Don't guess.
+                  rollback="UNKNOWN, the deploy job reported nothing. Check the host"
+                fi
+                ;;
+            esac
+            {
+              echo "❌ spotdl-web: $WORKFLOW failed"
+              echo "Failed job(s):$failed"
+              echo "Release: $release"
+              echo "Rollback: $rollback"
+              echo "Run: $RUN_URL"
+            } > "$RUNNER_TEMP/message.txt"
+          fi
+          cat "$RUNNER_TEMP/message.txt"
+          python3 .github/scripts/matrix_notify.py < "$RUNNER_TEMP/message.txt"

@@ -135,6 +135,18 @@ needed" claim — rather than silently deleted.
   container `docker compose up -d` doesn't *also* recreate is left with broken embedded-DNS
   service-name resolution (`redis` → `gaierror`) even though it still looks "running"/"healthy" —
   needs a full `down` then `up`, never just another `up -d` → *v29*
+- `docker compose` echoes interpolated `.env` values in some render errors
+  (`invalid containerPort: <value>`), so even `config --quiet`'s stderr isn't secret-free → *v33*
+- `docker compose ps <svc>` exits 0 with empty output when the service has no container, and
+  non-zero on a compose error, so its exit status separates "not up yet" from "broken". But it
+  also writes WARNs to stderr on a *successful* call, so never `2>&1` it into a compared value
+  → *v33*
+- A pipeline script run from the deploy job's workspace comes from the ref being *deployed*: a
+  dispatch of an older tag doesn't have scripts newer than that tag → *v33*
+- Cloudflare in front of this host's Synapse rejects Python `urllib`'s default User-Agent (HTTP
+  403, `error code: 1010`) before Synapse sees the request → *v33*
+- A pending run in a concurrency group is replaced by any newer one (only the *running* one is
+  protected), so a queued scratch dispatch can be silently cancelled by an unrelated push → *v33*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -4014,3 +4026,75 @@ independently-found production bug from the same conversation)
 - **A fresh dev database re-seeds through the app's normal paths.** `users` rows come back on first
   real login (admin from the dev `.env`'s `ADMIN_EMAIL`, a test account), file-sourced proxies on
   `worker-meta` boot (`sync_from_file: 5 in file, 5 added`). Nothing needs a manual insert.
+
+### v33 deploy-safety gotchas (learned hardening publish-deploy.yml's preflight, rollback and alerts)
+
+- **Compose prints interpolated values in some error messages.** Found while building the
+  preflight's redactor, not assumed: a compose file with `ports: ["${REDIS_PASSWORD}"]` fails
+  `docker compose config --quiet` with `invalid containerPort: <the password>` on stderr. So
+  "`--quiet` has no stdout" isn't enough to keep a render's output out of a log. The preflight
+  (`publish-deploy.yml`) passes that stderr through a redactor that masks every `.env` value (the
+  raw text and the value with an inline ` #` comment dropped) before printing it. Verified with
+  exactly that broken port: the log line came out as `invalid containerPort: ***`.
+- **`compose ps <svc>`'s exit status is the only reliable "broken vs. not yet" signal, and its
+  stderr must stay out of the value.** For a service with no container it exits 0 and prints
+  nothing. On an interpolation error, a bad file or no daemon, it exits non-zero. The pre-v33
+  `wait_for_stack_health.sh` swallowed both with `2>/dev/null || true`, so a missing `${VAR:?}`
+  read as "not healthy yet" and waited out the full 420s. Round 1 of v33 then captured
+  `2>&1` to show the error. That's wrong in the other direction: on a *successful* call, compose
+  still writes WARNs to stderr (`The "REDIS_PASSWORD" variable is not set. Defaulting to a blank
+  string.`, obsolete attributes), and `2>&1` puts them into `$status`, which then never equals
+  `healthy`. That would roll back a perfectly healthy deploy. The fix keeps stderr in a temp file
+  and prints it only on a non-zero exit. Reproduced both ways with a stub `docker` on `PATH`
+  (healthy + a WARN): the `2>&1` version exits 1, the fix exits 0.
+- **Scripts in the deploy job's workspace come from the ref being deployed, not from the
+  workflow.** `actions/checkout` with `ref: needs.resolve.outputs.commit` is right for the
+  deployed code's own scripts (`wait_for_stack_health.sh`, which must match its compose files).
+  It's wrong for the *pipeline's* tools: a `workflow_dispatch` of a pre-v33 tag would have no
+  `check_required_env.py` or `migration_guard.sh` at all, so it would fail its preflight (or report
+  "database ahead" from a missing file's exit 127). Found by the round-1 blind review. The tools
+  now come from a second, sparse checkout of `github.sha` (the workflow's own commit) at
+  `.pipeline/`.
+- **Python `urllib`'s default User-Agent is blocked by Cloudflare in front of
+  `matrix.vb2007.hu`.** `Python-urllib/3.x` gets HTTP 403 with the plain-text body
+  `error code: 1010` (Cloudflare's browser-signature ban). Synapse never sees the request, and
+  the body isn't JSON, so a client that parses Matrix errors crashes instead of reporting.
+  Confirmed side by side: the same POST with an explicit `User-Agent` reached Synapse and got its
+  normal `M_FORBIDDEN` JSON. `matrix_notify.py` sets one. Any future Python client for this
+  homeserver (v36's app alerts) needs the same, and so does anything else behind that zone.
+- **`a < missing-file 2>/dev/null` doesn't silence the missing file.** Redirections apply left to
+  right, so the `<` fails before `2>/dev/null` exists, and bash prints `No such file or directory`
+  anyway. It showed up in the first real run's Summary when `.last-good` didn't exist yet. Put
+  `2>/dev/null` first.
+- **Two stdin redirections on one command: the last wins.** `python3 - < err.txt <<'PY'` runs the
+  heredoc as the script and never reads `err.txt`. Caught in review before the first run, and
+  replaced with passing the file as an argument. It's an easy shape to write when a heredoc
+  script also needs data.
+- **A `compose run` probe in the same project as a *differently configured* running stack tries
+  to recreate the project network.** Running the migration guard locally with the prod compose
+  files, while the dev stack (dev override) was up under the same project name, failed with
+  `network spotdl-web_default has active endpoints`. On the host the probe uses the same files the
+  stack was started from, so this doesn't happen there. Locally, give the probe its own project
+  (`GUARD_COMPOSE_ARGS="-p v33-guard-test -f ..."`), and remove its network and `redis-data`
+  volume afterwards.
+- **A PR's CI run also queues a `Release` and a `Publish & Deploy` run, and both are no-ops.**
+  `release.yml` fires on every CI completion, PRs and dispatches included. Its job is skipped
+  for non-push events, and a run whose only job is skipped concludes **`skipped`**, not
+  `success`. `publish-deploy.yml`'s `resolve` requires `success`, so it skips itself as well.
+  Confirmed from the run list during v33's testing: `Release` 36848033567 → `skipped`, then
+  `Publish & Deploy` 36848040363 → `skipped`. A pending run in either concurrency group shows up
+  as `cancelled` when a newer one replaces it. These runs queue behind real work on the single
+  runner, which is why a scratch dispatch can sit `queued` for a while, but they never touch the
+  host or send a notification. `.last-good` therefore first appears on the first release-mode run
+  after v33 merges (main's push → CI → `Release`, which succeeds with the tag already existing →
+  `Publish & Deploy`, idempotency-skipped if the host is on that release's tag; if a
+  `manual-*` dispatch is what's running, it redeploys the release instead, and records it once
+  healthy).
+- **A pending `workflow_dispatch` in the `deploy-prod` concurrency group gets silently replaced.**
+  GitHub keeps at most one running and one *pending* run per concurrency group
+  (`cancel-in-progress: false` only protects the running one). During v33's final verification,
+  a push to the PR branch started PR CI → `Release` (skipped) → a `Publish & Deploy` run that
+  would itself have skipped. It entered `deploy-prod` as the newer pending run and cancelled the
+  queued rollback-test dispatch (`36860980814`, `cancelled` with no jobs run). So while a
+  verification dispatch is queued behind another run, don't push to any branch with an open PR,
+  and check the dispatch actually started before waiting on it.

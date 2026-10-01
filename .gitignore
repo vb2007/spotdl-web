@@ -28,6 +28,13 @@
 # wiped by the very next deploy.
 /backups/
 
+# Durable last-known-good deploy (v33, publish-deploy.yml): the tag + commit a failed deploy
+# rolls back to. Same reason as /backups/ above -- the deploy job's `git clean -fd` deletes any
+# untracked file not covered here, and losing it would silently fall back to .env's IMAGE_TAG,
+# which can be a throwaway manual-* dispatch tag.
+/.last-good
+/.last-good.tmp
+
 # backend
 backend/__pycache__/
 backend/**/__pycache__/

@@ -351,14 +351,15 @@ jobs:
     # notes.
     #
     # Placeholder values only, purely to satisfy Compose-level ${VAR} interpolation for a
-    # static `config` render — none of these are ever used to actually start anything.
-    # DOWNLOADS_DIR/REDIS_PASSWORD/CLOUDFLARE_TUNNEL_TOKEN are the only three variables
-    # either compose file references at the Compose-interpolation level (as opposed to
-    # values merely passed through to a container via env_file: .env, which `config`
-    # doesn't need populated to render correctly). v21: docker-compose.prod.yml's backend/
-    # web services now render `image: ghcr.io/vb2007/spotdl-web-*:${IMAGE_TAG:-latest}` —
-    # needs no fourth placeholder here, the `:-latest` default already makes that
-    # interpolation resolve without IMAGE_TAG being set at all.
+    # static `config` render — none of these are ever used to actually start anything. The
+    # job-level env below covers DOWNLOADS_DIR/REDIS_PASSWORD/CLOUDFLARE_TUNNEL_TOKEN, and
+    # every other interpolated variable (v28's required LIBRARY_DIR, for one) resolves from
+    # the placeholder .env copied from .env.example below, which Compose reads for
+    # interpolation too. `${IMAGE_TAG:-latest}` (v21) needs neither, its default resolves it.
+    # v33 corrected this comment: it used to claim those three were the only interpolated
+    # variables, which stopped being true at v28. The drift check below is what now keeps
+    # .env.example honest, since this placeholder copy would otherwise hide a missing key
+    # only until the real host's .env lacked it.
     env:
       DOWNLOADS_DIR: /tmp/ci-placeholder-downloads
       REDIS_PASSWORD: ci-placeholder
@@ -366,14 +367,28 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # v33: every `${VAR:?}` (a variable Compose refuses to render without) must have a key
+      # in the template the matching environment is built from, so a version that adds one
+      # can't merge without documenting it: v28's LIBRARY_DIR reached the host's .env only
+      # after two failed deploys. Runs before the placeholder copy below, against the
+      # templates themselves, and names each missing key.
+      - name: Check every required compose variable has a key in its .env template
+        run: |
+          python3 .github/scripts/check_required_env.py --env-file .env.example \
+            --hint "Add each to .env.example (and the host's .env), see docs/RELEASE_PIPELINE.md, 'Adding a required env var'." \
+            docker-compose.yml docker-compose.prod.yml
+          python3 .github/scripts/check_required_env.py --env-file .env.dev.example \
+            --hint "Add each to .env.dev.example, see docs/RELEASE_PIPELINE.md, 'Adding a required env var'." \
+            docker-compose.yml docker-compose.override.yml
+
       # `env_file: .env` on the x-backend anchor needs an actual .env file on disk for
-      # `docker compose config` to even parse successfully -- it's not just the three
-      # ${VAR}-interpolated values above, which the job-level `env:` already covers.
-      # CI's checkout never has a real .env (gitignored), so without this step `config`
-      # fails immediately with "env file ... not found", before ever reaching the
-      # interpolation it's actually meant to validate. .env.example's placeholder values
-      # are irrelevant here (nothing in this job starts a real container), only the
-      # file's existence matters.
+      # `docker compose config` to even parse successfully. CI's checkout never has a real
+      # .env (gitignored), so without this step `config` fails immediately with "env file
+      # ... not found", before ever reaching the interpolation it's actually meant to
+      # validate. Nothing in this job starts a real container, so the values are
+      # placeholders, but they are read: Compose interpolates from this file too, which is
+      # where LIBRARY_DIR (v28) resolves from (corrected in v33; this used to say only the
+      # file's existence mattered).
       - name: "Create placeholder .env (file must exist for env_file: .env to resolve)"
         run: cp .env.example .env
 
