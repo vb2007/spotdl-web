@@ -145,6 +145,8 @@ needed" claim — rather than silently deleted.
   dispatch of an older tag doesn't have scripts newer than that tag → *v33*
 - Cloudflare in front of this host's Synapse rejects Python `urllib`'s default User-Agent (HTTP
   403, `error code: 1010`) before Synapse sees the request → *v33*
+- A pending run in a concurrency group is replaced by any newer one (only the *running* one is
+  protected), so a queued scratch dispatch can be silently cancelled by an unrelated push → *v33*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -4088,3 +4090,11 @@ independently-found production bug from the same conversation)
   `Publish & Deploy`, idempotency-skipped if the host is on that release's tag; if a
   `manual-*` dispatch is what's running, it redeploys the release instead, and records it once
   healthy).
+- **A pending `workflow_dispatch` in the `deploy-prod` concurrency group gets silently replaced.**
+  GitHub keeps at most one running and one *pending* run per concurrency group
+  (`cancel-in-progress: false` only protects the running one). During v33's final verification,
+  a push to the PR branch started PR CI → `Release` (skipped) → a `Publish & Deploy` run that
+  would itself have skipped. It entered `deploy-prod` as the newer pending run and cancelled the
+  queued rollback-test dispatch (`36860980814`, `cancelled` with no jobs run). So while a
+  verification dispatch is queued behind another run, don't push to any branch with an open PR,
+  and check the dispatch actually started before waiting on it.
