@@ -60,6 +60,10 @@ def main() -> int:
         headers={
             "Authorization": f"Bearer {os.environ['MATRIX_ACCESS_TOKEN'].strip()}",
             "Content-Type": "application/json",
+            # Cloudflare (in front of this host's Synapse) rejects urllib's default
+            # `Python-urllib/3.x` agent outright: HTTP 403, "error code: 1010", before the
+            # request ever reaches Synapse. Any explicit agent passes.
+            "User-Agent": "spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)",
         },
     )
     try:
