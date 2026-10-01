@@ -41,6 +41,9 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' &&
        github.event.workflow_run.head_branch == 'main')
+    # v33: read by the `notify` job below. Outputs are kept even when this job fails.
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       # A workflow_run event's own GITHUB_SHA/GITHUB_REF are main's current head, not
       # necessarily the commit that triggered the upstream CI run (see GitHub's workflow_run
@@ -114,3 +117,37 @@ jobs:
               echo "Created with deploy bundle + requirements.txt. \`images.json\` follows from Publish & Deploy."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # v33: a failed or cancelled release used to be silent: publish-deploy.yml's `resolve` skips
+  # itself when this workflow didn't succeed, so its own notify never fires for it. Same sender
+  # and same unconfigured-means-off rule as publish-deploy.yml's notify. A skipped `release`
+  # (CI failed, or a PR/dispatch CI run) isn't a release failure and sends nothing.
+  notify:
+    needs: [release]
+    runs-on: self-hosted
+    if: always() && (needs.release.result == 'failure' || needs.release.result == 'cancelled')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Send the Matrix notification
+        env:
+          MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
+          MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+          MATRIX_ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
+          MATRIX_TXN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW: ${{ github.workflow }}
+          RESULT: ${{ needs.release.result }}
+          TAG: ${{ needs.release.outputs.tag }}
+        run: |
+          {
+            echo "❌ spotdl-web: $WORKFLOW failed"
+            echo "Failed job(s): release ($RESULT)"
+            echo "Release: ${TAG:-unresolved}"
+            echo "Nothing was deployed: Publish & Deploy only follows a successful release."
+            echo "Run: $RUN_URL"
+          } > "$RUNNER_TEMP/message.txt"
+          cat "$RUNNER_TEMP/message.txt"
+          python3 .github/scripts/matrix_notify.py < "$RUNNER_TEMP/message.txt"
