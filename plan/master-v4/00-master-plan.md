@@ -275,4 +275,9 @@ session. Version-specific requirements:
 The plan above is the approved text, kept verbatim. Changes directed after approval are recorded
 here rather than edited into it, so the original record stays readable.
 
-*(none yet)*
+- **2026-10-01, v32: production database name.** The plan names production's database
+  `spotdl_web`, but the real one on the shared server is **`spotdlweb`** (role `spotdlweb`, which
+  also owns `spotdlwebtest`); `spotdl_web` is only what `.env.example` and `docs/DEPLOYMENT.md`
+  document. On the owner's direction, the dev guard refuses **both** names
+  (`PRODUCTION_DATABASE_NAMES` in `backend/app/config.py`). Wherever a later plan says "production's
+  `spotdl_web`", read `spotdlweb`.

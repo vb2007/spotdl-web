@@ -3907,8 +3907,8 @@ a core correctness gap in `download_track` itself, and doc reconciliation)
   *(Corrected 2026-10-01, v32: fixed by the dev/prod database split. Local dev runs on
   `spotdlwebtest`, guarded fail-closed in `app/config.py`, so local `reconcile_disk()` only ever
   sees dev ledger rows. One correction to the record: the shared database was production's own
-  `spotdlweb`. `spotdl_web`, the name in `.env.example`/`DEPLOYMENT.md`, never existed on the
-  server. See the v32 section.)*
+  `spotdlweb`. `spotdl_web`, the name in `.env.example`/`DEPLOYMENT.md`, does not exist on the
+  server as of 2026-10-01. See the v32 section.)*
 - **Three gaps prior versions explicitly flagged by name as "a v31 candidate," fixed:**
   1. `beat._reclaim_stale_tracks` now records a `FAILED` `track_attempts` row for the invocation it
      reclaims — snapshotting `attempt_count`/`updated_at` via a plain `SELECT` *before* the bulk
@@ -3978,7 +3978,7 @@ independently-found production bug from the same conversation)
 
 - **Production's real database is `spotdlweb`, not `spotdl_web`.** `.env.example`,
   `.env.dev.example` (before v32) and `docs/DEPLOYMENT.md` §2 all say `spotdl_web` for both role and
-  database, and v32's own plan keyed the guard on that name. The server (`pg_database`) has
+  database, and v32's own plan keyed the guard on that name. The server (`pg_database`, 2026-10-01) has
   `spotdlweb` and `spotdlwebtest`, both owned by role `spotdlweb`, and no `spotdl_web` at all. A
   guard on the documented name alone would have protected nothing. `PRODUCTION_DATABASE_NAMES` in
   `app/config.py` holds both: the real name, plus the documented one for a fresh install that
