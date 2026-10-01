@@ -17,7 +17,11 @@ process list:
 
 Unconfigured (any of the first three empty) means alerts are off: it prints a GitHub warning and
 exits 0, so a missing alert config can never turn a green run red. A configured send that fails
-exits 1. Stdlib-only, like check_version.py. Never prints the token or the response body.
+is a `::warning::` and exits 0 too (v33.1, the owner's call): the homeserver sits on the same host
+and behind the same Cloudflare zone as the runner and the app, so an outage that drops the alert
+takes the pipeline down with it anyway, and a red run for a healthy deploy would only mislead.
+An empty message is still exit 1: that's a caller bug. Stdlib-only, like check_version.py. Never
+prints the token or the response body.
 
 Usage: matrix_notify.py < message.txt
 """
@@ -77,14 +81,14 @@ def main() -> int:
             detail = parsed.get("errcode", "") if isinstance(parsed, dict) else ""
         except (ValueError, OSError):
             detail = ""
-        print(f"::error::Matrix notification failed: HTTP {exc.code} {detail}".rstrip())
+        print(f"::warning::Matrix notification failed: HTTP {exc.code} {detail}".rstrip())
     except (urllib.error.URLError, TimeoutError) as exc:
-        print(f"::error::Matrix notification failed: {getattr(exc, 'reason', exc)}")
+        print(f"::warning::Matrix notification failed: {getattr(exc, 'reason', exc)}")
     except Exception as exc:  # noqa: BLE001 - e.g. a URL with no scheme
         # Type only: the message would carry the request URL, whose percent-encoded room id
         # GitHub's secret masking doesn't recognise.
-        print(f"::error::Matrix notification failed: {type(exc).__name__} (check MATRIX_HOMESERVER_URL)")
-    return 1
+        print(f"::warning::Matrix notification failed: {type(exc).__name__} (check MATRIX_HOMESERVER_URL)")
+    return 0
 
 
 if __name__ == "__main__":

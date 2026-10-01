@@ -342,8 +342,11 @@ sends nothing. Messages never contain `.env` content.
 `MATRIX_HOMESERVER_URL`, `MATRIX_ACCESS_TOKEN`, `MATRIX_ROOM_ID`. Setting up the bot and the
 room is in `docs/DEPLOYMENT.md`, "Matrix alert bot". **Unconfigured means off**: if any of the
 three is unset, `notify` prints a `::warning::` and exits 0, so missing alert config can never
-turn a green run red. A configured send that fails (a revoked token, say) does fail the `notify`
-job, so a broken alert channel is visible rather than silent.
+turn a green run red. A configured send that fails (a revoked token, Synapse down) is a
+`::warning::` on the `notify` job, which still passes (v33.1, the owner's call). Synapse runs on the
+same host and behind the same Cloudflare zone as the runner and the app, so an outage that
+drops an alert takes the pipeline and the app down with it anyway; a red run for a healthy deploy
+would only mislead.
 
 ---
 
