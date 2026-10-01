@@ -268,8 +268,10 @@ migration.
    come up.
    - **Fallback (v33.1):** when the database is ahead of `.last-good` (a `manual-*` dispatch
      migrated it since the last release, say), the guard runs again against **the version that
-     was running just before this deploy** (pre-deploy HEAD + `IMAGE_TAG`). If that one knows
-     the schema, the rollback goes there instead, since the aim is the least downtime. Only a
+     was running just before this deploy** (pre-deploy HEAD + `IMAGE_TAG`), provided that version
+     was healthy before the run (an instant health check in the "record" step) and isn't the very
+     build that just failed. If it knows the schema, the rollback goes there instead, since the
+     aim is the least downtime. Only a
      refusal triggers it, never a guard error, and `.last-good` isn't changed by it, so a
      throwaway tag still never becomes the baseline. The Matrix message says when it happened.
    - Otherwise the rollback **stops there**: it leaves the failed deploy's checkout and
@@ -351,10 +353,12 @@ sends nothing. Messages never contain `.env` content.
 room is in `docs/DEPLOYMENT.md`, "Matrix alert bot". **Unconfigured means off**: if any of the
 three is unset, `notify` prints a `::warning::` and exits 0, so missing alert config can never
 turn a green run red. A configured send that fails (a revoked token, Synapse down) is a
-`::warning::` on the `notify` job, which still passes (v33.1, the owner's call). Synapse runs on the
-same host and behind the same Cloudflare zone as the runner and the app, so an outage that
-drops an alert takes the pipeline and the app down with it anyway; a red run for a healthy deploy
-would only mislead.
+`::warning::` on the `notify` job, which still passes (v33.1, the owner's call): a Synapse or
+Cloudflare outage takes the runner and the app down with it anyway, and a red run for a healthy
+deploy would only mislead. The trade-off is that a failure isolated to the alert channel (a
+revoked token, the bot kicked from the room, v33's Cloudflare User-Agent ban) only shows as that
+warning, and the room goes quiet, so "silence means nothing happened" holds only while the
+channel works. Check that a real deploy's success message still arrives now and then.
 
 ---
 

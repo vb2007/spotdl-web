@@ -205,6 +205,7 @@ jobs:
       rollback: ${{ steps.rollback.outputs.result }}
       rollback_tag: ${{ steps.rollback.outputs.target || steps.prev.outputs.tag }}
       rollback_fallback: ${{ steps.rollback.outputs.fallback }}
+      rollback_detail: ${{ steps.rollback.outputs.detail }}
       backup_path: ${{ steps.backup.outputs.path }}
     steps:
       # This job's own steps below need this PR's scripts (wait_for_stack_health.sh) even on
@@ -244,6 +245,15 @@ jobs:
           HEAD_COMMIT="$(git -C "$DEPLOY_DIR" rev-parse HEAD)"
           echo "current_tag=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
           echo "current_commit=$HEAD_COMMIT" >> "$GITHUB_OUTPUT"
+          # v33.1: whether what's running now is healthy, a precondition for the rollback's
+          # fallback to it. An instant check (timeout 0); only the verdict is kept.
+          if bash .github/scripts/wait_for_stack_health.sh "$DEPLOY_DIR" 0 >/dev/null 2>&1; then
+            echo "current_healthy=true" >> "$GITHUB_OUTPUT"
+            echo "Running stack:        healthy"
+          else
+            echo "current_healthy=false" >> "$GITHUB_OUTPUT"
+            echo "Running stack:        not healthy"
+          fi
           echo "Deploy checkout HEAD: $HEAD_COMMIT"
           echo "Deployed IMAGE_TAG:   ${CURRENT_TAG:-(none)}"
           if [ -f "$DEPLOY_DIR/.last-good" ]; then
@@ -379,6 +389,9 @@ jobs:
           PREV_COMMIT: ${{ steps.prev.outputs.commit }}
           CUR_TAG: ${{ steps.prev.outputs.current_tag }}
           CUR_COMMIT: ${{ steps.prev.outputs.current_commit }}
+          CUR_HEALTHY: ${{ steps.prev.outputs.current_healthy }}
+          NEW_TAG: ${{ needs.resolve.outputs.version }}
+          NEW_COMMIT: ${{ needs.resolve.outputs.commit }}
           BACKUP_PATH: ${{ steps.backup.outputs.path }}
         run: |
           # not-started until the checkout below begins moving the host; failed after that.
@@ -419,10 +432,11 @@ jobs:
           guard() {
             local dir
             dir="$(mktemp -d -p "$TMP")"
-            for f in docker-compose.yml docker-compose.prod.yml; do
-              git -C "$DEPLOY_DIR" show "$2:$f" > "$dir/$f"
-            done
             guard_rc=0
+            for f in docker-compose.yml docker-compose.prod.yml; do
+              # Unreadable target = "couldn't check" (1), not a step abort.
+              git -C "$DEPLOY_DIR" show "$2:$f" > "$dir/$f" || { guard_rc=1; return 0; }
+            done
             IMAGE_TAG="$1" \
               GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $dir/docker-compose.yml -f $dir/docker-compose.prod.yml --profile tunnel" \
               bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" \
@@ -437,11 +451,15 @@ jobs:
           # v33.1: the database is ahead of .last-good (a manual-* dispatch migrated it since
           # the last release, say). Rather than leave the failed deploy running, try the version
           # that was running just before this deploy: it ran on this schema minutes ago. Only on
-          # a refusal (3), never on a guard error, and .last-good itself is left alone, so a
-          # throwaway tag still never becomes the baseline. The goal is the least downtime.
+          # a refusal (3), never on a guard error; only if that version was healthy before this
+          # run and isn't the very build that just failed (a re-run of a failed deploy would
+          # otherwise "roll back" onto itself). .last-good itself is left alone, so a throwaway
+          # tag still never becomes the baseline. The goal is the least downtime.
           echo "fallback=false" >> "$GITHUB_OUTPUT"
           if [ "$guard_rc" -eq 3 ] && [ -n "$CUR_TAG" ] && [ -n "$CUR_COMMIT" ] \
-             && { [ "$CUR_TAG" != "$PREV_TAG" ] || [ "$CUR_COMMIT" != "$PREV_COMMIT" ]; }; then
+             && { [ "$CUR_TAG" != "$PREV_TAG" ] || [ "$CUR_COMMIT" != "$PREV_COMMIT" ]; } \
+             && [ "$CUR_HEALTHY" = "true" ] \
+             && [ "$CUR_TAG" != "$NEW_TAG" ] && [ "$CUR_COMMIT" != "$NEW_COMMIT" ]; then
             echo "::warning::The database is ahead of $PREV_TAG (.last-good). Trying the pre-deploy version instead: IMAGE_TAG=$CUR_TAG commit=$CUR_COMMIT"
             guard "$CUR_TAG" "$CUR_COMMIT"
             if [ "$guard_rc" -eq 0 ]; then
@@ -453,11 +471,14 @@ jobs:
               # .last-good's verdict stands: the database is ahead of it, and the fallback
               # isn't usable either way.
               [ "$guard_rc" -eq 3 ] \
-                && ALSO_AHEAD=", and of the pre-deploy version $CUR_TAG too" \
-                || ALSO_AHEAD=" (the pre-deploy version $CUR_TAG couldn't be checked)"
+                && ALSO_AHEAD=", and of the pre-deploy version $CUR_TAG too (so this deploy's migrate moved it: the pre-deploy backup matches $CUR_TAG @ $CUR_COMMIT)" \
+                || ALSO_AHEAD=" (the pre-deploy version $CUR_TAG @ $CUR_COMMIT couldn't be checked; it may still be compatible)"
               guard_rc=3
             fi
+          elif [ "$guard_rc" -eq 3 ] && [ -n "$CUR_TAG" ]; then
+            ALSO_AHEAD=" (no fallback: the pre-deploy version $CUR_TAG @ $CUR_COMMIT was unhealthy or is this same build)"
           fi
+          echo "detail=$ALSO_AHEAD" >> "$GITHUB_OUTPUT"
           echo "target=$PREV_TAG" >> "$GITHUB_OUTPUT"
 
           if [ "$guard_rc" -eq 3 ]; then
@@ -582,6 +603,7 @@ jobs:
           ROLLBACK: ${{ needs.deploy.outputs.rollback }}
           ROLLBACK_TAG: ${{ needs.deploy.outputs.rollback_tag }}
           ROLLBACK_FALLBACK: ${{ needs.deploy.outputs.rollback_fallback }}
+          ROLLBACK_DETAIL: ${{ needs.deploy.outputs.rollback_detail }}
           BACKUP_PATH: ${{ needs.deploy.outputs.backup_path }}
           EVENT: ${{ github.event_name }}
         run: |
@@ -609,10 +631,10 @@ jobs:
                   rollback="succeeded, back on ${ROLLBACK_TAG}"
                 fi
                 ;;
-              refused) rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup (${BACKUP_PATH:-path in the run log}) or roll forward" ;;
+              refused) rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup (${BACKUP_PATH:-path in the run log}) or roll forward${ROLLBACK_DETAIL:+. Detail:$ROLLBACK_DETAIL}" ;;
               guard-error) rollback="NOT STARTED: the migration guard couldn't compare revisions, so the old stack was left alone. See the run log" ;;
               not-started) rollback="NOT STARTED: the rollback stopped before moving anything (see the run log); the failed deploy is still in place" ;;
-              failed) rollback="FAILED, the stack may be down" ;;
+              failed) rollback="FAILED rolling back to ${ROLLBACK_TAG}$([ "$ROLLBACK_FALLBACK" = "true" ] && echo " (the pre-deploy version)"), the stack may be down" ;;
               *)
                 if [ "$DEPLOY_STEP" = "success" ] && [ "$HEALTH" = "success" ]; then
                   rollback="not needed, the new version passed its health gate (a later step failed, see the run)"

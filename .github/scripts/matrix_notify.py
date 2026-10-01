@@ -17,9 +17,11 @@ process list:
 
 Unconfigured (any of the first three empty) means alerts are off: it prints a GitHub warning and
 exits 0, so a missing alert config can never turn a green run red. A configured send that fails
-is a `::warning::` and exits 0 too (v33.1, the owner's call): the homeserver sits on the same host
-and behind the same Cloudflare zone as the runner and the app, so an outage that drops the alert
-takes the pipeline down with it anyway, and a red run for a healthy deploy would only mislead.
+is a `::warning::` and exits 0 too (v33.1, the owner's call): a homeserver or Cloudflare outage
+takes the runner and the app down with it anyway, and a red run for a healthy deploy would only
+mislead. The trade-off: a failure isolated to the alert channel (a revoked token, the bot kicked
+from the room, v33's Cloudflare User-Agent ban) is then only a warning annotation, and the room
+just goes quiet. Check that a real deploy's success message arrives now and then.
 An empty message is still exit 1: that's a caller bug. Stdlib-only, like check_version.py. Never
 prints the token or the response body.
 
