@@ -265,8 +265,16 @@ migration.
    database's `alembic_version` against that image's own revision graph. If the database holds
    a revision the old image doesn't know (the failed deploy's `migrate` already upgraded it),
    starting the old stack is doomed, because its own `migrate` would refuse and nothing would
-   come up. So the rollback **stops there**: it leaves the failed deploy's checkout and containers
-   as they are and fails with "restore the pre-deploy pg_backup at `<path>` or roll forward".
+   come up.
+   - **Fallback (v33.1):** when the database is ahead of `.last-good` (a `manual-*` dispatch
+     migrated it since the last release, say), the guard runs again against **the version that
+     was running just before this deploy** (pre-deploy HEAD + `IMAGE_TAG`). If that one knows
+     the schema, the rollback goes there instead, since the aim is the least downtime. Only a
+     refusal triggers it, never a guard error, and `.last-good` isn't changed by it, so a
+     throwaway tag still never becomes the baseline. The Matrix message says when it happened.
+   - Otherwise the rollback **stops there**: it leaves the failed deploy's checkout and
+     containers as they are and fails with "restore the pre-deploy pg_backup at `<path>` or roll
+     forward".
    It also fails closed when it can't tell (Postgres unreachable, the old image unpullable),
    reported separately as a guard error rather than as "the database is ahead". The guard comes
    from the commit the workflow runs from (a second, sparse checkout at `.pipeline/`), never the
