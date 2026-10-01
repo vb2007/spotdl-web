@@ -1,13 +1,13 @@
-# v45 — UI Polish & Design-System Record
+# v46 — UI Polish & Design-System Record
 
 Branch: `dev-ui-polish` → PR into `main`
-Version: `4.45.0`
+Version: `4.46.0`
 
 ## Scope
 
 The closing pass on master v4's UI work, **strictly through the impeccable skill**, the same role
-impeccable's own `polish` plays before shipping. It covers everything v38 assigned to v45, the
-residue v39–v44 deferred, and the system-wide consistency no single slice owned.
+impeccable's own `polish` plays before shipping. It covers everything v38 assigned to v46, the
+residue v39–v45 deferred, and the system-wide consistency no single slice owned.
 
 ## Tasks
 
@@ -15,9 +15,9 @@ residue v39–v44 deferred, and the system-wide consistency no single slice owne
    and consistent hover, focus and active states. Remaining ad hoc font sizes migrate to v41's type
    scale tree-wide, so `grep 'font-size:'` finds only token definitions.
 2. **`harden`**: error, empty, loading and offline states everywhere. Very long titles, artist lists
-   and error messages. Non-ASCII (this library is full of it). A 1000+ job account. The SSE stream
+   and error messages. Non-ASCII (this library is full of it). **Both languages:** every surface in Hungarian (v45), whose strings run longer than English, with no truncation, overflow or awkward wraps. A 1000+ job account. The SSE stream
    dropped and recovering. A session expiring mid-page.
-3. **Re-run `critique` and `audit`** on the full v38 surface list, desktop and mobile. Put a
+3. **Re-run `critique` and `audit`** on the full v38 surface list, desktop and mobile, in **both `en` and `hu`**. Put a
    **before/after score table against v38's report** in the PR. Every v38 finding is resolved,
    or deferred with a reason, or won't-fix as v38 decided. Close the loop explicitly per row.
 4. **`document`**: regenerate `frontend/src/DESIGN.md` (and `design-tokens.json`) from the shipped
@@ -43,6 +43,7 @@ residue v39–v44 deferred, and the system-wide consistency no single slice owne
       (seed via the API on dev), the SSE drop and recovery, and session expiry.
 - [ ] DESIGN.md was regenerated, with prior decision records preserved and dated notes for every
       changed rule (diff reviewed in the PR).
-- [ ] Every keyboard journey from v44 still passes, and the v37 e2e suite passes on both projects.
+- [ ] Every keyboard journey from v44 still passes (including the Hungarian QWERTZ emulation), and the v37 e2e suite passes on both projects plus v45's `hu` smoke project.
+- [ ] Hungarian screenshots of every route at 390 and 1440 widths show no overflow or truncation.
 - [ ] `npm run lint`, `npm run check` and `npm run build` pass, and `pytest` passes. Both version
-      files read `4.45.0`. `uv lock` is in sync. `graphify update .` has been run.
+      files read `4.46.0`. `uv lock` is in sync. `graphify update .` has been run.

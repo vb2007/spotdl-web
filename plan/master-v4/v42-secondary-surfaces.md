@@ -21,9 +21,10 @@ are its checklist.
 - **`/library`** (admin): the idle state, the mid-sweep live progress (v28's transform-animated
   bar must stay transform-based), and the final report. The report's moved, conflict and
   quarantine counts become scannable.
-- **`/account`**: retention settings, plus a placeholder section where v44 adds the shortcut
-  toggle. Leave the section structure ready; don't add the toggle here.
-- **`/login`**: the "TUNE IN" dial stays, unless v38's direction says otherwise. Error and
+- **`/account`**: retention settings, plus a preferences section where v44 adds the shortcut
+  toggle and v45 the language switch. Leave the section structure ready; don't add either control
+  here.
+- **`/login`**: leave room for v45's compact language switch. The "TUNE IN" dial stays, unless v38's direction says otherwise. Error and
   loading states, and check it against v39's ambient field.
 - **Type scale migration.** Every file touched here uses v41's tokens, with no ad hoc font sizes.
 - **Destructive-action confirmation**, as one reusable component (a dialog or an inline two-step

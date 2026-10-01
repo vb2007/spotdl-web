@@ -93,7 +93,7 @@ existing chips with the minimal visual change.
 ## Out of scope
 
 - Any visual redesign of TrackRow or QueueControls (v40/v41).
-- v31's open "file missing after COMPLETED" question (v46 observes it).
+- v31's open "file missing after COMPLETED" question (v47 observes it).
 - Retuning `YOUTUBE_PLAYER_CLIENTS`.
 
 ## Deploy notes

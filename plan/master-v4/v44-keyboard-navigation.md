@@ -15,6 +15,42 @@ This version makes every action reachable and fast from the keyboard, on the **f
 v40–v43. Design the help overlay and focus visuals through the impeccable skill (in the established
 system). The interaction model itself is specified below.
 
+## Target layout: Hungarian QWERTZ
+
+Most users type on a **Hungarian QWERTZ** keyboard (Windows/macOS/Linux "Hungarian", 101/102-key).
+The bindings are chosen for that layout first. US QWERTY still has to work, but it's the
+secondary layout. What this means on a Hungarian layout:
+
+- **Letters are fine,** except **`Y` and `Z`, which are swapped** relative to US. Neither is
+  bound, so a mnemonic never lands on the "wrong" key for half the users.
+- **The digits `1`–`9` are unshifted** on the top row. `0` is the key left of `1`.
+- **Many US-unshifted symbols need Shift or AltGr:**
+  - `/` is Shift+6, `?` is Shift+`,`, `+` is Shift+3, `=` is Shift+7;
+  - `-` is unshifted (the key right of `.`);
+  - `[ ] { } \ | @ # & ; < >` need AltGr.
+- **AltGr is reported as Ctrl+Alt on Windows** (`ctrlKey && altKey`, `getModifierState('AltGraph')`).
+- **`ö ü ó ő ú é á ű í` are unshifted letter keys.** They're not bound (a US user can't type
+  them), but they must never be swallowed in inputs.
+
+Rules that follow from it:
+
+1. **No binding needs AltGr.** Every primary binding is a letter, an unshifted digit, `-`, or a
+   named key (arrows, Enter, Space, Esc, Home, End). `Shift` plus a letter is allowed.
+2. **Match on `event.key`, the produced character, not `event.code`,** so `?` matches whichever
+   physical keys produce it, Shift+`,` on Hungarian and Shift+`/` on US. For the letter bindings,
+   `event.key` keeps the mnemonic on the labelled key under both layouts.
+3. **The AltGr guard:** an event with `getModifierState('AltGraph')`, or with `ctrlKey && altKey`
+   both set, is never a shortcut. That stops Hungarian users typing `@` or `{` (for example a URL
+   or email in a field the guard didn't catch) from firing anything.
+4. **Symbol bindings that need Shift on Hungarian are aliases, never the only way.** `?` (help)
+   and `/` (search) are kept as aliases for US habits, but each has a **letter primary** that's
+   one keystroke on Hungarian.
+5. **The help overlay shows what a Hungarian user actually presses.** For a symbol, it shows the
+   Hungarian combination (e.g. `?` shown as "Shift + ,"). v45 localizes the labels. v44 renders the
+   layout hint in the help overlay only, and doesn't try to detect the layout:
+   `navigator.keyboard.getLayoutMap()` is Chromium-only, so it's at most a progressive
+   enhancement.
+
 ## Interaction model
 
 **A central shortcut registry** (`frontend/src/lib/keyboard/`): a single `keydown` listener on
@@ -22,16 +58,18 @@ system). The interaction model itself is specified below.
 scattered through components.
 
 - **Inert while typing:** ignore events whose target is an `input`, `textarea`, `select` or
-  `[contenteditable]`, except Esc. Ignore events with Ctrl, Meta or Alt held, so browser and OS
-  chords are never shadowed.
-- **IME-safe:** ignore `event.isComposing`.
+  `[contenteditable]`, except Esc.
+- **Modifiers:** ignore events with Ctrl, Meta or Alt held, so browser and OS chords are never
+  shadowed. This, plus the AltGr guard above, means only bare keys and Shift+key are shortcuts.
+- **IME/dead-key-safe:** ignore `event.isComposing`, and `event.key === 'Dead'`. Hungarian
+  layouts on some platforms use dead keys for accents.
 
 **Global:**
 
-| Key | Action |
+| Key (Hungarian QWERTZ) | Action |
 |---|---|
-| `?` | Open or close the shortcut help overlay (focus-trapped dialog, Esc closes, focus returns) |
-| `/` | Focus the search box (on `/`) |
+| `h` (alias `?` = Shift+`,`) | Open or close the shortcut help overlay (focus-trapped dialog, Esc closes, focus returns) |
+| `f` (alias `/` = Shift+6) | Focus the search box (on `/`) |
 | `i` | Focus the submit URL input |
 | `g` then `d` / `s` / `l` / `a` / `t` | Go to dashboard / settings / library / account / stats. Admin-only targets are absent for non-admins. Show a chord indicator while `g` is pending, and time out after about 1.5s |
 | `Esc` | Close the overlay or dialog, collapse the focused row, clear and blur the search, in that priority |
@@ -49,21 +87,22 @@ is one tab stop and arrows move within it.
 | `d` | Download file (when allowed) |
 | `x` | Cancel job or track, **through v42's confirmation** |
 | `a` | Archive / unarchive (job) |
-| `b` | Bump priority. `+` / `-` adjust priority by one |
-| `h` | Toggle the attempt-history view of an expanded track (and collapsed repeats) |
+| `b` | Bump priority. `-` (unshifted) lowers priority by one, `Shift+B` raises it by one. `+` (Shift+3) is accepted as an alias |
+| `e` | Toggle the attempt-history ("events") view of an expanded track, and collapsed repeats |
 
-**Queue controls:** `1` / `2` switch the jobs/tracks scope, `f` focuses the filter chips (arrow
-keys roam between them, Space toggles), `s` cycles the sort, and `A` toggles "show archived".
-"Clear log" is reachable via its button and confirmation. No single-key binding for a bulk
-destructive action.
+**Queue controls:** `1` / `2` switch the jobs/tracks scope (unshifted digits on Hungarian).
+`Shift+F` focuses the filter chips (arrow keys roam between them, Space toggles). `s` cycles the
+sort, and `Shift+A` toggles "show archived". "Clear log" is reachable via its button and
+confirmation. No single-key binding for a bulk destructive action.
 
 **Settings / account / library / login:** logical tab order, `Enter` submits forms, and confirmation
 dialogs are keyboard-complete (from v42). No extra single-key shortcuts are needed there beyond
 the global ones.
 
-Keys are a proposal. Adjust where they collide with an existing behavior, and record the final
-table in the help overlay **and** in `frontend/src/DESIGN.md`. The overlay is generated from the
-registry, never a second hand-maintained list.
+Keys are a proposal. Adjust where they collide with an existing behavior, **keeping rules 1–5
+above**. Record the final table in the help overlay **and** in `frontend/src/DESIGN.md`, with the
+Hungarian physical combination for every symbol. The overlay is generated from the registry, never
+a second hand-maintained list.
 
 ## Focus management
 
@@ -103,6 +142,18 @@ retention), so it follows the user across devices. Default: **on**.
       typing `j`, `x` and `?` into each changes only the input).
 - [ ] Browser chords are untouched: Ctrl+F, Ctrl+L and Cmd+K-style chords reach the browser
       (manual check recorded).
+- [ ] **Hungarian QWERTZ, emulated.** An e2e helper dispatches the real Hungarian `key`/`code`
+      pairs (for example `key:'?', code:'Comma', shiftKey:true`; `key:'/', code:'Digit6',
+      shiftKey:true`; `key:'z', code:'KeyY'`; AltGr+V producing `@` as `ctrlKey+altKey`). The
+      tests prove that `?` and `/` work as aliases, that AltGr characters never fire a shortcut,
+      and that `y`/`z` fire nothing. Playwright can't switch OS layouts, so this helper is what
+      covers it.
+- [ ] **Hungarian QWERTZ, for real.** One manual pass on an actual Hungarian layout (e.g.
+      `setxkbmap hu` or the OS layout switcher) through the global, list and queue-control
+      bindings, recorded in the PR. Typing `@`, `{`, `ő` and `ű` into the URL and search inputs
+      inserts the characters and fires nothing.
+- [ ] No binding requires AltGr on Hungarian: the PR includes the final table with each key's
+      Hungarian physical combination.
 - [ ] Focus restoration, each with its own e2e assertion: after cancel or archive removes the
       focused row, after load more, after an SSE patch of the focused row, after closing the help
       overlay or a confirmation, and after a route change.
@@ -110,7 +161,7 @@ retention), so it follows the user across devices. Default: **on**.
       work. The setting persists across a reload and a second browser for the same user. The
       backend stores it owner-scoped (pytest), and another user's setting is unaffected.
 - [ ] The help overlay lists exactly the registry's bindings, filtered by admin and route (e2e
-      compares them). It was designed through impeccable (output recorded, plus a screenshot).
+      compares them), and shows the Hungarian physical combination for every symbol key. It was designed through impeccable (output recorded, plus a screenshot).
 - [ ] The skip link works (e2e), and the focus ring stays visible on every newly focusable element
       (impeccable `audit`, plus a screenshot of the roving focus on a row).
 - [ ] Screen-reader sanity: rows announce name and expanded state (accessibility-tree snapshot).

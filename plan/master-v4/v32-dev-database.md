@@ -17,14 +17,24 @@ the local stack against the dev database.**
 
 ## Division of work
 
-- **The owner (before the agent starts):** creates an empty `spotdl_web_dev` database on the
-  existing Postgres server, owned by or granted to a role the local stack can use, and puts the
-  real `DATABASE_URL` into the local `.env`. The agent never creates databases or roles, and never
+- **The owner: done (2026-10-01).** The dev database already exists on the existing Postgres
+  server, named **`spotdlwebtest`**, and the local `.env`'s `DATABASE_URL` already points at it
+  (`…@192.168.100.200:5432/spotdlwebtest`). The agent never creates databases or roles, and never
   needs Postgres superuser credentials.
 - **The agent:** everything else, below.
 
-If `.env` still points at `spotdl_web` when the agent starts, **stop and ask**. Don't edit the
-owner's `.env` to guess a URL.
+First, confirm that the local `.env`'s database name is `spotdlwebtest`. Check the name only,
+and never print the URL or password. If it isn't, **stop and ask**. Don't edit the owner's `.env`
+to guess a URL.
+
+Then check the database's state before migrating, because the owner may have run something already:
+- an empty schema, or `alembic current` at head: proceed;
+- anything else (partial tables, an unknown revision): **stop and ask**. Never drop or reset it on
+  your own.
+
+**The name is the owner's choice.** Everywhere this plan and later plans say "the dev database",
+they mean `spotdlwebtest`. The guard below must key on "not the production name `spotdl_web`",
+never on a hard-coded dev name, so a rename later doesn't break it.
 
 ## Tasks
 
@@ -42,10 +52,10 @@ owner's `.env` to guess a URL.
    - The guard must also cover the `migrate` service and Alembic's own `env.py` path. A migration
      run against production from a laptop is the worst version of this mistake.
    - **Fail closed:** if the URL can't be parsed, the service refuses to start. The error message
-     names the fix ("point `DATABASE_URL` at `spotdl_web_dev`, see `docs/LOCAL_DEV.md`").
+     names the fix ("point `DATABASE_URL` at `spotdlwebtest`, see `docs/LOCAL_DEV.md`").
    - Production is unaffected: the marker is absent there, and prod's own `.env` is untouched.
 3. **Templates and docs.**
-   - `.env.dev.example`: `DATABASE_URL` points at `spotdl_web_dev`, with a comment saying why.
+   - `.env.dev.example`: `DATABASE_URL` points at `spotdlwebtest`, with a comment saying why.
    - `docs/LOCAL_DEV.md`: rewrite the "shared database" section as "dedicated dev database". Cover
      what the owner creates, how the schema gets built, how to reset it (drop and recreate, then
      let `migrate` rebuild it), and that a fresh dev DB means fresh users rows on first login.
@@ -71,7 +81,7 @@ owner's `.env` to guess a URL.
 
 ## Done when
 
-- [ ] Local `docker compose up` succeeds against the empty `spotdl_web_dev`, and `migrate` exits 0
+- [ ] Local `docker compose up` succeeds against the empty `spotdlwebtest`, and `migrate` exits 0
       (log line), with `alembic current` at head.
 - [ ] **Isolation proven by observation:** create a job locally, then show with a read-only query
       against production's `spotdl_web` that its id doesn't exist there. Show the reverse for a

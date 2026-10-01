@@ -21,16 +21,16 @@ That inverts normal web-app priorities — durability beats throughput. A track 
 in the queue for days, and that is correct behavior, not a stall.
 
 **Status:** master v1 (v00–v13), v2 (v14–v22) and v3 (v23–v31.1) are complete, merged, and deployed
-at `spotdl.vb2007.hu`. Current work is **master v4 (v32–v46)**: operational safety (dev DB split,
+at `spotdl.vb2007.hu`. Current work is **master v4 (v32–v47)**: operational safety (dev DB split,
 deploy rollback), correctness, Matrix alerting + stats, and an impeccable-driven UI/UX overhaul with
-full keyboard navigation. Implementation sessions start from `plan/master-v4/IMPLEMENTATION_PROMPT.md`.
+full (Hungarian-QWERTZ-first) keyboard navigation and Hungarian/English i18n. Implementation sessions start from `plan/master-v4/IMPLEMENTATION_PROMPT.md`.
 
 ### Where things are
 
 | What | Where |
 |---|---|
 | Current roadmap + rationale | `plan/master-v4/00-master-plan.md` |
-| Per-version implementation detail | `plan/master-v4/vNN-*.md` (v32–v46); agent prompt template `plan/master-v4/IMPLEMENTATION_PROMPT.md` |
+| Per-version implementation detail | `plan/master-v4/vNN-*.md` (v32–v47); agent prompt template `plan/master-v4/IMPLEMENTATION_PROMPT.md` |
 | Master v1–v3 plans (historical, never edited) | `plan/master-v1/`, `plan/master-v2/`, `plan/master-v3/` |
 | **Accumulated gotchas from v01–v13** | **`docs/GOTCHAS.md`** — indexed by topic; read the relevant section before touching an area |
 | Deploy runbook (Debian host) | `docs/DEPLOYMENT.md` |
@@ -97,10 +97,10 @@ Two environments share the physical Postgres server **and currently the same dat
 downloaded files — so local runs now write into the same rows the deployed instance serves. **v31
 hit the predicted friction**: local dev's own `worker-meta` boot-time disk reconciliation pruned a
 real `downloaded_tracks` ledger row because the file it pointed at only exists on the deployed
-instance's own downloads volume, not locally visible (`docs/GOTCHAS.md`'s v31 section). The split
-(a dedicated `spotdl_web_dev` database, per `docs/LOCAL_DEV.md`) is now overdue rather than
-theoretical — do it at the start of the next version that touches the backend, before anything
-else. Until then, avoid restarting local `worker-meta` more than necessary, and use a distinct test
+instance's own downloads volume, not locally visible (`docs/GOTCHAS.md`'s v31 section). The owner
+has created the dedicated dev database **`spotdlwebtest`**, and the local `.env` already points at
+it. v32 builds its schema, adds the fail-closed guard and rewrites `docs/LOCAL_DEV.md`. It is the
+first master v4 slice, and no other slice starts before it. Until v32 merges, avoid restarting local `worker-meta` more than necessary, and use a distinct test
 identity for anything exploratory, never the real `ADMIN_EMAIL` account.
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
@@ -161,12 +161,13 @@ Settled. Don't re-litigate without asking.
 | Area | Decision |
 |---|---|
 | Production data | **No longer disposable.** No API back-compat needed, but a migration that drops/rewrites data says so in its plan and takes a `pg_backup` first |
-| Dev database | Dedicated `spotdl_web_dev`, mandatory from v32; local dev refuses to boot against the prod DB name |
+| Dev database | Dedicated **`spotdlwebtest`** (already created, local `.env` points at it), mandatory from v32; local dev refuses to boot against the prod DB name `spotdl_web` |
 | Alerts | One Matrix room (host's Synapse, bot token) for pipeline and app alerts; unconfigured = off; an alert never blocks work |
 | Rollback | Restores the last healthy `persist=true` release's commit **and** tag together; never automatic across a migration |
 | UI work | Every UI slice goes through the impeccable skill; all monitoring information is kept, only its presentation changes |
 | Browser tests | Playwright suite run locally against the real stack; no CI browser job (the runner is the prod host) |
-| Keyboard | Full mouse-free operation; single-key shortcuts inert in inputs and turn-off-able per user |
+| Keyboard | Full mouse-free operation, bindings designed for **Hungarian QWERTZ** (no AltGr, no `Y`/`Z`, match `event.key`); single-key shortcuts inert in inputs and turn-off-able per user |
+| i18n | `hu` + `en`, full coverage. Locale = saved preference → pre-login choice → `navigator.languages` → `en`. Backend stays language-neutral (error `code`s); track metadata/raw errors/alerts/logs untranslated |
 
 ## Architecture
 
@@ -319,7 +320,7 @@ Detail in `plan/master-v3/`, findings in `docs/GOTCHAS.md`.
 
 | # | Branch | Scope |
 |---|---|---|
-| v32 | `dev-dev-database` | **Mandatory first.** Local dev moves to `spotdl_web_dev`; fail-closed guard against booting dev on the prod DB |
+| v32 | `dev-dev-database` | **Mandatory first.** Local dev moves to `spotdlwebtest`; fail-closed guard against booting dev on the prod DB |
 | v33 | `dev-deploy-safety` | Required-var preflight, rollback restores previous commit + tag, `.last-good`, migration guard, Matrix notify, CI drift check. No bump |
 | v34 | `dev-live-hydration` | "Active signal"/incoming jobs vanish on refresh — hydrate both from REST on reload |
 | v35 | `dev-correctness-sweep` | Attempt counting, `network_path` in API, redelivery guard, warning flag, streamed download, `.pyc`, state counts |
@@ -331,9 +332,10 @@ Detail in `plan/master-v3/`, findings in `docs/GOTCHAS.md`.
 | v41 | `dev-dashboard-redesign` | Rest of `/`, type scale, panel material, tablet breakpoint |
 | v42 | `dev-secondary-surfaces` | `/settings` `/library` `/account` `/login` + destructive-action confirmations |
 | v43 | `dev-admin-stats` | Admin stats page from `track_attempts` + `breaker_events` |
-| v44 | `dev-keyboard-navigation` | Complete mouse-free operation, help overlay, per-user off switch |
-| v45 | `dev-ui-polish` | impeccable polish + harden, re-audit vs v38, regenerate DESIGN.md |
-| v46 | `dev-v4-hardening` | Production close |
+| v44 | `dev-keyboard-navigation` | Complete mouse-free operation for **Hungarian QWERTZ** first, help overlay, per-user off switch |
+| v45 | `dev-i18n` | Full Hungarian + English i18n: auto-detected locale, per-user language switch |
+| v46 | `dev-ui-polish` | impeccable polish + harden, re-audit vs v38, regenerate DESIGN.md |
+| v47 | `dev-v4-hardening` | Production close |
 
 ---
 

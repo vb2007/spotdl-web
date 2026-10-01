@@ -15,7 +15,7 @@ coherent dashboard. The v38 findings assigned to v41 are its checklist.
 
 - **A type scale** (DESIGN.md §3 gap). A small named set of size and weight tokens in `app.css` and
   `design-tokens.json`, used by every component touched here. Components outside v41's scope
-  migrate in v42/v45. No ad hoc `font-size`s remain in v41's files.
+  migrate in v42/v46. No ad hoc `font-size`s remain in v41's files.
 - **Panel material** (§8.1 gap: the "matte charcoal chassis" never reads against the near-black).
   Resolve it with impeccable, or record that the approved direction drops the chassis idea.
 - **Breakpoints.** Add at least one tablet breakpoint beyond today's single 640px (`adapt`). The

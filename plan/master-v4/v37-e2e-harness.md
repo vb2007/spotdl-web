@@ -7,7 +7,7 @@ Version: `4.37.0`
 
 There are no committed browser tests (`frontend/package.json` has no test runner). Every UI
 version so far was verified with ad-hoc Playwright scripts in session scratchpads, which were thrown
-away afterwards. v31 recorded that v25's UI checks were never re-run in a browser. v38–v45 rewrite
+away afterwards. v31 recorded that v25's UI checks were never re-run in a browser. v38–v46 rewrite
 most of the frontend's markup, so they need a regression net that already exists **before** the
 first redesign commit.
 
@@ -29,6 +29,9 @@ first redesign commit.
   instantly), plus one opt-in tagged `@network` spec that does a real download, excluded by
   default.
 - Desktop (1280×800) and mobile (390×844) projects.
+- **Pin the browser locale to `en-US`** (Playwright `locale`) in every project. Accessible names
+  are text, so they change when v45 adds Hungarian. A pinned locale keeps the baseline stable. v45
+  adds its own `hu` smoke project rather than rewriting these specs.
 
 ## Baseline specs
 
@@ -62,6 +65,7 @@ first redesign commit.
       both projects (output pasted).
 - [ ] Each spec fails when its feature breaks. For specs 1, 2, 5 and 7, temporarily revert the
       relevant fix or filter locally, show the red run, then restore.
+- [ ] Every project pins `locale: 'en-US'` (config diff).
 - [ ] No spec uses a CSS-class selector (`grep` for `locator('.` in `frontend/e2e/`).
 - [ ] The default run makes zero YouTube downloads (worker-dl log shows no download during the
       run). The `@network` spec runs on demand and passes once.

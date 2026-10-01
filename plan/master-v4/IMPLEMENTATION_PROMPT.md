@@ -49,7 +49,7 @@ line above. Everything you need to locate it derives from that one value:
 
 - `git checkout main && git pull`, then `git checkout -b <Branch from the plan header>`. All work
   is branched from `main`, and the PR goes to `main`.
-- **From v32 on, the local stack uses the dedicated dev database (`spotdl_web_dev`), with no
+- **From v32 on, the local stack uses the dedicated dev database (`spotdlwebtest`), with no
   exceptions.** If local `.env` points at the production database, stop. Never touch production
   rows from local dev.
 - Use test identities, **never** the real `ADMIN_EMAIL` account. At least one identity must log
@@ -72,10 +72,17 @@ line above. Everything you need to locate it derives from that one value:
   `values_callable` plus `DROP TYPE` for enums, SvelteKit exports **and** an nginx `location` per
   route, `!override` for compose lists, no per-row request loops, owner-scoped queries with 404
   for non-owners, and `queue.reset()` covering any new store state.
-- **UI slices (v38–v45): use the impeccable skill, strictly.** Load it, run its Setup
+- **UI slices (v38–v46): use the impeccable skill, strictly.** Load it, run its Setup
   (`context.mjs`), and use the sub-commands the plan names. Record each one's output in the PR.
   Capture desktop **and** mobile screenshots before and after, from real dev data. v43 also loads
   the dataviz skill before any chart.
+- **Keyboard (v44 on):** bindings target the **Hungarian QWERTZ** layout first. Nothing may need
+  AltGr, `Y`/`Z` are never bound, match on `event.key`, and AltGr (Ctrl+Alt on Windows) never
+  fires a shortcut. Any new interactive element added after v44 must be keyboard-reachable and
+  registered in the shortcut registry if it gets a key.
+- **Strings (v45 on):** every new user-visible string goes into **both** `en` and `hu` message
+  files (never a literal), and every new user-facing backend error gets a stable `code`. The
+  build's key-parity check must pass.
 - Any change touching the network path, proxy or IP family must verify the **real connection
   destination** (`socket.socket.connect` observation or tcpdump), never trust a flag.
 

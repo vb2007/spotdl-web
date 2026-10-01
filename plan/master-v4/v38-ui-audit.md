@@ -7,7 +7,7 @@ Otherwise no bump. State which in the PR.
 ## Scope
 
 The owner finds the UI cluttered. Evaluate the whole frontend **strictly through the impeccable
-skill** before any redesign, so v39–v42 are scoped by evidence rather than taste, and v45 has a
+skill** before any redesign, so v39–v42 are scoped by evidence rather than taste, and v46 has a
 baseline to score against. The same role v14's audit played for master v2.
 
 **No component or style changes in this slice.** The deliverable is a report. The only
@@ -38,7 +38,7 @@ stale.
      screenshots themselves are gitignored or kept in the PR body; don't commit binaries unless
      small).
    - **A ranked findings table:** severity, surface, finding, and **assigned slice**: v39 ambient
-     background, v40 track/job detail, v41 dashboard, v42 secondary surfaces, v44 keyboard, v45
+     background, v40 track/job detail, v41 dashboard, v42 secondary surfaces, v44 keyboard, v46
      polish, or "won't fix" with a reason.
    - **These already-known items must appear,** confirmed or refuted:
      - the TrackRow detail is indented 9rem while the title column starts at 10.25rem;
@@ -57,7 +57,7 @@ stale.
      That's impeccable's own distinction; follow it. **The owner approves the direction in the PR
      before v39 starts.**
 5. If the audit finds that a planned slice's scope is wrong (too big, missing a surface, or
-   unnecessary), record it as an amendment proposal in the report. Don't edit v39–v45's plans
+   unnecessary), record it as an amendment proposal in the report. Don't edit v39–v46's plans
    yourself.
 
 ## Out of scope
