@@ -464,6 +464,7 @@ jobs:
             guard "$CUR_TAG" "$CUR_COMMIT"
             if [ "$guard_rc" -eq 0 ]; then
               echo "Falling back to the pre-deploy version: the database is ahead of $PREV_TAG but known to $CUR_TAG."
+              echo "::notice::The migration_guard error above (database ahead of $PREV_TAG) is superseded: rolling back to the pre-deploy version $CUR_TAG instead. No backup restore is needed."
               PREV_TAG="$CUR_TAG"
               PREV_COMMIT="$CUR_COMMIT"
               echo "fallback=true" >> "$GITHUB_OUTPUT"
@@ -475,8 +476,15 @@ jobs:
                 || ALSO_AHEAD=" (the pre-deploy version $CUR_TAG @ $CUR_COMMIT couldn't be checked; it may still be compatible)"
               guard_rc=3
             fi
-          elif [ "$guard_rc" -eq 3 ] && [ -n "$CUR_TAG" ]; then
-            ALSO_AHEAD=" (no fallback: the pre-deploy version $CUR_TAG @ $CUR_COMMIT was unhealthy or is this same build)"
+          elif [ "$guard_rc" -eq 3 ] && [ -n "$CUR_TAG" ] \
+               && { [ "$CUR_TAG" != "$PREV_TAG" ] || [ "$CUR_COMMIT" != "$PREV_COMMIT" ]; }; then
+            # Only when there was a distinct pre-deploy version to consider (the usual case,
+            # pre-deploy == .last-good, needs no explanation).
+            if [ "$CUR_HEALTHY" != "true" ]; then
+              ALSO_AHEAD=" (no fallback: the pre-deploy version $CUR_TAG @ $CUR_COMMIT wasn't healthy before this run)"
+            else
+              ALSO_AHEAD=" (no fallback: the pre-deploy version $CUR_TAG @ $CUR_COMMIT is the build that just failed)"
+            fi
           fi
           echo "detail=$ALSO_AHEAD" >> "$GITHUB_OUTPUT"
           echo "target=$PREV_TAG" >> "$GITHUB_OUTPUT"
@@ -631,10 +639,18 @@ jobs:
                   rollback="succeeded, back on ${ROLLBACK_TAG}"
                 fi
                 ;;
-              refused) rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup (${BACKUP_PATH:-path in the run log}) or roll forward${ROLLBACK_DETAIL:+. Detail:$ROLLBACK_DETAIL}" ;;
+              refused) rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}${ROLLBACK_DETAIL}. Restore the pre-deploy pg_backup (${BACKUP_PATH:-path in the run log}) or roll forward" ;;
               guard-error) rollback="NOT STARTED: the migration guard couldn't compare revisions, so the old stack was left alone. See the run log" ;;
               not-started) rollback="NOT STARTED: the rollback stopped before moving anything (see the run log); the failed deploy is still in place" ;;
-              failed) rollback="FAILED rolling back to ${ROLLBACK_TAG}$([ "$ROLLBACK_FALLBACK" = "true" ] && echo " (the pre-deploy version)"), the stack may be down" ;;
+              failed)
+                # if/else, not `$([ … ] && echo …)`: under -e a false test in a substitution
+                # fails the whole assignment, and the message would never be sent.
+                if [ "$ROLLBACK_FALLBACK" = "true" ]; then
+                  rollback="FAILED rolling back to ${ROLLBACK_TAG} (the pre-deploy version), the stack may be down"
+                else
+                  rollback="FAILED rolling back to ${ROLLBACK_TAG}, the stack may be down"
+                fi
+                ;;
               *)
                 if [ "$DEPLOY_STEP" = "success" ] && [ "$HEALTH" = "success" ]; then
                   rollback="not needed, the new version passed its health gate (a later step failed, see the run)"

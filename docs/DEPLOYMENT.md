@@ -280,8 +280,8 @@ happened:
 | succeeded | The old commit + tag are back up and healthy. The run is still red, because the deploy failed. | Investigate at leisure, fix, re-run. |
 | succeeded, back on … the pre-deploy version | v33.1 fallback: the database was ahead of `.last-good`, so the rollback returned to what was running before the deploy (typically a `manual-*` dispatch) instead. `.last-good` is unchanged. | As above. The host is on a dispatch build until the next real release. |
 | refused | The database is **ahead** of the rollback image. The failed deploy's checkout and containers were left exactly as they were. | "The database is ahead of the rollback image" below. |
-| not started | The rollback stopped before moving anything (no rollback target recorded, the previous commit unreadable). The failed deploy is still in place. | Read the log, then roll back manually if needed. |
-| not started (guard error) | The migration guard couldn't compare revisions (Postgres unreachable, the old image unpullable, a compose error such as a changed network definition, or the new `migrate` still running after 5 minutes), so it started nothing. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
+| not started | The rollback stopped before moving anything (no rollback target recorded). The failed deploy is still in place. | Read the log, then roll back manually if needed. |
+| not started (guard error) | The migration guard couldn't compare revisions (the rollback commit unreadable, Postgres unreachable, the old image unpullable, a compose error such as a changed network definition, or the new `migrate` still running after 5 minutes), so it started nothing. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
 | failed | The rollback itself broke part-way. The stack may be down. | "Roll back to a known-good version manually" below, to the target the message names (`.last-good`, or the pre-deploy version if it says so). |
 | not needed, the new version passed its health gate | A step after the health gate failed (writing `.last-good`, say). The new version is up. | Check the Summary; `.last-good` may still name the previous release. |
 | UNKNOWN, the deploy job reported nothing | The deploy job produced no step outcomes (the runner died, the host rebooted, a cancel before it started). | Check the host's state (HEAD, `IMAGE_TAG`, `compose ps`) before doing anything. |
@@ -366,8 +366,12 @@ design. You have two ways out:
      forward.
    - **"couldn't be checked"** (image unpullable, Postgres blip): the pre-deploy version may well
      be compatible. Re-check it by hand with the guard, then put it back by hand.
-   - **"no fallback: unhealthy or this same build"**: there's no good version to return to
-     automatically; roll forward, or restore and go back to the last version you know worked.
+   - **"no fallback: … wasn't healthy before this run" / "… is the build that just failed"**:
+     there's no good version to return to automatically. Roll forward, or restore and go back to
+     the last version you know worked.
+   - **No detail at all**: the usual case, where the version running before the deploy *was*
+     `.last-good`. This deploy's `migrate` moved the schema: restore the backup and roll back to
+     `.last-good` (above).
 
 You can re-check the guard by hand before starting anything, with the checkout and `.env`
 already on the rollback commit and tag. The guard is new in v33, so take it from `main` rather
