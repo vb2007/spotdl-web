@@ -393,11 +393,13 @@ jobs:
           for _ in $(seq 60); do
             state="$(docker compose -f "$DEPLOY_DIR/docker-compose.yml" -f "$DEPLOY_DIR/docker-compose.prod.yml" \
               --project-directory "$DEPLOY_DIR" ps -a --format '{{.State}}' migrate 2>/dev/null)" || state=unknown
-            [ "$state" = "running" ] || break
+            # grep, not `=`: more than one migrate container (a leftover one-off) is several lines.
+            printf '%s\n' "$state" | grep -qx running || break
             echo "Waiting for the new migrate container to exit before the guard..."
             sleep 5
           done
-          if [ "$state" = "running" ] || [ "$state" = "unknown" ]; then
+          if printf '%s\n' "$state" | grep -qx running || [ "$state" = "unknown" ]; then
+            state="$(printf '%s' "$state" | tr '\n' ' ')"
             echo "result=guard-error" >> "$GITHUB_OUTPUT"
             echo "::error::Rollback not attempted: the new migrate container is ${state} (a migration may still be in flight), so nothing was started. Pre-deploy pg_backup: ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>}."
             exit 1
@@ -417,7 +419,9 @@ jobs:
             GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $TMP/docker-compose.yml -f $TMP/docker-compose.prod.yml --profile tunnel" \
             bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" \
             2> "$TMP/guard.err" || guard_rc=$?
-          python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" < "$TMP/guard.err" >&2
+          # `|| true`: a redactor failure (it prints nothing then) mustn't abort a rollback the
+          # guard has just cleared.
+          python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" < "$TMP/guard.err" >&2 || true
           if [ "$guard_rc" -eq 3 ]; then
             echo "result=refused" >> "$GITHUB_OUTPUT"
             echo "::error::Rollback refused: the database is ahead of $PREV_TAG. The failed deploy's checkout and containers are left as they are. Restore the pre-deploy pg_backup at ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>} or roll forward; see docs/DEPLOYMENT.md, 'Rollback / recovery'."

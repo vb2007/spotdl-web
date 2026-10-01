@@ -283,6 +283,7 @@ happened:
 | not started (guard error) | The migration guard couldn't compare revisions (Postgres unreachable, the old image unpullable, a compose error such as a changed network definition, or the new `migrate` still running after 5 minutes), so it started nothing. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
 | failed | The rollback itself broke part-way. The stack may be down. | "Roll back to a known-good version manually" below. |
 | not needed, the new version passed its health gate | A step after the health gate failed (writing `.last-good`, say). The new version is up. | Check the Summary; `.last-good` may still name the previous release. |
+| UNKNOWN, the deploy job reported nothing | The deploy job produced no step outcomes (the runner died, the host rebooted, a cancel before it started). | Check the host's state (HEAD, `IMAGE_TAG`, `compose ps`) before doing anything. |
 | not attempted, the host may be mid-deploy | The deploy step started but no rollback ran: the run was cut off before the rollback step could start. | Check the Summary's state, then roll back manually if needed. |
 
 **A deploy needs a new `.env` variable** (the preflight failed, naming it): add it to
@@ -331,11 +332,14 @@ design. You have two ways out:
    DB_URL="$(grep -E '^DATABASE_URL=' .env | tail -n1 | cut -d= -f2- \
      | sed -e 's/postgresql+psycopg:/postgresql:/' -e 's/host\.docker\.internal/localhost/')"
    pg_restore --list "$DUMP" | head    # sanity: the dump is readable, before anything is dropped
-   psql "$DB_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+   psql "$DB_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public AUTHORIZATION CURRENT_USER;'
    pg_restore --no-owner --exit-on-error --dbname="$DB_URL" "$DUMP"
    ```
-   The dump recreates the `pg_trgm` extension too. This works as the database's owning role (the
-   one in `DATABASE_URL`); if `DROP SCHEMA` is refused, run that one line as `postgres`.
+   The dump recreates the `pg_trgm` extension too. This runs as the role in `DATABASE_URL`,
+   which owns the database. If `DROP SCHEMA` is refused anyway, run it as `postgres` but name
+   the app role as the new schema's owner
+   (`sudo -u postgres psql -d spotdlweb -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public AUTHORIZATION spotdlweb;'`),
+   or the restore that follows fails with "permission denied for schema public".
    Then run "Roll back to a known-good version manually" above, using `.last-good`. Its
    `migrate` finds the schema at its own revision and no-ops.
 

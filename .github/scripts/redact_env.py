@@ -28,7 +28,7 @@ ENV_LINE_RE = re.compile(r"^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=(.*)$")
 
 def secrets(env_file: str) -> list[str]:
     found: set[str] = set()
-    for line in open(env_file):
+    for line in open(env_file, encoding="utf-8", errors="replace"):
         line = line.rstrip("\n")
         if not line.strip() or line.lstrip().startswith("#"):
             continue
@@ -59,7 +59,7 @@ def main() -> int:
         # Can't read the env file: print nothing rather than risk printing it unmasked.
         print(f"redact_env: {exc}; output suppressed", file=sys.stderr)
         return 1
-    text = sys.stdin.read()
+    text = sys.stdin.buffer.read().decode("utf-8", errors="replace")
     for v in values:
         text = text.replace(v, "***")
     sys.stdout.write(text)
