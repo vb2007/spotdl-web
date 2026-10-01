@@ -279,7 +279,8 @@ happened:
 | not needed | The preflight (or the backup) failed before anything on the host moved. | Fix the cause, typically a missing `.env` variable named in the log (see "A deploy needs a new `.env` variable" below), then re-run. |
 | succeeded | The old commit + tag are back up and healthy. The run is still red, because the deploy failed. | Investigate at leisure, fix, re-run. |
 | refused | The database is **ahead** of the rollback image. The failed deploy's checkout and containers were left exactly as they were. | "The database is ahead of the rollback image" below. |
-| not started (guard error) | The migration guard couldn't compare revisions (Postgres unreachable, the old image unpullable, a compose error such as a changed network definition), so it started nothing. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
+| not started | The rollback stopped before moving anything (no rollback target recorded, the previous commit unreadable). The failed deploy is still in place. | Read the log, then roll back manually if needed. |
+| not started (guard error) | The migration guard couldn't compare revisions (Postgres unreachable, the old image unpullable, a compose error such as a changed network definition, or the new `migrate` still running after 5 minutes), so it started nothing. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
 | failed | The rollback itself broke part-way. The stack may be down. | "Roll back to a known-good version manually" below. |
 | not needed, the new version passed its health gate | A step after the health gate failed (writing `.last-good`, say). The new version is up. | Check the Summary; `.last-good` may still name the previous release. |
 | not attempted, the host may be mid-deploy | The deploy step started but no rollback ran: the run was cut off before the rollback step could start. | Check the Summary's state, then roll back manually if needed. |
@@ -317,6 +318,10 @@ design. You have two ways out:
    `Pre-deploy pg_backup: /mnt/raid1/spotdl-web/backups/spotdl_web_<timestamp>.dump`. Anything
    written to the database after that dump is lost (downloads recorded since the deploy started),
    so prefer this only when the migration itself is the problem.
+   Restore into an **emptied** schema, not with `pg_restore --clean` over the live one:
+   `--clean` only drops what is *in* the dump, so the tables, enum types and indexes the failed
+   migration created would survive, and the next roll-forward's `migrate` would fail on
+   "already exists".
    ```bash
    cd /mnt/raid1/spotdl-web
    DUMP=/mnt/raid1/spotdl-web/backups/spotdl_web_<timestamp>.dump   # from the run log
@@ -325,8 +330,12 @@ design. You have two ways out:
    # the host-native Postgres as localhost, not host.docker.internal (same as pg_backup.sh).
    DB_URL="$(grep -E '^DATABASE_URL=' .env | tail -n1 | cut -d= -f2- \
      | sed -e 's/postgresql+psycopg:/postgresql:/' -e 's/host\.docker\.internal/localhost/')"
-   pg_restore --no-owner --clean --if-exists --dbname="$DB_URL" "$DUMP"
+   pg_restore --list "$DUMP" | head    # sanity: the dump is readable, before anything is dropped
+   psql "$DB_URL" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+   pg_restore --no-owner --exit-on-error --dbname="$DB_URL" "$DUMP"
    ```
+   The dump recreates the `pg_trgm` extension too. This works as the database's owning role (the
+   one in `DATABASE_URL`); if `DROP SCHEMA` is refused, run that one line as `postgres`.
    Then run "Roll back to a known-good version manually" above, using `.last-good`. Its
    `migrate` finds the schema at its own revision and no-ops.
 
@@ -369,9 +378,10 @@ name to match yours (`docker ps | grep -i synapse`).
    pipeline uses, so treat it like a password:
    ```bash
    read -rs BOT_PASSWORD   # the password from step 1, so it stays out of shell history
-   curl -sS -X POST "https://<homeserver>/_matrix/client/v3/login" \
-     -H 'Content-Type: application/json' \
-     -d "{\"type\":\"m.login.password\",\"identifier\":{\"type\":\"m.id.user\",\"user\":\"spotdl-bot\"},\"password\":\"$BOT_PASSWORD\",\"initial_device_display_name\":\"spotdl-web pipeline\"}"
+   # The body goes in on stdin (-d @-), so the password never appears in curl's argv, which
+   # other users on this shared host could read via ps.
+   printf '{"type":"m.login.password","identifier":{"type":"m.id.user","user":"spotdl-bot"},"password":"%s","initial_device_display_name":"spotdl-web pipeline"}' "$BOT_PASSWORD" \
+     | curl -sS -X POST "https://<homeserver>/_matrix/client/v3/login" -H 'Content-Type: application/json' -d @-
    # -> {"user_id":"@spotdl-bot:<server>","access_token":"syt_...","device_id":"..."}
    ```
    Don't log the bot out afterwards: logging out revokes this token.
@@ -384,7 +394,9 @@ name to match yours (`docker ps | grep -i synapse`).
 5. **Join the room as the bot**, which accepts the invite:
    ```bash
    read -rs BOT_TOKEN   # the access_token from step 2
-   curl -sS -X POST -H "Authorization: Bearer $BOT_TOKEN" \
+   # -H @file reads the header from a file, here a process substitution (printf is a builtin, so
+   # the token never appears in any argv).
+   curl -sS -X POST -H @<(printf 'Authorization: Bearer %s' "$BOT_TOKEN") \
      "https://<homeserver>/_matrix/client/v3/join/$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' '!AbCdEf123:<server>')"
    ```
 6. **Add the three repository secrets**. `gh secret set` reads the value from stdin when you

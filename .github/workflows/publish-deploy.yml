@@ -362,8 +362,9 @@ jobs:
       # nothing to roll back. A run cancelled by hand rolls back too, since a cancel mid-`up`
       # leaves the host half-deployed. (Whether GitHub also runs this after a job-level
       # `timeout-minutes` cut is not verified; the generous timeout is there so it never has to.) `result` is for the notify job:
-      # failed (the default, until the end is reached), refused (the database is ahead),
-      # guard-error (the guard couldn't tell, so nothing was started), succeeded.
+      # not-started (stopped before moving anything), refused (the database is ahead),
+      # guard-error (the guard couldn't tell, so nothing was started), failed (broke after the
+      # checkout began), succeeded.
       - name: Roll back to the previous commit and image on failure
         id: rollback
         if: >-
@@ -375,7 +376,8 @@ jobs:
           PREV_COMMIT: ${{ steps.prev.outputs.commit }}
           BACKUP_PATH: ${{ steps.backup.outputs.path }}
         run: |
-          echo "result=failed" >> "$GITHUB_OUTPUT"
+          # not-started until the checkout below begins moving the host; failed after that.
+          echo "result=not-started" >> "$GITHUB_OUTPUT"
           echo "Pre-deploy pg_backup: ${BACKUP_PATH:-(path not recorded)}"
           if [ -z "$PREV_TAG" ] || [ -z "$PREV_COMMIT" ]; then
             echo "::error::No previous IMAGE_TAG/commit was recorded (first-ever automated deploy) -- nothing to roll back to. See docs/RELEASE_PIPELINE.md for manual recovery."
@@ -385,13 +387,21 @@ jobs:
           # A cancel mid-`up` stops compose, not the new `migrate` container: let a migration
           # still in flight finish (or die) first, or the guard reads a revision that's about
           # to change under it.
+          # Fails closed: still running after 5 minutes, or unknown, means no guard and no
+          # rollback, rather than one that kills a migration mid-flight.
+          state=unknown
           for _ in $(seq 60); do
-            state="$(docker compose --project-directory "$DEPLOY_DIR" -f "$DEPLOY_DIR/docker-compose.yml" \
-              -f "$DEPLOY_DIR/docker-compose.prod.yml" ps -a --format '{{.State}}' migrate 2>/dev/null || true)"
+            state="$(docker compose -f "$DEPLOY_DIR/docker-compose.yml" -f "$DEPLOY_DIR/docker-compose.prod.yml" \
+              --project-directory "$DEPLOY_DIR" ps -a --format '{{.State}}' migrate 2>/dev/null)" || state=unknown
             [ "$state" = "running" ] || break
             echo "Waiting for the new migrate container to exit before the guard..."
             sleep 5
           done
+          if [ "$state" = "running" ] || [ "$state" = "unknown" ]; then
+            echo "result=guard-error" >> "$GITHUB_OUTPUT"
+            echo "::error::Rollback not attempted: the new migrate container is ${state} (a migration may still be in flight), so nothing was started. Pre-deploy pg_backup: ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>}."
+            exit 1
+          fi
 
           # Migration guard first, before anything moves: the previous commit's compose files
           # out of git, with the previous tag, exactly as the old stack would start. Its stderr
@@ -419,6 +429,7 @@ jobs:
           fi
 
           echo "Rolling back to commit $PREV_COMMIT, IMAGE_TAG=$PREV_TAG"
+          echo "result=failed" >> "$GITHUB_OUTPUT"
           cd "$DEPLOY_DIR"
           git checkout --detach --force "$PREV_COMMIT"
           git reset --hard "$PREV_COMMIT"
@@ -548,6 +559,7 @@ jobs:
               succeeded) rollback="succeeded, back on ${ROLLBACK_TAG}" ;;
               refused) rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup or roll forward (path in the run log)" ;;
               guard-error) rollback="NOT STARTED: the migration guard couldn't compare revisions, so the old stack was left alone. See the run log" ;;
+              not-started) rollback="NOT STARTED: the rollback stopped before moving anything (see the run log); the failed deploy is still in place" ;;
               failed) rollback="FAILED, the stack may be down" ;;
               *)
                 if [ "$DEPLOY_STEP" = "success" ] && [ "$HEALTH" = "success" ]; then

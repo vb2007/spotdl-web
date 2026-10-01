@@ -53,32 +53,37 @@ def main() -> int:
     txn = urllib.parse.quote(os.environ.get("MATRIX_TXN_ID", "").strip() or str(os.getpid()), safe="")
     url = f"{homeserver}/_matrix/client/v3/rooms/{room}/send/m.room.message/{txn}"
 
-    request = urllib.request.Request(
-        url,
-        data=json.dumps({"msgtype": "m.text", "body": body}).encode(),
-        method="PUT",
-        headers={
-            "Authorization": f"Bearer {os.environ['MATRIX_ACCESS_TOKEN'].strip()}",
-            "Content-Type": "application/json",
-            # Cloudflare (in front of this host's Synapse) rejects urllib's default
-            # `Python-urllib/3.x` agent outright: HTTP 403, "error code: 1010", before the
-            # request ever reaches Synapse. Any explicit agent passes.
-            "User-Agent": "spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)",
-        },
-    )
     try:
+        request = urllib.request.Request(
+            url,
+            data=json.dumps({"msgtype": "m.text", "body": body}).encode(),
+            method="PUT",
+            headers={
+                "Authorization": f"Bearer {os.environ['MATRIX_ACCESS_TOKEN'].strip()}",
+                "Content-Type": "application/json",
+                # Cloudflare (in front of this host's Synapse) rejects urllib's default
+                # `Python-urllib/3.x` agent outright: HTTP 403, "error code: 1010", before the
+                # request ever reaches Synapse. Any explicit agent passes.
+                "User-Agent": "spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)",
+            },
+        )
         with urllib.request.urlopen(request, timeout=30) as response:
             print(f"matrix_notify: sent (HTTP {response.status})")
             return 0
     except urllib.error.HTTPError as exc:
         # Matrix error bodies are {"errcode", "error"}: safe, and the only useful diagnostic.
         try:
-            detail = json.loads(exc.read()).get("errcode", "")
+            parsed = json.loads(exc.read())
+            detail = parsed.get("errcode", "") if isinstance(parsed, dict) else ""
         except (ValueError, OSError):
             detail = ""
         print(f"::error::Matrix notification failed: HTTP {exc.code} {detail}".rstrip())
     except (urllib.error.URLError, TimeoutError) as exc:
         print(f"::error::Matrix notification failed: {getattr(exc, 'reason', exc)}")
+    except Exception as exc:  # noqa: BLE001 - e.g. a URL with no scheme
+        # Type only: the message would carry the request URL, whose percent-encoded room id
+        # GitHub's secret masking doesn't recognise.
+        print(f"::error::Matrix notification failed: {type(exc).__name__} (check MATRIX_HOMESERVER_URL)")
     return 1
 
 

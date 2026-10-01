@@ -280,8 +280,10 @@ migration.
 4. **Still exits non-zero**: the deploy failed even when the rollback worked, and the run must
    show red.
 
-The step's `result` (`succeeded`, `refused`, `guard-error`, `failed`) goes into the Matrix
-message. The manual
+The step's `result` (`succeeded`, `not-started`, `refused`, `guard-error`, `failed`, the last
+only once the checkout has begun moving) goes into the Matrix message. A new `migrate` still
+running 5 minutes after a cancel is a `guard-error` too: nothing is started over a migration in
+flight. The manual
 recovery for each case is in `docs/DEPLOYMENT.md`, "Rollback / recovery".
 
 ### `.last-good`
