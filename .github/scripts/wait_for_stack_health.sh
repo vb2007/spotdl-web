@@ -62,7 +62,7 @@ while true; do
   migrate_line="$(compose_ps -a --format '{{.State}} {{.ExitCode}}' migrate)" || exit 2
   [ "$migrate_line" = "exited 0" ] || ok=false
 
-  if $ok && curl -fsS -o /dev/null http://localhost:8000/api/health; then
+  if $ok && curl -fsS --max-time 10 -o /dev/null http://localhost:8000/api/health; then
     echo "wait_for_stack_health: stack is healthy"
     exit 0
   fi

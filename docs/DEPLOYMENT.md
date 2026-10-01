@@ -360,18 +360,21 @@ design. You have two ways out:
    "back on `manual-<sha>`: the pre-deploy version". When it refuses anyway, its detail line says
    why, and the pre-deploy commit + tag are in the run log ("Deploy checkout HEAD" / "Deployed
    IMAGE_TAG"):
-   - **"also ahead of the pre-deploy version"**: this deploy's own `migrate` moved the schema, so
+   - **"…and of the pre-deploy version X too"**: this deploy's own `migrate` moved the schema, so
      the pre-deploy backup is exactly at the pre-deploy version's schema. Restore it (above),
      then roll back by hand to the **pre-deploy commit + tag**, not `.last-good`, or roll
      forward.
    - **"couldn't be checked"** (image unpullable, Postgres blip): the pre-deploy version may well
      be compatible. Re-check it by hand with the guard, then put it back by hand.
-   - **"no fallback: … wasn't healthy before this run" / "… is the build that just failed"**:
-     there's no good version to return to automatically. Roll forward, or restore and go back to
-     the last version you know worked.
+   - **"no fallback: … wasn't healthy, or wasn't what was running" / "… is the build that just
+     failed"**: there's no good version to return to automatically. Roll forward, or restore and
+     go back to the last version you know worked. Mind which backup: if an *earlier* failed run
+     left this broken version up, this run's pre-deploy dump is already ahead of `.last-good`;
+     the earlier run's dump (its log names it) is the one from before the schema moved.
    - **No detail at all**: the usual case, where the version running before the deploy *was*
-     `.last-good` (or, before the first release-mode run wrote `.last-good`, the `.env` tag). This deploy's `migrate` moved the schema: restore the backup and roll back to
-     `.last-good` (above).
+     the rollback target: `.last-good`, or, before the first release-mode run wrote it, the `.env`
+     tag + HEAD (also when `.env` had no `IMAGE_TAG`). This deploy's `migrate` moved the schema: restore the backup and roll back to
+     the rollback target the message names (above).
 
 You can re-check the guard by hand before starting anything, with the checkout and `.env`
 already on the rollback commit and tag. The guard is new in v33, so take it from `main` rather

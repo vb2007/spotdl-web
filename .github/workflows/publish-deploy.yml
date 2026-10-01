@@ -253,13 +253,23 @@ jobs:
           [ -f "$HEALTH_SCRIPT" ] || HEALTH_SCRIPT=.github/scripts/wait_for_stack_health.sh
           RUNNING_IMAGE="$(cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml \
             ps --format '{{.Image}}' api 2>/dev/null || true)"
+          # ...and was built from HEAD: both build modes stamp org.opencontainers.image.revision,
+          # so a checkout moved without restarting the stack doesn't pass for a matched pair.
+          API_ID="$(cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+            ps -q api 2>/dev/null | head -n1 || true)"
+          RUNNING_REV=""
+          if [ -n "$API_ID" ]; then
+            RUNNING_REV="$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+              "$API_ID" 2>/dev/null || true)"
+          fi
           if [ -n "$CURRENT_TAG" ] && [ "${RUNNING_IMAGE##*:}" = "$CURRENT_TAG" ] \
+             && [ "$RUNNING_REV" = "$HEAD_COMMIT" ] \
              && bash "$HEALTH_SCRIPT" "$DEPLOY_DIR" 0 >/dev/null 2>&1; then
             echo "current_healthy=true" >> "$GITHUB_OUTPUT"
             echo "Running stack:        healthy"
           else
             echo "current_healthy=false" >> "$GITHUB_OUTPUT"
-            echo "Running stack:        not healthy, or not running IMAGE_TAG=${CURRENT_TAG:-(none)} (api image: ${RUNNING_IMAGE:-none})"
+            echo "Running stack:        not healthy, or not IMAGE_TAG=${CURRENT_TAG:-(none)} built from HEAD (api image: ${RUNNING_IMAGE:-none}, revision: ${RUNNING_REV:-unknown})"
           fi
           echo "Deploy checkout HEAD: $HEAD_COMMIT"
           echo "Deployed IMAGE_TAG:   ${CURRENT_TAG:-(none)}"
@@ -488,7 +498,7 @@ jobs:
             # Only when there was a distinct pre-deploy version to consider (the usual case,
             # pre-deploy == .last-good, needs no explanation).
             if [ "$CUR_HEALTHY" != "true" ]; then
-              ALSO_AHEAD=" (no fallback: the pre-deploy version $CUR_TAG @ $CUR_COMMIT wasn't healthy, or wasn't what was running, before this run)"
+              ALSO_AHEAD=" (no fallback: the pre-deploy version $CUR_TAG @ $CUR_COMMIT wasn't healthy, or wasn't what was running, before this run; this run's backup may be ahead of .last-good too)"
             else
               ALSO_AHEAD=" (no fallback: the pre-deploy version $CUR_TAG @ $CUR_COMMIT is the build that just failed)"
             fi
