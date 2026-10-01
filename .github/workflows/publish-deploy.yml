@@ -191,13 +191,17 @@ jobs:
   deploy:
     needs: [resolve, publish]
     runs-on: self-hosted
-    timeout-minutes: 25
+    # v33: 40, not 25. A failing deploy can now spend 420s in the health gate AND up to 420s in
+    # the rollback's own wait, plus pulls and the guard; a timeout mid-rollback would leave the
+    # host half rolled back.
+    timeout-minutes: 40
     env:
       DEPLOY_DIR: /mnt/raid1/spotdl-web
     # Read by the `notify` job below. Outputs are kept even when this job fails.
     outputs:
       skipped: ${{ steps.skip.outputs.skip || 'false' }}
       deploy_step: ${{ steps.deploy.outcome }}
+      health: ${{ steps.health.outcome }}
       rollback: ${{ steps.rollback.outputs.result }}
       rollback_tag: ${{ steps.prev.outputs.tag }}
     steps:
@@ -277,30 +281,13 @@ jobs:
             exit 1
           fi
 
-          # Belt and braces for everything else a render can trip on. stderr is the only output
-          # and holds error messages, not values, but it still goes through a redactor that
-          # masks every .env value before it reaches the log.
+          # Belt and braces for everything else a render can trip on. stderr is the only output,
+          # and compose does echo .env content in some errors (a bad value, a malformed line), so
+          # it goes through redact_env.py, which masks every .env value, before the log.
           if ! docker compose --project-directory "$DEPLOY_DIR" \
                -f "$TMP/docker-compose.yml" -f "$TMP/docker-compose.prod.yml" --profile tunnel \
                config --quiet 2> "$TMP/config.err"; then
-            python3 - "$DEPLOY_DIR/.env" "$TMP/config.err" <<'PY'
-          import re, sys
-          values = set()
-          for line in open(sys.argv[1]):
-              m = re.match(r"^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=(.*)$", line)
-              if m:
-                  raw = m.group(1).strip()
-                  # Both the raw text and the value Compose sees once an inline ` #` comment
-                  # is dropped, quotes stripped either way.
-                  for v in (raw, raw.split(" #", 1)[0].strip()):
-                      v = v.strip("'\"")
-                      if len(v) >= 3:
-                          values.add(v)
-          text = open(sys.argv[2]).read()
-          for v in sorted(values, key=len, reverse=True):
-              text = text.replace(v, "***")
-          sys.stdout.write(text)
-          PY
+            python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" < "$TMP/config.err"
             echo "::error::Preflight: the new commit's compose files don't render against the host .env (redacted error above). Nothing on the host was changed."
             exit 1
           fi
@@ -359,6 +346,7 @@ jobs:
             up -d --no-build --remove-orphans
 
       - name: Wait for the stack to become healthy
+        id: health
         if: steps.skip.outputs.skip != 'true'
         run: bash .github/scripts/wait_for_stack_health.sh "$DEPLOY_DIR" 420
 
@@ -452,8 +440,8 @@ jobs:
           docker image prune -f || echo "::warning::docker image prune failed"
           docker builder prune -f --keep-storage 5GB || echo "::warning::docker builder prune failed"
 
-      # Also echoed to the log (tee), so a run's end state is evidence without SSH. None of
-      # this is secret: HEAD, the IMAGE_TAG line and .last-good only.
+      # Also echoed to the log (tee), so a run's end state is evidence without SSH. HEAD, the
+      # IMAGE_TAG line and .last-good aren't secret; compose's own output is redacted.
       - name: Summary
         if: always()
         run: |
@@ -468,7 +456,10 @@ jobs:
             echo "- .last-good: \`$(tr '\n' ' ' 2>/dev/null < "$DEPLOY_DIR/.last-good" || echo absent)\`"
             echo
             echo '```'
-            cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps 2>&1 || true
+            # stderr included (it's the diagnostic when ps fails), but through the redactor:
+            # a .env compose can't parse gets echoed back in the error.
+            (cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps 2>&1) \
+              | python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" || true
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
@@ -506,6 +497,7 @@ jobs:
           RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
           PERSIST: ${{ needs.resolve.outputs.persist }}
           DEPLOY_STEP: ${{ needs.deploy.outputs.deploy_step }}
+          HEALTH: ${{ needs.deploy.outputs.health }}
           ROLLBACK: ${{ needs.deploy.outputs.rollback }}
           ROLLBACK_TAG: ${{ needs.deploy.outputs.rollback_tag }}
         run: |
@@ -530,7 +522,9 @@ jobs:
               guard-error) rollback="NOT STARTED: the migration guard couldn't compare revisions, so the old stack was left alone. See the run log" ;;
               failed) rollback="FAILED, the stack may be down" ;;
               *)
-                if [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ] || [ "$DEPLOY_STEP" = "cancelled" ]; then
+                if [ "$DEPLOY_STEP" = "success" ] && [ "$HEALTH" = "success" ]; then
+                  rollback="not needed, the new version passed its health gate (a later step failed, see the run)"
+                elif [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ] || [ "$DEPLOY_STEP" = "cancelled" ]; then
                   rollback="not attempted, the host may be mid-deploy"
                 else
                   rollback="not needed, nothing on the host was changed"

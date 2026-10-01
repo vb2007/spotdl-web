@@ -279,9 +279,10 @@ happened:
 | not needed | The preflight (or the backup) failed before anything on the host moved. | Fix the cause, typically a missing `.env` variable named in the log (see "A deploy needs a new `.env` variable" below), then re-run. |
 | succeeded | The old commit + tag are back up and healthy. The run is still red, because the deploy failed. | Investigate at leisure, fix, re-run. |
 | refused | The database is **ahead** of the rollback image. The failed deploy's checkout and containers were left exactly as they were. | "The database is ahead of the rollback image" below. |
-| not started (guard error) | The migration guard couldn't compare revisions (Postgres unreachable, the old image unpullable), so it started nothing. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
+| not started (guard error) | The migration guard couldn't compare revisions (Postgres unreachable, the old image unpullable, a compose error such as a changed network definition), so it started nothing. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
 | failed | The rollback itself broke part-way. The stack may be down. | "Roll back to a known-good version manually" below. |
-| not attempted, the host may be mid-deploy | The deploy step started but the rollback never ran (a cancel during the rollback itself, say). | Check the Summary's state, then roll back manually if needed. |
+| not needed, the new version passed its health gate | A step after the health gate failed (writing `.last-good`, say). The new version is up. | Check the Summary; `.last-good` may still name the previous release. |
+| not attempted, the host may be mid-deploy | The deploy step started but no rollback ran: the run was cut off before the rollback step could start. | Check the Summary's state, then roll back manually if needed. |
 
 **A deploy needs a new `.env` variable** (the preflight failed, naming it): add it to
 `/mnt/raid1/spotdl-web/.env`, with the value the version's PR lists under "Deploy notes", then

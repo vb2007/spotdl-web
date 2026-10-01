@@ -208,8 +208,9 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
      need that `.env` lacks (or has empty), **by name**, plus "add to `.env`, see
      docs/DEPLOYMENT.md". It prints names only, never values.
    - `docker compose ... config --quiet` then catches anything else a render can trip on. Its
-     stdout is suppressed (a full render holds every secret), and its stderr goes through a
-     redactor that masks every `.env` value.
+     stdout is suppressed (a full render holds every secret), and its stderr goes through
+     `redact_env.py`, which masks every `.env` value: compose echoes a bad value, or a whole
+     malformed line, back in its errors. The Summary's `compose ps` goes through it too.
 
    A failure here ends the run with nothing changed: no backup, no checkout, no `IMAGE_TAG`
    write. That's the gap that broke v28's deploy *and* its rollback on 2026-09-27.
@@ -250,8 +251,9 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
 ### Rollback
 
 Only runs when the deploy step (6–8) actually started, since a failure in the preflight or the
-backup left nothing to undo. A **cancelled** run (by hand, or the job's `timeout-minutes`) rolls
-back too, since a cancel mid-`up` leaves the host half-deployed. Code/image rollback only: Alembic migrations are never downgraded
+backup left nothing to undo. A run **cancelled** by hand rolls back too, since a cancel mid-`up`
+leaves the host half-deployed. The job's `timeout-minutes` is 40 so that a failing deploy's two
+420s health waits (gate, then rollback) fit with room to spare. Code/image rollback only: Alembic migrations are never downgraded
 automatically (too risky unattended); the pre-deploy `pg_backup` is the recovery path for a bad
 migration.
 
