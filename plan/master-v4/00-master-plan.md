@@ -281,3 +281,11 @@ here rather than edited into it, so the original record stays readable.
   document. On the owner's direction, the dev guard refuses **both** names
   (`PRODUCTION_DATABASE_NAMES` in `backend/app/config.py`). Wherever a later plan says "production's
   `spotdl_web`", read `spotdlweb`.
+- **2026-10-01, v33.1 (inserted after v33 merged, owner-directed): two v33 follow-ups.** Workflows and
+  docs only, no bump, branch `dev-v33-followup`. (1) A configured Matrix send that fails is a
+  warning, not a red run: Synapse shares the host and the Cloudflare zone with the runner and the
+  app, so an alert outage is never isolated. (2) The owner left the rollback-after-a-migrating-
+  dispatch case to the implementer, with "avoid downtime" as the goal: when the database is ahead
+  of `.last-good`, the rollback now falls back to the pre-deploy commit + tag if that knows the
+  schema. `.last-good` semantics (Task 3) are unchanged. CLAUDE.md's Rollback locked decision was
+  edited to match.

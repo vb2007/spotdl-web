@@ -163,7 +163,7 @@ Settled. Don't re-litigate without asking.
 | Production data | **No longer disposable.** No API back-compat needed, but a migration that drops/rewrites data says so in its plan and takes a `pg_backup` first |
 | Dev database | Dedicated **`spotdlwebtest`** (already created, local `.env` points at it), mandatory from v32; local dev refuses to boot against the prod DB name (`spotdlweb`; also `spotdl_web`, the templates' name) |
 | Alerts | One Matrix room (host's Synapse, bot token) for pipeline and app alerts; unconfigured = off; an alert never blocks work |
-| Rollback | Restores the last healthy `persist=true` release's commit **and** tag together; never automatic across a migration |
+| Rollback | Restores the last healthy `persist=true` release's commit **and** tag together (`.last-good`); if the DB is ahead of it, falls back to the pre-deploy commit + tag when that knows the schema (v33.1); never across a migration the target doesn't know |
 | UI work | Every UI slice goes through the impeccable skill; all monitoring information is kept, only its presentation changes |
 | Browser tests | Playwright suite run locally against the real stack; no CI browser job (the runner is the prod host) |
 | Keyboard | Full mouse-free operation, bindings designed for **Hungarian QWERTZ** (no AltGr, no `Y`/`Z`, match `event.key`); single-key shortcuts inert in inputs and turn-off-able per user |

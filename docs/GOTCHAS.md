@@ -147,6 +147,8 @@ needed" claim — rather than silently deleted.
   403, `error code: 1010`) before Synapse sees the request → *v33*
 - A pending run in a concurrency group is replaced by any newer one (only the *running* one is
   protected), so a queued scratch dispatch can be silently cancelled by an unrelated push → *v33*
+- Under `bash -e`, an assignment whose `$(...)` ends in a false `[ ] && echo` aborts the script.
+  Test extracted Actions scripts with `bash -eo pipefail`, not plain `bash` → *v33.1*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -4098,3 +4100,14 @@ independently-found production bug from the same conversation)
   queued rollback-test dispatch (`36860980814`, `cancelled` with no jobs run). So while a
   verification dispatch is queued behind another run, don't push to any branch with an open PR,
   and check the dispatch actually started before waiting on it.
+
+### v33.1 v33-followup gotchas
+
+- **Under `bash -e`, `x="…$([ cond ] && echo y)…"` aborts the script when `cond` is false.** A line
+  that is only an assignment takes its exit status from its last command substitution, and
+  `[ false ] && echo` returns 1. GitHub Actions' default shell is `bash -eo pipefail`, so a
+  `notify` step written that way died before sending the very "rollback FAILED" alert it existed
+  for. Caught by blind review, not by my own test, because I had run the extracted script
+  with plain `bash`. **Test extracted Actions scripts with `bash --noprofile --norc -eo pipefail`**,
+  never plain `bash`, and use if/else (or `|| true` inside the substitution) for conditional text.
+

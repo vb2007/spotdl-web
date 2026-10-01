@@ -198,7 +198,9 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
 2. **Record the current deployment and the rollback target** (v33), before anything moves:
    the `IMAGE_TAG` running now (for the skip check), and the rollback target, a **tag and commit
    together**, read from `.last-good` (see below). It falls back to `.env`'s `IMAGE_TAG` plus the
-   checkout's `HEAD` only when `.last-good` doesn't exist yet.
+   checkout's `HEAD` only when `.last-good` doesn't exist yet. Since v33.1 it also records the
+   pre-deploy version and an instant verdict on whether it's healthy *and* really what's running
+   (the `api` container's image tag), for the rollback's fallback.
 3. **Required-variable preflight** (v33), still before anything on the host moves. It fetches,
    reads the *new* commit's `docker-compose.yml` and `docker-compose.prod.yml` out of git into a
    temp dir (`git show <sha>:<file>`, so the deploy checkout stays where it is), and checks them
@@ -265,8 +267,18 @@ migration.
    database's `alembic_version` against that image's own revision graph. If the database holds
    a revision the old image doesn't know (the failed deploy's `migrate` already upgraded it),
    starting the old stack is doomed, because its own `migrate` would refuse and nothing would
-   come up. So the rollback **stops there**: it leaves the failed deploy's checkout and containers
-   as they are and fails with "restore the pre-deploy pg_backup at `<path>` or roll forward".
+   come up.
+   - **Fallback (v33.1):** when the database is ahead of `.last-good` (a `manual-*` dispatch
+     migrated it since the last release, say), the guard runs again against **the version that
+     was running just before this deploy** (pre-deploy HEAD + `IMAGE_TAG`), provided that version
+     was healthy before the run (an instant health check in the "record" step) and isn't the very
+     build that just failed. If it knows the schema, the rollback goes there instead, since the
+     aim is the least downtime. Only a
+     refusal triggers it, never a guard error, and `.last-good` isn't changed by it, so a
+     throwaway tag still never becomes the baseline. The Matrix message says when it happened.
+   - Otherwise the rollback **stops there**: it leaves the failed deploy's checkout and
+     containers as they are and fails with "restore the pre-deploy pg_backup at `<path>` or roll
+     forward".
    It also fails closed when it can't tell (Postgres unreachable, the old image unpullable),
    reported separately as a guard error rather than as "the database is ahead". The guard comes
    from the commit the workflow runs from (a second, sparse checkout at `.pipeline/`), never the
@@ -342,8 +354,13 @@ sends nothing. Messages never contain `.env` content.
 `MATRIX_HOMESERVER_URL`, `MATRIX_ACCESS_TOKEN`, `MATRIX_ROOM_ID`. Setting up the bot and the
 room is in `docs/DEPLOYMENT.md`, "Matrix alert bot". **Unconfigured means off**: if any of the
 three is unset, `notify` prints a `::warning::` and exits 0, so missing alert config can never
-turn a green run red. A configured send that fails (a revoked token, say) does fail the `notify`
-job, so a broken alert channel is visible rather than silent.
+turn a green run red. A configured send that fails (a revoked token, Synapse down) is a
+`::warning::` on the `notify` job, which still passes (v33.1, the owner's call): a Synapse or
+Cloudflare outage takes the runner and the app down with it anyway, and a red run for a healthy
+deploy would only mislead. The trade-off is that a failure isolated to the alert channel (a
+revoked token, the bot kicked from the room, v33's Cloudflare User-Agent ban) only shows as that
+warning, and the room goes quiet, so "silence means nothing happened" holds only while the
+channel works. Check that a real deploy's success message still arrives now and then.
 
 ---
 
