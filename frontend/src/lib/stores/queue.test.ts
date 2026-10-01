@@ -173,16 +173,15 @@ describe('v34 live hydration', () => {
 		expect(get(queue.activeTracks)).toHaveLength(0);
 	});
 
-	it('race: a job event during an in-flight incoming hydration wins over the snapshot', async () => {
+	it('race: a job event during an in-flight incoming hydration wins over the snapshot, even before its own fetch resolves', async () => {
 		const incoming = deferred<JobsPage>();
 		routeLists({ incoming: () => incoming.promise });
-		getJob.mockResolvedValue({
-			...job('exp', 'expanded', 'active'),
-			track_counts: { queued: 1 }
-		});
+		const fetched = deferred<Job>();
+		getJob.mockReturnValue(fetched.promise);
 		const reloading = queue.reload();
 
-		await queue.applyEvent({
+		// The event lands; its getJob is still pending when the (older) snapshot arrives.
+		const handling = queue.applyEvent({
 			type: 'job.state',
 			job_id: 'exp',
 			state: 'expanded',
@@ -191,9 +190,13 @@ describe('v34 live hydration', () => {
 		incoming.resolve(jobsPage([job('exp', 'expanding', 'expanding')]));
 		await reloading;
 		expect(get(queue.incomingJobs)).toHaveLength(0);
+
+		fetched.resolve({ ...job('exp', 'expanded', 'active'), track_counts: { queued: 1 } });
+		await handling;
+		expect(get(queue.incomingJobs)).toHaveLength(0);
 	});
 
-	it('a reconnect re-hydrates without duplicating lanes or rows', async () => {
+	it('a reconnect re-hydrates to one lane per track and keeps the in-memory progress', async () => {
 		routeLists({
 			incoming: async () => jobsPage([job('exp', 'expanding', 'expanding')]),
 			active: async () => tracksPage([downloadingTrack('t1')])
