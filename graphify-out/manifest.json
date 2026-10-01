@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
-    "mtime": 1790873628.9294205,
-    "ast_hash": "6587ed8c144be45dd309bd4c1d332482",
+    "mtime": 1790878961.23368,
+    "ast_hash": "519c4d622dcac21b0e7e315a8b31df7c",
     "semantic_hash": ""
   },
   "frontend/.vscode/extensions.json": {
@@ -80,8 +80,8 @@
     "semantic_hash": "c727963dee0c5743b26f3d2fc99abfb6"
   },
   "frontend/package.json": {
-    "mtime": 1790873628.9302807,
-    "ast_hash": "b6101bbeb09a2a72b4209a383a89c19c",
+    "mtime": 1790878961.2344615,
+    "ast_hash": "34606120ebb210cd388d2876fc290a49",
     "semantic_hash": ""
   },
   "frontend/prettier.config.js": {
@@ -350,8 +350,8 @@
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
-    "mtime": 1786892308.987021,
-    "ast_hash": "c16647449ec81edb33c232f7e69197db",
+    "mtime": 1790877793.5526803,
+    "ast_hash": "18d66d4e8f3df607c2b87ae50f3c8a44",
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
@@ -370,8 +370,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1790523827.0354617,
-    "ast_hash": "80cc371d187de13e338d6d6239a9fa96",
+    "mtime": 1790879197.2110262,
+    "ast_hash": "c53c2513c1fefce1af6346c3801ff378",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1790870965.8277385,
-    "ast_hash": "03965735d0d380ce6eb613600bd98c85",
+    "mtime": 1790879250.894504,
+    "ast_hash": "e843397376f0cd05821829e3d59d2cd4",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1000,7 +1000,7 @@
     "semantic_hash": ""
   },
   "plan/master-v4/IMPLEMENTATION_PROMPT.md": {
-    "mtime": 1790843265.7242866,
+    "mtime": 1790876400.3588748,
     "ast_hash": "04a2410526161c39609c98b867f257b1",
     "semantic_hash": ""
   },
@@ -1107,6 +1107,11 @@
   ".github/scripts/redact_env.py": {
     "mtime": 1790864874.5043006,
     "ast_hash": "aacf742b27baca4b9913a39e908dffb0",
+    "semantic_hash": ""
+  },
+  "frontend/src/lib/stores/queue.test.ts": {
+    "mtime": 1790879197.2111702,
+    "ast_hash": "096a7e72c2829a3b77c60cdcc2c9db8f",
     "semantic_hash": ""
   }
 }
