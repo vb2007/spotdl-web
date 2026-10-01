@@ -92,28 +92,26 @@ function still exists before acting on it**, since v2 changes schema, endpoints,
 
 ### Development environments
 
-Two environments share the physical Postgres server **and currently the same database on it**.
-**As of v22, that threshold has been reached** — three real allowlisted users, real jobs, real
-downloaded files — so local runs now write into the same rows the deployed instance serves. **v31
-hit the predicted friction**: local dev's own `worker-meta` boot-time disk reconciliation pruned a
-real `downloaded_tracks` ledger row because the file it pointed at only exists on the deployed
-instance's own downloads volume, not locally visible (`docs/GOTCHAS.md`'s v31 section). The owner
-has created the dedicated dev database **`spotdlwebtest`**, and the local `.env` already points at
-it. v32 builds its schema, adds the fail-closed guard and rewrites `docs/LOCAL_DEV.md`. It is the
-first master v4 slice, and no other slice starts before it. Until v32 merges, avoid restarting local `worker-meta` more than necessary, and use a distinct test
-identity for anything exploratory, never the real `ADMIN_EMAIL` account.
+Two environments share the physical Postgres server but **never a database**. **Rule (v32): local
+dev runs against the dedicated dev database `spotdlwebtest`; production keeps `spotdlweb`.** A
+local run that touches production rows is a bug, not a convenience (the shared DB let v31's local
+`worker-meta` prune a real production ledger row). Enforced fail-closed: the dev-only override sets
+`SPOTDL_ENV=dev` on every backend service, and `app/config.py` refuses to boot any of them, `migrate`
+included, if `DATABASE_URL` names a production database or can't be parsed. Never remove the marker
+to get past it. Use test identities on dev, including the dev `ADMIN_EMAIL`, never the real admin
+account. Create/reset/rebuild details are in `docs/LOCAL_DEV.md`'s "Dedicated dev database".
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
 |---|---|---|
 | Purpose | Day-to-day iteration | Final per-version verification + real deployment |
 | `.env` template | `.env.dev.example` | `.env.example` |
 | Compose invocation | `docker compose up` (override applies — hot reload) | `docker compose -f docker-compose.yml up` |
-| Postgres | Same server, reached over LAN by its real address | Same server, reached via `host.docker.internal` |
+| Postgres | Same server, dev DB `spotdlwebtest`, reached over LAN by its real address | Same server, prod DB `spotdlweb`, reached via `host.docker.internal` |
 | Redis, other containers | Fully local, independent per environment | Fully local, independent per environment |
 
-`DATABASE_URL`'s host is the one genuine difference between the two templates. Never copy
-`host.docker.internal` into the local one (Postgres isn't on the local containers' host) or a
-hardcoded LAN IP into the production one.
+`DATABASE_URL`'s host and database name are the genuine differences between the two templates.
+Never copy `host.docker.internal` into the local one (Postgres isn't on the local containers' host),
+a hardcoded LAN IP into the production one, or production's database name into the local one.
 
 ---
 
@@ -161,7 +159,7 @@ Settled. Don't re-litigate without asking.
 | Area | Decision |
 |---|---|
 | Production data | **No longer disposable.** No API back-compat needed, but a migration that drops/rewrites data says so in its plan and takes a `pg_backup` first |
-| Dev database | Dedicated **`spotdlwebtest`** (already created, local `.env` points at it), mandatory from v32; local dev refuses to boot against the prod DB name `spotdl_web` |
+| Dev database | Dedicated **`spotdlwebtest`** (already created, local `.env` points at it), mandatory from v32; local dev refuses to boot against the prod DB name (`spotdlweb`; also `spotdl_web`, the templates' name) |
 | Alerts | One Matrix room (host's Synapse, bot token) for pipeline and app alerts; unconfigured = off; an alert never blocks work |
 | Rollback | Restores the last healthy `persist=true` release's commit **and** tag together; never automatic across a migration |
 | UI work | Every UI slice goes through the impeccable skill; all monitoring information is kept, only its presentation changes |
