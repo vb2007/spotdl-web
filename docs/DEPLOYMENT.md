@@ -296,6 +296,8 @@ healthy:
 ```bash
 cd /mnt/raid1/spotdl-web
 cat .last-good                     # IMAGE_TAG=<tag> and COMMIT=<sha>
+# No .last-good yet (before the first release-mode run after v33)? Pick the release instead:
+#   COMMIT=$(git rev-list -n1 v<version>)   IMAGE_TAG=<version>   (no leading "v")
 git fetch origin --tags
 git checkout --detach --force <COMMIT from .last-good>
 git reset --hard <COMMIT from .last-good>
@@ -349,6 +351,13 @@ design. You have two ways out:
    Then run "Roll back to a known-good version manually" above, using `.last-good`. Its
    `migrate` finds the schema at its own revision and no-ops.
 
+   **If a `manual-*` dispatch ran a migration since `.last-good` was written**, the database was
+   already ahead of `.last-good` *before* this deploy, so the pre-deploy backup is ahead too and
+   restoring it doesn't help. The rollback target is `.last-good` (the last *release*), never
+   the dispatch. Here, either roll forward, or put the dispatch's own commit and `manual-<sha>`
+   tag back (the run log's "Deploy checkout HEAD" / "Deployed IMAGE_TAG" lines), which is
+   schema-compatible, rather than restoring anything.
+
 You can re-check the guard by hand before starting anything, with the checkout and `.env`
 already on the rollback commit and tag. The guard is new in v33, so take it from `main` rather
 than the checkout, which may predate it:
@@ -390,7 +399,8 @@ name to match yours (`docker ps | grep -i synapse`).
    read -rs BOT_PASSWORD   # the password from step 1, so it stays out of shell history
    # The body goes in on stdin (-d @-), so the password never appears in curl's argv, which
    # other users on this shared host could read via ps.
-   printf '{"type":"m.login.password","identifier":{"type":"m.id.user","user":"spotdl-bot"},"password":"%s","initial_device_display_name":"spotdl-web pipeline"}' "$BOT_PASSWORD" \
+   # json.dumps escapes a password containing " or \ correctly.
+   BOT_PASSWORD="$BOT_PASSWORD" python3 -c 'import json,os; print(json.dumps({"type":"m.login.password","identifier":{"type":"m.id.user","user":"spotdl-bot"},"password":os.environ["BOT_PASSWORD"],"initial_device_display_name":"spotdl-web pipeline"}))' \
      | curl -sS -X POST "https://<homeserver>/_matrix/client/v3/login" -H 'Content-Type: application/json' -d @-
    # -> {"user_id":"@spotdl-bot:<server>","access_token":"syt_...","device_id":"..."}
    ```
