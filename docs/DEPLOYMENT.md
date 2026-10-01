@@ -278,7 +278,7 @@ happened:
 |---|---|---|
 | not needed | The preflight (or the backup) failed before anything on the host moved. | Fix the cause, typically a missing `.env` variable named in the log (see "A deploy needs a new `.env` variable" below), then re-run. |
 | succeeded | The old commit + tag are back up and healthy. The run is still red, because the deploy failed. | Investigate at leisure, fix, re-run. |
-| succeeded, back on … the pre-deploy version | v33.1 fallback: the database was ahead of `.last-good`, so the rollback returned to what was running before the deploy (typically a `manual-*` dispatch) instead. `.last-good` is unchanged. | As above. The host is on a dispatch build until the next real release. |
+| succeeded, back on … the pre-deploy version | v33.1 fallback: the database was ahead of `.last-good`, so the rollback returned to what was running before the deploy (typically a `manual-*` dispatch) instead. `.last-good` is unchanged. | As above. The host is on the pre-deploy build (usually a `manual-*` dispatch) until the next real release. |
 | refused | The database is **ahead** of the rollback image. The failed deploy's checkout and containers were left exactly as they were. | "The database is ahead of the rollback image" below. |
 | not started | The rollback stopped before moving anything (no rollback target recorded). The failed deploy is still in place. | Read the log, then roll back manually if needed. |
 | not started (guard error) | The migration guard couldn't compare revisions (the rollback commit unreadable, Postgres unreachable, the old image unpullable, a compose error such as a changed network definition, or the new `migrate` still running after 5 minutes), so it started nothing. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
@@ -370,7 +370,7 @@ design. You have two ways out:
      there's no good version to return to automatically. Roll forward, or restore and go back to
      the last version you know worked.
    - **No detail at all**: the usual case, where the version running before the deploy *was*
-     `.last-good`. This deploy's `migrate` moved the schema: restore the backup and roll back to
+     `.last-good` (or, before the first release-mode run wrote `.last-good`, the `.env` tag). This deploy's `migrate` moved the schema: restore the backup and roll back to
      `.last-good` (above).
 
 You can re-check the guard by hand before starting anything, with the checkout and `.env`

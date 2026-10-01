@@ -198,7 +198,9 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
 2. **Record the current deployment and the rollback target** (v33), before anything moves:
    the `IMAGE_TAG` running now (for the skip check), and the rollback target, a **tag and commit
    together**, read from `.last-good` (see below). It falls back to `.env`'s `IMAGE_TAG` plus the
-   checkout's `HEAD` only when `.last-good` doesn't exist yet.
+   checkout's `HEAD` only when `.last-good` doesn't exist yet. Since v33.1 it also records the
+   pre-deploy version and an instant verdict on whether it's healthy *and* really what's running
+   (the `api` container's image tag), for the rollback's fallback.
 3. **Required-variable preflight** (v33), still before anything on the host moves. It fetches,
    reads the *new* commit's `docker-compose.yml` and `docker-compose.prod.yml` out of git into a
    temp dir (`git show <sha>:<file>`, so the deploy checkout stays where it is), and checks them
