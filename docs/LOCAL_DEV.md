@@ -7,24 +7,12 @@ fix through a `git pull` + rebuild + SSH-log-check cycle on that box doesn't sca
 develop loop; do that locally instead, and only touch the Debian host to verify a version is
 genuinely ready to merge.
 
-Postgres itself is never dockerized, never duplicated (locked decision) — both environments
-reach the same physical instance on the Debian host over the network. **For now, both also
-point at the same database.** Redis and every other container still run entirely locally and
-are never shared with the deployed instance, regardless.
-
-**This is no longer a hypothetical to "revisit later" — as of v22, real people are using the
-deployed instance for real** (three real allowlisted users, real jobs, real downloaded files).
-Anything you do locally — submitting a job, cancelling one, registering a test account — writes
-to that same shared database. v22's own adversarial verification did exactly this (see
-`docs/GOTCHAS.md`'s v22 section): local test-job creation showed up in the real deployed admin's
-job list under a distinct test-account owner, harmless because ownership scoping keeps it out of
-the admin's own view, but real rows in the real table nonetheless. Prefer a dedicated test
-identity (never the real `ADMIN_EMAIL` account) for anything exploratory, and switch to a
-dedicated disposable `spotdl_web_dev` database (§ "Once there's real data worth protecting"
-below) the next time this gets in the way rather than continuing to defer it. **v31: that next
-time already happened** — local `worker-meta`'s own boot-time disk reconciliation pruned a real
-`downloaded_tracks` row belonging to the deployed instance (`docs/GOTCHAS.md`'s v31 section). The
-split is overdue, not hypothetical, from here on.
+Postgres itself is never dockerized, never duplicated (locked decision): both environments
+reach the same physical Postgres server on the Debian host over the network. **They never share
+a database.** Local dev uses its own dedicated dev database, **`spotdlwebtest`**, and production
+keeps its own (`spotdlweb`). Redis and every other container run entirely locally and are never
+shared with the deployed instance either. See [Dedicated dev database](#dedicated-dev-database)
+below for how it's created, built and reset, and why this is enforced rather than just advised.
 
 ---
 
@@ -34,8 +22,9 @@ split is overdue, not hypothetical, from here on.
 cp .env.dev.example .env
 ```
 
-Fill in the real Postgres password (same role/database the Debian host uses — see
-`docs/DEPLOYMENT.md` for how that was created) and `ADMIN_EMAIL` (v17+ — must also appear in
+Fill in the real Postgres password for the dev database's role (the URL's database name must
+stay `spotdlwebtest`, see [Dedicated dev database](#dedicated-dev-database)) and `ADMIN_EMAIL`, a
+**test account**, never the owner's real admin address (v17+ — must also appear in
 `ALLOWED_EMAILS`, or the `api`/`worker-dl`/`worker-meta`/`beat` containers all crash-loop at
 boot). Everything else in `.env.dev.example` is already dev-appropriate out of the box —
 notably `LADDER_SECONDS` is pre-shortened to seconds instead of hours, since testing the real
@@ -86,8 +75,8 @@ since nothing here is reachable from anywhere else regardless.
 
 ## 4. Seeding a second user for multi-user testing (v17+)
 
-Add a second address to `ALLOWED_EMAILS` (comma-separated, `ADMIN_EMAIL` stays whichever one
-should be the operator) and recreate `api`:
+Add a second address to `ALLOWED_EMAILS` (comma-separated, `ADMIN_EMAIL` stays whichever test
+account should be the dev operator) and recreate `api`:
 
 ```bash
 docker compose up -d api
@@ -153,12 +142,56 @@ Push the branch and open/update the PR as usual. Before merging, do one final ch
 real target per `docs/DEPLOYMENT.md` — that's the only remaining reason to touch the Debian
 host mid-development, and it should be a confirmation, not a debugging session.
 
-## Once there's real data worth protecting
+## Dedicated dev database
 
-Switch `DATABASE_URL` in the local `.env` to a dedicated `spotdl_web_dev` database (create it
-with the same `CREATE ROLE`/`CREATE DATABASE` pattern as `docs/DEPLOYMENT.md` §2, on the Debian
-host) so local runs stop touching the deployed instance's data. Everything else about this
-workflow stays the same.
+**Rule (v32):** local dev runs against `spotdlwebtest`, never against production's database. This
+used to be one shared database, and it went wrong exactly as predicted: v22's local test jobs
+showed up in production's tables, and in v31 local `worker-meta`'s boot-time `reconcile_disk()`
+pruned a real production `downloaded_tracks` row, because the file it pointed at only exists on
+the deployed instance's own downloads volume (`docs/GOTCHAS.md`'s v31 and v32 sections).
+
+**Enforced, not advised.** `docker-compose.override.yml` (dev only) sets `SPOTDL_ENV=dev` on every
+backend service: `api`, `migrate`, `worker-dl`, `worker-meta` and `beat`. `app/config.py` then
+refuses to start any of them when `DATABASE_URL` names a production database
+(`PRODUCTION_DATABASE_NAMES`: `spotdlweb`, plus `spotdl_web`, the name `.env.example` documents),
+and also when the database name can't be determined at all: an unparseable URL, or no database in
+it. That's fail closed: "can't tell" never reads as "safe". Alembic's `env.py` re-checks the exact
+URL it migrates. A refused service exits non-zero with:
+
+```
+SPOTDL_ENV=dev but DATABASE_URL points at the production database 'spotdlweb'; refusing to start
+-- point DATABASE_URL at spotdlwebtest, see docs/LOCAL_DEV.md
+```
+
+Production never sets the marker (the override file never applies there), so the guard is a no-op
+in production. The guard keys on "is it production", never on the dev name, so renaming the dev
+database later doesn't break it.
+
+**What the owner creates, once.** The database and its role live on the shared Postgres server,
+created by the owner with Postgres superuser rights, never by an agent. `spotdlwebtest` exists
+since 2026-10-01, owned by the same role as production's database. A fresh one follows the
+`CREATE DATABASE … OWNER …` pattern of `docs/DEPLOYMENT.md` §2. The schema needs `pg_trgm`
+(v18's trigram indexes), which the migration creates itself when the owning role is allowed to.
+
+**How the schema gets built.** By the app itself: the one-shot `migrate` service runs
+`alembic upgrade head` on every `docker compose up`, so an empty database becomes a current one
+on first boot. Don't hand-write tables, and never restore a production dump into it: the dev
+database starts empty on purpose, and nothing from production is copied in.
+
+**How to reset it.** Drop and recreate it (owner, superuser), then `docker compose up` and let
+`migrate` rebuild it. If only the schema is in a bad state, a disposable round-trip works too,
+with the app services stopped so nothing writes mid-migration:
+
+```bash
+docker compose stop api worker-meta worker-dl beat
+docker compose run --rm --no-deps migrate sh -c "alembic downgrade base && alembic upgrade head"
+docker compose up -d
+```
+
+**A fresh dev database means fresh `users` rows.** Every identity gets its row again on its first
+successful login, and `is_admin` comes from the local `.env`'s `ADMIN_EMAIL` (a test account).
+File-sourced proxies come back on `worker-meta`'s next boot through `sync_from_file()`. Manual
+(UI-added) proxies, jobs and settings start empty.
 
 ## Troubleshooting
 
@@ -167,4 +200,5 @@ workflow stays the same.
 | Every container fails at startup with `failed to add the host <=> sandbox pair interfaces: operation not supported` (or any other veth/bridge networking error) | A kernel update landed via the package manager but the machine hasn't rebooted into it yet — the running kernel's module directory (including `veth`) has already been deleted from disk in favor of the new one | Compare `uname -r` against the installed kernel package version (`pacman -Q linux` on Arch) and check `/lib/modules/$(uname -r)/` exists; if it doesn't, reboot |
 | `web` fails with `Bind for 127.0.0.1:5173 failed: port is already allocated`, even though nothing else is using that port | `docker-compose.override.yml`'s `ports:` list *merges* with `docker-compose.yml`'s instead of replacing it (list-type keys merge by default across compose files — `command`/`build` don't, so this is easy to miss), so `web` ends up with two host bindings to the same address | Confirmed fixed for `web` via the `!override` merge tag on its `ports:` key — if you add a *new* port mapping to any service in the override, check `docker compose config` for duplicates rather than assuming a plain list will replace the base file's |
 | Stack was working, comes back broken after `docker compose down && up` with no config changes | Check `docker compose config` for the resolved service definitions before assuming it's a code regression — compose-file merge behavior is a common source of surprises that look like app bugs | |
+| `migrate` and every backend service exit at boot with `SPOTDL_ENV=dev but DATABASE_URL points at the production database …` or `… can't be parsed` / `… names no database` (v32) | The local `.env`'s `DATABASE_URL` points at production's database, or is malformed. The dev guard refuses rather than risk production rows | Point `DATABASE_URL` at `spotdlwebtest` (see [Dedicated dev database](#dedicated-dev-database)). Never remove `SPOTDL_ENV` from the override to get past it |
 | `api`/`worker-dl`/`worker-meta`/`beat` all crash-loop at boot with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | Either `ADMIN_EMAIL` is unset in `.env`, or it's set but not also present in `ALLOWED_EMAILS` — both are required at startup, by design | Add `ADMIN_EMAIL=you@example.com` to `.env` and make sure that same address is also in `ALLOWED_EMAILS` |
