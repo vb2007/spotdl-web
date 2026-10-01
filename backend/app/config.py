@@ -180,8 +180,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _check_dev_not_on_production_database(self) -> "Settings":
         """get_settings() runs at import in every backend process (db.py, main.py,
-        celery_app.py, alembic/env.py), so a dev stack pointed at production crash-loops
-        at boot -- api, both workers, beat and migrate alike -- before a single query."""
+        celery_app.py, alembic/env.py), so every one of them -- api, both workers, beat and
+        migrate -- refuses at boot, before a single query. Under a plain `docker compose up`
+        only migrate visibly fails; the rest never start (depends_on migrate)."""
         check_not_production_database(self.database_url, self.spotdl_env)
         return self
 

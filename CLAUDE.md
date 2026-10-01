@@ -98,7 +98,7 @@ local run that touches production rows is a bug, not a convenience (the shared D
 `worker-meta` prune a real production ledger row). Enforced fail-closed: the dev-only override sets
 `SPOTDL_ENV=dev` on every backend service, and `app/config.py` refuses to boot any of them, `migrate`
 included, if `DATABASE_URL` names a production database or can't be parsed. Never remove the marker
-to get past it. Use test identities on dev, including the dev `ADMIN_EMAIL`, never the real admin
+to get past it, and never set `SPOTDL_ENV` in production (any value but `dev` is refused). Use test identities on dev, including the dev `ADMIN_EMAIL`, never the real admin
 account. Create/reset/rebuild details are in `docs/LOCAL_DEV.md`'s "Dedicated dev database".
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
@@ -109,7 +109,7 @@ account. Create/reset/rebuild details are in `docs/LOCAL_DEV.md`'s "Dedicated de
 | Postgres | Same server, dev DB `spotdlwebtest`, reached over LAN by its real address | Same server, prod DB `spotdlweb`, reached via `host.docker.internal` |
 | Redis, other containers | Fully local, independent per environment | Fully local, independent per environment |
 
-`DATABASE_URL`'s host and database name are the genuine differences between the two templates.
+`DATABASE_URL`'s host, database name and role are the genuine differences between the two templates.
 Never copy `host.docker.internal` into the local one (Postgres isn't on the local containers' host),
 a hardcoded LAN IP into the production one, or production's database name into the local one.
 

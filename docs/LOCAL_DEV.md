@@ -156,7 +156,10 @@ refuses to start any of them when `DATABASE_URL` names a production database
 (`PRODUCTION_DATABASE_NAMES`: `spotdlweb`, plus `spotdl_web`, the name `.env.example` documents),
 and also when the database name can't be determined at all: an unparseable URL, or no database in
 it. That's fail closed: "can't tell" never reads as "safe". Alembic's `env.py` re-checks the exact
-URL it migrates. A refused service exits non-zero with:
+URL it migrates. A refused service exits non-zero with the message below. On a plain
+`docker compose up` you'll see it only in `migrate`'s log, because every other backend service
+waits on `migrate` completing successfully and so never starts. To see each one refuse on its own,
+use `docker compose run --rm --no-deps <service>`:
 
 ```
 SPOTDL_ENV=dev but DATABASE_URL points at the production database 'spotdlweb'; refusing to start
@@ -164,7 +167,8 @@ SPOTDL_ENV=dev but DATABASE_URL points at the production database 'spotdlweb'; r
 ```
 
 Production never sets the marker (the override file never applies there), so the guard is a no-op
-in production. The guard keys on "is it production", never on the dev name, so renaming the dev
+in production. `SPOTDL_ENV` is reserved: **never set it in production**, not even to `prod`. Any value
+other than `dev` is refused everywhere, so a typo can never silently disable the guard. The guard keys on "is it production", never on the dev name, so renaming the dev
 database later doesn't break it.
 
 **What the owner creates, once.** The database and its role live on the shared Postgres server,
@@ -200,5 +204,5 @@ File-sourced proxies come back on `worker-meta`'s next boot through `sync_from_f
 | Every container fails at startup with `failed to add the host <=> sandbox pair interfaces: operation not supported` (or any other veth/bridge networking error) | A kernel update landed via the package manager but the machine hasn't rebooted into it yet — the running kernel's module directory (including `veth`) has already been deleted from disk in favor of the new one | Compare `uname -r` against the installed kernel package version (`pacman -Q linux` on Arch) and check `/lib/modules/$(uname -r)/` exists; if it doesn't, reboot |
 | `web` fails with `Bind for 127.0.0.1:5173 failed: port is already allocated`, even though nothing else is using that port | `docker-compose.override.yml`'s `ports:` list *merges* with `docker-compose.yml`'s instead of replacing it (list-type keys merge by default across compose files — `command`/`build` don't, so this is easy to miss), so `web` ends up with two host bindings to the same address | Confirmed fixed for `web` via the `!override` merge tag on its `ports:` key — if you add a *new* port mapping to any service in the override, check `docker compose config` for duplicates rather than assuming a plain list will replace the base file's |
 | Stack was working, comes back broken after `docker compose down && up` with no config changes | Check `docker compose config` for the resolved service definitions before assuming it's a code regression — compose-file merge behavior is a common source of surprises that look like app bugs | |
-| `migrate` and every backend service exit at boot with `SPOTDL_ENV=dev but DATABASE_URL points at the production database …` or `… can't be parsed` / `… names no database` (v32) | The local `.env`'s `DATABASE_URL` points at production's database, or is malformed. The dev guard refuses rather than risk production rows | Point `DATABASE_URL` at `spotdlwebtest` (see [Dedicated dev database](#dedicated-dev-database)). Never remove `SPOTDL_ENV` from the override to get past it |
+| `migrate` exits at boot (and api/workers/beat never start, since they wait on it) with `SPOTDL_ENV=dev but DATABASE_URL points at the production database …` or `… can't be parsed` / `… names no database` (v32) | The local `.env`'s `DATABASE_URL` points at production's database, or is malformed. The dev guard refuses rather than risk production rows | Point `DATABASE_URL` at `spotdlwebtest` (see [Dedicated dev database](#dedicated-dev-database)). Never remove `SPOTDL_ENV` from the override to get past it |
 | `api`/`worker-dl`/`worker-meta`/`beat` all crash-loop at boot with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | Either `ADMIN_EMAIL` is unset in `.env`, or it's set but not also present in `ALLOWED_EMAILS` — both are required at startup, by design | Add `ADMIN_EMAIL=you@example.com` to `.env` and make sure that same address is also in `ALLOWED_EMAILS` |
