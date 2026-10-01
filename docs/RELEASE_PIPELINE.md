@@ -257,7 +257,8 @@ leaves the host half-deployed. The job's `timeout-minutes` is 40 so that a faili
 automatically (too risky unattended); the pre-deploy `pg_backup` is the recovery path for a bad
 migration.
 
-1. **Migration guard first**, before anything moves (`.github/scripts/migration_guard.sh`). It
+1. **Migration guard first**, before anything moves (after letting a still-running new
+   `migrate` container exit, which a cancel mid-`up` can leave behind) (`.github/scripts/migration_guard.sh`). It
    extracts the *rollback commit's* compose files into a temp dir and, with `IMAGE_TAG` set to
    the rollback tag, runs one read-only probe in the rollback image's `migrate` service: the
    database's `alembic_version` against that image's own revision graph. If the database holds
@@ -294,7 +295,8 @@ COMMIT=<sha of the deploy checkout's HEAD>
 - Written only when the job succeeds **and** `persist == 'true'`, meaning a release-mode deploy
   that passed its health gate. An idempotency-skipped release run writes it too, since its skip
   check has just confirmed that same version healthy. That's also how it first appears: the
-  first release-mode run after v33 lands.
+  first release-mode run after v33 lands. Either way, only when the deploy checkout's `HEAD`
+  *is* the release's commit; otherwise it warns and leaves the file alone.
 - A `manual-*` dispatch (`persist=false`) **never** writes it. So a throwaway dispatch tag can't
   become the rollback target, the way `manual-fe6a30d` did on 2026-09-27 when the rollback read
   `.env` instead.

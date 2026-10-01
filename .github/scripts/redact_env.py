@@ -3,8 +3,11 @@
 
 `docker compose` echoes `.env` content in some errors: an interpolated value
 (`invalid containerPort: <value>`), an unparseable value (`Invalid template: "<value>"`), even a
-whole malformed line (`unexpected character ... in variable name "<line>"`). Anything in the
-deploy job that prints compose stderr against the host's real .env goes through this first.
+whole malformed line (`unexpected character ... in variable name "<line>"`). The deploy job
+runs it over the output that can carry such errors before anything has validated them: the
+preflight's render, the rollback's migration guard (the previous commit's files) and the
+Summary's `compose ps`. The deploy step's own `pull`/`up` run only after the preflight has
+rendered the same files against the same .env.
 
 Masks, for each non-comment line: the value as written and as Compose reads it (quotes
 stripped, an inline ` #` comment dropped), and, for a line that isn't `KEY=value` at all, the

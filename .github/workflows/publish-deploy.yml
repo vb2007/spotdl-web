@@ -357,8 +357,9 @@ jobs:
       # and re-ran `up` in the NEW checkout, against the same compose file that had just failed
       # (2026-09-27: both directions died on the same missing variable). Only runs once the
       # deploy step has actually started moving the host; a preflight or backup failure left
-      # nothing to roll back. A cancelled run (by hand, or `timeout-minutes`) rolls back too,
-      # since a cancel mid-`up` leaves the host half-deployed. `result` is for the notify job:
+      # nothing to roll back. A run cancelled by hand rolls back too, since a cancel mid-`up`
+      # leaves the host half-deployed. (Whether GitHub also runs this after a job-level
+      # `timeout-minutes` cut is not verified; the generous timeout is there so it never has to.) `result` is for the notify job:
       # failed (the default, until the end is reached), refused (the database is ahead),
       # guard-error (the guard couldn't tell, so nothing was started), succeeded.
       - name: Roll back to the previous commit and image on failure
@@ -379,17 +380,30 @@ jobs:
             exit 1
           fi
 
+          # A cancel mid-`up` stops compose, not the new `migrate` container: let a migration
+          # still in flight finish (or die) first, or the guard reads a revision that's about
+          # to change under it.
+          for _ in $(seq 60); do
+            state="$(docker compose --project-directory "$DEPLOY_DIR" -f "$DEPLOY_DIR/docker-compose.yml" \
+              -f "$DEPLOY_DIR/docker-compose.prod.yml" ps -a --format '{{.State}}' migrate 2>/dev/null || true)"
+            [ "$state" = "running" ] || break
+            echo "Waiting for the new migrate container to exit before the guard..."
+            sleep 5
+          done
+
           # Migration guard first, before anything moves: the previous commit's compose files
-          # out of git, with the previous tag, exactly as the old stack would start.
+          # out of git, with the previous tag, exactly as the old stack would start. Its output
+          # goes through the redactor: these files were never preflighted against today's .env.
           TMP="$(mktemp -d)"
           trap 'rm -rf "$TMP"' EXIT
           for f in docker-compose.yml docker-compose.prod.yml; do
             git -C "$DEPLOY_DIR" show "$PREV_COMMIT:$f" > "$TMP/$f"
           done
           guard_rc=0
-          IMAGE_TAG="$PREV_TAG" \
-            GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $TMP/docker-compose.yml -f $TMP/docker-compose.prod.yml" \
-            bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" || guard_rc=$?
+          { IMAGE_TAG="$PREV_TAG" \
+              GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $TMP/docker-compose.yml -f $TMP/docker-compose.prod.yml" \
+              bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" 2>&1 \
+              | python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env"; } || guard_rc=$?
           if [ "$guard_rc" -eq 3 ]; then
             echo "result=refused" >> "$GITHUB_OUTPUT"
             echo "::error::Rollback refused: the database is ahead of $PREV_TAG. The failed deploy's checkout and containers are left as they are. Restore the pre-deploy pg_backup at ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>} or roll forward; see docs/DEPLOYMENT.md, 'Rollback / recovery'."
@@ -420,14 +434,22 @@ jobs:
 
       # v33: the durable rollback baseline. Only a healthy release-mode deploy writes it (a
       # `manual-*` dispatch never does), including an idempotency-skipped run, whose skip check
-      # just confirmed this same version healthy. The commit is the checkout actually in
-      # effect. Gitignored, so `git clean -fd` leaves it; written via rename so a crash can't
-      # leave half a file.
+      # just confirmed this same version healthy. Only when the checkout is actually on the
+      # release's own commit: the skip check compares tags, not commits, and a tag paired with
+      # some other commit is exactly the mismatch this file exists to prevent. Gitignored, so
+      # `git clean -fd` leaves it; written via rename so a crash can't leave half a file.
       - name: Record last-known-good
         if: success() && needs.resolve.outputs.persist == 'true'
+        env:
+          COMMIT: ${{ needs.resolve.outputs.commit }}
         run: |
+          HEAD_COMMIT="$(git -C "$DEPLOY_DIR" rev-parse HEAD)"
+          if [ "$HEAD_COMMIT" != "$COMMIT" ]; then
+            echo "::warning::.last-good not updated: the deploy checkout is at $HEAD_COMMIT, not the release's $COMMIT."
+            exit 0
+          fi
           printf 'IMAGE_TAG=%s\nCOMMIT=%s\n' "${{ needs.resolve.outputs.version }}" \
-            "$(git -C "$DEPLOY_DIR" rev-parse HEAD)" > "$DEPLOY_DIR/.last-good.tmp"
+            "$HEAD_COMMIT" > "$DEPLOY_DIR/.last-good.tmp"
           mv "$DEPLOY_DIR/.last-good.tmp" "$DEPLOY_DIR/.last-good"
           echo "Wrote $DEPLOY_DIR/.last-good:"
           cat "$DEPLOY_DIR/.last-good"
