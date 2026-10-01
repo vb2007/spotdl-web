@@ -258,34 +258,145 @@ or `DOWNLOADS_DIR` is misconfigured in `.env`, not that the library is actually 
 
 ---
 
-## Rollback / recovery (v21)
+## Rollback / recovery (v21, v33)
 
-The automated pipeline (`.github/workflows/publish-deploy.yml`) already rolls back on its own
-when a fresh deploy fails its health gate — see `docs/RELEASE_PIPELINE.md` for exactly what that
-covers (code/image rollback only, never an Alembic downgrade). This section is for recovering
-**by hand**, when the workflow itself can't run or its own rollback didn't fully resolve things.
+The automated pipeline (`.github/workflows/publish-deploy.yml`) rolls back on its own when a
+fresh deploy fails its health gate. Since v33 that rollback restores the previous release's
+**commit and `IMAGE_TAG` together** (from `/mnt/raid1/spotdl-web/.last-good`), and it refuses to
+start the old stack at all when the failed deploy already migrated the database past what the old
+image knows. `docs/RELEASE_PIPELINE.md`, "Rollback", has the exact semantics. Every failure, and
+every real deploy, posts to the Matrix room ([Matrix alert bot](#matrix-alert-bot-v33) below), so
+you hear about it. This section is for recovering **by hand**: when the workflow itself can't run,
+or when it stopped and told you to come here.
 
-**Roll back to a known-good version manually:**
+**Where things stand after a failed run.** The run's **Summary** step prints the deploy
+checkout's `HEAD`, the `.env` `IMAGE_TAG` line, `.last-good` and `compose ps`, so you can read
+the host's state from the Actions page without SSHing in. The Matrix message says which of these
+happened:
+
+| Rollback says | What it means | What to do |
+|---|---|---|
+| not needed | The preflight (or the backup) failed before anything on the host moved. | Fix the cause, typically a missing `.env` variable named in the log (see "A deploy needs a new `.env` variable" below), then re-run. |
+| succeeded | The old commit + tag are back up and healthy. The run is still red, because the deploy failed. | Investigate at leisure, fix, re-run. |
+| refused | The database is **ahead** of the rollback image. The failed deploy's checkout and containers were left exactly as they were. | "The database is ahead of the rollback image" below. |
+| failed | The rollback itself broke part-way. The stack may be down. | "Roll back to a known-good version manually" below. |
+
+**A deploy needs a new `.env` variable** (the preflight failed, naming it): add it to
+`/mnt/raid1/spotdl-web/.env`, with the value the version's PR lists under "Deploy notes", then
+re-run the failed run from the Actions page. Nothing else on the host needs undoing: the
+preflight runs before the backup, the checkout and `IMAGE_TAG` ever move.
+
+**Roll back to a known-good version manually.** `.last-good` holds the last release that came up
+healthy:
 ```bash
 cd /mnt/raid1/spotdl-web
+cat .last-good                     # IMAGE_TAG=<tag> and COMMIT=<sha>
 git fetch origin --tags
-git checkout --detach v<previous-good-version>
-sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=<previous-good-version>/" .env   # no leading "v"
+git checkout --detach --force <COMMIT from .last-good>
+git reset --hard <COMMIT from .last-good>
+sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=<IMAGE_TAG from .last-good>/" .env
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build
-docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build --remove-orphans
+bash .github/scripts/wait_for_stack_health.sh "$PWD" 420
 ```
+Always move the commit and the tag **together**. An old image under new compose files (or the
+reverse) is exactly what broke the 2026-09-27 recovery.
 
-**A migration itself needs undoing** (rare — Alembic downgrades are never run automatically, by
-design): restore the pre-deploy `pg_dump` instead of attempting `alembic downgrade`, following
-the [Backups](#backups) restore procedure below, but against the real database this time (stop
-the stack first: `docker compose -f docker-compose.yml -f docker-compose.prod.yml down`, restore,
-then bring it back up on the rolled-back code from the step above).
+**The database is ahead of the rollback image** (the migration guard refused, v33). The failed
+deploy's `migrate` already upgraded the schema, so the old image's own `migrate` would refuse the
+unknown revision and nothing would start. Alembic downgrades are never run automatically, by
+design. You have two ways out:
 
-**The very first automated deploy fails** (no `PREV_TAG` to roll back to — the workflow will say
-so explicitly and exit non-zero rather than guessing): fix the underlying cause and re-run the
+1. **Roll forward (usually better):** fix the failure on a branch and deploy that. The schema
+   stays where it is, so no data is lost. Use this whenever the migration itself was fine and
+   something else broke.
+2. **Restore the pre-deploy backup, then roll back.** The run log prints its path as
+   `Pre-deploy pg_backup: /mnt/raid1/spotdl-web/backups/spotdl_web_<timestamp>.dump`. Anything
+   written to the database after that dump is lost (downloads recorded since the deploy started),
+   so prefer this only when the migration itself is the problem.
+   ```bash
+   cd /mnt/raid1/spotdl-web
+   DUMP=/mnt/raid1/spotdl-web/backups/spotdl_web_<timestamp>.dump   # from the run log
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel down
+   # DATABASE_URL is written for the containers: drop the +psycopg suffix, and the host reaches
+   # the host-native Postgres as localhost, not host.docker.internal (same as pg_backup.sh).
+   DB_URL="$(grep -E '^DATABASE_URL=' .env | tail -n1 | cut -d= -f2- \
+     | sed -e 's/postgresql+psycopg:/postgresql:/' -e 's/host\.docker\.internal/localhost/')"
+   pg_restore --no-owner --clean --if-exists --dbname="$DB_URL" "$DUMP"
+   ```
+   Then run "Roll back to a known-good version manually" above, using `.last-good`. Its
+   `migrate` finds the schema at its own revision and no-ops.
+
+You can re-check the guard by hand before starting anything, with the checkout and `.env`
+already on the rollback commit and tag: `bash .github/scripts/migration_guard.sh "$PWD"`. Exit 0
+means safe to start; 3 means the database is still ahead.
+
+**The very first automated deploy fails** (nothing recorded to roll back to; the workflow says so
+explicitly and exits non-zero rather than guessing): fix the underlying cause and re-run the
 workflow, or fall back to [Upgrading an existing deployment](#upgrading-an-existing-deployment-manual-fallback)
 to bring the stack up manually while you investigate.
+
+---
+
+## Matrix alert bot (v33)
+
+The pipeline posts to one Matrix room on this host's Synapse: a message for any failed or
+cancelled Publish & Deploy or Release run, and one for every real (release-mode) deploy that
+succeeded. v36's app alerts will reuse the same bot and room. This is a one-time setup, done by
+the owner, since it touches the production Synapse. Until the three repository secrets exist,
+the `notify` jobs print a warning and pass, so nothing breaks in the meantime.
+
+The steps assume Synapse's client API is reachable at `https://<homeserver>` (the public URL your
+Matrix clients use) and that you can run commands in the Synapse container. Adjust the container
+name to match yours (`docker ps | grep -i synapse`).
+
+1. **Create the bot user.** A plain non-admin account is enough. `register_new_matrix_user`
+   ships with Synapse, and uses the `registration_shared_secret` from `homeserver.yaml`:
+   ```bash
+   docker exec -it <synapse-container> register_new_matrix_user \
+     -c /data/homeserver.yaml --no-admin -u spotdl-bot http://localhost:8008
+   # prompts for a password; store it in Vaultwarden
+   ```
+2. **Get the bot's access token** by logging in once. The token in the response is what the
+   pipeline uses, so treat it like a password:
+   ```bash
+   read -rs BOT_PASSWORD   # the password from step 1, so it stays out of shell history
+   curl -sS -X POST "https://<homeserver>/_matrix/client/v3/login" \
+     -H 'Content-Type: application/json' \
+     -d "{\"type\":\"m.login.password\",\"identifier\":{\"type\":\"m.id.user\",\"user\":\"spotdl-bot\"},\"password\":\"$BOT_PASSWORD\",\"initial_device_display_name\":\"spotdl-web pipeline\"}"
+   # -> {"user_id":"@spotdl-bot:<server>","access_token":"syt_...","device_id":"..."}
+   ```
+   Don't log the bot out afterwards: logging out revokes this token.
+3. **Create the room** from your own account in Element: a new private room, for example
+   "spotdl-web alerts", with **end-to-end encryption off**. The pipeline sends plain HTTP API
+   messages and does no encryption, so it can't post legibly to an encrypted room. Then invite
+   `@spotdl-bot:<server>`.
+4. **Get the room id**: Element → room settings → **Advanced** → "Internal room ID", shaped like
+   `!AbCdEf123:<server>`. Not the `#alias`.
+5. **Join the room as the bot**, which accepts the invite:
+   ```bash
+   read -rs BOT_TOKEN   # the access_token from step 2
+   curl -sS -X POST -H "Authorization: Bearer $BOT_TOKEN" \
+     "https://<homeserver>/_matrix/client/v3/join/$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' '!AbCdEf123:<server>')"
+   ```
+6. **Add the three repository secrets**. `gh secret set` reads the value from stdin when you
+   don't pass `--body`, so the token never lands in shell history:
+   ```bash
+   gh secret set MATRIX_HOMESERVER_URL --repo vb2007/spotdl-web   # https://<homeserver>, no trailing path
+   gh secret set MATRIX_ACCESS_TOKEN   --repo vb2007/spotdl-web   # the access_token from step 2
+   gh secret set MATRIX_ROOM_ID        --repo vb2007/spotdl-web   # the !room id from step 4
+   ```
+7. **Send a test message** with the same sender the workflows use:
+   ```bash
+   export MATRIX_HOMESERVER_URL=https://<homeserver> MATRIX_ROOM_ID='!AbCdEf123:<server>' MATRIX_TXN_ID="manual-$(date +%s)"
+   read -rs MATRIX_ACCESS_TOKEN; export MATRIX_ACCESS_TOKEN
+   echo "spotdl-web: Matrix alert test" | python3 .github/scripts/matrix_notify.py
+   # -> matrix_notify: sent (HTTP 200), and the message appears in the room
+   ```
+
+To rotate the token, log in again (step 2), update `MATRIX_ACCESS_TOKEN` (step 6), then log the
+old session out from Element's **Sessions** list. To turn alerts off, delete any one of the three
+secrets.
 
 ---
 
@@ -605,7 +716,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel
 ```
 
 This is also the recovery path if a deploy's Alembic migration needs undoing — see
-[Rollback / recovery](#rollback--recovery-v21) above; migrations are never auto-downgraded.
+[Rollback / recovery](#rollback--recovery-v21-v33) above; migrations are never auto-downgraded.
 
 ---
 
