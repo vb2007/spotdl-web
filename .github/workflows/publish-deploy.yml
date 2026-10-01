@@ -441,3 +441,78 @@ jobs:
             cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps 2>&1 || true
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # v33: nobody was told on 2026-09-27. One Matrix message for any failed or cancelled run, and
+  # one for every real (release-mode, not idempotency-skipped) deploy that succeeded, so silence
+  # means "nothing happened", never "maybe it failed". Unconfigured secrets = a warning and exit
+  # 0 (matrix_notify.py), so missing alert config can't turn a green run red. A Release failure
+  # never reaches this workflow's jobs (resolve is skipped), so release.yml has its own notify.
+  notify:
+    needs: [resolve, publish, deploy]
+    runs-on: self-hosted
+    if: >-
+      always() && (
+        contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') ||
+        (needs.deploy.result == 'success' && needs.resolve.outputs.persist == 'true' &&
+         needs.deploy.outputs.skipped != 'true')
+      )
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+
+      - name: Send the Matrix notification
+        env:
+          MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
+          MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+          MATRIX_ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
+          MATRIX_TXN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          WORKFLOW: ${{ github.workflow }}
+          RESOLVE_RESULT: ${{ needs.resolve.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
+          PERSIST: ${{ needs.resolve.outputs.persist }}
+          DEPLOY_STEP: ${{ needs.deploy.outputs.deploy_step }}
+          ROLLBACK: ${{ needs.deploy.outputs.rollback }}
+          ROLLBACK_TAG: ${{ needs.deploy.outputs.rollback_tag }}
+        run: |
+          failed=""
+          for pair in "resolve=$RESOLVE_RESULT" "publish=$PUBLISH_RESULT" "deploy=$DEPLOY_RESULT"; do
+            case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*} (${pair#*=})" ;; esac
+          done
+          [ "$PERSIST" = "true" ] && mode="release" || mode="manual dispatch"
+          release="${RELEASE_TAG:-none} (version ${VERSION:-unresolved}, $mode)"
+
+          if [ -z "$failed" ]; then
+            {
+              echo "✅ spotdl-web deployed ${VERSION} to production"
+              echo "Workflow: $WORKFLOW"
+              echo "Release: $release"
+              echo "Run: $RUN_URL"
+            } > "$RUNNER_TEMP/message.txt"
+          else
+            case "$ROLLBACK" in
+              succeeded) rollback="succeeded, back on ${ROLLBACK_TAG}" ;;
+              refused) rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup or roll forward (path in the run log)" ;;
+              failed) rollback="FAILED, the stack may be down" ;;
+              *)
+                if [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ]; then
+                  rollback="not attempted"
+                else
+                  rollback="not needed, nothing on the host was changed"
+                fi
+                ;;
+            esac
+            {
+              echo "❌ spotdl-web: $WORKFLOW failed"
+              echo "Failed job(s):$failed"
+              echo "Release: $release"
+              echo "Rollback: $rollback"
+              echo "Run: $RUN_URL"
+            } > "$RUNNER_TEMP/message.txt"
+          fi
+          cat "$RUNNER_TEMP/message.txt"
+          python3 .github/scripts/matrix_notify.py < "$RUNNER_TEMP/message.txt"
