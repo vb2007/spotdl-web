@@ -24,6 +24,10 @@ needed" claim — rather than silently deleted.
   `Annotated[list[str], NoDecode]` or the app won't start → *v01*
 - Adding a runtime dependency needs `docker compose build`, not `restart` → *v03*
 - `DATABASE_URL` host differs between local dev and the Debian host; never cross them → *v01*
+- Local dev's `DATABASE_URL` must name the dev database (`spotdlwebtest`); `SPOTDL_ENV=dev` makes
+  every backend service refuse production's name (`spotdlweb`, also `spotdl_web`) or an
+  unparseable URL. Production's real database name is `spotdlweb`, not the templates'
+  `spotdl_web` → *v32*
 - A `BaseSettings` field omitted from a test's constructor kwargs still resolves from
   `os.environ` — a test asserting "missing X is rejected" must `monkeypatch.delenv(X)` first, or
   it silently passes via a value some *other* test's `conftest.py` setdefault already set → *v17*
@@ -306,6 +310,16 @@ needed" claim — rather than silently deleted.
   downloads volume. The dev/prod DB split this file's "Development environments" section already
   names as a deferred TODO is the actual fix; until then, avoid restarting local `worker-meta`
   (or anything that re-triggers `RUN_DISK_RECONCILE`) more than necessary → *v31*
+  *(Corrected 2026-10-01, v32: the split is done. Local dev now runs on its own `spotdlwebtest`
+  database behind a fail-closed `SPOTDL_ENV=dev` guard, so restarting local `worker-meta` is safe
+  again. It reconciles the dev ledger only.)*
+- A running container keeps the environment it was **created** with. Editing `.env` changes
+  nothing until the container is recreated (`docker compose up -d`, not `restart`), so "the `.env`
+  points at dev" isn't proof the running stack does. Check `docker compose exec <svc> printenv` →
+  *v32*
+- `uvicorn --reload`'s supervisor never imports the app, so when its child dies on a config error
+  the container stays up instead of exiting. The dev `api` command pre-validates settings before
+  `exec uvicorn` → *v32*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -3890,6 +3904,11 @@ a core correctness gap in `download_track` itself, and doc reconciliation)
   (the real fix is the dev/prod DB split `CLAUDE.md`'s "Development environments" section already
   named as a deferred TODO, now overdue rather than theoretical) — `worker-meta` was not restarted
   again for the remainder of this session to avoid pruning further real rows.
+  *(Corrected 2026-10-01, v32: fixed by the dev/prod database split. Local dev runs on
+  `spotdlwebtest`, guarded fail-closed in `app/config.py`, so local `reconcile_disk()` only ever
+  sees dev ledger rows. One correction to the record: the shared database was production's own
+  `spotdlweb`. `spotdl_web`, the name in `.env.example`/`DEPLOYMENT.md`, does not exist on the
+  server as of 2026-10-01. See the v32 section.)*
 - **Three gaps prior versions explicitly flagged by name as "a v31 candidate," fixed:**
   1. `beat._reclaim_stale_tracks` now records a `FAILED` `track_attempts` row for the invocation it
      reclaims — snapshotting `attempt_count`/`updated_at` via a plain `SELECT` *before* the bulk
@@ -3954,3 +3973,44 @@ independently-found production bug from the same conversation)
 - **A reminder that a version bump needs `uv lock` run again, not just the `pyproject.toml` edit** —
   CI's `deps-sync` job caught this on v31's own PR (`uv.lock --check` failed: the lockfile still said
   the old version). `uv lock` after every version-string bump, before pushing, not after CI says so.
+
+### v32 dev-database gotchas (learned moving local dev onto `spotdlwebtest` and adding the guard)
+
+- **Production's real database is `spotdlweb`, not `spotdl_web`.** `.env.example`,
+  `.env.dev.example` (before v32) and `docs/DEPLOYMENT.md` §2 all say `spotdl_web` for both role and
+  database, and v32's own plan keyed the guard on that name. The server (`pg_database`, 2026-10-01) has
+  `spotdlweb` and `spotdlwebtest`, both owned by role `spotdlweb`, and no `spotdl_web` at all. A
+  guard on the documented name alone would have protected nothing. `PRODUCTION_DATABASE_NAMES` in
+  `app/config.py` holds both: the real name, plus the documented one for a fresh install that
+  followed `DEPLOYMENT.md` literally. The templates/DEPLOYMENT.md mismatch itself was left as is
+  (out of scope: production docs).
+- **The local stack had been running on production for days after `.env` was switched.** The owner
+  had already pointed `.env` at `spotdlwebtest`, but the running containers were created three days
+  earlier and `printenv DATABASE_URL` inside them still named `spotdlweb`. Compose bakes `env_file`
+  into the container at creation, and `docker compose restart` doesn't re-read it; only a recreate
+  (`up -d`, `--force-recreate`) does. Stopped at the start of v32. Lesson: verify the running
+  container's env, not the file.
+- **`uvicorn --reload` never exits on an import-time config error.** The reloader supervisor
+  (PID 1) only watches files; the child that imports `app.main` dies on the `ValidationError` and
+  the supervisor waits for a file change forever. The container stays "Up" and serves nothing.
+  Every other service (celery workers, beat, `migrate`) exits non-zero on its own. Fixed by
+  `sh -c "python -c '…get_settings()' && exec uvicorn …"` in the dev override only. Production runs
+  without `--reload`, where uvicorn exits 1 on its own.
+- **Where the guard lives, and why there.** `get_settings()` runs at import in `db.py`, `main.py`,
+  `celery_app.py` and `alembic/env.py`, so a `Settings` `model_validator` stops every process before
+  its first connection. `env.py` re-checks the exact URL it hands to Alembic as a second layer.
+  `libpq` also accepts `?dbname=` in the query string, which overrides the path, so the guard checks
+  both. An unrecognized `SPOTDL_ENV` value is refused too, so a typo can't silently disable it.
+  Error messages name the database, never the URL, because the URL carries the password.
+- **`alembic downgrade base && upgrade head` is clean on every revision through `e7c1f9a4d2b6`.**
+  First time it was ever safe to run (no disposable database before v32). All 11 downgrades ran,
+  then all 11 upgrades. A clean re-upgrade alone doesn't prove every `DROP TYPE` is there:
+  `e7c1f9a4d2b6` creates its enum with `checkfirst=True`, so a leftover type would be silently
+  reused. The direct check does: every migration that *creates* a native enum
+  (`ebc1d43e2c21` ×5, `5ae734a0485b`, `d2f4a6b8c1e3`, `e7c1f9a4d2b6`) drops it in `downgrade()`.
+  `5ae734a0485b`'s second enum reference reuses `track_error_type` with `create_type=False`, so
+  it correctly drops nothing. `pg_trgm` stays installed after `base` by design
+  (`b6dde562e77a`'s own comment).
+- **A fresh dev database re-seeds through the app's normal paths.** `users` rows come back on first
+  real login (admin from the dev `.env`'s `ADMIN_EMAIL`, a test account), file-sourced proxies on
+  `worker-meta` boot (`sync_from_file: 5 in file, 5 added`). Nothing needs a manual insert.

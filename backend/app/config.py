@@ -3,8 +3,61 @@ from typing import Annotated
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 DEFAULT_LADDER_SECONDS = [900, 3600, 14400, 43200, 86400]
+
+# v32: database names a dev-marked process (SPOTDL_ENV=dev, set only by
+# docker-compose.override.yml) must never connect to. `spotdlweb` is the real production
+# database on the shared Postgres server; `spotdl_web` is the name .env.example and
+# docs/DEPLOYMENT.md document for a fresh install. Keyed on "is it production", never on the
+# dev database's own name (spotdlwebtest), so renaming the dev database never breaks this.
+PRODUCTION_DATABASE_NAMES = ("spotdlweb", "spotdl_web")
+
+DEV_ENV_MARKER = "dev"
+
+_DEV_DB_FIX = "point DATABASE_URL at spotdlwebtest, see docs/LOCAL_DEV.md"
+
+
+def check_not_production_database(database_url: str, spotdl_env: str | None) -> None:
+    """Refuses a dev-marked process pointed at the production database. Fails closed: in
+    dev, a URL whose database name can't be determined is refused too, since "can't tell"
+    must never read as "safe". Without the dev marker (production) this is a no-op. The
+    error names the database only, never the URL -- it carries the password."""
+    marker = (spotdl_env or "").strip().lower()
+    if not marker:
+        return
+    if marker != DEV_ENV_MARKER:
+        raise ValueError(
+            f"SPOTDL_ENV={spotdl_env!r} is not a recognized environment marker "
+            f"(expected {DEV_ENV_MARKER!r} or unset); refusing to start"
+        )
+    try:
+        url = make_url(database_url)
+    except (ArgumentError, ValueError) as exc:
+        raise ValueError(
+            f"SPOTDL_ENV=dev but DATABASE_URL can't be parsed ({type(exc).__name__}); "
+            f"refusing to start -- {_DEV_DB_FIX}"
+        ) from None
+    # libpq also accepts the database as a `?dbname=` query parameter, which wins over the
+    # path component -- check both, so the guard can't be sidestepped that way.
+    query_dbname = url.query.get("dbname") or ()
+    if isinstance(query_dbname, str):
+        query_dbname = (query_dbname,)
+    names = [n for n in (url.database, *query_dbname) if n]
+    if not names:
+        raise ValueError(
+            f"SPOTDL_ENV=dev but DATABASE_URL names no database; refusing to start -- "
+            f"{_DEV_DB_FIX}"
+        )
+    production = {n.lower() for n in PRODUCTION_DATABASE_NAMES}
+    for name in names:
+        if name.strip().lower() in production:
+            raise ValueError(
+                f"SPOTDL_ENV=dev but DATABASE_URL points at the production database "
+                f"{name!r}; refusing to start -- {_DEV_DB_FIX}"
+            )
 
 
 class Settings(BaseSettings):
@@ -13,6 +66,10 @@ class Settings(BaseSettings):
     # Core infra
     database_url: str = Field(alias="DATABASE_URL")
     redis_url: str = Field(alias="REDIS_URL")
+
+    # Environment marker (v32) -- "dev" is set only by docker-compose.override.yml on every
+    # backend service; production never sets it. See check_not_production_database().
+    spotdl_env: str | None = Field(default=None, alias="SPOTDL_ENV")
 
     # Auth (v03)
     allowed_emails: Annotated[list[str], NoDecode] = Field(
@@ -118,6 +175,15 @@ class Settings(BaseSettings):
                 f"PACING_MIN_SEC ({self.pacing_min_sec}) must not exceed "
                 f"PACING_MAX_SEC ({self.pacing_max_sec})"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _check_dev_not_on_production_database(self) -> "Settings":
+        """get_settings() runs at import in every backend process (db.py, main.py,
+        celery_app.py, alembic/env.py), so every one of them -- api, both workers, beat and
+        migrate -- refuses at boot, before a single query. Under a plain `docker compose up`
+        only migrate visibly fails; the rest never start (depends_on migrate)."""
+        check_not_production_database(self.database_url, self.spotdl_env)
         return self
 
     @model_validator(mode="after")
