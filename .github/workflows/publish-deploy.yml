@@ -208,6 +208,17 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.commit }}
 
+      # v33: the pipeline's own tools (check_required_env.py, migration_guard.sh) come from the
+      # commit this workflow file is running from, not the ref being deployed: a dispatch of a
+      # pre-v33 tag would otherwise have no such scripts, and fail its preflight (or refuse its
+      # rollback) for that reason alone. Release mode runs from main, so it's always current.
+      - name: Check out the pipeline's own scripts
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: .pipeline
+          sparse-checkout: .github/scripts
+
       - name: Preflight
         run: |
           test -d "$DEPLOY_DIR/.git" || { echo "::error::$DEPLOY_DIR is not a git checkout"; exit 1; }
@@ -258,7 +269,7 @@ jobs:
             git -C "$DEPLOY_DIR" show "$COMMIT:$f" > "$TMP/$f"
           done
 
-          if ! python3 .github/scripts/check_required_env.py --require-value \
+          if ! python3 .pipeline/.github/scripts/check_required_env.py --require-value \
                --env-file "$DEPLOY_DIR/.env" \
                --hint "Add each to $DEPLOY_DIR/.env, see docs/DEPLOYMENT.md (and docs/RELEASE_PIPELINE.md, 'Adding a required env var'). Nothing on the host was changed." \
                "$TMP/docker-compose.yml" "$TMP/docker-compose.prod.yml"; then
@@ -274,11 +285,17 @@ jobs:
                config --quiet 2> "$TMP/config.err"; then
             python3 - "$DEPLOY_DIR/.env" "$TMP/config.err" <<'PY'
           import re, sys
-          values = []
+          values = set()
           for line in open(sys.argv[1]):
               m = re.match(r"^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=(.*)$", line)
-              if m and len(m.group(1).strip().strip("'\"")) >= 3:
-                  values.append(m.group(1).strip().strip("'\""))
+              if m:
+                  raw = m.group(1).strip()
+                  # Both the raw text and the value Compose sees once an inline ` #` comment
+                  # is dropped, quotes stripped either way.
+                  for v in (raw, raw.split(" #", 1)[0].strip()):
+                      v = v.strip("'\"")
+                      if len(v) >= 3:
+                          values.add(v)
           text = open(sys.argv[2]).read()
           for v in sorted(values, key=len, reverse=True):
               text = text.replace(v, "***")
@@ -352,11 +369,16 @@ jobs:
       # and re-ran `up` in the NEW checkout, against the same compose file that had just failed
       # (2026-09-27: both directions died on the same missing variable). Only runs once the
       # deploy step has actually started moving the host; a preflight or backup failure left
-      # nothing to roll back. `result` is for the notify job: failed (the default, until the
-      # end is reached), refused (the migration guard said no), succeeded.
+      # nothing to roll back. A cancelled run (by hand, or `timeout-minutes`) rolls back too,
+      # since a cancel mid-`up` leaves the host half-deployed. `result` is for the notify job:
+      # failed (the default, until the end is reached), refused (the database is ahead),
+      # guard-error (the guard couldn't tell, so nothing was started), succeeded.
       - name: Roll back to the previous commit and image on failure
         id: rollback
-        if: failure() && (steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure')
+        if: >-
+          (failure() || cancelled()) &&
+          (steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure' ||
+           steps.deploy.outcome == 'cancelled')
         env:
           PREV_TAG: ${{ steps.prev.outputs.tag }}
           PREV_COMMIT: ${{ steps.prev.outputs.commit }}
@@ -376,11 +398,17 @@ jobs:
           for f in docker-compose.yml docker-compose.prod.yml; do
             git -C "$DEPLOY_DIR" show "$PREV_COMMIT:$f" > "$TMP/$f"
           done
-          if ! IMAGE_TAG="$PREV_TAG" \
-               GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $TMP/docker-compose.yml -f $TMP/docker-compose.prod.yml" \
-               bash .github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH"; then
+          guard_rc=0
+          IMAGE_TAG="$PREV_TAG" \
+            GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $TMP/docker-compose.yml -f $TMP/docker-compose.prod.yml" \
+            bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" || guard_rc=$?
+          if [ "$guard_rc" -eq 3 ]; then
             echo "result=refused" >> "$GITHUB_OUTPUT"
-            echo "::error::Rollback refused by the migration guard. The failed deploy's checkout and containers are left as they are. Restore the pre-deploy pg_backup at ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>} or roll forward; see docs/DEPLOYMENT.md, 'Rollback / recovery'."
+            echo "::error::Rollback refused: the database is ahead of $PREV_TAG. The failed deploy's checkout and containers are left as they are. Restore the pre-deploy pg_backup at ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>} or roll forward; see docs/DEPLOYMENT.md, 'Rollback / recovery'."
+            exit 1
+          elif [ "$guard_rc" -ne 0 ]; then
+            echo "result=guard-error" >> "$GITHUB_OUTPUT"
+            echo "::error::Rollback not attempted: the migration guard couldn't compare revisions (exit $guard_rc, see above), so the old stack was not started. The failed deploy's checkout and containers are left as they are. Pre-deploy pg_backup: ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>}."
             exit 1
           fi
 
@@ -416,11 +444,13 @@ jobs:
           echo "Wrote $DEPLOY_DIR/.last-good:"
           cat "$DEPLOY_DIR/.last-good"
 
+      # v33: housekeeping on an already-healthy deploy, so a prune error is a warning, not a
+      # failed run (which would also send a false "deploy failed" alert).
       - name: Prune old images and build cache
         if: steps.skip.outputs.skip != 'true' && success()
         run: |
-          docker image prune -f
-          docker builder prune -f --keep-storage 5GB
+          docker image prune -f || echo "::warning::docker image prune failed"
+          docker builder prune -f --keep-storage 5GB || echo "::warning::docker builder prune failed"
 
       # Also echoed to the log (tee), so a run's end state is evidence without SSH. None of
       # this is secret: HEAD, the IMAGE_TAG line and .last-good only.
@@ -497,10 +527,11 @@ jobs:
             case "$ROLLBACK" in
               succeeded) rollback="succeeded, back on ${ROLLBACK_TAG}" ;;
               refused) rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup or roll forward (path in the run log)" ;;
+              guard-error) rollback="NOT STARTED: the migration guard couldn't compare revisions, so the old stack was left alone. See the run log" ;;
               failed) rollback="FAILED, the stack may be down" ;;
               *)
-                if [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ]; then
-                  rollback="not attempted"
+                if [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ] || [ "$DEPLOY_STEP" = "cancelled" ]; then
+                  rollback="not attempted, the host may be mid-deploy"
                 else
                   rollback="not needed, nothing on the host was changed"
                 fi

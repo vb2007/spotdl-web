@@ -29,13 +29,19 @@ deadline=$(( $(date +%s) + TIMEOUT_SECONDS ))
 
 # Prints one `compose ps` field for a service; exits the whole script on a compose error. Called
 # as `x="$(compose_ps ...)" || exit 2`, since an `exit` inside $(...) only leaves the subshell.
+# stderr is kept apart from the value: a harmless warning on a successful call (an unset
+# variable defaulting to blank, an obsolete attribute) must not end up compared to "healthy".
 compose_ps() {
-  local out
-  if ! out="$("${COMPOSE[@]}" ps "$@" 2>&1)"; then
+  local out err rc=0
+  err="$(mktemp)"
+  out="$("${COMPOSE[@]}" ps "$@" 2>"$err")" || rc=$?
+  if [ "$rc" -ne 0 ]; then
     echo "wait_for_stack_health: docker compose failed, not a health wait:" >&2
-    echo "$out" >&2
+    cat "$err" >&2
+    rm -f "$err"
     return 1
   fi
+  rm -f "$err"
   printf '%s' "$out"
 }
 

@@ -367,14 +367,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # `env_file: .env` on the x-backend anchor needs an actual .env file on disk for
-      # `docker compose config` to even parse successfully -- it's not just the three
-      # ${VAR}-interpolated values above, which the job-level `env:` already covers.
-      # CI's checkout never has a real .env (gitignored), so without this step `config`
-      # fails immediately with "env file ... not found", before ever reaching the
-      # interpolation it's actually meant to validate. .env.example's placeholder values
-      # are irrelevant here (nothing in this job starts a real container), only the
-      # file's existence matters.
       # v33: every `${VAR:?}` (a variable Compose refuses to render without) must have a key
       # in the template the matching environment is built from, so a version that adds one
       # can't merge without documenting it: v28's LIBRARY_DIR reached the host's .env only
@@ -389,6 +381,14 @@ jobs:
             --hint "Add each to .env.dev.example, see docs/RELEASE_PIPELINE.md, 'Adding a required env var'." \
             docker-compose.yml docker-compose.override.yml
 
+      # `env_file: .env` on the x-backend anchor needs an actual .env file on disk for
+      # `docker compose config` to even parse successfully. CI's checkout never has a real
+      # .env (gitignored), so without this step `config` fails immediately with "env file
+      # ... not found", before ever reaching the interpolation it's actually meant to
+      # validate. Nothing in this job starts a real container, so the values are
+      # placeholders, but they are read: Compose interpolates from this file too, which is
+      # where LIBRARY_DIR (v28) resolves from (corrected in v33; this used to say only the
+      # file's existence mattered).
       - name: "Create placeholder .env (file must exist for env_file: .env to resolve)"
         run: cp .env.example .env
 

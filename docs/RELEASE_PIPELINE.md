@@ -203,7 +203,8 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
    reads the *new* commit's `docker-compose.yml` and `docker-compose.prod.yml` out of git into a
    temp dir (`git show <sha>:<file>`, so the deploy checkout stays where it is), and checks them
    against the host's real `.env`:
-   - `.github/scripts/check_required_env.py --require-value` lists every `${VAR:?}` the files
+   - `check_required_env.py --require-value` (from the workflow's own commit, like the guard)
+     lists every `${VAR:?}` the files
      need that `.env` lacks (or has empty), **by name**, plus "add to `.env`, see
      docs/DEPLOYMENT.md". It prints names only, never values.
    - `docker compose ... config --quiet` then catches anything else a render can trip on. Its
@@ -240,7 +241,7 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
 11. **Record last-known-good** (release mode, on success only) — see below.
 12. **Prune** (on success only): `docker image prune -f` + `docker builder prune -f
     --keep-storage 5GB`, so the ~800MB backend image doesn't accumulate a new dangling layer set
-    on every release.
+    on every release. A prune error is only a warning (v33): the deploy is already healthy.
 13. **Summary** (always): version, mode, skipped, the rollback result, and the host's end
     state (checkout `HEAD`, the `.env` `IMAGE_TAG` line, `.last-good`, `compose ps`), both on the
     run's summary page and in the log. None of it is secret, and it means a run's outcome can be
@@ -249,7 +250,8 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
 ### Rollback
 
 Only runs when the deploy step (6–8) actually started, since a failure in the preflight or the
-backup left nothing to undo. Code/image rollback only: Alembic migrations are never downgraded
+backup left nothing to undo. A **cancelled** run (by hand, or the job's `timeout-minutes`) rolls
+back too, since a cancel mid-`up` leaves the host half-deployed. Code/image rollback only: Alembic migrations are never downgraded
 automatically (too risky unattended); the pre-deploy `pg_backup` is the recovery path for a bad
 migration.
 
@@ -261,7 +263,10 @@ migration.
    starting the old stack is doomed, because its own `migrate` would refuse and nothing would
    come up. So the rollback **stops there**: it leaves the failed deploy's checkout and containers
    as they are and fails with "restore the pre-deploy pg_backup at `<path>` or roll forward".
-   It also fails closed when it can't tell.
+   It also fails closed when it can't tell (Postgres unreachable, the old image unpullable),
+   reported separately as a guard error rather than as "the database is ahead". The guard comes
+   from the commit the workflow runs from (a second, sparse checkout at `.pipeline/`), never the
+   ref being deployed, so a dispatch of a pre-v33 tag still has it.
 2. **Restore commit and tag together**: `git checkout --detach --force <prev-commit>`,
    `git reset --hard`, `git clean -fd -e /.last-good`, then `IMAGE_TAG=<prev-tag>` into `.env`,
    then `up -d --no-build --remove-orphans`. Before v33 only `IMAGE_TAG` was reset, and `up` ran
@@ -271,7 +276,8 @@ migration.
 4. **Still exits non-zero**: the deploy failed even when the rollback worked, and the run must
    show red.
 
-The step's `result` (`succeeded`, `refused`, `failed`) goes into the Matrix message. The manual
+The step's `result` (`succeeded`, `refused`, `guard-error`, `failed`) goes into the Matrix
+message. The manual
 recovery for each case is in `docs/DEPLOYMENT.md`, "Rollback / recovery".
 
 ### `.last-good`
