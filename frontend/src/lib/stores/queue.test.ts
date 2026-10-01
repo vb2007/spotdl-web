@@ -152,7 +152,8 @@ describe('v34 live hydration', () => {
 		expect(calls.active[0][0]).toMatchObject({
 			state: ['downloading'],
 			includeArchived: true,
-			allUsers: false
+			allUsers: false,
+			limit: 1000
 		});
 		expect(getJob).not.toHaveBeenCalled();
 	});
@@ -275,5 +276,13 @@ describe('v34 live hydration', () => {
 		await vi.waitFor(() => expect(get(queue.activeTracks)).toHaveLength(0));
 		expect(get(queue.incomingJobs)).toHaveLength(0);
 		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ allUsers: false });
+	});
+
+	it('a lane in its grace window does not lend its old progress to a new attempt', async () => {
+		routeLists({ active: async () => tracksPage([downloadingTrack('t1')]) });
+		await queue.applyEvent(trackEvent('t1', 'downloading', 100));
+		await queue.applyEvent(trackEvent('t1', 'waiting'));
+		await queue.reload();
+		expect(get(queue.activeTracks)[0]).toMatchObject({ state: 'downloading', progress: undefined });
 	});
 });

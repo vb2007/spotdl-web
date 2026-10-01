@@ -297,12 +297,22 @@ function createQueueStore() {
 	 * never hidden by its parent job's archive flag -- the Waterfall shows what the worker
 	 * is doing, not a filtered listing. A failed request leaves both overlays as they are;
 	 * the page's own error line already reports an unreachable server. */
+	// The backend's own page cap (`pagination.CAP`): failed jobs stay `failed` until
+	// dismissed or archived, so the default 50 could hide older ones from a reload. Still
+	// one request; past the cap the snapshot is truncated and `merge*` stop pruning.
+	const HYDRATE_LIMIT = 1000;
+
 	async function hydrateLive(): Promise<void> {
 		const seq = ++liveHydrateSeq;
 		const startedAt = liveEventCounter;
 		const [incomingResult, activeResult] = await Promise.allSettled([
-			api.listJobsPage({ status: ['expanding', 'failed'], allUsers }),
-			api.listTracksPage({ state: ['downloading'], includeArchived: true, allUsers })
+			api.listJobsPage({ status: ['expanding', 'failed'], allUsers, limit: HYDRATE_LIMIT }),
+			api.listTracksPage({
+				state: ['downloading'],
+				includeArchived: true,
+				allUsers,
+				limit: HYDRATE_LIMIT
+			})
 		]);
 		if (seq !== liveHydrateSeq) return;
 		if (incomingResult.status === 'fulfilled') {
@@ -310,6 +320,14 @@ function createQueueStore() {
 		}
 		if (activeResult.status === 'fulfilled') {
 			mergeActive(activeResult.value, startedAt);
+		}
+		// A stamp at or before this hydration's start can't matter to any later one (each
+		// starts from a counter value at least this high), so drop them -- otherwise both
+		// maps grow by one key per id that ever sent an event, for as long as the tab lives.
+		for (const touchedAt of [liveTrackTouchedAt, incomingTouchedAt]) {
+			for (const [id, stamp] of Object.entries(touchedAt)) {
+				if (stamp <= startedAt) delete touchedAt[id];
+			}
 		}
 	}
 
@@ -359,7 +377,11 @@ function createQueueStore() {
 			for (const { job: _job, ...track } of snapshot.items) {
 				if (!snapshotIsNewest(liveTrackTouchedAt, track.id, startedAt)) continue;
 				clearLiveRemovalTimer(track.id);
-				next[track.id] = { ...track, progress: current[track.id]?.progress };
+				// Only a lane still mid-attempt keeps its last tick; one in its grace window
+				// is showing the *previous* attempt's progress, which this one doesn't share.
+				const existing = current[track.id];
+				const progress = existing?.state === 'downloading' ? existing.progress : undefined;
+				next[track.id] = { ...track, progress };
 			}
 			return next;
 		});
