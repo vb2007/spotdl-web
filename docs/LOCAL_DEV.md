@@ -25,8 +25,7 @@ cp .env.dev.example .env
 Fill in the real Postgres password for the dev database's role (the URL's database name must
 stay `spotdlwebtest`, see [Dedicated dev database](#dedicated-dev-database)) and `ADMIN_EMAIL`, a
 **test account**, never the owner's real admin address (v17+ — must also appear in
-`ALLOWED_EMAILS`, or the `api`/`worker-dl`/`worker-meta`/`beat` containers all crash-loop at
-boot). Everything else in `.env.dev.example` is already dev-appropriate out of the box —
+`ALLOWED_EMAILS`, or `migrate` fails at boot and the services waiting on it never start). Everything else in `.env.dev.example` is already dev-appropriate out of the box —
 notably `LADDER_SECONDS` is pre-shortened to seconds instead of hours, since testing the real
 retry ladder shouldn't take literal days.
 
@@ -167,7 +166,10 @@ SPOTDL_ENV=dev but DATABASE_URL points at the production database 'spotdlweb'; r
 ```
 
 Production never sets the marker (the override file never applies there), so the guard is a no-op
-in production. `SPOTDL_ENV` is reserved: **never set it in production**, not even to `prod`. Any value
+in production. The flip side: the guard only protects processes that carry the marker, i.e.
+containers started through the override. A host-side `alembic`/`python` run, or a local
+`docker compose -f docker-compose.yml …` (which skips the override), has no marker and no guard.
+Keep the local `.env` pointed at `spotdlwebtest` regardless. `SPOTDL_ENV` is reserved: **never set it in production**, not even to `prod`. Any value
 other than `dev` is refused everywhere, so a typo can never silently disable the guard. The guard keys on "is it production", never on the dev name, so renaming the dev
 database later doesn't break it.
 
@@ -205,4 +207,4 @@ File-sourced proxies come back on `worker-meta`'s next boot through `sync_from_f
 | `web` fails with `Bind for 127.0.0.1:5173 failed: port is already allocated`, even though nothing else is using that port | `docker-compose.override.yml`'s `ports:` list *merges* with `docker-compose.yml`'s instead of replacing it (list-type keys merge by default across compose files — `command`/`build` don't, so this is easy to miss), so `web` ends up with two host bindings to the same address | Confirmed fixed for `web` via the `!override` merge tag on its `ports:` key — if you add a *new* port mapping to any service in the override, check `docker compose config` for duplicates rather than assuming a plain list will replace the base file's |
 | Stack was working, comes back broken after `docker compose down && up` with no config changes | Check `docker compose config` for the resolved service definitions before assuming it's a code regression — compose-file merge behavior is a common source of surprises that look like app bugs | |
 | `migrate` exits at boot (and api/workers/beat never start, since they wait on it) with `SPOTDL_ENV=dev but DATABASE_URL points at the production database …` or `… can't be parsed` / `… names no database` (v32) | The local `.env`'s `DATABASE_URL` points at production's database, or is malformed. The dev guard refuses rather than risk production rows | Point `DATABASE_URL` at `spotdlwebtest` (see [Dedicated dev database](#dedicated-dev-database)). Never remove `SPOTDL_ENV` from the override to get past it |
-| `api`/`worker-dl`/`worker-meta`/`beat` all crash-loop at boot with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | Either `ADMIN_EMAIL` is unset in `.env`, or it's set but not also present in `ALLOWED_EMAILS` — both are required at startup, by design | Add `ADMIN_EMAIL=you@example.com` to `.env` and make sure that same address is also in `ALLOWED_EMAILS` |
+| `migrate` fails at boot (api/workers/beat never start) with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | Either `ADMIN_EMAIL` is unset in `.env`, or it's set but not also present in `ALLOWED_EMAILS` — both are required at startup, by design | Add `ADMIN_EMAIL=you@example.com` to `.env` and make sure that same address is also in `ALLOWED_EMAILS` |
