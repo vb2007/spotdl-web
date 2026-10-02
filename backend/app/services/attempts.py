@@ -62,6 +62,11 @@ def record_attempt(
         .values(
             attempts_made=Track.attempts_made + (1 if attempted else 0),
             failure_count=Track.failure_count + (1 if failed else 0),
+            # Not a change to the track itself: without this the column's onupdate would
+            # bump it, and a stray message's row on an already-cancelled track would
+            # restart its job's archive clock. Paths that do change the track flush that
+            # change (and its updated_at) on their own.
+            updated_at=Track.updated_at,
         )
         .returning(Track.attempts_made, Track.failure_count)
         .execution_options(synchronize_session="fetch")

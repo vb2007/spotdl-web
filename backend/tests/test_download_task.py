@@ -1266,3 +1266,19 @@ def test_redelivered_message_for_a_finished_track_is_a_noop(db_session, monkeypa
     assert (updated.attempts_made, updated.failure_count) == (0, 0)
     assert _attempts(db_session, track) == []
     assert published == []
+
+
+def test_a_stray_message_for_a_cancelled_track_leaves_updated_at_alone(db_session, monkeypatch):
+    """v35: record_attempt's counter UPDATE must not bump tracks.updated_at (the job's
+    archive clock) when nothing about the track itself changed."""
+    track = _make_track(db_session)
+    track.state = TrackState.CANCELLED
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    before = db_session.get(Track, track.id).updated_at
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert [row.outcome for row in _attempts(db_session, track)] == [TrackAttemptOutcome.CANCELLED]
+    assert updated.updated_at == before

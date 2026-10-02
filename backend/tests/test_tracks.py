@@ -416,3 +416,29 @@ def test_download_unknown_track_file_returns_404(authenticated_client, db_sessio
 
 def test_download_track_file_requires_session(client):
     assert client.get(f"/api/tracks/{uuid.uuid4()}/file").status_code == 401
+
+
+def test_attempt_with_a_malformed_proxy_url_still_lists(authenticated_client, db_session, owner):
+    """v35 (b): proxies.redact() raises on a bad port; the history must still render."""
+    track = _make_track(db_session, owner, state=TrackState.WAITING)
+    proxy = Proxy(url="http://10.0.0.7:notaport", source=ProxySource.FILE, enabled=True)
+    db_session.add(proxy)
+    db_session.commit()
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        TrackAttempt(
+            track_id=track.id,
+            attempt_number=1,
+            started_at=now,
+            finished_at=now,
+            outcome=TrackAttemptOutcome.FAILED,
+            proxy_id=proxy.id,
+            network_path=NetworkPath.PROXY,
+        )
+    )
+    db_session.commit()
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/attempts")
+
+    assert response.status_code == 200
+    assert response.json()[0]["proxy_label"] == "proxy"

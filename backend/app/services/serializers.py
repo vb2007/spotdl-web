@@ -104,6 +104,17 @@ def track_to_dict(track: Track) -> dict:
     }
 
 
+def _proxy_label(proxy_url: str | None) -> str | None:
+    """proxies.redact() raises on a malformed port (urlsplit's .port), and sync_from_file
+    doesn't validate URLs -- one bad row must not 500 a user's attempt history."""
+    if proxy_url is None:
+        return None
+    try:
+        return proxies.redact(proxy_url)
+    except ValueError:
+        return "proxy"
+
+
 def track_attempt_to_dict(attempt: TrackAttempt, proxy_url: str | None = None) -> dict:
     """`proxy_url` is the attempt's proxy's raw URL, joined in by the caller's own query
     (never a per-row lookup). Only its `proxies.redact()` form leaves this function: the
@@ -119,6 +130,6 @@ def track_attempt_to_dict(attempt: TrackAttempt, proxy_url: str | None = None) -
         "error_message": attempt.error_message,
         "warning_message": attempt.warning_message,
         "proxy_id": str(attempt.proxy_id) if attempt.proxy_id is not None else None,
-        "proxy_label": proxies.redact(proxy_url) if proxy_url is not None else None,
+        "proxy_label": _proxy_label(proxy_url),
         "network_path": attempt.network_path.value if attempt.network_path is not None else None,
     }

@@ -687,9 +687,7 @@ function createQueueStore() {
 					...e[jobId],
 					items: [...e[jobId].items, ...result.items],
 					nextCursor: result.next_cursor,
-					// countsByState deliberately not taken from a later page: it's the same
-					// set's counts, and this (older) read could land after a fresher
-					// refreshTrackCounts.
+					countsByState: result.counts_by_state,
 					loadingMore: false
 				}
 			}));
