@@ -77,6 +77,23 @@ def download_track(track_id: str) -> None:
             db.commit()
             return
 
+        # v34.1: a message is only ever sent for a `pending` (expand_job) or `queued`
+        # (beat's dispatch) track, and a crash redelivery can find it `downloading`. One
+        # that finds it `waiting` or `lookup_failed` is stray -- e.g. a duplicate sent by
+        # expand_job re-enqueueing an interrupted run's pending tracks, landing after the
+        # first message's attempt already failed into the ladder. Running it would jump
+        # the ladder (an immediate retry, on the next rung) -- exactly the rate-limit
+        # exposure this app exists to avoid -- so drop it: no attempt row, no event. Beat
+        # dispatches the track again when it's actually due. (A redelivery that finds a
+        # *completed* track is v35's item (c).)
+        if track.state in (TrackState.WAITING, TrackState.LOOKUP_FAILED):
+            logger.info(
+                "download_track: track %s is %s, not due; dropping stray message",
+                track_id,
+                track.state.value,
+            )
+            return
+
         # Covers the race where this task was already enqueued just before the breaker
         # tripped (or the worker was paused) — dispatch_due_tracks is the primary gate and
         # normally won't enqueue in this state at all.

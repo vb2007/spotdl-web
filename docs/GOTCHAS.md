@@ -4214,3 +4214,18 @@ independently-found production bug from the same conversation)
   before its task even starts is skipped without any Spotify calls (live: `is cancelled, not
   expanding; skipping`, 0.003s).
 
+- **Every recovery path for `pending` tracks risks a duplicate message, so `download_track`
+  drops a message whose track is `waiting`/`lookup_failed`** (no attempt row, no event). Only
+  `pending` (expand_job), `queued` (beat) and a crash-redelivered `downloading` are legitimate.
+  expand_job re-enqueues a job's still-`pending` tracks on an `EXPANDED` redelivery, or when
+  something raised after its EXPANDED commit, because nothing else ever picks `pending` up. A
+  duplicate landing after the first attempt failed into the ladder would otherwise retry
+  immediately on the next rung (live check: `is waiting, not due; dropping stray message`,
+  attempt rows 1 → 1). A duplicate finding a `completed` track is v35's item (c). An overlapping
+  run of the same job (a redelivery past the visibility timeout) now rolls back its own track
+  inserts when the UPDATE finds the job already `expanded`.
+- **`cancel_job` row-locks the job (`refresh(..., with_for_update=True)`) before reading its
+  tracks.** Verified on the dev Postgres: expand_job's conditional UPDATE blocked while the lock
+  was held (`still blocked after 2s: True`), then matched 0 rows, and the job ended `cancelled`.
+  The test suite runs on SQLite, which ignores `FOR UPDATE`, so its test only pins that the lock
+  is requested.

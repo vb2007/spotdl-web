@@ -265,3 +265,55 @@ def test_expand_job_redelivered_after_expanded_enqueues_only_pending_tracks(db_s
     assert enqueued == [str(stranded.id)]
     assert published == []
     assert db_session.query(Track).filter(Track.job_id == job.id).count() == 2
+
+
+def test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job(db_session, monkeypatch):
+    job = Job(
+        source_url="https://open.spotify.com/album/abc",
+        source_type=JobSourceType.ALBUM,
+        user_id=_owner(db_session).id,
+    )
+    db_session.add(job)
+    db_session.commit()
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    enqueued = _stub_download_track(monkeypatch)
+    published = _capture_job_events(monkeypatch)
+
+    def fake_expand(url):
+        # An overlapping run of the same job (a redelivery) finished first.
+        db_session.query(Job).filter(Job.id == job.id).update({"state": JobState.EXPANDED})
+        db_session.commit()
+        return [_FakeSong("abc123", {"name": "Song A"})]
+
+    monkeypatch.setattr(expansion, "expand", fake_expand)
+
+    expand_task.expand_job(str(job.id))
+
+    assert db_session.query(Track).filter(Track.job_id == job.id).count() == 0
+    assert enqueued == []
+    assert [args[2] for args, _ in published] == ["expanding"]
+
+
+def test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks(db_session, monkeypatch):
+    job = Job(
+        source_url="https://open.spotify.com/album/abc",
+        source_type=JobSourceType.ALBUM,
+        user_id=_owner(db_session).id,
+    )
+    db_session.add(job)
+    db_session.commit()
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(expansion, "expand", lambda url: [_FakeSong("abc123", {"name": "Song A"})])
+    enqueued = _stub_download_track(monkeypatch)
+
+    def publish(user_id, job_id, state, **kwargs):
+        if state == "expanded":
+            raise RuntimeError("something after the commit broke")
+
+    monkeypatch.setattr(events, "publish_job_event", publish)
+
+    expand_task.expand_job(str(job.id))
+
+    assert db_session.get(Job, job.id).state == JobState.EXPANDED
+    tracks = db_session.query(Track).filter(Track.job_id == job.id).all()
+    assert enqueued == [str(t.id) for t in tracks] and len(tracks) == 1

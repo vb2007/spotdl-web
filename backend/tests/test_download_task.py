@@ -513,6 +513,10 @@ def test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt(db_s
     monkeypatch.setattr(
         downloads, "download_one", lambda song, downloader: (song, output_path)
     )
+    # What beat's dispatch_due_tracks does before it sends the message (v34.1: a message
+    # finding its track still `waiting` is dropped as stray).
+    track.state = TrackState.QUEUED
+    db_session.commit()
     download_task.download_track(str(track.id))  # 2nd invocation: the real attempt
 
     rows = _attempts(db_session, track)
@@ -964,3 +968,29 @@ def test_download_track_cancelled_during_pacing_wait_skips_download(db_session, 
     rows = _attempts(db_session, track)
     assert len(rows) == 1
     assert rows[0].outcome == TrackAttemptOutcome.CANCELLED
+
+
+def test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped(db_session, monkeypatch):
+    """v34.1: only `pending`/`queued` (or a crash-redelivered `downloading`) track is ever
+    legitimately dispatched. A duplicate that lands after the first attempt already sent
+    the track into the ladder must not run -- that would jump the ladder."""
+    _patch_common(monkeypatch, db_session)
+    calls = []
+    monkeypatch.setattr(downloads, "download_one", lambda *a, **k: calls.append(a))
+    published = []
+    monkeypatch.setattr(events, "publish_track_event", lambda *a, **k: published.append(a))
+
+    for state in (TrackState.WAITING, TrackState.LOOKUP_FAILED):
+        track = _make_track(db_session)
+        track.state = state
+        track.attempt_count = 1
+        db_session.commit()
+
+        download_task.download_track(str(track.id))
+
+        db_session.refresh(track)
+        assert track.state == state
+        assert track.attempt_count == 1
+        assert _attempts(db_session, track) == []
+    assert calls == []
+    assert published == []

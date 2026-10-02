@@ -257,3 +257,45 @@ def test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check(
     row = db_session.get(DownloadedTrack, "moving-id")
     assert row is not None
     assert row.file_path == str(dest)
+
+
+def test_reconcile_disk_recheck_respects_the_unmounted_root_guard(db_session, monkeypatch, tmp_path):
+    """v34.1: a row repointed mid-check into a library root that looks unmounted on this
+    worker must be skipped like any other row under that root, not pruned."""
+    from sqlalchemy import update
+
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads_dir = tmp_path / "downloads"
+    downloads_dir.mkdir()
+    (downloads_dir / "other.mp3").write_text("audio")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads_dir)))
+    library_dir = tmp_path / "library-not-mounted"
+    app_settings.update_library_settings(db_session, library_target_dir=str(library_dir))
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="moving-id",
+            file_path=str(downloads_dir / "song.mp3"),
+            format="mp3",
+            bitrate="320k",
+        )
+    )
+    db_session.commit()
+    dest = library_dir / "Artist" / "song.mp3"
+
+    class _SweepLandsHere(type(dedup.Path())):
+        def exists(self):
+            if str(self) == str(downloads_dir / "song.mp3"):
+                db_session.execute(
+                    update(DownloadedTrack)
+                    .where(DownloadedTrack.spotify_track_id == "moving-id")
+                    .values(file_path=str(dest), in_library=True)
+                    .execution_options(synchronize_session=False)
+                )
+                return False
+            return super().exists()
+
+    monkeypatch.setattr(dedup, "Path", _SweepLandsHere)
+
+    dedup.reconcile_disk()
+
+    assert db_session.get(DownloadedTrack, "moving-id") is not None

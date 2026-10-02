@@ -13,6 +13,24 @@ from app.tasks.download import download_track
 logger = logging.getLogger(__name__)
 
 
+def _enqueue_pending_tracks(db, job: Job, why: str) -> None:
+    """Enqueues `job`'s tracks still `pending`. For a job whose EXPANDED commit landed but
+    whose enqueue loop never finished (the task died, or something after the commit
+    raised): nothing else ever picks a `pending` track up (beat dispatches only `waiting`,
+    the stale sweep reclaims only `queued`/`downloading`). A pending track that the
+    interrupted run did enqueue gets a second message; download_track drops any message
+    whose track has already moved on to `waiting`/`lookup_failed`, so it can't jump the
+    retry ladder."""
+    pending = (
+        db.query(Track.id)
+        .filter(Track.job_id == job.id, Track.state == TrackState.PENDING)
+        .all()
+    )
+    logger.info("expand_job: job %s %s; enqueueing %d pending tracks", job.id, why, len(pending))
+    for (track_id,) in pending:
+        download_track.delay(str(track_id))
+
+
 @celery_app.task(name="app.tasks.expand.expand_job")
 def expand_job(job_id: str) -> None:
     db = SessionLocal()
@@ -28,24 +46,10 @@ def expand_job(job_id: str) -> None:
             logger.info("expand_job: job %s is %s, not expanding; skipping", job_id, job.state.value)
             return
         # A redelivery (acks_late) of a run that committed EXPANDED but died before it
-        # finished enqueueing downloads: the tracks exist, so don't re-expand (that would
-        # insert every track a second time). Enqueue the ones still `pending` -- nothing
-        # else ever picks a `pending` track up (beat only dispatches `waiting`, and the
-        # stale sweep only reclaims `queued`/`downloading`). A pending track the dead run
-        # did enqueue gets a second message; download_track's own gates handle that.
+        # finished enqueueing: the tracks exist, so don't re-expand (that would insert
+        # every track a second time).
         if job.state == JobState.EXPANDED:
-            pending = (
-                db.query(Track.id)
-                .filter(Track.job_id == job.id, Track.state == TrackState.PENDING)
-                .all()
-            )
-            logger.info(
-                "expand_job: job %s already expanded (redelivery); enqueueing %d pending tracks",
-                job_id,
-                len(pending),
-            )
-            for (track_id,) in pending:
-                download_track.delay(str(track_id))
+            _enqueue_pending_tracks(db, job, "already expanded (redelivery)")
             return
 
         events.publish_job_event(job.user_id, job.id, job.state.value)
@@ -69,11 +73,24 @@ def expand_job(job_id: str) -> None:
             # write a no-op if the row moved on while we were running, and db.refresh
             # reads the row's real current state afterward rather than trusting the
             # `job` object loaded at task start.
-            db.execute(
+            result = db.execute(
                 update(Job)
                 .where(Job.id == job.id, Job.state == JobState.EXPANDING)
                 .values(state=JobState.EXPANDED)
             )
+            if result.rowcount == 0:
+                db.refresh(job)
+                if job.state != JobState.CANCELLED:
+                    # Another run of this same job (a redelivery overlapping the
+                    # original) already expanded it: its tracks are the real ones, so
+                    # drop this run's uncommitted copies instead of committing a second
+                    # set and enqueueing it.
+                    db.rollback()
+                    logger.info(
+                        "expand_job: job %s was expanded by another run; discarding this one's tracks",
+                        job_id,
+                    )
+                    return
             db.commit()
             db.refresh(job)
 
@@ -110,7 +127,18 @@ def expand_job(job_id: str) -> None:
             )
             db.commit()
             if result.rowcount == 0:
-                logger.info("expand_job: job %s was cancelled mid-expansion; keeping it cancelled", job_id)
+                db.refresh(job)
+                if job.state == JobState.EXPANDED:
+                    # The failure came *after* the EXPANDED commit (e.g. the refresh or
+                    # a publish above raised): the tracks are committed, so enqueue them
+                    # rather than leave them `pending` forever under an acked task.
+                    _enqueue_pending_tracks(db, job, "failed after its EXPANDED commit")
+                    return
+                logger.info(
+                    "expand_job: job %s is %s, not expanding; not marking it failed",
+                    job_id,
+                    job.state.value,
+                )
                 return
             db.refresh(job)
             events.publish_job_event(job.user_id, job.id, job.state.value, error=job.error)

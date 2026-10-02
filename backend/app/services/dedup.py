@@ -106,7 +106,14 @@ def reconcile_disk() -> None:
                     db.refresh(row)
                 except InvalidRequestError:
                     continue  # row already gone
-                if Path(row.file_path).exists():
+                fresh = Path(row.file_path)
+                if fresh.exists():
+                    continue
+                # The same unmounted-root guard as above, for the path it moved *to*.
+                if (downloads_missing and fresh.is_relative_to(downloads_root)) or (
+                    library_missing and fresh.is_relative_to(library_root)
+                ):
+                    skipped += 1
                     continue
                 db.delete(row)
                 removed += 1
