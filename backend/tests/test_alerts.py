@@ -119,6 +119,13 @@ def test_enqueue_goes_to_meta_without_broker_retry(configured, monkeypatch):
     assert called == [{"args": ["library", "fp", "text"], "queue": "meta", "retry": False}]
 
 
+def test_enqueue_redacts_before_the_text_reaches_the_broker(configured, monkeypatch):
+    called = []
+    monkeypatch.setattr(alert_tasks.send_alert, "apply_async", lambda *a, **k: called.append(k))
+    alerts.enqueue(alerts.CATEGORY_LIBRARY, "fp", "failed via http://bob:pw123@198.51.100.7:3128")
+    assert called[0]["args"][2] == "failed via http://198.51.100.7:3128"
+
+
 def test_enqueue_swallows_a_broker_failure(configured, monkeypatch, caplog):
     def boom(*a, **k):
         raise ConnectionError("broker down")

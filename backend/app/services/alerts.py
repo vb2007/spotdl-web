@@ -30,7 +30,8 @@ suppressed: the breaker step (`trip:30m`, `trip:2h`, ...), the spiking error_typ
 fixed key for a stale beat, and a per-run key for library sweeps (never suppressed).
 
 Every message body goes through proxies.redact_text() first -- spotdl's errors echo proxy
-credentials (CLAUDE.md invariant).
+credentials (CLAUDE.md invariant) -- both before it's enqueued (task args reach the broker
+and Celery's own task log lines) and again right before it's sent.
 """
 
 import logging
@@ -233,6 +234,10 @@ def enqueue(category: str, fingerprint: str, text: str) -> None:
     never waits on a broker retry (retry=False)."""
     if not is_configured():
         return
+    # Redacted here too, not only in format_body: the text travels through the broker
+    # (Redis) as a task argument, and Celery's own "Task ... received/succeeded" log lines
+    # echo task args -- found by v36's real-stack redaction check.
+    text = proxies.redact_text(text)
     try:
         from app.tasks.alerts import send_alert
 
