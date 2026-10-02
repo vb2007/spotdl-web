@@ -370,4 +370,78 @@ describe('v34 live hydration', () => {
 		});
 		expect(get(queue.incomingJobs)).toHaveLength(0);
 	});
+
+	describe('progress across a hard reload (v34.2, localStorage)', () => {
+		function fakeStorage() {
+			const data = new Map<string, string>();
+			return {
+				data,
+				getItem: (k: string) => data.get(k) ?? null,
+				setItem: (k: string, v: string) => void data.set(k, v),
+				removeItem: (k: string) => void data.delete(k)
+			};
+		}
+
+		afterEach(() => vi.unstubAllGlobals());
+
+		it('a hydrated lane shows this browser’s last tick for the same attempt', async () => {
+			vi.stubGlobal('localStorage', fakeStorage());
+			await queue.applyEvent(trackEvent('t1', 'downloading', 70));
+			// A hard reload: the in-memory lane is gone, the browser's storage isn't.
+			queue.reset();
+			const { rememberProgress } = await import('$lib/stores/progressCache');
+			rememberProgress('t1', 70, 0);
+
+			routeLists({ active: async () => tracksPage([downloadingTrack('t1')]) });
+			await queue.reload();
+			expect(get(queue.activeTracks)[0].progress).toBe(70);
+		});
+
+		it('ticks are remembered as they land, and forgotten when the track leaves downloading', async () => {
+			const store = fakeStorage();
+			vi.stubGlobal('localStorage', store);
+			await queue.applyEvent(trackEvent('t1', 'downloading', 40));
+			expect(JSON.parse(store.data.get('spotdl:live-progress:v1')!).t1.progress).toBe(40);
+			await queue.applyEvent(trackEvent('t1', 'completed'));
+			expect(store.data.has('spotdl:live-progress:v1')).toBe(false);
+		});
+
+		it('a different attempt never inherits the stored progress', async () => {
+			vi.stubGlobal('localStorage', fakeStorage());
+			const { rememberProgress } = await import('$lib/stores/progressCache');
+			rememberProgress('t1', 90, 0);
+			routeLists({
+				active: async () => tracksPage([{ ...downloadingTrack('t1'), attempt_count: 1 }])
+			});
+			await queue.reload();
+			expect(get(queue.activeTracks)[0].progress).toBeUndefined();
+		});
+
+		it('reset() (logout) clears it, like every other piece of queue state', async () => {
+			const store = fakeStorage();
+			vi.stubGlobal('localStorage', store);
+			await queue.applyEvent(trackEvent('t1', 'downloading', 40));
+			queue.reset();
+			expect(store.data.size).toBe(0);
+		});
+
+		it('storage that throws is ignored, not fatal', async () => {
+			vi.stubGlobal('localStorage', {
+				getItem: () => {
+					throw new Error('denied');
+				},
+				setItem: () => {
+					throw new Error('denied');
+				},
+				removeItem: () => {
+					throw new Error('denied');
+				}
+			});
+			await queue.applyEvent(trackEvent('t1', 'downloading', 40));
+			routeLists({ active: async () => tracksPage([downloadingTrack('t1')]) });
+			queue.reset();
+			await queue.reload();
+			expect(get(queue.activeTracks)).toHaveLength(1);
+		});
+	});
 });

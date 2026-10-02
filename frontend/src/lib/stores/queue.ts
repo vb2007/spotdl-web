@@ -1,5 +1,6 @@
 import { derived, get, writable } from 'svelte/store';
 import * as api from '$lib/api';
+import { clearProgress, forgetProgress, recallProgress, rememberProgress } from './progressCache';
 import type {
 	Job,
 	JobsPage,
@@ -395,8 +396,13 @@ function createQueueStore() {
 				clearLiveRemovalTimer(track.id);
 				// Only a lane still mid-attempt keeps its last tick; one in its grace window
 				// is showing the *previous* attempt's progress, which this one doesn't share.
+				// After a hard reload there's no lane at all: fall back to this browser's
+				// last sighting of this same attempt (v34.2, progressCache).
 				const existing = current[track.id];
-				const progress = existing?.state === 'downloading' ? existing.progress : undefined;
+				const progress =
+					existing?.state === 'downloading'
+						? existing.progress
+						: recallProgress(track.id, track.attempt_count);
 				next[track.id] = { ...track, progress };
 			}
 			return next;
@@ -565,6 +571,7 @@ function createQueueStore() {
 		clearAllLiveRemovalTimers();
 		liveActive.set({});
 		clearLiveTouches();
+		clearProgress();
 	}
 
 	function toggleExpand(jobId: string): void {
@@ -1054,6 +1061,7 @@ function createQueueStore() {
 			scheduleJobRefresh(event.job_id);
 		}
 
+		if (event.state !== 'downloading') forgetProgress(event.track_id);
 		liveActive.update((current) => {
 			if (event.state !== 'downloading') {
 				if (!(event.track_id in current)) return current;
@@ -1115,6 +1123,9 @@ function createQueueStore() {
 			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 			if (event.error !== undefined) next.last_error = event.error;
 			if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
+			if (next.progress !== undefined) {
+				rememberProgress(event.track_id, next.progress, next.attempt_count);
+			}
 			return { ...current, [event.track_id]: next };
 		});
 
