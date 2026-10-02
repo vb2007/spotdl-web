@@ -144,20 +144,23 @@
 		}
 	}
 
+	// v35 (e): probe first, then let the browser download the real URL itself, so a whole
+	// FLAC is streamed to disk instead of buffered into a Blob in tab memory. The empty
+	// `download` attribute keeps the page in place and takes the filename from the
+	// response's Content-Disposition.
 	async function handleDownload() {
 		try {
-			const { blob, filename } = await api.downloadTrackFile(track.id);
-			const url = URL.createObjectURL(blob);
-			const anchor = document.createElement('a');
-			anchor.href = url;
-			anchor.download = filename;
-			document.body.appendChild(anchor);
-			anchor.click();
-			anchor.remove();
-			URL.revokeObjectURL(url);
+			await api.checkTrackFile(track.id);
 		} catch (err) {
 			showNotice(err instanceof api.ApiError ? err.message : 'Could not download this file.');
+			return;
 		}
+		const anchor = document.createElement('a');
+		anchor.href = api.trackFileUrl(track.id);
+		anchor.download = '';
+		document.body.appendChild(anchor);
+		anchor.click();
+		anchor.remove();
 	}
 </script>
 

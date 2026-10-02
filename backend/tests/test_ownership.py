@@ -150,6 +150,9 @@ def test_download_track_file_404s_for_non_owner_and_200s_for_owner_and_admin(
     assert _as(client, owner_cookie).get(f"/api/tracks/{track.id}/file").status_code == 200
     assert _as(client, admin_cookie).get(f"/api/tracks/{track.id}/file").status_code == 200
     assert _as(client, stranger_cookie).get(f"/api/tracks/{track.id}/file").status_code == 404
+    # v35 (e): the frontend's HEAD probe goes through the same gate.
+    assert _as(client, owner_cookie).head(f"/api/tracks/{track.id}/file").status_code == 200
+    assert _as(client, stranger_cookie).head(f"/api/tracks/{track.id}/file").status_code == 404
 
 
 def test_all_users_flag_from_non_admin_is_silently_ignored(client, db_session, make_user, session_cookie):

@@ -215,7 +215,11 @@ def list_track_attempts(
     return [track_attempt_to_dict(attempt, proxy_url) for attempt, proxy_url in rows]
 
 
-@router.get("/{track_id}/file")
+# v35 (e): HEAD too. The frontend probes with it before handing the URL to a real browser
+# download, so a missing file still shows the inline notice instead of navigating to a
+# 404 page. Through nginx the X-Accel-Redirect is followed for HEAD as well, so the probe
+# also catches a file deleted from disk (this container has no mount to check that).
+@router.api_route("/{track_id}/file", methods=["GET", "HEAD"])
 def download_track_file(
     track_id: uuid.UUID,
     db: Session = Depends(get_db),

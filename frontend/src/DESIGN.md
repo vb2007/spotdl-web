@@ -351,16 +351,15 @@ simply doesn't render for any other state rather than rendering and then 404ing 
 button; that request 404s and surfaces through the same per-row `notice` a failed retry/cancel
 already uses, not a special-cased error path.
 
-`handleDownload` (`TrackRow.svelte` L133-147) deliberately does not do a plain `<a href={...}>`
-navigation to the file endpoint: it fetches the blob itself (`api.downloadTrackFile`, `api.ts`
-L564-598) and turns it into a real browser "Save As" via a temporary object URL and a synthetic
-`<a>` click, specifically so a 404/error response renders through this app's own notice UI instead
-of the browser replacing the whole page with raw JSON. The same function also guards against a
-0-byte "successful" response — FastAPI's side of the endpoint is headers-only, with nginx's
-`X-Accel-Redirect` supplying the actual bytes, so a proxy in front that doesn't understand that
-header (Vite's dev proxy, not real nginx — see `vite.config.ts`) forwards the empty body straight
-through as if it were a correctly-named, successful download; without the explicit `blob.size ===
-0` check that reads as silent success everywhere except a byte-count diff. The button itself reuses
+`handleDownload` (`TrackRow.svelte`) first sends a `HEAD` probe (`api.checkTrackFile`), so a
+404/error response renders through this app's own notice UI instead of the browser replacing the
+whole page with raw JSON. Only then does it click a temporary `<a download href>` pointing at the
+real file URL, so the browser streams the file straight to disk (v35; v27 fetched the whole file
+into a `Blob` in tab memory first). The probe also keeps v27's guard against a 0-byte "successful"
+response: FastAPI's side of the endpoint is headers-only, with nginx's `X-Accel-Redirect` supplying
+the actual bytes, so a proxy in front that doesn't understand that header would report
+`Content-Length: 0`. Under the dev override, `vite.config.ts`'s dev fallback follows the redirect
+itself, for `HEAD` as well as `GET`. The button itself reuses
 the plain `.action` class already shared with retry/cancel — no new visual affordance for what is,
 from the design system's point of view, just a third row action.
 

@@ -321,6 +321,27 @@ def test_download_track_file_prefers_ledger_path_over_track_output_path(authenti
     assert response.headers["x-accel-redirect"] == "/internal-downloads/moved/Song.mp3"
 
 
+def test_download_track_file_head_matches_get_without_a_body(authenticated_client, db_session, owner):
+    """v35 (e): the frontend probes with HEAD before starting a real browser download."""
+    track = _make_track(
+        db_session,
+        owner,
+        state=TrackState.COMPLETED,
+        output_path="/downloads/Daft Punk - One More Time.mp3",
+    )
+
+    head = authenticated_client.head(f"/api/tracks/{track.id}/file")
+    get = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert head.status_code == 200
+    assert head.content == b""
+    assert head.headers["x-accel-redirect"] == get.headers["x-accel-redirect"]
+    assert head.headers["content-disposition"] == get.headers["content-disposition"]
+
+    missing = _make_track(db_session, owner, state=TrackState.WAITING)
+    assert authenticated_client.head(f"/api/tracks/{missing.id}/file").status_code == 404
+
+
 def test_download_track_file_404_when_track_never_had_a_file(authenticated_client, db_session, owner):
     track = _make_track(db_session, owner, state=TrackState.WAITING)
 

@@ -92,6 +92,12 @@ function devFileDownloadFallback(): Plugin {
 							'application/octet-stream'
 					);
 					res.setHeader('Content-Length', String(stats.size));
+					// v35 (e): the frontend's HEAD probe gets the same status and headers
+					// (the stat above already proved the file exists) without reading it.
+					if (req.method === 'HEAD') {
+						res.end();
+						return;
+					}
 					createReadStream(resolved).pipe(res);
 				} catch (err) {
 					if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
