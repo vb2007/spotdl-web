@@ -81,11 +81,23 @@ def download_track(track_id: str) -> None:
         # first message's attempt already failed into the ladder. Running it would jump
         # the ladder (an immediate retry, on the next rung) -- exactly the rate-limit
         # exposure this app exists to avoid -- so drop it: no attempt row, no event. Beat
-        # dispatches the track again when it's actually due. (A redelivery that finds a
-        # *completed* track is v35's item (c).)
+        # dispatches the track again when it's actually due.
         if track.state in (TrackState.WAITING, TrackState.LOOKUP_FAILED):
             logger.info(
                 "download_track: track %s is %s, not due; dropping stray message",
+                track_id,
+                track.state.value,
+            )
+            return
+
+        # v35 (c): a redelivered message (acks_late after a worker crash, or a duplicate
+        # send) for a track that already succeeded. Without this it fell through to the
+        # dedup check below and rewrote a COMPLETED track to SKIPPED_DUPLICATE, its own
+        # ledger row being the "duplicate". A terminal success is a no-op on redelivery:
+        # no attempt row, no event, no state change.
+        if track.state in (TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE):
+            logger.info(
+                "download_track: track %s is already %s; ignoring redelivered message",
                 track_id,
                 track.state.value,
             )

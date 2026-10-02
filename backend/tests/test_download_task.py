@@ -1225,3 +1225,38 @@ def test_ladder_step_ignores_held_and_cancelled_rows(db_session, monkeypatch, fa
     assert updated.attempts_made == failures + 2
     numbers = [row.attempt_number for row in _attempts(db_session, track)]
     assert numbers == list(range(1, 2 * failures + 3))
+
+
+# --- v35 (c): redelivery must not rewrite a completed track -----------------------------
+
+
+@pytest.mark.parametrize("state", [TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE])
+def test_redelivered_message_for_a_finished_track_is_a_noop(db_session, monkeypatch, state):
+    track = _make_track(db_session)
+    track.state = state
+    track.output_path = "/downloads/song-a.mp3"
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="abc123", file_path="/downloads/song-a.mp3", format="mp3", bitrate="320k"
+        )
+    )
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    published = _capture_events(monkeypatch)
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("a finished track must not reach dedup or the downloader")
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", _fail_if_called)
+    monkeypatch.setattr(downloads, "get_downloader", _fail_if_called)
+    before_updated_at = db_session.get(Track, track.id).updated_at
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == state
+    assert updated.output_path == "/downloads/song-a.mp3"
+    assert updated.updated_at == before_updated_at
+    assert (updated.attempts_made, updated.failure_count) == (0, 0)
+    assert _attempts(db_session, track) == []
+    assert published == []
