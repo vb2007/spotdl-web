@@ -4229,3 +4229,15 @@ independently-found production bug from the same conversation)
   was held (`still blocked after 2s: True`), then matched 0 rows, and the job ended `cancelled`.
   The test suite runs on SQLite, which ignores `FOR UPDATE`, so its test only pins that the lock
   is requested.
+- **Known, not fixed: a broker error *inside* expand_job's success-path enqueue loop strands
+  the rest of that job's tracks in `pending`.** The task fails and is acked (`acks_late` acks
+  failures), so nothing redelivers it. A generic "stale pending" sweep isn't a safe fix: a
+  535-track discography's tracks legitimately sit `pending` in the broker for hours behind
+  `worker-dl --concurrency=1`, and pending messages pass `download_track`'s gate, so the sweep
+  would duplicate-dispatch them. This needs Redis to fail mid-loop. Recovery: re-send
+  `expand_job` for that job; its `EXPANDED` branch enqueues exactly the still-pending tracks.
+- **Rolling back across v34.1 strands the `expand` queue.** A pre-v34.1 compose has no
+  consumer for it, and `--remove-orphans` removes `worker-expand`. An expansion queued or
+  in flight at rollback time stays `expanding`, and a library sweep stays `running`, which
+  409s every new sweep. Recovery: roll forward, or re-send `expand_job` on the old stack (it
+  then routes to `meta`).

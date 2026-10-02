@@ -317,3 +317,33 @@ def test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks(
     assert db_session.get(Job, job.id).state == JobState.EXPANDED
     tracks = db_session.query(Track).filter(Track.job_id == job.id).all()
     assert enqueued == [str(t.id) for t in tracks] and len(tracks) == 1
+
+
+def test_expand_job_overlapping_run_after_expand_then_cancel_adds_no_second_track_set(db_session, monkeypatch):
+    job = Job(
+        source_url="https://open.spotify.com/album/abc",
+        source_type=JobSourceType.ALBUM,
+        user_id=_owner(db_session).id,
+    )
+    db_session.add(job)
+    db_session.commit()
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    enqueued = _stub_download_track(monkeypatch)
+    monkeypatch.setattr(events, "publish_track_event", lambda *a, **k: None)
+    _capture_job_events(monkeypatch)
+
+    def fake_expand(url):
+        # Run A finished first (EXPANDED + its track), then the user cancelled.
+        db_session.add(
+            Track(job_id=job.id, spotify_track_id="abc123", song_json={"name": "A"}, state=TrackState.CANCELLED)
+        )
+        db_session.query(Job).filter(Job.id == job.id).update({"state": JobState.CANCELLED})
+        db_session.commit()
+        return [_FakeSong("abc123", {"name": "Song A"})]
+
+    monkeypatch.setattr(expansion, "expand", fake_expand)
+
+    expand_task.expand_job(str(job.id))
+
+    assert db_session.query(Track).filter(Track.job_id == job.id).count() == 1
+    assert enqueued == []

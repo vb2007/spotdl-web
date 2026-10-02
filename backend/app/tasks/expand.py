@@ -15,8 +15,11 @@ logger = logging.getLogger(__name__)
 
 def _enqueue_pending_tracks(db, job: Job, why: str) -> None:
     """Enqueues `job`'s tracks still `pending`. For a job whose EXPANDED commit landed but
-    whose enqueue loop never finished (the task died, or something after the commit
-    raised): nothing else ever picks a `pending` track up (beat dispatches only `waiting`,
+    whose enqueue loop never ran to the end -- the task was killed (and redelivered), or
+    the refresh/publish right after the commit raised. (A broker error *inside* the
+    success path's own enqueue loop is not covered: the task fails, is acked, and the
+    rest stay `pending` -- see docs/GOTCHAS.md's v34.1 entry.) Nothing else ever picks a
+    `pending` track up (beat dispatches only `waiting`,
     the stale sweep reclaims only `queued`/`downloading`). A pending track that the
     interrupted run did enqueue gets a second message; download_track drops any message
     whose track has already moved on to `waiting`/`lookup_failed`, so it can't jump the
@@ -80,11 +83,14 @@ def expand_job(job_id: str) -> None:
             )
             if result.rowcount == 0:
                 db.refresh(job)
-                if job.state != JobState.CANCELLED:
+                already_has_tracks = (
+                    db.query(Track.id).filter(Track.job_id == job.id).first() is not None
+                )
+                if job.state != JobState.CANCELLED or already_has_tracks:
                     # Another run of this same job (a redelivery overlapping the
-                    # original) already expanded it: its tracks are the real ones, so
-                    # drop this run's uncommitted copies instead of committing a second
-                    # set and enqueueing it.
+                    # original) already expanded it -- and possibly the user cancelled it
+                    # since: its tracks are the real ones, so drop this run's uncommitted
+                    # copies instead of committing a second set.
                     db.rollback()
                     logger.info(
                         "expand_job: job %s was expanded by another run; discarding this one's tracks",
