@@ -1,5 +1,12 @@
 FROM python:3.12-slim-bookworm
 
+# v35 (f): no process in this image, build steps included, writes bytecode. v31 found
+# root-owned, months-stale `.pyc` files sitting next to the sources (docs/GOTCHAS.md), and
+# a non-root runtime can never rewrite a root-owned cache. Without writes there is nothing
+# to go stale. Compiling from source on import instead costs ~0.2s per process start
+# (measured on the full `app.tasks.celery_app` import chain).
+ENV PYTHONDONTWRITEBYTECODE=1
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
@@ -52,6 +59,11 @@ COPY logging.json ./
 # --no-deps: dependencies are already satisfied by the layer above; this only installs
 # the local `app` package itself on top of it.
 RUN uv pip install --system --no-cache-dir --no-deps .
+
+# v35 (f): and strip the bytecode the root-run steps above (and the base image's own
+# stdlib/pip) already left behind, so the running container has no root-owned
+# __pycache__ at all. Last root-run install step above this line; keep it that way.
+RUN find / -xdev -type d -name __pycache__ -prune -exec rm -rf {} +
 
 # Non-root (v12): downloaded files land on a host bind mount in production
 # (docker-compose.prod.yml's DOWNLOADS_DIR) — running as root would write those files
