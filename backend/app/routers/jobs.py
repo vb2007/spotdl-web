@@ -103,6 +103,7 @@ def list_jobs(
                 dir=dir or "desc",
                 limit=limit,
                 cursor=cursor,
+                include_state_counts=True,
             )
         return job_listing.list_jobs(
             db,

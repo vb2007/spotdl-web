@@ -120,6 +120,7 @@ def list_tracks(
             dir=dir,
             limit=limit,
             cursor=cursor,
+            include_state_counts=True,
         )
     except (track_listing.InvalidListParams, InvalidCursor) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

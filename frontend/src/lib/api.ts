@@ -340,7 +340,12 @@ export interface JobsPage extends Page<Job> {
 	counts_by_status: Record<string, number>;
 }
 
-export type TracksPage = Page<TrackWithJob>;
+export interface TracksPage extends Page<TrackWithJob> {
+	/** v35 (g): one grouped count over the same owner-scoped, filtered set, before this
+	 * request's own `state` filter (so every state chip keeps its count). Unlike
+	 * JobTracksPage's, q-aware. */
+	counts_by_state: Record<string, number>;
+}
 
 export interface JobTracksPage extends Page<Track> {
 	/** Ignores this request's own `state` filter (so switching tabs keeps every tab's

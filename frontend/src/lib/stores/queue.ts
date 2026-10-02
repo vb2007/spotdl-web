@@ -60,6 +60,8 @@ interface PageState {
 	nextCursor: string | null;
 	totalEstimate: number;
 	countsByStatus: Record<string, number>;
+	/** v35 (g): the Tracks scope's per-state chip counts; `{}` in the Jobs scope. */
+	countsByState: Record<string, number>;
 	loading: boolean;
 	loadingMore: boolean;
 	error: string;
@@ -70,6 +72,7 @@ const EMPTY_PAGE: PageState = {
 	nextCursor: null,
 	totalEstimate: 0,
 	countsByStatus: {},
+	countsByState: {},
 	loading: false,
 	loadingMore: false,
 	error: ''
@@ -199,6 +202,41 @@ function createQueueStore() {
 		pendingJobRefresh.add(jobId);
 		clearTimeout(jobRefreshTimer);
 		jobRefreshTimer = setTimeout(flushJobRefreshes, 400);
+		scheduleTrackCountsRefresh();
+	}
+
+	// v35 (g): the Tracks scope's chip counts cover tracks that aren't on the loaded page
+	// (or are filtered out of it by the very state chip being counted), so a state change
+	// can't be patched into them locally. Re-read them instead: one bulk request (a
+	// 1-row page carries the same counts_by_state), debounced like the job-row refresh
+	// above and triggered from the same state-change-only paths, never per progress tick.
+	let trackCountsTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function scheduleTrackCountsRefresh(): void {
+		if (get(filters).scope !== 'tracks') return;
+		clearTimeout(trackCountsTimer);
+		trackCountsTimer = setTimeout(refreshTrackCounts, 1000);
+	}
+
+	async function refreshTrackCounts(): Promise<void> {
+		const f = get(filters);
+		if (f.scope !== 'tracks') return;
+		const seq = pageFetchSeq;
+		const epoch = storeEpoch;
+		try {
+			const result = await api.listTracksPage({
+				...currentQueryParams(),
+				status: f.status.length ? f.status : undefined,
+				state: f.state.length ? f.state : undefined,
+				limit: 1
+			});
+			// A full reload, scope/filter change or reset since then has (or will have)
+			// its own counts; never let this older read overwrite them.
+			if (seq !== pageFetchSeq || epoch !== storeEpoch) return;
+			page.update((p) => ({ ...p, countsByState: result.counts_by_state }));
+		} catch {
+			// Best effort: the chips keep their last counts until the next reload.
+		}
 	}
 
 	/** v23: root-caused the Waterfall's appear/disappear/reappear glitch by raw-`curl -N`
@@ -425,6 +463,7 @@ function createQueueStore() {
 					nextCursor: result.next_cursor,
 					totalEstimate: result.total_estimate,
 					countsByStatus: result.counts_by_status,
+					countsByState: {},
 					loading: false,
 					loadingMore: false,
 					error: ''
@@ -441,6 +480,7 @@ function createQueueStore() {
 					nextCursor: result.next_cursor,
 					totalEstimate: 0,
 					countsByStatus: {},
+					countsByState: result.counts_by_state,
 					loading: false,
 					loadingMore: false,
 					error: ''
@@ -490,6 +530,7 @@ function createQueueStore() {
 					...p,
 					items: [...p.items, ...result.items],
 					nextCursor: result.next_cursor,
+					countsByState: result.counts_by_state,
 					loadingMore: false
 				}));
 			}
@@ -559,6 +600,7 @@ function createQueueStore() {
 	 * mounted dashboard renders A's rows. Call this on logout, before the next identity's
 	 * session can start writing to these stores. */
 	function reset(): void {
+		clearTimeout(trackCountsTimer);
 		pageFetchSeq++;
 		liveHydrateSeq++;
 		storeEpoch++;

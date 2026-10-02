@@ -74,7 +74,7 @@ function jobsPage(items: Job[], next_cursor: string | null = null): JobsPage {
 }
 
 function tracksPage(items: TrackWithJob[], next_cursor: string | null = null): TracksPage {
-	return { items, next_cursor };
+	return { items, next_cursor, counts_by_state: {} };
 }
 
 function trackEvent(trackId: string, state: TrackWithJob['state'], progress?: number) {
@@ -458,5 +458,63 @@ describe('v34 live hydration', () => {
 			await queue.reload();
 			expect(get(queue.activeTracks)).toHaveLength(1);
 		});
+	});
+});
+
+describe('v35 (g) tracks-scope state counts', () => {
+	function countsCalls() {
+		return listTracksPage.mock.calls.filter(([p]) => p?.limit === 1);
+	}
+
+	it('loads counts with the page and re-reads them once after a state change, not per tick', async () => {
+		listTracksPage.mockResolvedValue({
+			...tracksPage([downloadingTrack('t1')]),
+			counts_by_state: { downloading: 1, waiting: 2 }
+		});
+		getJob.mockResolvedValue(job('job-1', 'expanded', 'active'));
+		queue.setFilters({ scope: 'tracks' });
+		await vi.runAllTimersAsync();
+		expect(get(queue.page).countsByState).toEqual({ downloading: 1, waiting: 2 });
+
+		// Progress ticks of an unchanged state never re-read the counts.
+		await queue.applyEvent(trackEvent('t1', 'downloading', 10));
+		await queue.applyEvent(trackEvent('t1', 'downloading', 20));
+		listTracksPage.mockClear();
+		await queue.applyEvent(trackEvent('t1', 'downloading', 30));
+		await vi.advanceTimersByTimeAsync(2000);
+		expect(countsCalls()).toHaveLength(0);
+
+		listTracksPage.mockResolvedValue({
+			...tracksPage([]),
+			counts_by_state: { completed: 1, waiting: 2 }
+		});
+		await queue.applyEvent(trackEvent('t1', 'completed'));
+		await vi.advanceTimersByTimeAsync(2000);
+		expect(countsCalls()).toHaveLength(1);
+		expect(get(queue.page).countsByState).toEqual({ completed: 1, waiting: 2 });
+	});
+
+	it('never re-reads counts in the jobs scope', async () => {
+		routeLists({});
+		getJob.mockResolvedValue(job('job-1', 'expanded', 'active'));
+		await queue.reload();
+		await queue.applyEvent(trackEvent('t1', 'completed'));
+		await vi.advanceTimersByTimeAsync(2000);
+		expect(countsCalls()).toHaveLength(0);
+	});
+
+	it('drops a counts read that resolves after a reset', async () => {
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		getJob.mockResolvedValue(job('job-1', 'expanded', 'active'));
+		queue.setFilters({ scope: 'tracks' });
+		await vi.runAllTimersAsync();
+		const late = deferred<TracksPage>();
+		listTracksPage.mockReturnValue(late.promise);
+		await queue.applyEvent(trackEvent('t1', 'waiting'));
+		await vi.advanceTimersByTimeAsync(1500);
+		queue.reset();
+		late.resolve({ ...tracksPage([]), counts_by_state: { waiting: 99 } });
+		await vi.runAllTimersAsync();
+		expect(get(queue.page).countsByState).toEqual({});
 	});
 });
