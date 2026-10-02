@@ -225,7 +225,13 @@ def download_track(track_id: str) -> None:
         db.commit()
         track_meta = track_song_meta(track.song_json)
         events.publish_track_event(
-            owner_id, track.id, track.job_id, track.state.value, progress=0, **track_meta
+            owner_id,
+            track.id,
+            track.job_id,
+            track.state.value,
+            progress=0,
+            attempt_count=track.attempt_count,
+            **track_meta,
         )
 
         try:
@@ -245,7 +251,7 @@ def download_track(track_id: str) -> None:
             # rebind this per attempt rather than threading track/job ids through
             # get_downloader's cache key.
             downloader.progress_handler.update_callback = events.make_progress_callback(
-                owner_id, track.id, track.job_id, **track_meta
+                owner_id, track.id, track.job_id, attempt_count=track.attempt_count, **track_meta
             )
             # force_family covers ytmusicapi's search calls too, which have no
             # family-forcing knob of their own (see network_path.py's docstring) -- yt-dlp's

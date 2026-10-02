@@ -5,8 +5,11 @@
  * source there is.
  *
  * An entry is trusted only for the same attempt it was recorded during (`attempt`
- * mirrors the track's `attempt_count`, which the backend bumps on every failure) and
- * only while fresh, so a previous attempt's 70% never shows for a retry. Track ids and
+ * mirrors the `attempt_count` the worker publishes with every `downloading` event, which
+ * the backend bumps on every failed attempt) and only while fresh, so a previous
+ * attempt's 70% doesn't show for a retry. One gap: a re-run that *doesn't* bump it (beat's
+ * stale reclaim, a redelivery) can show the old value until its first event, which is the
+ * attempt's own `progress=0` start, normally within a second. Track ids and
  * numbers only, never metadata, and `clear()` runs on every store reset (logout, session
  * expiry -- the v22 rule) like every other piece of queue state. Every storage access is
  * guarded: localStorage can be missing or throw (private windows, blocked site data),

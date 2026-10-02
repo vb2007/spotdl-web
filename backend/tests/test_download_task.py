@@ -155,6 +155,9 @@ def test_download_track_success_marks_completed_and_upserts_ledger(db_session, m
     # "downloading" (progress=0, right before the attempt) then "completed" once durable.
     states = [args[3] for args, _ in published]
     assert states == ["downloading", "completed"]
+    # v34.2: the attempt start says which attempt it is (the frontend's progress cache).
+    assert published[0][1]["progress"] == 0
+    assert published[0][1]["attempt_count"] == 0
 
     rows = _attempts(db_session, track)
     assert len(rows) == 1

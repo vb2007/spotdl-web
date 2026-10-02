@@ -384,17 +384,30 @@ describe('v34 live hydration', () => {
 
 		afterEach(() => vi.unstubAllGlobals());
 
-		it('a hydrated lane shows this browser’s last tick for the same attempt', async () => {
+		/** A hard reload: a brand-new store module (and api mock) in the same browser,
+		 * i.e. the same localStorage -- never `reset()`, which is logout and clears it. */
+		async function hardReload(active: TracksPage) {
+			vi.resetModules();
+			const freshApi = await import('$lib/api');
+			const fresh = (await import('$lib/stores/queue')).queue;
+			vi.mocked(freshApi.listJobsPage).mockResolvedValue(jobsPage([]));
+			vi.mocked(freshApi.listTracksPage).mockResolvedValue(active);
+			await fresh.reload();
+			return get(fresh.activeTracks);
+		}
+
+		it('a hard reload shows this browser’s last tick for the same attempt', async () => {
 			vi.stubGlobal('localStorage', fakeStorage());
 			await queue.applyEvent(trackEvent('t1', 'downloading', 70));
-			// A hard reload: the in-memory lane is gone, the browser's storage isn't.
-			queue.reset();
-			const { rememberProgress } = await import('$lib/stores/progressCache');
-			rememberProgress('t1', 70, 0);
+			const lanes = await hardReload(tracksPage([downloadingTrack('t1')]));
+			expect(lanes[0].progress).toBe(70);
+		});
 
-			routeLists({ active: async () => tracksPage([downloadingTrack('t1')]) });
-			await queue.reload();
-			expect(get(queue.activeTracks)[0].progress).toBe(70);
+		it('a retry’s lane created purely from SSE keys its cache on the event’s attempt_count', async () => {
+			vi.stubGlobal('localStorage', fakeStorage());
+			await queue.applyEvent({ ...trackEvent('t1', 'downloading', 60), attempt_count: 3 });
+			const lanes = await hardReload(tracksPage([{ ...downloadingTrack('t1'), attempt_count: 3 }]));
+			expect(lanes[0].progress).toBe(60);
 		});
 
 		it('ticks are remembered as they land, and forgotten when the track leaves downloading', async () => {
