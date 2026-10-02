@@ -155,11 +155,18 @@ def format_body(text: str) -> str:
     return body
 
 
+_SAFE_TEXT_ERRORS = (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError)
+
+
 def send_now(text: str) -> None:
     """One PUT to the room. Raises AlertsNotConfigured or AlertSendError; never retries."""
     config = matrix_config()
     if config is None:
         raise AlertsNotConfigured()
+    if not config.access_token.isprintable():
+        # h11 would refuse the header and quote it, repr-escaped, in its error (review
+        # round 5) -- so a malformed token never reaches a request at all.
+        raise AlertSendError("MATRIX_ACCESS_TOKEN contains a non-printable character")
     url = (
         f"{config.homeserver_url}/_matrix/client/v3/rooms/{quote(config.room_id, safe='')}"
         f"/send/m.room.message/{uuid.uuid4().hex}"
@@ -175,11 +182,15 @@ def send_now(text: str) -> None:
             timeout=SEND_TIMEOUT_SECONDS,
         )
     except (httpx.HTTPError, httpx.InvalidURL, ValueError) as exc:
-        # InvalidURL (a malformed MATRIX_HOMESERVER_URL) isn't an HTTPError subclass.
-        # Transport errors name the host/errno; a protocol error can quote a header value
-        # (h11's "Illegal header value b'Bearer ...'" for a token with a stray control
-        # character), so the token is scrubbed from the text whatever the exception.
-        message = f"{type(exc).__name__}: {exc}".replace(config.access_token, "[token]")
+        # Only connect/timeout/network errors keep their text (host and errno). Anything
+        # else -- a protocol error can quote a header value, h11's "Illegal header value
+        # b'Bearer ...'", repr-escaped so no literal scrub would match -- is reported by
+        # class name alone. InvalidURL (a malformed MATRIX_HOMESERVER_URL) isn't an
+        # HTTPError subclass, hence the explicit tuple.
+        if isinstance(exc, _SAFE_TEXT_ERRORS):
+            message = f"{type(exc).__name__}: {exc}".replace(config.access_token, "[token]")
+        else:
+            message = type(exc).__name__
         raise AlertSendError(redact_text(message)) from None
     if response.status_code >= 400:
         raise AlertSendError(

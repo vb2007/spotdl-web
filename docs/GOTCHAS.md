@@ -4431,6 +4431,13 @@ independently-found production bug from the same conversation)
   is a compare-and-delete (Lua), so a newer escalation's marker survives. The watchdog reads
   everything and closes its DB session *before* sending, so a hung send never holds locks a
   `migrate` would queue behind.
+- **A literal token scrub isn't enough (review round 5).** h11 refuses a header value with a control
+  character and quotes it *repr-escaped* (`b'Bearer syt_...\ntail'`), so `str.replace(token, ...)`
+  never matches. Reproduced against a real socket. Now a non-printable token is refused before
+  any request is built, and only connect/timeout/network errors keep their text; every other
+  exception is reported by class name alone. Accepted, not changed: the watchdog reads the DB
+  first, so a Postgres outage also skips that minute's beat-stale check, and a Redis outage logs
+  a traceback every 60s.
 - **Redaction twice.** `alerts.enqueue` redacts before the text reaches the broker, and
   `format_body` redacts again before the PUT. Found by v36's real-stack check: the room copy was
   already clean, but Celery's "Task received" line logged the raw credentialed URL from the task

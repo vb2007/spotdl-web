@@ -101,6 +101,19 @@
 
 	async function onAlertSubmit(event: SubmitEvent) {
 		event.preventDefault();
+		// A cleared number input binds to null, which the API reads as "unchanged" -- say
+		// so instead of reporting "Saved." over the old value.
+		const numbers = [
+			alertForm.alert_spike_threshold,
+			alertForm.alert_spike_window_minutes,
+			alertForm.alert_beat_stale_seconds,
+			alertForm.alert_cooldown_minutes
+		];
+		if (numbers.some((value) => typeof value !== 'number' || Number.isNaN(value))) {
+			alertSaved = false;
+			alertError = 'Every number needs a value.';
+			return;
+		}
 		alertSaving = true;
 		alertSaved = false;
 		alertError = '';

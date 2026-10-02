@@ -208,14 +208,39 @@ def test_deliver_never_raises(configured, fake_redis, monkeypatch):
     assert alerts.deliver("spike", "x", "y", 60) == "failed"
 
 
-def test_protocol_error_quoting_the_header_never_carries_the_token(configured, monkeypatch):
-    def bad_header(url, json, headers, timeout):
-        raise httpx.LocalProtocolError(f"Illegal header value b'Bearer {TOKEN}'")
-
-    monkeypatch.setattr(alerts.httpx, "put", bad_header)
+def test_a_control_character_token_never_reaches_a_request_or_an_error(configured, monkeypatch):
+    bad_token = "syt_SECRETPART\ntail"
+    bad = configured.model_copy(update={"matrix_access_token": SecretStr(bad_token)})
+    monkeypatch.setattr(alerts, "get_settings", lambda: bad)
+    calls = []
+    monkeypatch.setattr(alerts.httpx, "put", lambda *a, **k: calls.append(1))
     with pytest.raises(alerts.AlertSendError) as excinfo:
         alerts.send_now("x")
-    assert TOKEN not in str(excinfo.value)
+    assert calls == []
+    assert "SECRETPART" not in str(excinfo.value)
+
+
+def test_protocol_errors_report_the_class_name_only(configured, monkeypatch):
+    # A real h11 refusal, against a real listening socket -- its text quotes the header
+    # repr-escaped, which is what a literal scrub can't match.
+    import socket
+
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    real_put = httpx.put
+
+    def put_with_bad_header(url, json, headers, timeout):
+        headers = {**headers, "X-Probe": f"Bearer {TOKEN}\x00tail"}
+        return real_put(
+            f"http://127.0.0.1:{listener.getsockname()[1]}/x", json=json, headers=headers, timeout=2
+        )
+
+    monkeypatch.setattr(alerts.httpx, "put", put_with_bad_header)
+    with pytest.raises(alerts.AlertSendError) as excinfo:
+        alerts.send_now("x")
+    listener.close()
+    assert str(excinfo.value) == "LocalProtocolError"
 
 
 def test_watchdog_step_respawns_a_dead_watchdog(monkeypatch):
