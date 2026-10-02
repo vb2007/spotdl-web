@@ -369,6 +369,20 @@ def breaker_released(worker_state, now: datetime) -> bool:
     return tripped_until <= now
 
 
+def _text(value) -> str:
+    return value.decode() if isinstance(value, bytes) else value
+
+
+_DELETE_IF_EQUALS = (
+    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) "
+    "else return 0 end"
+)
+
+
+def _delete_if_equals(key: str, value) -> bool:
+    return bool(_redis().eval(_DELETE_IF_EQUALS, 1, key, value))
+
+
 def beat_heartbeat_age(now_epoch: float, fallback_epoch: float) -> float:
     """Seconds since beat's last tick. No heartbeat at all (a fresh Redis, or beat never
     started) counts from `fallback_epoch` -- the watchdog's own start -- so a stack that's
@@ -405,52 +419,59 @@ class Watchdog:
         from app.services import app_settings
 
         now = datetime.now(timezone.utc)
+        # Everything the checks need is read first and the session closed *before* any
+        # send: a send can hang for a while (per-phase timeouts, unbounded DNS), and an
+        # open transaction would hold AccessShare locks a deploy's migrate would queue on.
         with Session(self._engine) as db:
             row = app_settings.get_alert_settings(db)
-            worker_state = db.get(WorkerState, 1)
-            db.commit()
+            enabled = {category: category_enabled(row, category) for category in TOGGLE_FIELDS}
             cooldown = row.alert_cooldown_minutes * 60
-
-            open_trip = _redis().get(BREAKER_OPEN_KEY)
-            if open_trip is not None and breaker_released(worker_state, now):
-                _redis().delete(BREAKER_OPEN_KEY)
-                if category_enabled(row, CATEGORY_BREAKER):
-                    deliver(
-                        CATEGORY_BREAKER,
-                        f"release:{open_trip.decode() if isinstance(open_trip, bytes) else open_trip}",
-                        "Circuit breaker released: downloads resume.",
-                        cooldown,
-                    )
-
-            if category_enabled(row, CATEGORY_SPIKE):
+            stale_after = row.alert_beat_stale_seconds
+            released = breaker_released(db.get(WorkerState, 1), now)
+            spike = None
+            if enabled[CATEGORY_SPIKE]:
                 spike = failure_spike(
                     db, row.alert_spike_threshold, row.alert_spike_window_minutes, now
                 )
-                if spike is not None:
-                    fingerprint, text, newest = spike
-                    newest_key = f"{SPIKE_NEWEST_KEY_PREFIX}{fingerprint}"
-                    seen = _redis().get(newest_key)
-                    stamp = newest.isoformat()
-                    if seen is not None and (seen.decode() if isinstance(seen, bytes) else seen) == stamp:
-                        logger.info(
-                            "alerts: spike alert not re-sent, no new attempt since the last one "
-                            "(fingerprint %s)",
-                            fingerprint,
-                        )
-                    elif deliver(CATEGORY_SPIKE, fingerprint, text, cooldown) == "sent":
-                        _redis().set(newest_key, stamp, ex=7 * 24 * 3600)
+            db.commit()
 
-            if category_enabled(row, CATEGORY_BEAT_STALE):
-                age = beat_heartbeat_age(time.time(), self.started_at)
-                if age > row.alert_beat_stale_seconds:
-                    deliver(
-                        CATEGORY_BEAT_STALE,
-                        "stale",
-                        f"Beat looks dead: no dispatch tick for {int(age)}s "
-                        f"(threshold {row.alert_beat_stale_seconds}s). Nothing new is "
-                        f"being dispatched until it's back.",
-                        cooldown,
-                    )
+        open_trip = _redis().get(BREAKER_OPEN_KEY)
+        # Compare-and-delete: an escalation marked between the read and the delete is a
+        # newer trip, whose own release must still be announced later.
+        if open_trip is not None and released and _delete_if_equals(BREAKER_OPEN_KEY, open_trip):
+            if enabled[CATEGORY_BREAKER]:
+                deliver(
+                    CATEGORY_BREAKER,
+                    f"release:{_text(open_trip)}",
+                    "Circuit breaker released: downloads resume.",
+                    cooldown,
+                )
+
+        if spike is not None:
+            fingerprint, text, newest = spike
+            newest_key = f"{SPIKE_NEWEST_KEY_PREFIX}{fingerprint}"
+            seen = _redis().get(newest_key)
+            stamp = newest.isoformat()
+            if seen is not None and _text(seen) == stamp:
+                logger.info(
+                    "alerts: spike alert not re-sent, no new attempt since the last one "
+                    "(fingerprint %s)",
+                    fingerprint,
+                )
+            elif deliver(CATEGORY_SPIKE, fingerprint, text, cooldown) == "sent":
+                _redis().set(newest_key, stamp, ex=7 * 24 * 3600)
+
+        if enabled[CATEGORY_BEAT_STALE]:
+            age = beat_heartbeat_age(time.time(), self.started_at)
+            if age > stale_after:
+                deliver(
+                    CATEGORY_BEAT_STALE,
+                    "stale",
+                    f"Beat looks dead: no dispatch tick for {int(age)}s "
+                    f"(threshold {stale_after}s). Nothing new is "
+                    f"being dispatched until it's back.",
+                    cooldown,
+                )
 
     def run(self) -> None:
         while True:

@@ -126,16 +126,33 @@ class AlertWatchdogStep(bootsteps.StartStopStep):
         alerts.log_startup_state()
         if not alerts.is_configured():
             return
-        self.process = alerts.spawn_watchdog()
+        self._spawn()
         self.tref = worker.timer.call_repeatedly(alerts.WATCHDOG_INTERVAL_SECONDS, self._supervise)
+
+    def _spawn(self):
+        # Never fatal: a failed spawn (ENOMEM/EAGAIN in a size-capped container) must not
+        # crash-loop worker-meta, which runs beat's dispatch. The next tick retries.
+        from app.services import alerts
+
+        try:
+            self.process = alerts.spawn_watchdog()
+        except OSError as exc:
+            self.process = None
+            alerts.logger.warning(
+                "alerts: could not start the watchdog (%s); retrying next interval",
+                type(exc).__name__,
+            )
 
     def _supervise(self):
         from app.services import alerts
 
+        if self.process is None:
+            self._spawn()
+            return
         code = self.process.poll()
         if code is not None:
             alerts.logger.warning("alerts: watchdog exited (code %s); restarting it", code)
-            self.process = alerts.spawn_watchdog()
+            self._spawn()
 
     def stop(self, worker):
         if self.tref is not None:

@@ -4402,8 +4402,8 @@ independently-found production bug from the same conversation)
   listener (dropped on `after_rollback`), so a trip that never committed is never announced. It
   goes to `send_alert` on the `meta` queue with `retry=False`. Release, failure spike and beat
   stale are checked by the **watchdog**, a separate process (`python -m
-  app.services.alert_watchdog`) that worker-meta starts from `worker_ready` when
-  `RUN_ALERT_WATCHDOG=true`, every 60s. Library sweep results are enqueued from `sort_library`.
+  app.services.alert_watchdog`) that worker-meta's `AlertWatchdogStep` bootstep starts and
+  supervises when `RUN_ALERT_WATCHDOG=true`, every 60s. Library sweep results are enqueued from `sort_library`.
 - **Beat-stale: the recorded choice.** The watchdog is not beat-scheduled, because beat is the thing
   it watches. Beat's heartbeat (`spotdl:beat:heartbeat`) is written at the start of every
   `dispatch_due_tracks` run, so strictly it proves "beat scheduled *and* worker-meta ran the tick".
@@ -4426,7 +4426,11 @@ independently-found production bug from the same conversation)
   it every 60s from the worker's own timer, in the main thread, with no extra thread in the
   forking process. A dead watchdog is respawned and the exit code logged (verified with
   `kill -9`). `SEND_TIMEOUT_SECONDS` is per httpx phase and DNS isn't covered. Send errors scrub
-  the token literally, since h11 can quote header values.
+  the token literally, since h11 can quote header values. Round 4: a failed spawn (`OSError`) is
+  logged and retried on the next tick, never fatal to worker-meta. The release's marker delete
+  is a compare-and-delete (Lua), so a newer escalation's marker survives. The watchdog reads
+  everything and closes its DB session *before* sending, so a hung send never holds locks a
+  `migrate` would queue behind.
 - **Redaction twice.** `alerts.enqueue` redacts before the text reaches the broker, and
   `format_body` redacts again before the PUT. Found by v36's real-stack check: the room copy was
   already clean, but Celery's "Task received" line logged the raw credentialed URL from the task
@@ -4434,8 +4438,8 @@ independently-found production bug from the same conversation)
 - **Cooldown = Redis `SET NX EX` per `(category, fingerprint)`, claimed before sending.** Two
   workers can't double-send, a worker-meta restart doesn't re-fire inside the window (verified
   live), and a failed send isn't retried inside the window ("logged once and dropped"). If Redis is
-  down the alert is dropped rather than risk a duplicate. Fingerprints: `trip:<step>`, `release`,
-  the spiking `error_type`, `stale`, and the library sweep's `finished_at`, which is unique per
+  down the alert is dropped rather than risk a duplicate. Fingerprints: `trip:<step>:<tripped_until>`,
+  `release:<that trip>`, the spiking `error_type`, `stale`, and the library sweep's `finished_at`, which is unique per
   run, so sweep reports are never suppressed.
 - **Release only for a trip the room heard about.** `spotdl:alerts:breaker_open` is set only when a
   trip alert was actually *sent* (not suppressed, toggled off, or failed), and release also waits

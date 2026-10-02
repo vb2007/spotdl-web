@@ -44,6 +44,13 @@ class FakeRedis:
     def delete(self, key):
         self.store.pop(key, None)
 
+    def eval(self, script, numkeys, key, value):
+        # Only alerts._DELETE_IF_EQUALS is ever evaluated.
+        if self.store.get(key) == value:
+            del self.store[key]
+            return 1
+        return 0
+
 
 @pytest.fixture()
 def fake_redis(monkeypatch):
@@ -515,6 +522,27 @@ def test_watchdog_release_is_keyed_to_its_trip(watchdog, db_session, fake_redis)
     watchdog.delivered.clear()
     watchdog.check_once()
     assert not [d for d in watchdog.delivered if d[0] == "breaker"]
+
+
+def test_release_keeps_a_newer_trips_marker(fake_redis):
+    fake_redis.store[alerts.BREAKER_OPEN_KEY] = "trip:2h:later"
+    assert not alerts._delete_if_equals(alerts.BREAKER_OPEN_KEY, "trip:30m:earlier")
+    assert fake_redis.store[alerts.BREAKER_OPEN_KEY] == "trip:2h:later"
+
+
+def test_watchdog_step_survives_a_failed_spawn(monkeypatch):
+    from app.tasks.celery_app import AlertWatchdogStep
+
+    def no_memory():
+        raise OSError(12, "Cannot allocate memory")
+
+    monkeypatch.setattr(alerts, "spawn_watchdog", no_memory)
+    step = AlertWatchdogStep.__new__(AlertWatchdogStep)
+    step._spawn()
+    assert step.process is None
+    monkeypatch.setattr(alerts, "spawn_watchdog", lambda: "proc")
+    step._supervise()
+    assert step.process == "proc"
 
 
 def test_watchdog_does_not_resend_a_spike_without_a_new_attempt(watchdog, db_session, make_user):
