@@ -128,12 +128,12 @@ export type TrackAttemptOutcome =
 	/** v35: rescheduled behind the circuit breaker/pause without touching the network. */
 	| 'held';
 
-/** One row per `download_track` invocation (v24) -- `GET /api/tracks/{id}/attempts`,
- * oldest first. `proxy_id` is `null` for a direct attempt, `error_type`/`error_message`
- * are `null` for anything that isn't `failed`. Diagnostic only, not a headline feature --
- * see TrackRow.svelte's rendering. */
 export type NetworkPath = 'direct-ipv4' | 'direct-ipv6' | 'proxy';
 
+/** One row per `download_track` invocation (v24) -- `GET /api/tracks/{id}/attempts`,
+ * oldest first. `proxy_id` is `null` for a direct attempt, `error_type`/`error_message`
+ * are `null` for anything that isn't `failed` (a non-failure's note is `warning_message`).
+ * Diagnostic only, not a headline feature -- see TrackRow.svelte's rendering. */
 export interface TrackAttempt {
 	id: string;
 	attempt_number: number;
