@@ -1104,7 +1104,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_models_job_job",
-      "community": 5,
+      "community": 152,
       "norm_label": "job"
     },
     {
@@ -1114,7 +1114,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_models_job_rationale_27",
-      "community": 5,
+      "community": 152,
       "norm_label": "one row per submitted url (album/playlist/artist/track)."
     },
     {
@@ -2294,7 +2294,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_stream",
-      "community": 1,
+      "community": 186,
       "norm_label": "stream.py"
     },
     {
@@ -2304,7 +2304,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_app_routers_stream_event_stream",
-      "community": 1,
+      "community": 186,
       "norm_label": "_event_stream()"
     },
     {
@@ -2314,7 +2314,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_stream_py_request",
-      "community": 1,
+      "community": 186,
       "norm_label": "request"
     },
     {
@@ -2324,7 +2324,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_app_routers_stream_stream",
-      "community": 1,
+      "community": 186,
       "norm_label": "stream()"
     },
     {
@@ -2334,7 +2334,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "streamingresponse",
-      "community": 1,
+      "community": 186,
       "norm_label": "streamingresponse"
     },
     {
@@ -2774,7 +2774,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_archive",
-      "community": 5,
+      "community": 170,
       "norm_label": "archive.py"
     },
     {
@@ -2784,7 +2784,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_services_archive_eligible_job_ids",
-      "community": 5,
+      "community": 170,
       "norm_label": "_eligible_job_ids()"
     },
     {
@@ -2794,7 +2794,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_session",
-      "community": 5,
+      "community": 170,
       "norm_label": "session"
     },
     {
@@ -2804,7 +2804,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_uuid",
-      "community": 5,
+      "community": 170,
       "norm_label": "uuid"
     },
     {
@@ -2814,7 +2814,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_timedelta",
-      "community": 5,
+      "community": 170,
       "norm_label": "timedelta"
     },
     {
@@ -2824,7 +2824,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_app_services_archive_archive_jobs",
-      "community": 5,
+      "community": 170,
       "norm_label": "archive_jobs()"
     },
     {
@@ -2834,7 +2834,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_job",
-      "community": 5,
+      "community": 170,
       "norm_label": "job"
     },
     {
@@ -2844,7 +2844,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "backend_app_services_archive_unarchive_jobs",
-      "community": 5,
+      "community": 170,
       "norm_label": "unarchive_jobs()"
     },
     {
@@ -2854,7 +2854,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_archive_rationale_1",
-      "community": 5,
+      "community": 170,
       "norm_label": "soft-archive lifecycle for jobs (v19). see `plan/master-v2/v19-archive-retention"
     },
     {
@@ -2864,7 +2864,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "backend_app_services_archive_rationale_78",
-      "community": 5,
+      "community": 170,
       "norm_label": "`job_ids=none, older_than=none` (the \"clear log\" case) archives every eligible j"
     },
     {
@@ -5747,7 +5747,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings",
-      "community": 170,
+      "community": 29,
       "norm_label": "test_app_settings.py"
     },
     {
@@ -5757,7 +5757,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_fakesettings",
-      "community": 170,
+      "community": 29,
       "norm_label": "_fakesettings"
     },
     {
@@ -5767,7 +5767,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_creates_row_seeded_from_env",
-      "community": 170,
+      "community": 29,
       "norm_label": "test_get_output_settings_creates_row_seeded_from_env()"
     },
     {
@@ -5777,7 +5777,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_returns_existing_row_without_reseeding",
-      "community": 170,
+      "community": 29,
       "norm_label": "test_get_output_settings_returns_existing_row_without_reseeding()"
     },
     {
@@ -5787,7 +5787,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_only_touches_given_fields",
-      "community": 170,
+      "community": 29,
       "norm_label": "test_update_output_settings_only_touches_given_fields()"
     },
     {
@@ -5797,7 +5797,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_creates_row_if_missing",
-      "community": 170,
+      "community": 29,
       "norm_label": "test_update_output_settings_creates_row_if_missing()"
     },
     {
@@ -5807,7 +5807,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_library_settings_creates_row_seeded_with_defaults",
-      "community": 170,
+      "community": 29,
       "norm_label": "test_get_library_settings_creates_row_seeded_with_defaults()"
     },
     {
@@ -5817,7 +5817,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_library_settings_and_output_settings_share_one_row",
-      "community": 170,
+      "community": 29,
       "norm_label": "test_get_library_settings_and_output_settings_share_one_row()"
     },
     {
@@ -5827,7 +5827,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_library_settings_only_touches_given_fields",
-      "community": 170,
+      "community": 29,
       "norm_label": "test_update_library_settings_only_touches_given_fields()"
     },
     {
@@ -5837,7 +5837,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_archive",
-      "community": 5,
+      "community": 152,
       "norm_label": "test_archive.py"
     },
     {
@@ -5847,7 +5847,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "backend_tests_test_archive_owner",
-      "community": 5,
+      "community": 152,
       "norm_label": "_owner()"
     },
     {
@@ -5857,7 +5857,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_tests_test_archive_make_job",
-      "community": 5,
+      "community": 152,
       "norm_label": "_make_job()"
     },
     {
@@ -5867,7 +5867,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_archive_py_job",
-      "community": 5,
+      "community": 152,
       "norm_label": "job"
     },
     {
@@ -5877,7 +5877,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_archives_only_settled_failed_or_cancelled_jobs_for_the_owner",
-      "community": 5,
+      "community": 152,
       "norm_label": "test_archive_jobs_archives_only_settled_failed_or_cancelled_jobs_for_the_owner()"
     },
     {
@@ -5887,7 +5887,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_never_archives_a_waiting_job_regardless_of_age",
-      "community": 5,
+      "community": 152,
       "norm_label": "test_archive_jobs_never_archives_a_waiting_job_regardless_of_age()"
     },
     {
@@ -5897,7 +5897,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_age_is_measured_from_newest_track_activity_not_job_created_at",
-      "community": 5,
+      "community": 152,
       "norm_label": "test_archive_jobs_age_is_measured_from_newest_track_activity_not_job_created_at()"
     },
     {
@@ -5907,7 +5907,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_sweep_archives_settled_jobs_past_the_threshold",
-      "community": 5,
+      "community": 152,
       "norm_label": "test_archive_jobs_sweep_archives_settled_jobs_past_the_threshold()"
     },
     {
@@ -5917,7 +5917,7 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_with_job_ids_restricts_to_the_given_ids",
-      "community": 5,
+      "community": 152,
       "norm_label": "test_archive_jobs_with_job_ids_restricts_to_the_given_ids()"
     },
     {
@@ -5927,7 +5927,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_ignores_job_ids_belonging_to_another_user",
-      "community": 5,
+      "community": 152,
       "norm_label": "test_archive_jobs_ignores_job_ids_belonging_to_another_user()"
     },
     {
@@ -5937,7 +5937,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_never_touches_downloaded_tracks",
-      "community": 5,
+      "community": 152,
       "norm_label": "test_archive_jobs_never_touches_downloaded_tracks()"
     },
     {
@@ -5947,7 +5947,7 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_unarchive_jobs_restores_only_owned_archived_jobs",
-      "community": 5,
+      "community": 152,
       "norm_label": "test_unarchive_jobs_restores_only_owned_archived_jobs()"
     },
     {
@@ -5957,7 +5957,7 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_unarchive_jobs_on_a_non_archived_job_is_a_noop",
-      "community": 5,
+      "community": 152,
       "norm_label": "test_unarchive_jobs_on_a_non_archived_job_is_a_noop()"
     },
     {
@@ -7191,6 +7191,16 @@
       "norm_label": "test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped()"
     },
     {
+      "label": "test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1002",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick",
+      "community": 3,
+      "norm_label": "test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick()"
+    },
+    {
       "label": "Wraps db_session so download_track's db.close() doesn't detach objects the test",
       "file_type": "rationale",
       "source_file": "backend/tests/test_download_task.py",
@@ -7279,6 +7289,16 @@
       "id": "backend_tests_test_download_task_rationale_977",
       "community": 3,
       "norm_label": "v34.1: only `pending`/`queued` (or a crash-redelivered `downloading`) track is e"
+    },
+    {
+      "label": "v34.2: the frontend keys its cached progress on attempt_count, so a retry's even",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1003",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_rationale_1003",
+      "community": 3,
+      "norm_label": "v34.2: the frontend keys its cached progress on attempt_count, so a retry's even"
     },
     {
       "label": "test_downloads.py",
@@ -7497,7 +7517,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_events",
-      "community": 32,
+      "community": 154,
       "norm_label": "test_events.py"
     },
     {
@@ -7507,7 +7527,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_events_fakesongtracker",
-      "community": 32,
+      "community": 154,
       "norm_label": "_fakesongtracker"
     },
     {
@@ -7517,7 +7537,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_tests_test_events_fakesongtracker_init",
-      "community": 32,
+      "community": 154,
       "norm_label": ".__init__()"
     },
     {
@@ -7527,7 +7547,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_minimal_shape",
-      "community": 32,
+      "community": 154,
       "norm_label": "test_publish_track_event_minimal_shape()"
     },
     {
@@ -7537,7 +7557,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_includes_optional_fields",
-      "community": 32,
+      "community": 154,
       "norm_label": "test_publish_track_event_includes_optional_fields()"
     },
     {
@@ -7547,7 +7567,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_omits_metadata_when_not_given",
-      "community": 32,
+      "community": 154,
       "norm_label": "test_publish_track_event_omits_metadata_when_not_given()"
     },
     {
@@ -7557,7 +7577,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_job_event_shape",
-      "community": 32,
+      "community": 154,
       "norm_label": "test_publish_job_event_shape()"
     },
     {
@@ -7567,7 +7587,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_make_progress_callback_publishes_downloading_progress",
-      "community": 32,
+      "community": 154,
       "norm_label": "test_make_progress_callback_publishes_downloading_progress()"
     },
     {
@@ -7577,7 +7597,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_adds_timestamp_and_serializes_json",
-      "community": 32,
+      "community": 154,
       "norm_label": "test_publish_adds_timestamp_and_serializes_json()"
     },
     {
@@ -7587,7 +7607,7 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_swallows_redis_errors",
-      "community": 32,
+      "community": 154,
       "norm_label": "test_publish_swallows_redis_errors()"
     },
     {
@@ -7597,7 +7617,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_requires_owner",
-      "community": 32,
+      "community": 154,
       "norm_label": "test_publish_track_event_requires_owner()"
     },
     {
@@ -7607,7 +7627,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "backend_tests_test_events_rationale_50",
-      "community": 32,
+      "community": 154,
       "norm_label": "a call site with no song metadata to offer (job-level actions, tests) must not"
     },
     {
@@ -7617,7 +7637,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "backend_tests_test_events_rationale_127",
-      "community": 32,
+      "community": 154,
       "norm_label": "the whole enforcement mechanism (v17): a call site that forgets the owner fails"
     },
     {
@@ -7627,7 +7647,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_task.py"
     },
     {
@@ -7637,7 +7657,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_owner",
-      "community": 5,
+      "community": 148,
       "norm_label": "_owner()"
     },
     {
@@ -7647,7 +7667,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_capture_job_events",
-      "community": 5,
+      "community": 148,
       "norm_label": "_capture_job_events()"
     },
     {
@@ -7657,7 +7677,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_fakesong",
-      "community": 5,
+      "community": 148,
       "norm_label": "_fakesong"
     },
     {
@@ -7667,7 +7687,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_fakesong_init",
-      "community": 5,
+      "community": 148,
       "norm_label": ".__init__()"
     },
     {
@@ -7677,7 +7697,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession",
-      "community": 5,
+      "community": 148,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -7687,7 +7707,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_init",
-      "community": 5,
+      "community": 148,
       "norm_label": ".__init__()"
     },
     {
@@ -7697,7 +7717,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_getattr",
-      "community": 5,
+      "community": 148,
       "norm_label": ".__getattr__()"
     },
     {
@@ -7707,7 +7727,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_nonclosingsession_close",
-      "community": 5,
+      "community": 148,
       "norm_label": ".close()"
     },
     {
@@ -7717,7 +7737,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_stub_download_track",
-      "community": 5,
+      "community": 148,
       "norm_label": "_stub_download_track()"
     },
     {
@@ -7727,7 +7747,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_success_inserts_pending_tracks()"
     },
     {
@@ -7737,7 +7757,7 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_failure_marks_job_failed_with_error",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_failure_marks_job_failed_with_error()"
     },
     {
@@ -7747,7 +7767,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_db_error_during_insert_marks_job_failed()"
     },
     {
@@ -7757,7 +7777,7 @@
       "source_location": "L133",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_never_dispatches_when_cancelled_mid_expansion",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_never_dispatches_when_cancelled_mid_expansion()"
     },
     {
@@ -7767,7 +7787,7 @@
       "source_location": "L171",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_unknown_job_is_a_noop()"
     },
     {
@@ -7777,7 +7797,7 @@
       "source_location": "L177",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_failure_after_a_mid_expansion_cancel_stays_cancelled",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_failure_after_a_mid_expansion_cancel_stays_cancelled()"
     },
     {
@@ -7787,7 +7807,7 @@
       "source_location": "L205",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_skips_a_job_cancelled_before_the_task_ran",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_skips_a_job_cancelled_before_the_task_ran()"
     },
     {
@@ -7797,7 +7817,7 @@
       "source_location": "L227",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_long_running_tasks_route_to_the_expand_queue_not_meta",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_long_running_tasks_route_to_the_expand_queue_not_meta()"
     },
     {
@@ -7807,7 +7827,7 @@
       "source_location": "L240",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_redelivered_after_expanded_enqueues_only_pending_tracks",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_redelivered_after_expanded_enqueues_only_pending_tracks()"
     },
     {
@@ -7817,7 +7837,7 @@
       "source_location": "L270",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job()"
     },
     {
@@ -7827,7 +7847,7 @@
       "source_location": "L297",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks()"
     },
     {
@@ -7837,7 +7857,7 @@
       "source_location": "L322",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_test_expand_job_overlapping_run_after_expand_then_cancel_adds_no_second_track_set",
-      "community": 5,
+      "community": 148,
       "norm_label": "test_expand_job_overlapping_run_after_expand_then_cancel_adds_no_second_track_set()"
     },
     {
@@ -7847,7 +7867,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_rationale_32",
-      "community": 5,
+      "community": 148,
       "norm_label": "wraps db_session so expand_job's db.close() doesn't detach objects the test"
     },
     {
@@ -7857,7 +7877,7 @@
       "source_location": "L241",
       "_origin": "ast",
       "id": "backend_tests_test_expand_task_rationale_241",
-      "community": 5,
+      "community": 148,
       "norm_label": "a run that committed expanded then died mid-enqueue is redelivered (acks_late):"
     },
     {
@@ -8351,6 +8371,16 @@
       "norm_label": "test_cancel_job_row_locks_the_job_before_reading_its_tracks()"
     },
     {
+      "label": "test_job_listing_reads_from_one_snapshot()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L397",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_test_job_listing_reads_from_one_snapshot",
+      "community": 5,
+      "norm_label": "test_job_listing_reads_from_one_snapshot()"
+    },
+    {
       "label": "v15's N+1 guard, extended by v18: the listing now runs a fixed small number of",
       "file_type": "rationale",
       "source_file": "backend/tests/test_jobs.py",
@@ -8389,6 +8419,16 @@
       "id": "backend_tests_test_jobs_rationale_374",
       "community": 5,
       "norm_label": "v34.1: the for update is what serializes a cancel against expand_job's expanded"
+    },
+    {
+      "label": "v34.2: count, counts_by_status and the page must come from one snapshot (they",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L398",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_rationale_398",
+      "community": 5,
+      "norm_label": "v34.2: count, counts_by_status and the page must come from one snapshot (they"
     },
     {
       "label": "test_library.py",
@@ -9237,7 +9277,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_pagination",
-      "community": 5,
+      "community": 180,
       "norm_label": "test_pagination.py"
     },
     {
@@ -9247,7 +9287,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_make_job",
-      "community": 5,
+      "community": 180,
       "norm_label": "_make_job()"
     },
     {
@@ -9257,7 +9297,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_test_paging_forward_through_every_job_visits_each_exactly_once",
-      "community": 5,
+      "community": 180,
       "norm_label": "test_paging_forward_through_every_job_visits_each_exactly_once()"
     },
     {
@@ -9267,7 +9307,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_test_pages_stay_correct_when_a_row_is_archived_between_fetches",
-      "community": 5,
+      "community": 180,
       "norm_label": "test_pages_stay_correct_when_a_row_is_archived_between_fetches()"
     },
     {
@@ -9277,7 +9317,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_test_nullable_sort_key_keeps_nulls_last_regardless_of_direction",
-      "community": 5,
+      "community": 180,
       "norm_label": "test_nullable_sort_key_keeps_nulls_last_regardless_of_direction()"
     },
     {
@@ -9287,7 +9327,7 @@
       "source_location": "L117",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_test_malformed_cursor_returns_400_not_500",
-      "community": 5,
+      "community": 180,
       "norm_label": "test_malformed_cursor_returns_400_not_500()"
     },
     {
@@ -9297,7 +9337,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_test_encode_decode_cursor_round_trips_uuid_and_datetime",
-      "community": 5,
+      "community": 180,
       "norm_label": "test_encode_decode_cursor_round_trips_uuid_and_datetime()"
     },
     {
@@ -9307,7 +9347,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_rationale_1",
-      "community": 5,
+      "community": 180,
       "norm_label": "v18's cursor (keyset) pagination -- the specific failure mode it exists to avoid"
     },
     {
@@ -9317,7 +9357,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_rationale_54",
-      "community": 5,
+      "community": 180,
       "norm_label": "the concrete failure offset pagination has: mutating rows *before* the still-"
     },
     {
@@ -10417,7 +10457,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_stream",
-      "community": 32,
+      "community": 42,
       "norm_label": "test_stream.py"
     },
     {
@@ -10427,7 +10467,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fake_event_stream",
-      "community": 32,
+      "community": 42,
       "norm_label": "_fake_event_stream()"
     },
     {
@@ -10437,7 +10477,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_requires_session",
-      "community": 32,
+      "community": 42,
       "norm_label": "test_stream_requires_session()"
     },
     {
@@ -10447,7 +10487,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_returns_sse_headers_and_forwarded_events",
-      "community": 32,
+      "community": 42,
       "norm_label": "test_stream_returns_sse_headers_and_forwarded_events()"
     },
     {
@@ -10477,7 +10517,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub",
-      "community": 32,
+      "community": 42,
       "norm_label": "_fakepubsub"
     },
     {
@@ -10487,7 +10527,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_init",
-      "community": 32,
+      "community": 42,
       "norm_label": ".__init__()"
     },
     {
@@ -10497,7 +10537,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_subscribe",
-      "community": 32,
+      "community": 42,
       "norm_label": ".subscribe()"
     },
     {
@@ -10507,7 +10547,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_psubscribe",
-      "community": 32,
+      "community": 42,
       "norm_label": ".psubscribe()"
     },
     {
@@ -10517,7 +10557,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_unsubscribe",
-      "community": 32,
+      "community": 42,
       "norm_label": ".unsubscribe()"
     },
     {
@@ -10527,7 +10567,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_punsubscribe",
-      "community": 32,
+      "community": 42,
       "norm_label": ".punsubscribe()"
     },
     {
@@ -10537,7 +10577,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_get_message",
-      "community": 32,
+      "community": 42,
       "norm_label": ".get_message()"
     },
     {
@@ -10547,7 +10587,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_aclose",
-      "community": 32,
+      "community": 42,
       "norm_label": ".aclose()"
     },
     {
@@ -10557,7 +10597,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient",
-      "community": 32,
+      "community": 42,
       "norm_label": "_fakeredisclient"
     },
     {
@@ -10567,7 +10607,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_init",
-      "community": 32,
+      "community": 42,
       "norm_label": ".__init__()"
     },
     {
@@ -10577,7 +10617,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_pubsub",
-      "community": 32,
+      "community": 42,
       "norm_label": ".pubsub()"
     },
     {
@@ -10587,7 +10627,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_aclose",
-      "community": 32,
+      "community": 42,
       "norm_label": ".aclose()"
     },
     {
@@ -10597,7 +10637,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_tests_test_stream_drive",
-      "community": 32,
+      "community": 42,
       "norm_label": "_drive()"
     },
     {
@@ -10607,7 +10647,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_subscribes_to_the_users_own_channel",
-      "community": 32,
+      "community": 42,
       "norm_label": "test_event_stream_subscribes_to_the_users_own_channel()"
     },
     {
@@ -10617,7 +10657,7 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern",
-      "community": 32,
+      "community": 42,
       "norm_label": "test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern()"
     },
     {
@@ -10627,7 +10667,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_non_admin_all_users_flag_is_ignored",
-      "community": 32,
+      "community": 42,
       "norm_label": "test_event_stream_non_admin_all_users_flag_is_ignored()"
     },
     {
@@ -10637,7 +10677,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_110",
-      "community": 32,
+      "community": 42,
       "norm_label": "v17's threat model: a client-supplied scope flag is never trusted -- a non-admin"
     },
     {
@@ -13003,20 +13043,21 @@
       "norm_label": "index.ts"
     },
     {
-      "label": "progressCache.ts",
+      "label": "$lib/stores/progressCache",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
       "source_location": "L1",
       "_origin": "ast",
+      "confidence": "EXTRACTED",
       "id": "frontend_src_lib_stores_progresscache",
       "community": 30,
-      "norm_label": "progresscache.ts"
+      "norm_label": "$lib/stores/progresscache"
     },
     {
       "label": "Entry",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L21",
+      "source_location": "L25",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_entry",
       "community": 30,
@@ -13026,7 +13067,7 @@
       "label": "Cache",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L27",
+      "source_location": "L31",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_cache",
       "community": 30,
@@ -13036,7 +13077,7 @@
       "label": "storage()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L29",
+      "source_location": "L33",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_storage",
       "community": 30,
@@ -13046,7 +13087,7 @@
       "label": "read()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L37",
+      "source_location": "L41",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_read",
       "community": 30,
@@ -13056,7 +13097,7 @@
       "label": "write()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L54",
+      "source_location": "L59",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_write",
       "community": 30,
@@ -13066,7 +13107,7 @@
       "label": "rememberProgress()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L65",
+      "source_location": "L70",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_rememberprogress",
       "community": 30,
@@ -13076,7 +13117,7 @@
       "label": "forgetProgress()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L72",
+      "source_location": "L77",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_forgetprogress",
       "community": 30,
@@ -13086,7 +13127,7 @@
       "label": "recallProgress()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L81",
+      "source_location": "L86",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_recallprogress",
       "community": 30,
@@ -13096,7 +13137,7 @@
       "label": "clearProgress()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L86",
+      "source_location": "L91",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_clearprogress",
       "community": 30,
@@ -29816,6 +29857,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1028",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick",
+      "target": "backend_app_services_downloads_download_one"
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/events.py",
@@ -36222,6 +36274,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1002",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
       "source_location": "L976",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
@@ -36704,6 +36766,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1016",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick",
+      "target": "backend_tests_test_download_task_fakedownloader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
       "source_location": "L513",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
@@ -36884,6 +36957,17 @@
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_success_with_no_missing_tags_skips_repair",
       "target": "backend_tests_test_download_task_fakedownloader",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1006",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick",
+      "target": "backend_tests_test_download_task_make_track",
       "confidence_score": 1.0
     },
     {
@@ -37408,6 +37492,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1010",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
       "source_location": "L980",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped",
@@ -37768,6 +37863,16 @@
       "weight": 1.0,
       "source": "backend_tests_test_download_task_rationale_977",
       "target": "backend_tests_test_download_task_test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1003",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_rationale_1003",
+      "target": "backend_tests_test_download_task_test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick",
       "confidence_score": 1.0
     },
     {
@@ -39520,6 +39625,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L397",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "backend_tests_test_jobs_test_job_listing_reads_from_one_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
       "source_location": "L172",
       "weight": 1.0,
       "source": "backend_tests_test_jobs",
@@ -39819,6 +39934,16 @@
       "weight": 1.0,
       "source": "backend_tests_test_jobs_rationale_374",
       "target": "backend_tests_test_jobs_test_cancel_job_row_locks_the_job_before_reading_its_tracks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L398",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_rationale_398",
+      "target": "backend_tests_test_jobs_test_job_listing_reads_from_one_snapshot",
       "confidence_score": 1.0
     },
     {
@@ -47652,7 +47777,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L27",
+      "source_location": "L31",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache",
       "target": "frontend_src_lib_stores_progresscache_cache",
@@ -47662,7 +47787,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L86",
+      "source_location": "L91",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache",
       "target": "frontend_src_lib_stores_progresscache_clearprogress",
@@ -47672,7 +47797,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L21",
+      "source_location": "L25",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache",
       "target": "frontend_src_lib_stores_progresscache_entry",
@@ -47682,7 +47807,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L72",
+      "source_location": "L77",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache",
       "target": "frontend_src_lib_stores_progresscache_forgetprogress",
@@ -47692,7 +47817,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L37",
+      "source_location": "L41",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache",
       "target": "frontend_src_lib_stores_progresscache_read",
@@ -47702,7 +47827,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L81",
+      "source_location": "L86",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache",
       "target": "frontend_src_lib_stores_progresscache_recallprogress",
@@ -47712,7 +47837,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L65",
+      "source_location": "L70",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache",
       "target": "frontend_src_lib_stores_progresscache_rememberprogress",
@@ -47722,7 +47847,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L29",
+      "source_location": "L33",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache",
       "target": "frontend_src_lib_stores_progresscache_storage",
@@ -47732,10 +47857,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L54",
+      "source_location": "L59",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache",
       "target": "frontend_src_lib_stores_progresscache_write",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/login/+page.svelte",
+      "source": "frontend_src_routes_login_page",
+      "target": "frontend_src_lib_stores_progresscache",
       "confidence_score": 1.0
     },
     {
@@ -47743,7 +47876,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L88",
+      "source_location": "L93",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache_clearprogress",
       "target": "frontend_src_lib_stores_progresscache_storage",
@@ -47754,7 +47887,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L39",
+      "source_location": "L43",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache_read",
       "target": "frontend_src_lib_stores_progresscache_storage",
@@ -47765,7 +47898,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L56",
+      "source_location": "L61",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache_write",
       "target": "frontend_src_lib_stores_progresscache_storage",
@@ -47776,7 +47909,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L74",
+      "source_location": "L79",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache_forgetprogress",
       "target": "frontend_src_lib_stores_progresscache_read",
@@ -47787,7 +47920,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L82",
+      "source_location": "L52",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache_read",
+      "target": "frontend_src_lib_stores_progresscache_write",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L87",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache_recallprogress",
       "target": "frontend_src_lib_stores_progresscache_read",
@@ -47798,7 +47942,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L67",
+      "source_location": "L72",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache_rememberprogress",
       "target": "frontend_src_lib_stores_progresscache_read",
@@ -47809,7 +47953,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L77",
+      "source_location": "L82",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache_forgetprogress",
       "target": "frontend_src_lib_stores_progresscache_write",
@@ -47820,7 +47964,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
-      "source_location": "L69",
+      "source_location": "L74",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_progresscache_rememberprogress",
       "target": "frontend_src_lib_stores_progresscache_write",
@@ -54406,5 +54550,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "98a6e1d33a22587487bdddc33a5ec5c79da2b86d"
+  "built_at_commit": "9193c2602a7a1eb6dfcc4d115aae6139851eb1ba"
 }
