@@ -287,7 +287,7 @@ def test_breaker_trip_alert_is_enqueued_only_after_commit(db_session, make_user,
     db_session.commit()
 
     ((category, fingerprint, text),) = queued
-    assert (category, fingerprint) == ("breaker", "trip:30m")
+    assert category == "breaker" and fingerprint.startswith("trip:30m:")
     assert "Circuit breaker tripped: downloads paused for 30m" in text
     assert "trip #1" in text and "last error no_output" in text
 
@@ -300,7 +300,7 @@ def test_breaker_escalation_names_the_new_step(db_session, monkeypatch):
     retry.maybe_trip_breaker(db_session, TrackErrorType.AUDIO_PROVIDER)
     db_session.commit()
     ((_, fingerprint, text),) = queued
-    assert fingerprint == "trip:2h"
+    assert fingerprint.startswith("trip:2h:")
     assert "Circuit breaker escalated: downloads paused for 2h" in text
     assert "last error audio_provider" in text
 
@@ -364,7 +364,7 @@ def test_breaker_open_marker_only_for_a_trip_the_room_heard_about(
     alert_tasks.send_alert("breaker", "trip:30m", "x")
     assert alerts.BREAKER_OPEN_KEY not in fake_redis.store
     alert_tasks.send_alert("breaker", "trip:30m", "x")
-    assert alerts.BREAKER_OPEN_KEY in fake_redis.store
+    assert fake_redis.store[alerts.BREAKER_OPEN_KEY] == "trip:30m"
 
     # Toggled off: never delivered, so no release later either.
     fake_redis.store.clear()
@@ -405,7 +405,7 @@ def test_spike_fires_on_n_consecutive_same_type_failures(db_session, make_user):
 
     spike = alerts.failure_spike(db_session, 3, 60, now)
     assert spike is not None
-    fingerprint, text = spike
+    fingerprint, text, _newest = spike
     assert fingerprint == "no_output"
     assert "last 3 download attempts all failed with no_output" in text
     assert "Latest error: e2" in text
@@ -453,6 +453,51 @@ def test_beat_heartbeat_age_falls_back_to_watchdog_start(fake_redis):
     assert alerts.beat_heartbeat_age(1000.0, 900.0) == 100.0
     fake_redis.store[alerts.BEAT_HEARTBEAT_KEY] = "990.5"
     assert alerts.beat_heartbeat_age(1000.0, 900.0) == pytest.approx(9.5)
+    # A heartbeat left over from before downtime (Redis is persistent) gets the same grace.
+    fake_redis.store[alerts.BEAT_HEARTBEAT_KEY] = "100.0"
+    assert alerts.beat_heartbeat_age(1000.0, 900.0) == 100.0
+
+
+@pytest.fixture()
+def watchdog(db_session, fake_redis, monkeypatch):
+    dog = alerts.Watchdog.__new__(alerts.Watchdog)
+    dog.started_at = __import__("time").time()
+    dog._engine = db_session.get_bind()
+    delivered = []
+
+    def fake_deliver(category, fingerprint, text, cooldown):
+        delivered.append((category, fingerprint))
+        return "sent"
+
+    monkeypatch.setattr(alerts, "deliver", fake_deliver)
+    dog.delivered = delivered
+    return dog
+
+
+def test_watchdog_release_is_keyed_to_its_trip(watchdog, db_session, fake_redis):
+    retry.get_worker_state(db_session)
+    db_session.commit()
+    fake_redis.store[alerts.BREAKER_OPEN_KEY] = "trip:30m:20261002T215740"
+    watchdog.check_once()
+    assert ("breaker", "release:trip:30m:20261002T215740") in watchdog.delivered
+    assert alerts.BREAKER_OPEN_KEY not in fake_redis.store
+    watchdog.delivered.clear()
+    watchdog.check_once()
+    assert not [d for d in watchdog.delivered if d[0] == "breaker"]
+
+
+def test_watchdog_does_not_resend_a_spike_without_a_new_attempt(watchdog, db_session, make_user):
+    track = _track(db_session, make_user)
+    for i in range(5):
+        _attempt(db_session, track, 5 - i, TrackAttemptOutcome.FAILED, TrackErrorType.NO_OUTPUT)
+    db_session.commit()
+    watchdog.check_once()
+    watchdog.check_once()
+    assert [d for d in watchdog.delivered if d[0] == "spike"] == [("spike", "no_output")]
+    _attempt(db_session, track, 0, TrackAttemptOutcome.FAILED, TrackErrorType.NO_OUTPUT)
+    db_session.commit()
+    watchdog.check_once()
+    assert len([d for d in watchdog.delivered if d[0] == "spike"]) == 2
 
 
 def test_record_beat_heartbeat_survives_redis_down(monkeypatch):

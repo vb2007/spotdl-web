@@ -52,7 +52,8 @@ class TrackAttempt(Base):
     )
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
     started_at: Mapped[datetime] = mapped_column(nullable=False)
-    finished_at: Mapped[datetime] = mapped_column(nullable=False)
+    # Indexed for the v36 alert watchdog's failure-spike check (newest rows, every minute).
+    finished_at: Mapped[datetime] = mapped_column(nullable=False, index=True)
     outcome: Mapped[TrackAttemptOutcome] = mapped_column(
         Enum(
             TrackAttemptOutcome,

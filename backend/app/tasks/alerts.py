@@ -36,4 +36,4 @@ def send_alert(category: str, fingerprint: str, text: str) -> None:
     if outcome == "sent" and category == alerts.CATEGORY_BREAKER and fingerprint.startswith("trip:"):
         # The watchdog reports a release only for a trip the room actually heard about --
         # not for one suppressed by the cooldown, toggled off, or never delivered.
-        alerts.mark_breaker_open()
+        alerts.mark_breaker_open(fingerprint)

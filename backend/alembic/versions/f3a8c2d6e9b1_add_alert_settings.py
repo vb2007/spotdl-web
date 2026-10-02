@@ -7,7 +7,8 @@ Create Date: 2026-10-02 12:00:00.000000
 v36: per-category Matrix alert toggles plus the spike/beat-stale thresholds and the
 cooldown, on the existing app_settings singleton. Additive only: every column has a
 server_default, so the existing row is filled with the documented defaults and no data is
-rewritten.
+rewritten. Also indexes track_attempts.finished_at: the alert watchdog's failure-spike
+check orders by it every minute.
 """
 from typing import Sequence, Union
 
@@ -47,10 +48,12 @@ def upgrade() -> None:
             'app_settings',
             sa.Column(name, sa.Integer(), nullable=False, server_default=default),
         )
+    op.create_index('ix_track_attempts_finished_at', 'track_attempts', ['finished_at'])
 
 
 def downgrade() -> None:
     """Downgrade schema."""
+    op.drop_index('ix_track_attempts_finished_at', table_name='track_attempts')
     for name, _ in reversed(_NUMBERS):
         op.drop_column('app_settings', name)
     for name in reversed(_TOGGLES):

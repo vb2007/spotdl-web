@@ -71,7 +71,9 @@ def maybe_trip_breaker(db: Session, error_type: TrackErrorType | None = None) ->
         alerts.enqueue_after_commit(
             db,
             alerts.CATEGORY_BREAKER,
-            f"trip:{step}",
+            # One fingerprint per trip (its own end time): a later, separate trip is news
+            # even inside the cooldown, so the room never ends on a stale "released".
+            f"trip:{step}:{worker_state.breaker_tripped_until:%Y%m%dT%H%M%S}",
             f"Circuit breaker {verb}: downloads paused for {step} "
             f"(trip #{worker_state.breaker_trip_count}, after "
             f"{worker_state.consecutive_failures} consecutive failures; last error "

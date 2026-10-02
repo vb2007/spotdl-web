@@ -70,9 +70,13 @@ TOGGLE_FIELDS = {
 }
 
 COOLDOWN_KEY_PREFIX = "spotdl:alerts:cooldown:"
-# Set when a trip/escalation alert is processed, cleared when the watchdog reports the
-# release -- so "released" is only ever sent for a trip the room actually heard about.
+# Holds the fingerprint of the last trip/escalation alert actually sent, cleared when the
+# watchdog reports its release -- so "released" is only ever sent for a trip the room heard
+# about, and each release is keyed to its own trip.
 BREAKER_OPEN_KEY = "spotdl:alerts:breaker_open"
+# Per error_type: finished_at of the newest attempt in the last spike alert sent, so the
+# same rows aren't re-announced once the cooldown lapses with no new attempt since.
+SPIKE_NEWEST_KEY_PREFIX = "spotdl:alerts:spike_newest:"
 BEAT_HEARTBEAT_KEY = "spotdl:beat:heartbeat"
 
 # How often the watchdog checks (breaker release, failure spike, beat heartbeat).
@@ -279,9 +283,9 @@ def format_duration(delta: timedelta) -> str:
     return f"{seconds}s"
 
 
-def mark_breaker_open() -> None:
+def mark_breaker_open(trip_fingerprint: str) -> None:
     try:
-        _redis().set(BREAKER_OPEN_KEY, datetime.now(timezone.utc).isoformat())
+        _redis().set(BREAKER_OPEN_KEY, trip_fingerprint)
     except redis.RedisError as exc:
         logger.warning("alerts: could not record breaker-open marker (%s)", type(exc).__name__)
 
@@ -299,7 +303,7 @@ def record_beat_heartbeat() -> None:
 
 
 def failure_spike(db: Session, threshold: int, window_minutes: int, now: datetime):
-    """(fingerprint, text) when the newest `threshold` real attempts inside the window all
+    """(fingerprint, text, newest finished_at) when the newest `threshold` real attempts inside the window all
     failed with one error_type, else None. Computed from track_attempts (v35's
     error_type): only completed/failed rows count -- holds, dedup skips and cancels never
     touched the network, so they neither break nor extend a run. `lookup` failures are
@@ -311,7 +315,12 @@ def failure_spike(db: Session, threshold: int, window_minutes: int, now: datetim
     if threshold < 1:
         return None
     rows = db.execute(
-        select(TrackAttempt.outcome, TrackAttempt.error_type, TrackAttempt.error_message)
+        select(
+            TrackAttempt.outcome,
+            TrackAttempt.error_type,
+            TrackAttempt.error_message,
+            TrackAttempt.finished_at,
+        )
         .where(
             TrackAttempt.outcome.in_([TrackAttemptOutcome.COMPLETED, TrackAttemptOutcome.FAILED]),
             TrackAttempt.finished_at >= now - timedelta(minutes=window_minutes),
@@ -336,7 +345,7 @@ def failure_spike(db: Session, threshold: int, window_minutes: int, now: datetim
         f"{error_type.value} (within {window_minutes}m). Latest error: {latest or '(none)'}. "
         f"If YouTube changed something, YOUTUBE_PLAYER_CLIENTS may need retuning."
     )
-    return error_type.value, text
+    return error_type.value, text, rows[0].finished_at
 
 
 def breaker_released(worker_state, now: datetime) -> bool:
@@ -360,7 +369,10 @@ def beat_heartbeat_age(now_epoch: float, fallback_epoch: float) -> float:
     started) counts from `fallback_epoch` -- the watchdog's own start -- so a stack that's
     still booting gets one full threshold of grace."""
     raw = _redis().get(BEAT_HEARTBEAT_KEY)
-    last = float(raw) if raw is not None else fallback_epoch
+    # max(): Redis is persistent (appendonly), so after any downtime the key still holds the
+    # last pre-shutdown tick -- without the grace, every restart after >threshold of downtime
+    # would announce a dead beat (and burn the cooldown a real one then needs).
+    last = max(float(raw), fallback_epoch) if raw is not None else fallback_epoch
     return max(0.0, now_epoch - last)
 
 
@@ -393,12 +405,13 @@ class Watchdog:
             db.commit()
             cooldown = row.alert_cooldown_minutes * 60
 
-            if _redis().get(BREAKER_OPEN_KEY) is not None and breaker_released(worker_state, now):
+            open_trip = _redis().get(BREAKER_OPEN_KEY)
+            if open_trip is not None and breaker_released(worker_state, now):
                 _redis().delete(BREAKER_OPEN_KEY)
                 if category_enabled(row, CATEGORY_BREAKER):
                     deliver(
                         CATEGORY_BREAKER,
-                        "release",
+                        f"release:{open_trip.decode() if isinstance(open_trip, bytes) else open_trip}",
                         "Circuit breaker released: downloads resume.",
                         cooldown,
                     )
@@ -408,7 +421,18 @@ class Watchdog:
                     db, row.alert_spike_threshold, row.alert_spike_window_minutes, now
                 )
                 if spike is not None:
-                    deliver(CATEGORY_SPIKE, spike[0], spike[1], cooldown)
+                    fingerprint, text, newest = spike
+                    newest_key = f"{SPIKE_NEWEST_KEY_PREFIX}{fingerprint}"
+                    seen = _redis().get(newest_key)
+                    stamp = newest.isoformat()
+                    if seen is not None and (seen.decode() if isinstance(seen, bytes) else seen) == stamp:
+                        logger.info(
+                            "alerts: spike alert not re-sent, no new attempt since the last one "
+                            "(fingerprint %s)",
+                            fingerprint,
+                        )
+                    elif deliver(CATEGORY_SPIKE, fingerprint, text, cooldown) == "sent":
+                        _redis().set(newest_key, stamp, ex=7 * 24 * 3600)
 
             if category_enabled(row, CATEGORY_BEAT_STALE):
                 age = beat_heartbeat_age(time.time(), self.started_at)
