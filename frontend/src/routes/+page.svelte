@@ -82,10 +82,34 @@
 	let streamRetryDelayMs = 1000;
 	let streamRetryTimer: ReturnType<typeof setTimeout> | undefined;
 	let source: EventSource | undefined;
+	// v34.2: the stream's `onopen` is the only resync (see queue.reload). Mount and every
+	// scope switch arm one fallback: if the stream hasn't opened when it fails outright
+	// (a 502/401 closes it) or within RESYNC_FALLBACK_MS (a network-level failure keeps it
+	// CONNECTING, which never reaches the CLOSED branch below), do one plain REST reload so
+	// the page shows its data or its error instead of "Loading…" indefinitely. The
+	// eventual `onopen` still resyncs as usual.
+	const RESYNC_FALLBACK_MS = 5000;
+	let awaitingResync = false;
+	let resyncFallbackTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function armResyncFallback() {
+		awaitingResync = true;
+		clearTimeout(resyncFallbackTimer);
+		resyncFallbackTimer = setTimeout(resyncFallback, RESYNC_FALLBACK_MS);
+	}
+
+	function resyncFallback() {
+		clearTimeout(resyncFallbackTimer);
+		if (!awaitingResync) return;
+		awaitingResync = false;
+		queue.reload();
+	}
 
 	function connectStream() {
 		source = api.createEventSource(allUsersView);
 		source.onopen = () => {
+			awaitingResync = false;
+			clearTimeout(resyncFallbackTimer);
 			streamRetryDelayMs = 1000;
 			// Per the v08 contract: resync full REST state on every connect/reconnect
 			// rather than trying to replay whatever happened while disconnected.
@@ -100,16 +124,17 @@
 				return;
 			}
 			source.close();
+			resyncFallback();
 			streamRetryTimer = setTimeout(connectStream, streamRetryDelayMs);
 			streamRetryDelayMs = Math.min(streamRetryDelayMs * 2, 30_000);
 		};
 	}
 
 	/** Admin-only (v17): both REST and SSE must agree on scope, so switching requires
-	 * clearing the accumulated store (queue.setAllUsers, which also reloads the current
-	 * page under the new scope) and reconnecting the stream carrying the new all_users
-	 * flag -- the existing connection has no way to change what channel it's subscribed
-	 * to mid-flight. */
+	 * clearing the accumulated store (queue.setAllUsers) and reconnecting the stream
+	 * carrying the new all_users flag -- the existing connection has no way to change what
+	 * channel it's subscribed to mid-flight. The new stream's `onopen` loads the new
+	 * scope. */
 	async function onAllUsersChange(next: boolean) {
 		if (next === allUsersView) return;
 		allUsersView = next;
@@ -117,15 +142,18 @@
 		streamRetryDelayMs = 1000;
 		source?.close();
 		queue.setAllUsers(next);
+		armResyncFallback();
 		connectStream();
 	}
 
 	onMount(() => {
-		queue.reload();
+		queue.beginResync();
+		armResyncFallback();
 		connectStream();
 
 		return () => {
 			clearTimeout(streamRetryTimer);
+			clearTimeout(resyncFallbackTimer);
 			source?.close();
 		};
 	});

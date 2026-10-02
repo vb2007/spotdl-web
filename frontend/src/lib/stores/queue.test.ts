@@ -255,30 +255,60 @@ describe('v34 live hydration', () => {
 		expect(get(queue.activeTracks)).toHaveLength(0);
 	});
 
-	it('setAllUsers re-hydrates under the new scope and drops the old scope’s in-flight snapshot', async () => {
+	it('a scope switch drops the old scope’s in-flight snapshot; the reconnect’s resync hydrates the new scope', async () => {
 		const mineActive = deferred<TracksPage>();
 		routeLists({ active: () => mineActive.promise });
 		const firstReload = queue.reload();
 
-		routeLists({
-			incoming: async () => jobsPage([job('someone-elses', 'expanding', 'expanding')]),
-			active: async () => tracksPage([downloadingTrack('global')])
-		});
 		queue.setAllUsers(true);
-		await vi.waitFor(() => expect(get(queue.activeTracks)).toHaveLength(1));
-		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ allUsers: true });
-		expect(hydrationCalls().incoming.at(-1)?.[0]).toMatchObject({ allUsers: true });
+		expect(get(queue.page)).toMatchObject({ items: [], loading: true, totalEstimate: 0 });
 
 		// The superseded mine-scope response lands late -- it must not leak in.
 		mineActive.resolve(tracksPage([downloadingTrack('mine-scope-stale')]));
 		await firstReload;
+		expect(get(queue.activeTracks)).toHaveLength(0);
+
+		// What the page's stream onopen does after reconnecting under the new scope.
+		routeLists({
+			incoming: async () => jobsPage([job('someone-elses', 'expanding', 'expanding')]),
+			active: async () => tracksPage([downloadingTrack('global')])
+		});
+		await queue.reload();
 		expect(get(queue.activeTracks).map((t) => t.id)).toEqual(['global']);
+		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ allUsers: true });
+		expect(hydrationCalls().incoming.at(-1)?.[0]).toMatchObject({ allUsers: true });
 
 		routeLists({});
 		queue.setAllUsers(false);
-		await vi.waitFor(() => expect(get(queue.activeTracks)).toHaveLength(0));
+		expect(get(queue.activeTracks)).toHaveLength(0);
 		expect(get(queue.incomingJobs)).toHaveLength(0);
+		await queue.reload();
 		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ allUsers: false });
+	});
+
+	it('setAllUsers itself fetches nothing (the reconnect resyncs); a late old-scope page response never lands', async () => {
+		const oldPage = deferred<JobsPage>();
+		listJobsPage.mockImplementation((params = {}) =>
+			params.status?.includes('expanding') ? Promise.resolve(jobsPage([])) : oldPage.promise
+		);
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		const reloading = queue.reload();
+		const callsBefore = listJobsPage.mock.calls.length + listTracksPage.mock.calls.length;
+
+		queue.setAllUsers(true);
+		expect(listJobsPage.mock.calls.length + listTracksPage.mock.calls.length).toBe(callsBefore);
+
+		oldPage.resolve(jobsPage([job('old-scope-row', 'expanded', 'active')]));
+		await reloading;
+		expect(get(queue.page)).toMatchObject({ items: [], loading: true });
+	});
+
+	it('a filter change reloads only the page, never the live overlays', async () => {
+		routeLists({});
+		queue.setFilters({ sort: 'title' });
+		await vi.waitFor(() => expect(listJobsPage).toHaveBeenCalled());
+		expect(hydrationCalls().incoming).toHaveLength(0);
+		expect(hydrationCalls().active).toHaveLength(0);
 	});
 
 	it('a lane in its grace window does not lend its old progress to a new attempt', async () => {
@@ -339,5 +369,92 @@ describe('v34 live hydration', () => {
 			ts: '2026-10-01T18:05:00+00:00'
 		});
 		expect(get(queue.incomingJobs)).toHaveLength(0);
+	});
+
+	describe('progress across a hard reload (v34.2, localStorage)', () => {
+		function fakeStorage() {
+			const data = new Map<string, string>();
+			return {
+				data,
+				getItem: (k: string) => data.get(k) ?? null,
+				setItem: (k: string, v: string) => void data.set(k, v),
+				removeItem: (k: string) => void data.delete(k)
+			};
+		}
+
+		afterEach(() => vi.unstubAllGlobals());
+
+		/** A hard reload: a brand-new store module (and api mock) in the same browser,
+		 * i.e. the same localStorage -- never `reset()`, which is logout and clears it. */
+		async function hardReload(active: TracksPage) {
+			vi.resetModules();
+			const freshApi = await import('$lib/api');
+			const fresh = (await import('$lib/stores/queue')).queue;
+			vi.mocked(freshApi.listJobsPage).mockResolvedValue(jobsPage([]));
+			vi.mocked(freshApi.listTracksPage).mockResolvedValue(active);
+			await fresh.reload();
+			return get(fresh.activeTracks);
+		}
+
+		it('a hard reload shows this browser’s last tick for the same attempt', async () => {
+			vi.stubGlobal('localStorage', fakeStorage());
+			await queue.applyEvent(trackEvent('t1', 'downloading', 70));
+			const lanes = await hardReload(tracksPage([downloadingTrack('t1')]));
+			expect(lanes[0].progress).toBe(70);
+		});
+
+		it('a retry’s lane created purely from SSE keys its cache on the event’s attempt_count', async () => {
+			vi.stubGlobal('localStorage', fakeStorage());
+			await queue.applyEvent({ ...trackEvent('t1', 'downloading', 60), attempt_count: 3 });
+			const lanes = await hardReload(tracksPage([{ ...downloadingTrack('t1'), attempt_count: 3 }]));
+			expect(lanes[0].progress).toBe(60);
+		});
+
+		it('ticks are remembered as they land, and forgotten when the track leaves downloading', async () => {
+			const store = fakeStorage();
+			vi.stubGlobal('localStorage', store);
+			await queue.applyEvent(trackEvent('t1', 'downloading', 40));
+			expect(JSON.parse(store.data.get('spotdl:live-progress:v1')!).t1.progress).toBe(40);
+			await queue.applyEvent(trackEvent('t1', 'completed'));
+			expect(store.data.has('spotdl:live-progress:v1')).toBe(false);
+		});
+
+		it('a different attempt never inherits the stored progress', async () => {
+			vi.stubGlobal('localStorage', fakeStorage());
+			const { rememberProgress } = await import('$lib/stores/progressCache');
+			rememberProgress('t1', 90, 0);
+			routeLists({
+				active: async () => tracksPage([{ ...downloadingTrack('t1'), attempt_count: 1 }])
+			});
+			await queue.reload();
+			expect(get(queue.activeTracks)[0].progress).toBeUndefined();
+		});
+
+		it('reset() (logout) clears it, like every other piece of queue state', async () => {
+			const store = fakeStorage();
+			vi.stubGlobal('localStorage', store);
+			await queue.applyEvent(trackEvent('t1', 'downloading', 40));
+			queue.reset();
+			expect(store.data.size).toBe(0);
+		});
+
+		it('storage that throws is ignored, not fatal', async () => {
+			vi.stubGlobal('localStorage', {
+				getItem: () => {
+					throw new Error('denied');
+				},
+				setItem: () => {
+					throw new Error('denied');
+				},
+				removeItem: () => {
+					throw new Error('denied');
+				}
+			});
+			await queue.applyEvent(trackEvent('t1', 'downloading', 40));
+			routeLists({ active: async () => tracksPage([downloadingTrack('t1')]) });
+			queue.reset();
+			await queue.reload();
+			expect(get(queue.activeTracks)).toHaveLength(1);
+		});
 	});
 });

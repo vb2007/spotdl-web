@@ -155,6 +155,9 @@ def test_download_track_success_marks_completed_and_upserts_ledger(db_session, m
     # "downloading" (progress=0, right before the attempt) then "completed" once durable.
     states = [args[3] for args, _ in published]
     assert states == ["downloading", "completed"]
+    # v34.2: the attempt start says which attempt it is (the frontend's progress cache).
+    assert published[0][1]["progress"] == 0
+    assert published[0][1]["attempt_count"] == 0
 
     rows = _attempts(db_session, track)
     assert len(rows) == 1
@@ -994,3 +997,40 @@ def test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped(db_sess
         assert _attempts(db_session, track) == []
     assert calls == []
     assert published == []
+
+
+def test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick(db_session, monkeypatch, tmp_path):
+    """v34.2: the frontend keys its cached progress on attempt_count, so a retry's events
+    must say which attempt they are -- a first attempt (0) can't tell "wired" from
+    "omitted, defaulted to 0", so this uses attempt 2."""
+    track = _make_track(db_session)
+    track.state = TrackState.QUEUED
+    track.attempt_count = 2
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(proxies, "pick_proxy", lambda db: None)
+    monkeypatch.setattr(
+        downloads,
+        "get_downloader",
+        lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader(),
+    )
+    output_path = tmp_path / "song-a.mp3"
+    output_path.write_bytes(b"fake audio bytes")
+
+    class _Tracker:
+        progress = 50
+
+    def download_one(song, downloader):
+        downloader.progress_handler.update_callback(_Tracker(), "Downloading")
+        return song, output_path
+
+    monkeypatch.setattr(downloads, "download_one", download_one)
+    published = []
+    monkeypatch.setattr(events, "publish_track_event", lambda *a, **k: published.append((a, k)))
+
+    download_task.download_track(str(track.id))
+
+    ticks = [k for a, k in published if a[3] == "downloading"]
+    assert [t["progress"] for t in ticks] == [0, 50]
+    assert all(t["attempt_count"] == 2 for t in ticks)

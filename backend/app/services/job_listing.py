@@ -22,6 +22,7 @@ shape instead of duplicating it.
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.db import begin_snapshot
 from app.models import Job, JobSourceType, User
 from app.services import pagination, rollup, search
 from app.services.serializers import job_to_dict, track_counts_by_job
@@ -58,6 +59,10 @@ def list_jobs(
 
     limit = pagination.clamp_limit(limit)
     descending = dir == "desc"
+
+    # The count, counts_by_status and the page are separate statements; read them from
+    # one snapshot so they always agree (v34.2).
+    begin_snapshot(db)
 
     base = select(
         Job.id,

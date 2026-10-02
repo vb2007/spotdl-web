@@ -402,9 +402,17 @@ needed" claim — rather than silently deleted.
   reconnect emptied the Waterfall and the incoming list until the next event (forever, for a
   failed zero-track job). Both now re-hydrate from REST on every `reload()`; an SSE event stamped
   after a hydration started beats its snapshot → *v34*
+- A page used to `reload()` on mount *and* on the stream's `onopen` (two requests per store, the
+  first always superseded). Since v34.2 `onopen` is the only resync, with a one-shot REST
+  fallback if the stream fails before it ever opens → *v34.2*
+- Job listings read count, per-status counts and page from separate statements; under READ
+  COMMITTED they disagreed ("9 items of 8") when a job committed mid-listing. They use one
+  REPEATABLE READ snapshot since v34.2 (`db.begin_snapshot`) → *v34.2*
 - Vite's dev `/api` proxy never closes the browser's SSE response when `api` dies, so in the
   normal `docker compose up` loop an `api` restart never triggers a reconnect at all (production
-  nginx does close it). Test reconnect behavior through the real `web` image → *v34*
+  nginx does close it). Test reconnect behavior through the real `web` image → *v34* (fixed
+  2026-10-02 in v34.2: `vite.config.ts`'s proxy now destroys the client response when the
+  upstream one closes incomplete)
 
 **Proxies & secrets**
 - Any proxy URL that is logged or persisted must go through `proxies.redact()`; spotdl's own error
@@ -4157,7 +4165,8 @@ independently-found production bug from the same conversation)
   last progress until a manual reload; now the reconnect's snapshot clears it.
 - **Progress isn't persisted server-side**, so a hard-reloaded lane renders 0% (`Waterfall`'s
   `progress ?? 0`) until the next tick, typically seconds. Title/artist come from REST and are
-  correct immediately.
+  correct immediately. *(2026-10-02, v34.2: the browser now keeps its last tick per track in
+  localStorage (`progressCache.ts`) and a hydrated lane shows it; see the v34.2 entry.)*
 - **Hydration limits:** failed jobs stay `failed` until dismissed (`cancel` → `cancelled`) or
   archived, so the default page size (50) silently hid older ones. Both hydrations ask for the
   backend cap (1000) and stop pruning when a snapshot comes back truncated. Found by blind review.
@@ -4171,9 +4180,11 @@ independently-found production bug from the same conversation)
 - **Dev `.env`'s `STALE_TRACK_AFTER_SECONDS=20` is shorter than a real download** (~10–30s),
   so beat's stale sweep re-queued a track mid-download; the redelivered task then hit dedup.
   Raise it while testing anything download-shaped (v35's redelivery guard is the real fix).
+  *(2026-10-02, v34.2: `.env.dev.example` now ships 300s.)*
 - **A frontend unit-test runner exists from v34:** `npm run test:unit` (vitest) in `frontend/`.
   It mocks `$lib/api` with `vi.mock(..., importOriginal)` and drives the singleton `queue` store,
-  calling `queue.reset()` between tests. Not wired into CI.
+  calling `queue.reset()` between tests. Not wired into CI. *(2026-10-02, v34.2: it is now, as
+  the `frontend` job's "Unit tests (vitest)" step.)*
 - **Verification downloads are real rate-limit exposure.** About 20 single-track and album
   downloads across this session tripped dev's breaker (5 consecutive `AudioProviderError`s, proxy
   attempts included). Reproducing download-shaped bugs needs a few tracks each. Reuse a long
@@ -4241,3 +4252,45 @@ independently-found production bug from the same conversation)
   in flight at rollback time stays `expanding`, and a library sweep stays `running`, which
   409s every new sweep. Recovery: roll forward, or re-send `expand_job` on the old stack (it
   then routes to `meta`).
+
+### v34.2 live-view-followup gotchas
+
+- **"N+1 of N" job counts were a snapshot race, not a frontend bug.** `list_jobs` runs three
+  statements: the capped `total_estimate`, `counts_by_status`, and the page. Under Postgres
+  READ COMMITTED each gets its own snapshot, so a job committed between them appears in the
+  page but not the count. Reproduced while submitting 40 jobs against 4 polling listers: 8 of
+  411 listings mismatched, e.g. `(9, 8)`. With `begin_snapshot()` (commit, then a REPEATABLE
+  READ transaction, Postgres only) the same load gave 0 of 356. Any future endpoint that reports
+  a count beside a page should read both from one snapshot.
+- **Why `onopen` and not mount:** a REST snapshot taken before the stream subscribes can miss an
+  event that lands in between; one taken from `onopen` practically can't. (Strictly, the
+  response headers, and so `onopen`, can precede the Redis subscribe by one round trip, but
+  the REST snapshot needs a full browser→api→DB round trip after `onopen`.) So the eager mount reload was never
+  the authoritative one. Removing it means `setAllUsers` must itself bump
+  `pageFetchSeq`/`liveHydrateSeq` and blank the page: it no longer fetches, so nothing else would
+  stop a late old-scope response or old rows from showing until the reconnect lands. Live: a page
+  load sends exactly 1 page + 1 + 1 hydration requests (was 2/2/2), a scope switch sends 1/1/1, a
+  filter change sends the page only, and a forced 502 on `/api/stream` triggered one REST
+  fallback so the page still rendered.
+- **Progress across a hard reload, localStorage (`spotdl:live-progress:v1`):** trusted only for
+  the same `attempt_count` and for 30 min, forgotten when a track leaves `downloading`, cleared
+  by `queue.reset()`. It holds ids and numbers only. Live: the lane painted `25%` 154 ms after a
+  hard reload and showed `40%` at the next real tick (~2 s); before v34.2 it read 0% in that
+  window. Only the browser that saw the tick can show it; another device still starts at 0%.
+- **Vite proxy fix, verified:** with `api` restarted, `curl -N` through `:5173` now exits at the
+  same moment and with the same code as one straight to `:8000` (13.09 s, `rc=18`). In the
+  browser the stream retried and then re-hydrated once, with incoming rows 4 → 4 and no
+  duplicates.
+
+- **`downloading` events didn't carry `attempt_count`**, so a lane created purely from SSE (no
+  REST seed) recorded every tick under attempt 0 and a retried track's cache never matched its
+  hydrated `attempt_count`. Retries are this app's normal state, so that gutted the feature.
+  Found by blind review. Both downloading publishes now include it; live capture: every tick
+  from `progress=0` to `100` carried `attempt_count=0` on a first attempt. **To test
+  "survives a hard reload", re-import the store module (`vi.resetModules()`)**, never
+  `queue.reset()`: that is logout, and it clears the cache by design.
+- **The resync fallback is armed per resync (mount and every scope switch), not once per
+  mount, and also fires on a 5s timer.** A network-level stream failure keeps the EventSource
+  `CONNECTING`, which never reaches the `CLOSED` branch. Live: a scope switch under a 502ing
+  stream showed the new scope via the fallback within 1.5s, and a `connectionreset` stream left
+  "Loading…" at 2s, resolved by 7s.

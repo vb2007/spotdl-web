@@ -392,3 +392,15 @@ def test_cancel_job_row_locks_the_job_before_reading_its_tracks(authenticated_cl
     monkeypatch.setattr(Session, "refresh", spy)
     assert authenticated_client.delete(f"/api/jobs/{job_id}").status_code == 200
     assert locked == [uuid.UUID(job_id)]
+
+
+def test_job_listing_reads_from_one_snapshot(authenticated_client, db_session, monkeypatch):
+    """v34.2: count, counts_by_status and the page must come from one snapshot (they
+    disagreed under Postgres READ COMMITTED). SQLite (this suite) has no REPEATABLE READ,
+    so pin that the listing opens the snapshot; the race itself was measured live."""
+    from app.services import job_listing
+
+    opened = []
+    monkeypatch.setattr(job_listing, "begin_snapshot", lambda db: opened.append(db))
+    assert authenticated_client.get("/api/jobs").status_code == 200
+    assert len(opened) == 1
