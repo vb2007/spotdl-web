@@ -10,8 +10,12 @@
  * attempt's 70% doesn't show for a retry. One gap: a re-run that *doesn't* bump it (beat's
  * stale reclaim, a redelivery) can show the old value until its first event, which is the
  * attempt's own `progress=0` start, normally within a second. Track ids and
- * numbers only, never metadata, and `clear()` runs on every store reset (logout, session
- * expiry -- the v22 rule) like every other piece of queue state. Every storage access is
+ * numbers only, never metadata. Cleared on every store reset (logout, the session-expiry
+ * redirect -- the v22 rule) and on every successful login, so a new identity starts
+ * empty even when the last session just expired in a closed tab. (Another still-open tab
+ * of the previous identity can write its own ids back until it notices; nothing renders
+ * from them, since a lookup needs the track id from this identity's own hydration.)
+ * Expired entries are pruned whenever the cache is read. Every storage access is
  * guarded: localStorage can be missing or throw (private windows, blocked site data),
  * and then this silently does nothing. */
 
@@ -45,6 +49,7 @@ function read(now: number): Cache {
 				fresh[id] = entry;
 			}
 		}
+		if (Object.keys(fresh).length !== Object.keys(parsed).length) write(fresh);
 		return fresh;
 	} catch {
 		return {};
