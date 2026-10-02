@@ -77,6 +77,7 @@ from app.tasks import download  # noqa: E402,F401
 from app.tasks import expand  # noqa: E402,F401
 from app.tasks import beat  # noqa: E402,F401
 from app.tasks import library  # noqa: E402,F401
+from app.tasks import alerts  # noqa: E402,F401
 
 
 @worker_ready.connect
@@ -99,3 +100,15 @@ def _sync_proxies_on_boot(**kwargs) -> None:
         from app.services.proxies import sync_from_file
 
         sync_from_file()
+
+
+@worker_ready.connect
+def _start_alert_watchdog_on_boot(**kwargs) -> None:
+    # v36: same explicit-env-var-gate convention -- the alert watchdog (beat heartbeat,
+    # breaker release, failure spike) runs in worker-meta only. A thread in this worker's
+    # main process rather than a beat-scheduled task, since beat is one of the things it
+    # watches (see alerts.Watchdog). Also where "alerts are off" is logged at startup.
+    if os.environ.get("RUN_ALERT_WATCHDOG") == "true":
+        from app.services.alerts import start_watchdog
+
+        start_watchdog()
