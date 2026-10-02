@@ -246,6 +246,8 @@ needed" claim — rather than silently deleted.
   same reasoning `LADDER_SECONDS`/`PACING_*_SEC` already get → *v31.1*
 
 **Celery, tasks & durability**
+- A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
+  pre-boot value as "since boot" or every restart looks like an outage → *v36*
 - Celery's own "Task ... received/succeeded" log lines echo task *args*: anything secret-shaped
   passed to `.delay()`/`apply_async` must be redacted before enqueue, not only where it's used
   → *v36*
@@ -429,8 +431,6 @@ needed" claim — rather than silently deleted.
   upstream one closes incomplete)
 
 **Proxies & secrets**
-- A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
-  pre-boot value as "since boot" or every restart looks like an outage → *v36*
 - `redact_text` lives in the stdlib-only `app/services/redaction.py` (re-exported as
   `proxies.redact_text`); importing `proxies` pulls in spotdl (~150 MB resident) → *v36*
 - The Matrix alert token is a `SecretStr`, read only by `alerts.py` into the Authorization header;
