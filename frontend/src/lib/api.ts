@@ -291,6 +291,22 @@ export interface LibrarySettings {
 
 export type EditableLibrarySettings = LibrarySettings;
 
+/** v36: admin-only Matrix alert controls. `configured` says whether the three MATRIX_*
+ * env vars are set -- the API never returns the credentials themselves. */
+export interface AlertSettings {
+	configured: boolean;
+	alerts_breaker_enabled: boolean;
+	alerts_spike_enabled: boolean;
+	alerts_beat_stale_enabled: boolean;
+	alerts_library_enabled: boolean;
+	alert_spike_threshold: number;
+	alert_spike_window_minutes: number;
+	alert_beat_stale_seconds: number;
+	alert_cooldown_minutes: number;
+}
+
+export type EditableAlertSettings = Omit<AlertSettings, 'configured'>;
+
 export type LibrarySortState = 'idle' | 'running';
 
 /** v28: `GET /api/library/sort/status` -- the same row serves both live progress while
@@ -683,6 +699,21 @@ export function updateLibrarySettings(
 		method: 'PATCH',
 		body: JSON.stringify(patch)
 	});
+}
+
+export function getAlertSettings(): Promise<AlertSettings> {
+	return request('/api/settings/alerts');
+}
+
+export function updateAlertSettings(patch: Partial<EditableAlertSettings>): Promise<AlertSettings> {
+	return request('/api/settings/alerts', {
+		method: 'PATCH',
+		body: JSON.stringify(patch)
+	});
+}
+
+export function sendTestAlert(): Promise<{ sent: boolean }> {
+	return request('/api/settings/alerts/test', { method: 'POST' });
 }
 
 export function getLibrarySortStatus(): Promise<LibrarySortRun> {
