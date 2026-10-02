@@ -90,9 +90,11 @@ def _reclaim_stale_tracks(db) -> None:
                 error_message=f"reclaimed: stuck past staleness threshold ({threshold})",
             )
         else:
-            # v35: stuck `queued` means its message never ran -- rescheduled without
-            # touching the network, which is what `held` records. Neither an attempt nor a
-            # failure, and not rendered as one.
+            # v35: stuck `queued` means its message hadn't reached the network yet (it
+            # never ran, or is still in download_track's pacing wait) -- rescheduled
+            # without an attempt, which is what `held` records. Neither an attempt nor a
+            # failure, and not rendered as one. If the message does still run, its own row
+            # records that attempt.
             recorded = attempts.record_attempt(
                 db,
                 track_id,
@@ -100,7 +102,7 @@ def _reclaim_stale_tracks(db) -> None:
                 now,
                 TrackAttemptOutcome.HELD,
                 warning_message=(
-                    f"reclaimed: queued past staleness threshold ({threshold}), never ran"
+                    f"reclaimed: still queued past staleness threshold ({threshold})"
                 ),
             )
         events.publish_track_event(

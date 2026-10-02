@@ -363,7 +363,7 @@ def test_reclaim_counts_an_attempt_only_when_the_track_was_downloading(
     row = db_session.query(TrackAttempt).filter(TrackAttempt.track_id == stuck.id).one()
     if stuck_state == TrackState.QUEUED:
         assert row.outcome == TrackAttemptOutcome.HELD
-        assert row.error_message is None and "never ran" in row.warning_message
+        assert row.error_message is None and "still queued" in row.warning_message
     else:
         assert row.outcome == TrackAttemptOutcome.FAILED
     assert refreshed.attempt_count == 0  # the ladder input never moves on a reclaim

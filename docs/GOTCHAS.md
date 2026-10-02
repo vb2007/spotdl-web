@@ -4331,7 +4331,7 @@ independently-found production bug from the same conversation)
   event would then need its own aggregate. The counting rule is derived from the row alone
   (outcome + `network_path`), so the counters can always be recomputed from `track_attempts`.
   Beat's reclaim of a track stuck `downloading` stays `failed` (as v31 recorded it). One stuck
-  `queued` never ran, so it is now recorded as `held` with a warning note (found by v35's two
+  `queued` hadn't reached the network, so it is now recorded as `held` with a warning note (found by v35's two
   blind review rounds; a first fix that kept it `failed` but uncounted left a red row beside
   "failures: 0"). The migration can't tell old reclaim rows apart and keeps them `failed`. A
   reclaim that races a still-running invocation gets the lower `attempt_number` despite its later
@@ -4365,6 +4365,14 @@ independently-found production bug from the same conversation)
   set before `state=`, read from the page's snapshot (`begin_snapshot`, as in v34.2). The chips
   re-read it with a debounced 1-row request on a track *state change* only: a count spans tracks
   that aren't on the loaded page, so it can't be patched locally.
+- **Reclaim races (pre-existing, documented by v35's third review, not fixed):** beat's reclaim
+  `UPDATE` doesn't re-check `state` after its snapshot `SELECT`, so a track that commits
+  `COMPLETED` in between is reset to `WAITING` (then dedup-skipped to `skipped_duplicate`) — the
+  same "completed track rewritten" outcome (c) closes for redelivery, via another path. A reclaim
+  of a still-alive `downloading` invocation also counts that one network attempt twice (the
+  reclaim's `failed` row plus the real outcome's). A mid-download cancel's event goes out before
+  its attempt row and carries no counters; the frontend never patches an already-`cancelled` row
+  anyway, so its displayed counts update on the next reload.
 - **Found while verifying, not fixed (pre-existing):** spotdl's `file already exists` skip is
   recorded as a `completed direct-ipv4` attempt and counts as one; a completed track keeps its
   last failure in `last_error`, so TrackRow still shows a red "last read" on it; and
