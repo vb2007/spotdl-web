@@ -255,30 +255,60 @@ describe('v34 live hydration', () => {
 		expect(get(queue.activeTracks)).toHaveLength(0);
 	});
 
-	it('setAllUsers re-hydrates under the new scope and drops the old scope’s in-flight snapshot', async () => {
+	it('a scope switch drops the old scope’s in-flight snapshot; the reconnect’s resync hydrates the new scope', async () => {
 		const mineActive = deferred<TracksPage>();
 		routeLists({ active: () => mineActive.promise });
 		const firstReload = queue.reload();
 
-		routeLists({
-			incoming: async () => jobsPage([job('someone-elses', 'expanding', 'expanding')]),
-			active: async () => tracksPage([downloadingTrack('global')])
-		});
 		queue.setAllUsers(true);
-		await vi.waitFor(() => expect(get(queue.activeTracks)).toHaveLength(1));
-		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ allUsers: true });
-		expect(hydrationCalls().incoming.at(-1)?.[0]).toMatchObject({ allUsers: true });
+		expect(get(queue.page)).toMatchObject({ items: [], loading: true, totalEstimate: 0 });
 
 		// The superseded mine-scope response lands late -- it must not leak in.
 		mineActive.resolve(tracksPage([downloadingTrack('mine-scope-stale')]));
 		await firstReload;
+		expect(get(queue.activeTracks)).toHaveLength(0);
+
+		// What the page's stream onopen does after reconnecting under the new scope.
+		routeLists({
+			incoming: async () => jobsPage([job('someone-elses', 'expanding', 'expanding')]),
+			active: async () => tracksPage([downloadingTrack('global')])
+		});
+		await queue.reload();
 		expect(get(queue.activeTracks).map((t) => t.id)).toEqual(['global']);
+		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ allUsers: true });
+		expect(hydrationCalls().incoming.at(-1)?.[0]).toMatchObject({ allUsers: true });
 
 		routeLists({});
 		queue.setAllUsers(false);
-		await vi.waitFor(() => expect(get(queue.activeTracks)).toHaveLength(0));
+		expect(get(queue.activeTracks)).toHaveLength(0);
 		expect(get(queue.incomingJobs)).toHaveLength(0);
+		await queue.reload();
 		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ allUsers: false });
+	});
+
+	it('setAllUsers itself fetches nothing (the reconnect resyncs); a late old-scope page response never lands', async () => {
+		const oldPage = deferred<JobsPage>();
+		listJobsPage.mockImplementation((params = {}) =>
+			params.status?.includes('expanding') ? Promise.resolve(jobsPage([])) : oldPage.promise
+		);
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		const reloading = queue.reload();
+		const callsBefore = listJobsPage.mock.calls.length + listTracksPage.mock.calls.length;
+
+		queue.setAllUsers(true);
+		expect(listJobsPage.mock.calls.length + listTracksPage.mock.calls.length).toBe(callsBefore);
+
+		oldPage.resolve(jobsPage([job('old-scope-row', 'expanded', 'active')]));
+		await reloading;
+		expect(get(queue.page)).toMatchObject({ items: [], loading: true });
+	});
+
+	it('a filter change reloads only the page, never the live overlays', async () => {
+		routeLists({});
+		queue.setFilters({ sort: 'title' });
+		await vi.waitFor(() => expect(listJobsPage).toHaveBeenCalled());
+		expect(hydrationCalls().incoming).toHaveLength(0);
+		expect(hydrationCalls().active).toHaveLength(0);
 	});
 
 	it('a lane in its grace window does not lend its old progress to a new attempt', async () => {
