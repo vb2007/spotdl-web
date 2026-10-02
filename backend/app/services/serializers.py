@@ -9,6 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Job, Track, TrackAttempt
+from app.services import proxies
 from app.services.rollup import derive_rollup
 
 
@@ -103,14 +104,20 @@ def track_to_dict(track: Track) -> dict:
     }
 
 
-def track_attempt_to_dict(attempt: TrackAttempt) -> dict:
+def track_attempt_to_dict(attempt: TrackAttempt, proxy_url: str | None = None) -> dict:
+    """`proxy_url` is the attempt's proxy's raw URL, joined in by the caller's own query
+    (never a per-row lookup). Only its `proxies.redact()` form leaves this function: the
+    raw URL can carry credentials (v35 (b))."""
     return {
         "id": str(attempt.id),
         "attempt_number": attempt.attempt_number,
         "started_at": attempt.started_at.isoformat(),
         "finished_at": attempt.finished_at.isoformat(),
+        "duration_seconds": (attempt.finished_at - attempt.started_at).total_seconds(),
         "outcome": attempt.outcome.value,
         "error_type": attempt.error_type.value if attempt.error_type is not None else None,
         "error_message": attempt.error_message,
         "proxy_id": str(attempt.proxy_id) if attempt.proxy_id is not None else None,
+        "proxy_label": proxies.redact(proxy_url) if proxy_url is not None else None,
+        "network_path": attempt.network_path.value if attempt.network_path is not None else None,
     }

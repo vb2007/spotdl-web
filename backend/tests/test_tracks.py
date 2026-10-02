@@ -5,11 +5,13 @@ from app.models import (
     DownloadedTrack,
     Job,
     JobSourceType,
+    NetworkPath,
     Proxy,
     ProxySource,
     Track,
     TrackAttempt,
     TrackAttemptOutcome,
+    TrackErrorType,
     TrackState,
 )
 from app.services import retry
@@ -175,7 +177,8 @@ def test_list_track_attempts_returns_history_oldest_first_with_expected_fields(
     authenticated_client, db_session, owner
 ):
     track = _make_track(db_session, owner, state=TrackState.WAITING, attempt_count=2)
-    proxy = Proxy(url="http://proxy-1:8080", source=ProxySource.FILE, enabled=True)
+    # Credentialed on purpose: v35 (b)'s label must never carry user:pass.
+    proxy = Proxy(url="http://user:s3cret@10.0.0.7:8080", source=ProxySource.FILE, enabled=True)
     db_session.add(proxy)
     db_session.commit()
 
@@ -183,22 +186,25 @@ def test_list_track_attempts_returns_history_oldest_first_with_expected_fields(
     db_session.add(
         TrackAttempt(
             track_id=track.id,
-            attempt_number=0,
+            attempt_number=1,
             started_at=now - timedelta(hours=2),
-            finished_at=now - timedelta(hours=2),
+            finished_at=now - timedelta(hours=2) + timedelta(seconds=12.5),
             outcome=TrackAttemptOutcome.FAILED,
+            error_type=TrackErrorType.AUDIO_PROVIDER,
             error_message="provider exploded",
+            network_path=NetworkPath.DIRECT_IPV4,
         )
     )
     db_session.add(
         TrackAttempt(
             track_id=track.id,
-            attempt_number=1,
+            attempt_number=2,
             started_at=now - timedelta(hours=1),
             finished_at=now - timedelta(hours=1),
             outcome=TrackAttemptOutcome.FAILED,
             proxy_id=proxy.id,
             error_message="proxy also failed",
+            network_path=NetworkPath.PROXY,
         )
     )
     db_session.commit()
@@ -207,11 +213,20 @@ def test_list_track_attempts_returns_history_oldest_first_with_expected_fields(
 
     assert response.status_code == 200
     body = response.json()
-    assert [row["attempt_number"] for row in body] == [0, 1]
+    assert [row["attempt_number"] for row in body] == [1, 2]
     assert body[0]["proxy_id"] is None
     assert body[1]["proxy_id"] == str(proxy.id)
     assert body[1]["error_message"] == "proxy also failed"
     assert body[1]["outcome"] == "failed"
+    # v35 (b)
+    assert body[0]["network_path"] == "direct-ipv4"
+    assert body[0]["error_type"] == "audio_provider"
+    assert body[0]["duration_seconds"] == 12.5
+    assert body[0]["proxy_label"] is None
+    assert body[1]["network_path"] == "proxy"
+    assert body[1]["proxy_label"] == "http://10.0.0.7:8080"
+    assert "s3cret" not in response.text
+    assert "user:" not in response.text
 
 
 def test_list_track_attempts_empty_for_a_track_with_no_history(authenticated_client, db_session, owner):

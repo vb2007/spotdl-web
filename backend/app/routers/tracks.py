@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.models import DownloadedTrack, Job, JobSourceType, Track, TrackAttempt, TrackState, User
+from app.models import DownloadedTrack, Job, JobSourceType, Proxy, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
 from app.services import app_settings, events, retry, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
@@ -202,15 +202,17 @@ def list_track_attempts(
 ) -> list[dict]:
     """Per-attempt download history (v24) -- what each attempt tried (direct vs. which
     proxy) and what happened, oldest first. Same owner-scoped 404-not-403 gate as every
-    other direct-id track endpoint."""
+    other direct-id track endpoint. The proxy is joined in the same query (v35) so each
+    row can carry its redacted label."""
     _track, _owner_id, _archived_at = _get_track_or_404(db, track_id, user)
     rows = (
-        db.query(TrackAttempt)
+        db.query(TrackAttempt, Proxy.url)
+        .outerjoin(Proxy, TrackAttempt.proxy_id == Proxy.id)
         .filter(TrackAttempt.track_id == track_id)
-        .order_by(TrackAttempt.attempt_number, TrackAttempt.started_at)
+        .order_by(TrackAttempt.attempt_number)
         .all()
     )
-    return [track_attempt_to_dict(row) for row in rows]
+    return [track_attempt_to_dict(attempt, proxy_url) for attempt, proxy_url in rows]
 
 
 @router.get("/{track_id}/file")

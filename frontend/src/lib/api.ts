@@ -132,15 +132,24 @@ export type TrackAttemptOutcome =
  * oldest first. `proxy_id` is `null` for a direct attempt, `error_type`/`error_message`
  * are `null` for anything that isn't `failed`. Diagnostic only, not a headline feature --
  * see TrackRow.svelte's rendering. */
+export type NetworkPath = 'direct-ipv4' | 'direct-ipv6' | 'proxy';
+
 export interface TrackAttempt {
 	id: string;
 	attempt_number: number;
 	started_at: string;
 	finished_at: string;
+	/** v35: `finished_at - started_at`. */
+	duration_seconds: number;
 	outcome: TrackAttemptOutcome;
 	error_type: TrackErrorType | null;
 	error_message: string | null;
 	proxy_id: string | null;
+	/** v35: the proxy's redacted `scheme://host:port`, never its credentials. */
+	proxy_label: string | null;
+	/** v35: `null` when the row never reached the network (held, duplicate, cancelled
+	 * before dispatch), and on rows written before v29 recorded it. */
+	network_path: NetworkPath | null;
 }
 
 /** The parent-job summary `GET /api/tracks`/`?scope=track` embeds on every row -- not a

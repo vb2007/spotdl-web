@@ -37,6 +37,18 @@
 		held: 'cond-waiting'
 	};
 
+	// v35 (b): the path the attempt actually took, from the API's network_path. A row
+	// without one either never reached the network or predates v29 recording it; only
+	// a completed/failed pre-v29 row falls back to the old proxy-or-direct label.
+	function attemptVia(attempt: TrackAttempt): string {
+		if (attempt.network_path === 'direct-ipv4') return 'direct · IPv4';
+		if (attempt.network_path === 'direct-ipv6') return 'direct · IPv6';
+		if (attempt.network_path === 'proxy') return `via proxy ${attempt.proxy_label ?? ''}`.trim();
+		if (attempt.proxy_id) return 'via proxy';
+		if (attempt.outcome === 'completed' || attempt.outcome === 'failed') return 'direct';
+		return 'no network';
+	}
+
 	function formatTimestamp(value: string): string {
 		return new Date(value).toLocaleString();
 	}
@@ -196,7 +208,7 @@
 								<span class="attempt-outcome {ATTEMPT_OUTCOME_COND[attempt.outcome]}"
 									>{ATTEMPT_OUTCOME_LABEL[attempt.outcome]}</span
 								>
-								<span class="attempt-via">{attempt.proxy_id ? 'via proxy' : 'direct'}</span>
+								<span class="attempt-via">{attemptVia(attempt)}</span>
 								<span class="attempt-time">{formatTimestamp(attempt.finished_at)}</span>
 								{#if attempt.error_message}
 									<span class="attempt-error">{attempt.error_message}</span>
