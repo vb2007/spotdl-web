@@ -429,6 +429,8 @@ needed" claim — rather than silently deleted.
   upstream one closes incomplete)
 
 **Proxies & secrets**
+- A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
+  pre-boot value as "since boot" or every restart looks like an outage → *v36*
 - `redact_text` lives in the stdlib-only `app/services/redaction.py` (re-exported as
   `proxies.redact_text`); importing `proxies` pulls in spotdl (~150 MB resident) → *v36*
 - The Matrix alert token is a `SecretStr`, read only by `alerts.py` into the Authorization header;
@@ -4431,6 +4433,18 @@ independently-found production bug from the same conversation)
 - **Release only for a trip the room heard about.** `spotdl:alerts:breaker_open` is set only when a
   trip alert was actually *sent* (not suppressed, toggled off, or failed), and release also waits
   for a manual pause to end (review round 1).
+- **One fingerprint per trip, not per step (review round 2).** `trip:30m` as a fingerprint let a
+  *second* 30m trip within the cooldown (after a success reset the escalation) be suppressed,
+  so the room's last word stayed "released" while downloads were paused again. The fingerprint is
+  now `trip:<step>:<tripped_until>`, the open marker stores it, and the release is
+  `release:<that trip>`.
+- **Redis is persistent here (`--appendonly yes`), so heartbeats outlive downtime (review round
+  2).** Without `max(heartbeat, watchdog start)`, every restart after more than the threshold of
+  downtime announced a dead beat and burnt the cooldown a real one would need.
+- **A spike is re-sent only with a newer attempt (review round 2).** The newest matching attempt's
+  `finished_at` is remembered per error_type. With a window longer than the cooldown, the same
+  frozen rows (the breaker stops attempts) would otherwise re-alert every cooldown.
+  `track_attempts.finished_at` is indexed for this every-minute query.
 - **Spike excludes `lookup`.** "Not found" is terminal and about the track. A playlist of
   unavailable tracks fails them back to back, which isn't YouTube changing (review round 1).
   Holds, skips and cancels never touched the network, so they neither break nor extend a run. A
