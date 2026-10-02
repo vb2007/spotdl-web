@@ -122,7 +122,7 @@ def download_track(track_id: str) -> None:
                 attempt_started_at,
                 datetime.now(timezone.utc),
                 TrackAttemptOutcome.HELD,
-                error_message="circuit breaker active; rescheduled without attempting",
+                warning_message="circuit breaker active; rescheduled without attempting",
             )
             db.commit()
             events.publish_track_event(
@@ -393,7 +393,7 @@ def download_track(track_id: str) -> None:
                 datetime.now(timezone.utc),
                 TrackAttemptOutcome.COMPLETED,
                 proxy_id=proxy_id,
-                error_message=f"tag warning: {tag_warning}" if tag_warning else None,
+                warning_message=f"tag warning: {tag_warning}" if tag_warning else None,
                 network_path=chosen_path,
             )
             db.commit()

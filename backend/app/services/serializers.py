@@ -117,6 +117,7 @@ def track_attempt_to_dict(attempt: TrackAttempt, proxy_url: str | None = None) -
         "outcome": attempt.outcome.value,
         "error_type": attempt.error_type.value if attempt.error_type is not None else None,
         "error_message": attempt.error_message,
+        "warning_message": attempt.warning_message,
         "proxy_id": str(attempt.proxy_id) if attempt.proxy_id is not None else None,
         "proxy_label": proxies.redact(proxy_url) if proxy_url is not None else None,
         "network_path": attempt.network_path.value if attempt.network_path is not None else None,

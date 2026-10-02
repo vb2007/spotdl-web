@@ -75,6 +75,11 @@ class TrackAttempt(Base):
     # Already redacted by the caller before this is set -- same contract as
     # tracks.last_error (docs/GOTCHAS.md v07), not re-redacted here.
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # v35 (d): a note on an attempt that did NOT fail -- v26's tag-repair note on a
+    # completed attempt, or a breaker hold's reason. Its own column, chosen at the write
+    # site, so the UI never has to guess severity from the text: error_message is only
+    # ever a failure. Same already-redacted contract as error_message.
+    warning_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     proxy_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("proxies.id"), nullable=True)
     network_path: Mapped[NetworkPath | None] = mapped_column(
         Enum(

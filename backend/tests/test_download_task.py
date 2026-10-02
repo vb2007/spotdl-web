@@ -255,7 +255,9 @@ def test_download_track_success_records_tag_repair_warning(db_session, monkeypat
 
     rows = _attempts(db_session, track)
     assert rows[-1].outcome == TrackAttemptOutcome.COMPLETED
-    assert rows[-1].error_message == "tag warning: cover art missing: fetch from Spotify failed"
+    # v35 (d): a warning, not an error, on a completed attempt.
+    assert rows[-1].warning_message == "tag warning: cover art missing: fetch from Spotify failed"
+    assert rows[-1].error_message is None
 
 
 def test_download_track_success_survives_unexpected_tagging_exception(db_session, monkeypatch, tmp_path):
@@ -285,7 +287,9 @@ def test_download_track_success_survives_unexpected_tagging_exception(db_session
 
     rows = _attempts(db_session, track)
     assert rows[-1].outcome == TrackAttemptOutcome.COMPLETED
-    assert rows[-1].error_message == "tag warning: tag verification/repair failed unexpectedly"
+    # v35 (d): a warning, not an error, on a completed attempt.
+    assert rows[-1].warning_message == "tag warning: tag verification/repair failed unexpectedly"
+    assert rows[-1].error_message is None
 
 
 def test_download_track_other_error_reschedules_to_waiting(db_session, monkeypatch):
@@ -490,6 +494,8 @@ def test_download_track_skips_entirely_while_breaker_tripped(db_session, monkeyp
     rows = _attempts(db_session, track)
     assert len(rows) == 1
     assert rows[0].outcome == TrackAttemptOutcome.HELD
+    assert rows[0].error_message is None
+    assert "circuit breaker" in rows[0].warning_message
     assert rows[0].error_type is None
     assert rows[0].proxy_id is None
 

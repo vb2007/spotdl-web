@@ -144,6 +144,9 @@ export interface TrackAttempt {
 	outcome: TrackAttemptOutcome;
 	error_type: TrackErrorType | null;
 	error_message: string | null;
+	/** v35: a note on an attempt that didn't fail (a tag-repair note, a breaker hold).
+	 * Never a failure; `error_message` is only ever one. */
+	warning_message: string | null;
 	proxy_id: string | null;
 	/** v35: the proxy's redacted `scheme://host:port`, never its credentials. */
 	proxy_label: string | null;

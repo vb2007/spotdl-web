@@ -213,6 +213,9 @@
 								{#if attempt.error_message}
 									<span class="attempt-error">{attempt.error_message}</span>
 								{/if}
+								{#if attempt.warning_message}
+									<span class="attempt-warning">{attempt.warning_message}</span>
+								{/if}
 							</li>
 						{/each}
 					</ul>
@@ -421,6 +424,14 @@
 
 	.attempt-error {
 		color: var(--fail);
+		flex-basis: 100%;
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+
+	/* v35 (d): a note on an attempt that didn't fail -- never failure red. */
+	.attempt-warning {
+		color: var(--waiting);
 		flex-basis: 100%;
 		white-space: normal;
 		overflow-wrap: anywhere;
