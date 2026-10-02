@@ -1,5 +1,6 @@
 import { derived, get, writable } from 'svelte/store';
 import * as api from '$lib/api';
+import { clearProgress, forgetProgress, recallProgress, rememberProgress } from './progressCache';
 import type {
 	Job,
 	JobsPage,
@@ -288,10 +289,20 @@ function createQueueStore() {
 		};
 	}
 
-	/** Every full resync -- mount, every stream (re)connect (the v08 contract), a filter
-	 * change, a scope switch -- reloads the page *and* re-hydrates the two live overlays. */
+	/** A full resync: reloads the page *and* re-hydrates the two live overlays. The page
+	 * calls it from the stream's `onopen` -- every connect and reconnect, the v08 contract
+	 * -- and that is the only resync a mount or scope switch needs (v34.2): a snapshot
+	 * taken after the stream has subscribed can't miss an event, while an extra eager one
+	 * on mount was always superseded by it (two requests per store per page load). A
+	 * filter change only refreshes the page (`reloadPage`); neither overlay is filtered. */
 	async function reload(): Promise<void> {
 		await Promise.all([reloadPage(), hydrateLive()]);
+	}
+
+	/** Shows the loading state until the stream's first `onopen` resync lands -- for a
+	 * fresh mount, which no longer fetches eagerly (see `reload`). */
+	function beginResync(): void {
+		page.update((p) => ({ ...p, loading: true, error: '' }));
 	}
 
 	/** v34: one bulk request per overlay, issued in parallel -- never a per-row loop. Both
@@ -385,8 +396,13 @@ function createQueueStore() {
 				clearLiveRemovalTimer(track.id);
 				// Only a lane still mid-attempt keeps its last tick; one in its grace window
 				// is showing the *previous* attempt's progress, which this one doesn't share.
+				// After a hard reload there's no lane at all: fall back to this browser's
+				// last sighting of this same attempt (v34.2, progressCache).
 				const existing = current[track.id];
-				const progress = existing?.state === 'downloading' ? existing.progress : undefined;
+				const progress =
+					existing?.state === 'downloading'
+						? existing.progress
+						: recallProgress(track.id, track.attempt_count);
 				next[track.id] = { ...track, progress };
 			}
 			return next;
@@ -501,7 +517,7 @@ function createQueueStore() {
 			}
 			return next;
 		});
-		reload();
+		reloadPage();
 	}
 
 	/** Bumps a job's expanded-fetch sequence without starting a new fetch -- makes any
@@ -522,7 +538,12 @@ function createQueueStore() {
 		clearAllLiveRemovalTimers();
 		liveActive.set({});
 		clearLiveTouches();
-		reload();
+		// No fetch here (v34.2): the caller reconnects the stream under the new scope, and
+		// its `onopen` resyncs. Until then nothing from the old scope may show or land:
+		// invalidate in-flight page and hydration fetches and blank the page.
+		pageFetchSeq++;
+		liveHydrateSeq++;
+		page.set({ ...EMPTY_PAGE, loading: true });
 	}
 
 	function getAllUsers(): boolean {
@@ -550,6 +571,7 @@ function createQueueStore() {
 		clearAllLiveRemovalTimers();
 		liveActive.set({});
 		clearLiveTouches();
+		clearProgress();
 	}
 
 	function toggleExpand(jobId: string): void {
@@ -841,7 +863,7 @@ function createQueueStore() {
 	let pendingReloadTimer: ReturnType<typeof setTimeout> | undefined;
 	function scheduleReload(): void {
 		clearTimeout(pendingReloadTimer);
-		pendingReloadTimer = setTimeout(reload, 300);
+		pendingReloadTimer = setTimeout(reloadPage, 300);
 	}
 
 	// Ids `patchArchivedFlagFromEvent` has already removed from view (and already
@@ -1039,6 +1061,7 @@ function createQueueStore() {
 			scheduleJobRefresh(event.job_id);
 		}
 
+		if (event.state !== 'downloading') forgetProgress(event.track_id);
 		liveActive.update((current) => {
 			if (event.state !== 'downloading') {
 				if (!(event.track_id in current)) return current;
@@ -1100,6 +1123,9 @@ function createQueueStore() {
 			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 			if (event.error !== undefined) next.last_error = event.error;
 			if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
+			if (next.progress !== undefined) {
+				rememberProgress(event.track_id, next.progress, next.attempt_count);
+			}
 			return { ...current, [event.track_id]: next };
 		});
 
@@ -1215,6 +1241,7 @@ function createQueueStore() {
 		activeTracks,
 		setFilters,
 		reload,
+		beginResync,
 		loadMore,
 		setAllUsers,
 		getAllUsers,

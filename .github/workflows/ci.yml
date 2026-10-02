@@ -445,6 +445,9 @@ jobs:
       - name: Type-check (svelte-check)
         run: npm run check
 
+      - name: Unit tests (vitest)
+        run: npm run test:unit
+
       - name: Build
         # This is also the exact config that would have caught the pre-fix `new URL('')`
         # crash in resolveApiBase() (src/lib/api.ts) had this job existed before that fix

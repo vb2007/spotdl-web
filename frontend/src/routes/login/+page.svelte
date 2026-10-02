@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { clearProgress } from '$lib/stores/progressCache';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 
@@ -14,6 +15,9 @@
 		errorMessage = '';
 		try {
 			await api.login(email, password);
+			// v34.2: a fresh identity never inherits another's cached progress ids -- the
+			// logout reset can't run when the last session simply expired in a closed tab.
+			clearProgress();
 			await goto(resolve('/'));
 		} catch (err) {
 			// "Invalid credentials." is deliberately generic for a real 401 — matches
