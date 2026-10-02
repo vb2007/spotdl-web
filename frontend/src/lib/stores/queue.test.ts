@@ -517,4 +517,22 @@ describe('v35 (g) tracks-scope state counts', () => {
 		await vi.runAllTimersAsync();
 		expect(get(queue.page).countsByState).toEqual({});
 	});
+
+	it('re-reads counts on a job.state event (an archive from another session)', async () => {
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		getJob.mockResolvedValue(job('job-1', 'expanded', 'settled'));
+		queue.setFilters({ scope: 'tracks' });
+		await vi.runAllTimersAsync();
+		listTracksPage.mockResolvedValue({ ...tracksPage([]), counts_by_state: { completed: 3 } });
+		await queue.applyEvent({
+			type: 'job.state',
+			job_id: 'job-1',
+			state: 'expanded',
+			archived: true,
+			ts: '2026-10-01T18:00:02+00:00'
+		} as StreamEvent);
+		await vi.advanceTimersByTimeAsync(2000);
+		expect(countsCalls()).toHaveLength(1);
+		expect(get(queue.page).countsByState).toEqual({ completed: 3 });
+	});
 });

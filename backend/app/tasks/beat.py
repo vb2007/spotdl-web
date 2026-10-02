@@ -34,16 +34,16 @@ def _reclaim_stale_tracks(db) -> None:
     threshold = stale_track_after()
     stale_cutoff = now - threshold
 
-    # Snapshot updated_at *before* the update below, rather than reading
+    # Snapshot state/updated_at *before* the update below, rather than reading
     # them back via that update's own RETURNING -- SQLAlchemy 2.0's ORM-enabled bulk
     # UPDATE (built from the mapped class, as below) still populates a column's
     # Python-side `onupdate` for every row it touches even when that column is never
     # named in `.values()`, so `Track.updated_at` in the RETURNING result would already
     # be "now", not the moment this track actually got stuck.
     stale_before = {
-        row.id: row.updated_at
+        row.id: (row.state, row.updated_at)
         for row in db.execute(
-            select(Track.id, Track.updated_at).where(
+            select(Track.id, Track.state, Track.updated_at).where(
                 Track.state.in_([TrackState.DOWNLOADING, TrackState.QUEUED]),
                 Track.updated_at < stale_cutoff,
             )
@@ -67,7 +67,7 @@ def _reclaim_stale_tracks(db) -> None:
     job_ids = {job_id for _, job_id, _ in reclaimed}
     owner_by_job = dict(db.execute(select(Job.id, Job.user_id).where(Job.id.in_(job_ids))).all())
     for track_id, job_id, song_json in reclaimed:
-        stuck_since = stale_before[track_id]
+        stuck_state, stuck_since = stale_before[track_id]
         logger.warning(
             "dispatch_due_tracks: reclaimed stale track %s (stuck past %s)",
             track_id,
@@ -87,6 +87,9 @@ def _reclaim_stale_tracks(db) -> None:
             now,
             TrackAttemptOutcome.FAILED,
             error_message=f"reclaimed: stuck past staleness threshold ({threshold})",
+            # v35: only a track stuck `downloading` actually went out to the network. One
+            # stuck `queued` never ran, so it is neither an attempt nor a failure.
+            reached_network=stuck_state == TrackState.DOWNLOADING,
         )
         events.publish_track_event(
             owner_by_job[job_id],

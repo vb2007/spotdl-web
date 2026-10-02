@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from app.models import (
     Job,
     JobSourceType,
@@ -335,3 +337,28 @@ def test_dispatch_due_tracks_skips_entirely_while_paused(db_session, monkeypatch
     beat_task.dispatch_due_tracks()
 
     assert db_session.get(Track, due.id).state == TrackState.WAITING
+
+
+@pytest.mark.parametrize(
+    "stuck_state, expected",
+    [(TrackState.DOWNLOADING, (1, 1)), (TrackState.QUEUED, (0, 0))],
+)
+def test_reclaim_counts_an_attempt_only_when_the_track_was_downloading(
+    db_session, monkeypatch, stuck_state, expected
+):
+    """v35 (a): a track stuck `downloading` went out to the network and its invocation died;
+    one stuck `queued` never ran, so its reclaim row is neither an attempt nor a failure."""
+    _patch_session(monkeypatch, db_session)
+    stuck = _make_track(db_session, state=stuck_state)
+    stuck.updated_at = datetime.now(timezone.utc) - beat_task.stale_track_after() - timedelta(minutes=1)
+    db_session.commit()
+    monkeypatch.setattr(beat_task.download_track, "delay", lambda track_id: None)
+    published = []
+    monkeypatch.setattr(events, "publish_track_event", lambda *a, **k: published.append(k))
+
+    beat_task.dispatch_due_tracks()
+
+    refreshed = db_session.get(Track, stuck.id)
+    assert (refreshed.attempts_made, refreshed.failure_count) == expected
+    assert refreshed.attempt_count == 0  # the ladder input never moves on a reclaim
+    assert (published[0]["attempts_made"], published[0]["failure_count"]) == expected

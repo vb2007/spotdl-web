@@ -211,6 +211,7 @@ function createQueueStore() {
 	// 1-row page carries the same counts_by_state), debounced like the job-row refresh
 	// above and triggered from the same state-change-only paths, never per progress tick.
 	let trackCountsTimer: ReturnType<typeof setTimeout> | undefined;
+	let trackCountsSeq = 0;
 
 	function scheduleTrackCountsRefresh(): void {
 		if (get(filters).scope !== 'tracks') return;
@@ -223,6 +224,7 @@ function createQueueStore() {
 		if (f.scope !== 'tracks') return;
 		const seq = pageFetchSeq;
 		const epoch = storeEpoch;
+		const countsSeq = ++trackCountsSeq;
 		try {
 			const result = await api.listTracksPage({
 				...currentQueryParams(),
@@ -232,7 +234,8 @@ function createQueueStore() {
 			});
 			// A full reload, scope/filter change or reset since then has (or will have)
 			// its own counts; never let this older read overwrite them.
-			if (seq !== pageFetchSeq || epoch !== storeEpoch) return;
+			// Nor an older counts read that resolves after a newer one.
+			if (seq !== pageFetchSeq || epoch !== storeEpoch || countsSeq !== trackCountsSeq) return;
 			page.update((p) => ({ ...p, countsByState: result.counts_by_state }));
 		} catch {
 			// Best effort: the chips keep their last counts until the next reload.
@@ -1218,6 +1221,9 @@ function createQueueStore() {
 		// flight when this event lands may resolve before that fetch does, and must not
 		// apply its (older) snapshot of this job in the meantime.
 		touchIncoming(event.job_id);
+		// v35 (g): an archive/unarchive (from another tab, an admin or the retention sweep)
+		// changes which tracks the Tracks scope's chips count without any track event.
+		scheduleTrackCountsRefresh();
 		const epoch = storeEpoch;
 		if (event.archived !== undefined) {
 			patchArchivedFlagFromEvent(event.job_id, event.archived);
