@@ -53,11 +53,9 @@ def download_track(track_id: str) -> None:
             return
         track, owner_id = row
 
-        # One track_attempts row per invocation of this task (v24) -- attempt_number
-        # mirrors tracks.attempt_count as it stood at the *start* of this attempt, so it
-        # never moves mid-invocation even though record_failure below increments the
-        # real column before this function returns.
-        attempt_number = track.attempt_count
+        # One track_attempts row per invocation of this task (v24). Its attempt_number is
+        # assigned by attempts.record_attempt as a per-track sequence (v35), independent
+        # of tracks.attempt_count, which stays the ladder's failure count.
         attempt_started_at = datetime.now(timezone.utc)
 
         # A cancel can land between beat's dispatch (or expand_job's immediate first
@@ -69,7 +67,6 @@ def download_track(track_id: str) -> None:
             attempts.record_attempt(
                 db,
                 track.id,
-                attempt_number,
                 attempt_started_at,
                 datetime.now(timezone.utc),
                 TrackAttemptOutcome.CANCELLED,
@@ -104,17 +101,15 @@ def download_track(track_id: str) -> None:
             track.scheduled_at = worker_state.breaker_tripped_until or (now + retry.next_delay(0))
             # Deliberately doesn't touch track.attempt_count -- doing so would make the
             # real attempt that eventually follows read attempt_count >= 1 and wrongly
-            # reach for a proxy, breaking "attempt 1 is always direct". Consequence: this
-            # row's attempt_number can collide with that later real attempt's (see
-            # docs/GOTCHAS.md's v24 entry) -- accepted, since ordering relies on
-            # started_at and the frontend never renders attempt_number as a label.
+            # reach for a proxy, breaking "attempt 1 is always direct". v35: recorded as
+            # `held`, not `failed`, so it counts as neither an attempt nor a failure, and
+            # it gets its own attempt_number rather than sharing the next real attempt's.
             attempts.record_attempt(
                 db,
                 track.id,
-                attempt_number,
                 attempt_started_at,
                 datetime.now(timezone.utc),
-                TrackAttemptOutcome.FAILED,
+                TrackAttemptOutcome.HELD,
                 error_message="circuit breaker active; rescheduled without attempting",
             )
             db.commit()
@@ -125,6 +120,8 @@ def download_track(track_id: str) -> None:
                 track.state.value,
                 scheduled_at=track.scheduled_at,
                 attempt_count=track.attempt_count,
+                attempts_made=track.attempts_made,
+                failure_count=track.failure_count,
                 **track_song_meta(track.song_json),
             )
             return
@@ -136,14 +133,19 @@ def download_track(track_id: str) -> None:
             attempts.record_attempt(
                 db,
                 track.id,
-                attempt_number,
                 attempt_started_at,
                 datetime.now(timezone.utc),
                 TrackAttemptOutcome.SKIPPED_DUPLICATE,
             )
             db.commit()
             events.publish_track_event(
-                owner_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
+                owner_id,
+                track.id,
+                track.job_id,
+                track.state.value,
+                attempts_made=track.attempts_made,
+                failure_count=track.failure_count,
+                **track_song_meta(track.song_json),
             )
             return
 
@@ -177,7 +179,6 @@ def download_track(track_id: str) -> None:
                 attempts.record_attempt(
                     db,
                     track.id,
-                    attempt_number,
                     attempt_started_at,
                     datetime.now(timezone.utc),
                     TrackAttemptOutcome.CANCELLED,
@@ -294,7 +295,6 @@ def download_track(track_id: str) -> None:
                 attempts.record_attempt(
                     db,
                     track.id,
-                    attempt_number,
                     attempt_started_at,
                     datetime.now(timezone.utc),
                     TrackAttemptOutcome.CANCELLED,
@@ -377,7 +377,6 @@ def download_track(track_id: str) -> None:
             attempts.record_attempt(
                 db,
                 track.id,
-                attempt_number,
                 attempt_started_at,
                 datetime.now(timezone.utc),
                 TrackAttemptOutcome.COMPLETED,
@@ -387,7 +386,13 @@ def download_track(track_id: str) -> None:
             )
             db.commit()
             events.publish_track_event(
-                owner_id, track.id, track.job_id, track.state.value, **track_meta
+                owner_id,
+                track.id,
+                track.job_id,
+                track.state.value,
+                attempts_made=track.attempts_made,
+                failure_count=track.failure_count,
+                **track_meta,
             )
         except Exception as exc:
             # Some exceptions (e.g. spotdl's DownloaderError for a malformed proxy) echo
@@ -426,7 +431,6 @@ def download_track(track_id: str) -> None:
                 attempts.record_attempt(
                     db,
                     track.id,
-                    attempt_number,
                     attempt_started_at,
                     datetime.now(timezone.utc),
                     TrackAttemptOutcome.CANCELLED,
@@ -442,7 +446,6 @@ def download_track(track_id: str) -> None:
             attempts.record_attempt(
                 db,
                 track.id,
-                attempt_number,
                 attempt_started_at,
                 datetime.now(timezone.utc),
                 TrackAttemptOutcome.FAILED,
@@ -460,6 +463,8 @@ def download_track(track_id: str) -> None:
                 scheduled_at=track.scheduled_at,
                 error=track.last_error,
                 attempt_count=track.attempt_count,
+                attempts_made=track.attempts_made,
+                failure_count=track.failure_count,
                 **track_meta,
             )
     finally:

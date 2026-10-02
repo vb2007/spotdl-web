@@ -53,6 +53,8 @@ function downloadingTrack(id: string, jobId = 'job-1'): TrackWithJob {
 		album: 'Toto IV',
 		spotify_track_id: 'sp',
 		attempt_count: 0,
+		attempts_made: 0,
+		failure_count: 0,
 		scheduled_at: null,
 		last_error: null,
 		last_error_type: null,

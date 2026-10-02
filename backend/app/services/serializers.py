@@ -95,6 +95,8 @@ def track_to_dict(track: Track) -> dict:
         **track_song_meta(track.song_json),
         "spotify_track_id": track.spotify_track_id,
         "attempt_count": track.attempt_count,
+        "attempts_made": track.attempts_made,
+        "failure_count": track.failure_count,
         "scheduled_at": track.scheduled_at.isoformat() if track.scheduled_at is not None else None,
         "last_error": track.last_error,
         "last_error_type": track.last_error_type.value if track.last_error_type is not None else None,

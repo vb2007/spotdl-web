@@ -55,7 +55,16 @@ class Track(Base):
         nullable=False,
         default=TrackState.PENDING,
     )
+    # The retry ladder's input (retry.next_delay) and the network-path rung selector
+    # (download.py): failures recorded by retry.record_failure, nothing else. Not what the
+    # UI calls "attempts" -- that's attempts_made below (v35).
     attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # v35: display counters over this track's track_attempts rows -- maintained only by
+    # attempts.record_attempt, in the same transaction as the row it inserts, so they can't
+    # drift from the history as long as every row goes through it. attempts_made counts
+    # rows that actually tried the network; failure_count counts `failed` rows.
+    attempts_made: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    failure_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     scheduled_at: Mapped[datetime | None] = mapped_column(nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_error_type: Mapped[TrackErrorType | None] = mapped_column(

@@ -160,7 +160,7 @@
 
 	{#if expanded}
 		<div class="detail mono">
-			<span>passes attempted: {track.attempt_count}</span>
+			<span>attempts: {track.attempts_made} · failures: {track.failure_count}</span>
 			{#if track.state === 'waiting' && track.scheduled_at}
 				<Countdown scheduledAt={track.scheduled_at} />
 			{/if}

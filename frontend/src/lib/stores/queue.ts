@@ -1085,6 +1085,8 @@ function createQueueStore() {
 				if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 				if (event.error !== undefined) next.last_error = event.error;
 				if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
+				if (event.attempts_made !== undefined) next.attempts_made = event.attempts_made;
+				if (event.failure_count !== undefined) next.failure_count = event.failure_count;
 				return { ...current, [event.track_id]: next };
 			}
 			clearLiveRemovalTimer(event.track_id);
@@ -1108,6 +1110,8 @@ function createQueueStore() {
 				album: event.album ?? seed?.album ?? null,
 				spotify_track_id: seed?.spotify_track_id ?? '',
 				attempt_count: seed?.attempt_count ?? 0,
+				attempts_made: seed?.attempts_made ?? 0,
+				failure_count: seed?.failure_count ?? 0,
 				scheduled_at: null,
 				last_error: null,
 				last_error_type: null
@@ -1123,6 +1127,8 @@ function createQueueStore() {
 			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 			if (event.error !== undefined) next.last_error = event.error;
 			if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
+			if (event.attempts_made !== undefined) next.attempts_made = event.attempts_made;
+			if (event.failure_count !== undefined) next.failure_count = event.failure_count;
 			if (next.progress !== undefined) {
 				rememberProgress(event.track_id, next.progress, next.attempt_count);
 			}
@@ -1138,6 +1144,8 @@ function createQueueStore() {
 			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 			if (event.error !== undefined) next.last_error = event.error;
 			if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
+			if (event.attempts_made !== undefined) next.attempts_made = event.attempts_made;
+			if (event.failure_count !== undefined) next.failure_count = event.failure_count;
 			if (event.progress !== undefined) (next as LiveTrack).progress = event.progress;
 			const copy = [...items];
 			copy[idx] = next;

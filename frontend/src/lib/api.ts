@@ -109,7 +109,12 @@ export interface Track {
 	artists: string[] | null;
 	album: string | null;
 	spotify_track_id: string;
+	/** The retry ladder's failure count (what picks the next delay and network rung) --
+	 * not what the UI shows as attempts; see attempts_made/failure_count (v35). */
 	attempt_count: number;
+	/** v35: track_attempts rows that actually reached the network, and `failed` rows. */
+	attempts_made: number;
+	failure_count: number;
 	scheduled_at: string | null;
 	last_error: string | null;
 	last_error_type: TrackErrorType | null;
@@ -158,6 +163,9 @@ export interface TrackStateEvent {
 	scheduled_at?: string;
 	error?: string;
 	attempt_count?: number;
+	/** v35: present whenever the worker just wrote an attempt row. */
+	attempts_made?: number;
+	failure_count?: number;
 	/** v23: present whenever the publishing call site has the track's song metadata to
 	 * offer (effectively always, as of this version) -- absent only for events published
 	 * before this field existed or a call site with none to give. See

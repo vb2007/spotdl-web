@@ -66,10 +66,14 @@ def publish_track_event(
     scheduled_at: datetime | None = None,
     error: str | None = None,
     attempt_count: int | None = None,
+    attempts_made: int | None = None,
+    failure_count: int | None = None,
     title: str | None = None,
     artists: list[str] | None = None,
     album: str | None = None,
 ) -> None:
+    # v35: attempts_made/failure_count ride along wherever the caller just wrote an
+    # attempt row, so a live row's displayed counts move without a refetch.
     # v23: title/artists/album, straight from the same `song_json` the caller already
     # has loaded -- zero extra cost. Before this, the frontend could only seed a live
     # track's metadata from a prior REST fetch (queue.ts's findCachedTrackMeta), so a
@@ -92,6 +96,10 @@ def publish_track_event(
         event["error"] = error
     if attempt_count is not None:
         event["attempt_count"] = attempt_count
+    if attempts_made is not None:
+        event["attempts_made"] = attempts_made
+    if failure_count is not None:
+        event["failure_count"] = failure_count
     if title is not None:
         event["title"] = title
     if artists is not None:

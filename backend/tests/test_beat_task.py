@@ -296,7 +296,8 @@ def test_dispatch_due_tracks_reclaim_records_a_track_attempt(db_session, monkeyp
     beat_task.dispatch_due_tracks()
 
     attempt = db_session.query(TrackAttempt).filter(TrackAttempt.track_id == stuck.id).one()
-    assert attempt.attempt_number == 2
+    # v35: the track's first row is number 1, whatever tracks.attempt_count says.
+    assert attempt.attempt_number == 1
     assert attempt.outcome == TrackAttemptOutcome.FAILED
     assert attempt.error_type is None
     assert "stuck" in attempt.error_message
