@@ -200,5 +200,8 @@
   "198": "v45 — Internationalization (Hungarian + English)",
   "199": "v46 — UI Polish & Design-System Record",
   "200": "v47 — Master v4 Hardening & Close",
-  "201": "Issues found for master v4 planning"
+  "201": "Issues found for master v4 planning",
+  "202": "list_jobs",
+  "203": "track_counts",
+  "204": "_event_stream"
 }

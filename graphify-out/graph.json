@@ -824,7 +824,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_db",
-      "community": 162,
+      "community": 158,
       "norm_label": "db.py"
     },
     {
@@ -848,14 +848,14 @@
       "norm_label": "declarativebase"
     },
     {
-      "label": "get_db()",
+      "label": "begin_snapshot()",
       "file_type": "code",
       "source_file": "backend/app/db.py",
       "source_location": "L22",
       "_origin": "ast",
-      "id": "backend_app_db_get_db",
-      "community": 2,
-      "norm_label": "get_db()"
+      "id": "backend_app_db_begin_snapshot",
+      "community": 158,
+      "norm_label": "begin_snapshot()"
     },
     {
       "label": "Session",
@@ -864,8 +864,28 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_db_py_session",
-      "community": 2,
+      "community": 158,
       "norm_label": "session"
+    },
+    {
+      "label": "get_db()",
+      "file_type": "code",
+      "source_file": "backend/app/db.py",
+      "source_location": "L35",
+      "_origin": "ast",
+      "id": "backend_app_db_get_db",
+      "community": 158,
+      "norm_label": "get_db()"
+    },
+    {
+      "label": "Ends `db`'s current transaction and starts a REPEATABLE READ one, so every state",
+      "file_type": "rationale",
+      "source_file": "backend/app/db.py",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "backend_app_db_rationale_23",
+      "community": 158,
+      "norm_label": "ends `db`'s current transaction and starts a repeatable read one, so every state"
     },
     {
       "label": "logging_config.py",
@@ -984,7 +1004,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_app_settings",
-      "community": 162,
+      "community": 158,
       "norm_label": "app_settings.py"
     },
     {
@@ -1014,7 +1034,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 162,
+      "community": 158,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -1314,7 +1334,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_user",
-      "community": 162,
+      "community": 158,
       "norm_label": "user.py"
     },
     {
@@ -1324,7 +1344,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_user_user",
-      "community": 0,
+      "community": 152,
       "norm_label": "user"
     },
     {
@@ -1334,7 +1354,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_user_rationale_11",
-      "community": 0,
+      "community": 152,
       "norm_label": "row created on first successful login (v17). the `allowed_emails` env allowlist"
     },
     {
@@ -1374,7 +1394,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_worker_state",
-      "community": 162,
+      "community": 158,
       "norm_label": "worker_state.py"
     },
     {
@@ -2754,7 +2774,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_archive",
-      "community": 5,
+      "community": 139,
       "norm_label": "archive.py"
     },
     {
@@ -2764,7 +2784,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_services_archive_eligible_job_ids",
-      "community": 5,
+      "community": 139,
       "norm_label": "_eligible_job_ids()"
     },
     {
@@ -2774,7 +2794,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_session",
-      "community": 5,
+      "community": 139,
       "norm_label": "session"
     },
     {
@@ -2784,7 +2804,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_uuid",
-      "community": 5,
+      "community": 139,
       "norm_label": "uuid"
     },
     {
@@ -2794,7 +2814,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_timedelta",
-      "community": 5,
+      "community": 139,
       "norm_label": "timedelta"
     },
     {
@@ -2804,7 +2824,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_app_services_archive_archive_jobs",
-      "community": 5,
+      "community": 139,
       "norm_label": "archive_jobs()"
     },
     {
@@ -2814,7 +2834,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_job",
-      "community": 5,
+      "community": 139,
       "norm_label": "job"
     },
     {
@@ -2824,7 +2844,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "backend_app_services_archive_unarchive_jobs",
-      "community": 5,
+      "community": 139,
       "norm_label": "unarchive_jobs()"
     },
     {
@@ -2834,7 +2854,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_archive_rationale_1",
-      "community": 5,
+      "community": 139,
       "norm_label": "soft-archive lifecycle for jobs (v19). see `plan/master-v2/v19-archive-retention"
     },
     {
@@ -2844,7 +2864,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "backend_app_services_archive_rationale_78",
-      "community": 5,
+      "community": 139,
       "norm_label": "`job_ids=none, older_than=none` (the \"clear log\" case) archives every eligible j"
     },
     {
@@ -2934,7 +2954,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_dedup",
-      "community": 181,
+      "community": 163,
       "norm_label": "dedup.py"
     },
     {
@@ -2944,7 +2964,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_services_dedup_is_already_downloaded",
-      "community": 181,
+      "community": 163,
       "norm_label": "is_already_downloaded()"
     },
     {
@@ -2954,7 +2974,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_dedup_py_path",
-      "community": 181,
+      "community": 163,
       "norm_label": "path"
     },
     {
@@ -2964,7 +2984,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_services_dedup_mount_looks_missing",
-      "community": 181,
+      "community": 163,
       "norm_label": "_mount_looks_missing()"
     },
     {
@@ -2974,7 +2994,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_app_services_dedup_reconcile_disk",
-      "community": 181,
+      "community": 163,
       "norm_label": "reconcile_disk()"
     },
     {
@@ -2984,7 +3004,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_dedup_rationale_1",
-      "community": 181,
+      "community": 163,
       "norm_label": "download dedup ledger (`downloaded_tracks`) and startup disk reconciliation."
     },
     {
@@ -2994,7 +3014,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_services_dedup_rationale_17",
-      "community": 181,
+      "community": 163,
       "norm_label": "none means \"attempt a real download\" -- to the caller, a stale ledger row (file"
     },
     {
@@ -3004,7 +3024,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_app_services_dedup_rationale_41",
-      "community": 181,
+      "community": 163,
       "norm_label": "drops ledger rows whose file no longer exists on disk, so a manually-deleted"
     },
     {
@@ -3344,17 +3364,17 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_job_listing",
-      "community": 202,
+      "community": 11,
       "norm_label": "job_listing.py"
     },
     {
       "label": "InvalidListParams",
       "file_type": "code",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L32",
+      "source_location": "L33",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_invalidlistparams",
-      "community": 202,
+      "community": 11,
       "norm_label": "invalidlistparams"
     },
     {
@@ -3371,10 +3391,10 @@
       "label": "list_jobs()",
       "file_type": "code",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L36",
+      "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_list_jobs",
-      "community": 202,
+      "community": 11,
       "norm_label": "list_jobs()"
     },
     {
@@ -3384,7 +3404,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_py_session",
-      "community": 202,
+      "community": 11,
       "norm_label": "session"
     },
     {
@@ -3394,27 +3414,27 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_py_jobsourcetype",
-      "community": 202,
+      "community": 11,
       "norm_label": "jobsourcetype"
     },
     {
       "label": "_sort_key()",
       "file_type": "code",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L154",
+      "source_location": "L159",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_sort_key",
-      "community": 202,
+      "community": 11,
       "norm_label": "_sort_key()"
     },
     {
       "label": "_sort_value()",
       "file_type": "code",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L166",
+      "source_location": "L171",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_sort_value",
-      "community": 202,
+      "community": 11,
       "norm_label": "_sort_value()"
     },
     {
@@ -3424,7 +3444,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_rationale_1",
-      "community": 202,
+      "community": 11,
       "norm_label": "paginated/filtered/sorted/searchable job listing (v18) -- `get /api/jobs` (scope"
     },
     {
@@ -3674,7 +3694,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_app_services_pagination_invalidcursor",
-      "community": 11,
+      "community": 0,
       "norm_label": "invalidcursor"
     },
     {
@@ -4674,7 +4694,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_counts",
-      "community": 203,
+      "community": 0,
       "norm_label": "track_counts()"
     },
     {
@@ -4704,7 +4724,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_song_meta",
-      "community": 131,
+      "community": 148,
       "norm_label": "track_song_meta()"
     },
     {
@@ -4774,7 +4794,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_37",
-      "community": 203,
+      "community": 0,
       "norm_label": "single-job convenience over the bulk query -- for endpoints that serialize exact"
     },
     {
@@ -4794,7 +4814,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_77",
-      "community": 131,
+      "community": 148,
       "norm_label": "title/artists/album straight from a track's `song_json` -- the single field"
     },
     {
@@ -4974,7 +4994,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_track_listing",
-      "community": 186,
+      "community": 11,
       "norm_label": "track_listing.py"
     },
     {
@@ -4984,7 +5004,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_invalidlistparams",
-      "community": 186,
+      "community": 11,
       "norm_label": "invalidlistparams"
     },
     {
@@ -4994,7 +5014,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_list_tracks",
-      "community": 186,
+      "community": 11,
       "norm_label": "list_tracks()"
     },
     {
@@ -5004,7 +5024,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_session",
-      "community": 186,
+      "community": 11,
       "norm_label": "session"
     },
     {
@@ -5014,7 +5034,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_jobsourcetype",
-      "community": 186,
+      "community": 11,
       "norm_label": "jobsourcetype"
     },
     {
@@ -5024,7 +5044,7 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_key",
-      "community": 186,
+      "community": 11,
       "norm_label": "_sort_key()"
     },
     {
@@ -5034,7 +5054,7 @@
       "source_location": "L128",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_value",
-      "community": 186,
+      "community": 11,
       "norm_label": "_sort_value()"
     },
     {
@@ -5044,7 +5064,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_track",
-      "community": 186,
+      "community": 11,
       "norm_label": "track"
     },
     {
@@ -5054,7 +5074,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_rationale_1",
-      "community": 186,
+      "community": 11,
       "norm_label": "paginated/filtered/sorted/searchable track listing shared by `get /api/tracks` a"
     },
     {
@@ -5064,7 +5084,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth",
-      "community": 1,
+      "community": 181,
       "norm_label": "upstream_auth.py"
     },
     {
@@ -5074,7 +5094,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_login",
-      "community": 1,
+      "community": 181,
       "norm_label": "login()"
     },
     {
@@ -5084,7 +5104,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_fetch_username",
-      "community": 1,
+      "community": 181,
       "norm_label": "_fetch_username()"
     },
     {
@@ -5094,7 +5114,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_py_response",
-      "community": 1,
+      "community": 181,
       "norm_label": "response"
     },
     {
@@ -5104,7 +5124,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_rationale_14",
-      "community": 1,
+      "community": 181,
       "norm_label": "check credentials against vb2007.hu-api, and best-effort fetch the username via"
     },
     {
@@ -5114,7 +5134,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_rationale_41",
-      "community": 1,
+      "community": 181,
       "norm_label": "`isauthenticated`'s `get /user` reads the `vb-auth` cookie itself -- extracted"
     },
     {
@@ -5244,7 +5264,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_beat",
-      "community": 131,
+      "community": 148,
       "norm_label": "beat.py"
     },
     {
@@ -5254,7 +5274,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_stale_track_after",
-      "community": 131,
+      "community": 148,
       "norm_label": "stale_track_after()"
     },
     {
@@ -5264,7 +5284,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_py_timedelta",
-      "community": 131,
+      "community": 148,
       "norm_label": "timedelta"
     },
     {
@@ -5274,7 +5294,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_reclaim_stale_tracks",
-      "community": 131,
+      "community": 148,
       "norm_label": "_reclaim_stale_tracks()"
     },
     {
@@ -5284,7 +5304,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_dispatch_due_tracks",
-      "community": 131,
+      "community": 148,
       "norm_label": "dispatch_due_tracks()"
     },
     {
@@ -5294,7 +5314,7 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_archive_due_jobs",
-      "community": 131,
+      "community": 148,
       "norm_label": "archive_due_jobs()"
     },
     {
@@ -5304,7 +5324,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_18",
-      "community": 131,
+      "community": 148,
       "norm_label": "a track stuck in downloading/queued past this long means whatever was supposed t"
     },
     {
@@ -5314,7 +5334,7 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_149",
-      "community": 131,
+      "community": 148,
       "norm_label": "hourly (not every 30s like dispatch_due_tracks -- this is housekeeping, and it"
     },
     {
@@ -5324,7 +5344,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app",
-      "community": 181,
+      "community": 133,
       "norm_label": "celery_app.py"
     },
     {
@@ -5334,7 +5354,7 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
-      "community": 181,
+      "community": 133,
       "norm_label": "_reconcile_disk_on_boot()"
     },
     {
@@ -5394,7 +5414,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 131,
+      "community": 186,
       "norm_label": "expand.py"
     },
     {
@@ -5404,7 +5424,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_enqueue_pending_tracks",
-      "community": 131,
+      "community": 186,
       "norm_label": "_enqueue_pending_tracks()"
     },
     {
@@ -5414,7 +5434,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_py_job",
-      "community": 131,
+      "community": 186,
       "norm_label": "job"
     },
     {
@@ -5424,7 +5444,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 131,
+      "community": 186,
       "norm_label": "expand_job()"
     },
     {
@@ -5434,7 +5454,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_rationale_17",
-      "community": 131,
+      "community": 186,
       "norm_label": "enqueues `job`'s tracks still `pending`. for a job whose expanded commit landed"
     },
     {
@@ -5544,7 +5564,7 @@
       "ecosystem": "python",
       "source_file": "backend/pyproject.toml",
       "source_location": "L1",
-      "version": "4.34.1",
+      "version": "4.34.2",
       "_origin": "ast",
       "id": "pkg_spotdl_web_backend",
       "community": 55,
@@ -7477,7 +7497,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_events",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_events.py"
     },
     {
@@ -7487,7 +7507,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_events_fakesongtracker",
-      "community": 148,
+      "community": 32,
       "norm_label": "_fakesongtracker"
     },
     {
@@ -7497,7 +7517,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_tests_test_events_fakesongtracker_init",
-      "community": 148,
+      "community": 32,
       "norm_label": ".__init__()"
     },
     {
@@ -7507,7 +7527,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_minimal_shape",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_track_event_minimal_shape()"
     },
     {
@@ -7517,7 +7537,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_includes_optional_fields",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_track_event_includes_optional_fields()"
     },
     {
@@ -7527,7 +7547,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_omits_metadata_when_not_given",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_track_event_omits_metadata_when_not_given()"
     },
     {
@@ -7537,7 +7557,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_job_event_shape",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_job_event_shape()"
     },
     {
@@ -7547,7 +7567,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_make_progress_callback_publishes_downloading_progress",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_make_progress_callback_publishes_downloading_progress()"
     },
     {
@@ -7557,7 +7577,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_adds_timestamp_and_serializes_json",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_adds_timestamp_and_serializes_json()"
     },
     {
@@ -7567,7 +7587,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_swallows_redis_errors",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_swallows_redis_errors()"
     },
     {
@@ -7577,7 +7597,7 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_requires_owner",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_track_event_requires_owner()"
     },
     {
@@ -7587,7 +7607,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "backend_tests_test_events_rationale_50",
-      "community": 148,
+      "community": 32,
       "norm_label": "a call site with no song metadata to offer (job-level actions, tests) must not"
     },
     {
@@ -7597,7 +7617,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "backend_tests_test_events_rationale_125",
-      "community": 148,
+      "community": 32,
       "norm_label": "the whole enforcement mechanism (v17): a call site that forgets the owner fails"
     },
     {
@@ -8867,7 +8887,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config",
-      "community": 152,
+      "community": 133,
       "norm_label": "test_logging_config.py"
     },
     {
@@ -8877,7 +8897,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_format",
-      "community": 152,
+      "community": 133,
       "norm_label": "_format()"
     },
     {
@@ -8887,7 +8907,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "logrecord",
-      "community": 152,
+      "community": 133,
       "norm_label": "logrecord"
     },
     {
@@ -8897,7 +8917,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_make_record",
-      "community": 152,
+      "community": 133,
       "norm_label": "_make_record()"
     },
     {
@@ -8907,7 +8927,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_plain_message_passes_through_unchanged",
-      "community": 152,
+      "community": 133,
       "norm_label": "test_plain_message_passes_through_unchanged()"
     },
     {
@@ -8917,7 +8937,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_credentialed_url_in_message_is_redacted",
-      "community": 152,
+      "community": 133,
       "norm_label": "test_credentialed_url_in_message_is_redacted()"
     },
     {
@@ -8927,7 +8947,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_credentialed_url_in_exception_traceback_is_redacted",
-      "community": 152,
+      "community": 133,
       "norm_label": "test_credentialed_url_in_exception_traceback_is_redacted()"
     },
     {
@@ -8937,7 +8957,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_no_task_context_outside_a_running_task",
-      "community": 152,
+      "community": 133,
       "norm_label": "test_no_task_context_outside_a_running_task()"
     },
     {
@@ -8947,7 +8967,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_task_context_injected_when_running_inside_a_task",
-      "community": 152,
+      "community": 133,
       "norm_label": "test_task_context_injected_when_running_inside_a_task()"
     },
     {
@@ -8957,7 +8977,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_rationale_1",
-      "community": 152,
+      "community": 133,
       "norm_label": "structured json logging (v12). the one contract that matters most here: a creden"
     },
     {
@@ -10437,7 +10457,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest",
-      "community": 152,
+      "community": 133,
       "norm_label": "_fakerequest"
     },
     {
@@ -10447,7 +10467,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest_is_disconnected",
-      "community": 152,
+      "community": 133,
       "norm_label": ".is_disconnected()"
     },
     {
@@ -11047,7 +11067,7 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_test_list_track_attempts_returns_history_oldest_first_with_expected_fields",
-      "community": 162,
+      "community": 144,
       "norm_label": "test_list_track_attempts_returns_history_oldest_first_with_expected_fields()"
     },
     {
@@ -12398,7 +12418,7 @@
       "source_location": "L335",
       "_origin": "ast",
       "id": "frontend_src_lib_api_request",
-      "community": 30,
+      "community": 6,
       "norm_label": "request()"
     },
     {
@@ -12458,7 +12478,7 @@
       "source_location": "L436",
       "_origin": "ast",
       "id": "frontend_src_lib_api_login",
-      "community": 30,
+      "community": 6,
       "norm_label": "login()"
     },
     {
@@ -12468,7 +12488,7 @@
       "source_location": "L443",
       "_origin": "ast",
       "id": "frontend_src_lib_api_me",
-      "community": 30,
+      "community": 6,
       "norm_label": "me()"
     },
     {
@@ -12478,7 +12498,7 @@
       "source_location": "L447",
       "_origin": "ast",
       "id": "frontend_src_lib_api_logout",
-      "community": 30,
+      "community": 6,
       "norm_label": "logout()"
     },
     {
@@ -12488,7 +12508,7 @@
       "source_location": "L451",
       "_origin": "ast",
       "id": "frontend_src_lib_api_createjob",
-      "community": 30,
+      "community": 6,
       "norm_label": "createjob()"
     },
     {
@@ -12508,7 +12528,7 @@
       "source_location": "L462",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getjob",
-      "community": 30,
+      "community": 6,
       "norm_label": "getjob()"
     },
     {
@@ -12618,7 +12638,7 @@
       "source_location": "L539",
       "_origin": "ast",
       "id": "frontend_src_lib_api_gettrackattempts",
-      "community": 30,
+      "community": 6,
       "norm_label": "gettrackattempts()"
     },
     {
@@ -12648,7 +12668,7 @@
       "source_location": "L604",
       "_origin": "ast",
       "id": "frontend_src_lib_api_pauseworker",
-      "community": 30,
+      "community": 6,
       "norm_label": "pauseworker()"
     },
     {
@@ -12658,7 +12678,7 @@
       "source_location": "L608",
       "_origin": "ast",
       "id": "frontend_src_lib_api_resumeworker",
-      "community": 30,
+      "community": 6,
       "norm_label": "resumeworker()"
     },
     {
@@ -12668,7 +12688,7 @@
       "source_location": "L612",
       "_origin": "ast",
       "id": "frontend_src_lib_api_releasebreaker",
-      "community": 30,
+      "community": 6,
       "norm_label": "releasebreaker()"
     },
     {
@@ -12678,7 +12698,7 @@
       "source_location": "L616",
       "_origin": "ast",
       "id": "frontend_src_lib_api_listproxies",
-      "community": 30,
+      "community": 6,
       "norm_label": "listproxies()"
     },
     {
@@ -12688,7 +12708,7 @@
       "source_location": "L620",
       "_origin": "ast",
       "id": "frontend_src_lib_api_createproxy",
-      "community": 30,
+      "community": 6,
       "norm_label": "createproxy()"
     },
     {
@@ -12698,7 +12718,7 @@
       "source_location": "L627",
       "_origin": "ast",
       "id": "frontend_src_lib_api_setproxyenabled",
-      "community": 30,
+      "community": 6,
       "norm_label": "setproxyenabled()"
     },
     {
@@ -12708,7 +12728,7 @@
       "source_location": "L637",
       "_origin": "ast",
       "id": "frontend_src_lib_api_deleteproxy",
-      "community": 30,
+      "community": 6,
       "norm_label": "deleteproxy()"
     },
     {
@@ -12718,7 +12738,7 @@
       "source_location": "L641",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getoutputsettings",
-      "community": 30,
+      "community": 6,
       "norm_label": "getoutputsettings()"
     },
     {
@@ -12728,7 +12748,7 @@
       "source_location": "L645",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getoutputoptions",
-      "community": 30,
+      "community": 6,
       "norm_label": "getoutputoptions()"
     },
     {
@@ -12738,7 +12758,7 @@
       "source_location": "L649",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updateoutputsettings",
-      "community": 30,
+      "community": 6,
       "norm_label": "updateoutputsettings()"
     },
     {
@@ -12748,7 +12768,7 @@
       "source_location": "L658",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getretentionsettings",
-      "community": 30,
+      "community": 6,
       "norm_label": "getretentionsettings()"
     },
     {
@@ -12758,7 +12778,7 @@
       "source_location": "L662",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updateretentionsettings",
-      "community": 30,
+      "community": 6,
       "norm_label": "updateretentionsettings()"
     },
     {
@@ -12768,7 +12788,7 @@
       "source_location": "L669",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getlibrarysettings",
-      "community": 30,
+      "community": 6,
       "norm_label": "getlibrarysettings()"
     },
     {
@@ -12778,7 +12798,7 @@
       "source_location": "L673",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updatelibrarysettings",
-      "community": 30,
+      "community": 6,
       "norm_label": "updatelibrarysettings()"
     },
     {
@@ -12788,7 +12808,7 @@
       "source_location": "L682",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getlibrarysortstatus",
-      "community": 30,
+      "community": 6,
       "norm_label": "getlibrarysortstatus()"
     },
     {
@@ -12798,7 +12818,7 @@
       "source_location": "L686",
       "_origin": "ast",
       "id": "frontend_src_lib_api_startlibrarysort",
-      "community": 30,
+      "community": 6,
       "norm_label": "startlibrarysort()"
     },
     {
@@ -12983,6 +13003,106 @@
       "norm_label": "index.ts"
     },
     {
+      "label": "progressCache.ts",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_progresscache",
+      "community": 30,
+      "norm_label": "progresscache.ts"
+    },
+    {
+      "label": "Entry",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_progresscache_entry",
+      "community": 30,
+      "norm_label": "entry"
+    },
+    {
+      "label": "Cache",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L24",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_progresscache_cache",
+      "community": 30,
+      "norm_label": "cache"
+    },
+    {
+      "label": "storage()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_progresscache_storage",
+      "community": 30,
+      "norm_label": "storage()"
+    },
+    {
+      "label": "read()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L34",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_progresscache_read",
+      "community": 30,
+      "norm_label": "read()"
+    },
+    {
+      "label": "write()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L51",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_progresscache_write",
+      "community": 30,
+      "norm_label": "write()"
+    },
+    {
+      "label": "rememberProgress()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L62",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_progresscache_rememberprogress",
+      "community": 30,
+      "norm_label": "rememberprogress()"
+    },
+    {
+      "label": "forgetProgress()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L69",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_progresscache_forgetprogress",
+      "community": 30,
+      "norm_label": "forgetprogress()"
+    },
+    {
+      "label": "recallProgress()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L78",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_progresscache_recallprogress",
+      "community": 30,
+      "norm_label": "recallprogress()"
+    },
+    {
+      "label": "clearProgress()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L83",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_progresscache_clearprogress",
+      "community": 30,
+      "norm_label": "clearprogress()"
+    },
+    {
       "label": "queue.test.ts",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
@@ -13103,10 +13223,20 @@
       "norm_label": "hydrationcalls()"
     },
     {
+      "label": "fakeStorage()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/queue.test.ts",
+      "source_location": "L375",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_queue_test_fakestorage",
+      "community": 175,
+      "norm_label": "fakestorage()"
+    },
+    {
       "label": "TRULY_TERMINAL_STATES",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L22",
+      "source_location": "L23",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_truly_terminal_states",
       "community": 13,
@@ -13116,7 +13246,7 @@
       "label": "LiveTrack",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L24",
+      "source_location": "L25",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_livetrack",
       "community": 13,
@@ -13126,7 +13256,7 @@
       "label": "LiveTrackWithJob",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L25",
+      "source_location": "L26",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_livetrackwithjob",
       "community": 13,
@@ -13136,7 +13266,7 @@
       "label": "Scope",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L27",
+      "source_location": "L28",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_scope",
       "community": 13,
@@ -13146,7 +13276,7 @@
       "label": "Filters",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L29",
+      "source_location": "L30",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_filters",
       "community": 13,
@@ -13156,7 +13286,7 @@
       "label": "DEFAULT_FILTERS",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L41",
+      "source_location": "L42",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_default_filters",
       "community": 13,
@@ -13166,7 +13296,7 @@
       "label": "PageItem",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L51",
+      "source_location": "L52",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_pageitem",
       "community": 13,
@@ -13176,7 +13306,7 @@
       "label": "isTrackItem()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L53",
+      "source_location": "L54",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_istrackitem",
       "community": 13,
@@ -13186,7 +13316,7 @@
       "label": "PageState",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L57",
+      "source_location": "L58",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_pagestate",
       "community": 13,
@@ -13196,7 +13326,7 @@
       "label": "EMPTY_PAGE",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L67",
+      "source_location": "L68",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_empty_page",
       "community": 13,
@@ -13206,7 +13336,7 @@
       "label": "ExpandedJob",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L77",
+      "source_location": "L78",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_expandedjob",
       "community": 13,
@@ -13216,7 +13346,7 @@
       "label": "newExpandedJob()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L86",
+      "source_location": "L87",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_newexpandedjob",
       "community": 13,
@@ -13226,7 +13356,7 @@
       "label": "groupTracksByJob()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L101",
+      "source_location": "L102",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_grouptracksbyjob",
       "community": 13,
@@ -13236,7 +13366,7 @@
       "label": "createQueueStore()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L116",
+      "source_location": "L117",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_createqueuestore",
       "community": 30,
@@ -13246,7 +13376,7 @@
       "label": "queue",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1237",
+      "source_location": "L1264",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_queue",
       "community": 13,
@@ -13279,7 +13409,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "community": 152,
+      "community": 133,
       "norm_label": "+layout.svelte"
     },
     {
@@ -13289,7 +13419,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_app_css",
-      "community": 152,
+      "community": 133,
       "norm_label": "../app.css"
     },
     {
@@ -13299,7 +13429,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_lib_assets_favicon_svg",
-      "community": 152,
+      "community": 133,
       "norm_label": "$lib/assets/favicon.svg"
     },
     {
@@ -13669,7 +13799,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "claude_project_spotdl_web",
-      "community": 158,
+      "community": 31,
       "norm_label": "project: spotdl-web"
     },
     {
@@ -13679,7 +13809,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "claude_where_things_are",
-      "community": 158,
+      "community": 31,
       "norm_label": "where things are"
     },
     {
@@ -13689,7 +13819,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "claude_workflow_rules_do_not_deviate_without_asking",
-      "community": 158,
+      "community": 31,
       "norm_label": "workflow rules (do not deviate without asking)"
     },
     {
@@ -13699,7 +13829,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "claude_development_environments",
-      "community": 158,
+      "community": 31,
       "norm_label": "development environments"
     },
     {
@@ -14426,7 +14556,7 @@
       "label": "Verified external API contracts",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L719",
+      "source_location": "L727",
       "_origin": "ast",
       "id": "docs_gotchas_verified_external_api_contracts",
       "community": 138,
@@ -14436,7 +14566,7 @@
       "label": "Auth API \u2014 `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L724",
+      "source_location": "L732",
       "_origin": "ast",
       "id": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
       "community": 138,
@@ -14446,7 +14576,7 @@
       "label": "spotdl 4.5.2 \u2014 verified API surface actually used",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L742",
+      "source_location": "L750",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
       "community": 138,
@@ -14456,7 +14586,7 @@
       "label": "Version log",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L766",
+      "source_location": "L774",
       "_origin": "ast",
       "id": "docs_gotchas_version_log",
       "community": 14,
@@ -14466,7 +14596,7 @@
       "label": "v01 deployment gotchas (learned deploying to the real host and local dev)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L769",
+      "source_location": "L777",
       "_origin": "ast",
       "id": "docs_gotchas_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
       "community": 14,
@@ -14476,7 +14606,7 @@
       "label": "v02 schema gotchas (learned building the SQLAlchemy models + initial migration)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L808",
+      "source_location": "L816",
       "_origin": "ast",
       "id": "docs_gotchas_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
       "community": 14,
@@ -14486,7 +14616,7 @@
       "label": "v03 auth gotchas (learned building the upstream login proxy + session cookie)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L848",
+      "source_location": "L856",
       "_origin": "ast",
       "id": "docs_gotchas_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
       "community": 14,
@@ -14496,7 +14626,7 @@
       "label": "v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L906",
+      "source_location": "L914",
       "_origin": "ast",
       "id": "docs_gotchas_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
       "community": 14,
@@ -14506,7 +14636,7 @@
       "label": "v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L991",
+      "source_location": "L999",
       "_origin": "ast",
       "id": "docs_gotchas_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
       "community": 14,
@@ -14516,7 +14646,7 @@
       "label": "v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1061",
+      "source_location": "L1069",
       "_origin": "ast",
       "id": "docs_gotchas_v06_retry_engine_gotchas_learned_building_error_classification_ladder_breaker_beat_dispatch",
       "community": 14,
@@ -14526,7 +14656,7 @@
       "label": "v07 proxy-rotation gotchas (learned building `proxies.txt` sync + pick/cooldown + wiring)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1117",
+      "source_location": "L1125",
       "_origin": "ast",
       "id": "docs_gotchas_v07_proxy_rotation_gotchas_learned_building_proxies_txt_sync_pick_cooldown_wiring",
       "community": 14,
@@ -14536,7 +14666,7 @@
       "label": "v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1210",
+      "source_location": "L1218",
       "_origin": "ast",
       "id": "docs_gotchas_v08_live_progress_gotchas_learned_building_the_redis_pub_sub_event_bus_sse_stream",
       "community": 14,
@@ -14546,7 +14676,7 @@
       "label": "v09 frontend gotchas (learned building the SvelteKit login/dashboard UI)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1285",
+      "source_location": "L1293",
       "_origin": "ast",
       "id": "docs_gotchas_v09_frontend_gotchas_learned_building_the_sveltekit_login_dashboard_ui",
       "community": 14,
@@ -14556,7 +14686,7 @@
       "label": "v10 queue-controls gotchas (learned building cancel/retry-now/pause/breaker-release)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1519",
+      "source_location": "L1527",
       "_origin": "ast",
       "id": "docs_gotchas_v10_queue_controls_gotchas_learned_building_cancel_retry_now_pause_breaker_release",
       "community": 14,
@@ -14566,7 +14696,7 @@
       "label": "v11 priority gotchas (learned building job-priority-ordered dispatch + bump/priority endpoints)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1636",
+      "source_location": "L1644",
       "_origin": "ast",
       "id": "docs_gotchas_v11_priority_gotchas_learned_building_job_priority_ordered_dispatch_bump_priority_endpoints",
       "community": 14,
@@ -14576,7 +14706,7 @@
       "label": "v12 deploy-hardening gotchas (learned building durability fixes, same-origin nginx, non-root, JSON logging, backups)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1703",
+      "source_location": "L1711",
       "_origin": "ast",
       "id": "docs_gotchas_v12_deploy_hardening_gotchas_learned_building_durability_fixes_same_origin_nginx_non_root_json_logging_backups",
       "community": 14,
@@ -14586,7 +14716,7 @@
       "label": "v13 settings-UI gotchas (learned building proxy management + output-config override UI)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2013",
+      "source_location": "L2021",
       "_origin": "ast",
       "id": "docs_gotchas_v13_settings_ui_gotchas_learned_building_proxy_management_output_config_override_ui",
       "community": 14,
@@ -14596,7 +14726,7 @@
       "label": "v15 gap-fixes gotchas (learned closing v14's audit findings \u2014 pacing hook, N+1, stale docs)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2214",
+      "source_location": "L2222",
       "_origin": "ast",
       "id": "docs_gotchas_v15_gap_fixes_gotchas_learned_closing_v14_s_audit_findings_pacing_hook_n_1_stale_docs",
       "community": 14,
@@ -14606,7 +14736,7 @@
       "label": "v16 users-schema gotchas (learned building `users`/`user_settings` and ownership columns)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2316",
+      "source_location": "L2324",
       "_origin": "ast",
       "id": "docs_gotchas_v16_users_schema_gotchas_learned_building_users_user_settings_and_ownership_columns",
       "community": 14,
@@ -14616,7 +14746,7 @@
       "label": "v17 multi-user-auth gotchas (learned wiring user-creation-on-login + owner scoping + per-user SSE)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2373",
+      "source_location": "L2381",
       "_origin": "ast",
       "id": "docs_gotchas_v17_multi_user_auth_gotchas_learned_wiring_user_creation_on_login_owner_scoping_per_user_sse",
       "community": 14,
@@ -14626,7 +14756,7 @@
       "label": "v18 job-centric-api gotchas (learned building cursor pagination, rollup status, and search)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2465",
+      "source_location": "L2473",
       "_origin": "ast",
       "id": "docs_gotchas_v18_job_centric_api_gotchas_learned_building_cursor_pagination_rollup_status_and_search",
       "community": 14,
@@ -14636,7 +14766,7 @@
       "label": "v19 archive-retention gotchas (learned building soft-archive lifecycle + per-user retention)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2562",
+      "source_location": "L2570",
       "_origin": "ast",
       "id": "docs_gotchas_v19_archive_retention_gotchas_learned_building_soft_archive_lifecycle_per_user_retention",
       "community": 14,
@@ -14646,7 +14776,7 @@
       "label": "v20 job-centric-ui gotchas (learned building the job/track hierarchy UI, search/sort, archive",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2619",
+      "source_location": "L2627",
       "_origin": "ast",
       "id": "docs_gotchas_v20_job_centric_ui_gotchas_learned_building_the_job_track_hierarchy_ui_search_sort_archive",
       "community": 14,
@@ -14656,7 +14786,7 @@
       "label": "v21 release-automation gotchas (learned building GitHub releases, GHCR image publishing, and",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2758",
+      "source_location": "L2766",
       "_origin": "ast",
       "id": "docs_gotchas_v21_release_automation_gotchas_learned_building_github_releases_ghcr_image_publishing_and",
       "community": 14,
@@ -14666,7 +14796,7 @@
       "label": "v22 multi-user-hardening gotchas (learned re-running the cross-user sweep at the seams v14\u2013v20",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2916",
+      "source_location": "L2924",
       "_origin": "ast",
       "id": "docs_gotchas_v22_multi_user_hardening_gotchas_learned_re_running_the_cross_user_sweep_at_the_seams_v14_v20",
       "community": 14,
@@ -14676,7 +14806,7 @@
       "label": "v23 download-reliability gotchas (learned root-causing the download outage, fixing the",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3087",
+      "source_location": "L3095",
       "_origin": "ast",
       "id": "docs_gotchas_v23_download_reliability_gotchas_learned_root_causing_the_download_outage_fixing_the",
       "community": 14,
@@ -14686,7 +14816,7 @@
       "label": "v23.1 download-reliability-followup gotchas (learned recording v23's production",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3128",
+      "source_location": "L3136",
       "_origin": "ast",
       "id": "docs_gotchas_v23_1_download_reliability_followup_gotchas_learned_recording_v23_s_production",
       "community": 14,
@@ -14696,7 +14826,7 @@
       "label": "v24 attempt-history gotchas (learned building `track_attempts`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3206",
+      "source_location": "L3214",
       "_origin": "ast",
       "id": "docs_gotchas_v24_attempt_history_gotchas_learned_building_track_attempts",
       "community": 14,
@@ -14706,7 +14836,7 @@
       "label": "v25 username-ui gotchas (learned building `users.username` + moving worker controls)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3236",
+      "source_location": "L3244",
       "_origin": "ast",
       "id": "docs_gotchas_v25_username_ui_gotchas_learned_building_users_username_moving_worker_controls",
       "community": 14,
@@ -14716,7 +14846,7 @@
       "label": "v26 id3-integrity gotchas (learned building tag verify/repair)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3280",
+      "source_location": "L3288",
       "_origin": "ast",
       "id": "docs_gotchas_v26_id3_integrity_gotchas_learned_building_tag_verify_repair",
       "community": 14,
@@ -14726,7 +14856,7 @@
       "label": "v27 file-downloads gotchas (learned building `GET /api/tracks/{id}/file`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3358",
+      "source_location": "L3366",
       "_origin": "ast",
       "id": "docs_gotchas_v27_file_downloads_gotchas_learned_building_get_api_tracks_id_file",
       "community": 14,
@@ -14736,7 +14866,7 @@
       "label": "v28 library-sort-move gotchas (learned building the admin-only sort & move sweep)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3423",
+      "source_location": "L3431",
       "_origin": "ast",
       "id": "docs_gotchas_v28_library_sort_move_gotchas_learned_building_the_admin_only_sort_move_sweep",
       "community": 14,
@@ -14746,7 +14876,7 @@
       "label": "v29 network-path-escalation gotchas (learned building the IPv4/IPv6 escalation rung)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3549",
+      "source_location": "L3557",
       "_origin": "ast",
       "id": "docs_gotchas_v29_network_path_escalation_gotchas_learned_building_the_ipv4_ipv6_escalation_rung",
       "community": 14,
@@ -14756,7 +14886,7 @@
       "label": "v30 proxy-routing-fix gotchas (learned making the proxy rung actually route real traffic)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3646",
+      "source_location": "L3654",
       "_origin": "ast",
       "id": "docs_gotchas_v30_proxy_routing_fix_gotchas_learned_making_the_proxy_rung_actually_route_real_traffic",
       "community": 14,
@@ -14766,7 +14896,7 @@
       "label": "v31 v3-hardening gotchas (learned closing out master v3: the cross-user sweep, three",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3708",
+      "source_location": "L3716",
       "_origin": "ast",
       "id": "docs_gotchas_v31_v3_hardening_gotchas_learned_closing_out_master_v3_the_cross_user_sweep_three",
       "community": 14,
@@ -14776,7 +14906,7 @@
       "label": "v31.1 followup gotchas (learned closing out v31's one deferred item, plus a second,",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3975",
+      "source_location": "L3983",
       "_origin": "ast",
       "id": "docs_gotchas_v31_1_followup_gotchas_learned_closing_out_v31_s_one_deferred_item_plus_a_second",
       "community": 14,
@@ -14786,7 +14916,7 @@
       "label": "v32 dev-database gotchas (learned moving local dev onto `spotdlwebtest` and adding the guard)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4004",
+      "source_location": "L4012",
       "_origin": "ast",
       "id": "docs_gotchas_v32_dev_database_gotchas_learned_moving_local_dev_onto_spotdlwebtest_and_adding_the_guard",
       "community": 14,
@@ -14796,7 +14926,7 @@
       "label": "v33 deploy-safety gotchas (learned hardening publish-deploy.yml's preflight, rollback and alerts)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4045",
+      "source_location": "L4053",
       "_origin": "ast",
       "id": "docs_gotchas_v33_deploy_safety_gotchas_learned_hardening_publish_deploy_yml_s_preflight_rollback_and_alerts",
       "community": 14,
@@ -14806,7 +14936,7 @@
       "label": "v33.1 v33-followup gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4117",
+      "source_location": "L4125",
       "_origin": "ast",
       "id": "docs_gotchas_v33_1_v33_followup_gotchas",
       "community": 14,
@@ -14816,7 +14946,7 @@
       "label": "v34 live-hydration gotchas (learned fixing \"Active signal\"/incoming jobs vanishing on refresh)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4127",
+      "source_location": "L4135",
       "_origin": "ast",
       "id": "docs_gotchas_v34_live_hydration_gotchas_learned_fixing_active_signal_incoming_jobs_vanishing_on_refresh",
       "community": 14,
@@ -14826,11 +14956,21 @@
       "label": "v34.1 expansion-fixes gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4183",
+      "source_location": "L4194",
       "_origin": "ast",
       "id": "docs_gotchas_v34_1_expansion_fixes_gotchas",
       "community": 14,
       "norm_label": "v34.1 expansion-fixes gotchas"
+    },
+    {
+      "label": "v34.2 live-view-followup gotchas",
+      "file_type": "document",
+      "source_file": "docs/GOTCHAS.md",
+      "source_location": "L4256",
+      "_origin": "ast",
+      "id": "docs_gotchas_v34_2_live_view_followup_gotchas",
+      "community": 14,
+      "norm_label": "v34.2 live-view-followup gotchas"
     },
     {
       "label": "LOCAL_DEV.md",
@@ -22195,6 +22335,16 @@
       "source_location": "L22",
       "weight": 1.0,
       "source": "backend_app_db",
+      "target": "backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/db.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "backend_app_db",
       "target": "backend_app_db_get_db",
       "confidence_score": 1.0
     },
@@ -22415,6 +22565,17 @@
       "source_location": "L9",
       "weight": 1.0,
       "source": "backend_app_services_dedup",
+      "target": "backend_app_db",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/job_listing.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "backend_app_services_job_listing",
       "target": "backend_app_db",
       "confidence_score": 1.0
     },
@@ -22686,10 +22847,42 @@
     },
     {
       "relation": "references",
-      "context": "return_type",
+      "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/db.py",
       "source_location": "L22",
+      "weight": 1.0,
+      "source": "backend_app_db_begin_snapshot",
+      "target": "backend_app_db_py_session",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/db.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "backend_app_db_rationale_23",
+      "target": "backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/job_listing.py",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "backend_app_services_job_listing_list_jobs",
+      "target": "backend_app_db_begin_snapshot"
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/db.py",
+      "source_location": "L35",
       "weight": 1.0,
       "source": "backend_app_db_get_db",
       "target": "backend_app_db_py_session",
@@ -25681,7 +25874,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L74",
+      "source_location": "L79",
       "weight": 1.0,
       "source": "backend_app_services_job_listing_list_jobs",
       "target": "backend_app_models_user_user"
@@ -30062,7 +30255,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L32",
+      "source_location": "L33",
       "weight": 1.0,
       "source": "backend_app_services_job_listing",
       "target": "backend_app_services_job_listing_invalidlistparams",
@@ -30072,7 +30265,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0,
       "source": "backend_app_services_job_listing",
       "target": "backend_app_services_job_listing_list_jobs",
@@ -30082,7 +30275,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L154",
+      "source_location": "L159",
       "weight": 1.0,
       "source": "backend_app_services_job_listing",
       "target": "backend_app_services_job_listing_sort_key",
@@ -30092,7 +30285,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L166",
+      "source_location": "L171",
       "weight": 1.0,
       "source": "backend_app_services_job_listing",
       "target": "backend_app_services_job_listing_sort_value",
@@ -30112,7 +30305,7 @@
       "relation": "inherits",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L32",
+      "source_location": "L33",
       "weight": 1.0,
       "source": "backend_app_services_job_listing_invalidlistparams",
       "target": "valueerror",
@@ -30123,7 +30316,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L52",
+      "source_location": "L53",
       "weight": 1.0,
       "source": "backend_app_services_job_listing_list_jobs",
       "target": "backend_app_services_job_listing_invalidlistparams",
@@ -30165,7 +30358,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0,
       "source": "backend_app_services_job_listing_list_jobs",
       "target": "backend_app_services_job_listing_py_jobsourcetype",
@@ -30176,7 +30369,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L36",
+      "source_location": "L37",
       "weight": 1.0,
       "source": "backend_app_services_job_listing_list_jobs",
       "target": "backend_app_services_job_listing_py_session",
@@ -30187,7 +30380,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L127",
+      "source_location": "L132",
       "weight": 1.0,
       "source": "backend_app_services_job_listing_list_jobs",
       "target": "backend_app_services_job_listing_sort_key",
@@ -30198,7 +30391,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L143",
+      "source_location": "L148",
       "weight": 1.0,
       "source": "backend_app_services_job_listing_list_jobs",
       "target": "backend_app_services_job_listing_sort_value",
@@ -30210,7 +30403,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L135",
+      "source_location": "L140",
       "weight": 1.0,
       "source": "backend_app_services_job_listing_list_jobs",
       "target": "backend_app_services_serializers_job_to_dict"
@@ -30221,7 +30414,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L133",
+      "source_location": "L138",
       "weight": 1.0,
       "source": "backend_app_services_job_listing_list_jobs",
       "target": "backend_app_services_serializers_track_counts_by_job"
@@ -30231,7 +30424,7 @@
       "context": "return_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L154",
+      "source_location": "L159",
       "weight": 1.0,
       "source": "backend_app_services_job_listing_sort_key",
       "target": "backend_app_services_pagination_sortkey",
@@ -46137,7 +46330,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L3",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api",
@@ -46221,7 +46414,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L3",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api_job",
@@ -46243,7 +46436,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L3",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api_trackstate",
@@ -46254,7 +46447,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L3",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api_track",
@@ -46265,7 +46458,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L3",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api_trackjobsummary",
@@ -46276,7 +46469,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L3",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api_trackwithjob",
@@ -46298,7 +46491,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L3",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api_streamevent",
@@ -46364,7 +46557,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L3",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api_jobspage",
@@ -46386,7 +46579,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L3",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api_trackspage",
@@ -46408,7 +46601,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L3",
+      "source_location": "L4",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api_jobtrackspage",
@@ -46837,7 +47030,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1227",
+      "source_location": "L1254",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_canceljob"
@@ -46848,7 +47041,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1231",
+      "source_location": "L1258",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_setjobpriority"
@@ -46859,7 +47052,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1230",
+      "source_location": "L1257",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_bumpjob"
@@ -46870,7 +47063,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1232",
+      "source_location": "L1259",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_archivejobs"
@@ -46881,7 +47074,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1233",
+      "source_location": "L1260",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_unarchivejobs"
@@ -46892,7 +47085,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1228",
+      "source_location": "L1255",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_canceltrack"
@@ -46903,7 +47096,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1229",
+      "source_location": "L1256",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_retrytrack"
@@ -47008,10 +47201,65 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue",
+      "target": "frontend_src_lib_stores_progresscache",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue",
+      "target": "frontend_src_lib_stores_progresscache_clearprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue",
+      "target": "frontend_src_lib_stores_progresscache_forgetprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue",
+      "target": "frontend_src_lib_stores_progresscache_recallprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue",
+      "target": "frontend_src_lib_stores_progresscache_rememberprogress",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L116",
+      "source_location": "L117",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_createqueuestore",
@@ -47021,7 +47269,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L41",
+      "source_location": "L42",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_default_filters",
@@ -47031,7 +47279,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L67",
+      "source_location": "L68",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_empty_page",
@@ -47041,7 +47289,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L77",
+      "source_location": "L78",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_expandedjob",
@@ -47051,7 +47299,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L29",
+      "source_location": "L30",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_filters",
@@ -47061,7 +47309,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L101",
+      "source_location": "L102",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_grouptracksbyjob",
@@ -47071,7 +47319,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L53",
+      "source_location": "L54",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_istrackitem",
@@ -47081,7 +47329,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L24",
+      "source_location": "L25",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_livetrack",
@@ -47091,7 +47339,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L25",
+      "source_location": "L26",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_livetrackwithjob",
@@ -47101,7 +47349,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L86",
+      "source_location": "L87",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_newexpandedjob",
@@ -47111,7 +47359,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L51",
+      "source_location": "L52",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_pageitem",
@@ -47121,7 +47369,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L57",
+      "source_location": "L58",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_pagestate",
@@ -47131,7 +47379,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1237",
+      "source_location": "L1264",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_queue",
@@ -47141,7 +47389,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L27",
+      "source_location": "L28",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_scope",
@@ -47151,7 +47399,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L22",
+      "source_location": "L23",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_truly_terminal_states",
@@ -47371,6 +47619,228 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache",
+      "target": "frontend_src_lib_stores_progresscache_cache",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L83",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache",
+      "target": "frontend_src_lib_stores_progresscache_clearprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache",
+      "target": "frontend_src_lib_stores_progresscache_entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L69",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache",
+      "target": "frontend_src_lib_stores_progresscache_forgetprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache",
+      "target": "frontend_src_lib_stores_progresscache_read",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L78",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache",
+      "target": "frontend_src_lib_stores_progresscache_recallprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L62",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache",
+      "target": "frontend_src_lib_stores_progresscache_rememberprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache",
+      "target": "frontend_src_lib_stores_progresscache_storage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache",
+      "target": "frontend_src_lib_stores_progresscache_write",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L85",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache_clearprogress",
+      "target": "frontend_src_lib_stores_progresscache_storage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache_read",
+      "target": "frontend_src_lib_stores_progresscache_storage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L53",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache_write",
+      "target": "frontend_src_lib_stores_progresscache_storage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L71",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache_forgetprogress",
+      "target": "frontend_src_lib_stores_progresscache_read",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L79",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache_recallprogress",
+      "target": "frontend_src_lib_stores_progresscache_read",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L64",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache_rememberprogress",
+      "target": "frontend_src_lib_stores_progresscache_read",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L74",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache_forgetprogress",
+      "target": "frontend_src_lib_stores_progresscache_write",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/progressCache.ts",
+      "source_location": "L66",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_progresscache_rememberprogress",
+      "target": "frontend_src_lib_stores_progresscache_write",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.ts",
+      "source_location": "L1127",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue_createqueuestore",
+      "target": "frontend_src_lib_stores_progresscache_rememberprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.ts",
+      "source_location": "L1064",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue_createqueuestore",
+      "target": "frontend_src_lib_stores_progresscache_forgetprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.ts",
+      "source_location": "L405",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue_createqueuestore",
+      "target": "frontend_src_lib_stores_progresscache_recallprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.ts",
+      "source_location": "L574",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue_createqueuestore",
+      "target": "frontend_src_lib_stores_progresscache_clearprogress",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
       "source_location": "L22",
       "weight": 1.0,
@@ -47386,6 +47856,16 @@
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_downloadingtrack",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.test.ts",
+      "source_location": "L375",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue_test",
+      "target": "frontend_src_lib_stores_queue_test_fakestorage",
       "confidence_score": 1.0
     },
     {
@@ -48567,7 +49047,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L719",
+      "source_location": "L727",
       "weight": 1.0,
       "source": "docs_gotchas_spotdl_web_accumulated_gotchas_master_v1_v01_v13",
       "target": "docs_gotchas_verified_external_api_contracts",
@@ -48577,7 +49057,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L766",
+      "source_location": "L774",
       "weight": 1.0,
       "source": "docs_gotchas_spotdl_web_accumulated_gotchas_master_v1_v01_v13",
       "target": "docs_gotchas_version_log",
@@ -48587,7 +49067,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L724",
+      "source_location": "L732",
       "weight": 1.0,
       "source": "docs_gotchas_verified_external_api_contracts",
       "target": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
@@ -48597,7 +49077,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L742",
+      "source_location": "L750",
       "weight": 1.0,
       "source": "docs_gotchas_verified_external_api_contracts",
       "target": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
@@ -48607,7 +49087,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L769",
+      "source_location": "L777",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
@@ -48617,7 +49097,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L808",
+      "source_location": "L816",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
@@ -48627,7 +49107,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L848",
+      "source_location": "L856",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
@@ -48637,7 +49117,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L906",
+      "source_location": "L914",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
@@ -48647,7 +49127,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L991",
+      "source_location": "L999",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
@@ -48657,7 +49137,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1061",
+      "source_location": "L1069",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v06_retry_engine_gotchas_learned_building_error_classification_ladder_breaker_beat_dispatch",
@@ -48667,7 +49147,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1117",
+      "source_location": "L1125",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v07_proxy_rotation_gotchas_learned_building_proxies_txt_sync_pick_cooldown_wiring",
@@ -48677,7 +49157,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1210",
+      "source_location": "L1218",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v08_live_progress_gotchas_learned_building_the_redis_pub_sub_event_bus_sse_stream",
@@ -48687,7 +49167,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1285",
+      "source_location": "L1293",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v09_frontend_gotchas_learned_building_the_sveltekit_login_dashboard_ui",
@@ -48697,7 +49177,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1519",
+      "source_location": "L1527",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v10_queue_controls_gotchas_learned_building_cancel_retry_now_pause_breaker_release",
@@ -48707,7 +49187,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1636",
+      "source_location": "L1644",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v11_priority_gotchas_learned_building_job_priority_ordered_dispatch_bump_priority_endpoints",
@@ -48717,7 +49197,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1703",
+      "source_location": "L1711",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v12_deploy_hardening_gotchas_learned_building_durability_fixes_same_origin_nginx_non_root_json_logging_backups",
@@ -48727,7 +49207,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2013",
+      "source_location": "L2021",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v13_settings_ui_gotchas_learned_building_proxy_management_output_config_override_ui",
@@ -48737,7 +49217,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2214",
+      "source_location": "L2222",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v15_gap_fixes_gotchas_learned_closing_v14_s_audit_findings_pacing_hook_n_1_stale_docs",
@@ -48747,7 +49227,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2316",
+      "source_location": "L2324",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v16_users_schema_gotchas_learned_building_users_user_settings_and_ownership_columns",
@@ -48757,7 +49237,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2373",
+      "source_location": "L2381",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v17_multi_user_auth_gotchas_learned_wiring_user_creation_on_login_owner_scoping_per_user_sse",
@@ -48767,7 +49247,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2465",
+      "source_location": "L2473",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v18_job_centric_api_gotchas_learned_building_cursor_pagination_rollup_status_and_search",
@@ -48777,7 +49257,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2562",
+      "source_location": "L2570",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v19_archive_retention_gotchas_learned_building_soft_archive_lifecycle_per_user_retention",
@@ -48787,7 +49267,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2619",
+      "source_location": "L2627",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v20_job_centric_ui_gotchas_learned_building_the_job_track_hierarchy_ui_search_sort_archive",
@@ -48797,7 +49277,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2758",
+      "source_location": "L2766",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v21_release_automation_gotchas_learned_building_github_releases_ghcr_image_publishing_and",
@@ -48807,7 +49287,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2916",
+      "source_location": "L2924",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v22_multi_user_hardening_gotchas_learned_re_running_the_cross_user_sweep_at_the_seams_v14_v20",
@@ -48817,7 +49297,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3128",
+      "source_location": "L3136",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v23_1_download_reliability_followup_gotchas_learned_recording_v23_s_production",
@@ -48827,7 +49307,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3087",
+      "source_location": "L3095",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v23_download_reliability_gotchas_learned_root_causing_the_download_outage_fixing_the",
@@ -48837,7 +49317,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3206",
+      "source_location": "L3214",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v24_attempt_history_gotchas_learned_building_track_attempts",
@@ -48847,7 +49327,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3236",
+      "source_location": "L3244",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v25_username_ui_gotchas_learned_building_users_username_moving_worker_controls",
@@ -48857,7 +49337,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3280",
+      "source_location": "L3288",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v26_id3_integrity_gotchas_learned_building_tag_verify_repair",
@@ -48867,7 +49347,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3358",
+      "source_location": "L3366",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v27_file_downloads_gotchas_learned_building_get_api_tracks_id_file",
@@ -48877,7 +49357,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3423",
+      "source_location": "L3431",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v28_library_sort_move_gotchas_learned_building_the_admin_only_sort_move_sweep",
@@ -48887,7 +49367,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3549",
+      "source_location": "L3557",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v29_network_path_escalation_gotchas_learned_building_the_ipv4_ipv6_escalation_rung",
@@ -48897,7 +49377,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3646",
+      "source_location": "L3654",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v30_proxy_routing_fix_gotchas_learned_making_the_proxy_rung_actually_route_real_traffic",
@@ -48907,7 +49387,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3975",
+      "source_location": "L3983",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v31_1_followup_gotchas_learned_closing_out_v31_s_one_deferred_item_plus_a_second",
@@ -48917,7 +49397,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3708",
+      "source_location": "L3716",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v31_v3_hardening_gotchas_learned_closing_out_master_v3_the_cross_user_sweep_three",
@@ -48927,7 +49407,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4004",
+      "source_location": "L4012",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v32_dev_database_gotchas_learned_moving_local_dev_onto_spotdlwebtest_and_adding_the_guard",
@@ -48937,7 +49417,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4117",
+      "source_location": "L4125",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v33_1_v33_followup_gotchas",
@@ -48947,7 +49427,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4045",
+      "source_location": "L4053",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v33_deploy_safety_gotchas_learned_hardening_publish_deploy_yml_s_preflight_rollback_and_alerts",
@@ -48957,7 +49437,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4183",
+      "source_location": "L4194",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v34_1_expansion_fixes_gotchas",
@@ -48967,7 +49447,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4127",
+      "source_location": "L4256",
+      "weight": 1.0,
+      "source": "docs_gotchas_version_log",
+      "target": "docs_gotchas_v34_2_live_view_followup_gotchas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/GOTCHAS.md",
+      "source_location": "L4135",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v34_live_hydration_gotchas_learned_fixing_active_signal_incoming_jobs_vanishing_on_refresh",
@@ -53863,5 +54353,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "573d4218555dcb56bcba2f9b5fff3c2b62e8978c"
+  "built_at_commit": "9768c6cf200503b1e35ad750665c4cda4acb743f"
 }
