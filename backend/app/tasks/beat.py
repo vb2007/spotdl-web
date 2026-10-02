@@ -34,16 +34,16 @@ def _reclaim_stale_tracks(db) -> None:
     threshold = stale_track_after()
     stale_cutoff = now - threshold
 
-    # Snapshot attempt_count/updated_at *before* the update below, rather than reading
+    # Snapshot state/updated_at *before* the update below, rather than reading
     # them back via that update's own RETURNING -- SQLAlchemy 2.0's ORM-enabled bulk
     # UPDATE (built from the mapped class, as below) still populates a column's
     # Python-side `onupdate` for every row it touches even when that column is never
     # named in `.values()`, so `Track.updated_at` in the RETURNING result would already
     # be "now", not the moment this track actually got stuck.
     stale_before = {
-        row.id: (row.attempt_count, row.updated_at)
+        row.id: (row.state, row.updated_at)
         for row in db.execute(
-            select(Track.id, Track.attempt_count, Track.updated_at).where(
+            select(Track.id, Track.state, Track.updated_at).where(
                 Track.state.in_([TrackState.DOWNLOADING, TrackState.QUEUED]),
                 Track.updated_at < stale_cutoff,
             )
@@ -67,7 +67,7 @@ def _reclaim_stale_tracks(db) -> None:
     job_ids = {job_id for _, job_id, _ in reclaimed}
     owner_by_job = dict(db.execute(select(Job.id, Job.user_id).where(Job.id.in_(job_ids))).all())
     for track_id, job_id, song_json in reclaimed:
-        attempt_count, stuck_since = stale_before[track_id]
+        stuck_state, stuck_since = stale_before[track_id]
         logger.warning(
             "dispatch_due_tracks: reclaimed stale track %s (stuck past %s)",
             track_id,
@@ -80,24 +80,47 @@ def _reclaim_stale_tracks(db) -> None:
         # reached its own record_attempt call (that's what "stuck" means here), so this
         # sweep records it on that invocation's behalf: FAILED, no known error_type since
         # the real cause (crashed worker, hard-killed container) was never observed.
-        attempts.record_attempt(
-            db,
-            track_id,
-            attempt_count,
-            stuck_since,
-            now,
-            TrackAttemptOutcome.FAILED,
-            error_message=f"reclaimed: stuck past staleness threshold ({threshold})",
-        )
+        if stuck_state == TrackState.DOWNLOADING:
+            recorded = attempts.record_attempt(
+                db,
+                track_id,
+                stuck_since,
+                now,
+                TrackAttemptOutcome.FAILED,
+                error_message=f"reclaimed: stuck past staleness threshold ({threshold})",
+            )
+        else:
+            # v35: stuck `queued` means its message hadn't reached the network yet (it
+            # never ran, or is still in download_track's pacing wait) -- rescheduled
+            # without an attempt, which is what `held` records. Neither an attempt nor a
+            # failure, and not rendered as one. A message that hasn't started yet is then
+            # dropped by download_track's waiting gate; one mid-pacing-wait still runs
+            # and records its own row (pre-existing, see docs/GOTCHAS.md's v35 section).
+            recorded = attempts.record_attempt(
+                db,
+                track_id,
+                stuck_since,
+                now,
+                TrackAttemptOutcome.HELD,
+                warning_message=(
+                    f"reclaimed: still queued past staleness threshold ({threshold})"
+                ),
+            )
+        # v35: commit per track. record_attempt's counter UPDATE takes this track's row
+        # lock, and holding several across the loop could deadlock against cancel_job
+        # locking the same job's tracks in another order. One lock at a time can't form a
+        # cycle, and the event below only goes out once its counters are committed.
+        db.commit()
         events.publish_track_event(
             owner_by_job[job_id],
             track_id,
             job_id,
             TrackState.WAITING.value,
             scheduled_at=now,
+            attempts_made=recorded.attempts_made,
+            failure_count=recorded.failure_count,
             **track_song_meta(song_json),
         )
-    db.commit()
 
 
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")

@@ -150,6 +150,9 @@ def test_download_track_file_404s_for_non_owner_and_200s_for_owner_and_admin(
     assert _as(client, owner_cookie).get(f"/api/tracks/{track.id}/file").status_code == 200
     assert _as(client, admin_cookie).get(f"/api/tracks/{track.id}/file").status_code == 200
     assert _as(client, stranger_cookie).get(f"/api/tracks/{track.id}/file").status_code == 404
+    # v35 (e): the frontend's HEAD probe goes through the same gate.
+    assert _as(client, owner_cookie).head(f"/api/tracks/{track.id}/file").status_code == 200
+    assert _as(client, stranger_cookie).head(f"/api/tracks/{track.id}/file").status_code == 404
 
 
 def test_all_users_flag_from_non_admin_is_silently_ignored(client, db_session, make_user, session_cookie):
@@ -217,3 +220,36 @@ def test_search_and_scope_track_never_surface_another_users_rows(client, db_sess
         ids = {item["id"] for item in response.json()["items"]}
         assert str(victim_job.id) not in ids
         assert str(victim_track.id) not in ids
+
+
+def test_tracks_scope_counts_by_state_are_owner_scoped(client, db_session, make_user, session_cookie):
+    """v35 (g): the tracks scope's state-chip counts are a data surface too -- a stranger's
+    tracks must never show up in them, through either URL. An admin's default view is its
+    own; all_users is honored for an admin only."""
+    owner = make_user("owner@example.com")
+    stranger = make_user("stranger@example.com")
+    make_user("root@example.com", is_admin=True)
+    owner_cookie = session_cookie("owner@example.com")
+    stranger_cookie = session_cookie("stranger@example.com")
+    admin_cookie = session_cookie("root@example.com", is_admin=True)
+
+    owner_job = _make_job(db_session, owner)
+    _make_track(db_session, owner_job, state=TrackState.WAITING)
+    _make_track(db_session, owner_job, state=TrackState.COMPLETED)
+    stranger_job = _make_job(db_session, stranger)
+    for _ in range(3):
+        _make_track(db_session, stranger_job, state=TrackState.WAITING)
+
+    for url in ("/api/tracks", "/api/jobs?scope=track"):
+        owner_body = _as(client, owner_cookie).get(url).json()
+        assert owner_body["counts_by_state"] == {"waiting": 1, "completed": 1}
+        stranger_body = _as(client, stranger_cookie).get(url).json()
+        assert stranger_body["counts_by_state"] == {"waiting": 3}
+        # A non-admin's all_users is silently ignored, counts included.
+        sep = "&" if "?" in url else "?"
+        ignored = _as(client, owner_cookie).get(f"{url}{sep}all_users=true").json()
+        assert ignored["counts_by_state"] == {"waiting": 1, "completed": 1}
+        admin_own = _as(client, admin_cookie).get(url).json()
+        assert admin_own["counts_by_state"] == {}
+        admin_all = _as(client, admin_cookie).get(f"{url}{sep}all_users=true").json()
+        assert admin_all["counts_by_state"] == {"waiting": 4, "completed": 1}

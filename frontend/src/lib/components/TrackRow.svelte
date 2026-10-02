@@ -22,7 +22,8 @@
 		completed: 'completed',
 		failed: 'failed',
 		cancelled: 'cancelled',
-		skipped_duplicate: 'already logged'
+		skipped_duplicate: 'already logged',
+		held: 'held — not attempted'
 	};
 
 	// Reuses the same signal-condition color mapping as the waterfall/spectrum log
@@ -32,8 +33,21 @@
 		completed: 'cond-settled',
 		failed: 'cond-fail',
 		cancelled: 'cond-idle',
-		skipped_duplicate: 'cond-settled'
+		skipped_duplicate: 'cond-settled',
+		held: 'cond-waiting'
 	};
+
+	// v35 (b): the path the attempt actually took, from the API's network_path. A row
+	// without one either never reached the network or predates v29 recording it; only
+	// a completed/failed pre-v29 row falls back to the old proxy-or-direct label.
+	function attemptVia(attempt: TrackAttempt): string {
+		if (attempt.network_path === 'direct-ipv4') return 'direct · IPv4';
+		if (attempt.network_path === 'direct-ipv6') return 'direct · IPv6';
+		if (attempt.network_path === 'proxy') return `via proxy ${attempt.proxy_label ?? ''}`.trim();
+		if (attempt.proxy_id) return 'via proxy';
+		if (attempt.outcome === 'completed' || attempt.outcome === 'failed') return 'direct';
+		return 'no network';
+	}
 
 	function formatTimestamp(value: string): string {
 		return new Date(value).toLocaleString();
@@ -130,20 +144,23 @@
 		}
 	}
 
+	// v35 (e): probe first, then let the browser download the real URL itself, so a whole
+	// FLAC is streamed to disk instead of buffered into a Blob in tab memory. The empty
+	// `download` attribute keeps the page in place and takes the filename from the
+	// response's Content-Disposition.
 	async function handleDownload() {
 		try {
-			const { blob, filename } = await api.downloadTrackFile(track.id);
-			const url = URL.createObjectURL(blob);
-			const anchor = document.createElement('a');
-			anchor.href = url;
-			anchor.download = filename;
-			document.body.appendChild(anchor);
-			anchor.click();
-			anchor.remove();
-			URL.revokeObjectURL(url);
+			await api.checkTrackFile(track.id);
 		} catch (err) {
 			showNotice(err instanceof api.ApiError ? err.message : 'Could not download this file.');
+			return;
 		}
+		const anchor = document.createElement('a');
+		anchor.href = api.trackFileUrl(track.id);
+		anchor.download = '';
+		document.body.appendChild(anchor);
+		anchor.click();
+		anchor.remove();
 	}
 </script>
 
@@ -160,7 +177,7 @@
 
 	{#if expanded}
 		<div class="detail mono">
-			<span>passes attempted: {track.attempt_count}</span>
+			<span>attempts: {track.attempts_made} · failures: {track.failure_count}</span>
 			{#if track.state === 'waiting' && track.scheduled_at}
 				<Countdown scheduledAt={track.scheduled_at} />
 			{/if}
@@ -194,10 +211,13 @@
 								<span class="attempt-outcome {ATTEMPT_OUTCOME_COND[attempt.outcome]}"
 									>{ATTEMPT_OUTCOME_LABEL[attempt.outcome]}</span
 								>
-								<span class="attempt-via">{attempt.proxy_id ? 'via proxy' : 'direct'}</span>
+								<span class="attempt-via">{attemptVia(attempt)}</span>
 								<span class="attempt-time">{formatTimestamp(attempt.finished_at)}</span>
 								{#if attempt.error_message}
 									<span class="attempt-error">{attempt.error_message}</span>
+								{/if}
+								{#if attempt.warning_message}
+									<span class="attempt-warning">{attempt.warning_message}</span>
 								{/if}
 							</li>
 						{/each}
@@ -407,6 +427,14 @@
 
 	.attempt-error {
 		color: var(--fail);
+		flex-basis: 100%;
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+
+	/* v35 (d): a note on an attempt that didn't fail -- never failure red. */
+	.attempt-warning {
+		color: var(--waiting);
 		flex-basis: 100%;
 		white-space: normal;
 		overflow-wrap: anywhere;

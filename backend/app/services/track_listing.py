@@ -5,11 +5,17 @@ either URL works for the frontend's job/track scope toggle. See
 
 `status=` here filters by the *parent job's* rollup status (v18's `rollup` module);
 `state=` filters by the track's own state. They're independent axes and both accepted.
+
+v35 (g): with `include_state_counts`, the response also carries `counts_by_state`, one
+grouped aggregate over the same owner-scoped, filtered set *before* the `state=` filter
+(so every state chip keeps its count whichever is selected), read from the same snapshot
+as the page.
 """
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from app.db import begin_snapshot
 from app.models import Job, JobSourceType, Track, TrackState, User
 from app.services import pagination, rollup, search
 from app.services.serializers import track_to_dict
@@ -37,6 +43,7 @@ def list_tracks(
     limit: int,
     cursor: str | None,
     job_id=None,
+    include_state_counts: bool = False,
 ) -> dict:
     if sort not in _SORT_FIELDS:
         raise InvalidListParams(f"invalid sort: {sort!r}, expected one of {sorted(_SORT_FIELDS)}")
@@ -75,8 +82,6 @@ def list_tracks(
         stmt = stmt.where(Job.archived_at.is_(None))
     if source_type is not None:
         stmt = stmt.where(Job.source_type == source_type)
-    if track_states:
-        stmt = stmt.where(Track.state.in_([TrackState(s) for s in track_states]))
     if q:
         stmt = stmt.where(or_(search.track_matches(q), Job.source_url.ilike(f"%{q}%")))
 
@@ -91,6 +96,22 @@ def list_tracks(
         stmt = stmt.join(agg, agg.c.id == Track.job_id)
         if status_cond is not None:
             stmt = stmt.where(status_cond)
+
+    counts_by_state = None
+    if include_state_counts:
+        # The count and the page are separate statements; one snapshot keeps them
+        # agreeing (same reasoning as job_listing's, v34.2).
+        begin_snapshot(db)
+        counted = stmt.with_only_columns(Track.state).subquery()
+        counts_by_state = {
+            state.value: n
+            for state, n in db.execute(
+                select(counted.c.state, func.count()).group_by(counted.c.state)
+            ).all()
+        }
+
+    if track_states:
+        stmt = stmt.where(Track.state.in_([TrackState(s) for s in track_states]))
 
     stmt = pagination.apply_cursor(stmt, _sort_key(sort), Track.id, descending=descending, cursor=cursor)
     stmt = stmt.limit(limit)
@@ -114,7 +135,10 @@ def list_tracks(
         last_track = rows[-1].Track
         next_cursor = pagination.cursor_for_row(_sort_value(last_track, sort), last_track.id)
 
-    return {"items": items, "next_cursor": next_cursor}
+    result = {"items": items, "next_cursor": next_cursor}
+    if counts_by_state is not None:
+        result["counts_by_state"] = counts_by_state
+    return result
 
 
 def _sort_key(sort: str) -> pagination.SortKey:

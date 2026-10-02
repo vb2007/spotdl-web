@@ -206,6 +206,7 @@
 		allUsers={allUsersView}
 		{onAllUsersChange}
 		countsByStatus={$page.countsByStatus}
+		countsByState={$page.countsByState}
 	/>
 
 	{#if $filters.scope === 'jobs' && $page.totalEstimate > 0}

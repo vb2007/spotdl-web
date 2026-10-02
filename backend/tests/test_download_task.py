@@ -2,7 +2,10 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
 from spotdl.providers.audio.base import AudioProviderError
+
+from app.config import get_settings
 
 from app.models import (
     DownloadedTrack,
@@ -124,7 +127,9 @@ def test_download_track_skips_when_already_downloaded(db_session, monkeypatch):
     rows = _attempts(db_session, track)
     assert len(rows) == 1
     assert rows[0].outcome == TrackAttemptOutcome.SKIPPED_DUPLICATE
-    assert rows[0].attempt_number == 0
+    assert rows[0].attempt_number == 1
+    # v35: a dedup skip never touched the network -- neither an attempt nor a failure.
+    assert (updated.attempts_made, updated.failure_count) == (0, 0)
 
 
 def test_download_track_success_marks_completed_and_upserts_ledger(db_session, monkeypatch, tmp_path):
@@ -250,7 +255,9 @@ def test_download_track_success_records_tag_repair_warning(db_session, monkeypat
 
     rows = _attempts(db_session, track)
     assert rows[-1].outcome == TrackAttemptOutcome.COMPLETED
-    assert rows[-1].error_message == "tag warning: cover art missing: fetch from Spotify failed"
+    # v35 (d): a warning, not an error, on a completed attempt.
+    assert rows[-1].warning_message == "tag warning: cover art missing: fetch from Spotify failed"
+    assert rows[-1].error_message is None
 
 
 def test_download_track_success_survives_unexpected_tagging_exception(db_session, monkeypatch, tmp_path):
@@ -280,7 +287,9 @@ def test_download_track_success_survives_unexpected_tagging_exception(db_session
 
     rows = _attempts(db_session, track)
     assert rows[-1].outcome == TrackAttemptOutcome.COMPLETED
-    assert rows[-1].error_message == "tag warning: tag verification/repair failed unexpectedly"
+    # v35 (d): a warning, not an error, on a completed attempt.
+    assert rows[-1].warning_message == "tag warning: tag verification/repair failed unexpectedly"
+    assert rows[-1].error_message is None
 
 
 def test_download_track_other_error_reschedules_to_waiting(db_session, monkeypatch):
@@ -319,7 +328,10 @@ def test_download_track_other_error_reschedules_to_waiting(db_session, monkeypat
     assert rows[0].error_type == TrackErrorType.OTHER
     assert rows[0].error_message == "provider exploded"
     assert rows[0].proxy_id is None
-    assert rows[0].attempt_number == 0
+    assert rows[0].attempt_number == 1
+    assert (updated.attempts_made, updated.failure_count) == (1, 1)
+    assert final_kwargs["attempts_made"] == 1
+    assert final_kwargs["failure_count"] == 1
 
 
 def test_download_track_audio_provider_error_feeds_breaker(db_session, monkeypatch):
@@ -481,19 +493,19 @@ def test_download_track_skips_entirely_while_breaker_tripped(db_session, monkeyp
 
     rows = _attempts(db_session, track)
     assert len(rows) == 1
-    assert rows[0].outcome == TrackAttemptOutcome.FAILED
+    assert rows[0].outcome == TrackAttemptOutcome.HELD
+    assert rows[0].error_message is None
+    assert "circuit breaker" in rows[0].warning_message
     assert rows[0].error_type is None
     assert rows[0].proxy_id is None
 
 
-def test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt(db_session, monkeypatch, tmp_path):
-    """Documented, accepted gap (docs/GOTCHAS.md's v24 entry), pinned here rather than left
-    as an untested edge case: the breaker-requeue row never bumps attempt_count (bumping it
-    would break "attempt 1 is always direct" for the real attempt that follows), so it and
-    that next real attempt share the same attempt_number. Ordering still relies on
-    started_at, and the frontend never renders attempt_number as a label -- if this test
-    ever needs updating because the collision was designed away, re-read that GOTCHAS entry
-    first to make sure the direct-first invariant is still intact."""
+def test_breaker_hold_gets_its_own_attempt_number_and_keeps_attempt_one_direct(db_session, monkeypatch, tmp_path):
+    """v35 designed away v24's documented collision (docs/GOTCHAS.md's v24 entry): the
+    breaker-hold row used to share its attempt_number with the real attempt that followed
+    it. It still never bumps attempt_count (that would break "attempt 1 is always direct"),
+    but numbering is now a per-track row sequence, so the two rows are 1 and 2, the hold is
+    `held` rather than `failed`, and only the real attempt counts as an attempt."""
     track = _make_track(db_session)
     _patch_common(monkeypatch, db_session)
 
@@ -510,7 +522,13 @@ def test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt(db_s
     worker_state = retry.get_worker_state(db_session)
     worker_state.breaker_tripped_until = tripped_until
     db_session.commit()
-    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
+    captured = {}
+
+    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None, network_path=None):
+        captured["network_path"] = network_path
+        return _FakeDownloader()
+
+    monkeypatch.setattr(downloads, "get_downloader", fake_get_downloader)
     output_path = tmp_path / "song-a.mp3"
     output_path.write_bytes(b"fake audio bytes")
     monkeypatch.setattr(
@@ -524,10 +542,13 @@ def test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt(db_s
 
     rows = _attempts(db_session, track)
     assert len(rows) == 2
-    assert rows[0].outcome == TrackAttemptOutcome.FAILED  # the breaker-requeue row
+    assert rows[0].outcome == TrackAttemptOutcome.HELD
     assert rows[1].outcome == TrackAttemptOutcome.COMPLETED  # the real attempt
-    assert rows[0].attempt_number == rows[1].attempt_number == 0
-    assert rows[0].started_at < rows[1].started_at  # chronological order still holds
+    assert [row.attempt_number for row in rows] == [1, 2]
+    assert rows[0].started_at < rows[1].started_at
+    assert captured["network_path"] == NetworkPath.DIRECT_IPV4
+    updated = db_session.get(Track, track.id)
+    assert (updated.attempts_made, updated.failure_count, updated.attempt_count) == (1, 0, 0)
 
 
 def test_download_track_unknown_track_is_a_noop(db_session, monkeypatch):
@@ -653,7 +674,9 @@ def test_download_track_retry_picks_proxy_and_records_success(db_session, monkey
     assert len(rows) == 1
     assert rows[0].outcome == TrackAttemptOutcome.COMPLETED
     assert rows[0].proxy_id == proxy.id
-    assert rows[0].attempt_number == 2
+    # v35: a per-track row sequence, not tracks.attempt_count (which this test seeds to 2
+    # with no history behind it).
+    assert rows[0].attempt_number == 1
     assert rows[0].network_path == NetworkPath.PROXY
 
 
@@ -1034,3 +1057,228 @@ def test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick(db_sessi
     ticks = [k for a, k in published if a[3] == "downloading"]
     assert [t["progress"] for t in ticks] == [0, 50]
     assert all(t["attempt_count"] == 2 for t in ticks)
+
+
+# --- v35 (a): attempt counting/numbering, and the ladder input it must not move ---------
+
+
+def _run_invocation(db_session, monkeypatch, track, *, outcome, captured=None, output_path=None):
+    """One download_track invocation for `track`, shaped by `outcome`: "held" (breaker
+    active), "failed" (a plain error, so the breaker isn't fed and the ladder is the only
+    thing that moves) or "completed". Puts the track back to `queued` first, which is what
+    beat's dispatch does before it sends the message."""
+    track.state = TrackState.QUEUED
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = (
+        datetime.now(timezone.utc) + timedelta(hours=1) if outcome == "held" else None
+    )
+    db_session.commit()
+
+    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None, network_path=None):
+        if captured is not None:
+            captured.append(network_path)
+        return _FakeDownloader()
+
+    def fake_download_one(song, downloader):
+        if outcome == "failed":
+            raise RuntimeError("boom")
+        return song, output_path
+
+    monkeypatch.setattr(downloads, "get_downloader", fake_get_downloader)
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+    download_task.download_track(str(track.id))
+    return db_session.get(Track, track.id)
+
+
+def test_first_try_success_counts_one_attempt_and_no_failures(db_session, monkeypatch, tmp_path):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    published = _capture_events(monkeypatch)
+    output_path = tmp_path / "song-a.mp3"
+    output_path.write_bytes(b"fake audio bytes")
+
+    updated = _run_invocation(
+        db_session, monkeypatch, track, outcome="completed", output_path=output_path
+    )
+
+    assert updated.state == TrackState.COMPLETED
+    assert (updated.attempts_made, updated.failure_count) == (1, 0)
+    assert [row.attempt_number for row in _attempts(db_session, track)] == [1]
+    _, final_kwargs = published[-1]
+    assert (final_kwargs["attempts_made"], final_kwargs["failure_count"]) == (1, 0)
+
+
+def test_two_failures_then_success_counts_three_attempts_and_two_failures(
+    db_session, monkeypatch, tmp_path
+):
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    output_path = tmp_path / "song-a.mp3"
+    output_path.write_bytes(b"fake audio bytes")
+
+    _run_invocation(db_session, monkeypatch, track, outcome="failed")
+    _run_invocation(db_session, monkeypatch, track, outcome="held")
+    _run_invocation(db_session, monkeypatch, track, outcome="failed")
+    updated = _run_invocation(
+        db_session, monkeypatch, track, outcome="completed", output_path=output_path
+    )
+
+    assert updated.state == TrackState.COMPLETED
+    assert (updated.attempts_made, updated.failure_count) == (3, 2)
+    rows = _attempts(db_session, track)
+    assert [row.outcome for row in rows] == [
+        TrackAttemptOutcome.FAILED,
+        TrackAttemptOutcome.HELD,
+        TrackAttemptOutcome.FAILED,
+        TrackAttemptOutcome.COMPLETED,
+    ]
+    # Unique and strictly increasing across the breaker hold.
+    assert [row.attempt_number for row in rows] == [1, 2, 3, 4]
+
+
+def test_cancelled_rows_count_as_attempts_only_when_they_reached_the_network(db_session):
+    from app.services import attempts
+
+    track = _make_track(db_session)
+    now = datetime.now(timezone.utc)
+    attempts.record_attempt(db_session, track.id, now, now, TrackAttemptOutcome.CANCELLED)
+    attempts.record_attempt(
+        db_session,
+        track.id,
+        now,
+        now,
+        TrackAttemptOutcome.CANCELLED,
+        network_path=NetworkPath.DIRECT_IPV4,
+    )
+    db_session.commit()
+
+    updated = db_session.get(Track, track.id)
+    assert (updated.attempts_made, updated.failure_count) == (1, 0)
+    assert [row.attempt_number for row in _attempts(db_session, track)] == [1, 2]
+
+
+# The ladder step and network-path rung each failure count produced before v35, written out
+# as literals so a change to either can't hide behind a shared helper: the delay applied by
+# the (n+1)-th failure, and the path the (n+1)-th real attempt takes.
+_PINNED_LADDER = [900, 3600, 14400, 43200, 86400, 86400, 86400]
+_PINNED_RUNG = [
+    NetworkPath.DIRECT_IPV4,
+    NetworkPath.DIRECT_IPV6,
+    # No proxy is configured in these tests, so the proxy rung falls back to forced IPv4
+    # (download.py's pick_proxy-returned-None branch) -- unchanged since v29.
+    NetworkPath.DIRECT_IPV4,
+    NetworkPath.DIRECT_IPV4,
+    NetworkPath.DIRECT_IPV4,
+    NetworkPath.DIRECT_IPV4,
+    NetworkPath.DIRECT_IPV4,
+]
+
+
+def test_next_delay_is_pinned_for_every_failure_count(monkeypatch):
+    monkeypatch.setattr(
+        get_settings(), "ladder_seconds", [900, 3600, 14400, 43200, 86400], raising=False
+    )
+    for failures, seconds in enumerate(_PINNED_LADDER):
+        assert retry.next_delay(failures) == timedelta(seconds=seconds)
+
+
+@pytest.mark.parametrize("failures", range(7))
+def test_ladder_step_ignores_held_and_cancelled_rows(db_session, monkeypatch, failures):
+    """v35's ladder pin: `failures` real failures, each preceded by a breaker hold, plus a
+    cancelled row from a mid-download cancel, then one more failure. The delay it gets and
+    the rung its attempt used must be exactly what `failures` alone gave before v35 -- the
+    extra held/cancelled rows (and the new display counters) must not move either."""
+    from app.services import attempts
+
+    monkeypatch.setattr(
+        get_settings(), "ladder_seconds", [900, 3600, 14400, 43200, 86400], raising=False
+    )
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+
+    for _ in range(failures):
+        _run_invocation(db_session, monkeypatch, track, outcome="held")
+        _run_invocation(db_session, monkeypatch, track, outcome="failed")
+    now = datetime.now(timezone.utc)
+    attempts.record_attempt(
+        db_session,
+        track.id,
+        now,
+        now,
+        TrackAttemptOutcome.CANCELLED,
+        network_path=NetworkPath.DIRECT_IPV4,
+    )
+    db_session.commit()
+    assert db_session.get(Track, track.id).attempt_count == failures
+
+    rungs = []
+    before = datetime.now(timezone.utc)
+    updated = _run_invocation(db_session, monkeypatch, track, outcome="failed", captured=rungs)
+    after = datetime.now(timezone.utc)
+
+    assert rungs == [_PINNED_RUNG[failures]]
+    assert updated.state == TrackState.WAITING
+    assert updated.attempt_count == failures + 1
+    scheduled = updated.scheduled_at.replace(tzinfo=timezone.utc)
+    step = timedelta(seconds=_PINNED_LADDER[failures])
+    assert before + step <= scheduled <= after + step
+    # The display counters moved independently: holds aren't attempts, the
+    # mid-download cancel is.
+    assert updated.failure_count == failures + 1
+    assert updated.attempts_made == failures + 2
+    numbers = [row.attempt_number for row in _attempts(db_session, track)]
+    assert numbers == list(range(1, 2 * failures + 3))
+
+
+# --- v35 (c): redelivery must not rewrite a completed track -----------------------------
+
+
+@pytest.mark.parametrize("state", [TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE])
+def test_redelivered_message_for_a_finished_track_is_a_noop(db_session, monkeypatch, state):
+    track = _make_track(db_session)
+    track.state = state
+    track.output_path = "/downloads/song-a.mp3"
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="abc123", file_path="/downloads/song-a.mp3", format="mp3", bitrate="320k"
+        )
+    )
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    published = _capture_events(monkeypatch)
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("a finished track must not reach dedup or the downloader")
+
+    monkeypatch.setattr(dedup, "is_already_downloaded", _fail_if_called)
+    monkeypatch.setattr(downloads, "get_downloader", _fail_if_called)
+    before_updated_at = db_session.get(Track, track.id).updated_at
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == state
+    assert updated.output_path == "/downloads/song-a.mp3"
+    assert updated.updated_at == before_updated_at
+    assert (updated.attempts_made, updated.failure_count) == (0, 0)
+    assert _attempts(db_session, track) == []
+    assert published == []
+
+
+def test_a_stray_message_for_a_cancelled_track_leaves_updated_at_alone(db_session, monkeypatch):
+    """v35: record_attempt's counter UPDATE must not bump tracks.updated_at (the job's
+    archive clock) when nothing about the track itself changed."""
+    track = _make_track(db_session)
+    track.state = TrackState.CANCELLED
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    before = db_session.get(Track, track.id).updated_at
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert [row.outcome for row in _attempts(db_session, track)] == [TrackAttemptOutcome.CANCELLED]
+    assert updated.updated_at == before

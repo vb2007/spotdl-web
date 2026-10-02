@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.models import DownloadedTrack, Job, JobSourceType, Track, TrackAttempt, TrackState, User
+from app.models import DownloadedTrack, Job, JobSourceType, Proxy, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
 from app.services import app_settings, events, retry, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
@@ -120,6 +120,7 @@ def list_tracks(
             dir=dir,
             limit=limit,
             cursor=cursor,
+            include_state_counts=True,
         )
     except (track_listing.InvalidListParams, InvalidCursor) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -202,18 +203,24 @@ def list_track_attempts(
 ) -> list[dict]:
     """Per-attempt download history (v24) -- what each attempt tried (direct vs. which
     proxy) and what happened, oldest first. Same owner-scoped 404-not-403 gate as every
-    other direct-id track endpoint."""
+    other direct-id track endpoint. The proxy is joined in the same query (v35) so each
+    row can carry its redacted label."""
     _track, _owner_id, _archived_at = _get_track_or_404(db, track_id, user)
     rows = (
-        db.query(TrackAttempt)
+        db.query(TrackAttempt, Proxy.url)
+        .outerjoin(Proxy, TrackAttempt.proxy_id == Proxy.id)
         .filter(TrackAttempt.track_id == track_id)
-        .order_by(TrackAttempt.attempt_number, TrackAttempt.started_at)
+        .order_by(TrackAttempt.attempt_number)
         .all()
     )
-    return [track_attempt_to_dict(row) for row in rows]
+    return [track_attempt_to_dict(attempt, proxy_url) for attempt, proxy_url in rows]
 
 
-@router.get("/{track_id}/file")
+# v35 (e): HEAD too. The frontend probes with it before handing the URL to a real browser
+# download, so a missing file still shows the inline notice instead of navigating to a
+# 404 page. Through nginx the X-Accel-Redirect is followed for HEAD as well, so the probe
+# also catches a file deleted from disk (this container has no mount to check that).
+@router.api_route("/{track_id}/file", methods=["GET", "HEAD"])
 def download_track_file(
     track_id: uuid.UUID,
     db: Session = Depends(get_db),

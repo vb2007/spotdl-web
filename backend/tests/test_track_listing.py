@@ -151,3 +151,50 @@ def test_non_admin_all_users_flag_ignored_on_tracks_endpoint(client, db_session,
     response = client.get("/api/tracks", params={"all_users": "true"})
     titles = {i["title"] for i in response.json()["items"]}
     assert titles == {"Mine"}
+
+
+def test_tracks_scope_counts_by_state_ignore_the_state_filter_but_honor_the_rest(
+    authenticated_client, db_session, owner
+):
+    """v35 (g): one grouped aggregate over the same filtered set, before `state=`."""
+    album = _make_job(db_session, owner, source_type=JobSourceType.ALBUM)
+    playlist = _make_job(db_session, owner, source_type=JobSourceType.PLAYLIST)
+    _add_track(db_session, album, name="Alpha", state=TrackState.COMPLETED)
+    _add_track(db_session, album, name="Alpha two", state=TrackState.WAITING)
+    _add_track(db_session, album, name="Alpha three", state=TrackState.WAITING)
+    _add_track(db_session, album, name="Beta", state=TrackState.LOOKUP_FAILED)
+    _add_track(db_session, playlist, name="Alpha four", state=TrackState.COMPLETED)
+
+    for url in ("/api/tracks", "/api/jobs"):
+        params = {"state": "waiting"}
+        if url == "/api/jobs":
+            params["scope"] = "track"
+        body = authenticated_client.get(url, params=params).json()
+        assert len(body["items"]) == 2
+        assert body["counts_by_state"] == {"completed": 2, "waiting": 2, "lookup_failed": 1}
+
+    body = authenticated_client.get(
+        "/api/tracks", params={"q": "alpha", "source_type": "album", "state": "completed"}
+    ).json()
+    assert body["counts_by_state"] == {"completed": 1, "waiting": 2}
+
+    # A later page carries the same counts: the cursor doesn't narrow them.
+    first = authenticated_client.get("/api/tracks", params={"limit": 2}).json()
+    second = authenticated_client.get(
+        "/api/tracks", params={"limit": 2, "cursor": first["next_cursor"]}
+    ).json()
+    assert second["counts_by_state"] == first["counts_by_state"]
+
+
+def test_tracks_scope_counts_by_state_cost_one_statement(
+    authenticated_client, db_session, owner, count_queries
+):
+    job = _make_job(db_session, owner)
+    for state in (TrackState.COMPLETED, TrackState.WAITING, TrackState.QUEUED):
+        _add_track(db_session, job, name=state.value, state=state)
+
+    with count_queries() as statements:
+        response = authenticated_client.get("/api/tracks")
+    assert response.status_code == 200
+    grouped = [s for s in statements if "GROUP BY" in s.upper() and "STATE" in s.upper()]
+    assert len(grouped) == 1

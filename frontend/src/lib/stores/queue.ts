@@ -60,6 +60,8 @@ interface PageState {
 	nextCursor: string | null;
 	totalEstimate: number;
 	countsByStatus: Record<string, number>;
+	/** v35 (g): the Tracks scope's per-state chip counts; `{}` in the Jobs scope. */
+	countsByState: Record<string, number>;
 	loading: boolean;
 	loadingMore: boolean;
 	error: string;
@@ -70,6 +72,7 @@ const EMPTY_PAGE: PageState = {
 	nextCursor: null,
 	totalEstimate: 0,
 	countsByStatus: {},
+	countsByState: {},
 	loading: false,
 	loadingMore: false,
 	error: ''
@@ -199,6 +202,44 @@ function createQueueStore() {
 		pendingJobRefresh.add(jobId);
 		clearTimeout(jobRefreshTimer);
 		jobRefreshTimer = setTimeout(flushJobRefreshes, 400);
+		scheduleTrackCountsRefresh();
+	}
+
+	// v35 (g): the Tracks scope's chip counts cover tracks that aren't on the loaded page
+	// (or are filtered out of it by the very state chip being counted), so a state change
+	// can't be patched into them locally. Re-read them instead: one bulk request (a
+	// 1-row page carries the same counts_by_state), debounced like the job-row refresh
+	// above and triggered from the same state-change-only paths, never per progress tick.
+	let trackCountsTimer: ReturnType<typeof setTimeout> | undefined;
+	let trackCountsSeq = 0;
+
+	function scheduleTrackCountsRefresh(): void {
+		if (get(filters).scope !== 'tracks') return;
+		clearTimeout(trackCountsTimer);
+		trackCountsTimer = setTimeout(refreshTrackCounts, 1000);
+	}
+
+	async function refreshTrackCounts(): Promise<void> {
+		const f = get(filters);
+		if (f.scope !== 'tracks') return;
+		const seq = pageFetchSeq;
+		const epoch = storeEpoch;
+		const countsSeq = ++trackCountsSeq;
+		try {
+			const result = await api.listTracksPage({
+				...currentQueryParams(),
+				status: f.status.length ? f.status : undefined,
+				state: f.state.length ? f.state : undefined,
+				limit: 1
+			});
+			// A full reload, scope/filter change or reset since then has (or will have)
+			// its own counts; never let this older read overwrite them.
+			// Nor an older counts read that resolves after a newer one.
+			if (seq !== pageFetchSeq || epoch !== storeEpoch || countsSeq !== trackCountsSeq) return;
+			page.update((p) => ({ ...p, countsByState: result.counts_by_state }));
+		} catch {
+			// Best effort: the chips keep their last counts until the next reload.
+		}
 	}
 
 	/** v23: root-caused the Waterfall's appear/disappear/reappear glitch by raw-`curl -N`
@@ -425,11 +466,13 @@ function createQueueStore() {
 					nextCursor: result.next_cursor,
 					totalEstimate: result.total_estimate,
 					countsByStatus: result.counts_by_status,
+					countsByState: {},
 					loading: false,
 					loadingMore: false,
 					error: ''
 				});
 			} else {
+				const countsSeqAtStart = trackCountsSeq;
 				const result = await api.listTracksPage({
 					...currentQueryParams(),
 					status: f.status.length ? f.status : undefined,
@@ -441,10 +484,15 @@ function createQueueStore() {
 					nextCursor: result.next_cursor,
 					totalEstimate: 0,
 					countsByStatus: {},
+					countsByState: result.counts_by_state,
 					loading: false,
 					loadingMore: false,
 					error: ''
 				});
+				// A counts refresh that started during this reload may have read a newer
+				// snapshot than these counts (or failed): one more re-read converges on
+				// this filter's current numbers either way.
+				if (countsSeqAtStart !== trackCountsSeq) scheduleTrackCountsRefresh();
 			}
 		} catch (err) {
 			if (seq !== pageFetchSeq) return;
@@ -490,6 +538,9 @@ function createQueueStore() {
 					...p,
 					items: [...p.items, ...result.items],
 					nextCursor: result.next_cursor,
+					// countsByState deliberately not taken from a later page: it's the same
+					// set's counts, and this (older) read could land after a fresher
+					// refreshTrackCounts.
 					loadingMore: false
 				}));
 			}
@@ -559,6 +610,7 @@ function createQueueStore() {
 	 * mounted dashboard renders A's rows. Call this on logout, before the next identity's
 	 * session can start writing to these stores. */
 	function reset(): void {
+		clearTimeout(trackCountsTimer);
 		pageFetchSeq++;
 		liveHydrateSeq++;
 		storeEpoch++;
@@ -1085,6 +1137,8 @@ function createQueueStore() {
 				if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 				if (event.error !== undefined) next.last_error = event.error;
 				if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
+				if (event.attempts_made !== undefined) next.attempts_made = event.attempts_made;
+				if (event.failure_count !== undefined) next.failure_count = event.failure_count;
 				return { ...current, [event.track_id]: next };
 			}
 			clearLiveRemovalTimer(event.track_id);
@@ -1108,6 +1162,8 @@ function createQueueStore() {
 				album: event.album ?? seed?.album ?? null,
 				spotify_track_id: seed?.spotify_track_id ?? '',
 				attempt_count: seed?.attempt_count ?? 0,
+				attempts_made: seed?.attempts_made ?? 0,
+				failure_count: seed?.failure_count ?? 0,
 				scheduled_at: null,
 				last_error: null,
 				last_error_type: null
@@ -1123,6 +1179,8 @@ function createQueueStore() {
 			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 			if (event.error !== undefined) next.last_error = event.error;
 			if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
+			if (event.attempts_made !== undefined) next.attempts_made = event.attempts_made;
+			if (event.failure_count !== undefined) next.failure_count = event.failure_count;
 			if (next.progress !== undefined) {
 				rememberProgress(event.track_id, next.progress, next.attempt_count);
 			}
@@ -1138,6 +1196,8 @@ function createQueueStore() {
 			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 			if (event.error !== undefined) next.last_error = event.error;
 			if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
+			if (event.attempts_made !== undefined) next.attempts_made = event.attempts_made;
+			if (event.failure_count !== undefined) next.failure_count = event.failure_count;
 			if (event.progress !== undefined) (next as LiveTrack).progress = event.progress;
 			const copy = [...items];
 			copy[idx] = next;
@@ -1168,6 +1228,9 @@ function createQueueStore() {
 		// flight when this event lands may resolve before that fetch does, and must not
 		// apply its (older) snapshot of this job in the meantime.
 		touchIncoming(event.job_id);
+		// v35 (g): an archive/unarchive (from another tab, an admin or the retention sweep)
+		// changes which tracks the Tracks scope's chips count without any track event.
+		scheduleTrackCountsRefresh();
 		const epoch = storeEpoch;
 		if (event.archived !== undefined) {
 			patchArchivedFlagFromEvent(event.job_id, event.archived);

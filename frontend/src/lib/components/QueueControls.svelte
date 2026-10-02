@@ -7,12 +7,14 @@
 		isAdmin,
 		allUsers,
 		onAllUsersChange,
-		countsByStatus
+		countsByStatus,
+		countsByState
 	}: {
 		isAdmin: boolean;
 		allUsers: boolean;
 		onAllUsersChange: (value: boolean) => void;
 		countsByStatus: Record<string, number>;
+		countsByState: Record<string, number>;
 	} = $props();
 
 	const { filters } = queue;
@@ -31,10 +33,8 @@
 		queue.setFilters({ scope });
 	}
 
-	// Track-state filter chips have no live counts backing them (v20 judgment call: v18's
-	// counts_by_status is job-rollup-shaped, and a global per-track-state count has no
-	// endpoint -- see docs/GOTCHAS.md's v20 entry) -- shown without a count, unlike the
-	// Jobs-scope state filter below.
+	// Track-state filter chips: v35 (g) gave them live counts (the tracks listing's
+	// counts_by_state), the same way the Jobs-scope status filter below has always had.
 	const TRACK_STATE_TOKENS: api.TrackState[] = [
 		'pending',
 		'queued',
@@ -194,7 +194,7 @@
 						aria-pressed={$filters.state.includes(token)}
 						onclick={() => toggleStateToken(token)}
 					>
-						{TRACK_STATE_LABEL[token]}
+						{TRACK_STATE_LABEL[token]} <span class="mono">{countsByState[token] ?? 0}</span>
 					</button>
 				{/each}
 			</div>

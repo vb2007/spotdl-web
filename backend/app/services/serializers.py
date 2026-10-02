@@ -9,6 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import Job, Track, TrackAttempt
+from app.services import proxies
 from app.services.rollup import derive_rollup
 
 
@@ -95,20 +96,40 @@ def track_to_dict(track: Track) -> dict:
         **track_song_meta(track.song_json),
         "spotify_track_id": track.spotify_track_id,
         "attempt_count": track.attempt_count,
+        "attempts_made": track.attempts_made,
+        "failure_count": track.failure_count,
         "scheduled_at": track.scheduled_at.isoformat() if track.scheduled_at is not None else None,
         "last_error": track.last_error,
         "last_error_type": track.last_error_type.value if track.last_error_type is not None else None,
     }
 
 
-def track_attempt_to_dict(attempt: TrackAttempt) -> dict:
+def _proxy_label(proxy_url: str | None) -> str | None:
+    """proxies.redact() raises on a malformed port (urlsplit's .port), and sync_from_file
+    doesn't validate URLs -- one bad row must not 500 a user's attempt history."""
+    if proxy_url is None:
+        return None
+    try:
+        return proxies.redact(proxy_url)
+    except ValueError:
+        return "proxy"
+
+
+def track_attempt_to_dict(attempt: TrackAttempt, proxy_url: str | None = None) -> dict:
+    """`proxy_url` is the attempt's proxy's raw URL, joined in by the caller's own query
+    (never a per-row lookup). Only its `proxies.redact()` form leaves this function: the
+    raw URL can carry credentials (v35 (b))."""
     return {
         "id": str(attempt.id),
         "attempt_number": attempt.attempt_number,
         "started_at": attempt.started_at.isoformat(),
         "finished_at": attempt.finished_at.isoformat(),
+        "duration_seconds": (attempt.finished_at - attempt.started_at).total_seconds(),
         "outcome": attempt.outcome.value,
         "error_type": attempt.error_type.value if attempt.error_type is not None else None,
         "error_message": attempt.error_message,
+        "warning_message": attempt.warning_message,
         "proxy_id": str(attempt.proxy_id) if attempt.proxy_id is not None else None,
+        "proxy_label": _proxy_label(proxy_url),
+        "network_path": attempt.network_path.value if attempt.network_path is not None else None,
     }

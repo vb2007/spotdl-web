@@ -33,6 +33,9 @@ needed" claim — rather than silently deleted.
   it silently passes via a value some *other* test's `conftest.py` setdefault already set → *v17*
 
 **Database, migrations & enums**
+- `ALTER TYPE ... ADD VALUE` in a migration that also *uses* the value must run in
+  `op.get_context().autocommit_block()`; a v35 migration that rewrites data says so and needs a
+  `pg_backup` → *v35*
 - `Enum(...)` stores member *names* unless `values_callable` is set → *v02*
 - `op.drop_table()` doesn't drop the native enum type; needs explicit `DROP TYPE` in `downgrade()`
   → *v02*
@@ -243,6 +246,10 @@ needed" claim — rather than silently deleted.
   same reasoning `LADDER_SECONDS`/`PACING_*_SEC` already get → *v31.1*
 
 **Celery, tasks & durability**
+- Every `track_attempts` row goes through `attempts.record_attempt`: it assigns `attempt_number`
+  and maintains `tracks.attempts_made`/`failure_count`. `tracks.attempt_count` is still the
+  ladder's failure count, not "attempts" → *v35*
+- A redelivered `download_track` for a `completed`/`skipped_duplicate` track is a no-op → *v35*
 - `expand_job`/`sort_library` run for minutes (a discography is ~90–130s of Spotify round trips);
   on `worker-meta`'s shared 2-slot `meta` queue two of them starved beat's 30s dispatch. They
   have their own `expand` queue and `worker-expand` service since v34.1 → *v34.1*
@@ -444,6 +451,8 @@ needed" claim — rather than silently deleted.
   than gated behind a match against one specific `proxy_url` → *v31*
 
 **File serving & HTTP headers**
+- A FastAPI `@router.get` does **not** answer `HEAD` (405); the file endpoint lists both. nginx
+  follows `X-Accel-Redirect` for `HEAD` too, so the probe catches a file deleted from disk → *v35*
 - A response header built from DB-sourced/app-generated-but-not-actually-trusted text (here:
   `Content-Disposition`'s ASCII fallback filename, built from `Track.output_path`/the ledger's
   `file_path`) needs every non-printable byte stripped, not just non-ASCII ones —
@@ -536,6 +545,12 @@ needed" claim — rather than silently deleted.
   have 404'd against an empty mount even once it existed.
 
 **Testing & verification technique**
+- A "fresh" test track must be absent from `./downloads`, not just the ledger: spotdl's own
+  `file already exists` skip returns a path, and the app records a `completed direct-ipv4` attempt
+  that never touched the network → *v35*
+- Forcing a real download failure: a compose overlay with `extra_hosts` mapping the YouTube hosts
+  to `127.0.0.1`/`::1` on a recreated `worker-dl` (an in-place `/etc/hosts` edit needs both
+  families) → *v35*
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
   first on `sys.path` and silently imports the stale baked-in `site-packages` copy of `app` → *v11*
 - A local venv for running pytest outside Docker must be installed with `-e`, or edits are
@@ -2647,6 +2662,8 @@ controls, and the `/account` route)
   the Jobs-scope status filter (`counts_by_status`) — there is no equivalent global per-track-state
   count endpoint, and adding one for a filter chip's cosmetic count wasn't judged worth a new backend
   aggregate this version. Revisit if a future version's plan explicitly asks for it.
+  **Superseded 2026-10-02, v35 (g):** the tracks listing now returns `counts_by_state` and the
+  chips render it — see this file's v35 section.
 - **A store function that clears or removes an entry another in-flight fetch might still resolve
   into must invalidate that fetch's own sequence guard at the point of removal** — `queue.ts`'s
   `toggleExpand` collapse path and `setAllUsers`'s full-map clear both call the new
@@ -3229,6 +3246,9 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   sort key, and the frontend never renders `attempt_number` as a visible label (`TrackRow.svelte`
   shows outcome/direct-or-proxy/timestamp/error only), so the collision has no observed UI impact —
   only a direct SQL/API query against `track_attempts` would ever see two rows sharing a number.
+  **Designed away 2026-10-02, v35 (a):** `attempt_number` is now a per-track 1-based sequence
+  assigned by `attempts.record_attempt`, unique-constrained, and a breaker hold is outcome `held`.
+  `attempt_count` still isn't bumped by a hold, so "attempt 1 is always direct" holds. See v35.
 - **The stale-track reclaim sweep (`beat._reclaim_stale_tracks`) writes no `track_attempts` row at
   all.** It bulk-`UPDATE`s any `DOWNLOADING`/`QUEUED` track stuck past `STALE_TRACK_AFTER_SECONDS`
   straight back to `WAITING`, bypassing `download_track` (and therefore `attempts.record_attempt`)
@@ -3851,7 +3871,10 @@ a core correctness gap in `download_track` itself, and doc reconciliation)
   July/August, far older than the bind-mounted `.py` sources — but a fresh `python -c` import in
   the same container always reflected current source correctly, and Python's default mtime-based
   invalidation should recompile regardless of a stale `.pyc`'s presence, so this is flagged as a
-  real image-hygiene smell worth cleaning up but not confirmed as this bug's cause); spotdl's own
+  real image-hygiene smell worth cleaning up but not confirmed as this bug's cause — **correction
+  2026-10-02, v35 (f):** those root-owned `__pycache__` dirs were on the *host* dev tree, seen
+  through the `./backend/app` bind mount, not in the image, whose own `/app` had none; see v35);
+  spotdl's own
   `embed_metadata`/`repair_tags` doing an unsafe temp-file swap (read directly from the installed
   package source — every write is a plain in-place `mutagen`/`ID3` `.save()`, no delete or rename
   of the target path visible anywhere in that call chain). A tight, second-by-second filesystem
@@ -4294,3 +4317,67 @@ independently-found production bug from the same conversation)
   `CONNECTING`, which never reaches the `CLOSED` branch. Live: a scope switch under a 502ing
   stream showed the new scope via the fallback within 1.5s, and a `connectionreset` stream left
   "Loading…" at 2s, resolved by 7s.
+
+### v35 correctness-sweep gotchas
+
+- **(a) Counting decision: stored counters, one write site.** `tracks.attempts_made` (rows that
+  reached the network: `completed`, `failed`, or `cancelled` with a `network_path`) and
+  `tracks.failure_count` (`failed` rows) are maintained only by `attempts.record_attempt`, in the
+  same transaction as the row it inserts, via an ORM `update(Track)...returning(...)` with
+  `synchronize_session="fetch"` so `download_track`'s already-loaded `Track` sees the new values.
+  That UPDATE runs first so it takes the track's row lock before `max(attempt_number) + 1` is read:
+  beat's stale reclaim (worker-meta) and `download_track` (worker-dl) can write rows for the same
+  track concurrently. Derived-in-SQL counts were rejected because every listing and every SSE
+  event would then need its own aggregate. The counting rule is derived from the row alone
+  (outcome + `network_path`), so the counters can always be recomputed from `track_attempts`.
+  Beat's reclaim of a track stuck `downloading` stays `failed` (as v31 recorded it). One stuck
+  `queued` hadn't reached the network, so it is now recorded as `held` with a warning note (found by v35's two
+  blind review rounds; a first fix that kept it `failed` but uncounted left a red row beside
+  "failures: 0"). The migration can't tell old reclaim rows apart and keeps them `failed`. A
+  reclaim that races a still-running invocation gets the lower `attempt_number` despite its later
+  `started_at`; the endpoint orders by number, so that one pair can show out of time order.
+- **(a) Breaker hold = outcome `held`, still a row.** It keeps the history honest (you can see the
+  pause) without counting as an attempt. The migration identified existing holds by
+  `download.py`'s fixed message text (1,857 of 1,864 `failed` rows on dev), renumbered every
+  track's rows 1..n by `started_at`, and backfilled the counters; checked against a CSV of the
+  expected per-track values computed before the upgrade (1,899 tracks, identical), then
+  downgrade → upgrade on the same data.
+- **(a) The ladder input didn't move.** `tracks.attempt_count` is still only incremented by
+  `retry.record_failure` and still drives both `next_delay` and the network-path rung;
+  `test_ladder_step_ignores_held_and_cancelled_rows` pins delay *and* rung for 0–6 failures with
+  held and cancelled rows interleaved. A success doesn't reset it (pre-existing): a track that
+  completed after 2 failures reads `attempt_count=2, attempts_made=3, failure_count=2`.
+- **(d) `warning_message` is its own column.** Set at the write site: the tag-repair note on a
+  completed attempt and the breaker-hold reason. `error_message` now only ever means a failure.
+  A real tag warning was produced on dev by mapping `i.scdn.co` (the Spotify cover CDN) to
+  localhost inside `worker-dl`: the download succeeded and the cover repair failed.
+- **(e) Streamed download = `HEAD` probe, then `<a download href>`.** The probe keeps the inline
+  error notice (a plain navigation to a 404 would replace the page). On a 54 MB file the
+  browser's RSS rose +5–6 MB vs +54–57 MB for v27's Blob flow, through both the Vite fallback and
+  nginx. The Vite fallback answers `HEAD` from `stat()` without streaming the file.
+- **(f) `PYTHONDONTWRITEBYTECODE=1` plus stripping every `__pycache__` the root build leaves.**
+  The image's own `/app` never had root-owned caches; the root-owned ones were site-packages (52)
+  and the base image's stdlib (46). Stripping them all costs ~0.2s per process start
+  (`import app.tasks.celery_app`: 3.13s → 3.30s). In dev the stale root-owned caches were on the
+  host tree (`backend/app/**/__pycache__`, `backend/alembic/__pycache__`, from Aug 2), visible
+  through the bind mount; they were removed with a root container, since the host user can't.
+- **(g) `counts_by_state` on the tracks scope** comes from one grouped query over the same filtered
+  set before `state=`, read from the page's snapshot (`begin_snapshot`, as in v34.2). The chips
+  re-read it with a debounced 1-row request on a track *state change* only: a count spans tracks
+  that aren't on the loaded page, so it can't be patched locally.
+- **Reclaim races (pre-existing, documented by v35's third review, not fixed):** beat's reclaim
+  `UPDATE` doesn't re-check `state` after its snapshot `SELECT`, so a track that commits
+  `COMPLETED` in between is reset to `WAITING` (then dedup-skipped to `skipped_duplicate`) — the
+  same "completed track rewritten" outcome (c) closes for redelivery, via another path. A reclaim
+  of a still-alive `downloading` invocation also counts that one network attempt twice (the
+  reclaim's `failed` row plus the real outcome's). A mid-download cancel's event goes out before
+  its attempt row and carries no counters; the frontend never patches an already-`cancelled` row
+  anyway, so its displayed counts update on the next reload. A track reclaimed while its message
+  sits in `download_track`'s pacing sleep still downloads afterwards (the post-sleep check only
+  looks for `cancelled`), and beat dispatches it again — pacing is off by default (`MAX_SEC=0`).
+- **Found while verifying, not fixed (pre-existing):** spotdl's `file already exists` skip is
+  recorded as a `completed direct-ipv4` attempt and counts as one; a completed track keeps its
+  last failure in `last_error`, so TrackRow still shows a red "last read" on it; and
+  `download_track` reads `track.song_json` right after the `downloading` commit, which opens a
+  transaction that stays idle for the whole download (the completed row's `updated_at`, which is
+  Postgres `now()`, shows the download's *start* time).

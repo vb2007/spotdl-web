@@ -109,27 +109,50 @@ export interface Track {
 	artists: string[] | null;
 	album: string | null;
 	spotify_track_id: string;
+	/** The retry ladder's failure count (what picks the next delay and network rung) --
+	 * not what the UI shows as attempts; see attempts_made/failure_count (v35). */
 	attempt_count: number;
+	/** v35: track_attempts rows that actually reached the network, and `failed` rows. */
+	attempts_made: number;
+	failure_count: number;
 	scheduled_at: string | null;
 	last_error: string | null;
 	last_error_type: TrackErrorType | null;
 }
 
-export type TrackAttemptOutcome = 'completed' | 'failed' | 'cancelled' | 'skipped_duplicate';
+export type TrackAttemptOutcome =
+	| 'completed'
+	| 'failed'
+	| 'cancelled'
+	| 'skipped_duplicate'
+	/** v35: rescheduled behind the circuit breaker/pause without touching the network. */
+	| 'held';
+
+export type NetworkPath = 'direct-ipv4' | 'direct-ipv6' | 'proxy';
 
 /** One row per `download_track` invocation (v24) -- `GET /api/tracks/{id}/attempts`,
  * oldest first. `proxy_id` is `null` for a direct attempt, `error_type`/`error_message`
- * are `null` for anything that isn't `failed`. Diagnostic only, not a headline feature --
- * see TrackRow.svelte's rendering. */
+ * are `null` for anything that isn't `failed` (a non-failure's note is `warning_message`).
+ * Diagnostic only, not a headline feature -- see TrackRow.svelte's rendering. */
 export interface TrackAttempt {
 	id: string;
 	attempt_number: number;
 	started_at: string;
 	finished_at: string;
+	/** v35: `finished_at - started_at`. */
+	duration_seconds: number;
 	outcome: TrackAttemptOutcome;
 	error_type: TrackErrorType | null;
 	error_message: string | null;
+	/** v35: a note on an attempt that didn't fail (a tag-repair note, a breaker hold).
+	 * Never a failure; `error_message` is only ever one. */
+	warning_message: string | null;
 	proxy_id: string | null;
+	/** v35: the proxy's redacted `scheme://host:port`, never its credentials. */
+	proxy_label: string | null;
+	/** v35: `null` when the row never reached the network (held, duplicate, cancelled
+	 * before dispatch), and on rows written before v29 recorded it. */
+	network_path: NetworkPath | null;
 }
 
 /** The parent-job summary `GET /api/tracks`/`?scope=track` embeds on every row -- not a
@@ -158,6 +181,9 @@ export interface TrackStateEvent {
 	scheduled_at?: string;
 	error?: string;
 	attempt_count?: number;
+	/** v35: present whenever the worker just wrote an attempt row. */
+	attempts_made?: number;
+	failure_count?: number;
 	/** v23: present whenever the publishing call site has the track's song metadata to
 	 * offer (effectively always, as of this version) -- absent only for events published
 	 * before this field existed or a call site with none to give. See
@@ -314,7 +340,12 @@ export interface JobsPage extends Page<Job> {
 	counts_by_status: Record<string, number>;
 }
 
-export type TracksPage = Page<TrackWithJob>;
+export interface TracksPage extends Page<TrackWithJob> {
+	/** v35 (g): one grouped count over the same owner-scoped, filtered set, before this
+	 * request's own `state` filter (so every state chip keeps its count). Unlike
+	 * JobTracksPage's, q-aware. */
+	counts_by_state: Record<string, number>;
+}
 
 export interface JobTracksPage extends Page<Track> {
 	/** Ignores this request's own `state` filter (so switching tabs keeps every tab's
@@ -540,61 +571,36 @@ export function getTrackAttempts(trackId: string): Promise<TrackAttempt[]> {
 	return request(`/api/tracks/${trackId}/attempts`);
 }
 
-/** `filename*=UTF-8''...` (RFC 5987) first, falling back to the plain quoted `filename=`
- * -- matches the two forms the backend's `_content_disposition` (tracks.py) can send. */
-function parseContentDispositionFilename(header: string | null): string | null {
-	if (!header) return null;
-	const extended = header.match(/filename\*=UTF-8''([^;]+)/i);
-	if (extended) {
-		try {
-			return decodeURIComponent(extended[1]);
-		} catch {
-			// Malformed percent-encoding -- fall through to the plain form below.
-		}
-	}
-	const plain = header.match(/filename="([^"]*)"/);
-	return plain ? plain[1] : null;
+/** A completed track's audio file URL (v27). v35 (e): handed to a real browser download
+ * (TrackRow's handleDownload) so the bytes stream straight to disk, never through tab
+ * memory, and nginx's X-Accel-Redirect streaming is kept end to end. */
+export function trackFileUrl(trackId: string): string {
+	return `${API_BASE}/api/tracks/${trackId}/file`;
 }
 
-/** Fetches a completed track's audio file (v27) -- not routed through the shared
- * `request()` helper since a successful response here is a binary blob, not JSON. The
- * caller (TrackRow's handleDownload) turns the result into a real browser "Save As" via
- * an object URL, rather than a plain `<a href>` navigation, so a 404/error response
- * renders as this app's own notice UI instead of replacing the page with raw JSON. */
-export async function downloadTrackFile(
-	trackId: string
-): Promise<{ blob: Blob; filename: string }> {
-	const response = await fetch(`${API_BASE}/api/tracks/${trackId}/file`, {
+/** v35 (e): a HEAD probe before the real download. A plain navigation to a 404 would
+ * replace the page with raw JSON, so the error surface lives here: a missing ledger row
+ * 404s in FastAPI, and a file deleted from disk 404s once nginx (or the Vite dev
+ * fallback, vite.config.ts) follows the X-Accel-Redirect, which it does for HEAD too.
+ * HEAD has no body, so the message comes from the status alone. */
+export async function checkTrackFile(trackId: string): Promise<void> {
+	const response = await fetch(trackFileUrl(trackId), {
+		method: 'HEAD',
 		credentials: 'include'
 	});
 
 	if (!response.ok) {
-		let detail = response.statusText;
-		try {
-			const body = await response.json();
-			detail = body.detail ?? detail;
-		} catch {
-			// Non-JSON error body -- fall back to statusText.
-		}
-		throw new ApiError(response.status, detail);
+		throw new ApiError(
+			response.status,
+			response.status === 404 ? 'File not found' : response.statusText || 'Download failed'
+		);
 	}
 
-	const filename = parseContentDispositionFilename(response.headers.get('Content-Disposition'));
-	const blob = await response.blob();
-
-	// FastAPI's response here is *always* headers-only (nginx's X-Accel-Redirect location
-	// supplies the real bytes) -- so a plain http-proxy in front of the api container that
-	// doesn't understand X-Accel-Redirect (Vite's dev proxy, see vite.config.ts -- the
-	// default `docker compose up` override runs Vite, not nginx, for `web`) forwards
-	// exactly this empty body straight through as if it were a real, successful download.
-	// Without this check that reads as a correctly-named 0-byte "Save As" with no error
-	// anywhere -- caught by fresh-eyes review, not by a passing curl/browser test against
-	// the one stack (real nginx) that's actually wired for this.
-	if (blob.size === 0) {
+	// v27's backstop, kept: FastAPI's own response is headers-only, so a proxy that
+	// doesn't follow X-Accel-Redirect would otherwise report a 0-byte "success".
+	if (response.headers.get('Content-Length') === '0') {
 		throw new ApiError(502, 'Downloaded file was empty -- the download did not complete.');
 	}
-
-	return { blob, filename: filename ?? 'track' };
 }
 
 export function workerStatus(): Promise<WorkerStatus> {
