@@ -185,6 +185,7 @@
   "183": "Implementation prompt template (master v4)",
   "184": "track_counts",
   "185": "v44 — Complete Keyboard Navigation",
+  "186": "track_song_meta",
   "187": "v36 — App Alerting (Matrix)",
   "188": "v32 — Dedicated Dev Database",
   "189": "v33 — Deploy Safety",
@@ -199,5 +200,12 @@
   "198": "v45 — Internationalization (Hungarian + English)",
   "199": "v46 — UI Polish & Design-System Record",
   "200": "v47 — Master v4 Hardening & Close",
-  "201": "Issues found for master v4 planning"
+  "201": "Issues found for master v4 planning",
+  "202": "list_tracks",
+  "203": "list_jobs",
+  "204": "track_counts",
+  "205": "db.py",
+  "206": "_event_stream",
+  "207": "sync_from_file",
+  "208": "Upgrading an existing deployment (manual fallback)"
 }

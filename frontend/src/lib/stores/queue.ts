@@ -8,6 +8,7 @@ import type {
 	Track,
 	TrackJobSummary,
 	TrackState,
+	TracksPage,
 	TrackWithJob
 } from '$lib/api';
 
@@ -117,12 +118,27 @@ function createQueueStore() {
 	const page = writable<PageState>({ ...EMPTY_PAGE });
 	const expanded = writable<Record<string, ExpandedJob>>({});
 
-	/** SSE-fed only, never REST-loaded -- Waterfall's "what's downloading right now" view.
-	 * `worker-dl` runs `--concurrency=1` (CLAUDE.md invariant), so this can never hold more
-	 * than one entry for a non-admin session; an admin's all-users pattern-subscribe sees
-	 * the same single global slot, not one per user. Because it can never exceed one entry,
-	 * there is no meaningful order to preserve and therefore nothing for an `updatedAt`
-	 * tiebreaker to do -- unlike the retired QueueTable, nothing here ever re-sorts a live
+	/** Waterfall's "what's downloading right now" view -- fed by SSE, and (v34) re-hydrated
+	 * from REST on every `reload()` (`hydrateLive` below), which also runs on every stream
+	 * (re)connect. Before v34 this was SSE-only, so a hard refresh emptied it until the
+	 * track's *next* event: a download's progress ticks are seconds apart (25% -> 40% was
+	 * a ~6s silent gap on the real stack), so a reload in that gap showed "0 lanes" while
+	 * the worker was mid-download.
+	 *
+	 * "Active" means exactly `downloading`, the backend's own state, nothing more. A track
+	 * sitting in the pacing delay is still `pending`/`queued` in the database
+	 * (`download_track` only sets `downloading` *after* `pacing_delay()`'s sleep, and
+	 * publishes nothing during it), and the backend can't tell "pacing" apart from
+	 * "queued behind something else" -- so it gets no lane here, before or after a reload;
+	 * its job row already shows it as active. (v34's recorded decision: no invented
+	 * "next up -- pacing" lane.)
+	 *
+	 * `worker-dl` runs `--concurrency=1` (CLAUDE.md invariant), so this normally holds at
+	 * most one entry; an admin's all-users pattern-subscribe sees the same single global
+	 * slot, not one per user. (Since v34 hydrates every `downloading` row, a row orphaned by
+	 * a crashed worker can briefly add a second lane until beat's stale sweep reclaims it --
+	 * the database's truth, shown as-is.) With so few entries there is no meaningful order
+	 * to preserve and therefore nothing for an `updatedAt` tiebreaker to do -- unlike the retired QueueTable, nothing here ever re-sorts a live
 	 * -patched row (every row below patches in place inside a server-ordered page), so the
 	 * v09 "completed track visibly jumps/vanishes" failure mode has no client sort left to
 	 * reintroduce it. */
@@ -131,11 +147,43 @@ function createQueueStore() {
 	/** A job between "submitted" and "its tracks exist" (or one whose expansion failed
 	 * with zero tracks) has nothing else in the UI to represent it -- same v09 rationale as
 	 * before, just fed by push (SSE + the optimistic post-submit insert) instead of derived
-	 * from a full local mirror. */
+	 * from a full local mirror, plus (v34) the same REST re-hydration as `liveActive`: jobs
+	 * whose rollup status is `expanding` or `failed` (lifecycle `failed` *is* "expansion
+	 * errored, zero tracks"). Before v34 a reload dropped both, and a failed job never came
+	 * back at all, since nothing publishes again for it until someone dismisses it. */
 	const incoming = writable<Record<string, Job>>({});
 
 	let allUsers = false;
 	let pageFetchSeq = 0;
+
+	/** v34 merge rule: SSE wins over an older REST snapshot. Every live signal for an id
+	 * (an SSE event, this session's own submit/cancel) stamps it with the next value of
+	 * `liveEventCounter`; `hydrateLive` notes the counter when its requests start, and on
+	 * resolve leaves alone every id stamped after that point -- whatever the snapshot says
+	 * about it is at best as new as the event, and possibly older (a `downloading` row read
+	 * just before a `completed` event that beat the response back). `liveHydrateSeq` is the
+	 * usual `pageFetchSeq`-style guard: a hydration superseded by a newer one, a scope
+	 * switch or a reset is dropped on arrival. */
+	let liveHydrateSeq = 0;
+	/** Bumped by `reset()` and `setAllUsers()`: an async SSE handler that awaited across
+	 * one of them is acting for a previous identity/scope and must drop its result. */
+	let storeEpoch = 0;
+	let liveEventCounter = 0;
+	const liveTrackTouchedAt: Record<string, number> = {};
+	const incomingTouchedAt: Record<string, number> = {};
+
+	function touchLiveTrack(trackId: string): void {
+		liveTrackTouchedAt[trackId] = ++liveEventCounter;
+	}
+
+	function touchIncoming(jobId: string): void {
+		incomingTouchedAt[jobId] = ++liveEventCounter;
+	}
+
+	function clearLiveTouches(): void {
+		for (const id of Object.keys(liveTrackTouchedAt)) delete liveTrackTouchedAt[id];
+		for (const id of Object.keys(incomingTouchedAt)) delete incomingTouchedAt[id];
+	}
 	const expandedFetchSeq: Record<string, number> = {};
 
 	// Coarse-vs-fine event filtering: a `downloading` track can publish many same-state
@@ -240,7 +288,112 @@ function createQueueStore() {
 		};
 	}
 
+	/** Every full resync -- mount, every stream (re)connect (the v08 contract), a filter
+	 * change, a scope switch -- reloads the page *and* re-hydrates the two live overlays. */
 	async function reload(): Promise<void> {
+		await Promise.all([reloadPage(), hydrateLive()]);
+	}
+
+	/** v34: one bulk request per overlay, issued in parallel -- never a per-row loop. Both
+	 * ignore the page's own filters (neither overlay is a filtered view) but honor the
+	 * admin all-users scope, so they always agree with the SSE channel this session is
+	 * subscribed to. `include_archived` on the tracks side only so a `downloading` row is
+	 * never hidden by its parent job's archive flag -- the Waterfall shows what the worker
+	 * is doing, not a filtered listing. A failed request leaves both overlays as they are;
+	 * the page's own error line already reports an unreachable server. */
+	// The backend's own page cap (`pagination.CAP`): failed jobs stay `failed` until
+	// dismissed or archived, so the default 50 could hide older ones from a reload. Still
+	// one request; past the cap the snapshot is truncated and `merge*` stop pruning.
+	const HYDRATE_LIMIT = 1000;
+
+	async function hydrateLive(): Promise<void> {
+		const seq = ++liveHydrateSeq;
+		const startedAt = liveEventCounter;
+		const [incomingResult, activeResult] = await Promise.allSettled([
+			api.listJobsPage({ status: ['expanding', 'failed'], allUsers, limit: HYDRATE_LIMIT }),
+			api.listTracksPage({
+				state: ['downloading'],
+				includeArchived: true,
+				allUsers,
+				limit: HYDRATE_LIMIT
+			})
+		]);
+		if (seq !== liveHydrateSeq) return;
+		if (incomingResult.status === 'fulfilled') {
+			mergeIncoming(incomingResult.value, startedAt);
+		}
+		if (activeResult.status === 'fulfilled') {
+			mergeActive(activeResult.value, startedAt);
+		}
+		// A stamp at or before this hydration's start can't matter to any later one (each
+		// starts from a counter value at least this high), so drop them. This bounds the
+		// maps to the ids touched since the last applied hydration, not since the tab
+		// opened; on a long-lived stream with no reloads they still grow, the same way
+		// `lastKnownTrackState` does.
+		for (const touchedAt of [liveTrackTouchedAt, incomingTouchedAt]) {
+			for (const [id, stamp] of Object.entries(touchedAt)) {
+				if (stamp <= startedAt) delete touchedAt[id];
+			}
+		}
+	}
+
+	/** Whether nothing live has said anything about `id` since a hydration started --
+	 * i.e. whether that hydration's snapshot is the newest thing known about it. */
+	function snapshotIsNewest(touchedAt: Record<string, number>, id: string, startedAt: number) {
+		return (touchedAt[id] ?? 0) <= startedAt;
+	}
+
+	/** Replaces every entry the snapshot is newest for and leaves the rest alone. An entry
+	 * missing from a *complete* snapshot (no `next_cursor`) has left `expanding`/`failed`
+	 * while this session wasn't listening, so it goes; a truncated snapshot can't prove
+	 * that, so absent entries stay. */
+	function mergeIncoming(snapshot: JobsPage, startedAt: number): void {
+		const complete = snapshot.next_cursor === null;
+		incoming.update((current) => {
+			const next: Record<string, Job> = {};
+			for (const [id, job] of Object.entries(current)) {
+				if (!complete || !snapshotIsNewest(incomingTouchedAt, id, startedAt)) next[id] = job;
+			}
+			for (const job of snapshot.items) {
+				if (snapshotIsNewest(incomingTouchedAt, job.id, startedAt)) next[job.id] = job;
+			}
+			return next;
+		});
+	}
+
+	/** Same rule for the Waterfall, with one refinement for rows missing from the
+	 * snapshot: a row already in its v23 removal grace window (its last event already left
+	 * `downloading`) is left to that timer, which is the flicker bridge working as
+	 * designed; a row still marked `downloading` missed the event that ended it (the
+	 * stream was down), so it drops now rather than lingering as a stale lane. Progress
+	 * isn't persisted server-side, so a hydrated row keeps whatever this tab last saw (or
+	 * none, after a hard reload) until the next progress tick fills it in. */
+	function mergeActive(snapshot: TracksPage, startedAt: number): void {
+		const complete = snapshot.next_cursor === null;
+		const listed = new Set(snapshot.items.map((t) => t.id));
+		liveActive.update((current) => {
+			const next = { ...current };
+			for (const [id, existing] of Object.entries(current)) {
+				if (listed.has(id) || !complete) continue;
+				if (!snapshotIsNewest(liveTrackTouchedAt, id, startedAt)) continue;
+				if (existing.state !== 'downloading') continue;
+				clearLiveRemovalTimer(id);
+				delete next[id];
+			}
+			for (const { job: _job, ...track } of snapshot.items) {
+				if (!snapshotIsNewest(liveTrackTouchedAt, track.id, startedAt)) continue;
+				clearLiveRemovalTimer(track.id);
+				// Only a lane still mid-attempt keeps its last tick; one in its grace window
+				// is showing the *previous* attempt's progress, which this one doesn't share.
+				const existing = current[track.id];
+				const progress = existing?.state === 'downloading' ? existing.progress : undefined;
+				next[track.id] = { ...track, progress };
+			}
+			return next;
+		});
+	}
+
+	async function reloadPage(): Promise<void> {
 		const f = get(filters);
 		const seq = ++pageFetchSeq;
 		page.update((p) => ({ ...p, loading: true, error: '' }));
@@ -362,11 +515,13 @@ function createQueueStore() {
 
 	function setAllUsers(value: boolean): void {
 		allUsers = value;
+		storeEpoch++;
 		for (const jobId of Object.keys(expandedFetchSeq)) invalidateExpandedFetch(jobId);
 		expanded.set({});
 		incoming.set({});
 		clearAllLiveRemovalTimers();
 		liveActive.set({});
+		clearLiveTouches();
 		reload();
 	}
 
@@ -384,6 +539,8 @@ function createQueueStore() {
 	 * session can start writing to these stores. */
 	function reset(): void {
 		pageFetchSeq++;
+		liveHydrateSeq++;
+		storeEpoch++;
 		for (const jobId of Object.keys(expandedFetchSeq)) invalidateExpandedFetch(jobId);
 		allUsers = false;
 		filters.set({ ...DEFAULT_FILTERS });
@@ -392,6 +549,7 @@ function createQueueStore() {
 		incoming.set({});
 		clearAllLiveRemovalTimers();
 		liveActive.set({});
+		clearLiveTouches();
 	}
 
 	function toggleExpand(jobId: string): void {
@@ -484,6 +642,7 @@ function createQueueStore() {
 	 * it may not match the active filters, e.g. an archived-only view), so patching `page`
 	 * directly would be wrong more often than right. */
 	function addJob(job: Job): void {
+		touchIncoming(job.id);
 		incoming.update((current) => ({ ...current, [job.id]: job }));
 	}
 
@@ -611,12 +770,17 @@ function createQueueStore() {
 	}
 
 	async function cancelJob(jobId: string): Promise<void> {
+		const epoch = storeEpoch;
 		const job = await api.cancelJob(jobId);
+		// The cancel itself happened; only its local patch is dropped if the identity or
+		// scope changed meanwhile -- `allowInsert` below must never insert into the new one.
+		if (epoch !== storeEpoch) return;
 		// `allowInsert: true` -- this is always a job the acting session could already see
 		// somewhere (either `IncomingJobs`, still `expanding`, or an in-page `JobRow`,
 		// already `idx !== -1` and so unaffected either way), never an arbitrary
 		// off-page job, so promoting it onto the page here is always legitimate.
 		patchPageJob(job, { allowInsert: true });
+		touchIncoming(jobId);
 		incoming.update((current) => {
 			const { [jobId]: _drop, ...rest } = current;
 			return rest;
@@ -867,6 +1031,7 @@ function createQueueStore() {
 	}
 
 	function applyTrackEvent(event: Extract<StreamEvent, { type: 'track.state' }>): void {
+		touchLiveTrack(event.track_id);
 		// Coarse-vs-fine: only a genuine state change (including "first time seen") is
 		// worth a job-row refresh -- a same-state progress-percent tick is not.
 		if (lastKnownTrackState[event.track_id] !== event.state) {
@@ -973,6 +1138,11 @@ function createQueueStore() {
 	 * `scheduleJobRefresh` path -- and needs the fetch either way, since the event itself
 	 * carries no title/track_counts/priority to populate the incoming overlay with. */
 	async function applyJobEvent(event: Extract<StreamEvent, { type: 'job.state' }>): Promise<void> {
+		// Stamped on arrival, not after the fetch below resolves -- a hydration already in
+		// flight when this event lands may resolve before that fetch does, and must not
+		// apply its (older) snapshot of this job in the meantime.
+		touchIncoming(event.job_id);
+		const epoch = storeEpoch;
 		if (event.archived !== undefined) {
 			patchArchivedFlagFromEvent(event.job_id, event.archived);
 		}
@@ -981,6 +1151,7 @@ function createQueueStore() {
 		try {
 			job = await api.getJob(event.job_id);
 		} catch {
+			if (epoch !== storeEpoch) return;
 			// 404 (deleted, or this session lost visibility) -- drop it from view everywhere.
 			incoming.update((current) => {
 				const { [event.job_id]: _drop, ...rest } = current;
@@ -997,9 +1168,14 @@ function createQueueStore() {
 		// sweep -- not only ones this store has ever seen before, so `allowInsert` must
 		// stay narrowly scoped to "was actually in the overlay a moment ago", never a bare
 		// `idx === -1`.
+		// A reset (logout) or scope switch while the fetch was in flight: this row belongs
+		// to the previous identity/scope and must not land in the new one's stores.
+		if (epoch !== storeEpoch) return;
 		const wasIncoming = event.job_id in get(incoming);
 
-		if (job.state === 'expanding' || job.state === 'failed') {
+		// Same membership rule as `hydrateLive`'s snapshot (`include_archived` off), so a
+		// job "clear log" archives leaves the overlay live, not only on the next reload.
+		if ((job.state === 'expanding' || job.state === 'failed') && job.archived_at === null) {
 			incoming.update((current) => ({ ...current, [job.id]: job }));
 		} else {
 			incoming.update((current) => {
