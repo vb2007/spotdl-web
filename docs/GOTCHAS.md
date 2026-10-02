@@ -4438,6 +4438,12 @@ independently-found production bug from the same conversation)
   exception is reported by class name alone. Accepted, not changed: the watchdog reads the DB
   first, so a Postgres outage also skips that minute's beat-stale check, and a Redis outage logs
   a traceback every 60s.
+- **Alerts are early-acked and expire (review round 6).** The global `task_acks_late=True` plus the 6h
+  visibility timeout would redeliver a crashed worker-meta's alert hours late, and possibly twice
+  once its cooldown had lapsed. `send_alert` sets `acks_late=False` and `enqueue` passes
+  `expires=300`. A crash drops an alert, which is what "dropped" means here. The watchdog also
+  reads the open-trip marker *before* the breaker state, so a marker set by a newer escalation
+  can't be paired with a stale "released".
 - **Redaction twice.** `alerts.enqueue` redacts before the text reaches the broker, and
   `format_body` redacts again before the PUT. Found by v36's real-stack check: the room copy was
   already clean, but Celery's "Task received" line logged the raw credentialed URL from the task

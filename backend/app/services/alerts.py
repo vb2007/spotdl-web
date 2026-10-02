@@ -84,6 +84,8 @@ WATCHDOG_INTERVAL_SECONDS = 60
 # Per phase (connect/read/write/pool), not end to end, and name resolution isn't covered:
 # a homeserver whose DNS hangs holds the meta slot (or the test request) longer.
 SEND_TIMEOUT_SECONDS = 10.0
+# An enqueued alert older than this is dropped, not sent (see enqueue).
+ALERT_TASK_EXPIRES_SECONDS = 300
 # Matrix accepts far more; this keeps a quoted traceback from flooding the room.
 MAX_BODY_CHARS = 2000
 # v33: the homeserver sits behind Cloudflare, which bans default library User-Agents
@@ -267,7 +269,14 @@ def enqueue(category: str, fingerprint: str, text: str) -> None:
     try:
         from app.tasks.alerts import send_alert
 
-        send_alert.apply_async(args=[category, fingerprint, text], queue="meta", retry=False)
+        # expires: a message only reached after a crash (prefetched, redelivered after the
+        # visibility timeout) is discarded rather than sent hours late (review round 6).
+        send_alert.apply_async(
+            args=[category, fingerprint, text],
+            queue="meta",
+            retry=False,
+            expires=ALERT_TASK_EXPIRES_SECONDS,
+        )
     except Exception as exc:
         logger.warning("alerts: could not enqueue %s alert (%s)", category, type(exc).__name__)
 
@@ -430,6 +439,10 @@ class Watchdog:
         from app.services import app_settings
 
         now = datetime.now(timezone.utc)
+        # The open-trip marker is read *before* the breaker state (review round 6): a marker
+        # set after the DB read belongs to a newer trip, which a stale `released` must never
+        # be paired with. Compare-and-delete below then covers read -> delete.
+        open_trip = _redis().get(BREAKER_OPEN_KEY)
         # Everything the checks need is read first and the session closed *before* any
         # send: a send can hang for a while (per-phase timeouts, unbounded DNS), and an
         # open transaction would hold AccessShare locks a deploy's migrate would queue on.
@@ -446,7 +459,6 @@ class Watchdog:
                 )
             db.commit()
 
-        open_trip = _redis().get(BREAKER_OPEN_KEY)
         # Compare-and-delete: an escalation marked between the read and the delete is a
         # newer trip, whose own release must still be announced later.
         if open_trip is not None and released and _delete_if_equals(BREAKER_OPEN_KEY, open_trip):

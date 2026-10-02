@@ -123,7 +123,15 @@ def test_enqueue_goes_to_meta_without_broker_retry(configured, monkeypatch):
     called = []
     monkeypatch.setattr(alert_tasks.send_alert, "apply_async", lambda *a, **k: called.append(k))
     alerts.enqueue(alerts.CATEGORY_LIBRARY, "fp", "text")
-    assert called == [{"args": ["library", "fp", "text"], "queue": "meta", "retry": False}]
+    assert called == [
+        {
+            "args": ["library", "fp", "text"],
+            "queue": "meta",
+            "retry": False,
+            "expires": alerts.ALERT_TASK_EXPIRES_SECONDS,
+        }
+    ]
+    assert alert_tasks.send_alert.acks_late is False
 
 
 def test_enqueue_redacts_before_the_text_reaches_the_broker(configured, monkeypatch):

@@ -10,7 +10,10 @@ logger = logging.getLogger(__name__)
 _FALLBACK_COOLDOWN_SECONDS = 60 * 60
 
 
-@celery_app.task(name="app.tasks.alerts.send_alert", ignore_result=True)
+# acks_late=False, overriding celery_app's global True: an alert is fire and forget, so a
+# worker crash mid-send drops it rather than redelivering it (hours later, after the
+# visibility timeout, and possibly a second time once its cooldown has lapsed).
+@celery_app.task(name="app.tasks.alerts.send_alert", ignore_result=True, acks_late=False)
 def send_alert(category: str, fingerprint: str, text: str) -> None:
     """v36: the one place an enqueued alert is actually sent (worker-meta, `meta` queue).
     Never retried and never raises: alerts.deliver logs a failure once and drops it."""
