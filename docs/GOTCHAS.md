@@ -246,6 +246,13 @@ needed" claim — rather than silently deleted.
   same reasoning `LADDER_SECONDS`/`PACING_*_SEC` already get → *v31.1*
 
 **Celery, tasks & durability**
+- Celery's own "Task ... received/succeeded" log lines echo task *args*: anything secret-shaped
+  passed to `.delay()`/`apply_async` must be redacted before enqueue, not only where it's used
+  → *v36*
+- A thread started in a prefork worker's main process (e.g. from `worker_ready`) lives through
+  every later child fork (`worker_max_tasks_per_child`); run long-lived side loops as their own
+  process (`python -m ...`), not a thread there and not multiprocessing `spawn` (its child
+  resolved `app` from site-packages instead of the dev bind mount) → *v36*
 - Every `track_attempts` row goes through `attempts.record_attempt`: it assigns `attempt_number`
   and maintains `tracks.attempts_made`/`failure_count`. `tracks.attempt_count` is still the
   ladder's failure count, not "attempts" → *v35*
@@ -422,6 +429,10 @@ needed" claim — rather than silently deleted.
   upstream one closes incomplete)
 
 **Proxies & secrets**
+- `redact_text` lives in the stdlib-only `app/services/redaction.py` (re-exported as
+  `proxies.redact_text`); importing `proxies` pulls in spotdl (~150 MB resident) → *v36*
+- The Matrix alert token is a `SecretStr`, read only by `alerts.py` into the Authorization header;
+  the settings API exposes only `configured` → *v36*
 - Any proxy URL that is logged or persisted must go through `proxies.redact()`; spotdl's own error
   messages echo credentials → *v07*
 - `JsonFormatter` adds an independent regex redaction pass as a safety net, not a replacement for
@@ -4381,3 +4392,64 @@ independently-found production bug from the same conversation)
   `download_track` reads `track.song_json` right after the `downloading` commit, which opens a
   transaction that stays idle for the whole download (the completed row's `updated_at`, which is
   Postgres `now()`, shows the download's *start* time).
+
+### v36 alerting gotchas
+
+- **Design: where each alert is noticed.** Breaker trip/escalation is queued at the trip point
+  (`retry.maybe_trip_breaker`) on the session's `info` and enqueued from a global `after_commit`
+  listener (dropped on `after_rollback`), so a trip that never committed is never announced. It
+  goes to `send_alert` on the `meta` queue with `retry=False`. Release, failure spike and beat
+  stale are checked by the **watchdog**, a separate process (`python -m
+  app.services.alert_watchdog`) that worker-meta starts from `worker_ready` when
+  `RUN_ALERT_WATCHDOG=true`, every 60s. Library sweep results are enqueued from `sort_library`.
+- **Beat-stale: the recorded choice.** The watchdog is not beat-scheduled, because beat is the thing
+  it watches. Beat's heartbeat (`spotdl:beat:heartbeat`) is written at the start of every
+  `dispatch_due_tracks` run, so strictly it proves "beat scheduled *and* worker-meta ran the tick".
+  Both of worker-meta's slots stuck for longer than the threshold (default 180s) also reads as
+  "beat looks dead". That's still a real dispatch outage, just mislabelled. Each `send_alert` is
+  bounded at 10s per connect/read phase, so it can't do that on its own short of a burst.
+- **Why a process, not a thread (review round 1).** The first version was a daemon thread in
+  worker-meta's main process. That process forks a new prefork child every 50 tasks, and a fork
+  taken while the thread held a lock (logging, psycopg, ssl) could leave that child deadlocked: one
+  of beat's two dispatch slots. multiprocessing `spawn` was tried next and failed live in dev: its
+  child unpickled `app.services.alerts` from the image's site-packages copy, not the
+  `./backend/app` bind mount (`AttributeError: Can't get attribute '_watchdog_main'`). `python -m`
+  with cwd `/app` resolves `/app/app` first, in dev and prod alike. The child exits once it's
+  reparented (worker-meta gone). It imports config/models/app_settings only: **~89 MB resident**,
+  measured, against ~220 MB for a worker-meta child. That's why `redact_text` moved out of
+  `proxies.py`.
+- **Redaction twice.** `alerts.enqueue` redacts before the text reaches the broker, and
+  `format_body` redacts again before the PUT. Found by v36's real-stack check: the room copy was
+  already clean, but Celery's "Task received" line logged the raw credentialed URL from the task
+  args. Unit tests that only inspected the sent body couldn't see it.
+- **Cooldown = Redis `SET NX EX` per `(category, fingerprint)`, claimed before sending.** Two
+  workers can't double-send, a worker-meta restart doesn't re-fire inside the window (verified
+  live), and a failed send isn't retried inside the window ("logged once and dropped"). If Redis is
+  down the alert is dropped rather than risk a duplicate. Fingerprints: `trip:<step>`, `release`,
+  the spiking `error_type`, `stale`, and the library sweep's `finished_at`, which is unique per
+  run, so sweep reports are never suppressed.
+- **Release only for a trip the room heard about.** `spotdl:alerts:breaker_open` is set only when a
+  trip alert was actually *sent* (not suppressed, toggled off, or failed), and release also waits
+  for a manual pause to end (review round 1).
+- **Spike excludes `lookup`.** "Not found" is terminal and about the track. A playlist of
+  unavailable tracks fails them back to back, which isn't YouTube changing (review round 1).
+  Holds, skips and cancels never touched the network, so they neither break nor extend a run. A
+  reclaimed-stuck `failed` row (no error_type) breaks one.
+- **Real-stack trigger used for the spike/breaker:** `YOUTUBE_PLAYER_CLIENTS=android_vr` (v31.1's
+  blocked client) still fails today as `no_output`, which feeds the breaker. It tripped at the
+  default threshold of 5 with no code change. Dev's short `LADDER_SECONDS` makes the retries
+  immediate, so watch the count. The local `.env` had no `YOUTUBE_PLAYER_CLIENTS` line at all: a
+  `sed` that "changed" it silently did nothing. Check the value inside the container
+  (`get_settings()`), never the file.
+- **Category 5 (worker down) skipped, by the plan's own rule.** No existing signal says "worker-dl
+  stopped consuming". QUEUED tracks' `updated_at` is reset every `STALE_TRACK_AFTER_SECONDS` by
+  beat's reclaim. `track_attempts.finished_at` going quiet is indistinguishable from an idle
+  queue. Telling the two apart needs new state (a "backlog since" marker), which is more than the
+  plan allows for this optional item. Beat's reclaim already records `held` "reclaimed: still
+  queued" rows, which is where a dead worker-dl shows today.
+- **Non-admin `/settings` already shows "Admin access required" per panel.** The new Alerts panel
+  does the same as the existing Output/Library panels (the page itself isn't admin-gated). The
+  settings redesign is v42.
+- **Test-alert is 404 for a non-admin, per the plan.** Every other admin-only route answers 403
+  (`require_admin`). The alert settings GET/PATCH keep 403 to match their siblings.
+
