@@ -83,7 +83,7 @@ Diff your existing `.env` against `.env.example` and add whatever's new for v12:
 |---|---|
 | `FRONTEND_ORIGINS` | `https://spotdl.vb2007.hu` (see §4 below — same-origin in prod, but still worth setting correctly as the fallback allowlist) |
 | `DOWNLOADS_DIR` | A real host path, e.g. `/home/vb2007/spotdl` (this host's actual value) — read only by `docker-compose.prod.yml`, see §3 |
-| `LIBRARY_DIR` (v28) | A real host path for the actual music library `worker-meta`'s sort & move sweep writes into and `web` serves file downloads from read-only — e.g. `/mnt/raid1/media/music` (this host's actual value). `docker-compose.prod.yml`'s `${LIBRARY_DIR:?...}` crash-loops the stack at `up` time if this is unset, by design. See the new "Set up the library directory" step below §3 |
+| `LIBRARY_DIR` (v28) | A real host path for the actual music library the sort & move sweep (on `worker-expand` since v34.1; `worker-meta` mounts it too, for `reconcile_disk`) writes into and `web` serves file downloads from read-only — e.g. `/mnt/raid1/media/music` (this host's actual value). `docker-compose.prod.yml`'s `${LIBRARY_DIR:?...}` crash-loops the stack at `up` time if this is unset, by design. See the new "Set up the library directory" step below §3 |
 | `STALE_TRACK_AFTER_SECONDS` | Leave at the `.env.example` default (`1800`) for real production use — see §7's restart-survival test for why you might *temporarily* lower it during verification |
 
 **No longer needed:** a `frontend/.env` file, and a manual `alembic upgrade head` step —
@@ -92,7 +92,7 @@ an earlier version, it's harmless but no longer read by anything; safe to delete
 
 ### 3. Migrate the downloads directory (one-time, before first boot with the new bind mount)
 
-`docker-compose.prod.yml` switches `worker-dl`/`worker-meta`'s `/downloads` mount from the
+`docker-compose.prod.yml` switches `worker-dl`/`worker-meta`/`worker-expand`'s `/downloads` mount from the
 base file's Docker-managed named volume to a real host directory — so downloaded files
 are directly browsable/backup-able and survive `docker compose down -v`. This must happen
 **before** the first `up` against the new compose files, or `reconcile_disk()` will find
@@ -123,8 +123,8 @@ than chown the directory, rebuild with `--build-arg APP_UID=<uid> --build-arg
 APP_GID=<gid>` instead — see step 4's build command.
 
 **`LIBRARY_DIR` (v28)** is a separate, second bind mount — the real music library
-(`docker-compose.prod.yml` maps it to `/mnt/raid1/media/music` in `worker-meta` read-write and
-`web` read-only) that the admin-only sort & move sweep moves completed downloads into. Unlike
+(`docker-compose.prod.yml` maps it to `/mnt/raid1/media/music` in `worker-meta` and `worker-expand`
+read-write and `web` read-only) that the admin-only sort & move sweep moves completed downloads into. Unlike
 `DOWNLOADS_DIR`, there's no one-time volume migration here — it's your existing library directory,
 set once in `.env`. It still needs the same uid 1000 write access, or the sweep's `copy_verify`
 fails every row with a permission error:
@@ -847,7 +847,7 @@ Vaultwarden) that can't be rebooted just to verify this app's restart survival.
 | `api`/`worker-dl`/`worker-meta` crash-loop with `PermissionError: [Errno 13] Permission denied: '/home/spotdl'` | Rebuilt the backend image without `--create-home` (v12's non-root user needs a real home directory — `import spotdl` creates a `~/.spotdl` cache dir at *import time*) | Confirm `backend/Dockerfile`'s `useradd` line has `--create-home`, not `--no-create-home`; rebuild |
 | `worker-dl`/`worker-meta` permission-denied writing to `/downloads` | `DOWNLOADS_DIR` on the host isn't owned by uid/gid 1000 (or whatever `APP_UID`/`APP_GID` the image was built with) | `sudo chown -R 1000:1000 <DOWNLOADS_DIR>` |
 | A library sort & move sweep (v28) fails every row with a permission error | `LIBRARY_DIR` isn't owned by uid/gid 1000 the same way `DOWNLOADS_DIR` needs to be | `sudo chown -R 1000:1000 <LIBRARY_DIR>` |
-| `worker-dl`/`worker-meta` show permanently `unhealthy` right after a deploy | Healthcheck's `start_period` (90s) hasn't elapsed yet — a fresh `celery inspect ping` pays a real cold-import cost | Wait it out; only worth investigating past ~2 minutes |
+| `worker-dl`/`worker-meta`/`worker-expand` show permanently `unhealthy` right after a deploy | Healthcheck's `start_period` (90s) hasn't elapsed yet — a fresh `celery inspect ping` pays a real cold-import cost | Wait it out; only worth investigating past ~2 minutes |
 | A healthcheck referencing `$HOSTNAME` never passes | Compose interpolates `$VAR` in the compose file itself before the container sees it — needs `$$HOSTNAME` (escaped) so the container's shell expands it instead | Check `docker-compose.yml`'s worker healthchecks use `$$HOSTNAME`, not `$HOSTNAME` |
 | `GET /login` (or any non-`/` route) returns 404 through the tunnel | Stock nginx has no route for an extensionless path to a prerendered `.html` file | Confirm `frontend/nginx.conf`'s explicit `location = /login { try_files /login.html =404; }` block is actually in the built image (`docker compose exec web cat /etc/nginx/conf.d/default.conf`) |
 | `docker compose` command not found | compose plugin missing | re-run the one-time setup's step 4 |

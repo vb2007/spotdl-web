@@ -81,3 +81,16 @@ def test_expand_delegates_to_get_simple_songs(monkeypatch):
         "use_ytm_data": False,
         "playlist_numbering": False,
     }
+
+
+def test_expand_turns_a_spotify_not_found_keyerror_into_a_readable_error(monkeypatch):
+    monkeypatch.setattr(expansion, "_ensure_spotify_client", lambda: None)
+
+    def fake_get_simple_songs(*args, **kwargs):
+        raise KeyError("discography")
+
+    monkeypatch.setattr(expansion, "get_simple_songs", fake_get_simple_songs)
+
+    with pytest.raises(ValueError, match="Spotify returned an empty or unexpected response for this link") as info:
+        expansion.expand("https://open.spotify.com/artist/doesnotexist")
+    assert "discography" in str(info.value)

@@ -150,7 +150,7 @@ pruned a real production `downloaded_tracks` row, because the file it pointed at
 the deployed instance's own downloads volume (`docs/GOTCHAS.md`'s v31 and v32 sections).
 
 **Enforced, not advised.** `docker-compose.override.yml` (dev only) sets `SPOTDL_ENV=dev` on every
-backend service: `api`, `migrate`, `worker-dl`, `worker-meta` and `beat`. `app/config.py` then
+backend service: `api`, `migrate`, `worker-dl`, `worker-meta`, `worker-expand` and `beat`. `app/config.py` then
 refuses to start any of them when `DATABASE_URL` names a production database
 (`PRODUCTION_DATABASE_NAMES`: `spotdlweb`, plus `spotdl_web`, the name `.env.example` documents),
 and also when the database name can't be determined at all: an unparseable URL, or no database in
@@ -189,7 +189,7 @@ database starts empty on purpose, and nothing from production is copied in.
 with the app services stopped so nothing writes mid-migration:
 
 ```bash
-docker compose stop api worker-meta worker-dl beat
+docker compose stop api worker-meta worker-expand worker-dl beat
 docker compose run --rm --no-deps migrate sh -c "alembic downgrade base && alembic upgrade head"
 docker compose up -d
 ```

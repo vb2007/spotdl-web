@@ -289,3 +289,17 @@ here rather than edited into it, so the original record stays readable.
   of `.last-good`, the rollback now falls back to the pre-deploy commit + tag if that knows the
   schema. `.last-good` semantics (Task 3) are unchanged. CLAUDE.md's Rollback locked decision was
   edited to match.
+- **2026-10-02, v34.1 + v34.2 (inserted after v34 merged, owner-directed): close every v34
+  "Found, not fixed" item now rather than defer it.** Two patch slices, in order.
+  **v34.1** (`dev-expansion-fixes`, `4.34.1`, backend): a job cancelled during expansion stays
+  `cancelled` (the failure path used to overwrite it with `failed`); a readable error for a
+  Spotify link that doesn't exist (v34's "artist expansion is broken" was a wrong test id that
+  Spotify itself 404s; real discographies expand fine); long expansions get their own `expand`
+  queue and a new `worker-expand` service (owner-approved, `--autoscale=2,1` for a bursty
+  workload), since two concurrent discographies were measured to starve beat's 30s dispatch on
+  `worker-meta`; Celery's Redis `visibility_timeout` 1h → 6h (owner-approved) so a >1h task isn't
+  redelivered and run twice. **v34.2** (`4.34.2`, frontend/dev/CI): live progress kept across a
+  refresh via localStorage (owner's design; progress is never stored server-side), the Vite dev
+  proxy closing dead SSE streams, the double `reload()` on load/scope switch, filter changes no
+  longer re-hydrating, the "3 of 2" count, the dev `STALE_TRACK_AFTER_SECONDS` default, and
+  `npm run test:unit` in CI.

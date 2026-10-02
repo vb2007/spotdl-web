@@ -243,6 +243,12 @@ needed" claim — rather than silently deleted.
   same reasoning `LADDER_SECONDS`/`PACING_*_SEC` already get → *v31.1*
 
 **Celery, tasks & durability**
+- `expand_job`/`sort_library` run for minutes (a discography is ~90–130s of Spotify round trips);
+  on `worker-meta`'s shared 2-slot `meta` queue two of them starved beat's 30s dispatch. They
+  have their own `expand` queue and `worker-expand` service since v34.1 → *v34.1*
+- Celery's Redis `visibility_timeout` must exceed the longest task: with `acks_late` a task still
+  running when it expires is redelivered and runs *concurrently* a second time (6h since v34.1)
+  → *v34.1*
 - `record_failure` computes the ladder delay **before** incrementing `attempt_count`; reversing it
   skips the first rung → *v06*
 - Only real `AudioProviderError`s feed the circuit breaker; the "other" bucket shares the ladder but
@@ -4173,3 +4179,65 @@ independently-found production bug from the same conversation)
   attempts included). Reproducing download-shaped bugs needs a few tracks each. Reuse a long
   track, or hold a `downloading` snapshot with Playwright's `route.fetch()`, rather than
   submitting fresh tracks per run; don't release the breaker to keep testing.
+
+### v34.1 expansion-fixes gotchas
+
+- **A spotdl `KeyError` during expansion usually means Spotify answered `NotFound`.** spotdl
+  4.5.2 uses SpotipyFree (scraping Spotify's private `api-partner.spotify.com/pathfinder`
+  GraphQL via `spotapi`), not the official Web API, unless `use_official_api=True`. It indexes
+  straight into the response, so a nonexistent id raises `KeyError('discography')` (artist) or
+  `KeyError('uri')` (track). v34 misread the artist case as "artist expansion is broken". The
+  id it used, `06HL4z0CvFAxyc27GsvL7h`, is a 404 on open.spotify.com itself; Nirvana
+  (`6olE6TJLqED3rqDCT0FyPh`) expanded to 535 songs. **Check a failing id against
+  `https://open.spotify.com/oembed?url=…` before concluding the integration broke.**
+  `expansion.expand()` now re-raises these as a readable `ValueError`.
+- **Measured expansion cost:** Nirvana 535 songs in 88.9–90.7s, Pink Floyd 392 songs in
+  126.6–129.0s. That's minutes of a Celery slot per discography. With both on `worker-meta`
+  (`--concurrency=2`), three 30s `dispatch_due_tracks` ticks sat `received` until the first
+  finished. On `worker-expand` the dispatch cadence stayed at exactly 30s throughout.
+- **`worker-expand --autoscale=2,1` memory:** 237 MiB idle (one child), 653 MiB peak with two
+  concurrent discographies, under the 768M prod limit. A third concurrent expansion queues
+  behind the first two. A quick single-track job submitted during two artist archives waits
+  for a free slot, which is the cost of not paying for a third child's memory all the time.
+- **`worker-meta` keeps its library mount** even though the sort sweep moved off it:
+  `reconcile_disk()` (boot) checks ledger rows that point into the library. Without the mount
+  its per-root guard skips them as "root looks unmounted" (safe, not a mass prune; an earlier
+  draft of this entry claimed otherwise), but a genuinely deleted library file would then never
+  be pruned and never re-download. **And the two now run concurrently** (a
+  deploy recreates both mid-sweep): `reconcile_disk()` could read a row's old `/downloads` path,
+  the sweep commit the repoint and unlink the source, and the check then find the old path missing
+  and delete the freshly moved row. Since the sweep always commits before it unlinks,
+  `reconcile_disk()` now re-reads a row (`db.refresh`) and re-checks its current path before
+  pruning it. Found by blind review.
+- **`expand_job` used to overwrite a mid-expansion cancel with `failed`** on its failure path
+  (the success path was already a conditional UPDATE). Both are conditional now. A job cancelled
+  before its task even starts is skipped without any Spotify calls (live: `is cancelled, not
+  expanding; skipping`, 0.003s).
+
+- **Every recovery path for `pending` tracks risks a duplicate message, so `download_track`
+  drops a message whose track is `waiting`/`lookup_failed`** (no attempt row, no event). Only
+  `pending` (expand_job), `queued` (beat) and a crash-redelivered `downloading` are legitimate.
+  expand_job re-enqueues a job's still-`pending` tracks on an `EXPANDED` redelivery, or when
+  something raised after its EXPANDED commit, because nothing else ever picks `pending` up. A
+  duplicate landing after the first attempt failed into the ladder would otherwise retry
+  immediately on the next rung (live check: `is waiting, not due; dropping stray message`,
+  attempt rows 1 → 1). A duplicate finding a `completed` track is v35's item (c). An overlapping
+  run of the same job (a redelivery past the visibility timeout) now rolls back its own track
+  inserts when the UPDATE finds the job already `expanded`.
+- **`cancel_job` row-locks the job (`refresh(..., with_for_update=True)`) before reading its
+  tracks.** Verified on the dev Postgres: expand_job's conditional UPDATE blocked while the lock
+  was held (`still blocked after 2s: True`), then matched 0 rows, and the job ended `cancelled`.
+  The test suite runs on SQLite, which ignores `FOR UPDATE`, so its test only pins that the lock
+  is requested.
+- **Known, not fixed: a broker error *inside* expand_job's success-path enqueue loop strands
+  the rest of that job's tracks in `pending`.** The task fails and is acked (`acks_late` acks
+  failures), so nothing redelivers it. A generic "stale pending" sweep isn't a safe fix: a
+  535-track discography's tracks legitimately sit `pending` in the broker for hours behind
+  `worker-dl --concurrency=1`, and pending messages pass `download_track`'s gate, so the sweep
+  would duplicate-dispatch them. This needs Redis to fail mid-loop. Recovery: re-send
+  `expand_job` for that job; its `EXPANDED` branch enqueues exactly the still-pending tracks.
+- **Rolling back across v34.1 strands the `expand` queue.** A pre-v34.1 compose has no
+  consumer for it, and `--remove-orphans` removes `worker-expand`. An expansion queued or
+  in flight at rollback time stays `expanding`, and a library sweep stays `running`, which
+  409s every new sweep. Recovery: roll forward, or re-send `expand_job` on the old stack (it
+  then routes to `meta`).

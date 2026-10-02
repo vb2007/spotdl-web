@@ -11,7 +11,7 @@
 # zero-config default for anyone who just clones and runs `docker compose up`).
 #
 # v21: prod now deploys published GHCR images rather than building locally — every backend-
-# based service (migrate/api/worker-dl/worker-meta/beat, via the base file's x-backend
+# based service (migrate/api/worker-dl/worker-meta/worker-expand/beat, via the base file's x-backend
 # anchor) and web get an `image:` here plus `build: !reset null` to actually remove the
 # anchor's `build: ./backend` (a bare `image:` alongside an inherited `build:` would still
 # build locally and ignore the pulled tag — Compose prefers `build` when both are present).
@@ -69,7 +69,7 @@ services:
     deploy:
       resources:
         limits:
-          # Highest of the five: spotdl + yt-dlp + an ffmpeg transcode subprocess all live
+          # Highest of the six: spotdl + yt-dlp + an ffmpeg transcode subprocess all live
           # in this one process at once during a real download.
           memory: 1536M
           cpus: "1.5"
@@ -99,11 +99,25 @@ services:
     volumes: !override
       - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads
       - ./proxies.txt:/app/proxies.txt:ro
-      # v28: the real music library this app sorts files into -- read-write, the only
-      # service that ever writes here. Matches AppSettings's library_target_dir default
+      # v28: the real music library this app sorts files into -- read-write (since v34.1
+      # the sweep that writes here runs on worker-expand, which has the same mount; this
+      # one stays for reconcile_disk). Matches AppSettings's library_target_dir default
       # (/mnt/raid1/media/music); repointing that setting to somewhere this mount
       # doesn't cover is a real footgun, same accepted tradeoff as the setting being
       # admin-editable at all (see docs/GOTCHAS.md's v28 entry).
+      - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music
+
+  worker-expand:
+    image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
+    build: !reset null
+    deploy:
+      resources:
+        limits:
+          # Same as worker-meta: at most 2 prefork children each importing spotdl/yt-dlp.
+          memory: 768M
+          cpus: "1.0"
+    volumes: !override
+      - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads
       - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music
 
   beat:

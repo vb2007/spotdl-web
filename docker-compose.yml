@@ -16,7 +16,7 @@ x-backend: &backend
       condition: service_completed_successfully
   restart: unless-stopped
   # Bounded log rotation (v12) so a multi-week unattended run can't fill the host's disk —
-  # applied identically to every service in this file (this anchor covers the five
+  # applied identically to every service in this file (this anchor covers the six
   # backend-based ones; redis/web/cloudflared repeat the same block individually since
   # they don't use this anchor).
   logging:
@@ -130,8 +130,9 @@ services:
     # children -- 8 on the production host -- each importing the heavy spotdl/yt-dlp dependency
     # tree. That reliably blew past this service's 768M prod limit and OOM-killed it (confirmed
     # live: `docker inspect` showed OOMKilled=true, exit 137, in a crash-restart loop) well
-    # before v21 ever touched this file. meta tasks (expand_job/dispatch_due_tracks/
-    # archive_due_jobs) are lightweight and don't need more than a couple of workers.
+    # before v21 ever touched this file. meta tasks (dispatch_due_tracks/archive_due_jobs;
+    # expand_job and sort_library moved to worker-expand in v34.1) are lightweight and don't
+    # need more than a couple of workers.
     command:
       [
         "celery",
@@ -161,7 +162,49 @@ services:
     volumes:
       - downloads:/downloads
       - ./proxies.txt:/app/proxies.txt:ro
-      # v28: read-write -- the only service that ever writes into the sorted library.
+      # v28: read-write. Since v34.1 the sort sweep itself runs on worker-expand (same
+      # mount); worker-meta keeps this one because its boot-time reconcile_disk() checks
+      # ledger rows that point into the library. (Without it reconcile skips those rows as
+      # "root looks unmounted" -- safe, but a genuinely deleted library file would never be
+      # pruned from the ledger, so it would never re-download.)
+      - library:/mnt/raid1/media/music
+
+  # v34.1: the two long-running task types (expand_job: a discography is minutes of Spotify
+  # round trips; sort_library: the admin sweep) on their own `expand` queue, so they can
+  # never hold worker-meta's slots while beat's 30s dispatch ticks wait behind them.
+  # --autoscale=2,1: the workload is bursty (weeks of albums/single tracks, then a run of
+  # whole-artist archives), so idle cost stays at one prefork child and a second one is
+  # added only while there's more than one expansion to run.
+  worker-expand:
+    <<: *backend
+    command:
+      [
+        "celery",
+        "-A",
+        "app.tasks.celery_app",
+        "worker",
+        "-n",
+        "worker-expand@%h",
+        "-Q",
+        "expand",
+        "--autoscale=2,1",
+        "-l",
+        "info",
+      ]
+    # A library sweep or an expansion mid-flight on `down`: same reasoning as worker-dl's.
+    stop_grace_period: 300s
+    healthcheck:
+      # Same reasoning as worker-dl's healthcheck above.
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d worker-expand@$$HOSTNAME -t 10 >/dev/null 2>&1"]
+      interval: 120s
+      timeout: 30s
+      retries: 3
+      start_period: 90s
+    volumes:
+      # sort_library reads /downloads and writes the sorted library -- the same two mounts
+      # worker-meta has (which keeps its own for reconcile_disk's boot-time checks of
+      # ledger rows that point into the library).
+      - downloads:/downloads
       - library:/mnt/raid1/media/music
 
   beat:

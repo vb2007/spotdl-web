@@ -209,8 +209,9 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
 
 @celery_app.task(name="app.tasks.library.sort_library")
 def sort_library(admin_user_id: str) -> None:
-    """Admin-triggered, on-demand sweep (v28) -- runs on worker-meta like every other
-    housekeeping task. Iterates the dedup ledger (one row per unique physical file,
+    """Admin-triggered, on-demand sweep (v28) -- runs on worker-expand's `expand` queue
+    since v34.1 (it can run for minutes; on worker-meta it held a slot beat's dispatch
+    needs). Iterates the dedup ledger (one row per unique physical file,
     never the tracks table -- multiple tracks/users can share the same downloaded_tracks
     row via dedup), skipping rows already marked in_library by a prior run.
 

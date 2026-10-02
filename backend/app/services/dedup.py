@@ -3,6 +3,8 @@
 import logging
 from pathlib import Path
 
+from sqlalchemy.exc import InvalidRequestError
+
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import DownloadedTrack
@@ -94,6 +96,25 @@ def reconcile_disk() -> None:
                 skipped += 1
                 continue
             if not path.exists():
+                # v34.1: the library sweep runs on worker-expand, concurrently with this
+                # (worker-meta boot, e.g. a deploy recreating both mid-sweep). It commits
+                # a row's repoint *before* unlinking the source, so a file missing at the
+                # path read above may just have moved: re-read the row and check its
+                # current path before deleting. Deleting on the stale path would drop a
+                # freshly moved track's ledger row and re-download it (the v3 invariant).
+                try:
+                    db.refresh(row)
+                except InvalidRequestError:
+                    continue  # row already gone
+                fresh = Path(row.file_path)
+                if fresh.exists():
+                    continue
+                # The same unmounted-root guard as above, for the path it moved *to*.
+                if (downloads_missing and fresh.is_relative_to(downloads_root)) or (
+                    library_missing and fresh.is_relative_to(library_root)
+                ):
+                    skipped += 1
+                    continue
                 db.delete(row)
                 removed += 1
         db.commit()

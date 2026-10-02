@@ -18,7 +18,7 @@ networks:
       config:
         - subnet: fd00:dead:beef::/64
 
-# v32: the dev marker, on every backend service (api, migrate, both workers, beat).
+# v32: the dev marker, on every backend service (api, migrate, all three workers, beat).
 # app/config.py refuses to start a SPOTDL_ENV=dev process whose DATABASE_URL names the
 # production database. Lives only in this file, which never applies in production, so
 # production never carries it. `environment` is a mapping, so it merges by key with
@@ -78,6 +78,13 @@ services:
       # see docs/GOTCHAS.md's v28 entry and plan/master-v3/v28-library-sort-move.md's
       # "Done when" ("verified against a copy of the library structure, never the live
       # 120k directory on the first run"). Gitignored, same as ./downloads.
+      - ./test-library:/mnt/raid1/media/music
+
+  worker-expand:
+    environment: *dev-env
+    volumes: !override
+      - ./backend/app:/app/app
+      - ./downloads:/downloads
       - ./test-library:/mnt/raid1/media/music
 
   beat:

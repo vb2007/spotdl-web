@@ -234,9 +234,9 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
 8. **Pull + up**: `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile
    tunnel pull` then `... up -d --no-build --remove-orphans`.
 9. **Health gate** — `.github/scripts/wait_for_stack_health.sh`, polling up to 420s. That budget
-   isn't arbitrary: `worker-dl`/`worker-meta`'s healthchecks have a 90s `start_period` and a 120s
+   isn't arbitrary: `worker-dl`/`worker-meta`/`worker-expand`'s healthchecks have a 90s `start_period` and a 120s
    interval, so a genuinely healthy worker can take ~3.5 minutes to even report it. Checks:
-   `redis`/`api`/`worker-dl`/`worker-meta`/`web` → `healthy`; `migrate` → `exited 0`;
+   `redis`/`api`/`worker-dl`/`worker-meta`/`worker-expand`/`web` → `healthy`; `migrate` → `exited 0`;
    `beat`/`cloudflared` (deliberately no healthcheck) → `running`; plus a direct
    `curl http://localhost:8000/api/health`. Since v33 a compose **error** (an interpolation
    failure, a bad file, no daemon) fails it immediately with exit 2, instead of reading as "not

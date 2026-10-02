@@ -241,6 +241,13 @@ def cancel_job(
     interruptible) — it's marked `cancelled` here and `download_track` discards its
     result once the blocking call returns, rather than trying to stop it mid-flight."""
     job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
+    # v34.1: row-lock the job before reading its tracks. expand_job commits EXPANDED and
+    # the new tracks in one transaction via a conditional UPDATE on this same row, so with
+    # the lock the two serialize: either that commit lands first (the query below then
+    # sees and cancels the new tracks) or this cancel does (its UPDATE then matches no
+    # row and it cancels its own tracks). Without it, a commit landing between the query
+    # and the commit below left a `cancelled` job whose tracks still downloaded.
+    db.refresh(job, with_for_update=True)
     tracks = (
         db.query(Track)
         .filter(Track.job_id == job_id, Track.state.in_(_CANCELLABLE_TRACK_STATES))

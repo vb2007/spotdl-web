@@ -368,3 +368,27 @@ def test_archived_at_is_exposed_in_the_job_response(authenticated_client, db_ses
 def test_archive_unarchive_endpoints_require_session(client):
     assert client.post("/api/jobs/archive", json={"all_settled": True}).status_code == 401
     assert client.post("/api/jobs/unarchive", json={"job_ids": []}).status_code == 401
+
+
+def test_cancel_job_row_locks_the_job_before_reading_its_tracks(authenticated_client, db_session, monkeypatch):
+    """v34.1: the FOR UPDATE is what serializes a cancel against expand_job's EXPANDED
+    commit. SQLite (this suite) ignores it, so pin that it's requested; the serialization
+    itself was verified on real Postgres (docs/GOTCHAS.md's v34.1 entry)."""
+    from sqlalchemy.orm import Session
+
+    _stub_expand_job(monkeypatch)
+    job_id = authenticated_client.post(
+        "/api/jobs", json={"url": "https://open.spotify.com/album/xyz"}
+    ).json()["id"]
+
+    locked = []
+    real_refresh = Session.refresh
+
+    def spy(self, instance, *args, **kwargs):
+        if isinstance(instance, Job) and kwargs.get("with_for_update"):
+            locked.append(instance.id)
+        return real_refresh(self, instance, *args, **kwargs)
+
+    monkeypatch.setattr(Session, "refresh", spy)
+    assert authenticated_client.delete(f"/api/jobs/{job_id}").status_code == 200
+    assert locked == [uuid.UUID(job_id)]

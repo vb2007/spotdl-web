@@ -48,4 +48,14 @@ def expand(query: str) -> list[Song]:
     """Turn a Spotify URL (track/album/playlist/artist) or a search term into Songs."""
 
     _ensure_spotify_client()
-    return get_simple_songs([query], use_ytm_data=False, playlist_numbering=False)
+    try:
+        return get_simple_songs([query], use_ytm_data=False, playlist_numbering=False)
+    except KeyError as exc:
+        # spotdl's default (scraping) Spotify client indexes straight into the response,
+        # so a link Spotify answers with `NotFound` (a mistyped or removed id) surfaces as
+        # a bare KeyError -- `'discography'` for an artist, `'uri'` for a track -- which
+        # is all the user would otherwise see as the job's error.
+        raise ValueError(
+            f"Spotify returned an empty or unexpected response for this link "
+            f"(missing {exc}); the link may not exist"
+        ) from exc

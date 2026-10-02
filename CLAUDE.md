@@ -177,8 +177,10 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
                                                 │
       ┌─────────────────────────────────────────┼──────────────────────────┐
       │                                         │                          │
-  PostgreSQL                                 Redis                 worker-meta (-Q meta)
- (host, source of truth)              (broker + pub/sub)           worker-dl  (-Q downloads,
+  PostgreSQL                                 Redis                 worker-meta (-Q meta: beat housekeeping)
+ (host, source of truth)              (broker + pub/sub)           worker-expand (-Q expand: expansion,
+      │                                         │                   library sweep; v34.1)
+      │                                         │                  worker-dl  (-Q downloads,
       │                                         │                   --concurrency=1)
       └──── scheduled_at ──── beat (dispatch_due_tracks, every 30s)
 ```
