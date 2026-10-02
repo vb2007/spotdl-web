@@ -25,7 +25,8 @@ from app.services import alerts, app_settings, retry
 from app.tasks import alerts as alert_tasks
 from app.tasks import library as library_task
 
-TOKEN = "syt_c2VjcmV0LXRva2Vu_DONOTLEAK"
+# Deliberately low-entropy and obviously fake (secret scanners flag realistic-looking ones).
+TOKEN = "test-matrix-token-not-a-secret"
 
 
 class FakeRedis:
@@ -137,7 +138,7 @@ def test_enqueue_goes_to_meta_without_broker_retry(configured, monkeypatch):
 def test_enqueue_redacts_before_the_text_reaches_the_broker(configured, monkeypatch):
     called = []
     monkeypatch.setattr(alert_tasks.send_alert, "apply_async", lambda *a, **k: called.append(k))
-    alerts.enqueue(alerts.CATEGORY_LIBRARY, "fp", "failed via http://bob:pw123@198.51.100.7:3128")
+    alerts.enqueue(alerts.CATEGORY_LIBRARY, "fp", "failed via http://user:pass@198.51.100.7:3128")
     assert called[0]["args"][2] == "failed via http://198.51.100.7:3128"
 
 
@@ -172,9 +173,9 @@ def test_each_send_uses_a_fresh_txn_id(configured, sent):
 
 
 def test_body_is_redacted_before_it_leaves_the_process(configured, sent):
-    alerts.send_now("download failed: ProxyError http://alice:hunter2@203.0.113.5:8080 refused")
+    alerts.send_now("download failed: ProxyError http://user:pass@203.0.113.5:8080 refused")
     body = sent[0]["json"]["body"]
-    assert "hunter2" not in body and "alice" not in body
+    assert "user:pass" not in body
     assert "http://203.0.113.5:8080" in body
 
 
@@ -217,7 +218,7 @@ def test_deliver_never_raises(configured, fake_redis, monkeypatch):
 
 
 def test_a_control_character_token_never_reaches_a_request_or_an_error(configured, monkeypatch):
-    bad_token = "syt_SECRETPART\ntail"
+    bad_token = "fake-token-PART\ntail"
     bad = configured.model_copy(update={"matrix_access_token": SecretStr(bad_token)})
     monkeypatch.setattr(alerts, "get_settings", lambda: bad)
     calls = []
@@ -225,7 +226,7 @@ def test_a_control_character_token_never_reaches_a_request_or_an_error(configure
     with pytest.raises(alerts.AlertSendError) as excinfo:
         alerts.send_now("x")
     assert calls == []
-    assert "SECRETPART" not in str(excinfo.value)
+    assert "PART" not in str(excinfo.value)
 
 
 def test_protocol_errors_report_the_class_name_only(configured, monkeypatch):
