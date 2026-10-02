@@ -984,7 +984,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_app_settings",
-      "community": 29,
+      "community": 162,
       "norm_label": "app_settings.py"
     },
     {
@@ -1014,7 +1014,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 163,
+      "community": 162,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -1374,7 +1374,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_worker_state",
-      "community": 7,
+      "community": 162,
       "norm_label": "worker_state.py"
     },
     {
@@ -1414,7 +1414,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_auth",
-      "community": 32,
+      "community": 2,
       "norm_label": "auth.py"
     },
     {
@@ -1424,7 +1424,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_routers_auth_loginrequest",
-      "community": 32,
+      "community": 2,
       "norm_label": "loginrequest"
     },
     {
@@ -1464,7 +1464,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_auth_py_session",
-      "community": 32,
+      "community": 2,
       "norm_label": "session"
     },
     {
@@ -1474,7 +1474,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_routers_auth_require_session",
-      "community": 32,
+      "community": 2,
       "norm_label": "require_session()"
     },
     {
@@ -1484,7 +1484,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "backend_app_routers_auth_require_admin",
-      "community": 32,
+      "community": 2,
       "norm_label": "require_admin()"
     },
     {
@@ -1504,7 +1504,7 @@
       "source_location": "L97",
       "_origin": "ast",
       "id": "backend_app_routers_auth_set_session_cookie",
-      "community": 32,
+      "community": 2,
       "norm_label": "_set_session_cookie()"
     },
     {
@@ -1514,7 +1514,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_auth_py_response",
-      "community": 32,
+      "community": 2,
       "norm_label": "response"
     },
     {
@@ -1524,7 +1524,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_app_routers_auth_login",
-      "community": 32,
+      "community": 2,
       "norm_label": "login()"
     },
     {
@@ -1534,7 +1534,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "backend_app_routers_auth_logout",
-      "community": 32,
+      "community": 2,
       "norm_label": "logout()"
     },
     {
@@ -1544,7 +1544,7 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "backend_app_routers_auth_me",
-      "community": 32,
+      "community": 2,
       "norm_label": "me()"
     },
     {
@@ -1554,7 +1554,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_app_routers_auth_rationale_40",
-      "community": 32,
+      "community": 2,
       "norm_label": "every owner-scoped route depends on this, not `current_session` directly --"
     },
     {
@@ -2274,7 +2274,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_stream",
-      "community": 148,
+      "community": 1,
       "norm_label": "stream.py"
     },
     {
@@ -2284,7 +2284,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_app_routers_stream_event_stream",
-      "community": 148,
+      "community": 1,
       "norm_label": "_event_stream()"
     },
     {
@@ -2294,7 +2294,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_stream_py_request",
-      "community": 148,
+      "community": 1,
       "norm_label": "request"
     },
     {
@@ -2304,7 +2304,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_app_routers_stream_stream",
-      "community": 148,
+      "community": 1,
       "norm_label": "stream()"
     },
     {
@@ -2314,7 +2314,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "streamingresponse",
-      "community": 148,
+      "community": 1,
       "norm_label": "streamingresponse"
     },
     {
@@ -3114,7 +3114,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_events",
-      "community": 152,
+      "community": 32,
       "norm_label": "events.py"
     },
     {
@@ -3124,7 +3124,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_app_services_events_channel_for",
-      "community": 152,
+      "community": 32,
       "norm_label": "channel_for()"
     },
     {
@@ -3134,7 +3134,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_events_py_any",
-      "community": 152,
+      "community": 32,
       "norm_label": "any"
     },
     {
@@ -3144,7 +3144,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "backend_app_services_events_get_client",
-      "community": 152,
+      "community": 32,
       "norm_label": "_get_client()"
     },
     {
@@ -3154,7 +3154,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "redis",
-      "community": 152,
+      "community": 32,
       "norm_label": "redis"
     },
     {
@@ -3164,7 +3164,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_app_services_events_publish",
-      "community": 152,
+      "community": 32,
       "norm_label": "publish()"
     },
     {
@@ -3174,7 +3174,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_events_py_uuid",
-      "community": 152,
+      "community": 32,
       "norm_label": "uuid"
     },
     {
@@ -3184,7 +3184,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "backend_app_services_events_publish_track_event",
-      "community": 152,
+      "community": 32,
       "norm_label": "publish_track_event()"
     },
     {
@@ -3194,7 +3194,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_events_py_datetime",
-      "community": 152,
+      "community": 32,
       "norm_label": "datetime"
     },
     {
@@ -3204,7 +3204,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "backend_app_services_events_publish_job_event",
-      "community": 152,
+      "community": 32,
       "norm_label": "publish_job_event()"
     },
     {
@@ -3214,7 +3214,7 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "backend_app_services_events_publish_library_progress",
-      "community": 152,
+      "community": 32,
       "norm_label": "publish_library_progress()"
     },
     {
@@ -3224,7 +3224,7 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "backend_app_services_events_make_progress_callback",
-      "community": 152,
+      "community": 32,
       "norm_label": "make_progress_callback()"
     },
     {
@@ -3234,7 +3234,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_events_rationale_1",
-      "community": 152,
+      "community": 32,
       "norm_label": "redis pub/sub event bus for live progress.  publishers (celery tasks) are plain"
     },
     {
@@ -3244,7 +3244,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "backend_app_services_events_rationale_50",
-      "community": 152,
+      "community": 32,
       "norm_label": "best-effort \u2014 a redis hiccup must never fail the download/expand task calling"
     },
     {
@@ -3254,7 +3254,7 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "backend_app_services_events_rationale_131",
-      "community": 152,
+      "community": 32,
       "norm_label": "v28: library sort & move progress, published only to the admin who triggered the"
     },
     {
@@ -3264,7 +3264,7 @@
       "source_location": "L157",
       "_origin": "ast",
       "id": "backend_app_services_events_rationale_157",
-      "community": 152,
+      "community": 32,
       "norm_label": "returns a callback for spotdl's `progresshandler.update_callback` hook \u2014 every"
     },
     {
@@ -5398,14 +5398,44 @@
       "norm_label": "expand.py"
     },
     {
+      "label": "_enqueue_pending_tracks()",
+      "file_type": "code",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "backend_app_tasks_expand_enqueue_pending_tracks",
+      "community": 131,
+      "norm_label": "_enqueue_pending_tracks()"
+    },
+    {
+      "label": "Job",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "backend_app_tasks_expand_py_job",
+      "community": 131,
+      "norm_label": "job"
+    },
+    {
       "label": "expand_job()",
       "file_type": "code",
       "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L17",
+      "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
       "community": 131,
       "norm_label": "expand_job()"
+    },
+    {
+      "label": "Enqueues `job`'s tracks still `pending`. For a job whose EXPANDED commit landed",
+      "file_type": "rationale",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L17",
+      "_origin": "ast",
+      "id": "backend_app_tasks_expand_rationale_17",
+      "community": 131,
+      "norm_label": "enqueues `job`'s tracks still `pending`. for a job whose expanded commit landed"
     },
     {
       "label": "library.py",
@@ -5697,7 +5727,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings",
-      "community": 29,
+      "community": 170,
       "norm_label": "test_app_settings.py"
     },
     {
@@ -5707,7 +5737,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_fakesettings",
-      "community": 29,
+      "community": 170,
       "norm_label": "_fakesettings"
     },
     {
@@ -5717,7 +5747,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_creates_row_seeded_from_env",
-      "community": 29,
+      "community": 170,
       "norm_label": "test_get_output_settings_creates_row_seeded_from_env()"
     },
     {
@@ -5727,7 +5757,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_returns_existing_row_without_reseeding",
-      "community": 29,
+      "community": 170,
       "norm_label": "test_get_output_settings_returns_existing_row_without_reseeding()"
     },
     {
@@ -5737,7 +5767,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_only_touches_given_fields",
-      "community": 29,
+      "community": 170,
       "norm_label": "test_update_output_settings_only_touches_given_fields()"
     },
     {
@@ -5747,7 +5777,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_creates_row_if_missing",
-      "community": 29,
+      "community": 170,
       "norm_label": "test_update_output_settings_creates_row_if_missing()"
     },
     {
@@ -5757,7 +5787,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_library_settings_creates_row_seeded_with_defaults",
-      "community": 29,
+      "community": 170,
       "norm_label": "test_get_library_settings_creates_row_seeded_with_defaults()"
     },
     {
@@ -5767,7 +5797,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_library_settings_and_output_settings_share_one_row",
-      "community": 29,
+      "community": 170,
       "norm_label": "test_get_library_settings_and_output_settings_share_one_row()"
     },
     {
@@ -5777,7 +5807,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_library_settings_only_touches_given_fields",
-      "community": 29,
+      "community": 170,
       "norm_label": "test_update_library_settings_only_touches_given_fields()"
     },
     {
@@ -6641,6 +6671,16 @@
       "norm_label": "test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check()"
     },
     {
+      "label": "test_reconcile_disk_recheck_respects_the_unmounted_root_guard()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L262",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
+      "community": 163,
+      "norm_label": "test_reconcile_disk_recheck_respects_the_unmounted_root_guard()"
+    },
+    {
       "label": "Wraps db_session so dedup's db.close() doesn't detach objects the test still",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
@@ -6689,6 +6729,16 @@
       "id": "backend_tests_test_dedup_rationale_211",
       "community": 163,
       "norm_label": "v34.1: the sweep (worker-expand) can run concurrently with reconcile_disk     (w"
+    },
+    {
+      "label": "v34.1: a row repointed mid-check into a library root that looks unmounted on thi",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L263",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_rationale_263",
+      "community": 163,
+      "norm_label": "v34.1: a row repointed mid-check into a library root that looks unmounted on thi"
     },
     {
       "label": "test_download_task.py",
@@ -6964,7 +7014,7 @@
       "label": "test_download_track_unknown_track_is_a_noop()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L526",
+      "source_location": "L530",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
       "community": 3,
@@ -6974,7 +7024,7 @@
       "label": "test_download_track_first_attempt_never_touches_proxy_pool()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L532",
+      "source_location": "L536",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
       "community": 3,
@@ -6984,7 +7034,7 @@
       "label": "test_download_track_second_attempt_forces_ipv6_never_touches_proxy_pool()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L567",
+      "source_location": "L571",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_second_attempt_forces_ipv6_never_touches_proxy_pool",
       "community": 3,
@@ -6994,7 +7044,7 @@
       "label": "test_download_track_retry_picks_proxy_and_records_success()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L608",
+      "source_location": "L612",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
       "community": 3,
@@ -7004,7 +7054,7 @@
       "label": "test_download_track_retry_proxy_failure_sets_cooldown()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L653",
+      "source_location": "L657",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "community": 3,
@@ -7014,7 +7064,7 @@
       "label": "test_download_track_retry_failure_redacts_proxy_credentials_from_last_error()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L687",
+      "source_location": "L691",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "community": 3,
@@ -7024,7 +7074,7 @@
       "label": "test_download_track_skips_entirely_when_already_cancelled()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L720",
+      "source_location": "L724",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
       "community": 3,
@@ -7034,7 +7084,7 @@
       "label": "test_download_track_discards_success_when_cancelled_mid_download()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L741",
+      "source_location": "L745",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "community": 3,
@@ -7044,7 +7094,7 @@
       "label": "test_download_track_discards_failure_when_cancelled_mid_download()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L781",
+      "source_location": "L785",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "community": 3,
@@ -7054,7 +7104,7 @@
       "label": "test_download_track_retry_falls_back_to_direct_when_no_proxy_available()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L818",
+      "source_location": "L822",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "community": 3,
@@ -7064,7 +7114,7 @@
       "label": "test_pacing_delay_is_zero_when_unconfigured()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L856",
+      "source_location": "L860",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_pacing_delay_is_zero_when_unconfigured",
       "community": 3,
@@ -7074,7 +7124,7 @@
       "label": "test_pacing_delay_samples_inside_the_configured_window()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L868",
+      "source_location": "L872",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_pacing_delay_samples_inside_the_configured_window",
       "community": 3,
@@ -7084,7 +7134,7 @@
       "label": "test_download_track_sleeps_before_the_attempt_when_pacing_configured()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L881",
+      "source_location": "L885",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
       "community": 3,
@@ -7094,7 +7144,7 @@
       "label": "test_download_track_does_not_pace_a_skipped_duplicate()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L916",
+      "source_location": "L920",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
       "community": 3,
@@ -7104,11 +7154,21 @@
       "label": "test_download_track_cancelled_during_pacing_wait_skips_download()",
       "file_type": "code",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L938",
+      "source_location": "L942",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
       "community": 3,
       "norm_label": "test_download_track_cancelled_during_pacing_wait_skips_download()"
+    },
+    {
+      "label": "test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L973",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped",
+      "community": 3,
+      "norm_label": "test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped()"
     },
     {
       "label": "Wraps db_session so download_track's db.close() doesn't detach objects the test",
@@ -7174,9 +7234,9 @@
       "label": "The regression guard for the drift itself -- PACING_MAX_SEC=0 (the default) must",
       "file_type": "rationale",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L857",
+      "source_location": "L861",
       "_origin": "ast",
-      "id": "backend_tests_test_download_task_rationale_857",
+      "id": "backend_tests_test_download_task_rationale_861",
       "community": 3,
       "norm_label": "the regression guard for the drift itself -- pacing_max_sec=0 (the default) must"
     },
@@ -7184,11 +7244,21 @@
       "label": "The placement guard from the plan: a track that never touches the network must",
       "file_type": "rationale",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L917",
+      "source_location": "L921",
       "_origin": "ast",
-      "id": "backend_tests_test_download_task_rationale_917",
+      "id": "backend_tests_test_download_task_rationale_921",
       "community": 3,
       "norm_label": "the placement guard from the plan: a track that never touches the network must"
+    },
+    {
+      "label": "v34.1: only `pending`/`queued` (or a crash-redelivered `downloading`) track is e",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L974",
+      "_origin": "ast",
+      "id": "backend_tests_test_download_task_rationale_974",
+      "community": 3,
+      "norm_label": "v34.1: only `pending`/`queued` (or a crash-redelivered `downloading`) track is e"
     },
     {
       "label": "test_downloads.py",
@@ -7407,7 +7477,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_events",
-      "community": 152,
+      "community": 148,
       "norm_label": "test_events.py"
     },
     {
@@ -7417,7 +7487,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_events_fakesongtracker",
-      "community": 152,
+      "community": 148,
       "norm_label": "_fakesongtracker"
     },
     {
@@ -7427,7 +7497,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_tests_test_events_fakesongtracker_init",
-      "community": 152,
+      "community": 148,
       "norm_label": ".__init__()"
     },
     {
@@ -7437,7 +7507,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_minimal_shape",
-      "community": 152,
+      "community": 148,
       "norm_label": "test_publish_track_event_minimal_shape()"
     },
     {
@@ -7447,7 +7517,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_includes_optional_fields",
-      "community": 152,
+      "community": 148,
       "norm_label": "test_publish_track_event_includes_optional_fields()"
     },
     {
@@ -7457,7 +7527,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_omits_metadata_when_not_given",
-      "community": 152,
+      "community": 148,
       "norm_label": "test_publish_track_event_omits_metadata_when_not_given()"
     },
     {
@@ -7467,7 +7537,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_job_event_shape",
-      "community": 152,
+      "community": 148,
       "norm_label": "test_publish_job_event_shape()"
     },
     {
@@ -7477,7 +7547,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_make_progress_callback_publishes_downloading_progress",
-      "community": 152,
+      "community": 148,
       "norm_label": "test_make_progress_callback_publishes_downloading_progress()"
     },
     {
@@ -7487,7 +7557,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_adds_timestamp_and_serializes_json",
-      "community": 152,
+      "community": 148,
       "norm_label": "test_publish_adds_timestamp_and_serializes_json()"
     },
     {
@@ -7497,7 +7567,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_swallows_redis_errors",
-      "community": 152,
+      "community": 148,
       "norm_label": "test_publish_swallows_redis_errors()"
     },
     {
@@ -7507,7 +7577,7 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_requires_owner",
-      "community": 152,
+      "community": 148,
       "norm_label": "test_publish_track_event_requires_owner()"
     },
     {
@@ -7517,7 +7587,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "backend_tests_test_events_rationale_50",
-      "community": 152,
+      "community": 148,
       "norm_label": "a call site with no song metadata to offer (job-level actions, tests) must not"
     },
     {
@@ -7527,7 +7597,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "backend_tests_test_events_rationale_125",
-      "community": 152,
+      "community": 148,
       "norm_label": "the whole enforcement mechanism (v17): a call site that forgets the owner fails"
     },
     {
@@ -7719,6 +7789,26 @@
       "id": "backend_tests_test_expand_task_test_expand_job_redelivered_after_expanded_enqueues_only_pending_tracks",
       "community": 5,
       "norm_label": "test_expand_job_redelivered_after_expanded_enqueues_only_pending_tracks()"
+    },
+    {
+      "label": "test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L270",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job",
+      "community": 5,
+      "norm_label": "test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job()"
+    },
+    {
+      "label": "test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L297",
+      "_origin": "ast",
+      "id": "backend_tests_test_expand_task_test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks",
+      "community": 5,
+      "norm_label": "test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks()"
     },
     {
       "label": "Wraps db_session so expand_job's db.close() doesn't detach objects the test",
@@ -8221,6 +8311,16 @@
       "norm_label": "test_archive_unarchive_endpoints_require_session()"
     },
     {
+      "label": "test_cancel_job_row_locks_the_job_before_reading_its_tracks()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L373",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_test_cancel_job_row_locks_the_job_before_reading_its_tracks",
+      "community": 5,
+      "norm_label": "test_cancel_job_row_locks_the_job_before_reading_its_tracks()"
+    },
+    {
       "label": "v15's N+1 guard, extended by v18: the listing now runs a fixed small number of",
       "file_type": "rationale",
       "source_file": "backend/tests/test_jobs.py",
@@ -8249,6 +8349,16 @@
       "id": "backend_tests_test_jobs_rationale_322",
       "community": 5,
       "norm_label": "the router-level sibling of test_archive_with_job_ids_ignores_another_users_job"
+    },
+    {
+      "label": "v34.1: the FOR UPDATE is what serializes a cancel against expand_job's EXPANDED",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L374",
+      "_origin": "ast",
+      "id": "backend_tests_test_jobs_rationale_374",
+      "community": 5,
+      "norm_label": "v34.1: the for update is what serializes a cancel against expand_job's expanded"
     },
     {
       "label": "test_library.py",
@@ -8747,7 +8857,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config",
-      "community": 133,
+      "community": 152,
       "norm_label": "test_logging_config.py"
     },
     {
@@ -8757,7 +8867,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_format",
-      "community": 133,
+      "community": 152,
       "norm_label": "_format()"
     },
     {
@@ -8767,7 +8877,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "logrecord",
-      "community": 133,
+      "community": 152,
       "norm_label": "logrecord"
     },
     {
@@ -8777,7 +8887,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_make_record",
-      "community": 133,
+      "community": 152,
       "norm_label": "_make_record()"
     },
     {
@@ -8787,7 +8897,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_plain_message_passes_through_unchanged",
-      "community": 133,
+      "community": 152,
       "norm_label": "test_plain_message_passes_through_unchanged()"
     },
     {
@@ -8797,7 +8907,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_credentialed_url_in_message_is_redacted",
-      "community": 133,
+      "community": 152,
       "norm_label": "test_credentialed_url_in_message_is_redacted()"
     },
     {
@@ -8807,7 +8917,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_credentialed_url_in_exception_traceback_is_redacted",
-      "community": 133,
+      "community": 152,
       "norm_label": "test_credentialed_url_in_exception_traceback_is_redacted()"
     },
     {
@@ -8817,7 +8927,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_no_task_context_outside_a_running_task",
-      "community": 133,
+      "community": 152,
       "norm_label": "test_no_task_context_outside_a_running_task()"
     },
     {
@@ -8827,7 +8937,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_task_context_injected_when_running_inside_a_task",
-      "community": 133,
+      "community": 152,
       "norm_label": "test_task_context_injected_when_running_inside_a_task()"
     },
     {
@@ -8837,7 +8947,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_rationale_1",
-      "community": 133,
+      "community": 152,
       "norm_label": "structured json logging (v12). the one contract that matters most here: a creden"
     },
     {
@@ -10317,7 +10427,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest",
-      "community": 133,
+      "community": 152,
       "norm_label": "_fakerequest"
     },
     {
@@ -10327,7 +10437,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest_is_disconnected",
-      "community": 133,
+      "community": 152,
       "norm_label": ".is_disconnected()"
     },
     {
@@ -10927,7 +11037,7 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_test_list_track_attempts_returns_history_oldest_first_with_expected_fields",
-      "community": 144,
+      "community": 162,
       "norm_label": "test_list_track_attempts_returns_history_oldest_first_with_expected_fields()"
     },
     {
@@ -14039,7 +14149,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "docs_deployment_upgrading_an_existing_deployment_manual_fallback",
-      "community": 44,
+      "community": 181,
       "norm_label": "upgrading an existing deployment (manual fallback)"
     },
     {
@@ -14049,7 +14159,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "docs_deployment_1_pull_the_merged_code",
-      "community": 44,
+      "community": 181,
       "norm_label": "1. pull the merged code"
     },
     {
@@ -14059,7 +14169,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "docs_deployment_2_update_env",
-      "community": 44,
+      "community": 181,
       "norm_label": "2. update `.env`"
     },
     {
@@ -14069,7 +14179,7 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "docs_deployment_3_migrate_the_downloads_directory_one_time_before_first_boot_with_the_new_bind_mount",
-      "community": 44,
+      "community": 181,
       "norm_label": "3. migrate the downloads directory (one-time, before first boot with the new bind mount)"
     },
     {
@@ -14079,7 +14189,7 @@
       "source_location": "L145",
       "_origin": "ast",
       "id": "docs_deployment_4_bring_up_the_stack_with_the_production_overlay",
-      "community": 44,
+      "community": 181,
       "norm_label": "4. bring up the stack with the production overlay"
     },
     {
@@ -14089,7 +14199,7 @@
       "source_location": "L169",
       "_origin": "ast",
       "id": "docs_deployment_5_configure_the_cloudflare_tunnel_zero_trust_dashboard",
-      "community": 44,
+      "community": 181,
       "norm_label": "5. configure the cloudflare tunnel (zero trust dashboard)"
     },
     {
@@ -14099,7 +14209,7 @@
       "source_location": "L195",
       "_origin": "ast",
       "id": "docs_deployment_6_verify",
-      "community": 44,
+      "community": 181,
       "norm_label": "6. verify"
     },
     {
@@ -14139,7 +14249,7 @@
       "source_location": "L461",
       "_origin": "ast",
       "id": "docs_deployment_one_time_host_setup_already_done_on_this_host_kept_for_reference",
-      "community": 44,
+      "community": 180,
       "norm_label": "one-time host setup (already done on this host \u2014 kept for reference)"
     },
     {
@@ -14149,7 +14259,7 @@
       "source_location": "L463",
       "_origin": "ast",
       "id": "docs_deployment_1_install_postgresql_host_native_not_a_container",
-      "community": 44,
+      "community": 180,
       "norm_label": "1. install postgresql (host-native \u2014 not a container)"
     },
     {
@@ -14159,7 +14269,7 @@
       "source_location": "L484",
       "_origin": "ast",
       "id": "docs_deployment_2_create_the_role_and_database",
-      "community": 44,
+      "community": 180,
       "norm_label": "2. create the role and database"
     },
     {
@@ -14169,7 +14279,7 @@
       "source_location": "L496",
       "_origin": "ast",
       "id": "docs_deployment_3_let_docker_containers_reach_postgres",
-      "community": 44,
+      "community": 180,
       "norm_label": "3. let docker containers reach postgres"
     },
     {
@@ -14179,7 +14289,7 @@
       "source_location": "L517",
       "_origin": "ast",
       "id": "docs_deployment_4_install_docker_the_compose_plugin",
-      "community": 44,
+      "community": 180,
       "norm_label": "4. install docker + the compose plugin"
     },
     {
@@ -14189,7 +14299,7 @@
       "source_location": "L535",
       "_origin": "ast",
       "id": "docs_deployment_5_clone_the_repo",
-      "community": 44,
+      "community": 180,
       "norm_label": "5. clone the repo"
     },
     {
@@ -14199,7 +14309,7 @@
       "source_location": "L546",
       "_origin": "ast",
       "id": "docs_deployment_6_configure_env",
-      "community": 44,
+      "community": 180,
       "norm_label": "6. configure `.env`"
     },
     {
@@ -14209,7 +14319,7 @@
       "source_location": "L563",
       "_origin": "ast",
       "id": "docs_deployment_7_bring_up_the_stack",
-      "community": 44,
+      "community": 180,
       "norm_label": "7. bring up the stack"
     },
     {
@@ -14279,7 +14389,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_gotchas",
-      "community": 138,
+      "community": 14,
       "norm_label": "gotchas.md"
     },
     {
@@ -14289,7 +14399,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_web_accumulated_gotchas_master_v1_v01_v13",
-      "community": 138,
+      "community": 14,
       "norm_label": "spotdl-web \u2014 accumulated gotchas (master v1, v01\u2013v13)"
     },
     {
@@ -14299,7 +14409,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "docs_gotchas_index_by_topic",
-      "community": 138,
+      "community": 14,
       "norm_label": "index by topic"
     },
     {
@@ -14309,7 +14419,7 @@
       "source_location": "L719",
       "_origin": "ast",
       "id": "docs_gotchas_verified_external_api_contracts",
-      "community": 138,
+      "community": 14,
       "norm_label": "verified external api contracts"
     },
     {
@@ -14319,7 +14429,7 @@
       "source_location": "L724",
       "_origin": "ast",
       "id": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
-      "community": 138,
+      "community": 14,
       "norm_label": "auth api \u2014 `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)"
     },
     {
@@ -14329,7 +14439,7 @@
       "source_location": "L742",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
-      "community": 138,
+      "community": 14,
       "norm_label": "spotdl 4.5.2 \u2014 verified api surface actually used"
     },
     {
@@ -16589,7 +16699,7 @@
       "source_location": "L215",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_amendments",
-      "community": 60,
+      "community": 186,
       "norm_label": "amendments"
     },
     {
@@ -16599,7 +16709,7 @@
       "source_location": "L220",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_09_claude_md_split_into_rules_vs_reference_folded_into_v14",
-      "community": 60,
+      "community": 186,
       "norm_label": "2026-08-09 \u2014 claude.md split into rules vs. reference (folded into v14)"
     },
     {
@@ -16609,7 +16719,7 @@
       "source_location": "L235",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_09_v15_complete_two_v14_findings_confirmed_already_scheduled_one_new_finding_added",
-      "community": 60,
+      "community": 186,
       "norm_label": "2026-08-09 \u2014 v15 complete; two v14 findings confirmed already scheduled, one new finding added"
     },
     {
@@ -16619,7 +16729,7 @@
       "source_location": "L262",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_09_v16_complete_not_null_applied_literally_login_job_creation_left_broken_for_v17",
-      "community": 60,
+      "community": 186,
       "norm_label": "2026-08-09 \u2014 v16 complete; not null applied literally, login/job creation left broken for v17"
     },
     {
@@ -16629,7 +16739,7 @@
       "source_location": "L277",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_13_v22_complete_the_v13_precedent_closing_pass_performed_master_v2_done",
-      "community": 60,
+      "community": 186,
       "norm_label": "2026-08-13 \u2014 v22 complete; the v13-precedent closing pass performed, master v2 done"
     },
     {
@@ -22020,7 +22130,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L222",
+      "source_location": "L239",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_config_get_settings"
@@ -22877,7 +22987,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L344",
+      "source_location": "L361",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -22976,6 +23086,17 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L301",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
+      "target": "backend_app_models_downloaded_track_downloadedtrack"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_dedup.py",
       "source_location": "L119",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_empty",
@@ -23009,7 +23130,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L766",
+      "source_location": "L770",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -23305,7 +23426,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L20",
+      "source_location": "L38",
       "weight": 1.0,
       "source": "backend_app_tasks_expand_expand_job",
       "target": "backend_app_models_job_job"
@@ -23454,6 +23575,17 @@
       "target": "backend_app_models_job_job"
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L271",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job",
+      "target": "backend_app_models_job_job"
+    },
+    {
       "relation": "indirect_call",
       "context": "argument",
       "confidence": "INFERRED",
@@ -23462,6 +23594,17 @@
       "source_location": "L198",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_failure_after_a_mid_expansion_cancel_stays_cancelled",
+      "target": "backend_app_models_job_job"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L317",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks",
       "target": "backend_app_models_job_job"
     },
     {
@@ -24149,7 +24292,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L57",
+      "source_location": "L61",
       "weight": 1.0,
       "source": "backend_app_tasks_expand_expand_job",
       "target": "backend_app_models_track_track"
@@ -24347,7 +24490,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L963",
+      "source_location": "L967",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
       "target": "backend_app_models_track_track"
@@ -24358,7 +24501,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L800",
+      "source_location": "L804",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_app_models_track_track"
@@ -24369,7 +24512,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L763",
+      "source_location": "L767",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_app_models_track_track"
@@ -24380,7 +24523,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L935",
+      "source_location": "L939",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
       "target": "backend_app_models_track_track"
@@ -24391,7 +24534,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L560",
+      "source_location": "L564",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
       "target": "backend_app_models_track_track"
@@ -24446,7 +24589,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L707",
+      "source_location": "L711",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "target": "backend_app_models_track_track"
@@ -24457,7 +24600,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L848",
+      "source_location": "L852",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "target": "backend_app_models_track_track"
@@ -24468,7 +24611,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L637",
+      "source_location": "L641",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
       "target": "backend_app_models_track_track"
@@ -24479,7 +24622,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L673",
+      "source_location": "L677",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "target": "backend_app_models_track_track"
@@ -24490,7 +24633,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L600",
+      "source_location": "L604",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_second_attempt_forces_ipv6_never_touches_proxy_pool",
       "target": "backend_app_models_track_track"
@@ -24501,7 +24644,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L733",
+      "source_location": "L737",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
       "target": "backend_app_models_track_track"
@@ -24545,7 +24688,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L912",
+      "source_location": "L916",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
       "target": "backend_app_models_track_track"
@@ -24603,6 +24746,28 @@
       "source_location": "L130",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_db_error_during_insert_marks_job_failed",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L292",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job",
+      "target": "backend_app_models_track_track"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L318",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks",
       "target": "backend_app_models_track_track"
     },
     {
@@ -25810,7 +25975,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L804",
+      "source_location": "L808",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_app_models_worker_state_workerstate"
@@ -29704,6 +29869,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L313",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks",
+      "target": "backend_app_services_events_publish"
+    },
+    {
       "relation": "references",
       "context": "parameter_type",
       "confidence": "EXTRACTED",
@@ -32195,7 +32371,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L111",
+      "source_location": "L128",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_services_serializers_track_song_meta"
@@ -32206,7 +32382,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L90",
+      "source_location": "L107",
       "weight": 1.0,
       "source": "backend_app_tasks_expand_expand_job",
       "target": "backend_app_services_serializers_track_song_meta"
@@ -33070,7 +33246,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/tasks/download.py",
-      "source_location": "L138",
+      "source_location": "L155",
       "weight": 1.0,
       "source": "backend_app_tasks_download_download_track",
       "target": "backend_app_tasks_download_pacing_delay",
@@ -33090,10 +33266,52 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L17",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_app_tasks_expand",
+      "target": "backend_app_tasks_expand_enqueue_pending_tracks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L35",
       "weight": 1.0,
       "source": "backend_app_tasks_expand",
       "target": "backend_app_tasks_expand_expand_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "backend_app_tasks_expand_enqueue_pending_tracks",
+      "target": "backend_app_tasks_expand_py_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L52",
+      "weight": 1.0,
+      "source": "backend_app_tasks_expand_expand_job",
+      "target": "backend_app_tasks_expand_enqueue_pending_tracks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "backend_app_tasks_expand_rationale_17",
+      "target": "backend_app_tasks_expand_enqueue_pending_tracks",
       "confidence_score": 1.0
     },
     {
@@ -35362,6 +35580,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L262",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup",
+      "target": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
       "source_location": "L104",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
@@ -35499,6 +35727,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L267",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
+      "target": "backend_tests_test_dedup_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
       "source_location": "L105",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_empty",
@@ -35585,6 +35824,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L271",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
+      "target": "backend_tests_test_dedup_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
       "source_location": "L108",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_empty",
@@ -35641,6 +35891,16 @@
       "weight": 1.0,
       "source": "backend_tests_test_dedup_rationale_211",
       "target": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L263",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_rationale_263",
+      "target": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
       "confidence_score": 1.0
     },
     {
@@ -35727,6 +35987,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L973",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task",
+      "target": "backend_tests_test_download_task_test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
       "source_location": "L486",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
@@ -35747,7 +36017,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L938",
+      "source_location": "L942",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
@@ -35757,7 +36027,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L781",
+      "source_location": "L785",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
@@ -35767,7 +36037,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L741",
+      "source_location": "L745",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
@@ -35777,7 +36047,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L916",
+      "source_location": "L920",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
@@ -35787,7 +36057,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L532",
+      "source_location": "L536",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
@@ -35837,7 +36107,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L687",
+      "source_location": "L691",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
@@ -35847,7 +36117,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L818",
+      "source_location": "L822",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
@@ -35857,7 +36127,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L608",
+      "source_location": "L612",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
@@ -35867,7 +36137,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L653",
+      "source_location": "L657",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
@@ -35877,7 +36147,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L567",
+      "source_location": "L571",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_second_attempt_forces_ipv6_never_touches_proxy_pool",
@@ -35887,7 +36157,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L720",
+      "source_location": "L724",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
@@ -35927,7 +36197,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L881",
+      "source_location": "L885",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
@@ -35987,7 +36257,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L526",
+      "source_location": "L530",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
@@ -35997,7 +36267,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L856",
+      "source_location": "L860",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_pacing_delay_is_zero_when_unconfigured",
@@ -36007,7 +36277,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L868",
+      "source_location": "L872",
       "weight": 1.0,
       "source": "backend_tests_test_download_task",
       "target": "backend_tests_test_download_task_test_pacing_delay_samples_inside_the_configured_window",
@@ -36029,7 +36299,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L784",
+      "source_location": "L788",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_capture_events",
@@ -36040,7 +36310,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L744",
+      "source_location": "L748",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_capture_events",
@@ -36157,7 +36427,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L527",
+      "source_location": "L531",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
       "target": "backend_tests_test_download_task_nonclosingsession",
@@ -36221,7 +36491,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L787",
+      "source_location": "L791",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_fakedownloader",
@@ -36232,7 +36502,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L747",
+      "source_location": "L751",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_fakedownloader",
@@ -36287,7 +36557,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L698",
+      "source_location": "L702",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "target": "backend_tests_test_download_task_fakedownloader",
@@ -36298,7 +36568,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L664",
+      "source_location": "L668",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "target": "backend_tests_test_download_task_fakedownloader",
@@ -36320,7 +36590,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L900",
+      "source_location": "L904",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
       "target": "backend_tests_test_download_task_fakedownloader",
@@ -36386,6 +36656,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L984",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped",
+      "target": "backend_tests_test_download_task_make_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
       "source_location": "L494",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
@@ -36408,7 +36689,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L939",
+      "source_location": "L943",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
       "target": "backend_tests_test_download_task_make_track",
@@ -36419,7 +36700,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L782",
+      "source_location": "L786",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_make_track",
@@ -36430,7 +36711,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L742",
+      "source_location": "L746",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_make_track",
@@ -36441,7 +36722,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L919",
+      "source_location": "L923",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
       "target": "backend_tests_test_download_task_make_track",
@@ -36452,7 +36733,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L533",
+      "source_location": "L537",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
       "target": "backend_tests_test_download_task_make_track",
@@ -36507,7 +36788,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L688",
+      "source_location": "L692",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "target": "backend_tests_test_download_task_make_track",
@@ -36518,7 +36799,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L819",
+      "source_location": "L823",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "target": "backend_tests_test_download_task_make_track",
@@ -36529,7 +36810,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L609",
+      "source_location": "L613",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
       "target": "backend_tests_test_download_task_make_track",
@@ -36540,7 +36821,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L654",
+      "source_location": "L658",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "target": "backend_tests_test_download_task_make_track",
@@ -36551,7 +36832,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L571",
+      "source_location": "L575",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_second_attempt_forces_ipv6_never_touches_proxy_pool",
       "target": "backend_tests_test_download_task_make_track",
@@ -36562,7 +36843,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L721",
+      "source_location": "L725",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
       "target": "backend_tests_test_download_task_make_track",
@@ -36606,7 +36887,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L882",
+      "source_location": "L886",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
       "target": "backend_tests_test_download_task_make_track",
@@ -36672,7 +36953,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L518",
+      "source_location": "L994",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped",
+      "target": "backend_tests_test_download_task_attempts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L522",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
       "target": "backend_tests_test_download_task_attempts",
@@ -36683,7 +36975,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L964",
+      "source_location": "L968",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
       "target": "backend_tests_test_download_task_attempts",
@@ -36694,7 +36986,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L812",
+      "source_location": "L816",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_attempts",
@@ -36705,7 +36997,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L776",
+      "source_location": "L780",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_attempts",
@@ -36716,7 +37008,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L563",
+      "source_location": "L567",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
       "target": "backend_tests_test_download_task_attempts",
@@ -36738,7 +37030,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L712",
+      "source_location": "L716",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "target": "backend_tests_test_download_task_attempts",
@@ -36749,7 +37041,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L852",
+      "source_location": "L856",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "target": "backend_tests_test_download_task_attempts",
@@ -36760,7 +37052,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L645",
+      "source_location": "L649",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
       "target": "backend_tests_test_download_task_attempts",
@@ -36771,7 +37063,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L681",
+      "source_location": "L685",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "target": "backend_tests_test_download_task_attempts",
@@ -36782,7 +37074,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L603",
+      "source_location": "L607",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_second_attempt_forces_ipv6_never_touches_proxy_pool",
       "target": "backend_tests_test_download_task_attempts",
@@ -36793,7 +37085,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L736",
+      "source_location": "L740",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
       "target": "backend_tests_test_download_task_attempts",
@@ -36881,6 +37173,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L977",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped",
+      "target": "backend_tests_test_download_task_patch_common",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
       "source_location": "L495",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_breaker_requeue_attempt_number_collides_with_the_next_real_attempt",
@@ -36903,7 +37206,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L940",
+      "source_location": "L944",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_cancelled_during_pacing_wait_skips_download",
       "target": "backend_tests_test_download_task_patch_common",
@@ -36914,7 +37217,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L783",
+      "source_location": "L787",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_failure_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_patch_common",
@@ -36925,7 +37228,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L743",
+      "source_location": "L747",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_discards_success_when_cancelled_mid_download",
       "target": "backend_tests_test_download_task_patch_common",
@@ -36936,7 +37239,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L920",
+      "source_location": "L924",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
       "target": "backend_tests_test_download_task_patch_common",
@@ -36947,7 +37250,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L534",
+      "source_location": "L538",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_first_attempt_never_touches_proxy_pool",
       "target": "backend_tests_test_download_task_patch_common",
@@ -37002,7 +37305,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L691",
+      "source_location": "L695",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_failure_redacts_proxy_credentials_from_last_error",
       "target": "backend_tests_test_download_task_patch_common",
@@ -37013,7 +37316,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L822",
+      "source_location": "L826",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_falls_back_to_direct_when_no_proxy_available",
       "target": "backend_tests_test_download_task_patch_common",
@@ -37024,7 +37327,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L612",
+      "source_location": "L616",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_picks_proxy_and_records_success",
       "target": "backend_tests_test_download_task_patch_common",
@@ -37035,7 +37338,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L657",
+      "source_location": "L661",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_retry_proxy_failure_sets_cooldown",
       "target": "backend_tests_test_download_task_patch_common",
@@ -37046,7 +37349,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L574",
+      "source_location": "L578",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_second_attempt_forces_ipv6_never_touches_proxy_pool",
       "target": "backend_tests_test_download_task_patch_common",
@@ -37057,7 +37360,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L724",
+      "source_location": "L728",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_skips_entirely_when_already_cancelled",
       "target": "backend_tests_test_download_task_patch_common",
@@ -37101,7 +37404,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L883",
+      "source_location": "L887",
       "weight": 1.0,
       "source": "backend_tests_test_download_task_test_download_track_sleeps_before_the_attempt_when_pacing_configured",
       "target": "backend_tests_test_download_task_patch_common",
@@ -37206,9 +37509,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L857",
+      "source_location": "L861",
       "weight": 1.0,
-      "source": "backend_tests_test_download_task_rationale_857",
+      "source": "backend_tests_test_download_task_rationale_861",
       "target": "backend_tests_test_download_task_test_pacing_delay_is_zero_when_unconfigured",
       "confidence_score": 1.0
     },
@@ -37216,10 +37519,20 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L917",
+      "source_location": "L921",
       "weight": 1.0,
-      "source": "backend_tests_test_download_task_rationale_917",
+      "source": "backend_tests_test_download_task_rationale_921",
       "target": "backend_tests_test_download_task_test_download_track_does_not_pace_a_skipped_duplicate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L974",
+      "weight": 1.0,
+      "source": "backend_tests_test_download_task_rationale_974",
+      "target": "backend_tests_test_download_task_test_a_stray_message_for_a_waiting_or_lookup_failed_track_is_dropped",
       "confidence_score": 1.0
     },
     {
@@ -37892,10 +38205,30 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L270",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "backend_tests_test_expand_task_test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L177",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task",
       "target": "backend_tests_test_expand_task_test_expand_job_failure_after_a_mid_expansion_cancel_stays_cancelled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L297",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task",
+      "target": "backend_tests_test_expand_task_test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks",
       "confidence_score": 1.0
     },
     {
@@ -37984,9 +38317,31 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L274",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job",
+      "target": "backend_tests_test_expand_task_owner",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L181",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_failure_after_a_mid_expansion_cancel_stays_cancelled",
+      "target": "backend_tests_test_expand_task_owner",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L301",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks",
       "target": "backend_tests_test_expand_task_owner",
       "confidence_score": 1.0
     },
@@ -38043,6 +38398,17 @@
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
       "target": "backend_tests_test_expand_task_owner",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L280",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job",
+      "target": "backend_tests_test_expand_task_capture_job_events",
       "confidence_score": 1.0
     },
     {
@@ -38126,6 +38492,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L306",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks",
+      "target": "backend_tests_test_expand_task_fakesong",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L62",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_success_inserts_pending_tracks",
@@ -38188,9 +38565,31 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L278",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job",
+      "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
       "source_location": "L186",
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_failure_after_a_mid_expansion_cancel_stays_cancelled",
+      "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L305",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks",
       "target": "backend_tests_test_expand_task_nonclosingsession",
       "confidence_score": 1.0
     },
@@ -38258,6 +38657,28 @@
       "weight": 1.0,
       "source": "backend_tests_test_expand_task_test_expand_job_unknown_job_is_a_noop",
       "target": "backend_tests_test_expand_task_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L279",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_discards_its_tracks_when_another_run_already_expanded_the_job",
+      "target": "backend_tests_test_expand_task_stub_download_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L307",
+      "weight": 1.0,
+      "source": "backend_tests_test_expand_task_test_expand_job_failure_after_the_expanded_commit_still_enqueues_the_tracks",
+      "target": "backend_tests_test_expand_task_stub_download_track",
       "confidence_score": 1.0
     },
     {
@@ -38760,6 +39181,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L373",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "backend_tests_test_jobs_test_cancel_job_row_locks_the_job_before_reading_its_tracks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
       "source_location": "L228",
       "weight": 1.0,
       "source": "backend_tests_test_jobs",
@@ -38923,6 +39354,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L379",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_test_cancel_job_row_locks_the_job_before_reading_its_tracks",
+      "target": "backend_tests_test_jobs_stub_expand_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
       "source_location": "L31",
       "weight": 1.0,
       "source": "backend_tests_test_jobs_test_create_job_classifies_source_type_from_url",
@@ -39078,6 +39520,16 @@
       "weight": 1.0,
       "source": "backend_tests_test_jobs_rationale_322",
       "target": "backend_tests_test_jobs_test_unarchive_with_job_ids_ignores_another_users_job",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L374",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs_rationale_374",
+      "target": "backend_tests_test_jobs_test_cancel_job_row_locks_the_job_before_reading_its_tracks",
       "confidence_score": 1.0
     },
     {
@@ -53325,5 +53777,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "af26f1c1936d91f214d43afdcc1b10cbbe900bc9"
+  "built_at_commit": "1d1fcd834d99680677f993bc1686912e991eecd7"
 }
