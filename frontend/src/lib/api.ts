@@ -120,7 +120,13 @@ export interface Track {
 	last_error_type: TrackErrorType | null;
 }
 
-export type TrackAttemptOutcome = 'completed' | 'failed' | 'cancelled' | 'skipped_duplicate';
+export type TrackAttemptOutcome =
+	| 'completed'
+	| 'failed'
+	| 'cancelled'
+	| 'skipped_duplicate'
+	/** v35: rescheduled behind the circuit breaker/pause without touching the network. */
+	| 'held';
 
 /** One row per `download_track` invocation (v24) -- `GET /api/tracks/{id}/attempts`,
  * oldest first. `proxy_id` is `null` for a direct attempt, `error_type`/`error_message`

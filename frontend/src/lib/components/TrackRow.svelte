@@ -22,7 +22,8 @@
 		completed: 'completed',
 		failed: 'failed',
 		cancelled: 'cancelled',
-		skipped_duplicate: 'already logged'
+		skipped_duplicate: 'already logged',
+		held: 'held — global pause'
 	};
 
 	// Reuses the same signal-condition color mapping as the waterfall/spectrum log
@@ -32,7 +33,8 @@
 		completed: 'cond-settled',
 		failed: 'cond-fail',
 		cancelled: 'cond-idle',
-		skipped_duplicate: 'cond-settled'
+		skipped_duplicate: 'cond-settled',
+		held: 'cond-waiting'
 	};
 
 	function formatTimestamp(value: string): string {
