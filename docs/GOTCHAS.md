@@ -4263,7 +4263,9 @@ independently-found production bug from the same conversation)
   READ transaction, Postgres only) the same load gave 0 of 356. Any future endpoint that reports
   a count beside a page should read both from one snapshot.
 - **Why `onopen` and not mount:** a REST snapshot taken before the stream subscribes can miss an
-  event that lands in between; one taken from `onopen` can't. So the eager mount reload was never
+  event that lands in between; one taken from `onopen` practically can't. (Strictly, the
+  response headers, and so `onopen`, can precede the Redis subscribe by one round trip, but
+  the REST snapshot needs a full browser→api→DB round trip after `onopen`.) So the eager mount reload was never
   the authoritative one. Removing it means `setAllUsers` must itself bump
   `pageFetchSeq`/`liveHydrateSeq` and blank the page: it no longer fetches, so nothing else would
   stop a late old-scope response or old rows from showing until the reconnect lands. Live: a page
