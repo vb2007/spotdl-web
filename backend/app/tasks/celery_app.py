@@ -18,9 +18,17 @@ celery_app = Celery("spotdl_web", broker=settings.redis_url, backend=settings.re
 
 celery_app.conf.update(
     task_default_queue="meta",
-    task_queues=(Queue("meta"), Queue("downloads")),
+    task_queues=(Queue("meta"), Queue("downloads"), Queue("expand")),
+    # v34.1: the two tasks that legitimately run for minutes -- URL expansion (a whole
+    # artist discography is ~90-130s of Spotify round trips, measured) and the admin
+    # library sweep -- get their own queue and worker (`worker-expand`). On the shared
+    # 2-slot `meta` queue, two concurrent discographies held both slots and beat's 30s
+    # dispatch-due-tracks ticks sat `received` until one finished: no downloads were
+    # dispatched (and no stale sweep ran) for the whole expansion.
     task_routes={
         "app.tasks.download.*": {"queue": "downloads"},
+        "app.tasks.expand.*": {"queue": "expand"},
+        "app.tasks.library.*": {"queue": "expand"},
     },
     timezone="UTC",
     enable_utc=True,
@@ -51,7 +59,12 @@ celery_app.conf.update(
     # worker, or the broker itself losing state).
     task_acks_late=True,
     task_reject_on_worker_lost=True,
-    broker_transport_options={"visibility_timeout": 3600},
+    # 6h, not Celery's 1h (v34.1): with acks_late, a task still running when this expires
+    # is redelivered and runs a *second* time concurrently -- for an expansion, that's
+    # every track inserted twice. A huge discography or a library sweep can approach 1h;
+    # 6h can't. The cost, a task lost to a hard crash coming back later, is covered sooner
+    # for downloads by beat's DB-driven stale-track sweep regardless.
+    broker_transport_options={"visibility_timeout": 21600},
     worker_max_tasks_per_child=50,
 )
 

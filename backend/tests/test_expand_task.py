@@ -222,3 +222,16 @@ def test_expand_job_skips_a_job_cancelled_before_the_task_ran(db_session, monkey
     assert calls == []
     assert published == []
     assert db_session.get(Job, job.id).state == JobState.CANCELLED
+
+
+def test_long_running_tasks_route_to_the_expand_queue_not_meta():
+    from app.tasks.celery_app import celery_app
+
+    def queue_for(name):
+        return celery_app.amqp.router.route({}, name)["queue"].name
+
+    assert queue_for("app.tasks.expand.expand_job") == "expand"
+    assert queue_for("app.tasks.library.sort_library") == "expand"
+    assert queue_for("app.tasks.beat.dispatch_due_tracks") == "meta"
+    assert queue_for("app.tasks.beat.archive_due_jobs") == "meta"
+    assert queue_for("app.tasks.download.download_track") == "downloads"
