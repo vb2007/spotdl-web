@@ -21,6 +21,11 @@ def expand_job(job_id: str) -> None:
         if job is None:
             logger.warning("expand_job: job %s not found", job_id)
             return
+        # Cancelled while still queued for worker-meta: the user said "don't download
+        # this", so don't even spend the Spotify round trips (minutes, for an artist).
+        if job.state != JobState.EXPANDING:
+            logger.info("expand_job: job %s is %s, not expanding; skipping", job_id, job.state.value)
+            return
 
         events.publish_job_event(job.user_id, job.id, job.state.value)
 
@@ -73,9 +78,20 @@ def expand_job(job_id: str) -> None:
             # must land in `failed` with a readable error, never hang in `expanding` forever.
             logger.warning("expand_job: job %s failed to expand: %s", job_id, exc)
             db.rollback()
-            job.state = JobState.FAILED
-            job.error = str(exc)
+            # Conditional for the same reason as the success path's UPDATE: a cancel that
+            # landed mid-expansion must stay `cancelled`. The user already said "don't
+            # download this"; relabelling it `failed` afterwards would put it back in
+            # their incoming list as an error they never asked about.
+            result = db.execute(
+                update(Job)
+                .where(Job.id == job.id, Job.state == JobState.EXPANDING)
+                .values(state=JobState.FAILED, error=str(exc))
+            )
             db.commit()
+            if result.rowcount == 0:
+                logger.info("expand_job: job %s was cancelled mid-expansion; keeping it cancelled", job_id)
+                return
+            db.refresh(job)
             events.publish_job_event(job.user_id, job.id, job.state.value, error=job.error)
         else:
             for track in tracks:

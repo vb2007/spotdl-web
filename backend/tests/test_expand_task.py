@@ -172,3 +172,53 @@ def test_expand_job_unknown_job_is_a_noop(db_session, monkeypatch):
     monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
 
     expand_task.expand_job(str(uuid.uuid4()))
+
+
+def test_expand_job_failure_after_a_mid_expansion_cancel_stays_cancelled(db_session, monkeypatch):
+    job = Job(
+        source_url="https://open.spotify.com/artist/abc",
+        source_type=JobSourceType.ARTIST,
+        user_id=_owner(db_session).id,
+    )
+    db_session.add(job)
+    db_session.commit()
+
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    published = _capture_job_events(monkeypatch)
+
+    def fake_expand(url):
+        db_session.query(Job).filter(Job.id == job.id).update({"state": JobState.CANCELLED})
+        db_session.commit()
+        raise KeyError("discography")
+
+    monkeypatch.setattr(expansion, "expand", fake_expand)
+
+    expand_task.expand_job(str(job.id))
+
+    updated = db_session.get(Job, job.id)
+    assert updated.state == JobState.CANCELLED
+    assert updated.error is None
+    # Only the task's own opening `expanding` echo -- never a `failed` one.
+    assert [args[2] for args, _ in published] == ["expanding"]
+
+
+def test_expand_job_skips_a_job_cancelled_before_the_task_ran(db_session, monkeypatch):
+    job = Job(
+        source_url="https://open.spotify.com/artist/abc",
+        source_type=JobSourceType.ARTIST,
+        user_id=_owner(db_session).id,
+        state=JobState.CANCELLED,
+    )
+    db_session.add(job)
+    db_session.commit()
+
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    published = _capture_job_events(monkeypatch)
+    calls = []
+    monkeypatch.setattr(expansion, "expand", lambda url: calls.append(url) or [])
+
+    expand_task.expand_job(str(job.id))
+
+    assert calls == []
+    assert published == []
+    assert db_session.get(Job, job.id).state == JobState.CANCELLED
