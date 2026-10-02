@@ -4202,7 +4202,12 @@ independently-found production bug from the same conversation)
 - **`worker-meta` must keep its library mount** even though the sort sweep moved off it:
   `reconcile_disk()` (boot) prunes ledger rows whose file is missing, and moved tracks' rows
   point into the library, so a `worker-meta` without that mount would re-download every
-  sorted track (the v28 invariant, in a new shape).
+  sorted track (the v28 invariant, in a new shape). **And the two now run concurrently** (a
+  deploy recreates both mid-sweep): `reconcile_disk()` could read a row's old `/downloads` path,
+  the sweep commit the repoint and unlink the source, and the check then find the old path missing
+  and delete the freshly moved row. Since the sweep always commits before it unlinks,
+  `reconcile_disk()` now re-reads a row (`db.refresh`) and re-checks its current path before
+  pruning it. Found by blind review.
 - **`expand_job` used to overwrite a mid-expansion cancel with `failed`** on its failure path
   (the success path was already a conditional UPDATE). Both are conditional now. A job cancelled
   before its task even starts is skipped without any Spotify calls (live: `is cancelled, not
