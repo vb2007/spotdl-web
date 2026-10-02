@@ -243,6 +243,12 @@ needed" claim — rather than silently deleted.
   same reasoning `LADDER_SECONDS`/`PACING_*_SEC` already get → *v31.1*
 
 **Celery, tasks & durability**
+- `expand_job`/`sort_library` run for minutes (a discography is ~90–130s of Spotify round trips);
+  on `worker-meta`'s shared 2-slot `meta` queue two of them starved beat's 30s dispatch. They
+  have their own `expand` queue and `worker-expand` service since v34.1 → *v34.1*
+- Celery's Redis `visibility_timeout` must exceed the longest task: with `acks_late` a task still
+  running when it expires is redelivered and runs *concurrently* a second time (6h since v34.1)
+  → *v34.1*
 - `record_failure` computes the ladder delay **before** incrementing `attempt_count`; reversing it
   skips the first rung → *v06*
 - Only real `AudioProviderError`s feed the circuit breaker; the "other" bucket shares the ladder but
@@ -4173,3 +4179,32 @@ independently-found production bug from the same conversation)
   attempts included). Reproducing download-shaped bugs needs a few tracks each. Reuse a long
   track, or hold a `downloading` snapshot with Playwright's `route.fetch()`, rather than
   submitting fresh tracks per run; don't release the breaker to keep testing.
+
+### v34.1 expansion-fixes gotchas
+
+- **A spotdl `KeyError` during expansion usually means Spotify answered `NotFound`.** spotdl
+  4.5.2 uses SpotipyFree (scraping Spotify's private `api-partner.spotify.com/pathfinder`
+  GraphQL via `spotapi`), not the official Web API, unless `use_official_api=True`. It indexes
+  straight into the response, so a nonexistent id raises `KeyError('discography')` (artist) or
+  `KeyError('uri')` (track). v34 misread the artist case as "artist expansion is broken". The
+  id it used, `06HL4z0CvFAxyc27GsvL7h`, is a 404 on open.spotify.com itself; Nirvana
+  (`6olE6TJLqED3rqDCT0FyPh`) expanded to 535 songs. **Check a failing id against
+  `https://open.spotify.com/oembed?url=…` before concluding the integration broke.**
+  `expansion.expand()` now re-raises these as a readable `ValueError`.
+- **Measured expansion cost:** Nirvana 535 songs in 88.9–90.7s, Pink Floyd 392 songs in
+  126.6–129.0s. That's minutes of a Celery slot per discography. With both on `worker-meta`
+  (`--concurrency=2`), three 30s `dispatch_due_tracks` ticks sat `received` until the first
+  finished. On `worker-expand` the dispatch cadence stayed at exactly 30s throughout.
+- **`worker-expand --autoscale=2,1` memory:** 237 MiB idle (one child), 653 MiB peak with two
+  concurrent discographies, under the 768M prod limit. A third concurrent expansion queues
+  behind the first two. A quick single-track job submitted during two artist archives waits
+  for a free slot, which is the cost of not paying for a third child's memory all the time.
+- **`worker-meta` must keep its library mount** even though the sort sweep moved off it:
+  `reconcile_disk()` (boot) prunes ledger rows whose file is missing, and moved tracks' rows
+  point into the library, so a `worker-meta` without that mount would re-download every
+  sorted track (the v28 invariant, in a new shape).
+- **`expand_job` used to overwrite a mid-expansion cancel with `failed`** on its failure path
+  (the success path was already a conditional UPDATE). Both are conditional now. A job cancelled
+  before its task even starts is skipped without any Spotify calls (live: `is cancelled, not
+  expanding; skipping`, 0.003s).
+
