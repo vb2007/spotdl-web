@@ -127,7 +127,20 @@ export default defineConfig(({ command }) => ({
 			// directly on the host.
 			'/api': {
 				target: 'http://api:8000',
-				changeOrigin: true
+				changeOrigin: true,
+				// v34.2: when `api` dies mid-response (a restart, a crash), the proxy never
+				// ended the browser's side of a still-streaming response. For the SSE
+				// stream that meant an EventSource that never errors, never reconnects and
+				// never re-hydrates in the dev loop (production nginx does close it, which
+				// is what api.createEventSource's reconnect logic relies on). Tear the
+				// client response down whenever the upstream one closes without completing.
+				configure: (proxy) => {
+					proxy.on('proxyRes', (proxyRes, _req, res) => {
+						proxyRes.on('close', () => {
+							if (!proxyRes.complete && !res.destroyed) res.destroy();
+						});
+					});
+				}
 			}
 		}
 	}
