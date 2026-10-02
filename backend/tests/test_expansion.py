@@ -91,6 +91,6 @@ def test_expand_turns_a_spotify_not_found_keyerror_into_a_readable_error(monkeyp
 
     monkeypatch.setattr(expansion, "get_simple_songs", fake_get_simple_songs)
 
-    with pytest.raises(ValueError, match="Spotify returned no data for this link") as info:
+    with pytest.raises(ValueError, match="Spotify returned an empty or unexpected response for this link") as info:
         expansion.expand("https://open.spotify.com/artist/doesnotexist")
     assert "discography" in str(info.value)

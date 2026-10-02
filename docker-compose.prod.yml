@@ -11,7 +11,7 @@
 # zero-config default for anyone who just clones and runs `docker compose up`).
 #
 # v21: prod now deploys published GHCR images rather than building locally — every backend-
-# based service (migrate/api/worker-dl/worker-meta/beat, via the base file's x-backend
+# based service (migrate/api/worker-dl/worker-meta/worker-expand/beat, via the base file's x-backend
 # anchor) and web get an `image:` here plus `build: !reset null` to actually remove the
 # anchor's `build: ./backend` (a bare `image:` alongside an inherited `build:` would still
 # build locally and ignore the pulled tag — Compose prefers `build` when both are present).

@@ -21,7 +21,7 @@ def expand_job(job_id: str) -> None:
         if job is None:
             logger.warning("expand_job: job %s not found", job_id)
             return
-        # Cancelled while still queued for worker-meta: the user said "don't download
+        # Cancelled while still queued for worker-expand: the user said "don't download
         # this", so don't even spend the Spotify round trips (minutes, for an artist).
         if job.state != JobState.EXPANDING:
             logger.info("expand_job: job %s is %s, not expanding; skipping", job_id, job.state.value)

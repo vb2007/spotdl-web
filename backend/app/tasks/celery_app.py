@@ -50,7 +50,7 @@ celery_app.conf.update(
     # forever (dispatch_due_tracks only ever queries `state == waiting`). Late acks mean an
     # unfinished task's message stays on the broker until it either completes or the
     # visibility timeout below elapses, at which point Redis (as the broker) redelivers it.
-    # 3600s comfortably exceeds any real download+convert duration. task_reject_on_worker_lost
+    # The timeout (6h since v34.1, see below) exceeds any real task. task_reject_on_worker_lost
     # ensures a killed (not just disconnected) worker's in-flight task is requeued rather than
     # silently dropped. worker_max_tasks_per_child bounds any slow memory growth in spotdl/
     # yt-dlp's own process over a multi-week uptime by recycling the prefork child periodically.
@@ -62,8 +62,11 @@ celery_app.conf.update(
     # 6h, not Celery's 1h (v34.1): with acks_late, a task still running when this expires
     # is redelivered and runs a *second* time concurrently -- for an expansion, that's
     # every track inserted twice. A huge discography or a library sweep can approach 1h;
-    # 6h can't. The cost, a task lost to a hard crash coming back later, is covered sooner
-    # for downloads by beat's DB-driven stale-track sweep regardless.
+    # 6h can't. The cost: a task lost to a hard crash of the whole worker (a child-only
+    # crash is requeued at once by task_reject_on_worker_lost) is redelivered up to 6h
+    # later. Downloads are covered sooner by beat's DB-driven stale-track sweep; a lost
+    # expansion stays `expanding` (or a library sweep `running`) until then -- the
+    # owner-accepted trade (v34.1).
     broker_transport_options={"visibility_timeout": 21600},
     worker_max_tasks_per_child=50,
 )

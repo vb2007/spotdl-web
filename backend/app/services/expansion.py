@@ -56,5 +56,6 @@ def expand(query: str) -> list[Song]:
         # a bare KeyError -- `'discography'` for an artist, `'uri'` for a track -- which
         # is all the user would otherwise see as the job's error.
         raise ValueError(
-            f"Spotify returned no data for this link; check that it exists (missing {exc})"
+            f"Spotify returned an empty or unexpected response for this link "
+            f"(missing {exc}); the link may not exist"
         ) from exc
