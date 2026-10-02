@@ -1125,7 +1125,7 @@ wheels = [
 
 [[package]]
 name = "spotdl-web-backend"
-version = "4.34.0"
+version = "4.34.1"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
