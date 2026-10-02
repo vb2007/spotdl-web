@@ -22,7 +22,7 @@ networks:
 # app/config.py refuses to start a SPOTDL_ENV=dev process whose DATABASE_URL names the
 # production database. Lives only in this file, which never applies in production, so
 # production never carries it. `environment` is a mapping, so it merges by key with
-# worker-meta's own RUN_DISK_RECONCILE/RUN_PROXY_SYNC rather than replacing them.
+# worker-meta's own RUN_DISK_RECONCILE/RUN_PROXY_SYNC/RUN_ALERT_WATCHDOG rather than replacing them.
 x-dev-env: &dev-env
   SPOTDL_ENV: dev
 

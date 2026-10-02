@@ -152,6 +152,9 @@ services:
       # celery_app.py.
       RUN_DISK_RECONCILE: "true"
       RUN_PROXY_SYNC: "true"
+      # v36: the Matrix alert watchdog (beat heartbeat, breaker release, failure spike)
+      # runs here, outside beat -- see backend/app/services/alerts.py.
+      RUN_ALERT_WATCHDOG: "true"
     healthcheck:
       # Same reasoning as worker-dl's healthcheck above.
       test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d worker-meta@$$HOSTNAME -t 10 >/dev/null 2>&1"]
