@@ -14,11 +14,6 @@ _FALLBACK_COOLDOWN_SECONDS = 60 * 60
 def send_alert(category: str, fingerprint: str, text: str) -> None:
     """v36: the one place an enqueued alert is actually sent (worker-meta, `meta` queue).
     Never retried and never raises: alerts.deliver logs a failure once and drops it."""
-    if category == alerts.CATEGORY_BREAKER and fingerprint.startswith("trip:"):
-        # Recorded even with the breaker category toggled off, so turning it back on
-        # mid-trip still gets the matching release.
-        alerts.mark_breaker_open()
-
     enabled = True
     cooldown_seconds = _FALLBACK_COOLDOWN_SECONDS
     db = SessionLocal()
@@ -37,4 +32,8 @@ def send_alert(category: str, fingerprint: str, text: str) -> None:
     if not enabled:
         logger.info("alerts: %s alert not sent, category is off in settings", category)
         return
-    alerts.deliver(category, fingerprint, text, cooldown_seconds)
+    outcome = alerts.deliver(category, fingerprint, text, cooldown_seconds)
+    if outcome == "sent" and category == alerts.CATEGORY_BREAKER and fingerprint.startswith("trip:"):
+        # The watchdog reports a release only for a trip the room actually heard about --
+        # not for one suppressed by the cooldown, toggled off, or never delivered.
+        alerts.mark_breaker_open()

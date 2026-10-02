@@ -131,13 +131,14 @@ class UpdateAlertSettingsRequest(BaseModel):
     alert_cooldown_minutes: int | None = None
 
 
-# Lower bounds keep a setting meaningful: a beat-stale threshold under two 30s ticks
-# would alert on ordinary jitter.
-_ALERT_MINIMUMS = {
-    "alert_spike_threshold": 2,
-    "alert_spike_window_minutes": 1,
-    "alert_beat_stale_seconds": 90,
-    "alert_cooldown_minutes": 1,
+# (min, max). Lower bounds keep a setting meaningful (a beat-stale threshold under two
+# 30s ticks would alert on ordinary jitter); upper bounds keep it inside the Integer
+# column and a sane range (a week, or 1000 attempts in a row).
+_ALERT_BOUNDS = {
+    "alert_spike_threshold": (2, 1000),
+    "alert_spike_window_minutes": (1, 7 * 24 * 60),
+    "alert_beat_stale_seconds": (90, 7 * 24 * 3600),
+    "alert_cooldown_minutes": (1, 7 * 24 * 60),
 }
 
 
@@ -167,9 +168,11 @@ def update_alert_settings(
     _: User = Depends(require_admin),
 ) -> dict:
     fields = payload.model_dump(exclude_unset=True)
-    for key, minimum in _ALERT_MINIMUMS.items():
-        if fields.get(key) is not None and fields[key] < minimum:
-            raise HTTPException(status_code=400, detail=f"{key} must be at least {minimum}")
+    for key, (minimum, maximum) in _ALERT_BOUNDS.items():
+        if fields.get(key) is not None and not minimum <= fields[key] <= maximum:
+            raise HTTPException(
+                status_code=400, detail=f"{key} must be between {minimum} and {maximum}"
+            )
     row = app_settings.update_alert_settings(db, **fields)
     db.commit()
     return _alert_settings_to_dict(row)

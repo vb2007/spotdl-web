@@ -29,14 +29,15 @@ re-fire one inside its window. The window is `app_settings.alert_cooldown_minute
 suppressed: the breaker step (`trip:30m`, `trip:2h`, ...), the spiking error_type, one
 fixed key for a stale beat, and a per-run key for library sweeps (never suppressed).
 
-Every message body goes through proxies.redact_text() first -- spotdl's errors echo proxy
+Every message body goes through redact_text() first -- spotdl's errors echo proxy
 credentials (CLAUDE.md invariant) -- both before it's enqueued (task args reach the broker
 and Celery's own task log lines) and again right before it's sent.
 """
 
 import logging
 import os
-import threading
+import subprocess
+import sys
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -50,7 +51,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from app.config import DEV_ENV_MARKER, get_settings
-from app.services import proxies
+from app.services.redaction import redact_text
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ COOLDOWN_KEY_PREFIX = "spotdl:alerts:cooldown:"
 BREAKER_OPEN_KEY = "spotdl:alerts:breaker_open"
 BEAT_HEARTBEAT_KEY = "spotdl:beat:heartbeat"
 
-# How often the watchdog thread checks (breaker release, failure spike, beat heartbeat).
+# How often the watchdog checks (breaker release, failure spike, beat heartbeat).
 WATCHDOG_INTERVAL_SECONDS = 60
 SEND_TIMEOUT_SECONDS = 10.0
 # Matrix accepts far more; this keeps a quoted traceback from flooding the room.
@@ -142,7 +143,7 @@ def format_body(text: str) -> str:
     label = "spotdl-web"
     if (get_settings().spotdl_env or "").strip().lower() == DEV_ENV_MARKER:
         label = "spotdl-web (dev)"
-    body = proxies.redact_text(f"[{label}] {text}")
+    body = redact_text(f"[{label}] {text}")
     if len(body) > MAX_BODY_CHARS:
         body = body[: MAX_BODY_CHARS - 1] + "…"
     return body
@@ -167,12 +168,13 @@ def send_now(text: str) -> None:
             },
             timeout=SEND_TIMEOUT_SECONDS,
         )
-    except httpx.HTTPError as exc:
-        # httpx's messages name the host/errno, never request headers.
-        raise AlertSendError(proxies.redact_text(f"{type(exc).__name__}: {exc}")) from None
+    except (httpx.HTTPError, httpx.InvalidURL, ValueError) as exc:
+        # httpx's messages name the host/errno, never request headers. InvalidURL (a
+        # malformed MATRIX_HOMESERVER_URL) isn't an HTTPError subclass.
+        raise AlertSendError(redact_text(f"{type(exc).__name__}: {exc}")) from None
     if response.status_code >= 400:
         raise AlertSendError(
-            proxies.redact_text(f"HTTP {response.status_code}: {response.text[:200]}")
+            redact_text(f"HTTP {response.status_code}: {response.text[:200]}")
         )
 
 
@@ -220,6 +222,10 @@ def deliver(category: str, fingerprint: str, text: str, cooldown_seconds: int) -
     except AlertSendError as exc:
         logger.warning("alerts: %s alert not sent: %s", category, exc)
         return "failed"
+    except Exception as exc:
+        # Belt and braces for "never raises": anything unforeseen is a dropped alert too.
+        logger.warning("alerts: %s alert not sent (%s)", category, type(exc).__name__)
+        return "failed"
     logger.info("alerts: %s alert sent (fingerprint %s)", category, fingerprint)
     return "sent"
 
@@ -237,7 +243,7 @@ def enqueue(category: str, fingerprint: str, text: str) -> None:
     # Redacted here too, not only in format_body: the text travels through the broker
     # (Redis) as a task argument, and Celery's own "Task ... received/succeeded" log lines
     # echo task args -- found by v36's real-stack redaction check.
-    text = proxies.redact_text(text)
+    text = redact_text(text)
     try:
         from app.tasks.alerts import send_alert
 
@@ -296,8 +302,11 @@ def failure_spike(db: Session, threshold: int, window_minutes: int, now: datetim
     """(fingerprint, text) when the newest `threshold` real attempts inside the window all
     failed with one error_type, else None. Computed from track_attempts (v35's
     error_type): only completed/failed rows count -- holds, dedup skips and cancels never
-    touched the network, so they neither break nor extend a run."""
-    from app.models import TrackAttempt, TrackAttemptOutcome
+    touched the network, so they neither break nor extend a run. `lookup` failures are
+    left out the same way: "Not found" is terminal and about the track itself (a playlist
+    of unavailable tracks fails them back to back), never a sign YouTube changed. A
+    reclaimed-stuck row (failed, no error_type) does break a run."""
+    from app.models import TrackAttempt, TrackAttemptOutcome, TrackErrorType
 
     if threshold < 1:
         return None
@@ -306,6 +315,7 @@ def failure_spike(db: Session, threshold: int, window_minutes: int, now: datetim
         .where(
             TrackAttempt.outcome.in_([TrackAttemptOutcome.COMPLETED, TrackAttemptOutcome.FAILED]),
             TrackAttempt.finished_at >= now - timedelta(minutes=window_minutes),
+            (TrackAttempt.error_type.is_(None)) | (TrackAttempt.error_type != TrackErrorType.LOOKUP),
         )
         .order_by(TrackAttempt.finished_at.desc())
         .limit(threshold)
@@ -330,6 +340,13 @@ def failure_spike(db: Session, threshold: int, window_minutes: int, now: datetim
 
 
 def breaker_released(worker_state, now: datetime) -> bool:
+    """The trip's pause is over and nothing else holds downloads: a manual pause still
+    on means "downloads resume" would be false, so the release waits for it too. No
+    worker_state row at all means nothing ever tripped."""
+    if worker_state is None:
+        return True
+    if worker_state.paused:
+        return False
     tripped_until = worker_state.breaker_tripped_until
     if tripped_until is None:
         return True
@@ -348,26 +365,31 @@ def beat_heartbeat_age(now_epoch: float, fallback_epoch: float) -> float:
 
 
 class Watchdog:
-    """Runs in worker-meta's main process as a daemon thread (started from celery_app's
-    worker_ready hook, gated by RUN_ALERT_WATCHDOG). Deliberately not a beat-scheduled
-    task: beat is one of the things it watches, and a dead beat would silently take the
-    check with it.
+    """Runs as its own small process (alert_watchdog.py, started from worker-meta's
+    worker_ready hook, gated by RUN_ALERT_WATCHDOG). Deliberately not a beat-scheduled task: beat is one of the
+    things it watches, and a dead beat would silently take the check with it.
 
-    It uses its own NullPool engine, never db.py's pooled one: the main process forks
-    prefork children (worker_max_tasks_per_child recycles them), and a pooled connection
-    inherited across a fork is shared by two processes."""
+    A separate process, not a thread: worker-meta's prefork main process keeps
+    forking children (worker_max_tasks_per_child), and a fork taken while a thread holds
+    a lock (logging, psycopg, ssl) can leave the new child deadlocked on it -- that child
+    would be one of the two slots beat's dispatch runs on. As its own interpreter, it shares
+    nothing with that process. It imports only config/models/app_settings (never spotdl: ~70 MB
+    resident, measured, against ~220 MB with spotdl).
+
+    It uses its own NullPool engine: a connection per check, nothing held between them."""
 
     def __init__(self) -> None:
         self.started_at = time.time()
         self._engine = create_engine(get_settings().database_url, poolclass=NullPool)
 
     def check_once(self) -> None:
-        from app.services import app_settings, retry
+        from app.models import WorkerState
+        from app.services import app_settings
 
         now = datetime.now(timezone.utc)
         with Session(self._engine) as db:
             row = app_settings.get_alert_settings(db)
-            worker_state = retry.get_worker_state(db)
+            worker_state = db.get(WorkerState, 1)
             db.commit()
             cooldown = row.alert_cooldown_minutes * 60
 
@@ -409,11 +431,15 @@ class Watchdog:
             time.sleep(WATCHDOG_INTERVAL_SECONDS)
 
 
-def start_watchdog() -> threading.Thread | None:
+def start_watchdog() -> subprocess.Popen | None:
+    """Starts app/services/alert_watchdog.py as a child of the calling process (worker-meta's
+    main process). A fresh interpreter via `python -m`, not multiprocessing's spawn: spawn's
+    child re-resolves `app` from the parent's sys.path order, which in local dev picked the
+    image's installed copy over the ./backend/app bind mount (found live in v36). `-m` from
+    the working directory resolves /app/app first, the same way the worker itself does."""
     log_startup_state()
     if not is_configured():
         return None
-    thread = threading.Thread(target=Watchdog().run, name="alert-watchdog", daemon=True)
-    thread.start()
-    logger.info("alerts: watchdog started (every %ss)", WATCHDOG_INTERVAL_SECONDS)
-    return thread
+    return subprocess.Popen(
+        [sys.executable, "-m", "app.services.alert_watchdog"], cwd=os.getcwd()
+    )

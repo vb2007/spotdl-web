@@ -105,8 +105,8 @@ def _sync_proxies_on_boot(**kwargs) -> None:
 @worker_ready.connect
 def _start_alert_watchdog_on_boot(**kwargs) -> None:
     # v36: same explicit-env-var-gate convention -- the alert watchdog (beat heartbeat,
-    # breaker release, failure spike) runs in worker-meta only. A thread in this worker's
-    # main process rather than a beat-scheduled task, since beat is one of the things it
+    # breaker release, failure spike) runs alongside worker-meta only, as its own spawned
+    # process rather than a beat-scheduled task, since beat is one of the things it
     # watches (see alerts.Watchdog). Also where "alerts are off" is logged at startup.
     if os.environ.get("RUN_ALERT_WATCHDOG") == "true":
         from app.services.alerts import start_watchdog

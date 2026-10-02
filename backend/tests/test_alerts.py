@@ -186,6 +186,21 @@ def test_send_failure_never_carries_the_token(configured, monkeypatch):
     assert "ConnectError" in str(excinfo.value)
 
 
+def test_malformed_homeserver_url_is_a_send_error(configured, monkeypatch):
+    bad = configured.model_copy(update={"matrix_homeserver_url": "http://[not a url"})
+    monkeypatch.setattr(alerts, "get_settings", lambda: bad)
+    with pytest.raises(alerts.AlertSendError):
+        alerts.send_now("x")
+
+
+def test_deliver_never_raises(configured, fake_redis, monkeypatch):
+    def boom(text):
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(alerts, "send_now", boom)
+    assert alerts.deliver("spike", "x", "y", 60) == "failed"
+
+
 def test_http_error_status_is_a_send_error(configured, monkeypatch):
     monkeypatch.setattr(
         alerts.httpx, "put", lambda *a, **k: httpx.Response(403, text="error code: 1010")
@@ -341,14 +356,22 @@ def test_send_alert_task_respects_the_category_toggle(task_db, monkeypatch, fake
     assert delivered == [("library", "run1", "y", 7 * 60)]
 
 
-def test_send_alert_task_marks_the_breaker_open_even_when_toggled_off(
+def test_breaker_open_marker_only_for_a_trip_the_room_heard_about(
     task_db, monkeypatch, fake_redis
 ):
-    monkeypatch.setattr(alerts, "deliver", lambda *a: None)
+    outcomes = iter(["suppressed", "sent"])
+    monkeypatch.setattr(alerts, "deliver", lambda *a: next(outcomes))
+    alert_tasks.send_alert("breaker", "trip:30m", "x")
+    assert alerts.BREAKER_OPEN_KEY not in fake_redis.store
+    alert_tasks.send_alert("breaker", "trip:30m", "x")
+    assert alerts.BREAKER_OPEN_KEY in fake_redis.store
+
+    # Toggled off: never delivered, so no release later either.
+    fake_redis.store.clear()
     app_settings.update_alert_settings(task_db, alerts_breaker_enabled=False)
     task_db.commit()
     alert_tasks.send_alert("breaker", "trip:30m", "x")
-    assert alerts.BREAKER_OPEN_KEY in fake_redis.store
+    assert alerts.BREAKER_OPEN_KEY not in fake_redis.store
 
 
 # --- watchdog checks ---------------------------------------------------------------------
@@ -405,8 +428,22 @@ def test_spike_needs_one_error_type_and_the_window(db_session, make_user):
     assert alerts.failure_spike(db_session, 4, 10, now) is None
 
 
+def test_lookup_failures_never_make_a_spike(db_session, make_user):
+    track = _track(db_session, make_user)
+    _attempt(db_session, track, 9, TrackAttemptOutcome.FAILED, TrackErrorType.NO_OUTPUT)
+    for i in range(5):
+        _attempt(db_session, track, 8 - i, TrackAttemptOutcome.FAILED, TrackErrorType.LOOKUP)
+    _attempt(db_session, track, 1, TrackAttemptOutcome.FAILED, TrackErrorType.NO_OUTPUT)
+    now = datetime.now(timezone.utc)
+    assert alerts.failure_spike(db_session, 3, 60, now) is None
+    # ...and they don't break a run either: the two no_output rows are consecutive.
+    assert alerts.failure_spike(db_session, 2, 60, now)[0] == "no_output"
+
+
 def test_breaker_released_once_the_pause_has_passed():
     now = datetime.now(timezone.utc)
+    assert alerts.breaker_released(None, now)
+    assert not alerts.breaker_released(WorkerState(breaker_tripped_until=None, paused=True), now)
     assert alerts.breaker_released(WorkerState(breaker_tripped_until=None), now)
     assert alerts.breaker_released(WorkerState(breaker_tripped_until=now - timedelta(seconds=1)), now)
     assert not alerts.breaker_released(WorkerState(breaker_tripped_until=now + timedelta(minutes=5)), now)
@@ -490,6 +527,8 @@ def test_alert_settings_reject_meaningless_values(admin_client):
     response = admin_client.patch("/api/settings/alerts", json={"alert_beat_stale_seconds": 30})
     assert response.status_code == 400
     response = admin_client.patch("/api/settings/alerts", json={"alert_spike_threshold": 1})
+    assert response.status_code == 400
+    response = admin_client.patch("/api/settings/alerts", json={"alert_cooldown_minutes": 2**31})
     assert response.status_code == 400
 
 
