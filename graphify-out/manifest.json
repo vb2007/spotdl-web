@@ -60,8 +60,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "backend/app/tasks/celery_app.py": {
-    "mtime": 1790932401.5516806,
-    "ast_hash": "8582bc5c1cc515e19c768d40d03e11ee",
+    "mtime": 1790933192.8103523,
+    "ast_hash": "0ba774a8189ac6fd0a3316fa1a19e8b5",
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
@@ -125,8 +125,8 @@
     "semantic_hash": ""
   },
   "docker-compose.override.yml": {
-    "mtime": 1790932429.0788946,
-    "ast_hash": "4cbc31cdcc83e44035a4791b37c2fc9b",
+    "mtime": 1790933178.6253939,
+    "ast_hash": "f326b3d03de6141b600c87b11a264a73",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
-    "mtime": 1790848452.209495,
-    "ast_hash": "98425fbc968820e1614c295a576da964",
+    "mtime": 1790933178.6256022,
+    "ast_hash": "3e23ab3738471c12c76d14782c6b1d11",
     "semantic_hash": ""
   },
   "backend/alembic/versions/ebc1d43e2c21_initial_schema.py": {
@@ -230,13 +230,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/expansion.py": {
-    "mtime": 1790932401.5517564,
-    "ast_hash": "6eb31374f80c7d4255e32afd2061961e",
+    "mtime": 1790933178.6252763,
+    "ast_hash": "d6000b7477701eac6d798115cc76d743",
     "semantic_hash": ""
   },
   "backend/app/tasks/expand.py": {
-    "mtime": 1790931705.7331448,
-    "ast_hash": "48080c3ec8361b39eb66c21f4213626c",
+    "mtime": 1790933178.6255283,
+    "ast_hash": "37cae366027071f8909b911ba0dc696f",
     "semantic_hash": ""
   },
   "backend/tests/test_expand_task.py": {
@@ -245,8 +245,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_expansion.py": {
-    "mtime": 1790932401.5517862,
-    "ast_hash": "a091bee79c6df76d6c8297ad3f96ae92",
+    "mtime": 1790933178.6253486,
+    "ast_hash": "03e9ad637a8a54bc15ffccea2796ab00",
     "semantic_hash": ""
   },
   "backend/tests/test_jobs.py": {
@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/dedup.py": {
-    "mtime": 1790614546.3031433,
-    "ast_hash": "9f8041415807152dd6d8665c036455d5",
+    "mtime": 1790933156.327911,
+    "ast_hash": "deca535c84eba12234e18ce7e15a0a09",
     "semantic_hash": ""
   },
   "backend/app/services/downloads.py": {
@@ -270,8 +270,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
-    "mtime": 1790614546.3041432,
-    "ast_hash": "9eda1b65b05ac4ca7bdc4544b8ac529d",
+    "mtime": 1790933152.2372456,
+    "ast_hash": "12f3297463b27013b78dd13ad5b8edee",
     "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
@@ -460,8 +460,8 @@
     "semantic_hash": ""
   },
   "docker-compose.prod.yml": {
-    "mtime": 1790932429.0789483,
-    "ast_hash": "85c7b44aae9063c64310d6fee161ba31",
+    "mtime": 1790933178.6254394,
+    "ast_hash": "dca25ae841be05ad1f760f8baaa5064f",
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1790932780.8786638,
-    "ast_hash": "29a6a6e8c7781b4d5ebd393bc8775603",
+    "mtime": 1790933210.0605276,
+    "ast_hash": "3326f5adb17e555c5510851991e4f97a",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -940,8 +940,8 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/library.py": {
-    "mtime": 1790614546.3031433,
-    "ast_hash": "d7ad18ecc970f75e63c390fe4c3b6146",
+    "mtime": 1790933178.6254854,
+    "ast_hash": "e4b6775a3b552e76159ba7149f59f4df",
     "semantic_hash": ""
   },
   "backend/tests/test_library.py": {

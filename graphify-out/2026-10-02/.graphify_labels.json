@@ -206,7 +206,5 @@
   "204": "track_counts",
   "205": "db.py",
   "206": "_event_stream",
-  "207": "sync_from_file",
-  "208": "Upgrading an existing deployment (manual fallback)",
-  "209": "Architecture"
+  "208": "Upgrading an existing deployment (manual fallback)"
 }
