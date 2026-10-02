@@ -535,4 +535,23 @@ describe('v35 (g) tracks-scope state counts', () => {
 		expect(countsCalls()).toHaveLength(1);
 		expect(get(queue.page).countsByState).toEqual({ completed: 3 });
 	});
+
+	it('an older in-flight reload does not overwrite a fresher counts refresh', async () => {
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		getJob.mockResolvedValue(job('job-1', 'expanded', 'active'));
+		queue.setFilters({ scope: 'tracks' });
+		await vi.runAllTimersAsync();
+
+		const slowReload = deferred<TracksPage>();
+		listTracksPage.mockReturnValueOnce(slowReload.promise);
+		queue.setFilters({ q: 'x' });
+		listTracksPage.mockResolvedValue({ ...tracksPage([]), counts_by_state: { completed: 2 } });
+		await queue.applyEvent(trackEvent('t1', 'completed'));
+		await vi.advanceTimersByTimeAsync(1500);
+		expect(get(queue.page).countsByState).toEqual({ completed: 2 });
+
+		slowReload.resolve({ ...tracksPage([]), counts_by_state: { downloading: 1 } });
+		await vi.runAllTimersAsync();
+		expect(get(queue.page).countsByState).toEqual({ completed: 2 });
+	});
 });

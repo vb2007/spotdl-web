@@ -472,6 +472,7 @@ function createQueueStore() {
 					error: ''
 				});
 			} else {
+				const countsSeqAtStart = trackCountsSeq;
 				const result = await api.listTracksPage({
 					...currentQueryParams(),
 					status: f.status.length ? f.status : undefined,
@@ -483,7 +484,10 @@ function createQueueStore() {
 					nextCursor: result.next_cursor,
 					totalEstimate: 0,
 					countsByStatus: {},
-					countsByState: result.counts_by_state,
+					// A counts refresh started after this reload read a newer snapshot (and
+					// either already landed or will): don't put this older one back over it.
+					countsByState:
+						countsSeqAtStart === trackCountsSeq ? result.counts_by_state : get(page).countsByState,
 					loading: false,
 					loadingMore: false,
 					error: ''

@@ -105,6 +105,11 @@ def _reclaim_stale_tracks(db) -> None:
                     f"reclaimed: still queued past staleness threshold ({threshold})"
                 ),
             )
+        # v35: commit per track. record_attempt's counter UPDATE takes this track's row
+        # lock, and holding several across the loop could deadlock against cancel_job
+        # locking the same job's tracks in another order. One lock at a time can't form a
+        # cycle, and the event below only goes out once its counters are committed.
+        db.commit()
         events.publish_track_event(
             owner_by_job[job_id],
             track_id,
@@ -115,7 +120,6 @@ def _reclaim_stale_tracks(db) -> None:
             failure_count=recorded.failure_count,
             **track_song_meta(song_json),
         )
-    db.commit()
 
 
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")
