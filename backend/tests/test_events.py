@@ -77,7 +77,7 @@ def test_make_progress_callback_publishes_downloading_progress(monkeypatch):
     monkeypatch.setattr(events, "publish_track_event", fake_publish_track_event)
 
     callback = events.make_progress_callback(
-        "user-1", "track-1", "job-1", title="Song", artists=["Artist"], album="Album"
+        "user-1", "track-1", "job-1", title="Song", artists=["Artist"], album="Album", attempt_count=3
     )
     callback(_FakeSongTracker(progress=42), "Downloading")
 
@@ -87,6 +87,8 @@ def test_make_progress_callback_publishes_downloading_progress(monkeypatch):
         "job_id": "job-1",
         "state": "downloading",
         "progress": 42,
+        # v34.2: lets the frontend key its progress cache on the attempt.
+        "attempt_count": 3,
         "title": "Song",
         "artists": ["Artist"],
         "album": "Album",

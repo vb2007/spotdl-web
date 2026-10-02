@@ -82,16 +82,34 @@
 	let streamRetryDelayMs = 1000;
 	let streamRetryTimer: ReturnType<typeof setTimeout> | undefined;
 	let source: EventSource | undefined;
-	// v34.2: the stream's `onopen` is the only resync (see queue.reload). If it fails
-	// before ever opening -- the API down at load time, an expired session -- fall back to
-	// one plain REST reload so the page still shows its data or its error.
-	let streamEverOpened = false;
-	let fallbackReloaded = false;
+	// v34.2: the stream's `onopen` is the only resync (see queue.reload). Mount and every
+	// scope switch arm one fallback: if the stream hasn't opened when it fails outright
+	// (a 502/401 closes it) or within RESYNC_FALLBACK_MS (a network-level failure keeps it
+	// CONNECTING, which never reaches the CLOSED branch below), do one plain REST reload so
+	// the page shows its data or its error instead of "Loading…" indefinitely. The
+	// eventual `onopen` still resyncs as usual.
+	const RESYNC_FALLBACK_MS = 5000;
+	let awaitingResync = false;
+	let resyncFallbackTimer: ReturnType<typeof setTimeout> | undefined;
+
+	function armResyncFallback() {
+		awaitingResync = true;
+		clearTimeout(resyncFallbackTimer);
+		resyncFallbackTimer = setTimeout(resyncFallback, RESYNC_FALLBACK_MS);
+	}
+
+	function resyncFallback() {
+		clearTimeout(resyncFallbackTimer);
+		if (!awaitingResync) return;
+		awaitingResync = false;
+		queue.reload();
+	}
 
 	function connectStream() {
 		source = api.createEventSource(allUsersView);
 		source.onopen = () => {
-			streamEverOpened = true;
+			awaitingResync = false;
+			clearTimeout(resyncFallbackTimer);
 			streamRetryDelayMs = 1000;
 			// Per the v08 contract: resync full REST state on every connect/reconnect
 			// rather than trying to replay whatever happened while disconnected.
@@ -106,10 +124,7 @@
 				return;
 			}
 			source.close();
-			if (!streamEverOpened && !fallbackReloaded) {
-				fallbackReloaded = true;
-				queue.reload();
-			}
+			resyncFallback();
 			streamRetryTimer = setTimeout(connectStream, streamRetryDelayMs);
 			streamRetryDelayMs = Math.min(streamRetryDelayMs * 2, 30_000);
 		};
@@ -127,15 +142,18 @@
 		streamRetryDelayMs = 1000;
 		source?.close();
 		queue.setAllUsers(next);
+		armResyncFallback();
 		connectStream();
 	}
 
 	onMount(() => {
 		queue.beginResync();
+		armResyncFallback();
 		connectStream();
 
 		return () => {
 			clearTimeout(streamRetryTimer);
+			clearTimeout(resyncFallbackTimer);
 			source?.close();
 		};
 	});

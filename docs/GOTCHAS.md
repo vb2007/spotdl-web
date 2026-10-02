@@ -4280,3 +4280,15 @@ independently-found production bug from the same conversation)
   browser the stream retried and then re-hydrated once, with incoming rows 4 → 4 and no
   duplicates.
 
+- **`downloading` events didn't carry `attempt_count`**, so a lane created purely from SSE (no
+  REST seed) recorded every tick under attempt 0 and a retried track's cache never matched its
+  hydrated `attempt_count`. Retries are this app's normal state, so that gutted the feature.
+  Found by blind review. Both downloading publishes now include it; live capture: every tick
+  from `progress=0` to `100` carried `attempt_count=0` on a first attempt. **To test
+  "survives a hard reload", re-import the store module (`vi.resetModules()`)**, never
+  `queue.reset()`: that is logout, and it clears the cache by design.
+- **The resync fallback is armed per resync (mount and every scope switch), not once per
+  mount, and also fires on a 5s timer.** A network-level stream failure keeps the EventSource
+  `CONNECTING`, which never reaches the `CLOSED` branch. Live: a scope switch under a 502ing
+  stream showed the new scope via the fallback within 1.5s, and a `connectionreset` stream left
+  "Loading…" at 2s, resolved by 7s.

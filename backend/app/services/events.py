@@ -153,6 +153,7 @@ def make_progress_callback(
     title: str | None = None,
     artists: list[str] | None = None,
     album: str | None = None,
+    attempt_count: int | None = None,
 ) -> Callable[[Any, str], None]:
     """Returns a callback for spotdl's `ProgressHandler.update_callback` hook — every
     `SongTracker.notify_*` call (searching/getting-meta/downloading/converting/complete)
@@ -165,6 +166,9 @@ def make_progress_callback(
     title/artists/album (v23) are captured in this closure rather than read from
     `tracker` each call -- the caller already has `song_json` loaded once per track, and
     every one of these callback invocations describes the same track.
+
+    attempt_count (v34.2) is the attempt this run is, so the frontend can tell this
+    attempt's ticks from a previous one's (its localStorage progress cache keys on it).
     """
 
     def _callback(tracker: Any, message: str) -> None:
@@ -174,6 +178,7 @@ def make_progress_callback(
             job_id,
             "downloading",
             progress=int(tracker.progress),
+            attempt_count=attempt_count,
             title=title,
             artists=artists,
             album=album,
