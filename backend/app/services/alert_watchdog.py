@@ -1,5 +1,5 @@
 """Entry point of the v36 alert watchdog process: `python -m app.services.alert_watchdog`,
-started by alerts.start_watchdog() from worker-meta (see alerts.Watchdog for why it's a
+started (and respawned) by celery_app.AlertWatchdogStep in worker-meta (see alerts.Watchdog for why it's a
 separate process). Lives with its parent: it exits when worker-meta's main process does."""
 
 import logging

@@ -96,7 +96,7 @@ def test_alerts_off_when_any_variable_is_missing_or_blank(monkeypatch, caplog):
     assert alerts.missing_config_vars() == ["MATRIX_ACCESS_TOKEN"]
 
     caplog.set_level("INFO", logger="app.services.alerts")
-    assert alerts.start_watchdog() is None
+    alerts.log_startup_state()
     assert "Matrix alerts are off (MATRIX_ACCESS_TOKEN unset)" in caplog.text
 
 
@@ -199,6 +199,37 @@ def test_deliver_never_raises(configured, fake_redis, monkeypatch):
 
     monkeypatch.setattr(alerts, "send_now", boom)
     assert alerts.deliver("spike", "x", "y", 60) == "failed"
+
+
+def test_protocol_error_quoting_the_header_never_carries_the_token(configured, monkeypatch):
+    def bad_header(url, json, headers, timeout):
+        raise httpx.LocalProtocolError(f"Illegal header value b'Bearer {TOKEN}'")
+
+    monkeypatch.setattr(alerts.httpx, "put", bad_header)
+    with pytest.raises(alerts.AlertSendError) as excinfo:
+        alerts.send_now("x")
+    assert TOKEN not in str(excinfo.value)
+
+
+def test_watchdog_step_respawns_a_dead_watchdog(monkeypatch):
+    from app.tasks.celery_app import AlertWatchdogStep
+
+    class Proc:
+        def __init__(self, code):
+            self.code = code
+
+        def poll(self):
+            return self.code
+
+    spawned = []
+    monkeypatch.setattr(alerts, "spawn_watchdog", lambda: spawned.append(1) or Proc(None))
+    step = AlertWatchdogStep.__new__(AlertWatchdogStep)
+    step.process = Proc(None)
+    step._supervise()
+    assert spawned == []
+    step.process = Proc(-9)
+    step._supervise()
+    assert spawned == [1] and step.process.poll() is None
 
 
 def test_http_error_status_is_a_send_error(configured, monkeypatch):

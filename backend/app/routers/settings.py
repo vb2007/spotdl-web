@@ -190,7 +190,8 @@ def _require_admin_hidden(user: User = Depends(require_session)) -> User:
 def send_test_alert(user: User = Depends(_require_admin_hidden)) -> dict:
     """Sends one message straight to the room and reports whether it arrived, bypassing
     the category toggles and the cooldown -- the point is to check the wiring. Admin-only
-    and synchronous (bounded by alerts.SEND_TIMEOUT_SECONDS), never on a download path."""
+    and synchronous (alerts.SEND_TIMEOUT_SECONDS per connect/read phase), never on a download
+    path."""
     try:
         alerts.send_now(f"Test alert, sent from the settings page by {user.email}.")
     except alerts.AlertsNotConfigured:

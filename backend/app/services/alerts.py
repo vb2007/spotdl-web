@@ -81,6 +81,8 @@ BEAT_HEARTBEAT_KEY = "spotdl:beat:heartbeat"
 
 # How often the watchdog checks (breaker release, failure spike, beat heartbeat).
 WATCHDOG_INTERVAL_SECONDS = 60
+# Per phase (connect/read/write/pool), not end to end, and name resolution isn't covered:
+# a homeserver whose DNS hangs holds the meta slot (or the test request) longer.
 SEND_TIMEOUT_SECONDS = 10.0
 # Matrix accepts far more; this keeps a quoted traceback from flooding the room.
 MAX_BODY_CHARS = 2000
@@ -173,9 +175,12 @@ def send_now(text: str) -> None:
             timeout=SEND_TIMEOUT_SECONDS,
         )
     except (httpx.HTTPError, httpx.InvalidURL, ValueError) as exc:
-        # httpx's messages name the host/errno, never request headers. InvalidURL (a
-        # malformed MATRIX_HOMESERVER_URL) isn't an HTTPError subclass.
-        raise AlertSendError(redact_text(f"{type(exc).__name__}: {exc}")) from None
+        # InvalidURL (a malformed MATRIX_HOMESERVER_URL) isn't an HTTPError subclass.
+        # Transport errors name the host/errno; a protocol error can quote a header value
+        # (h11's "Illegal header value b'Bearer ...'" for a token with a stray control
+        # character), so the token is scrubbed from the text whatever the exception.
+        message = f"{type(exc).__name__}: {exc}".replace(config.access_token, "[token]")
+        raise AlertSendError(redact_text(message)) from None
     if response.status_code >= 400:
         raise AlertSendError(
             redact_text(f"HTTP {response.status_code}: {response.text[:200]}")
@@ -377,9 +382,10 @@ def beat_heartbeat_age(now_epoch: float, fallback_epoch: float) -> float:
 
 
 class Watchdog:
-    """Runs as its own small process (alert_watchdog.py, started from worker-meta's
-    worker_ready hook, gated by RUN_ALERT_WATCHDOG). Deliberately not a beat-scheduled task: beat is one of the
-    things it watches, and a dead beat would silently take the check with it.
+    """Runs as its own small process (alert_watchdog.py, started and supervised by
+    worker-meta's AlertWatchdogStep, gated by RUN_ALERT_WATCHDOG). Deliberately not a
+    beat-scheduled task: beat is one of the things it watches, and a dead beat would
+    silently take the check with it.
 
     A separate process, not a thread: worker-meta's prefork main process keeps
     forking children (worker_max_tasks_per_child), and a fork taken while a thread holds
@@ -455,15 +461,13 @@ class Watchdog:
             time.sleep(WATCHDOG_INTERVAL_SECONDS)
 
 
-def start_watchdog() -> subprocess.Popen | None:
+def spawn_watchdog() -> subprocess.Popen:
     """Starts app/services/alert_watchdog.py as a child of the calling process (worker-meta's
-    main process). A fresh interpreter via `python -m`, not multiprocessing's spawn: spawn's
-    child re-resolves `app` from the parent's sys.path order, which in local dev picked the
-    image's installed copy over the ./backend/app bind mount (found live in v36). `-m` from
-    the working directory resolves /app/app first, the same way the worker itself does."""
-    log_startup_state()
-    if not is_configured():
-        return None
+    main process; supervised by celery_app's AlertWatchdogStep). A fresh interpreter via
+    `python -m`, not multiprocessing's spawn: spawn's child re-resolves `app` from the
+    parent's sys.path order, which in local dev picked the image's installed copy over the
+    ./backend/app bind mount (found live in v36). `-m` from the working directory resolves
+    /app/app first, the same way the worker itself does."""
     return subprocess.Popen(
         [sys.executable, "-m", "app.services.alert_watchdog"], cwd=os.getcwd()
     )
