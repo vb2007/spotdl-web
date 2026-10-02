@@ -456,6 +456,29 @@ To rotate the token, log in again (step 2), update `MATRIX_ACCESS_TOKEN` (step 6
 old session out from Element's **Sessions** list. To turn alerts off, delete any one of the three
 secrets.
 
+### App alerts (v36)
+
+The running app posts to the same room, as the same bot: circuit breaker tripped / escalated /
+released, a failure spike (the last N real attempts all failing with one `error_type`), a stale
+beat heartbeat, and each library sweep's result. Turn them on by adding the same three values to
+the host's `.env` (they're **optional**: unset means alerts are off, and the deploy preflight
+passes without them):
+
+```bash
+MATRIX_HOMESERVER_URL=https://<homeserver>
+MATRIX_ACCESS_TOKEN=<a token for the bot>   # ideally its own device: log in again (step 2)
+MATRIX_ROOM_ID=!AbCdEf123:<server>
+```
+
+then `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` so the backend
+services pick them up. `worker-meta` logs `alerts: Matrix alerts are on (room ...)` (or `... are
+off (<names> unset)`) once at startup. Check the wiring from **/settings → Alerts → Send test
+alert** (admin only). The same panel turns each category off and sets the spike threshold (default
+5 in a row) and window (60 min), the beat-stale threshold (180 s) and the cooldown (60 min: an
+identical alert repeats at most once per window, kept in Redis, so a restart doesn't re-fire it).
+The token is never logged and never returned by the API. A failed send is logged once and dropped;
+it never touches a download.
+
 ---
 
 ## One-time host setup (already done on this host — kept for reference)
