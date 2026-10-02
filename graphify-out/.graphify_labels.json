@@ -215,5 +215,9 @@
   "213": "spawn_watchdog",
   "214": "alerts.py",
   "215": "sent",
-  "216": "ApiError"
+  "216": "ApiError",
+  "217": "One-time host setup (already done on this host — kept for reference)",
+  "218": "Upgrading an existing deployment (manual fallback)",
+  "219": "Amendments",
+  "220": "Architecture"
 }
