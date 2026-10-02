@@ -235,3 +235,33 @@ def test_long_running_tasks_route_to_the_expand_queue_not_meta():
     assert queue_for("app.tasks.beat.dispatch_due_tracks") == "meta"
     assert queue_for("app.tasks.beat.archive_due_jobs") == "meta"
     assert queue_for("app.tasks.download.download_track") == "downloads"
+
+
+def test_expand_job_redelivered_after_expanded_enqueues_only_pending_tracks(db_session, monkeypatch):
+    """A run that committed EXPANDED then died mid-enqueue is redelivered (acks_late): it
+    must not re-expand (duplicate tracks) nor skip (pending tracks stranded forever)."""
+    job = Job(
+        source_url="https://open.spotify.com/album/abc",
+        source_type=JobSourceType.ALBUM,
+        user_id=_owner(db_session).id,
+        state=JobState.EXPANDED,
+    )
+    db_session.add(job)
+    db_session.flush()
+    stranded = Track(job_id=job.id, spotify_track_id="a", song_json={"name": "A"})
+    done = Track(job_id=job.id, spotify_track_id="b", song_json={"name": "B"}, state=TrackState.COMPLETED)
+    db_session.add_all([stranded, done])
+    db_session.commit()
+
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    calls = []
+    monkeypatch.setattr(expansion, "expand", lambda url: calls.append(url) or [])
+    enqueued = _stub_download_track(monkeypatch)
+    published = _capture_job_events(monkeypatch)
+
+    expand_task.expand_job(str(job.id))
+
+    assert calls == []
+    assert enqueued == [str(stranded.id)]
+    assert published == []
+    assert db_session.query(Track).filter(Track.job_id == job.id).count() == 2

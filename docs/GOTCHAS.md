@@ -4199,10 +4199,11 @@ independently-found production bug from the same conversation)
   concurrent discographies, under the 768M prod limit. A third concurrent expansion queues
   behind the first two. A quick single-track job submitted during two artist archives waits
   for a free slot, which is the cost of not paying for a third child's memory all the time.
-- **`worker-meta` must keep its library mount** even though the sort sweep moved off it:
-  `reconcile_disk()` (boot) prunes ledger rows whose file is missing, and moved tracks' rows
-  point into the library, so a `worker-meta` without that mount would re-download every
-  sorted track (the v28 invariant, in a new shape). **And the two now run concurrently** (a
+- **`worker-meta` keeps its library mount** even though the sort sweep moved off it:
+  `reconcile_disk()` (boot) checks ledger rows that point into the library. Without the mount
+  its per-root guard skips them as "root looks unmounted" (safe, not a mass prune; an earlier
+  draft of this entry claimed otherwise), but a genuinely deleted library file would then never
+  be pruned and never re-download. **And the two now run concurrently** (a
   deploy recreates both mid-sweep): `reconcile_disk()` could read a row's old `/downloads` path,
   the sweep commit the repoint and unlink the source, and the check then find the old path missing
   and delete the freshly moved row. Since the sweep always commits before it unlinks,

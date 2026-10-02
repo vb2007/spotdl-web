@@ -23,8 +23,29 @@ def expand_job(job_id: str) -> None:
             return
         # Cancelled while still queued for worker-expand: the user said "don't download
         # this", so don't even spend the Spotify round trips (minutes, for an artist).
-        if job.state != JobState.EXPANDING:
+        # `failed` likewise has nothing left to do.
+        if job.state in (JobState.CANCELLED, JobState.FAILED):
             logger.info("expand_job: job %s is %s, not expanding; skipping", job_id, job.state.value)
+            return
+        # A redelivery (acks_late) of a run that committed EXPANDED but died before it
+        # finished enqueueing downloads: the tracks exist, so don't re-expand (that would
+        # insert every track a second time). Enqueue the ones still `pending` -- nothing
+        # else ever picks a `pending` track up (beat only dispatches `waiting`, and the
+        # stale sweep only reclaims `queued`/`downloading`). A pending track the dead run
+        # did enqueue gets a second message; download_track's own gates handle that.
+        if job.state == JobState.EXPANDED:
+            pending = (
+                db.query(Track.id)
+                .filter(Track.job_id == job.id, Track.state == TrackState.PENDING)
+                .all()
+            )
+            logger.info(
+                "expand_job: job %s already expanded (redelivery); enqueueing %d pending tracks",
+                job_id,
+                len(pending),
+            )
+            for (track_id,) in pending:
+                download_track.delay(str(track_id))
             return
 
         events.publish_job_event(job.user_id, job.id, job.state.value)
