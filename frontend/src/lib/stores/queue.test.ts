@@ -536,7 +536,7 @@ describe('v35 (g) tracks-scope state counts', () => {
 		expect(get(queue.page).countsByState).toEqual({ completed: 3 });
 	});
 
-	it('an older in-flight reload does not overwrite a fresher counts refresh', async () => {
+	it('a counts refresh that raced an in-flight reload is re-read after it', async () => {
 		listTracksPage.mockResolvedValue(tracksPage([]));
 		getJob.mockResolvedValue(job('job-1', 'expanded', 'active'));
 		queue.setFilters({ scope: 'tracks' });
@@ -551,6 +551,9 @@ describe('v35 (g) tracks-scope state counts', () => {
 		expect(get(queue.page).countsByState).toEqual({ completed: 2 });
 
 		slowReload.resolve({ ...tracksPage([]), counts_by_state: { downloading: 1 } });
+		await vi.advanceTimersByTimeAsync(0);
+		// The reload's own (older) counts land first, then one more re-read converges.
+		expect(get(queue.page).countsByState).toEqual({ downloading: 1 });
 		await vi.runAllTimersAsync();
 		expect(get(queue.page).countsByState).toEqual({ completed: 2 });
 	});

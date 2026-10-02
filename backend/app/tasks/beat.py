@@ -93,8 +93,9 @@ def _reclaim_stale_tracks(db) -> None:
             # v35: stuck `queued` means its message hadn't reached the network yet (it
             # never ran, or is still in download_track's pacing wait) -- rescheduled
             # without an attempt, which is what `held` records. Neither an attempt nor a
-            # failure, and not rendered as one. If the message does still run, its own row
-            # records that attempt.
+            # failure, and not rendered as one. A message that hasn't started yet is then
+            # dropped by download_track's waiting gate; one mid-pacing-wait still runs
+            # and records its own row (pre-existing, see docs/GOTCHAS.md's v35 section).
             recorded = attempts.record_attempt(
                 db,
                 track_id,

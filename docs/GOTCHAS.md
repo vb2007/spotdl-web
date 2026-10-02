@@ -4372,7 +4372,9 @@ independently-found production bug from the same conversation)
   of a still-alive `downloading` invocation also counts that one network attempt twice (the
   reclaim's `failed` row plus the real outcome's). A mid-download cancel's event goes out before
   its attempt row and carries no counters; the frontend never patches an already-`cancelled` row
-  anyway, so its displayed counts update on the next reload.
+  anyway, so its displayed counts update on the next reload. A track reclaimed while its message
+  sits in `download_track`'s pacing sleep still downloads afterwards (the post-sleep check only
+  looks for `cancelled`), and beat dispatches it again — pacing is off by default (`MAX_SEC=0`).
 - **Found while verifying, not fixed (pre-existing):** spotdl's `file already exists` skip is
   recorded as a `completed direct-ipv4` attempt and counts as one; a completed track keeps its
   last failure in `last_error`, so TrackRow still shows a red "last read" on it; and

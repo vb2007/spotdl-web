@@ -484,14 +484,15 @@ function createQueueStore() {
 					nextCursor: result.next_cursor,
 					totalEstimate: 0,
 					countsByStatus: {},
-					// A counts refresh started after this reload read a newer snapshot (and
-					// either already landed or will): don't put this older one back over it.
-					countsByState:
-						countsSeqAtStart === trackCountsSeq ? result.counts_by_state : get(page).countsByState,
+					countsByState: result.counts_by_state,
 					loading: false,
 					loadingMore: false,
 					error: ''
 				});
+				// A counts refresh that started during this reload may have read a newer
+				// snapshot than these counts (or failed): one more re-read converges on
+				// this filter's current numbers either way.
+				if (countsSeqAtStart !== trackCountsSeq) scheduleTrackCountsRefresh();
 			}
 		} catch (err) {
 			if (seq !== pageFetchSeq) return;
