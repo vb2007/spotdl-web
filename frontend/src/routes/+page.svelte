@@ -82,10 +82,16 @@
 	let streamRetryDelayMs = 1000;
 	let streamRetryTimer: ReturnType<typeof setTimeout> | undefined;
 	let source: EventSource | undefined;
+	// v34.2: the stream's `onopen` is the only resync (see queue.reload). If it fails
+	// before ever opening -- the API down at load time, an expired session -- fall back to
+	// one plain REST reload so the page still shows its data or its error.
+	let streamEverOpened = false;
+	let fallbackReloaded = false;
 
 	function connectStream() {
 		source = api.createEventSource(allUsersView);
 		source.onopen = () => {
+			streamEverOpened = true;
 			streamRetryDelayMs = 1000;
 			// Per the v08 contract: resync full REST state on every connect/reconnect
 			// rather than trying to replay whatever happened while disconnected.
@@ -100,16 +106,20 @@
 				return;
 			}
 			source.close();
+			if (!streamEverOpened && !fallbackReloaded) {
+				fallbackReloaded = true;
+				queue.reload();
+			}
 			streamRetryTimer = setTimeout(connectStream, streamRetryDelayMs);
 			streamRetryDelayMs = Math.min(streamRetryDelayMs * 2, 30_000);
 		};
 	}
 
 	/** Admin-only (v17): both REST and SSE must agree on scope, so switching requires
-	 * clearing the accumulated store (queue.setAllUsers, which also reloads the current
-	 * page under the new scope) and reconnecting the stream carrying the new all_users
-	 * flag -- the existing connection has no way to change what channel it's subscribed
-	 * to mid-flight. */
+	 * clearing the accumulated store (queue.setAllUsers) and reconnecting the stream
+	 * carrying the new all_users flag -- the existing connection has no way to change what
+	 * channel it's subscribed to mid-flight. The new stream's `onopen` loads the new
+	 * scope. */
 	async function onAllUsersChange(next: boolean) {
 		if (next === allUsersView) return;
 		allUsersView = next;
@@ -121,7 +131,7 @@
 	}
 
 	onMount(() => {
-		queue.reload();
+		queue.beginResync();
 		connectStream();
 
 		return () => {
