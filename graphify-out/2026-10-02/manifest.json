@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1790934910.2219691,
-    "ast_hash": "f4962c417c3f7587b248c1b9bc39539b",
+    "mtime": 1790935631.314441,
+    "ast_hash": "8ad78df5f6b0c2253e2222ea0edd0d0f",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -265,8 +265,8 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/download.py": {
-    "mtime": 1790934005.2058966,
-    "ast_hash": "ea5b8d5b2492a3be6df0e1a9bc406572",
+    "mtime": 1790935559.2232935,
+    "ast_hash": "0580e60bef0ad172b4eff00d4e401d03",
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
@@ -275,8 +275,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
-    "mtime": 1790933947.948121,
-    "ast_hash": "752c514d96835201263eafb6db98dfe6",
+    "mtime": 1790935603.7838385,
+    "ast_hash": "4823347d25ecbf3351aab75e269c62c4",
     "semantic_hash": ""
   },
   "backend/tests/test_downloads.py": {
@@ -330,13 +330,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/events.py": {
-    "mtime": 1790523827.0314615,
-    "ast_hash": "bc14ce87e9b36b3378f52387eab2a1b4",
+    "mtime": 1790935559.2231216,
+    "ast_hash": "bbf89f66eeef56d53edb0c12409c0a51",
     "semantic_hash": ""
   },
   "backend/tests/test_events.py": {
-    "mtime": 1786734492.1062484,
-    "ast_hash": "1da7853bb7e8fd9846116e5b16287441",
+    "mtime": 1790935584.6625464,
+    "ast_hash": "7fa47ae56d86dbe6e461c1d251e7363e",
     "semantic_hash": ""
   },
   "backend/tests/test_stream.py": {
@@ -370,7 +370,7 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1790935037.2728353,
+    "mtime": 1790935678.5077994,
     "ast_hash": "5ec2d83dfe4bf0218b42a2a616bcb69a",
     "semantic_hash": ""
   },
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1790935286.6853695,
-    "ast_hash": "646cfe765735c4c30a4e724bdbdbdadc",
+    "mtime": 1790935754.5652158,
+    "ast_hash": "1bca1f159d069b3e5c952f2b5ddd9673",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1110,13 +1110,13 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.test.ts": {
-    "mtime": 1790935024.5325766,
-    "ast_hash": "a286b6449e3f99cab14f635a3fa922d2",
+    "mtime": 1790935668.064661,
+    "ast_hash": "8f8da6a9c13f9d1a874cefeea5cda636",
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/progressCache.ts": {
-    "mtime": 1790934985.823616,
-    "ast_hash": "5fec8b615cce3d9527d988307da34e83",
+    "mtime": 1790935631.3145542,
+    "ast_hash": "c6d242844b5f0698497fb52ccc07d505",
     "semantic_hash": ""
   }
 }
