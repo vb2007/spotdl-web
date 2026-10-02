@@ -14,9 +14,9 @@ class TrackAttemptOutcome(str, enum.Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
     SKIPPED_DUPLICATE = "skipped_duplicate"
-    # v35: the circuit breaker (or a manual pause) was active, so the track was rescheduled
-    # without touching the network. Used to be stored as `failed`, which counted it as an
-    # attempt it never was.
+    # v35: rescheduled without touching the network -- the circuit breaker (or a manual
+    # pause) was active, or beat reclaimed a track stuck `queued` whose message never ran.
+    # Holds used to be stored as `failed`, which counted them as attempts they never were.
     HELD = "held"
 
 

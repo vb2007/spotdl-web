@@ -4328,10 +4328,12 @@ independently-found production bug from the same conversation)
   That UPDATE runs first so it takes the track's row lock before `max(attempt_number) + 1` is read:
   beat's stale reclaim (worker-meta) and `download_track` (worker-dl) can write rows for the same
   track concurrently. Derived-in-SQL counts were rejected because every listing and every SSE
-  event would then need its own aggregate. A beat-reclaimed row stays `failed` (as v31 recorded
-  it), but only counts as an attempt and a failure when the track was stuck `downloading`. One
-  stuck `queued` never ran, so beat passes `reached_network=False` (found by v35's blind review).
-  The migration can't tell the two apart in old rows and counts every historical reclaim. A
+  event would then need its own aggregate. The counting rule is derived from the row alone
+  (outcome + `network_path`), so the counters can always be recomputed from `track_attempts`.
+  Beat's reclaim of a track stuck `downloading` stays `failed` (as v31 recorded it). One stuck
+  `queued` never ran, so it is now recorded as `held` with a warning note (found by v35's two
+  blind review rounds; a first fix that kept it `failed` but uncounted left a red row beside
+  "failures: 0"). The migration can't tell old reclaim rows apart and keeps them `failed`. A
   reclaim that races a still-running invocation gets the lower `attempt_number` despite its later
   `started_at`; the endpoint orders by number, so that one pair can show out of time order.
 - **(a) Breaker hold = outcome `held`, still a row.** It keeps the history honest (you can see the

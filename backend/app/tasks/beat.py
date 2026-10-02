@@ -80,17 +80,29 @@ def _reclaim_stale_tracks(db) -> None:
         # reached its own record_attempt call (that's what "stuck" means here), so this
         # sweep records it on that invocation's behalf: FAILED, no known error_type since
         # the real cause (crashed worker, hard-killed container) was never observed.
-        recorded = attempts.record_attempt(
-            db,
-            track_id,
-            stuck_since,
-            now,
-            TrackAttemptOutcome.FAILED,
-            error_message=f"reclaimed: stuck past staleness threshold ({threshold})",
-            # v35: only a track stuck `downloading` actually went out to the network. One
-            # stuck `queued` never ran, so it is neither an attempt nor a failure.
-            reached_network=stuck_state == TrackState.DOWNLOADING,
-        )
+        if stuck_state == TrackState.DOWNLOADING:
+            recorded = attempts.record_attempt(
+                db,
+                track_id,
+                stuck_since,
+                now,
+                TrackAttemptOutcome.FAILED,
+                error_message=f"reclaimed: stuck past staleness threshold ({threshold})",
+            )
+        else:
+            # v35: stuck `queued` means its message never ran -- rescheduled without
+            # touching the network, which is what `held` records. Neither an attempt nor a
+            # failure, and not rendered as one.
+            recorded = attempts.record_attempt(
+                db,
+                track_id,
+                stuck_since,
+                now,
+                TrackAttemptOutcome.HELD,
+                warning_message=(
+                    f"reclaimed: queued past staleness threshold ({threshold}), never ran"
+                ),
+            )
         events.publish_track_event(
             owner_by_job[job_id],
             track_id,

@@ -23,7 +23,7 @@
 		failed: 'failed',
 		cancelled: 'cancelled',
 		skipped_duplicate: 'already logged',
-		held: 'held — global pause'
+		held: 'held — not attempted'
 	};
 
 	// Reuses the same signal-condition color mapping as the waterfall/spectrum log

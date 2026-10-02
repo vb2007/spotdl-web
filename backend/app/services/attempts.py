@@ -42,7 +42,6 @@ def record_attempt(
     warning_message: str | None = None,
     proxy_id: uuid.UUID | None = None,
     network_path: NetworkPath | None = None,
-    reached_network: bool | None = None,
 ) -> RecordedAttempt:
     """Adds one `track_attempts` row and returns its attempt_number together with the
     track's counters after it.
@@ -51,15 +50,12 @@ def record_attempt(
     read: beat's stale-track reclaim (worker-meta) and download_track (worker-dl) can
     write rows for the same track concurrently, and the lock serializes them so `max + 1`
     is never computed twice. The unique constraint on (track_id, attempt_number) backs
-    this up. `reached_network` overrides the outcome-based default where only the caller
-    knows (beat's reclaim). `synchronize_session="fetch"` keeps an already-loaded Track in this session
+    this up. `synchronize_session="fetch"` keeps an already-loaded Track in this session
     (download_track's) in step with the new counter values."""
-    if reached_network is None:
-        reached_network = outcome in _NETWORK_OUTCOMES or network_path is not None
-    attempted = reached_network
-    # A failure is a failed attempt: a `failed` row that never reached the network (beat
-    # reclaiming a track stuck `queued`, whose message never ran) is neither.
-    failed = outcome == TrackAttemptOutcome.FAILED and attempted
+    # Derived from the row alone (outcome + network_path), so the counters can always be
+    # recomputed from track_attempts -- the migration's backfill uses the same rule.
+    attempted = outcome in _NETWORK_OUTCOMES or network_path is not None
+    failed = outcome == TrackAttemptOutcome.FAILED
     attempts_made, failure_count = db.execute(
         update(Track)
         .where(Track.id == track_id)
