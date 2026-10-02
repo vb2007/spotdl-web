@@ -4420,6 +4420,13 @@ independently-found production bug from the same conversation)
   reparented (worker-meta gone). It imports config/models/app_settings only: **~89 MB resident**,
   measured, against ~220 MB for a worker-meta child. That's why `redact_text` moved out of
   `proxies.py`.
+- **The watchdog is supervised (review round 3).** A bare `Popen` whose handle was dropped meant
+  an OOM-killed watchdog silently ended every watchdog alert while worker-meta stayed healthy.
+  `celery_app.AlertWatchdogStep` (a worker bootstep, `requires` the Timer) starts it and polls
+  it every 60s from the worker's own timer, in the main thread, with no extra thread in the
+  forking process. A dead watchdog is respawned and the exit code logged (verified with
+  `kill -9`). `SEND_TIMEOUT_SECONDS` is per httpx phase and DNS isn't covered. Send errors scrub
+  the token literally, since h11 can quote header values.
 - **Redaction twice.** `alerts.enqueue` redacts before the text reaches the broker, and
   `format_body` redacts again before the PUT. Found by v36's real-stack check: the room copy was
   already clean, but Celery's "Task received" line logged the raw credentialed URL from the task
