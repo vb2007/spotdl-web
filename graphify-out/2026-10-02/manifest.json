@@ -25,9 +25,9 @@
     "semantic_hash": ""
   },
   "backend/app/db.py": {
-    "mtime": 1785257414.4075632,
-    "ast_hash": "3375975f4f2eb32304b11ed5f4a238ea",
-    "semantic_hash": "3375975f4f2eb32304b11ed5f4a238ea"
+    "mtime": 1790934767.155418,
+    "ast_hash": "8cc1df4f516b4be7a3399dfbcb3cd4ab",
+    "semantic_hash": ""
   },
   "backend/app/main.py": {
     "mtime": 1790843996.9119277,
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
-    "mtime": 1790932754.3228006,
-    "ast_hash": "6156b98037d7ec256844a0c0ab90b4b1",
+    "mtime": 1790935198.8832562,
+    "ast_hash": "af0f2201aefc699e49f2a4c0a4101385",
     "semantic_hash": ""
   },
   "frontend/.vscode/extensions.json": {
@@ -80,8 +80,8 @@
     "semantic_hash": "c727963dee0c5743b26f3d2fc99abfb6"
   },
   "frontend/package.json": {
-    "mtime": 1790932754.3236809,
-    "ast_hash": "d24f5546df3cbdd1ff0201c6029f1a82",
+    "mtime": 1790935198.8839133,
+    "ast_hash": "78188c5e43e0cca4355bb2b3c2c9af04",
     "semantic_hash": ""
   },
   "frontend/prettier.config.js": {
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1790523827.0354617,
-    "ast_hash": "01b26dda0b26a08128d4d66c76322880",
+    "mtime": 1790934910.2219691,
+    "ast_hash": "f4962c417c3f7587b248c1b9bc39539b",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -120,8 +120,8 @@
     "semantic_hash": "c610e6d5aeb2c3bcf0b9f1b90599250e"
   },
   "frontend/vite.config.ts": {
-    "mtime": 1790523827.0354617,
-    "ast_hash": "b69c03a9643cc59386b178f39b050a78",
+    "mtime": 1790934823.299683,
+    "ast_hash": "551755398e0d06b3cde5e47d183053c2",
     "semantic_hash": ""
   },
   "docker-compose.override.yml": {
@@ -345,8 +345,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1786960083.8098643,
-    "ast_hash": "677a297c014ac8208e3cadeb80f7b5c2",
+    "mtime": 1790934985.8896189,
+    "ast_hash": "3d14475f91a6ae28ed08faa5d6c2ecb3",
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
@@ -370,8 +370,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1790931450.499326,
-    "ast_hash": "0b812877dfe772e96d1e2bd18b080253",
+    "mtime": 1790935037.2728353,
+    "ast_hash": "5ec2d83dfe4bf0218b42a2a616bcb69a",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -465,8 +465,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1790864874.5053136,
-    "ast_hash": "9c74f132b02dc00c98ca0a4834b78e11",
+    "mtime": 1790935058.0113966,
+    "ast_hash": "276e61f3fdad0acbb20d827921840cbb",
     "semantic_hash": ""
   },
   "backend/alembic/versions/321fd6d33d82_add_app_settings_table.py": {
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1790934410.340929,
-    "ast_hash": "0a12244f177bab27b6b2ddb1594b914d",
+    "mtime": 1790935286.6853695,
+    "ast_hash": "646cfe765735c4c30a4e724bdbdbdadc",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -685,8 +685,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/job_listing.py": {
-    "mtime": 1786879770.6539955,
-    "ast_hash": "c8f5a9842b8b80fb44a792e974b62597",
+    "mtime": 1790934767.1557124,
+    "ast_hash": "c79dc1021a3e29b277c32544c57baadd",
     "semantic_hash": ""
   },
   "backend/app/services/pagination.py": {
@@ -1110,8 +1110,13 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.test.ts": {
-    "mtime": 1790931450.499326,
-    "ast_hash": "b11580aaa4ef17b74d0a265c28f6adcf",
+    "mtime": 1790935024.5325766,
+    "ast_hash": "a286b6449e3f99cab14f635a3fa922d2",
+    "semantic_hash": ""
+  },
+  "frontend/src/lib/stores/progressCache.ts": {
+    "mtime": 1790934985.823616,
+    "ast_hash": "5fec8b615cce3d9527d988307da34e83",
     "semantic_hash": ""
   }
 }
