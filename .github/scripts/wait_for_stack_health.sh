@@ -4,7 +4,7 @@
 # uses: a single instant check (timeout 0) to decide whether a redundant deploy can be
 # skipped, and the real post-deploy health gate (timeout ~420s).
 #
-# 420s is not arbitrary: worker-dl/worker-meta's healthchecks (docker-compose.yml) have a 90s
+# 420s is not arbitrary: worker-dl/worker-meta/worker-expand's healthchecks (docker-compose.yml) have a 90s
 # start_period and a 120s interval, so a genuinely healthy worker can take ~3.5 minutes to
 # even report it — a shorter timeout would false-negative a perfectly good deploy.
 #
@@ -21,7 +21,7 @@ cd "$DEPLOY_DIR"
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel)
 
 # Services with a real healthcheck (docker-compose.yml) must report "healthy".
-HEALTHY_SERVICES=(redis api worker-dl worker-meta web)
+HEALTHY_SERVICES=(redis api worker-dl worker-meta worker-expand web)
 # beat/cloudflared deliberately have no healthcheck — "running" is the most that can be asked.
 RUNNING_SERVICES=(beat cloudflared)
 

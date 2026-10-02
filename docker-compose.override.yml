@@ -80,6 +80,13 @@ services:
       # 120k directory on the first run"). Gitignored, same as ./downloads.
       - ./test-library:/mnt/raid1/media/music
 
+  worker-expand:
+    environment: *dev-env
+    volumes: !override
+      - ./backend/app:/app/app
+      - ./downloads:/downloads
+      - ./test-library:/mnt/raid1/media/music
+
   beat:
     environment: *dev-env
     volumes:

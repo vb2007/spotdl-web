@@ -106,6 +106,19 @@ services:
       # admin-editable at all (see docs/GOTCHAS.md's v28 entry).
       - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music
 
+  worker-expand:
+    image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
+    build: !reset null
+    deploy:
+      resources:
+        limits:
+          # Same as worker-meta: at most 2 prefork children each importing spotdl/yt-dlp.
+          memory: 768M
+          cpus: "1.0"
+    volumes: !override
+      - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads
+      - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music
+
   beat:
     image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
     build: !reset null
