@@ -9,6 +9,7 @@ from spotdl.providers.audio.base import AudioProviderError
 
 from app.config import get_settings
 from app.models import Track, TrackErrorType, TrackState, WorkerState
+from app.services import alerts
 
 BREAKER_TRIP_THRESHOLD = 5
 BREAKER_TRIP_DELAYS = [timedelta(minutes=30), timedelta(hours=2), timedelta(hours=6)]
@@ -56,12 +57,27 @@ def breaker_active(worker_state: WorkerState, now: datetime) -> bool:
     return bool(worker_state.paused) or (tripped_until is not None and tripped_until > now)
 
 
-def maybe_trip_breaker(db: Session) -> None:
+def maybe_trip_breaker(db: Session, error_type: TrackErrorType | None = None) -> None:
     worker_state = get_worker_state(db)
     if worker_state.consecutive_failures >= BREAKER_TRIP_THRESHOLD:
         worker_state.breaker_trip_count += 1
         delay = BREAKER_TRIP_DELAYS[min(worker_state.breaker_trip_count - 1, len(BREAKER_TRIP_DELAYS) - 1)]
         worker_state.breaker_tripped_until = datetime.now(timezone.utc) + delay
+        # v36: queued on this session, sent only if the caller's commit lands (never in
+        # the download's own path -- see alerts.enqueue_after_commit).
+        step = alerts.format_duration(delay)
+        verb = "tripped" if worker_state.breaker_trip_count == 1 else "escalated"
+        last_error = error_type.value if error_type is not None else "unknown"
+        alerts.enqueue_after_commit(
+            db,
+            alerts.CATEGORY_BREAKER,
+            f"trip:{step}",
+            f"Circuit breaker {verb}: downloads paused for {step} "
+            f"(trip #{worker_state.breaker_trip_count}, after "
+            f"{worker_state.consecutive_failures} consecutive failures; last error "
+            f"{last_error}). Paused until "
+            f"{worker_state.breaker_tripped_until:%Y-%m-%d %H:%M} UTC.",
+        )
 
 
 def record_failure(db: Session, track: Track, error_type: TrackErrorType, message: str) -> None:
@@ -89,7 +105,7 @@ def record_failure(db: Session, track: Track, error_type: TrackErrorType, messag
     if error_type in (TrackErrorType.AUDIO_PROVIDER, TrackErrorType.NO_OUTPUT):
         worker_state = get_worker_state(db)
         worker_state.consecutive_failures += 1
-        maybe_trip_breaker(db)
+        maybe_trip_breaker(db, error_type)
 
 
 def record_success(db: Session, track: Track) -> None:
