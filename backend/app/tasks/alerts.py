@@ -1,0 +1,42 @@
+import logging
+
+from app.db import SessionLocal
+from app.services import alerts, app_settings
+from app.tasks.celery_app import celery_app
+
+logger = logging.getLogger(__name__)
+
+# Used only if app_settings can't be read -- the same value as the column's default.
+_FALLBACK_COOLDOWN_SECONDS = 60 * 60
+
+
+# acks_late=False, overriding celery_app's global True: an alert is fire and forget, so a
+# worker crash mid-send drops it rather than redelivering it (hours later, after the
+# visibility timeout, and possibly a second time once its cooldown has lapsed).
+@celery_app.task(name="app.tasks.alerts.send_alert", ignore_result=True, acks_late=False)
+def send_alert(category: str, fingerprint: str, text: str) -> None:
+    """v36: the one place an enqueued alert is actually sent (worker-meta, `meta` queue).
+    Never retried and never raises: alerts.deliver logs a failure once and drops it."""
+    enabled = True
+    cooldown_seconds = _FALLBACK_COOLDOWN_SECONDS
+    db = SessionLocal()
+    try:
+        row = app_settings.get_alert_settings(db)
+        enabled = alerts.category_enabled(row, category)
+        cooldown_seconds = row.alert_cooldown_minutes * 60
+        db.commit()
+    except Exception:
+        # An unreadable settings row shouldn't swallow the alert that may be about it.
+        logger.exception("alerts: could not read alert settings; sending with defaults")
+        db.rollback()
+    finally:
+        db.close()
+
+    if not enabled:
+        logger.info("alerts: %s alert not sent, category is off in settings", category)
+        return
+    outcome = alerts.deliver(category, fingerprint, text, cooldown_seconds)
+    if outcome == "sent" and category == alerts.CATEGORY_BREAKER and fingerprint.startswith("trip:"):
+        # The watchdog reports a release only for a trip the room actually heard about --
+        # not for one suppressed by the cooldown, toggled off, or never delivered.
+        alerts.mark_breaker_open(fingerprint)

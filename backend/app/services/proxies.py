@@ -22,6 +22,10 @@ from ytmusicapi import YTMusic
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Proxy, ProxySource
+# v31's redact_text, moved to the dependency-free redaction module in v36 (the alert
+# watchdog's own process uses it without importing spotdl); re-exported so every
+# `proxies.redact_text` call site is unchanged.
+from app.services.redaction import redact_text  # noqa: F401
 
 if TYPE_CHECKING:
     from spotdl.download.downloader import Downloader
@@ -56,39 +60,6 @@ def redact(url: str) -> str:
     """scheme://host:port for logging — never print a proxy URL's user:pass in plaintext."""
     parsed = urlsplit(url)
     return f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
-
-
-# v31: broader than PROXY_URL_RE (which anchors a whole, already-known-good, IPv4-only
-# proxy string) -- this scans free-form text for anything shaped like a *credentialed*
-# URL, host included (a hostname, not just an IPv4 literal -- proxies.txt/manual-add
-# entries are IPv4-only, but sync_from_file() doesn't enforce that, so a hostname-based
-# proxy already exists as a legitimate shape elsewhere in this codebase's own tests).
-# Requires an actual `user:pass@` to be present -- a bare URL with nothing to redact
-# (the overwhelmingly common case: spotdl/yt-dlp errors rarely echo a proxy URL at all)
-# must never be rewritten, or this would mangle harmless URLs (a YouTube watch link,
-# say) that happen to appear in an error message. Used to replace download_track's old
-# exact-substring guard (`if proxy_url in error_message`), which only caught a leak when
-# the message embedded that literal `proxy_url` string byte-for-byte -- see
-# docs/GOTCHAS.md's v30 entry for the case that guard could miss (a re-wrapped or
-# differently-formatted exception).
-_EMBEDDED_CREDENTIALED_URL_RE = re.compile(
-    r"(https?://)[^\s:@/]+:[^\s:@/]+@([\w.-]+)(?::(\d{1,5}))?"
-)
-
-
-def redact_text(text: str) -> str:
-    """Redacts every credentialed-URL-shaped substring found anywhere in `text`, not
-    just an exact match against one known proxy URL. Safe to call unconditionally
-    (including on text with no embedded credentialed URL at all, which it returns
-    unchanged) -- apply this to any exception message before it's logged or persisted
-    (`tracks.last_error`, `track_attempts.error_message`), the same way `redact()`
-    already applies to a proxy URL that's being logged directly and in full."""
-
-    def _sub(match: "re.Match[str]") -> str:
-        scheme, host, port = match.group(1), match.group(2), match.group(3)
-        return f"{scheme}{host}:{port}" if port else f"{scheme}{host}"
-
-    return _EMBEDDED_CREDENTIALED_URL_RE.sub(_sub, text)
 
 
 _force_proxy_lock = threading.Lock()

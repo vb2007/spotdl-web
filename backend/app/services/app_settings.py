@@ -91,3 +91,32 @@ def update_library_settings(
     if library_quarantine_dir is not None:
         row.library_quarantine_dir = library_quarantine_dir
     return row
+
+
+# v36: the Matrix alert controls on the same row -- see app/services/alerts.py. Every
+# field has a server_default (the migration's and the model's), so a freshly created row
+# already carries the documented defaults without a seed here.
+ALERT_SETTING_FIELDS = (
+    "alerts_breaker_enabled",
+    "alerts_spike_enabled",
+    "alerts_beat_stale_enabled",
+    "alerts_library_enabled",
+    "alert_spike_threshold",
+    "alert_spike_window_minutes",
+    "alert_beat_stale_seconds",
+    "alert_cooldown_minutes",
+)
+
+
+def get_alert_settings(db: Session) -> AppSettings:
+    return _get_or_create_settings_row(db)
+
+
+def update_alert_settings(db: Session, **fields: object) -> AppSettings:
+    row = _get_or_create_settings_row(db)
+    for key, value in fields.items():
+        if key not in ALERT_SETTING_FIELDS:
+            raise ValueError(f"not an alert setting: {key}")
+        if value is not None:
+            setattr(row, key, value)
+    return row

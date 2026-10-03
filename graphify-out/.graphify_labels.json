@@ -202,5 +202,22 @@
   "200": "v47 — Master v4 Hardening & Close",
   "201": "Issues found for master v4 planning",
   "202": "a35c0e1f7b21_track_attempt_sequence_and_counters.py",
-  "203": "b35d4e2a9c10_track_attempt_warning_message.py"
+  "203": "b35d4e2a9c10_track_attempt_warning_message.py",
+  "204": "_track",
+  "205": "AlertWatchdogStep",
+  "206": "FakeRedis",
+  "207": "test_app_settings.py",
+  "208": "test_pagination.py",
+  "209": "test_settings_retention.py",
+  "210": "test_worker_busy_reflects_any_users_downloading_track",
+  "211": "_NonClosing",
+  "212": "f3a8c2d6e9b1_add_alert_settings.py",
+  "213": "spawn_watchdog",
+  "214": "alerts.py",
+  "215": "sent",
+  "216": "ApiError",
+  "217": "One-time host setup (already done on this host — kept for reference)",
+  "218": "Upgrading an existing deployment (manual fallback)",
+  "219": "Amendments",
+  "220": "Architecture"
 }

@@ -27,6 +27,30 @@
 		library_quarantine_dir: ''
 	});
 	let librarySaving = $state(false);
+
+	let alertSettings = $state<api.AlertSettings | null>(null);
+	let alertForm = $state<api.EditableAlertSettings>({
+		alerts_breaker_enabled: true,
+		alerts_spike_enabled: true,
+		alerts_beat_stale_enabled: true,
+		alerts_library_enabled: true,
+		alert_spike_threshold: 5,
+		alert_spike_window_minutes: 60,
+		alert_beat_stale_seconds: 180,
+		alert_cooldown_minutes: 60
+	});
+	let alertSaving = $state(false);
+	let alertSaved = $state(false);
+	let alertError = $state('');
+	let alertTesting = $state(false);
+	let alertTestResult = $state('');
+
+	const ALERT_TOGGLES: { key: keyof api.EditableAlertSettings; label: string }[] = [
+		{ key: 'alerts_breaker_enabled', label: 'Breaker trip / release' },
+		{ key: 'alerts_spike_enabled', label: 'Failure spike' },
+		{ key: 'alerts_beat_stale_enabled', label: 'Beat stale' },
+		{ key: 'alerts_library_enabled', label: 'Library sweep' }
+	];
 	let librarySaved = $state(false);
 	let libraryError = $state('');
 
@@ -63,6 +87,59 @@
 
 	function syncLibraryForm(settings: api.LibrarySettings) {
 		libraryForm = { ...settings };
+	}
+
+	function syncAlertForm(settings: api.AlertSettings) {
+		const { configured: _configured, ...editable } = settings;
+		alertForm = editable;
+	}
+
+	async function loadAlertSettings() {
+		alertSettings = await api.getAlertSettings();
+		syncAlertForm(alertSettings);
+	}
+
+	async function onAlertSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		// A cleared number input binds to null, which the API reads as "unchanged" -- say
+		// so instead of reporting "Saved." over the old value.
+		const numbers = [
+			alertForm.alert_spike_threshold,
+			alertForm.alert_spike_window_minutes,
+			alertForm.alert_beat_stale_seconds,
+			alertForm.alert_cooldown_minutes
+		];
+		if (numbers.some((value) => typeof value !== 'number' || Number.isNaN(value))) {
+			alertSaved = false;
+			alertError = 'Every number needs a value.';
+			return;
+		}
+		alertSaving = true;
+		alertSaved = false;
+		alertError = '';
+		try {
+			alertSettings = await api.updateAlertSettings(alertForm);
+			syncAlertForm(alertSettings);
+			alertSaved = true;
+		} catch (err) {
+			alertError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+		} finally {
+			alertSaving = false;
+		}
+	}
+
+	async function onTestAlert() {
+		alertTesting = true;
+		alertTestResult = '';
+		alertError = '';
+		try {
+			await api.sendTestAlert();
+			alertTestResult = 'Test alert sent — check the Matrix room.';
+		} catch (err) {
+			alertError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+		} finally {
+			alertTesting = false;
+		}
 	}
 
 	async function loadLibrarySettings() {
@@ -108,6 +185,9 @@
 		});
 		loadLibrarySettings().catch((err) => {
 			libraryError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+		});
+		loadAlertSettings().catch((err) => {
+			alertError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		});
 		loadProxies();
 
@@ -345,6 +425,109 @@
 			<p class="saved mono" role="status">Saved.</p>
 		{/if}
 		<p class="form-error mono" role="alert">{libraryError}</p>
+	</section>
+
+	<section class="panel alert-settings">
+		<h2 class="label">Alerts</h2>
+		{#if alertSettings === null}
+			<p class="hint mono">Loading…</p>
+		{:else}
+			<p class="hint mono">
+				{#if alertSettings.configured}
+					Matrix alerts are on. Each category can be switched off; an identical alert repeats at
+					most once per cooldown.
+				{:else}
+					Matrix alerts are off — set <code>MATRIX_HOMESERVER_URL</code>,
+					<code>MATRIX_ACCESS_TOKEN</code> and <code>MATRIX_ROOM_ID</code> in <code>.env</code> to turn
+					them on.
+				{/if}
+			</p>
+			<form class="output-form" onsubmit={onAlertSubmit}>
+				{#each ALERT_TOGGLES as toggle (toggle.key)}
+					<div class="field">
+						<span class="label" id="{toggle.key}-label">{toggle.label}</span>
+						<div class="option-group" role="group" aria-labelledby="{toggle.key}-label">
+							<button
+								type="button"
+								aria-pressed={alertForm[toggle.key] === true}
+								disabled={alertSaving}
+								onclick={() => (alertForm = { ...alertForm, [toggle.key]: true })}
+							>
+								on
+							</button>
+							<button
+								type="button"
+								aria-pressed={alertForm[toggle.key] === false}
+								disabled={alertSaving}
+								onclick={() => (alertForm = { ...alertForm, [toggle.key]: false })}
+							>
+								off
+							</button>
+						</div>
+					</div>
+				{/each}
+
+				<label class="field">
+					<span class="label">Spike: failures in a row</span>
+					<input
+						type="number"
+						min="2"
+						bind:value={alertForm.alert_spike_threshold}
+						disabled={alertSaving}
+					/>
+				</label>
+
+				<label class="field">
+					<span class="label">Spike window (min)</span>
+					<input
+						type="number"
+						min="1"
+						bind:value={alertForm.alert_spike_window_minutes}
+						disabled={alertSaving}
+					/>
+				</label>
+
+				<label class="field">
+					<span class="label">Beat stale after (s)</span>
+					<input
+						type="number"
+						min="90"
+						bind:value={alertForm.alert_beat_stale_seconds}
+						disabled={alertSaving}
+					/>
+				</label>
+
+				<label class="field">
+					<span class="label">Cooldown (min)</span>
+					<input
+						type="number"
+						min="1"
+						bind:value={alertForm.alert_cooldown_minutes}
+						disabled={alertSaving}
+					/>
+				</label>
+
+				<button type="submit" class="save" disabled={alertSaving}>
+					{alertSaving ? 'SAVING…' : 'SAVE'}
+				</button>
+				<button
+					type="button"
+					class="save"
+					disabled={alertTesting || !alertSettings.configured}
+					onclick={onTestAlert}
+				>
+					{alertTesting ? 'SENDING…' : 'SEND TEST ALERT'}
+				</button>
+			</form>
+		{/if}
+
+		{#if alertSaved && !alertSaving}
+			<p class="saved mono" role="status">Saved.</p>
+		{/if}
+		{#if alertTestResult}
+			<p class="saved mono" role="status">{alertTestResult}</p>
+		{/if}
+		<p class="form-error mono" role="alert">{alertError}</p>
 	</section>
 
 	<section class="panel proxy-settings">

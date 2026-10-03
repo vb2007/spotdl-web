@@ -6,7 +6,7 @@ from sqlalchemy import select, update
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Job, Track, TrackAttemptOutcome, TrackState, UserSettings
-from app.services import archive, attempts, events, retry
+from app.services import alerts, archive, attempts, events, retry
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -125,6 +125,9 @@ def _reclaim_stale_tracks(db) -> None:
 
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")
 def dispatch_due_tracks() -> None:
+    # v36: written first, on every tick -- the alert watchdog (worker-meta, not beat)
+    # reads its age to notice a dead beat. A tick that then errors still proves beat alive.
+    alerts.record_beat_heartbeat()
     db = SessionLocal()
     try:
         # Independent of the breaker/pause gate below — a stuck track needs reclaiming

@@ -6,7 +6,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import AppSettings, User, UserSettings
 from app.routers.auth import require_admin, require_session
-from app.services import app_settings, downloads, user_settings
+from app.services import alerts, app_settings, downloads, user_settings
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -118,6 +118,93 @@ def update_library_settings(
     row = app_settings.update_library_settings(db, **fields)
     db.commit()
     return _library_settings_to_dict(row)
+
+
+class UpdateAlertSettingsRequest(BaseModel):
+    alerts_breaker_enabled: bool | None = None
+    alerts_spike_enabled: bool | None = None
+    alerts_beat_stale_enabled: bool | None = None
+    alerts_library_enabled: bool | None = None
+    alert_spike_threshold: int | None = None
+    alert_spike_window_minutes: int | None = None
+    alert_beat_stale_seconds: int | None = None
+    alert_cooldown_minutes: int | None = None
+
+
+# (min, max). Lower bounds keep a setting meaningful (a beat-stale threshold under two
+# 30s ticks would alert on ordinary jitter); upper bounds keep it inside the Integer
+# column and a sane range (a week, or 1000 attempts in a row).
+_ALERT_BOUNDS = {
+    "alert_spike_threshold": (2, 1000),
+    "alert_spike_window_minutes": (1, 7 * 24 * 60),
+    "alert_beat_stale_seconds": (90, 7 * 24 * 3600),
+    "alert_cooldown_minutes": (1, 7 * 24 * 60),
+}
+
+
+def _alert_settings_to_dict(row: AppSettings) -> dict:
+    # `configured` is all the API ever says about the Matrix credentials -- never the
+    # homeserver, room or token themselves.
+    return {
+        "configured": alerts.is_configured(),
+        **{field: getattr(row, field) for field in app_settings.ALERT_SETTING_FIELDS},
+    }
+
+
+@router.get("/alerts")
+def get_alert_settings(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    row = app_settings.get_alert_settings(db)
+    db.commit()
+    return _alert_settings_to_dict(row)
+
+
+@router.patch("/alerts")
+def update_alert_settings(
+    payload: UpdateAlertSettingsRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    fields = payload.model_dump(exclude_unset=True)
+    for key, (minimum, maximum) in _ALERT_BOUNDS.items():
+        if fields.get(key) is not None and not minimum <= fields[key] <= maximum:
+            raise HTTPException(
+                status_code=400, detail=f"{key} must be between {minimum} and {maximum}"
+            )
+    row = app_settings.update_alert_settings(db, **fields)
+    db.commit()
+    return _alert_settings_to_dict(row)
+
+
+def _require_admin_hidden(user: User = Depends(require_session)) -> User:
+    """v36's plan: a non-admin gets 404 on the test-alert endpoint, so its existence isn't
+    confirmed (the other admin-only routes here answer 403, via require_admin)."""
+    if not user.is_admin:
+        raise HTTPException(status_code=404, detail="Not Found")
+    return user
+
+
+@router.post("/alerts/test")
+def send_test_alert(user: User = Depends(_require_admin_hidden)) -> dict:
+    """Sends one message straight to the room and reports whether it arrived, bypassing
+    the category toggles and the cooldown -- the point is to check the wiring. Admin-only
+    and synchronous (alerts.SEND_TIMEOUT_SECONDS per connect/read phase), never on a download
+    path."""
+    try:
+        alerts.send_now(f"Test alert, sent from the settings page by {user.email}.")
+    except alerts.AlertsNotConfigured:
+        raise HTTPException(
+            status_code=409,
+            detail="Matrix alerts are not configured (set MATRIX_HOMESERVER_URL, "
+            "MATRIX_ACCESS_TOKEN and MATRIX_ROOM_ID)",
+        ) from None
+    except alerts.AlertSendError as exc:
+        alerts.logger.warning("alerts: test alert not sent: %s", exc)
+        raise HTTPException(status_code=502, detail=f"Matrix send failed: {exc}") from None
+    alerts.logger.info("alerts: test alert sent")
+    return {"sent": True}
 
 
 def _retention_to_dict(row: UserSettings) -> dict:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from app.db import SessionLocal
 from app.models import DownloadedTrack, Job, LibrarySortRun, LibrarySortState, Track, TrackState
-from app.services import app_settings, archive, events, library
+from app.services import alerts, app_settings, archive, events, library
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -205,6 +205,30 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     run.finished_at = datetime.now(timezone.utc)
     db.commit()
     _publish_progress(run, admin_user_id, done=True)
+    _alert_sweep_finished(run)
+
+
+def _alert_sweep_finished(run: LibrarySortRun, crash: str | None = None) -> None:
+    """v36: one Matrix alert per sweep, keyed on its finish time so no two runs share a
+    cooldown. Enqueued only after the run's final state is committed. Fire and forget --
+    alerts.enqueue never raises and is a no-op when alerts are off."""
+    counts = (
+        f"{run.processed}/{run.total} processed, {run.moved} moved, "
+        f"{run.skipped_present} already present, {run.quarantined} quarantined, "
+        f"{len(run.errors)} errors"
+    )
+    if crash is not None:
+        text = f"Library sweep failed: {crash} ({counts})."
+    elif run.errors:
+        first = run.errors[0]
+        text = (
+            f"Library sweep finished with errors: {counts}. First: {first['file']}: "
+            f"{first['error']}"
+        )
+    else:
+        text = f"Library sweep finished: {counts}."
+    fingerprint = run.finished_at.isoformat() if run.finished_at else uuid.uuid4().hex
+    alerts.enqueue(alerts.CATEGORY_LIBRARY, fingerprint, text)
 
 
 @celery_app.task(name="app.tasks.library.sort_library")
@@ -234,5 +258,7 @@ def sort_library(admin_user_id: str) -> None:
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
             _publish_progress(run, admin_user_id, done=True)
+            # Redacted on the way out by alerts.format_body, like every alert body.
+            _alert_sweep_finished(run, crash=f"{type(exc).__name__}: {exc}")
     finally:
         db.close()

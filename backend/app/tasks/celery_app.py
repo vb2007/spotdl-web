@@ -1,6 +1,6 @@
 import os
 
-from celery import Celery
+from celery import Celery, bootsteps
 from celery.signals import worker_ready
 from kombu import Queue
 
@@ -77,6 +77,7 @@ from app.tasks import download  # noqa: E402,F401
 from app.tasks import expand  # noqa: E402,F401
 from app.tasks import beat  # noqa: E402,F401
 from app.tasks import library  # noqa: E402,F401
+from app.tasks import alerts  # noqa: E402,F401
 
 
 @worker_ready.connect
@@ -99,3 +100,65 @@ def _sync_proxies_on_boot(**kwargs) -> None:
         from app.services.proxies import sync_from_file
 
         sync_from_file()
+
+
+class AlertWatchdogStep(bootsteps.StartStopStep):
+    """v36: same explicit-env-var-gate convention -- the alert watchdog (beat heartbeat,
+    breaker release, failure spike) runs alongside worker-meta only, as its own child
+    process rather than a beat-scheduled task, since beat is one of the things it watches
+    (see alerts.Watchdog). This step also supervises it: the worker's own timer (main
+    thread, no extra thread in this forking process) polls it every interval and respawns
+    it if it died, so an OOM-killed watchdog doesn't silently end every watchdog alert.
+    Also where "alerts are on/off" is logged at startup."""
+
+    requires = {"celery.worker.components:Timer"}
+
+    def __init__(self, worker, **kwargs):
+        self.process = None
+        self.tref = None
+
+    def include_if(self, worker):
+        return os.environ.get("RUN_ALERT_WATCHDOG") == "true"
+
+    def start(self, worker):
+        from app.services import alerts
+
+        alerts.log_startup_state()
+        if not alerts.is_configured():
+            return
+        self._spawn()
+        self.tref = worker.timer.call_repeatedly(alerts.WATCHDOG_INTERVAL_SECONDS, self._supervise)
+
+    def _spawn(self):
+        # Never fatal: a failed spawn (ENOMEM/EAGAIN in a size-capped container) must not
+        # crash-loop worker-meta, which runs beat's dispatch. The next tick retries.
+        from app.services import alerts
+
+        try:
+            self.process = alerts.spawn_watchdog()
+        except OSError as exc:
+            self.process = None
+            alerts.logger.warning(
+                "alerts: could not start the watchdog (%s); retrying next interval",
+                type(exc).__name__,
+            )
+
+    def _supervise(self):
+        from app.services import alerts
+
+        if self.process is None:
+            self._spawn()
+            return
+        code = self.process.poll()
+        if code is not None:
+            alerts.logger.warning("alerts: watchdog exited (code %s); restarting it", code)
+            self._spawn()
+
+    def stop(self, worker):
+        if self.tref is not None:
+            self.tref.cancel()
+        if self.process is not None and self.process.poll() is None:
+            self.process.terminate()
+
+
+celery_app.steps["worker"].add(AlertWatchdogStep)

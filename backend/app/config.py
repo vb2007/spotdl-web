@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
@@ -146,6 +146,14 @@ class Settings(BaseSettings):
     # Proxy rotation (v07) — plain file; v13 adds UI-managed (source=manual) proxies
     # alongside these file-sourced ones, both drawn from equally by pick_proxy().
     proxy_file: str = Field(default="/app/proxies.txt", alias="PROXY_FILE")
+
+    # Matrix alerts (v36) -- the same bot and room as v33's pipeline secrets. All three
+    # optional: unset (or only partly set) means alerts are off, never a boot failure
+    # (v33's preflight must keep passing without them). The token is a SecretStr so it
+    # can't reach a log line or a repr by accident; app/services/alerts.py is its only reader.
+    matrix_homeserver_url: str | None = Field(default=None, alias="MATRIX_HOMESERVER_URL")
+    matrix_access_token: SecretStr | None = Field(default=None, alias="MATRIX_ACCESS_TOKEN")
+    matrix_room_id: str | None = Field(default=None, alias="MATRIX_ROOM_ID")
 
     @field_validator("allowed_emails", "frontend_origins", mode="before")
     @classmethod
