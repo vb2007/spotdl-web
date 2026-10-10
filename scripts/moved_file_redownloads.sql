@@ -9,6 +9,9 @@
 --                             repoints file_path to the new /downloads copy and never touches
 --                             in_library. The library copy is still on disk (the sweep never
 --                             deletes there), so the track now has two files.
+--                             Checked against the *current* library_target_dir: after an
+--                             admin repoints it, rows still under the old root show up
+--                             here too (read their file_path before treating them as damage).
 --
 --   repeat_network_download   More than one completed attempt that recorded a network path for
 --                             the same Spotify id. Broader: it also counts re-downloads of a
@@ -18,8 +21,9 @@
 --                             since v29, so older re-downloads aren't visible here.
 with library as (
     -- No app_settings row yet means the code default (AppSettings.library_target_dir).
-    select coalesce((select library_target_dir from app_settings limit 1),
-                    '/mnt/raid1/media/music') as root
+    -- Without a trailing slash, so the prefix test below is exact.
+    select rtrim(coalesce((select library_target_dir from app_settings limit 1),
+                          '/mnt/raid1/media/music'), '/') as root
 ),
 back_in_downloads as (
     select d.spotify_track_id,
@@ -27,7 +31,8 @@ back_in_downloads as (
            d.file_path as detail
     from downloaded_tracks d, library l
     where d.in_library
-      and d.file_path not like l.root || '/%'
+      -- A plain prefix compare, not LIKE: `_` and `%` in a path are LIKE wildcards.
+      and left(d.file_path, length(l.root) + 1) <> l.root || '/'
 ),
 repeat_network as (
     select t.spotify_track_id,

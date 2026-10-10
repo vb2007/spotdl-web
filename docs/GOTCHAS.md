@@ -4577,9 +4577,10 @@ independently-found production bug from the same conversation)
   `docker-compose.prod.yml` alike, but v28's sort & move repoints `downloaded_tracks.file_path`
   into the library root. `dedup.is_already_downloaded("3H3cOQ6LBLSvmcaV7QkZEu")` (a sorted
   Discovery track) returns the library path in `worker-meta` and `None` in `worker-dl`, so
-  resubmitting any moved track would re-download it. *(Fixed 2026-10-10 in v38, see below.)* That contradicts the master-v3 invariant
+  resubmitting any moved track would re-download it. That contradicts the master-v3 invariant
   that a move must never cause a re-download. Reported to the owner in the v37 PR. *(2026-10-10: scheduled
-  as v38, `plan/master-v4/v38-moved-file-dedup.md`; later slices renumbered.)*
+  as v38, `plan/master-v4/v38-moved-file-dedup.md`; later slices renumbered. Fixed in v38, see
+  below.)*
 - **The suite refuses a non-loopback `E2E_BASE_URL`** (review round 2). The preflight and the
   teardown read the local stack, so driving another origin would leave them guarding the wrong one.
 - **An in-flight download is invisible to the DB.** An attempt row is written only when the
@@ -4623,7 +4624,20 @@ independently-found production bug from the same conversation)
 - **The guard is per configured root, like `reconcile_disk`'s.** A path under neither
   `download_output_dir` nor the *current* `library_target_dir` isn't guarded: after an admin
   repoints `library_target_dir`, rows still under the old root fall outside both. They're fine
-  while that old root stays mounted (it's the same `/mnt/raid1/media/music` mount today).
+  while that old root stays mounted (it's the same `/mnt/raid1/media/music` mount today). The
+  damage query has the same blind spot in reverse: after a repoint it reports old-root rows as
+  `ledger_back_in_downloads`.
+- **The guard covers the downloads root too, and that can stall a track.** If `/downloads` is
+  ever genuinely empty (a sort moved everything and no `quarantine/` dir exists) while a ledger
+  row still points at a hand-deleted file there, the track is held every ladder step, forever,
+  with an error each time, and `reconcile_disk` skips the same row for the same reason. Fix it
+  by hand: delete that ledger row. Accepted as the safe direction (plan: "a silent re-download
+  is not an option").
+- **A miss re-reads the row before deciding** (blind review round 1). The sweep commits a
+  repoint and then unlinks the source, so a check that read the old `/downloads` path just
+  before saw neither file. Same fix as `reconcile_disk`'s v34.1 recheck: `db.refresh(row)`.
+- **The damage query compares path prefixes with `left()`, not `LIKE`**: `_` in a path is a
+  `LIKE` wildcard, and a trailing slash on `library_target_dir` flagged every library row.
 - **Six dev library rows also have a same-named file in `./downloads`** (Mr. Brightside, Africa,
   Take on Me, Hotel California, Bohemian Rhapsody, Shape of You). They aren't the moved-file
   signature (their ledger rows still point into the library) and weren't investigated: out of

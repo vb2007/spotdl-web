@@ -132,6 +132,46 @@ def test_is_already_downloaded_returns_none_when_a_mounted_library_lost_the_file
     assert dedup.is_already_downloaded("moved-id") is None
 
 
+def test_is_already_downloaded_follows_a_repoint_that_lands_mid_check(
+    db_session, monkeypatch, tmp_path
+):
+    """v38: the sweep commits the repoint, then unlinks the source. A check that read the old
+    /downloads path just before must find the moved file, not report a miss (a download)."""
+    from sqlalchemy import update
+
+    library_dir = tmp_path / "library"
+    dest = library_dir / "Artist - Album - (2020)" / "01 - Artist - Song.mp3"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"moved audio")
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads_dir = tmp_path / "downloads"
+    downloads_dir.mkdir()
+    (downloads_dir / "other.mp3").write_text("audio")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads_dir)))
+    app_settings.update_library_settings(db_session, library_target_dir=str(library_dir))
+    source = downloads_dir / "01 - Artist - Song.mp3"
+    db_session.add(
+        DownloadedTrack(spotify_track_id="moving-id", file_path=str(source), format="mp3", bitrate="320k")
+    )
+    db_session.commit()
+
+    class _SweepLandsHere(type(dedup.Path())):
+        def exists(self):
+            if str(self) == str(source):
+                db_session.execute(
+                    update(DownloadedTrack)
+                    .where(DownloadedTrack.spotify_track_id == "moving-id")
+                    .values(file_path=str(dest), in_library=True)
+                    .execution_options(synchronize_session=False)
+                )
+                return False
+            return super().exists()
+
+    monkeypatch.setattr(dedup, "Path", _SweepLandsHere)
+
+    assert dedup.is_already_downloaded("moving-id") == dest
+
+
 def test_is_already_downloaded_raises_when_the_downloads_root_is_not_mounted(
     db_session, monkeypatch, tmp_path
 ):

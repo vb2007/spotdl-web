@@ -37,12 +37,20 @@ def is_already_downloaded(spotify_track_id: str) -> Path | None:
     LedgerRootUnavailable instead of returning None -- reconcile_disk()'s own guard.
     worker-dl didn't mount the library before v38, so every file the library sort had
     moved read as gone and was downloaded again; a future mount mistake (or an admin
-    repointing library_target_dir) must not repeat that silently."""
+    repointing library_target_dir) must not repeat that silently. A miss also re-reads
+    the row first, in case the library sweep moved the file mid-check."""
     db = SessionLocal()
     try:
         row = db.get(DownloadedTrack, spotify_track_id)
         if row is None:
             return None
+        path = Path(row.file_path)
+        if path.exists():
+            return path
+        # The library sweep (worker-expand) commits a row's repoint *before* unlinking the
+        # source, so a file missing at the path read above may just have moved: re-read the
+        # row and check its current path, as reconcile_disk() does (v34.1).
+        db.refresh(row)
         path = Path(row.file_path)
         if path.exists():
             return path
