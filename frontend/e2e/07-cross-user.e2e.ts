@@ -39,10 +39,13 @@ test("a user never sees another identity's job titles", async ({ page, request, 
 		.getByRole('group', { name: 'Search scope' })
 		.getByRole('button', { name: 'tracks' })
 		.click();
+	// `.first()`: other users own tracks with this same title, so a leak shows up as a second
+	// row here. Let the foreign-title check below be the one that reports it.
 	await expect(
 		page
 			.getByRole('list', { name: 'Tracks' })
 			.getByRole('button', { name: literal(user.trackTitle) })
+			.first()
 	).toBeVisible();
 	await expectNoForeignText();
 
