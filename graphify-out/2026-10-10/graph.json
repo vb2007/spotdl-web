@@ -914,7 +914,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_db",
-      "community": 224,
+      "community": 162,
       "norm_label": "db.py"
     },
     {
@@ -944,7 +944,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_db_begin_snapshot",
-      "community": 224,
+      "community": 214,
       "norm_label": "begin_snapshot()"
     },
     {
@@ -954,7 +954,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_db_py_session",
-      "community": 224,
+      "community": 214,
       "norm_label": "session"
     },
     {
@@ -964,7 +964,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_db_get_db",
-      "community": 224,
+      "community": 214,
       "norm_label": "get_db()"
     },
     {
@@ -974,7 +974,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_db_rationale_23",
-      "community": 224,
+      "community": 214,
       "norm_label": "ends `db`'s current transaction and starts a repeatable read one, so every state"
     },
     {
@@ -1094,7 +1094,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_app_settings",
-      "community": 224,
+      "community": 162,
       "norm_label": "app_settings.py"
     },
     {
@@ -1124,7 +1124,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 224,
+      "community": 162,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -1394,7 +1394,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_trackattempt",
-      "community": 3,
+      "community": 144,
       "norm_label": "trackattempt"
     },
     {
@@ -1414,7 +1414,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_rationale_36",
-      "community": 3,
+      "community": 144,
       "norm_label": "one row per `download_track` invocation (v24) -- what it tried (direct vs. which"
     },
     {
@@ -1424,7 +1424,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_user",
-      "community": 224,
+      "community": 162,
       "norm_label": "user.py"
     },
     {
@@ -1434,7 +1434,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_user_user",
-      "community": 130,
+      "community": 207,
       "norm_label": "user"
     },
     {
@@ -1444,7 +1444,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_user_rationale_11",
-      "community": 130,
+      "community": 207,
       "norm_label": "row created on first successful login (v17). the `allowed_emails` env allowlist"
     },
     {
@@ -1484,7 +1484,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_worker_state",
-      "community": 224,
+      "community": 162,
       "norm_label": "worker_state.py"
     },
     {
@@ -2274,7 +2274,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "backend_app_routers_settings_get_output_options",
-      "community": 130,
+      "community": 207,
       "norm_label": "get_output_options()"
     },
     {
@@ -2364,7 +2364,7 @@
       "source_location": "L181",
       "_origin": "ast",
       "id": "backend_app_routers_settings_require_admin_hidden",
-      "community": 130,
+      "community": 207,
       "norm_label": "_require_admin_hidden()"
     },
     {
@@ -2374,7 +2374,7 @@
       "source_location": "L190",
       "_origin": "ast",
       "id": "backend_app_routers_settings_send_test_alert",
-      "community": 130,
+      "community": 207,
       "norm_label": "send_test_alert()"
     },
     {
@@ -2414,7 +2414,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_57",
-      "community": 130,
+      "community": 207,
       "norm_label": "the real, live set of format/bitrate values the installed spotdl accepts --"
     },
     {
@@ -2434,7 +2434,7 @@
       "source_location": "L182",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_182",
-      "community": 130,
+      "community": 207,
       "norm_label": "v36's plan: a non-admin gets 404 on the test-alert endpoint, so its existence is"
     },
     {
@@ -2444,7 +2444,7 @@
       "source_location": "L191",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_191",
-      "community": 130,
+      "community": 207,
       "norm_label": "sends one message straight to the room and reports whether it arrived, bypassing"
     },
     {
@@ -2924,7 +2924,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "namedtuple",
-      "community": 32,
+      "community": 144,
       "norm_label": "namedtuple"
     },
     {
@@ -3614,7 +3614,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_attempts",
-      "community": 32,
+      "community": 144,
       "norm_label": "attempts.py"
     },
     {
@@ -3624,7 +3624,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_services_attempts_recordedattempt",
-      "community": 32,
+      "community": 144,
       "norm_label": "recordedattempt"
     },
     {
@@ -3634,7 +3634,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_app_services_attempts_record_attempt",
-      "community": 32,
+      "community": 144,
       "norm_label": "record_attempt()"
     },
     {
@@ -3644,7 +3644,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_session",
-      "community": 32,
+      "community": 144,
       "norm_label": "session"
     },
     {
@@ -3654,7 +3654,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_uuid",
-      "community": 32,
+      "community": 144,
       "norm_label": "uuid"
     },
     {
@@ -3664,7 +3664,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_datetime",
-      "community": 32,
+      "community": 144,
       "norm_label": "datetime"
     },
     {
@@ -3674,7 +3674,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "trackattemptoutcome",
-      "community": 32,
+      "community": 144,
       "norm_label": "trackattemptoutcome"
     },
     {
@@ -3684,7 +3684,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_trackerrortype",
-      "community": 32,
+      "community": 144,
       "norm_label": "trackerrortype"
     },
     {
@@ -3694,7 +3694,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_networkpath",
-      "community": 32,
+      "community": 144,
       "norm_label": "networkpath"
     },
     {
@@ -3704,7 +3704,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_1",
-      "community": 32,
+      "community": 144,
       "norm_label": "per-attempt download history (v24) -- see app/models/track_attempt.py's docstrin"
     },
     {
@@ -3714,7 +3714,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_46",
-      "community": 32,
+      "community": 144,
       "norm_label": "adds one `track_attempts` row and returns its attempt_number together with the"
     },
     {
@@ -6124,7 +6124,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_beat",
-      "community": 207,
+      "community": 131,
       "norm_label": "beat.py"
     },
     {
@@ -6134,7 +6134,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_stale_track_after",
-      "community": 207,
+      "community": 131,
       "norm_label": "stale_track_after()"
     },
     {
@@ -6144,7 +6144,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_py_timedelta",
-      "community": 207,
+      "community": 131,
       "norm_label": "timedelta"
     },
     {
@@ -6154,7 +6154,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_reclaim_stale_tracks",
-      "community": 207,
+      "community": 131,
       "norm_label": "_reclaim_stale_tracks()"
     },
     {
@@ -6164,7 +6164,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_dispatch_due_tracks",
-      "community": 207,
+      "community": 131,
       "norm_label": "dispatch_due_tracks()"
     },
     {
@@ -6174,7 +6174,7 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_archive_due_jobs",
-      "community": 207,
+      "community": 131,
       "norm_label": "archive_due_jobs()"
     },
     {
@@ -6184,7 +6184,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_18",
-      "community": 207,
+      "community": 131,
       "norm_label": "a track stuck in downloading/queued past this long means whatever was supposed t"
     },
     {
@@ -6194,7 +6194,7 @@
       "source_location": "L175",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_175",
-      "community": 207,
+      "community": 131,
       "norm_label": "hourly (not every 30s like dispatch_due_tracks -- this is housekeeping, and it"
     },
     {
@@ -6354,7 +6354,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 223,
+      "community": 131,
       "norm_label": "expand.py"
     },
     {
@@ -6364,7 +6364,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_enqueue_pending_tracks",
-      "community": 223,
+      "community": 131,
       "norm_label": "_enqueue_pending_tracks()"
     },
     {
@@ -6374,7 +6374,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_py_job",
-      "community": 223,
+      "community": 131,
       "norm_label": "job"
     },
     {
@@ -6384,7 +6384,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 223,
+      "community": 131,
       "norm_label": "expand_job()"
     },
     {
@@ -6394,7 +6394,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_rationale_17",
-      "community": 223,
+      "community": 131,
       "norm_label": "enqueues `job`'s tracks still `pending`. for a job whose expanded commit landed"
     },
     {
@@ -7377,7 +7377,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings",
-      "community": 29,
+      "community": 226,
       "norm_label": "test_app_settings.py"
     },
     {
@@ -7387,7 +7387,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_fakesettings",
-      "community": 29,
+      "community": 226,
       "norm_label": "_fakesettings"
     },
     {
@@ -7397,7 +7397,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_creates_row_seeded_from_env",
-      "community": 29,
+      "community": 226,
       "norm_label": "test_get_output_settings_creates_row_seeded_from_env()"
     },
     {
@@ -7407,7 +7407,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_returns_existing_row_without_reseeding",
-      "community": 29,
+      "community": 226,
       "norm_label": "test_get_output_settings_returns_existing_row_without_reseeding()"
     },
     {
@@ -7417,7 +7417,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_only_touches_given_fields",
-      "community": 29,
+      "community": 226,
       "norm_label": "test_update_output_settings_only_touches_given_fields()"
     },
     {
@@ -7427,7 +7427,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_creates_row_if_missing",
-      "community": 29,
+      "community": 226,
       "norm_label": "test_update_output_settings_creates_row_if_missing()"
     },
     {
@@ -7437,7 +7437,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_library_settings_creates_row_seeded_with_defaults",
-      "community": 29,
+      "community": 226,
       "norm_label": "test_get_library_settings_creates_row_seeded_with_defaults()"
     },
     {
@@ -7447,7 +7447,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_library_settings_and_output_settings_share_one_row",
-      "community": 29,
+      "community": 226,
       "norm_label": "test_get_library_settings_and_output_settings_share_one_row()"
     },
     {
@@ -7457,7 +7457,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_library_settings_only_touches_given_fields",
-      "community": 29,
+      "community": 226,
       "norm_label": "test_update_library_settings_only_touches_given_fields()"
     },
     {
@@ -9277,7 +9277,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_events",
-      "community": 128,
+      "community": 223,
       "norm_label": "test_events.py"
     },
     {
@@ -9287,7 +9287,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_events_fakesongtracker",
-      "community": 128,
+      "community": 223,
       "norm_label": "_fakesongtracker"
     },
     {
@@ -9297,7 +9297,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_tests_test_events_fakesongtracker_init",
-      "community": 128,
+      "community": 223,
       "norm_label": ".__init__()"
     },
     {
@@ -9307,7 +9307,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_minimal_shape",
-      "community": 128,
+      "community": 223,
       "norm_label": "test_publish_track_event_minimal_shape()"
     },
     {
@@ -9317,7 +9317,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_includes_optional_fields",
-      "community": 128,
+      "community": 223,
       "norm_label": "test_publish_track_event_includes_optional_fields()"
     },
     {
@@ -9327,7 +9327,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_omits_metadata_when_not_given",
-      "community": 128,
+      "community": 223,
       "norm_label": "test_publish_track_event_omits_metadata_when_not_given()"
     },
     {
@@ -9337,7 +9337,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_job_event_shape",
-      "community": 128,
+      "community": 223,
       "norm_label": "test_publish_job_event_shape()"
     },
     {
@@ -9347,7 +9347,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_make_progress_callback_publishes_downloading_progress",
-      "community": 128,
+      "community": 223,
       "norm_label": "test_make_progress_callback_publishes_downloading_progress()"
     },
     {
@@ -9357,7 +9357,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_adds_timestamp_and_serializes_json",
-      "community": 128,
+      "community": 223,
       "norm_label": "test_publish_adds_timestamp_and_serializes_json()"
     },
     {
@@ -9367,7 +9367,7 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_swallows_redis_errors",
-      "community": 128,
+      "community": 223,
       "norm_label": "test_publish_swallows_redis_errors()"
     },
     {
@@ -9377,7 +9377,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_requires_owner",
-      "community": 128,
+      "community": 223,
       "norm_label": "test_publish_track_event_requires_owner()"
     },
     {
@@ -9387,7 +9387,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "backend_tests_test_events_rationale_50",
-      "community": 128,
+      "community": 223,
       "norm_label": "a call site with no song metadata to offer (job-level actions, tests) must not"
     },
     {
@@ -9397,7 +9397,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "backend_tests_test_events_rationale_127",
-      "community": 128,
+      "community": 223,
       "norm_label": "the whole enforcement mechanism (v17): a call site that forgets the owner fails"
     },
     {
@@ -12237,7 +12237,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_stream",
-      "community": 128,
+      "community": 207,
       "norm_label": "test_stream.py"
     },
     {
@@ -12247,7 +12247,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fake_event_stream",
-      "community": 128,
+      "community": 207,
       "norm_label": "_fake_event_stream()"
     },
     {
@@ -12257,7 +12257,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_requires_session",
-      "community": 128,
+      "community": 207,
       "norm_label": "test_stream_requires_session()"
     },
     {
@@ -12267,7 +12267,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_returns_sse_headers_and_forwarded_events",
-      "community": 128,
+      "community": 207,
       "norm_label": "test_stream_returns_sse_headers_and_forwarded_events()"
     },
     {
@@ -12297,7 +12297,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub",
-      "community": 128,
+      "community": 225,
       "norm_label": "_fakepubsub"
     },
     {
@@ -12307,7 +12307,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_init",
-      "community": 128,
+      "community": 225,
       "norm_label": ".__init__()"
     },
     {
@@ -12317,7 +12317,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_subscribe",
-      "community": 128,
+      "community": 225,
       "norm_label": ".subscribe()"
     },
     {
@@ -12327,7 +12327,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_psubscribe",
-      "community": 128,
+      "community": 225,
       "norm_label": ".psubscribe()"
     },
     {
@@ -12337,7 +12337,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_unsubscribe",
-      "community": 128,
+      "community": 225,
       "norm_label": ".unsubscribe()"
     },
     {
@@ -12347,7 +12347,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_punsubscribe",
-      "community": 128,
+      "community": 225,
       "norm_label": ".punsubscribe()"
     },
     {
@@ -12357,7 +12357,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_get_message",
-      "community": 128,
+      "community": 225,
       "norm_label": ".get_message()"
     },
     {
@@ -12367,7 +12367,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_aclose",
-      "community": 128,
+      "community": 225,
       "norm_label": ".aclose()"
     },
     {
@@ -12377,7 +12377,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient",
-      "community": 128,
+      "community": 225,
       "norm_label": "_fakeredisclient"
     },
     {
@@ -12387,7 +12387,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_init",
-      "community": 128,
+      "community": 225,
       "norm_label": ".__init__()"
     },
     {
@@ -12397,7 +12397,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_pubsub",
-      "community": 128,
+      "community": 225,
       "norm_label": ".pubsub()"
     },
     {
@@ -12407,7 +12407,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_aclose",
-      "community": 128,
+      "community": 225,
       "norm_label": ".aclose()"
     },
     {
@@ -12417,7 +12417,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_tests_test_stream_drive",
-      "community": 128,
+      "community": 207,
       "norm_label": "_drive()"
     },
     {
@@ -12427,7 +12427,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_subscribes_to_the_users_own_channel",
-      "community": 128,
+      "community": 207,
       "norm_label": "test_event_stream_subscribes_to_the_users_own_channel()"
     },
     {
@@ -12437,7 +12437,7 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern",
-      "community": 128,
+      "community": 207,
       "norm_label": "test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern()"
     },
     {
@@ -12447,7 +12447,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_non_admin_all_users_flag_is_ignored",
-      "community": 128,
+      "community": 207,
       "norm_label": "test_event_stream_non_admin_all_users_flag_is_ignored()"
     },
     {
@@ -12457,7 +12457,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_110",
-      "community": 128,
+      "community": 207,
       "norm_label": "v17's threat model: a client-supplied scope flag is never trusted -- a non-admin"
     },
     {
@@ -13624,7 +13624,7 @@
       "label": "login()",
       "file_type": "code",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L27",
+      "source_location": "L28",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup_login",
       "community": 1,
@@ -13634,7 +13634,7 @@
       "label": "clearSlate()",
       "file_type": "code",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L53",
+      "source_location": "L54",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup_clearslate",
       "community": 1,
@@ -13644,7 +13644,7 @@
       "label": "seedJob()",
       "file_type": "code",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L70",
+      "source_location": "L71",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup_seedjob",
       "community": 1,
@@ -13654,7 +13654,7 @@
       "label": "findRealPathTrack()",
       "file_type": "code",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L94",
+      "source_location": "L95",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup_findrealpathtrack",
       "community": 1,
@@ -13664,7 +13664,7 @@
       "label": "globalSetup()",
       "file_type": "code",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L109",
+      "source_location": "L110",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup_globalsetup",
       "community": 1,
@@ -13684,7 +13684,7 @@
       "label": "globalTeardown()",
       "file_type": "code",
       "source_file": "frontend/e2e/global-teardown.ts",
-      "source_location": "L16",
+      "source_location": "L17",
       "_origin": "ast",
       "id": "frontend_e2e_global_teardown_globalteardown",
       "community": 1,
@@ -13961,10 +13961,20 @@
       "norm_label": "trackswithnetworkpath()"
     },
     {
+      "label": "e2eDownloadsInFlight()",
+      "file_type": "code",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L149",
+      "_origin": "ast",
+      "id": "frontend_e2e_support_stack_e2edownloadsinflight",
+      "community": 1,
+      "norm_label": "e2edownloadsinflight()"
+    },
+    {
       "label": "normalizeEmail()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L147",
+      "source_location": "L173",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_normalizeemail",
       "community": 1,
@@ -13974,7 +13984,7 @@
       "label": "serverTrackFile()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L153",
+      "source_location": "L179",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_servertrackfile",
       "community": 1,
@@ -13984,7 +13994,7 @@
       "label": "waitForJob()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L171",
+      "source_location": "L197",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_waitforjob",
       "community": 1,
@@ -13994,7 +14004,7 @@
       "label": "cancelUnlessSettled()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L193",
+      "source_location": "L219",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_cancelunlesssettled",
       "community": 1,
@@ -14004,7 +14014,7 @@
       "label": "isSettled()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L206",
+      "source_location": "L232",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_issettled",
       "community": 1,
@@ -14014,7 +14024,7 @@
       "label": "expectedAttemptVia()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L213",
+      "source_location": "L239",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_expectedattemptvia",
       "community": 1,
@@ -52334,7 +52344,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L53",
+      "source_location": "L54",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup",
       "target": "frontend_e2e_global_setup_clearslate",
@@ -52344,7 +52354,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L94",
+      "source_location": "L95",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup",
       "target": "frontend_e2e_global_setup_findrealpathtrack",
@@ -52354,7 +52364,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L109",
+      "source_location": "L110",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup",
       "target": "frontend_e2e_global_setup_globalsetup",
@@ -52364,7 +52374,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L27",
+      "source_location": "L28",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup",
       "target": "frontend_e2e_global_setup_login",
@@ -52374,7 +52384,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L70",
+      "source_location": "L71",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup",
       "target": "frontend_e2e_global_setup_seedjob",
@@ -52444,6 +52454,17 @@
       "weight": 1.0,
       "source": "frontend_e2e_global_setup",
       "target": "frontend_e2e_support_stack_auth_dir",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/global-setup.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "frontend_e2e_global_setup",
+      "target": "frontend_e2e_support_stack_e2edownloadsinflight",
       "confidence_score": 1.0
     },
     {
@@ -52638,7 +52659,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L134",
+      "source_location": "L144",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_globalsetup",
       "target": "frontend_e2e_global_setup_login",
@@ -52649,7 +52670,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L137",
+      "source_location": "L147",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_globalsetup",
       "target": "frontend_e2e_global_setup_clearslate",
@@ -52660,7 +52681,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L141",
+      "source_location": "L151",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_globalsetup",
       "target": "frontend_e2e_global_setup_seedjob",
@@ -52672,7 +52693,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L76",
+      "source_location": "L77",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_seedjob",
       "target": "frontend_e2e_support_stack_issettled"
@@ -52682,7 +52703,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L71",
+      "source_location": "L72",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_seedjob",
       "target": "frontend_e2e_support_stack_spotifytrackurl",
@@ -52693,7 +52714,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L76",
+      "source_location": "L77",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_seedjob",
       "target": "frontend_e2e_support_stack_waitforjob",
@@ -52704,7 +52725,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L95",
+      "source_location": "L96",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_findrealpathtrack",
       "target": "frontend_e2e_support_stack_adminidentity",
@@ -52715,7 +52736,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L95",
+      "source_location": "L96",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_findrealpathtrack",
       "target": "frontend_e2e_support_stack_trackswithnetworkpath",
@@ -52726,7 +52747,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L150",
+      "source_location": "L160",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_globalsetup",
       "target": "frontend_e2e_global_setup_findrealpathtrack",
@@ -52738,7 +52759,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L110",
+      "source_location": "L111",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_globalsetup",
       "target": "frontend_e2e_support_env_loade2eenv"
@@ -52749,7 +52770,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L134",
+      "source_location": "L144",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_globalsetup",
       "target": "frontend_e2e_support_stack_adminidentity"
@@ -52760,7 +52781,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L120",
+      "source_location": "L130",
+      "weight": 1.0,
+      "source": "frontend_e2e_global_setup_globalsetup",
+      "target": "frontend_e2e_support_stack_e2edownloadsinflight"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/e2e/global-setup.ts",
+      "source_location": "L121",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_globalsetup",
       "target": "frontend_e2e_support_stack_ledgermisses"
@@ -52771,7 +52803,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L127",
+      "source_location": "L137",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_globalsetup",
       "target": "frontend_e2e_support_stack_stackpython"
@@ -52782,7 +52814,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/global-setup.ts",
-      "source_location": "L135",
+      "source_location": "L145",
       "weight": 1.0,
       "source": "frontend_e2e_global_setup_globalsetup",
       "target": "frontend_e2e_support_stack_useridentity"
@@ -52791,7 +52823,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/global-teardown.ts",
-      "source_location": "L16",
+      "source_location": "L17",
       "weight": 1.0,
       "source": "frontend_e2e_global_teardown",
       "target": "frontend_e2e_global_teardown_globalteardown",
@@ -52817,6 +52849,17 @@
       "weight": 1.0,
       "source": "frontend_e2e_global_teardown",
       "target": "frontend_e2e_support_stack_adminidentity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/global-teardown.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "frontend_e2e_global_teardown",
+      "target": "frontend_e2e_support_stack_e2edownloadsinflight",
       "confidence_score": 1.0
     },
     {
@@ -52880,7 +52923,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/global-teardown.ts",
-      "source_location": "L33",
+      "source_location": "L34",
       "weight": 1.0,
       "source": "frontend_e2e_global_teardown_globalteardown",
       "target": "frontend_e2e_support_stack_adminidentity"
@@ -52891,7 +52934,18 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/global-teardown.ts",
-      "source_location": "L33",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "frontend_e2e_global_teardown_globalteardown",
+      "target": "frontend_e2e_support_stack_e2edownloadsinflight"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/e2e/global-teardown.ts",
+      "source_location": "L34",
       "weight": 1.0,
       "source": "frontend_e2e_global_teardown_globalteardown",
       "target": "frontend_e2e_support_stack_normalizeemail"
@@ -52902,7 +52956,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/global-teardown.ts",
-      "source_location": "L18",
+      "source_location": "L19",
       "weight": 1.0,
       "source": "frontend_e2e_global_teardown_globalteardown",
       "target": "frontend_e2e_support_stack_readrun"
@@ -52913,7 +52967,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/global-teardown.ts",
-      "source_location": "L19",
+      "source_location": "L20",
       "weight": 1.0,
       "source": "frontend_e2e_global_teardown_globalteardown",
       "target": "frontend_e2e_support_stack_stackpython"
@@ -52924,7 +52978,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/global-teardown.ts",
-      "source_location": "L33",
+      "source_location": "L34",
       "weight": 1.0,
       "source": "frontend_e2e_global_teardown_globalteardown",
       "target": "frontend_e2e_support_stack_useridentity"
@@ -53310,7 +53364,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L193",
+      "source_location": "L219",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_cancelunlesssettled",
@@ -53320,7 +53374,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L213",
+      "source_location": "L149",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack",
+      "target": "frontend_e2e_support_stack_e2edownloadsinflight",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L239",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_expectedattemptvia",
@@ -53340,7 +53404,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L206",
+      "source_location": "L232",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_issettled",
@@ -53380,7 +53444,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L147",
+      "source_location": "L173",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_normalizeemail",
@@ -53460,7 +53524,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L153",
+      "source_location": "L179",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_servertrackfile",
@@ -53520,7 +53584,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L171",
+      "source_location": "L197",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_waitforjob",
@@ -53586,10 +53650,43 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L168",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack_e2edownloadsinflight",
+      "target": "frontend_e2e_support_stack_adminidentity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L168",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack_e2edownloadsinflight",
+      "target": "frontend_e2e_support_stack_useridentity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/stack.ts",
       "source_location": "L53",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_missingtrackurl",
       "target": "frontend_e2e_support_stack_spotifytrackurl",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L150",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack_e2edownloadsinflight",
+      "target": "frontend_e2e_support_stack_stackpython",
       "confidence_score": 1.0
     },
     {
@@ -53608,7 +53705,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L154",
+      "source_location": "L180",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_servertrackfile",
       "target": "frontend_e2e_support_stack_stackpython",
@@ -53633,6 +53730,17 @@
       "source_location": "L136",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_trackswithnetworkpath",
+      "target": "frontend_e2e_support_stack_normalizeemail",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L168",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack_e2edownloadsinflight",
       "target": "frontend_e2e_support_stack_normalizeemail",
       "confidence_score": 1.0
     },
@@ -63374,5 +63482,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "0d7a0b1eaefab762e9161d54638c354377d35469"
+  "built_at_commit": "f763799eb0493949176cb3319ec6a24ba1e41b8b"
 }

@@ -223,5 +223,7 @@
   "221": "list_tracks",
   "222": "_fetch_username",
   "223": "expand_job",
-  "224": "alerts.py"
+  "224": "alerts.py",
+  "225": "_FakePubSub",
+  "226": "test_app_settings.py"
 }
