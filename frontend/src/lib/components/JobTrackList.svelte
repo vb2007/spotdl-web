@@ -16,7 +16,7 @@
 	{:else if state.items.length === 0}
 		<p class="hint mono">No tracks.</p>
 	{:else}
-		<ul class="rows">
+		<ul class="rows" aria-label="Tracks">
 			{#each state.items as track (track.id)}
 				<TrackRow {track} {jobId} />
 			{/each}
