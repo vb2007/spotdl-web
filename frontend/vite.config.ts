@@ -120,7 +120,14 @@ export default defineConfig(({ command }) => ({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter()
+			adapter: adapter(),
+			// v37: the Playwright suite isn't under src/, so the generated tsconfig (and with it
+			// `npm run check`'s svelte-check) wouldn't see it otherwise.
+			typescript: {
+				config: (config) => {
+					config.include.push('../e2e/**/*.ts', '../playwright.config.ts');
+				}
+			}
 		}),
 		...(command === 'serve' ? [devFileDownloadFallback()] : [])
 	],
