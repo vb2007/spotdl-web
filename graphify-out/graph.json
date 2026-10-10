@@ -944,7 +944,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_db_begin_snapshot",
-      "community": 214,
+      "community": 221,
       "norm_label": "begin_snapshot()"
     },
     {
@@ -954,7 +954,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_db_py_session",
-      "community": 214,
+      "community": 221,
       "norm_label": "session"
     },
     {
@@ -964,7 +964,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_db_get_db",
-      "community": 214,
+      "community": 221,
       "norm_label": "get_db()"
     },
     {
@@ -974,7 +974,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_db_rationale_23",
-      "community": 214,
+      "community": 221,
       "norm_label": "ends `db`'s current transaction and starts a repeatable read one, so every state"
     },
     {
@@ -1234,7 +1234,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_librarysortrun",
-      "community": 148,
+      "community": 166,
       "norm_label": "librarysortrun"
     },
     {
@@ -1244,7 +1244,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_rationale_17",
-      "community": 148,
+      "community": 166,
       "norm_label": "single-row table (v28) tracking the admin-triggered library sort & move sweep --"
     },
     {
@@ -1394,7 +1394,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_trackattempt",
-      "community": 3,
+      "community": 144,
       "norm_label": "trackattempt"
     },
     {
@@ -1414,7 +1414,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_rationale_36",
-      "community": 3,
+      "community": 144,
       "norm_label": "one row per `download_track` invocation (v24) -- what it tried (direct vs. which"
     },
     {
@@ -1494,7 +1494,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_app_models_worker_state_workerstate",
-      "community": 7,
+      "community": 3,
       "norm_label": "workerstate"
     },
     {
@@ -1504,7 +1504,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_worker_state_rationale_10",
-      "community": 7,
+      "community": 3,
       "norm_label": "single-row table backing the global circuit breaker."
     },
     {
@@ -1524,7 +1524,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_auth",
-      "community": 195,
+      "community": 214,
       "norm_label": "auth.py"
     },
     {
@@ -1534,7 +1534,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_routers_auth_loginrequest",
-      "community": 195,
+      "community": 214,
       "norm_label": "loginrequest"
     },
     {
@@ -1574,7 +1574,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_auth_py_session",
-      "community": 195,
+      "community": 214,
       "norm_label": "session"
     },
     {
@@ -1584,7 +1584,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_routers_auth_require_session",
-      "community": 195,
+      "community": 214,
       "norm_label": "require_session()"
     },
     {
@@ -1594,7 +1594,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "backend_app_routers_auth_require_admin",
-      "community": 195,
+      "community": 214,
       "norm_label": "require_admin()"
     },
     {
@@ -1614,7 +1614,7 @@
       "source_location": "L97",
       "_origin": "ast",
       "id": "backend_app_routers_auth_set_session_cookie",
-      "community": 195,
+      "community": 214,
       "norm_label": "_set_session_cookie()"
     },
     {
@@ -1624,7 +1624,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_auth_py_response",
-      "community": 195,
+      "community": 214,
       "norm_label": "response"
     },
     {
@@ -1634,7 +1634,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_app_routers_auth_login",
-      "community": 195,
+      "community": 214,
       "norm_label": "login()"
     },
     {
@@ -1644,7 +1644,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "backend_app_routers_auth_logout",
-      "community": 195,
+      "community": 214,
       "norm_label": "logout()"
     },
     {
@@ -1654,7 +1654,7 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "backend_app_routers_auth_me",
-      "community": 195,
+      "community": 214,
       "norm_label": "me()"
     },
     {
@@ -1664,7 +1664,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_app_routers_auth_rationale_40",
-      "community": 195,
+      "community": 214,
       "norm_label": "every owner-scoped route depends on this, not `current_session` directly --"
     },
     {
@@ -2924,7 +2924,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "namedtuple",
-      "community": 32,
+      "community": 144,
       "norm_label": "namedtuple"
     },
     {
@@ -2944,7 +2944,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "exception",
-      "community": 7,
+      "community": 32,
       "norm_label": "exception"
     },
     {
@@ -3614,7 +3614,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_attempts",
-      "community": 32,
+      "community": 144,
       "norm_label": "attempts.py"
     },
     {
@@ -3624,7 +3624,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_services_attempts_recordedattempt",
-      "community": 32,
+      "community": 144,
       "norm_label": "recordedattempt"
     },
     {
@@ -3634,7 +3634,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_app_services_attempts_record_attempt",
-      "community": 32,
+      "community": 144,
       "norm_label": "record_attempt()"
     },
     {
@@ -3644,7 +3644,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_session",
-      "community": 32,
+      "community": 144,
       "norm_label": "session"
     },
     {
@@ -3654,7 +3654,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_uuid",
-      "community": 32,
+      "community": 144,
       "norm_label": "uuid"
     },
     {
@@ -3664,7 +3664,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_datetime",
-      "community": 32,
+      "community": 144,
       "norm_label": "datetime"
     },
     {
@@ -3674,7 +3674,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "trackattemptoutcome",
-      "community": 32,
+      "community": 144,
       "norm_label": "trackattemptoutcome"
     },
     {
@@ -3684,7 +3684,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_trackerrortype",
-      "community": 32,
+      "community": 144,
       "norm_label": "trackerrortype"
     },
     {
@@ -3694,7 +3694,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_networkpath",
-      "community": 32,
+      "community": 144,
       "norm_label": "networkpath"
     },
     {
@@ -3704,7 +3704,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_1",
-      "community": 32,
+      "community": 144,
       "norm_label": "per-attempt download history (v24) -- see app/models/track_attempt.py's docstrin"
     },
     {
@@ -3714,7 +3714,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_46",
-      "community": 32,
+      "community": 144,
       "norm_label": "adds one `track_attempts` row and returns its attempt_number together with the"
     },
     {
@@ -3771,7 +3771,7 @@
       "label": "_mount_looks_missing()",
       "file_type": "code",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L70",
+      "source_location": "L73",
       "_origin": "ast",
       "id": "backend_app_services_dedup_mount_looks_missing",
       "community": 163,
@@ -3781,7 +3781,7 @@
       "label": "reconcile_disk()",
       "file_type": "code",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L74",
+      "source_location": "L77",
       "_origin": "ast",
       "id": "backend_app_services_dedup_reconcile_disk",
       "community": 163,
@@ -3821,9 +3821,9 @@
       "label": "Drops ledger rows whose file no longer exists on disk, so a manually-deleted",
       "file_type": "rationale",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L75",
+      "source_location": "L78",
       "_origin": "ast",
-      "id": "backend_app_services_dedup_rationale_75",
+      "id": "backend_app_services_dedup_rationale_78",
       "community": 163,
       "norm_label": "drops ledger rows whose file no longer exists on disk, so a manually-deleted"
     },
@@ -4724,7 +4724,7 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "backend_app_services_proxies_probe_reachable",
-      "community": 218,
+      "community": 180,
       "norm_label": "_probe_reachable()"
     },
     {
@@ -4734,7 +4734,7 @@
       "source_location": "L166",
       "_origin": "ast",
       "id": "backend_app_services_proxies_sync_from_file",
-      "community": 218,
+      "community": 180,
       "norm_label": "sync_from_file()"
     },
     {
@@ -4834,7 +4834,7 @@
       "source_location": "L154",
       "_origin": "ast",
       "id": "backend_app_services_proxies_rationale_154",
-      "community": 218,
+      "community": 180,
       "norm_label": "best-effort tcp connect so an obviously dead new entry doesn't get picked first"
     },
     {
@@ -4844,7 +4844,7 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "backend_app_services_proxies_rationale_167",
-      "community": 218,
+      "community": 180,
       "norm_label": "run once on worker-meta boot (see celery_app.py). upserts proxies.txt's urls as"
     },
     {
@@ -4904,7 +4904,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_retry",
-      "community": 7,
+      "community": 32,
       "norm_label": "retry.py"
     },
     {
@@ -4914,7 +4914,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_app_services_retry_nooutputfileerror",
-      "community": 7,
+      "community": 32,
       "norm_label": "nooutputfileerror"
     },
     {
@@ -4924,7 +4924,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_services_retry_classify_error",
-      "community": 7,
+      "community": 32,
       "norm_label": "classify_error()"
     },
     {
@@ -4934,7 +4934,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_trackerrortype",
-      "community": 7,
+      "community": 32,
       "norm_label": "trackerrortype"
     },
     {
@@ -4944,7 +4944,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_services_retry_next_delay",
-      "community": 7,
+      "community": 32,
       "norm_label": "next_delay()"
     },
     {
@@ -4954,7 +4954,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_timedelta",
-      "community": 7,
+      "community": 32,
       "norm_label": "timedelta"
     },
     {
@@ -4964,7 +4964,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "backend_app_services_retry_get_worker_state",
-      "community": 7,
+      "community": 32,
       "norm_label": "get_worker_state()"
     },
     {
@@ -4974,7 +4974,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_session",
-      "community": 7,
+      "community": 32,
       "norm_label": "session"
     },
     {
@@ -4984,7 +4984,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_app_services_retry_breaker_active",
-      "community": 7,
+      "community": 32,
       "norm_label": "breaker_active()"
     },
     {
@@ -4994,7 +4994,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_datetime",
-      "community": 7,
+      "community": 32,
       "norm_label": "datetime"
     },
     {
@@ -5004,7 +5004,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "backend_app_services_retry_maybe_trip_breaker",
-      "community": 7,
+      "community": 32,
       "norm_label": "maybe_trip_breaker()"
     },
     {
@@ -5014,7 +5014,7 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "backend_app_services_retry_record_failure",
-      "community": 7,
+      "community": 32,
       "norm_label": "record_failure()"
     },
     {
@@ -5024,7 +5024,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_track",
-      "community": 7,
+      "community": 32,
       "norm_label": "track"
     },
     {
@@ -5034,7 +5034,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "backend_app_services_retry_record_success",
-      "community": 7,
+      "community": 32,
       "norm_label": "record_success()"
     },
     {
@@ -5044,7 +5044,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_1",
-      "community": 7,
+      "community": 32,
       "norm_label": "per-track backoff ladder and global circuit breaker \u2014 see claude.md's \"retry eng"
     },
     {
@@ -5054,7 +5054,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_19",
-      "community": 7,
+      "community": 32,
       "norm_label": "spotdl's search_and_download completed without raising but returned no output"
     },
     {
@@ -6234,7 +6234,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app",
-      "community": 218,
+      "community": 180,
       "norm_label": "celery_app.py"
     },
     {
@@ -6244,7 +6244,7 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
-      "community": 218,
+      "community": 180,
       "norm_label": "_reconcile_disk_on_boot()"
     },
     {
@@ -6254,7 +6254,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_sync_proxies_on_boot",
-      "community": 218,
+      "community": 180,
       "norm_label": "_sync_proxies_on_boot()"
     },
     {
@@ -7107,7 +7107,7 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_capture_enqueue",
-      "community": 148,
+      "community": 204,
       "norm_label": "_capture_enqueue()"
     },
     {
@@ -7127,7 +7127,7 @@
       "source_location": "L351",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_breaker_trip_alert_is_enqueued_only_after_commit",
-      "community": 148,
+      "community": 204,
       "norm_label": "test_breaker_trip_alert_is_enqueued_only_after_commit()"
     },
     {
@@ -7137,7 +7137,7 @@
       "source_location": "L367",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_breaker_escalation_names_the_new_step",
-      "community": 148,
+      "community": 204,
       "norm_label": "test_breaker_escalation_names_the_new_step()"
     },
     {
@@ -7147,7 +7147,7 @@
       "source_location": "L380",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_a_rolled_back_trip_sends_nothing",
-      "community": 148,
+      "community": 204,
       "norm_label": "test_a_rolled_back_trip_sends_nothing()"
     },
     {
@@ -7157,7 +7157,7 @@
       "source_location": "L391",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_below_threshold_queues_nothing",
-      "community": 148,
+      "community": 204,
       "norm_label": "test_below_threshold_queues_nothing()"
     },
     {
@@ -7357,7 +7357,7 @@
       "source_location": "L610",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_library_alert_texts",
-      "community": 148,
+      "community": 166,
       "norm_label": "test_library_alert_texts()"
     },
     {
@@ -7467,7 +7467,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings",
-      "community": 2,
+      "community": 29,
       "norm_label": "test_app_settings.py"
     },
     {
@@ -7477,7 +7477,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_fakesettings",
-      "community": 2,
+      "community": 29,
       "norm_label": "_fakesettings"
     },
     {
@@ -7487,7 +7487,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_creates_row_seeded_from_env",
-      "community": 2,
+      "community": 29,
       "norm_label": "test_get_output_settings_creates_row_seeded_from_env()"
     },
     {
@@ -7497,7 +7497,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_returns_existing_row_without_reseeding",
-      "community": 2,
+      "community": 29,
       "norm_label": "test_get_output_settings_returns_existing_row_without_reseeding()"
     },
     {
@@ -7507,7 +7507,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_only_touches_given_fields",
-      "community": 2,
+      "community": 29,
       "norm_label": "test_update_output_settings_only_touches_given_fields()"
     },
     {
@@ -7517,7 +7517,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_creates_row_if_missing",
-      "community": 2,
+      "community": 29,
       "norm_label": "test_update_output_settings_creates_row_if_missing()"
     },
     {
@@ -7527,7 +7527,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_library_settings_creates_row_seeded_with_defaults",
-      "community": 2,
+      "community": 29,
       "norm_label": "test_get_library_settings_creates_row_seeded_with_defaults()"
     },
     {
@@ -7537,7 +7537,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_library_settings_and_output_settings_share_one_row",
-      "community": 2,
+      "community": 29,
       "norm_label": "test_get_library_settings_and_output_settings_share_one_row()"
     },
     {
@@ -7547,7 +7547,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_library_settings_only_touches_given_fields",
-      "community": 2,
+      "community": 29,
       "norm_label": "test_update_library_settings_only_touches_given_fields()"
     },
     {
@@ -8431,10 +8431,20 @@
       "norm_label": "test_is_already_downloaded_follows_a_repoint_that_lands_mid_check()"
     },
     {
-      "label": "test_is_already_downloaded_raises_when_the_downloads_root_is_not_mounted()",
+      "label": "test_is_already_downloaded_is_a_miss_when_the_row_is_deleted_mid_check()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
       "source_location": "L175",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_test_is_already_downloaded_is_a_miss_when_the_row_is_deleted_mid_check",
+      "community": 163,
+      "norm_label": "test_is_already_downloaded_is_a_miss_when_the_row_is_deleted_mid_check()"
+    },
+    {
+      "label": "test_is_already_downloaded_raises_when_the_downloads_root_is_not_mounted()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L208",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_is_already_downloaded_raises_when_the_downloads_root_is_not_mounted",
       "community": 163,
@@ -8444,7 +8454,7 @@
       "label": "test_reconcile_disk_drops_rows_for_missing_files()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L193",
+      "source_location": "L226",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
       "community": 163,
@@ -8454,7 +8464,7 @@
       "label": "test_reconcile_disk_refuses_to_prune_when_output_dir_missing()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L217",
+      "source_location": "L250",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_missing",
       "community": 163,
@@ -8464,7 +8474,7 @@
       "label": "test_reconcile_disk_refuses_to_prune_when_output_dir_empty()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L238",
+      "source_location": "L271",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_empty",
       "community": 163,
@@ -8474,7 +8484,7 @@
       "label": "test_reconcile_disk_skips_only_library_rooted_rows_when_library_dir_missing()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L257",
+      "source_location": "L290",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_skips_only_library_rooted_rows_when_library_dir_missing",
       "community": 163,
@@ -8484,7 +8494,7 @@
       "label": "test_reconcile_disk_prunes_downloads_root_normally_when_library_never_used()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L304",
+      "source_location": "L337",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_prunes_downloads_root_normally_when_library_never_used",
       "community": 163,
@@ -8494,7 +8504,7 @@
       "label": "test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L342",
+      "source_location": "L375",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check",
       "community": 163,
@@ -8504,7 +8514,7 @@
       "label": "test_reconcile_disk_recheck_respects_the_unmounted_root_guard()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L396",
+      "source_location": "L429",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
       "community": 163,
@@ -8591,12 +8601,22 @@
       "norm_label": "v38: the sweep commits the repoint, then unlinks the source. a check that read t"
     },
     {
+      "label": "reconcile_disk() (worker-meta boot) can drop the row between the read and the",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L178",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_rationale_178",
+      "community": 163,
+      "norm_label": "reconcile_disk() (worker-meta boot) can drop the row between the read and the"
+    },
+    {
       "label": "v28: a moved track's file_path lives under library_target_dir instead of     dow",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L260",
+      "source_location": "L293",
       "_origin": "ast",
-      "id": "backend_tests_test_dedup_rationale_260",
+      "id": "backend_tests_test_dedup_rationale_293",
       "community": 163,
       "norm_label": "v28: a moved track's file_path lives under library_target_dir instead of     dow"
     },
@@ -8604,9 +8624,9 @@
       "label": "A fresh install where v28's sort & move has never run yet has a genuinely empty",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L307",
+      "source_location": "L340",
       "_origin": "ast",
-      "id": "backend_tests_test_dedup_rationale_307",
+      "id": "backend_tests_test_dedup_rationale_340",
       "community": 163,
       "norm_label": "a fresh install where v28's sort & move has never run yet has a genuinely empty"
     },
@@ -8614,9 +8634,9 @@
       "label": "v34.1: the sweep (worker-expand) can run concurrently with reconcile_disk     (w",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L345",
+      "source_location": "L378",
       "_origin": "ast",
-      "id": "backend_tests_test_dedup_rationale_345",
+      "id": "backend_tests_test_dedup_rationale_378",
       "community": 163,
       "norm_label": "v34.1: the sweep (worker-expand) can run concurrently with reconcile_disk     (w"
     },
@@ -8624,9 +8644,9 @@
       "label": "v34.1: a row repointed mid-check into a library root that looks unmounted on thi",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L397",
+      "source_location": "L430",
       "_origin": "ast",
-      "id": "backend_tests_test_dedup_rationale_397",
+      "id": "backend_tests_test_dedup_rationale_430",
       "community": 163,
       "norm_label": "v34.1: a row repointed mid-check into a library root that looks unmounted on thi"
     },
@@ -10987,7 +11007,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config",
-      "community": 220,
+      "community": 180,
       "norm_label": "test_logging_config.py"
     },
     {
@@ -10997,7 +11017,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_format",
-      "community": 220,
+      "community": 180,
       "norm_label": "_format()"
     },
     {
@@ -11007,7 +11027,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "logrecord",
-      "community": 220,
+      "community": 180,
       "norm_label": "logrecord"
     },
     {
@@ -11017,7 +11037,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_make_record",
-      "community": 220,
+      "community": 180,
       "norm_label": "_make_record()"
     },
     {
@@ -11027,7 +11047,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_plain_message_passes_through_unchanged",
-      "community": 220,
+      "community": 180,
       "norm_label": "test_plain_message_passes_through_unchanged()"
     },
     {
@@ -11037,7 +11057,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_credentialed_url_in_message_is_redacted",
-      "community": 220,
+      "community": 180,
       "norm_label": "test_credentialed_url_in_message_is_redacted()"
     },
     {
@@ -11047,7 +11067,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_credentialed_url_in_exception_traceback_is_redacted",
-      "community": 220,
+      "community": 180,
       "norm_label": "test_credentialed_url_in_exception_traceback_is_redacted()"
     },
     {
@@ -11057,7 +11077,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_no_task_context_outside_a_running_task",
-      "community": 220,
+      "community": 180,
       "norm_label": "test_no_task_context_outside_a_running_task()"
     },
     {
@@ -11067,7 +11087,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_test_task_context_injected_when_running_inside_a_task",
-      "community": 220,
+      "community": 180,
       "norm_label": "test_task_context_injected_when_running_inside_a_task()"
     },
     {
@@ -11077,7 +11097,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_logging_config_rationale_1",
-      "community": 220,
+      "community": 180,
       "norm_label": "structured json logging (v12). the one contract that matters most here: a creden"
     },
     {
@@ -12027,7 +12047,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_retry",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_retry.py"
     },
     {
@@ -12037,7 +12057,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_retry_aware",
-      "community": 7,
+      "community": 3,
       "norm_label": "_aware()"
     },
     {
@@ -12047,7 +12067,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_retry_py_datetime",
-      "community": 7,
+      "community": 3,
       "norm_label": "datetime"
     },
     {
@@ -12057,7 +12077,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_tests_test_retry_owner",
-      "community": 7,
+      "community": 3,
       "norm_label": "_owner()"
     },
     {
@@ -12067,7 +12087,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_tests_test_retry_make_track",
-      "community": 7,
+      "community": 3,
       "norm_label": "_make_track()"
     },
     {
@@ -12077,7 +12097,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_classify_error_maps_known_exception_types",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_classify_error_maps_known_exception_types()"
     },
     {
@@ -12097,7 +12117,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_record_failure_lookup_is_terminal_and_never_reschedules",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_record_failure_lookup_is_terminal_and_never_reschedules()"
     },
     {
@@ -12107,7 +12127,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_record_failure_audio_provider_advances_ladder_and_breaker",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_record_failure_audio_provider_advances_ladder_and_breaker()"
     },
     {
@@ -12117,7 +12137,7 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_record_failure_no_output_advances_ladder_and_breaker",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_record_failure_no_output_advances_ladder_and_breaker()"
     },
     {
@@ -12127,7 +12147,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_record_failure_other_shares_ladder_but_does_not_feed_breaker",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_record_failure_other_shares_ladder_but_does_not_feed_breaker()"
     },
     {
@@ -12137,7 +12157,7 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_breaker_trips_after_five_consecutive_failures",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_breaker_trips_after_five_consecutive_failures()"
     },
     {
@@ -12147,7 +12167,7 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_breaker_escalates_delay_on_successive_trips",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_breaker_escalates_delay_on_successive_trips()"
     },
     {
@@ -12157,7 +12177,7 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_breaker_caps_delay_at_third_trip_and_beyond",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_breaker_caps_delay_at_third_trip_and_beyond()"
     },
     {
@@ -12167,7 +12187,7 @@
       "source_location": "L175",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_record_success_resets_breaker_state",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_record_success_resets_breaker_state()"
     },
     {
@@ -12177,7 +12197,7 @@
       "source_location": "L192",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_breaker_active_checks_paused_and_tripped_until",
-      "community": 7,
+      "community": 3,
       "norm_label": "test_breaker_active_checks_paused_and_tripped_until()"
     },
     {
@@ -12187,7 +12207,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_tests_test_retry_rationale_90",
-      "community": 7,
+      "community": 3,
       "norm_label": "v23: no_output is spotdl swallowing a real audioprovidererror internally (see"
     },
     {
@@ -12537,7 +12557,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_stream",
-      "community": 207,
+      "community": 42,
       "norm_label": "test_stream.py"
     },
     {
@@ -12547,7 +12567,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fake_event_stream",
-      "community": 207,
+      "community": 42,
       "norm_label": "_fake_event_stream()"
     },
     {
@@ -12557,7 +12577,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_requires_session",
-      "community": 207,
+      "community": 42,
       "norm_label": "test_stream_requires_session()"
     },
     {
@@ -12567,7 +12587,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_returns_sse_headers_and_forwarded_events",
-      "community": 207,
+      "community": 42,
       "norm_label": "test_stream_returns_sse_headers_and_forwarded_events()"
     },
     {
@@ -12577,7 +12597,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest",
-      "community": 207,
+      "community": 180,
       "norm_label": "_fakerequest"
     },
     {
@@ -12587,7 +12607,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest_is_disconnected",
-      "community": 207,
+      "community": 180,
       "norm_label": ".is_disconnected()"
     },
     {
@@ -12597,7 +12617,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub",
-      "community": 186,
+      "community": 42,
       "norm_label": "_fakepubsub"
     },
     {
@@ -12607,7 +12627,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_init",
-      "community": 186,
+      "community": 42,
       "norm_label": ".__init__()"
     },
     {
@@ -12617,7 +12637,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_subscribe",
-      "community": 186,
+      "community": 42,
       "norm_label": ".subscribe()"
     },
     {
@@ -12627,7 +12647,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_psubscribe",
-      "community": 186,
+      "community": 42,
       "norm_label": ".psubscribe()"
     },
     {
@@ -12637,7 +12657,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_unsubscribe",
-      "community": 186,
+      "community": 42,
       "norm_label": ".unsubscribe()"
     },
     {
@@ -12647,7 +12667,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_punsubscribe",
-      "community": 186,
+      "community": 42,
       "norm_label": ".punsubscribe()"
     },
     {
@@ -12657,7 +12677,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_get_message",
-      "community": 186,
+      "community": 42,
       "norm_label": ".get_message()"
     },
     {
@@ -12667,7 +12687,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_aclose",
-      "community": 186,
+      "community": 42,
       "norm_label": ".aclose()"
     },
     {
@@ -12677,7 +12697,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient",
-      "community": 186,
+      "community": 42,
       "norm_label": "_fakeredisclient"
     },
     {
@@ -12687,7 +12707,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_init",
-      "community": 186,
+      "community": 42,
       "norm_label": ".__init__()"
     },
     {
@@ -12697,7 +12717,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_pubsub",
-      "community": 186,
+      "community": 42,
       "norm_label": ".pubsub()"
     },
     {
@@ -12707,7 +12727,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_aclose",
-      "community": 186,
+      "community": 42,
       "norm_label": ".aclose()"
     },
     {
@@ -12717,7 +12737,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_tests_test_stream_drive",
-      "community": 207,
+      "community": 42,
       "norm_label": "_drive()"
     },
     {
@@ -12727,7 +12747,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_subscribes_to_the_users_own_channel",
-      "community": 207,
+      "community": 42,
       "norm_label": "test_event_stream_subscribes_to_the_users_own_channel()"
     },
     {
@@ -12737,7 +12757,7 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern",
-      "community": 207,
+      "community": 42,
       "norm_label": "test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern()"
     },
     {
@@ -12747,7 +12767,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_non_admin_all_users_flag_is_ignored",
-      "community": 207,
+      "community": 42,
       "norm_label": "test_event_stream_non_admin_all_users_flag_is_ignored()"
     },
     {
@@ -12757,7 +12777,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_110",
-      "community": 207,
+      "community": 42,
       "norm_label": "v17's threat model: a client-supplied scope flag is never trusted -- a non-admin"
     },
     {
@@ -14274,7 +14294,7 @@
       "label": "movedLedgerTracks()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L136",
+      "source_location": "L137",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_movedledgertracks",
       "community": 1,
@@ -14284,17 +14304,27 @@
       "label": "ledgerFilePath()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L174",
+      "source_location": "L187",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_ledgerfilepath",
       "community": 1,
       "norm_label": "ledgerfilepath()"
     },
     {
+      "label": "ledgerDownloads()",
+      "file_type": "code",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L204",
+      "_origin": "ast",
+      "id": "frontend_e2e_support_stack_ledgerdownloads",
+      "community": 1,
+      "norm_label": "ledgerdownloads()"
+    },
+    {
       "label": "tracksWithNetworkPath()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L189",
+      "source_location": "L223",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_trackswithnetworkpath",
       "community": 1,
@@ -14304,7 +14334,7 @@
       "label": "e2eDownloadsInFlight()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L218",
+      "source_location": "L252",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_e2edownloadsinflight",
       "community": 1,
@@ -14314,7 +14344,7 @@
       "label": "normalizeEmail()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L242",
+      "source_location": "L276",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_normalizeemail",
       "community": 1,
@@ -14324,7 +14354,7 @@
       "label": "serverTrackFile()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L248",
+      "source_location": "L282",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_servertrackfile",
       "community": 1,
@@ -14334,7 +14364,7 @@
       "label": "waitForJob()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L266",
+      "source_location": "L300",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_waitforjob",
       "community": 1,
@@ -14344,7 +14374,7 @@
       "label": "cancelUnlessSettled()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L289",
+      "source_location": "L323",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_cancelunlesssettled",
       "community": 1,
@@ -14354,7 +14384,7 @@
       "label": "isSettled()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L306",
+      "source_location": "L340",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_issettled",
       "community": 1,
@@ -14364,7 +14394,7 @@
       "label": "expectedAttemptVia()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L313",
+      "source_location": "L347",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_expectedattemptvia",
       "community": 1,
@@ -16400,7 +16430,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "community": 218,
+      "community": 180,
       "norm_label": "+layout.svelte"
     },
     {
@@ -16410,7 +16440,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_app_css",
-      "community": 218,
+      "community": 180,
       "norm_label": "../app.css"
     },
     {
@@ -16420,7 +16450,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_lib_assets_favicon_svg",
-      "community": 218,
+      "community": 180,
       "norm_label": "$lib/assets/favicon.svg"
     },
     {
@@ -16860,7 +16890,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "claude_architecture",
-      "community": 226,
+      "community": 31,
       "norm_label": "architecture"
     },
     {
@@ -16870,7 +16900,7 @@
       "source_location": "L188",
       "_origin": "ast",
       "id": "claude_invariants_break_these_and_things_fail_silently",
-      "community": 226,
+      "community": 31,
       "norm_label": "invariants \u2014 break these and things fail silently"
     },
     {
@@ -16880,7 +16910,7 @@
       "source_location": "L206",
       "_origin": "ast",
       "id": "claude_master_v2_invariants",
-      "community": 226,
+      "community": 31,
       "norm_label": "master v2 invariants"
     },
     {
@@ -16890,7 +16920,7 @@
       "source_location": "L229",
       "_origin": "ast",
       "id": "claude_master_v3_invariants",
-      "community": 226,
+      "community": 31,
       "norm_label": "master v3 invariants"
     },
     {
@@ -25439,7 +25469,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L58",
+      "source_location": "L61",
       "weight": 1.0,
       "source": "backend_app_services_dedup_is_already_downloaded",
       "target": "backend_app_config_get_settings"
@@ -25450,7 +25480,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L101",
+      "source_location": "L104",
       "weight": 1.0,
       "source": "backend_app_services_dedup_reconcile_disk",
       "target": "backend_app_config_get_settings"
@@ -26580,7 +26610,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L80",
+      "source_location": "L83",
       "weight": 1.0,
       "source": "backend_app_services_dedup_reconcile_disk",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -26657,7 +26687,18 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L182",
+      "source_location": "L189",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_is_already_downloaded_is_a_miss_when_the_row_is_deleted_mid_check",
+      "target": "backend_app_models_downloaded_track_downloadedtrack"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L215",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_is_already_downloaded_raises_when_the_downloads_root_is_not_mounted",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -26690,7 +26731,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L213",
+      "source_location": "L246",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -26701,7 +26742,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L391",
+      "source_location": "L424",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -26712,7 +26753,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L338",
+      "source_location": "L371",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_prunes_downloads_root_normally_when_library_never_used",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -26723,7 +26764,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L435",
+      "source_location": "L468",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -26734,7 +26775,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L253",
+      "source_location": "L286",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_empty",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -26745,7 +26786,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L234",
+      "source_location": "L267",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_missing",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -26756,7 +26797,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L300",
+      "source_location": "L333",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_skips_only_library_rooted_rows_when_library_dir_missing",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -34573,7 +34614,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L70",
+      "source_location": "L73",
       "weight": 1.0,
       "source": "backend_app_services_dedup",
       "target": "backend_app_services_dedup_mount_looks_missing",
@@ -34583,7 +34624,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L74",
+      "source_location": "L77",
       "weight": 1.0,
       "source": "backend_app_services_dedup",
       "target": "backend_app_services_dedup_reconcile_disk",
@@ -34604,7 +34645,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L64",
+      "source_location": "L67",
       "weight": 1.0,
       "source": "backend_app_services_dedup_is_already_downloaded",
       "target": "backend_app_services_dedup_ledgerrootunavailable",
@@ -34657,7 +34698,7 @@
       "context": "parameter_type",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L70",
+      "source_location": "L73",
       "weight": 1.0,
       "source": "backend_app_services_dedup_mount_looks_missing",
       "target": "backend_app_services_dedup_py_path",
@@ -34668,7 +34709,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L101",
+      "source_location": "L104",
       "weight": 1.0,
       "source": "backend_app_services_dedup_reconcile_disk",
       "target": "backend_app_services_dedup_py_path",
@@ -34679,7 +34720,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L63",
+      "source_location": "L66",
       "weight": 1.0,
       "source": "backend_app_services_dedup_is_already_downloaded",
       "target": "backend_app_services_dedup_mount_looks_missing",
@@ -34700,7 +34741,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L105",
+      "source_location": "L108",
       "weight": 1.0,
       "source": "backend_app_services_dedup_reconcile_disk",
       "target": "backend_app_services_dedup_mount_looks_missing",
@@ -34710,9 +34751,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L75",
+      "source_location": "L78",
       "weight": 1.0,
-      "source": "backend_app_services_dedup_rationale_75",
+      "source": "backend_app_services_dedup_rationale_78",
       "target": "backend_app_services_dedup_reconcile_disk",
       "confidence_score": 1.0
     },
@@ -42214,6 +42255,16 @@
       "source_location": "L175",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
+      "target": "backend_tests_test_dedup_test_is_already_downloaded_is_a_miss_when_the_row_is_deleted_mid_check",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L208",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_is_already_downloaded_raises_when_the_downloads_root_is_not_mounted",
       "confidence_score": 1.0
     },
@@ -42291,7 +42342,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L193",
+      "source_location": "L226",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
@@ -42301,7 +42352,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L342",
+      "source_location": "L375",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check",
@@ -42311,7 +42362,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L304",
+      "source_location": "L337",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_reconcile_disk_prunes_downloads_root_normally_when_library_never_used",
@@ -42321,7 +42372,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L396",
+      "source_location": "L429",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
@@ -42331,7 +42382,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L238",
+      "source_location": "L271",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_empty",
@@ -42341,7 +42392,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L217",
+      "source_location": "L250",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_missing",
@@ -42351,7 +42402,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L257",
+      "source_location": "L290",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_reconcile_disk_skips_only_library_rooted_rows_when_library_dir_missing",
@@ -42424,7 +42475,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L178",
+      "source_location": "L182",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_is_already_downloaded_is_a_miss_when_the_row_is_deleted_mid_check",
+      "target": "backend_tests_test_dedup_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L211",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_is_already_downloaded_raises_when_the_downloads_root_is_not_mounted",
       "target": "backend_tests_test_dedup_nonclosingsession",
@@ -42468,7 +42530,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L194",
+      "source_location": "L227",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
       "target": "backend_tests_test_dedup_nonclosingsession",
@@ -42479,7 +42541,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L351",
+      "source_location": "L384",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check",
       "target": "backend_tests_test_dedup_nonclosingsession",
@@ -42490,7 +42552,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L310",
+      "source_location": "L343",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_prunes_downloads_root_normally_when_library_never_used",
       "target": "backend_tests_test_dedup_nonclosingsession",
@@ -42501,7 +42563,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L401",
+      "source_location": "L434",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
       "target": "backend_tests_test_dedup_nonclosingsession",
@@ -42512,7 +42574,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L239",
+      "source_location": "L272",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_empty",
       "target": "backend_tests_test_dedup_nonclosingsession",
@@ -42523,7 +42585,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L218",
+      "source_location": "L251",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_missing",
       "target": "backend_tests_test_dedup_nonclosingsession",
@@ -42534,7 +42596,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L264",
+      "source_location": "L297",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_skips_only_library_rooted_rows_when_library_dir_missing",
       "target": "backend_tests_test_dedup_nonclosingsession",
@@ -42587,7 +42649,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L180",
+      "source_location": "L186",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_is_already_downloaded_is_a_miss_when_the_row_is_deleted_mid_check",
+      "target": "backend_tests_test_dedup_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L213",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_is_already_downloaded_raises_when_the_downloads_root_is_not_mounted",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -42598,7 +42671,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L197",
+      "source_location": "L230",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -42609,7 +42682,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L355",
+      "source_location": "L388",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -42620,7 +42693,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L314",
+      "source_location": "L347",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_prunes_downloads_root_normally_when_library_never_used",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -42631,7 +42704,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L405",
+      "source_location": "L438",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -42642,7 +42715,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L242",
+      "source_location": "L275",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_empty",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -42653,7 +42726,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L220",
+      "source_location": "L253",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_refuses_to_prune_when_output_dir_missing",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -42664,7 +42737,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L268",
+      "source_location": "L301",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_skips_only_library_rooted_rows_when_library_dir_missing",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -42778,9 +42851,19 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L260",
+      "source_location": "L178",
       "weight": 1.0,
-      "source": "backend_tests_test_dedup_rationale_260",
+      "source": "backend_tests_test_dedup_rationale_178",
+      "target": "backend_tests_test_dedup_test_is_already_downloaded_is_a_miss_when_the_row_is_deleted_mid_check",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L293",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_rationale_293",
       "target": "backend_tests_test_dedup_test_reconcile_disk_skips_only_library_rooted_rows_when_library_dir_missing",
       "confidence_score": 1.0
     },
@@ -42788,9 +42871,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L307",
+      "source_location": "L340",
       "weight": 1.0,
-      "source": "backend_tests_test_dedup_rationale_307",
+      "source": "backend_tests_test_dedup_rationale_340",
       "target": "backend_tests_test_dedup_test_reconcile_disk_prunes_downloads_root_normally_when_library_never_used",
       "confidence_score": 1.0
     },
@@ -42798,9 +42881,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L345",
+      "source_location": "L378",
       "weight": 1.0,
-      "source": "backend_tests_test_dedup_rationale_345",
+      "source": "backend_tests_test_dedup_rationale_378",
       "target": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check",
       "confidence_score": 1.0
     },
@@ -42808,9 +42891,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L397",
+      "source_location": "L430",
       "weight": 1.0,
-      "source": "backend_tests_test_dedup_rationale_397",
+      "source": "backend_tests_test_dedup_rationale_430",
       "target": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
       "confidence_score": 1.0
     },
@@ -53544,6 +53627,17 @@
       "source_location": "L6",
       "weight": 1.0,
       "source": "frontend_e2e_09_moved_file_e2e",
+      "target": "frontend_e2e_support_stack_ledgerdownloads",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/09-moved-file.e2e.ts",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "frontend_e2e_09_moved_file_e2e",
       "target": "frontend_e2e_support_stack_ledgerfilepath",
       "confidence_score": 1.0
     },
@@ -53596,7 +53690,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/09-moved-file.e2e.ts",
-      "source_location": "L15",
+      "source_location": "L16",
       "weight": 1.0,
       "source": "frontend_e2e_09_moved_file_e2e",
       "target": "frontend_e2e_support_ui",
@@ -53607,7 +53701,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/09-moved-file.e2e.ts",
-      "source_location": "L15",
+      "source_location": "L16",
       "weight": 1.0,
       "source": "frontend_e2e_09_moved_file_e2e",
       "target": "frontend_e2e_support_ui_jobtoggle",
@@ -53618,7 +53712,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/09-moved-file.e2e.ts",
-      "source_location": "L15",
+      "source_location": "L16",
       "weight": 1.0,
       "source": "frontend_e2e_09_moved_file_e2e",
       "target": "frontend_e2e_support_ui_opendashboard",
@@ -53629,7 +53723,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/09-moved-file.e2e.ts",
-      "source_location": "L15",
+      "source_location": "L16",
       "weight": 1.0,
       "source": "frontend_e2e_09_moved_file_e2e",
       "target": "frontend_e2e_support_ui_submiturl",
@@ -53640,7 +53734,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/09-moved-file.e2e.ts",
-      "source_location": "L15",
+      "source_location": "L16",
       "weight": 1.0,
       "source": "frontend_e2e_09_moved_file_e2e",
       "target": "frontend_e2e_support_ui_tracktoggle",
@@ -54703,7 +54797,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L289",
+      "source_location": "L323",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_cancelunlesssettled",
@@ -54713,7 +54807,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L218",
+      "source_location": "L252",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_e2edownloadsinflight",
@@ -54723,7 +54817,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L313",
+      "source_location": "L347",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_expectedattemptvia",
@@ -54743,7 +54837,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L306",
+      "source_location": "L340",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_issettled",
@@ -54763,7 +54857,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L174",
+      "source_location": "L204",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack",
+      "target": "frontend_e2e_support_stack_ledgerdownloads",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L187",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_ledgerfilepath",
@@ -54793,7 +54897,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L136",
+      "source_location": "L137",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_movedledgertracks",
@@ -54813,7 +54917,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L242",
+      "source_location": "L276",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_normalizeemail",
@@ -54893,7 +54997,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L248",
+      "source_location": "L282",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_servertrackfile",
@@ -54923,7 +55027,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L189",
+      "source_location": "L223",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_trackswithnetworkpath",
@@ -54953,7 +55057,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L266",
+      "source_location": "L300",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_waitforjob",
@@ -55019,7 +55123,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L237",
+      "source_location": "L271",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_e2edownloadsinflight",
       "target": "frontend_e2e_support_stack_adminidentity",
@@ -55030,7 +55134,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L168",
+      "source_location": "L178",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_movedledgertracks",
       "target": "frontend_e2e_support_stack_adminidentity",
@@ -55041,9 +55145,20 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L237",
+      "source_location": "L271",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_e2edownloadsinflight",
+      "target": "frontend_e2e_support_stack_useridentity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L179",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack_movedledgertracks",
       "target": "frontend_e2e_support_stack_useridentity",
       "confidence_score": 1.0
     },
@@ -55063,7 +55178,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L219",
+      "source_location": "L253",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_e2edownloadsinflight",
       "target": "frontend_e2e_support_stack_stackpython",
@@ -55074,7 +55189,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L175",
+      "source_location": "L205",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack_ledgerdownloads",
+      "target": "frontend_e2e_support_stack_stackpython",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L188",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_ledgerfilepath",
       "target": "frontend_e2e_support_stack_stackpython",
@@ -55096,7 +55222,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L137",
+      "source_location": "L138",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_movedledgertracks",
       "target": "frontend_e2e_support_stack_stackpython",
@@ -55107,7 +55233,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L249",
+      "source_location": "L283",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_servertrackfile",
       "target": "frontend_e2e_support_stack_stackpython",
@@ -55118,7 +55244,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L190",
+      "source_location": "L224",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_trackswithnetworkpath",
       "target": "frontend_e2e_support_stack_stackpython",
@@ -55129,7 +55255,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L168",
+      "source_location": "L178",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_movedledgertracks",
       "target": "frontend_e2e_support_stack_normalizeemail",
@@ -55140,7 +55266,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L205",
+      "source_location": "L239",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_trackswithnetworkpath",
       "target": "frontend_e2e_support_stack_normalizeemail",
@@ -55151,7 +55277,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L237",
+      "source_location": "L271",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack_e2edownloadsinflight",
       "target": "frontend_e2e_support_stack_normalizeemail",
@@ -64965,5 +65091,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "af5a85f7313ff4873815f1bce0b961e2cb338ab3"
+  "built_at_commit": "d4cfde026816e0e8953b6989b5af571586cf3c28"
 }

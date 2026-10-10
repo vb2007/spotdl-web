@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/dedup.py": {
-    "mtime": 1791670083.311548,
-    "ast_hash": "dd851b1766bba403c982ac323583ff3b",
+    "mtime": 1791670597.7196047,
+    "ast_hash": "48a67248687822626b929ddc41285c25",
     "semantic_hash": ""
   },
   "backend/app/services/downloads.py": {
@@ -270,8 +270,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
-    "mtime": 1791670074.905874,
-    "ast_hash": "1a69c76a9c5be4d33b361bf2533b8a83",
+    "mtime": 1791670573.016099,
+    "ast_hash": "d918c8f453dba9b72334fada9919c4c5",
     "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
@@ -1170,8 +1170,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/support/stack.ts": {
-    "mtime": 1791668943.4571037,
-    "ast_hash": "c7df34cf17e811ab4f318ade7514d2e4",
+    "mtime": 1791670573.0162144,
+    "ast_hash": "3381f5ec1fe040b7de70cb81c73a0ced",
     "semantic_hash": ""
   },
   "frontend/e2e/support/ui.ts": {
@@ -1240,8 +1240,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/09-moved-file.e2e.ts": {
-    "mtime": 1791668967.358407,
-    "ast_hash": "2b77deb6bfdc6a0b078cfe57def08e51",
+    "mtime": 1791670573.016269,
+    "ast_hash": "93fbc6fb00ebac46056d6650978933d9",
     "semantic_hash": ""
   },
   "scripts/moved_file_redownloads.sql": {
