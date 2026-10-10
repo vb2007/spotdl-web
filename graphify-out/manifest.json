@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1791639427.8385856,
-    "ast_hash": "166bf5caf9758d3adc0d91b0f411ccb6",
+    "mtime": 1791640013.5967324,
+    "ast_hash": "f2eaa5aa4ef46e9076a32c4eeb11d377",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1200,13 +1200,13 @@
     "semantic_hash": ""
   },
   "frontend/e2e/global-setup.ts": {
-    "mtime": 1791636982.2939427,
-    "ast_hash": "be0a184ead946d7cff66a4d1c876f319",
+    "mtime": 1791639900.4188812,
+    "ast_hash": "01a71846df96eb3f5b20dcac29d6d3cb",
     "semantic_hash": ""
   },
   "frontend/e2e/global-teardown.ts": {
-    "mtime": 1791636361.4081726,
-    "ast_hash": "08f5431d77b01474f05657ff68b49aa8",
+    "mtime": 1791639900.4187546,
+    "ast_hash": "b4c48bb8782f2421339777492b28b5bf",
     "semantic_hash": ""
   },
   "frontend/e2e/network.e2e.ts": {
@@ -1220,8 +1220,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/support/stack.ts": {
-    "mtime": 1791636353.4562,
-    "ast_hash": "9b769ff7ac15a835a7edafa248b7ace8",
+    "mtime": 1791639900.4188375,
+    "ast_hash": "785131e93e569ccf5f36a0044cfb766a",
     "semantic_hash": ""
   },
   "frontend/e2e/support/ui.ts": {
