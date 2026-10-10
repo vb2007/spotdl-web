@@ -350,8 +350,8 @@
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
-    "mtime": 1791632928.6546443,
-    "ast_hash": "644d757ca870ddab3c1806312c9a6ece",
+    "mtime": 1791633909.2964754,
+    "ast_hash": "aec89e13c68152db137af489f08dee8e",
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
@@ -410,7 +410,7 @@
     "semantic_hash": ""
   },
   "backend/app/services/serializers.py": {
-    "mtime": 1790975112.244195,
+    "mtime": 1791634004.1479414,
     "ast_hash": "cba17a3087c7f8154d3ca9d7f742d1c0",
     "semantic_hash": ""
   },
@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1791633340.3526452,
-    "ast_hash": "9f2948b67d06ba9ad1eaadc515f61354",
+    "mtime": 1791634209.4937558,
+    "ast_hash": "4ba6fda2f7480bde38e57c3251d1afe8",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -765,7 +765,7 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/TrackRow.svelte": {
-    "mtime": 1791631780.6429334,
+    "mtime": 1791634064.3032005,
     "ast_hash": "e5bac2775944f615d63b22514a6319d3",
     "semantic_hash": ""
   },
@@ -1160,33 +1160,33 @@
     "semantic_hash": ""
   },
   "frontend/e2e/.auth/admin.json": {
-    "mtime": 1791633300.6610758,
-    "ast_hash": "c9652a09e6c6db10852f6f6627061a59",
+    "mtime": 1791634114.5638046,
+    "ast_hash": "4948c185a5726ab5ef2c99d88a0949ac",
     "semantic_hash": ""
   },
   "frontend/e2e/.auth/seed.json": {
-    "mtime": 1791633309.6234298,
-    "ast_hash": "5536a4bfce07dfe46c22c85517a80f56",
+    "mtime": 1791634126.7903016,
+    "ast_hash": "f71838e4d859fa293a270ace7762bd77",
     "semantic_hash": ""
   },
   "frontend/e2e/.auth/user.json": {
-    "mtime": 1791633301.4381065,
-    "ast_hash": "97ba6c11e0b5cc93caf356b3ac6e291c",
+    "mtime": 1791634115.2798338,
+    "ast_hash": "056df71d7ec82004073d8344a41efdc2",
     "semantic_hash": ""
   },
   "frontend/e2e/01-login-logout.e2e.ts": {
-    "mtime": 1791632456.7204542,
-    "ast_hash": "e9c042f13589a93c0f2c0a6008b29f94",
+    "mtime": 1791634100.592905,
+    "ast_hash": "0d873a345a5d58a53931e49efe2007f8",
     "semantic_hash": ""
   },
   "frontend/e2e/02-submit.e2e.ts": {
-    "mtime": 1791632456.7334547,
-    "ast_hash": "75a8689f29a37b21818d76b19c6c5860",
+    "mtime": 1791634105.1229515,
+    "ast_hash": "d5c0dec51eda3c295657f63ae5e05450",
     "semantic_hash": ""
   },
   "frontend/e2e/03-track-detail.e2e.ts": {
-    "mtime": 1791632393.2368026,
-    "ast_hash": "303765777c5d26ecfa39ff84b7e875f1",
+    "mtime": 1791633909.6224885,
+    "ast_hash": "ea777edb8fcabd34a71240251e4f0015",
     "semantic_hash": ""
   },
   "frontend/e2e/04-file-download.e2e.ts": {
@@ -1195,13 +1195,13 @@
     "semantic_hash": ""
   },
   "frontend/e2e/05-reload-hydration.e2e.ts": {
-    "mtime": 1791631830.4034238,
-    "ast_hash": "d1f76003e12971a830b33c8f19470ebc",
+    "mtime": 1791634100.592854,
+    "ast_hash": "a63580b0cda4a18487a7940c0720fe46",
     "semantic_hash": ""
   },
   "frontend/e2e/06-admin-pages.e2e.ts": {
-    "mtime": 1791633158.64231,
-    "ast_hash": "a4b7a7eb01c68df3de3840fdc39f1c90",
+    "mtime": 1791634100.592951,
+    "ast_hash": "9f4b0f34216e80491614db09fd4e1be1",
     "semantic_hash": ""
   },
   "frontend/e2e/07-cross-user.e2e.ts": {
@@ -1210,18 +1210,18 @@
     "semantic_hash": ""
   },
   "frontend/e2e/08-archive.e2e.ts": {
-    "mtime": 1791631871.4453907,
-    "ast_hash": "4aa0b11a254d768648bfc745c1885afe",
+    "mtime": 1791634100.5927694,
+    "ast_hash": "7a9214013cf7251336a0134776a659ce",
     "semantic_hash": ""
   },
   "frontend/e2e/global-setup.ts": {
-    "mtime": 1791631757.4343812,
-    "ast_hash": "37ba3562813a83a6e9150cefbfb80f0c",
+    "mtime": 1791633794.4968324,
+    "ast_hash": "770ed58d1d10b2fa620208cb61e52131",
     "semantic_hash": ""
   },
   "frontend/e2e/global-teardown.ts": {
-    "mtime": 1791632456.786457,
-    "ast_hash": "65b3200f0b2d34c5ed39e151606f8747",
+    "mtime": 1791633751.2193964,
+    "ast_hash": "347a8f67cf347ff4117eb93f833d5ca0",
     "semantic_hash": ""
   },
   "frontend/e2e/network.e2e.ts": {
@@ -1235,8 +1235,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/support/stack.ts": {
-    "mtime": 1791633194.2929137,
-    "ast_hash": "a3f4f6e55e3772426095c77e368c6a90",
+    "mtime": 1791633744.6296883,
+    "ast_hash": "b40f2e188bbbc45dd8365d50c3b3dd3a",
     "semantic_hash": ""
   },
   "frontend/e2e/support/ui.ts": {
@@ -1250,13 +1250,13 @@
     "semantic_hash": ""
   },
   "frontend/test-results/.last-run.json": {
-    "mtime": 1791633330.5423734,
+    "mtime": 1791634195.7437005,
     "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
     "semantic_hash": ""
   },
   "frontend/playwright-report/index.html": {
-    "mtime": 1791633330.5423734,
-    "ast_hash": "d52340544ddc767346429cbcd8639460",
+    "mtime": 1791634195.7437005,
+    "ast_hash": "156ea986c98ce03497c2b3f904a53355",
     "semantic_hash": ""
   }
 }
