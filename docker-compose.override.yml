@@ -67,6 +67,8 @@ services:
     volumes: !override
       - ./backend/app:/app/app
       - ./downloads:/downloads
+      # v38: the dedup gate must see moved files; read-only, as in the base file.
+      - ./test-library:/mnt/raid1/media/music:ro
 
   worker-meta:
     environment: *dev-env

@@ -123,6 +123,11 @@ services:
       start_period: 90s
     volumes:
       - downloads:/downloads
+      # v38: read-only, so the dedup gate (dedup.is_already_downloaded, which runs here) can
+      # see a file the library sort moved. Without it a moved track looked missing and was
+      # downloaded again. `:ro` because this worker only ever checks the library, never
+      # writes it (nothing on the library filesystem is ever deleted).
+      - library:/mnt/raid1/media/music:ro
 
   worker-meta:
     <<: *backend
