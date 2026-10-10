@@ -558,6 +558,14 @@ needed" claim — rather than silently deleted.
   have 404'd against an empty mount even once it existed.
 
 **Testing & verification technique**
+- The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
+  new browser checks there, by role/label, never in a scratchpad script → *v37*
+- Playwright's accessible-name match is a case-insensitive **substring** by default: `'CONNECT'`
+  matches "disconnect" and `'archive'` matches "unarchive". Use `exact: true` → *v37*
+- A `page.goto()` inside a same-tab identity switch reloads the document and silently wipes the
+  very store leak the test is looking for; stay client-side between logout and login → *v37*
+- `npx playwright test 07` filters on the **absolute** path, and this checkout lives under
+  `vb2007`, so it selects every file; pass `e2e/07-cross-user` instead → *v37*
 - A "fresh" test track must be absent from `./downloads`, not just the ledger: spotdl's own
   `file already exists` skip returns a path, and the app records a `completed direct-ipv4` attempt
   that never touched the network → *v35*
@@ -4491,3 +4499,31 @@ independently-found production bug from the same conversation)
 - **Test-alert is 404 for a non-admin, per the plan.** Every other admin-only route answers 403
   (`require_admin`). The alert settings GET/PATCH keep 403 to match their siblings.
 
+### v37 e2e-harness gotchas
+
+- **Accessible names that contain another element's text collide.** A job toggle's name is
+  "Expand tracks for <title>", which also matches a track row searched by the same title, so the
+  "track" click collapsed the job instead. Track rows are now looked up inside the job's own
+  `Tracks` list (`trackToggle` in `e2e/support/ui.ts`).
+- **A flash only exists where nothing gates rendering.** After logout, `beginResync()` hides
+  stale *page* rows behind "Loading…", so a leaked store only shows through the incoming/Waterfall
+  overlays. Spec 1 gives the first identity a failed incoming job on purpose, and a
+  `MutationObserver` records any render of its text during the second identity's login. With
+  `queue.reset()` removed from `onLogout`, it caught the URL on both projects.
+- **Cross-user checks need a positive control that tolerates duplicates.** Other dev users own
+  tracks with the same titles as the e2e user's own, so a leak first surfaced as a strict-mode
+  violation on the user's *own* row. The positive check uses `.first()`, so the foreign-title
+  assertion is the one that names a leak.
+- **Admin endpoints answer 403, not 404** (`require_admin`, pinned since v22). The v37 plan's
+  "404" was a slip; the owner confirmed asserting 403 (recorded in the master plan's
+  Amendments). Only the v36 test-alert POST is 404.
+- **`skipped_duplicate` attempts carry no `network_path`**, so the default run's attempt-history
+  check can only show "no network". A real path label ("direct · IPv4") is covered by the
+  opt-in `@network` spec, which also requires the served file's mtime to postdate the test, per
+  v35's "file already exists" trap.
+- **The default `@network` track can't be hardcoded.** A passing run puts it in the ledger, and
+  the first candidate (One More Time) was already there via the sorted Discovery album. The spec
+  requires `E2E_NETWORK_TRACK_URL` and refuses a ledger hit.
+- **Global teardown's zero-download check compares `timestamptz`.** `track_attempts.finished_at`
+  is `timestamp with time zone`, so the ISO `now()` from setup compares correctly. It was checked
+  against 91 historical network attempts, so the query isn't vacuous.

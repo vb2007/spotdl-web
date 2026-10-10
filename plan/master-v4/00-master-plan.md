@@ -303,3 +303,8 @@ here rather than edited into it, so the original record stays readable.
   proxy closing dead SSE streams, the double `reload()` on load/scope switch, filter changes no
   longer re-hydrating, the "3 of 2" count, the dev `STALE_TRACK_AFTER_SECONDS` default, and
   `npm run test:unit` in CI.
+- **2026-10-10, v37: admin gating answers 403, not 404.** Spec 6 says a non-admin's admin API
+  calls "return 404", but `require_admin` has answered 403 since v22 (whose plan pinned "expect
+  403", with 18 backend assertions agreeing). The 404-not-403 rule covers a non-owner's direct-id
+  access, not admin endpoints. On the owner's direction the spec asserts 403, and no backend
+  change was made.
