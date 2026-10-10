@@ -224,7 +224,8 @@ npm run test:e2e:network    # opt-in: the one @network spec, a real YouTube down
 ```
 
 `E2E_BASE_URL` overrides the origin (default `http://localhost:5173`), for example to aim at the
-production-style `web` image. Failures keep a trace and a screenshot under `frontend/test-results/`
+production-style `web` image. It must stay a loopback origin, and the config refuses anything
+else: setup and teardown check the local stack's database, so the browser must drive that stack. Failures keep a trace and a screenshot under `frontend/test-results/`
 (`npx playwright show-trace <trace.zip>`), and `frontend/playwright-report/` holds the HTML report.
 
 **How it stays cheap on the real stack**

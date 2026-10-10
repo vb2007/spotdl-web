@@ -7,6 +7,11 @@ loadE2eEnv();
 // backend and network) -- nothing here starts a server or mocks an API. Local-only by design:
 // the CI runner is the production host (docs/LOCAL_DEV.md, "Browser end-to-end suite").
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:5173';
+// Setup's ledger preflight and teardown's zero-download check read the local compose stack, so
+// the browser must drive that same stack: never a deployed origin.
+if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(baseURL).hostname)) {
+	throw new Error(`E2E_BASE_URL must be a loopback origin (the local stack), got ${baseURL}`);
+}
 
 // The `@network` spec does a real YouTube download, so a default run never selects it.
 // `npm run test:e2e:network` opts in.

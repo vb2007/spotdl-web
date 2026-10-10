@@ -4534,7 +4534,8 @@ independently-found production bug from the same conversation)
   requires `E2E_NETWORK_TRACK_URL` and refuses a ledger hit.
 - **A ledger row is not a ledger hit.** `dedup.is_already_downloaded` returns None when the
   row's file is gone, which means a real download. Setup preflights every `LEDGER_TRACKS` id
-  with that same function and refuses to start, and a seed or spec 2 job that doesn't settle as a
+  with that same function, **inside `worker-dl`** (it mounts only `/downloads`; `worker-meta`
+  also sees the library and would approve a moved file worker-dl can't see), and refuses to start, and a seed or spec 2 job that doesn't settle as a
   duplicate is cancelled so it can't keep retrying on the ladder (review round 1).
 - **Teardown counts `network_path is not null` for normalized emails.** Emails are stored
   lowercased, so a mixed-case `.env.e2e` value matched no user and the check passed vacuously.
@@ -4542,3 +4543,14 @@ independently-found production bug from the same conversation)
 - **Global teardown's zero-download check compares `timestamptz`.** `track_attempts.finished_at`
   is `timestamp with time zone`, so the ISO `now()` from setup compares correctly. It was checked
   against 91 historical network attempts, so the query isn't vacuous.
+- **Found, not fixed (pre-existing, outside v37): `worker-dl` can't see library-sorted files, so
+  its dedup gate misses them.** `worker-dl` mounts only `/downloads`, in dev and in
+  `docker-compose.prod.yml` alike, but v28's sort & move repoints `downloaded_tracks.file_path`
+  into the library root. `dedup.is_already_downloaded("3H3cOQ6LBLSvmcaV7QkZEu")` (a sorted
+  Discovery track) returns the library path in `worker-meta` and `None` in `worker-dl`, so
+  resubmitting any moved track would re-download it. That contradicts the master-v3 invariant
+  that a move must never cause a re-download. Reported to the owner in the v37 PR.
+- **The suite refuses a non-loopback `E2E_BASE_URL`, and teardown also fails on any e2e track
+  still `downloading`** (review round 2). The preflight and the teardown read the local stack, so
+  driving another origin would leave them guarding the wrong one. An attempt row is written only
+  when the attempt ends, so an in-flight download was invisible to the attempt count.

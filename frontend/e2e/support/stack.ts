@@ -74,18 +74,25 @@ export function readSeed(): Seed {
 
 export { SEED_FILE };
 
-/** Runs a Python snippet inside `worker-meta`, which has the app code, the dev database and
- * both file roots (`/downloads` and the library) mounted -- `api` mounts neither. */
-export function stackPython(code: string, args: string[] = []): string {
-	return execFileSync(
-		'docker',
-		['compose', 'exec', '-T', 'worker-meta', 'python', '-c', code, ...args],
-		{ cwd: REPO_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
-	).trim();
+/** Runs a Python snippet inside a backend service: by default `worker-meta`, which has the app
+ * code, the dev database and both file roots (`/downloads` and the library) mounted -- `api`
+ * mounts neither. */
+export function stackPython(
+	code: string,
+	args: string[] = [],
+	service: 'worker-meta' | 'worker-dl' = 'worker-meta'
+): string {
+	return execFileSync('docker', ['compose', 'exec', '-T', service, 'python', '-c', code, ...args], {
+		cwd: REPO_ROOT,
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe']
+	}).trim();
 }
 
 /** The `LEDGER_TRACKS` ids worker-dl would NOT resolve as duplicates (no ledger row, or its
- * file is gone), by the dedup gate's own check. Submitting one of those means a download. */
+ * file is gone), by the dedup gate's own check. Submitting one of those means a download.
+ * Asked inside `worker-dl` itself: it mounts only `/downloads`, so a file the library sort
+ * moved is a hit for `worker-meta` and a miss for the worker that actually decides. */
 export function ledgerMisses(spotifyIds: string[]): string[] {
 	const out = stackPython(
 		`
@@ -93,7 +100,8 @@ import sys
 from app.services.dedup import is_already_downloaded
 print(" ".join(i for i in sys.argv[1:] if is_already_downloaded(i) is None))
 `,
-		spotifyIds
+		spotifyIds,
+		'worker-dl'
 	);
 	return out ? out.split(' ') : [];
 }

@@ -32,6 +32,25 @@ print(SessionLocal().execute(text("""
 `,
 		[normalizeEmail(adminIdentity().email), normalizeEmail(userIdentity().email), startedAt]
 	);
+	// An attempt row is written only when the attempt ends, and a cancel doesn't stop a track
+	// already downloading, so one still in flight is invisible to the count above.
+	const downloading = stackPython(
+		`
+import sys
+from sqlalchemy import text
+from app.db import SessionLocal
+print(SessionLocal().execute(text("""
+    select count(*) from tracks t
+    join jobs j on j.id = t.job_id
+    join users u on u.id = j.user_id
+    where u.email in (:a, :b) and t.state = 'downloading'
+"""), {"a": sys.argv[1], "b": sys.argv[2]}).scalar())
+`,
+		[normalizeEmail(adminIdentity().email), normalizeEmail(userIdentity().email)]
+	);
+	if (downloading !== '0') {
+		throw new Error(`${downloading} e2e track(s) still downloading; a default run must make none`);
+	}
 	if (count !== '0') {
 		throw new Error(
 			`the run made ${count} network download attempt(s); a default run must make none`
