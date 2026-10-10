@@ -10,6 +10,7 @@ import {
 	SEED_FILE,
 	USER_STATE,
 	adminIdentity,
+	e2eDownloadsInFlight,
 	isSettled,
 	ledgerMisses,
 	spotifyTrackUrl,
@@ -121,6 +122,15 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 	if (misses.length) {
 		throw new Error(
 			`LEDGER_TRACKS not resolvable as duplicates (no ledger row, or its file is gone): ${misses.join(', ')}`
+		);
+	}
+
+	// A download still running for an e2e identity (an aborted `@network` pass, say) would finish
+	// inside this run's window and be blamed on it. Refuse to start until worker-dl is done.
+	const inFlight = e2eDownloadsInFlight();
+	if (inFlight !== '0') {
+		throw new Error(
+			`worker-dl is still downloading ${inFlight} track(s) for the e2e identities; wait for it to finish`
 		);
 	}
 

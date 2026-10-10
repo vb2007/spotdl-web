@@ -4573,7 +4573,9 @@ independently-found production bug from the same conversation)
   worker-dl. A first fix that counted `state = 'downloading'` missed exactly the cancel-on-timeout
   case it was meant for (review round 4). Teardown now asks the worker
   (`celery_app.control.inspect().active()`) and fails if any running `download_track` belongs to
-  an e2e identity, or if worker-dl doesn't answer.
+  an e2e identity, or if worker-dl doesn't answer. Setup runs the same check before recording
+  `startedAt` and refuses to start, so an aborted `@network` pass's still-running download isn't
+  blamed on the next default run (review round 10).
 - **Every resync re-renders the job list, so expand only after the first one lands.**
   `reloadPage()` swaps the list for "Loading…", which unmounts the rows and drops their
   component-local expanded state. Waiting for "Loading…" to clear isn't enough: the 5 s fallback

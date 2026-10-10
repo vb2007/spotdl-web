@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import {
 	RUN_FILE,
 	adminIdentity,
+	e2eDownloadsInFlight,
 	normalizeEmail,
 	readRun,
 	stackPython,
@@ -35,26 +36,7 @@ print(SessionLocal().execute(text("""
 	// An attempt row is written only when the attempt ends, and cancelling a job marks a track
 	// `cancelled` without stopping worker-dl, so a download still in flight shows in neither the
 	// count above nor any track state. Ask the worker what it is running right now instead.
-	const inFlight = stackPython(
-		`
-import sys
-from sqlalchemy import text
-from app.db import SessionLocal
-from app.tasks.celery_app import celery_app
-active = celery_app.control.inspect(timeout=5).active()
-workers = [w for w in (active or {}) if w.startswith("worker-dl@")]
-if not workers:
-    sys.exit("worker-dl did not answer celery inspect")
-ids = [t["args"][0] for w in workers for t in active[w] if t["name"].endswith("download_track")]
-print(SessionLocal().execute(text("""
-    select count(*) from tracks t
-    join jobs j on j.id = t.job_id
-    join users u on u.id = j.user_id
-    where u.email in (:a, :b) and cast(t.id as text) = any(:ids)
-"""), {"a": sys.argv[1], "b": sys.argv[2], "ids": ids}).scalar())
-`,
-		[normalizeEmail(adminIdentity().email), normalizeEmail(userIdentity().email)]
-	);
+	const inFlight = e2eDownloadsInFlight();
 	if (inFlight !== '0') {
 		throw new Error(
 			`worker-dl is still downloading ${inFlight} e2e track(s); a default run must make none`

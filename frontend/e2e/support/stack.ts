@@ -143,6 +143,32 @@ print(" ".join(f"{t}:{j}" for t, j in rows))
 		: [];
 }
 
+/** How many `download_track` tasks worker-dl is running right now for either e2e identity, by
+ * asking the worker itself (celery inspect): a cancelled job's download keeps going, and its
+ * attempt row only appears once it ends. Throws if worker-dl doesn't answer. */
+export function e2eDownloadsInFlight(): string {
+	return stackPython(
+		`
+import sys
+from sqlalchemy import text
+from app.db import SessionLocal
+from app.tasks.celery_app import celery_app
+active = celery_app.control.inspect(timeout=5).active()
+workers = [w for w in (active or {}) if w.startswith("worker-dl@")]
+if not workers:
+    sys.exit("worker-dl did not answer celery inspect")
+ids = [t["args"][0] for w in workers for t in active[w] if t["name"].endswith("download_track")]
+print(SessionLocal().execute(text("""
+    select count(*) from tracks t
+    join jobs j on j.id = t.job_id
+    join users u on u.id = j.user_id
+    where u.email in (:a, :b) and cast(t.id as text) = any(:ids)
+"""), {"a": sys.argv[1], "b": sys.argv[2], "ids": ids}).scalar())
+`,
+		[normalizeEmail(adminIdentity().email), normalizeEmail(userIdentity().email)]
+	);
+}
+
 /** How the backend stores an email (`services/users.py`): login accepts any case. */
 export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
