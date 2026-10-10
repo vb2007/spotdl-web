@@ -114,6 +114,9 @@ this, gitignored the same way `./downloads` is:
 worker-meta:
   volumes: !override
     - ./test-library:/mnt/raid1/media/music
+worker-dl:          # v38: the dedup gate must see moved files
+  volumes: !override
+    - ./test-library:/mnt/raid1/media/music:ro
 web:
   volumes: !override
     - ./test-library:/mnt/raid1/media/music:ro
@@ -227,7 +230,10 @@ npm run test:e2e:network    # opt-in: the one @network spec, a real YouTube down
 
 `E2E_BASE_URL` overrides the origin (default `http://localhost:5173`), for example to aim at the
 production-style `web` image. It must stay a loopback origin, and the config refuses anything
-else: setup and teardown check the local stack's database, so the browser must drive that stack. Failures keep a trace and a screenshot under `frontend/test-results/`
+else: setup and teardown check the local stack's database, so the browser must drive that stack.
+Use `localhost`, not `127.0.0.1`: the session cookie is `Secure`, which Chromium only honours over
+plain HTTP on `localhost`. If another dev server listens on `[::1]:5173`, it captures `localhost`
+(compose publishes `web` on `127.0.0.1` only), so stop it before a run. Failures keep a trace and a screenshot under `frontend/test-results/`
 (`npx playwright show-trace <trace.zip>`), and `frontend/playwright-report/` holds the HTML report.
 
 **How it stays cheap on the real stack**
@@ -240,6 +246,9 @@ else: setup and teardown check the local stack's database, so the browser must d
   `failed` expansion). The tracks are listed in `e2e/support/stack.ts`'s `LEDGER_TRACKS`, and they
   must stay in the ledger with their files under `./downloads`. Global teardown **fails the run**
   if either identity made a network download attempt while it ran.
+- Spec 9 (v38) also needs two ledger rows the library sort has moved into `./test-library`
+  (`in_library`, file present) that the admin identity never submitted. It picks them itself and
+  fails, asking for a sort, if there aren't two.
 - The specs run one at a time (`workers: 1`): they share one queue, one beat and one `worker-dl`.
   A full run takes a few minutes, mostly beat's 30 s dispatch pass.
 - The `@network` spec needs `E2E_NETWORK_TRACK_URL`, a track that is **not** in the dev ledger
