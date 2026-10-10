@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from spotdl.types.song import Song
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import SessionLocal
@@ -33,6 +34,45 @@ def pacing_delay() -> float:
     # range instead of failing.
     low = max(0, min(settings.pacing_min_sec, settings.pacing_max_sec))
     return random.uniform(low, settings.pacing_max_sec)
+
+
+def _hold(
+    db: Session,
+    track: Track,
+    owner_id: uuid.UUID,
+    attempt_started_at: datetime,
+    scheduled_at: datetime,
+    reason: str,
+) -> None:
+    """Puts a track back to `waiting` until `scheduled_at` without attempting it.
+
+    Deliberately doesn't touch track.attempt_count -- doing so would make the real attempt
+    that eventually follows read attempt_count >= 1 and wrongly reach for a proxy, breaking
+    "attempt 1 is always direct". v35: recorded as `held`, not `failed`, so it counts as
+    neither an attempt nor a failure, and it gets its own attempt_number rather than sharing
+    the next real attempt's."""
+    track.state = TrackState.WAITING
+    track.scheduled_at = scheduled_at
+    attempts.record_attempt(
+        db,
+        track.id,
+        attempt_started_at,
+        datetime.now(timezone.utc),
+        TrackAttemptOutcome.HELD,
+        warning_message=reason,
+    )
+    db.commit()
+    events.publish_track_event(
+        owner_id,
+        track.id,
+        track.job_id,
+        track.state.value,
+        scheduled_at=track.scheduled_at,
+        attempt_count=track.attempt_count,
+        attempts_made=track.attempts_made,
+        failure_count=track.failure_count,
+        **track_song_meta(track.song_json),
+    )
 
 
 @celery_app.task(name="app.tasks.download.download_track")
@@ -109,36 +149,40 @@ def download_track(track_id: str) -> None:
         now = datetime.now(timezone.utc)
         worker_state = retry.get_worker_state(db)
         if retry.breaker_active(worker_state, now):
-            track.state = TrackState.WAITING
-            track.scheduled_at = worker_state.breaker_tripped_until or (now + retry.next_delay(0))
-            # Deliberately doesn't touch track.attempt_count -- doing so would make the
-            # real attempt that eventually follows read attempt_count >= 1 and wrongly
-            # reach for a proxy, breaking "attempt 1 is always direct". v35: recorded as
-            # `held`, not `failed`, so it counts as neither an attempt nor a failure, and
-            # it gets its own attempt_number rather than sharing the next real attempt's.
-            attempts.record_attempt(
+            _hold(
                 db,
-                track.id,
-                attempt_started_at,
-                datetime.now(timezone.utc),
-                TrackAttemptOutcome.HELD,
-                warning_message="circuit breaker active; rescheduled without attempting",
-            )
-            db.commit()
-            events.publish_track_event(
+                track,
                 owner_id,
-                track.id,
-                track.job_id,
-                track.state.value,
-                scheduled_at=track.scheduled_at,
-                attempt_count=track.attempt_count,
-                attempts_made=track.attempts_made,
-                failure_count=track.failure_count,
-                **track_song_meta(track.song_json),
+                attempt_started_at,
+                worker_state.breaker_tripped_until or (now + retry.next_delay(0)),
+                "circuit breaker active; rescheduled without attempting",
             )
             return
 
-        existing_path = dedup.is_already_downloaded(track.spotify_track_id)
+        # v38: the ledger has a row but its file is missing under a root that looks
+        # unmounted in this worker. Downloading would be the silent re-download v38 fixes
+        # (worker-dl couldn't see the library at all before it); trusting the ledger would
+        # mark the track a duplicate of a file nobody can confirm exists. Hold it instead,
+        # like the breaker does: once the mount is back, the next dispatch resolves it.
+        try:
+            existing_path = dedup.is_already_downloaded(track.spotify_track_id)
+        except dedup.LedgerRootUnavailable as exc:
+            logger.error(
+                "download_track: track %s's ledger file %s is under %s, which is missing or "
+                "empty in this worker; holding it as waiting rather than downloading it again",
+                track_id,
+                exc.path,
+                exc.root,
+            )
+            _hold(
+                db,
+                track,
+                owner_id,
+                attempt_started_at,
+                now + retry.next_delay(0),
+                f"{exc.root} is missing or empty; rescheduled without attempting",
+            )
+            return
         if existing_path is not None:
             track.state = TrackState.SKIPPED_DUPLICATE
             track.output_path = str(existing_path)
