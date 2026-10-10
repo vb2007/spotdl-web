@@ -132,7 +132,8 @@ export interface MovedTrack {
 
 /** Ledger rows the library sort moved (`in_library`, the file present under the library root),
  * that the admin identity never submitted, so they stay the user's alone (the `LEDGER_TRACKS`
- * rule spec 7 relies on). Ordered by Spotify id, so each project picks the same row every run. */
+ * rule spec 7 relies on), and that the user never downloaded itself, so every resubmission is
+ * cross-user. Ordered by Spotify id, so each project picks the same row every run. */
 export function movedLedgerTracks(): MovedTrack[] {
 	const out = stackPython(
 		`
@@ -153,8 +154,16 @@ rows = db.execute(text("""
           join users u on u.id = j.user_id
           where u.email = :admin and t.spotify_track_id = d.spotify_track_id
       )
+      and not exists (
+          select 1 from track_attempts a
+          join tracks t on t.id = a.track_id
+          join jobs j on j.id = t.job_id
+          join users u on u.id = j.user_id
+          where u.email = :user and t.spotify_track_id = d.spotify_track_id
+            and a.network_path is not null
+      )
     order by d.spotify_track_id
-"""), {"ledger": sys.argv[2:], "admin": sys.argv[1]}).all()
+"""), {"ledger": sys.argv[3:], "admin": sys.argv[1], "user": sys.argv[2]}).all()
 moved = []
 for spotify_id, file_path in rows:
     path = Path(file_path)
@@ -165,7 +174,11 @@ for spotify_id, file_path in rows:
         break
 print(json.dumps(moved))
 `,
-		[normalizeEmail(adminIdentity().email), ...Object.values(LEDGER_TRACKS)]
+		[
+			normalizeEmail(adminIdentity().email),
+			normalizeEmail(userIdentity().email),
+			...Object.values(LEDGER_TRACKS)
+		]
 	);
 	return JSON.parse(out) as MovedTrack[];
 }
@@ -183,6 +196,27 @@ print(row.file_path if row else "")
 		[spotifyId]
 	);
 	return out || null;
+}
+
+/** The ids worker-dl would actually download (no ledger row, or its file gone under a root it
+ * can see), by the dedup gate's own check. Unlike `ledgerMisses`, a root that looks unmounted
+ * isn't counted: that track is held, never downloaded. */
+export function ledgerDownloads(spotifyIds: string[]): string[] {
+	const out = stackPython(
+		`
+import sys
+from app.services.dedup import LedgerRootUnavailable, is_already_downloaded
+def downloads(i):
+    try:
+        return is_already_downloaded(i) is None
+    except LedgerRootUnavailable:
+        return False
+print(" ".join(i for i in sys.argv[1:] if downloads(i)))
+`,
+		spotifyIds,
+		'worker-dl'
+	);
+	return out ? out.split(' ') : [];
 }
 
 /** `{ trackId, jobId }` of the given user's tracks with a recorded network path, newest first. */

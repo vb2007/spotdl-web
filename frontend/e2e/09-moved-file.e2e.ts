@@ -7,6 +7,7 @@ import {
 	USER_STATE,
 	cancelUnlessSettled,
 	isSettled,
+	ledgerDownloads,
 	ledgerFilePath,
 	movedLedgerTracks,
 	spotifyTrackUrl,
@@ -33,6 +34,10 @@ test('a moved track resolves as a duplicate of its library file and downloads fr
 	).toBe(2);
 	// One per project, so each run's row is unambiguous.
 	const track = moved[testInfo.project.name === 'mobile' ? 1 : 0];
+	// The pick was checked in worker-meta; worker-dl decides. If its library view differs (a
+	// stale bind, a missing file), submitting would be a real download: refuse instead. A
+	// library it can't see at all is held, not downloaded, so that case still runs (and fails).
+	expect(ledgerDownloads([track.spotifyId]), 'worker-dl would download this track').toEqual([]);
 
 	await openDashboard(page);
 	const job = await submitUrl(page, spotifyTrackUrl(track.spotifyId));

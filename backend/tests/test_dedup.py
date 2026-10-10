@@ -172,6 +172,39 @@ def test_is_already_downloaded_follows_a_repoint_that_lands_mid_check(
     assert dedup.is_already_downloaded("moving-id") == dest
 
 
+def test_is_already_downloaded_is_a_miss_when_the_row_is_deleted_mid_check(
+    db_session, monkeypatch, tmp_path
+):
+    """reconcile_disk() (worker-meta boot) can drop the row between the read and the
+    re-read: that's no row at all, a plain miss, never a crash out of download_track."""
+    from sqlalchemy import delete
+
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads_dir = tmp_path / "downloads"
+    downloads_dir.mkdir()
+    (downloads_dir / "other.mp3").write_text("audio")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads_dir)))
+    gone = downloads_dir / "gone.mp3"
+    db_session.add(
+        DownloadedTrack(spotify_track_id="pruned-id", file_path=str(gone), format="mp3", bitrate="320k")
+    )
+    db_session.commit()
+
+    class _ReconcileLandsHere(type(dedup.Path())):
+        def exists(self):
+            if str(self) == str(gone):
+                db_session.execute(
+                    delete(DownloadedTrack)
+                    .where(DownloadedTrack.spotify_track_id == "pruned-id")
+                    .execution_options(synchronize_session=False)
+                )
+            return super().exists()
+
+    monkeypatch.setattr(dedup, "Path", _ReconcileLandsHere)
+
+    assert dedup.is_already_downloaded("pruned-id") is None
+
+
 def test_is_already_downloaded_raises_when_the_downloads_root_is_not_mounted(
     db_session, monkeypatch, tmp_path
 ):
