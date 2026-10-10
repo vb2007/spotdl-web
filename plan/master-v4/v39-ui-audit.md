@@ -1,13 +1,13 @@
-# v38 — UI/UX Audit (impeccable)
+# v39 — UI/UX Audit (impeccable)
 
 Branch: `dev-ui-audit` → PR into `main`
-Version: `4.38.0` only if the slice touches `frontend/` (e.g. `frontend/src/DESIGN.md`).
+Version: `4.39.0` only if the slice touches `frontend/` (e.g. `frontend/src/DESIGN.md`).
 Otherwise no bump. State which in the PR.
 
 ## Scope
 
 The owner finds the UI cluttered. Evaluate the whole frontend **strictly through the impeccable
-skill** before any redesign, so v39–v42 are scoped by evidence rather than taste, and v46 has a
+skill** before any redesign, so v40–v43 are scoped by evidence rather than taste, and v47 has a
 baseline to score against. The same role v14's audit played for master v2.
 
 **No component or style changes in this slice.** The deliverable is a report. The only
@@ -32,13 +32,13 @@ stale.
    - `/settings`, `/library` (idle and mid-sweep), `/account`, `/login`;
    - empty, loading, error and offline (SSE dropped) states.
 3. **`audit`** the same surfaces: accessibility (contrast, focus order, names/roles, keyboard
-   reachability as a baseline for v44), performance, responsive behavior, anti-patterns.
-4. **Write `plan/master-v4/v38-ui-audit-report.md`**:
+   reachability as a baseline for v45), performance, responsive behavior, anti-patterns.
+4. **Write `plan/master-v4/v39-ui-audit-report.md`**:
    - **Per surface:** impeccable's scores and findings, with screenshots attached or listed (the
      screenshots themselves are gitignored or kept in the PR body; don't commit binaries unless
      small).
-   - **A ranked findings table:** severity, surface, finding, and **assigned slice**: v39 ambient
-     background, v40 track/job detail, v41 dashboard, v42 secondary surfaces, v44 keyboard, v46
+   - **A ranked findings table:** severity, surface, finding, and **assigned slice**: v40 ambient
+     background, v41 track/job detail, v42 dashboard, v43 secondary surfaces, v45 keyboard, v47
      polish, or "won't fix" with a reason.
    - **These already-known items must appear,** confirmed or refuted:
      - the TrackRow detail is indented 9rem while the title column starts at 10.25rem;
@@ -52,18 +52,18 @@ stale.
      - destructive actions without confirmation (clear log, remove proxy);
      - every TrackRow is a separate tab stop.
    - **A "design direction" section:** what impeccable recommends keeping (the signal-receiver
-     world, the IBM Plex pairing, the state-color semantics) vs reconsidering. This tells v39–v42
+     world, the IBM Plex pairing, the state-color semantics) vs reconsidering. This tells v40–v43
      whether each is a **refinement** (keep the identity) or a **redesign** (replace the world).
      That's impeccable's own distinction; follow it. **The owner approves the direction in the PR
-     before v39 starts.**
+     before v40 starts.**
 5. If the audit finds that a planned slice's scope is wrong (too big, missing a surface, or
-   unnecessary), record it as an amendment proposal in the report. Don't edit v39–v46's plans
+   unnecessary), record it as an amendment proposal in the report. Don't edit v40–v47's plans
    yourself.
 
 ## Out of scope
 
 - Any fix, even a one-line contrast tweak. It gets logged and assigned.
-- Keyboard shortcut design (v44). The audit only records today's reachability.
+- Keyboard shortcut design (v45). The audit only records today's reachability.
 
 ## Done when
 
@@ -71,7 +71,7 @@ stale.
 - [ ] A `critique` was run for **every** surface and state listed in task 2, on desktop and mobile,
       against the real stack, with the impeccable output captured per surface.
 - [ ] An `audit` was run for the same set, with output captured.
-- [ ] `v38-ui-audit-report.md` exists, with per-surface sections, the ranked table (every row has
+- [ ] `v39-ui-audit-report.md` exists, with per-surface sections, the ranked table (every row has
       an assigned slice or a won't-fix reason), and the design-direction section.
 - [ ] Every one of the ten already-known items is present, with a confirmed or refuted verdict.
 - [ ] `git diff main --stat` shows no component, route or style changes (only the report, plus

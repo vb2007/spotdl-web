@@ -1,13 +1,13 @@
-# v42 — Secondary Surfaces Redesign
+# v43 — Secondary Surfaces Redesign
 
 Branch: `dev-secondary-surfaces` → PR into `main`
-Version: `4.42.0`
+Version: `4.43.0`
 
 ## Scope
 
-`/settings`, `/library`, `/account` and `/login`, brought into the system v40–v41 established,
+`/settings`, `/library`, `/account` and `/login`, brought into the system v41–v42 established,
 **strictly through the impeccable skill**. Also the **confirmation affordance** for destructive
-actions across the app, so v44 has something safe to bind keys to. The v38 findings assigned to v42
+actions across the app, so v45 has something safe to bind keys to. The v39 findings assigned to v43
 are its checklist.
 
 ## Requirements
@@ -21,12 +21,12 @@ are its checklist.
 - **`/library`** (admin): the idle state, the mid-sweep live progress (v28's transform-animated
   bar must stay transform-based), and the final report. The report's moved, conflict and
   quarantine counts become scannable.
-- **`/account`**: retention settings, plus a preferences section where v44 adds the shortcut
-  toggle and v45 the language switch. Leave the section structure ready; don't add either control
+- **`/account`**: retention settings, plus a preferences section where v45 adds the shortcut
+  toggle and v46 the language switch. Leave the section structure ready; don't add either control
   here.
-- **`/login`**: leave room for v45's compact language switch. The "TUNE IN" dial stays, unless v38's direction says otherwise. Error and
-  loading states, and check it against v39's ambient field.
-- **Type scale migration.** Every file touched here uses v41's tokens, with no ad hoc font sizes.
+- **`/login`**: leave room for v46's compact language switch. The "TUNE IN" dial stays, unless v39's direction says otherwise. Error and
+  loading states, and check it against v40's ambient field.
+- **Type scale migration.** Every file touched here uses v42's tokens, with no ad hoc font sizes.
 - **Destructive-action confirmation**, as one reusable component (a dialog or an inline two-step
   confirm, chosen with impeccable), applied to:
   - "clear log" (`QueueControls.svelte:98-100`, archives every settled job immediately today);
@@ -43,13 +43,13 @@ are its checklist.
 
 ## Out of scope
 
-- The admin stats page (v43, a new route).
-- Keyboard shortcuts and the account toggle (v44).
+- The admin stats page (v44, a new route).
+- Keyboard shortcuts and the account toggle (v45).
 
 ## Done when
 
 - [ ] impeccable was loaded, and its sub-commands and output recorded in the PR.
-- [ ] Every v38 finding assigned to v42 is marked fixed or deferred with a reason.
+- [ ] Every v39 finding assigned to v43 is marked fixed or deferred with a reason.
 - [ ] Before and after screenshots of all four routes at 390, 768 and 1440 widths, including
       `/settings` with a validation error, `/library` mid-sweep against the test library copy, and
       `/login` with a failed login. Real dev stack.
@@ -60,8 +60,8 @@ are its checklist.
       unchanged (non-admin 404 on admin APIs, e2e spec 6 green).
 - [ ] The `/library` progress bar still animates via `transform` (computed style or Performance
       check).
-- [ ] No ad hoc `font-size` literals in v42's files.
-- [ ] An impeccable `audit` shows no regressions vs v38's baseline for these routes.
+- [ ] No ad hoc `font-size` literals in v43's files.
+- [ ] An impeccable `audit` shows no regressions vs v39's baseline for these routes.
 - [ ] The v37 e2e suite passes on both projects.
 - [ ] `npm run lint`, `npm run check` and `npm run build` pass, and `pytest` passes. Both version
-      files read `4.42.0`. `uv lock` is in sync. `graphify update .` has been run.
+      files read `4.43.0`. `uv lock` is in sync. `graphify update .` has been run.

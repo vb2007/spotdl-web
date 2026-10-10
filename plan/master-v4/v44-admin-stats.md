@@ -1,7 +1,7 @@
-# v43 — Admin Stats Page
+# v44 — Admin Stats Page
 
 Branch: `dev-admin-stats` → PR into `main`
-Version: `4.43.0`
+Version: `4.44.0`
 
 ## Scope
 
@@ -9,7 +9,7 @@ There's no way to see how downloads are actually going. Proving v31.1's `android
 manual CLI session, and nobody can tell whether IPv6 or the proxies are earning their place. The
 data already exists: v24's `track_attempts` and v35's `network_path`/`error_type`/duration. This
 version adds an **admin-only observability page** built on it, designed **through the impeccable
-skill plus the dataviz skill**, born in the v40–v42 system.
+skill plus the dataviz skill**, born in the v41–v43 system.
 
 ## Backend
 
@@ -39,7 +39,7 @@ skill plus the dataviz skill**, born in the v40–v42 system.
   method, mapped onto DESIGN.md's state colors (success = settled, failure = fail).
 - impeccable: a new surface in Operate mode. Scanability first, with the brand in the details.
 - Window switcher (24h/7d/30d). Empty and low-data states (a fresh dev database has little).
-- Every chart has an accessible text alternative (a table or summary), which v44's keyboard user
+- Every chart has an accessible text alternative (a table or summary), which v45's keyboard user
   also needs.
 
 ## Out of scope
@@ -67,4 +67,4 @@ skill plus the dataviz skill**, born in the v40–v42 system.
 - [ ] Charts have text alternatives (audit or accessibility-tree check).
 - [ ] The v37 e2e suite passes, plus a new spec (admin sees stats, non-admin can't).
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass. Both version files read
-      `4.43.0`. `uv lock` is in sync. `graphify update .` has been run.
+      `4.44.0`. `uv lock` is in sync. `graphify update .` has been run.

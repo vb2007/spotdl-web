@@ -21,7 +21,7 @@ That inverts normal web-app priorities — durability beats throughput. A track 
 in the queue for days, and that is correct behavior, not a stall.
 
 **Status:** master v1 (v00–v13), v2 (v14–v22) and v3 (v23–v31.1) are complete, merged, and deployed
-at `spotdl.vb2007.hu`. Current work is **master v4 (v32–v47)**: operational safety (dev DB split,
+at `spotdl.vb2007.hu`. Current work is **master v4 (v32–v48)**: operational safety (dev DB split,
 deploy rollback), correctness, Matrix alerting + stats, and an impeccable-driven UI/UX overhaul with
 full (Hungarian-QWERTZ-first) keyboard navigation and Hungarian/English i18n. Implementation sessions start from `plan/master-v4/IMPLEMENTATION_PROMPT.md`.
 
@@ -30,7 +30,7 @@ full (Hungarian-QWERTZ-first) keyboard navigation and Hungarian/English i18n. Im
 | What | Where |
 |---|---|
 | Current roadmap + rationale | `plan/master-v4/00-master-plan.md` |
-| Per-version implementation detail | `plan/master-v4/vNN-*.md` (v32–v47); agent prompt template `plan/master-v4/IMPLEMENTATION_PROMPT.md` |
+| Per-version implementation detail | `plan/master-v4/vNN-*.md` (v32–v48); agent prompt template `plan/master-v4/IMPLEMENTATION_PROMPT.md` |
 | Master v1–v3 plans (historical, never edited) | `plan/master-v1/`, `plan/master-v2/`, `plan/master-v3/` |
 | **Accumulated gotchas from v01–v13** | **`docs/GOTCHAS.md`** — indexed by topic; read the relevant section before touching an area |
 | Deploy runbook (Debian host) | `docs/DEPLOYMENT.md` |
@@ -328,16 +328,17 @@ Detail in `plan/master-v3/`, findings in `docs/GOTCHAS.md`.
 | v35 | `dev-correctness-sweep` | Attempt counting, `network_path` in API, redelivery guard, warning flag, streamed download, `.pyc`, state counts |
 | v36 | `dev-alerting` | Matrix alerts: breaker, failure spikes, stale beat, library sweep |
 | v37 | `dev-e2e-harness` | Committed Playwright suite against the local stack (local-only) |
-| v38 | `dev-ui-audit` | impeccable critique + audit → `v38-ui-audit-report.md`; owner approves direction |
-| v39 | `dev-ambient-field` | Cursor-following background glow |
-| v40 | `dev-track-detail-redesign` | Job/track expanded detail — same information, calmer presentation |
-| v41 | `dev-dashboard-redesign` | Rest of `/`, type scale, panel material, tablet breakpoint |
-| v42 | `dev-secondary-surfaces` | `/settings` `/library` `/account` `/login` + destructive-action confirmations |
-| v43 | `dev-admin-stats` | Admin stats page from `track_attempts` + `breaker_events` |
-| v44 | `dev-keyboard-navigation` | Complete mouse-free operation for **Hungarian QWERTZ** first, help overlay, per-user off switch |
-| v45 | `dev-i18n` | Full Hungarian + English i18n: auto-detected locale, per-user language switch |
-| v46 | `dev-ui-polish` | impeccable polish + harden, re-audit vs v38, regenerate DESIGN.md |
-| v47 | `dev-v4-hardening` | Production close |
+| v38 | `dev-moved-file-dedup` | A moved (library-sorted) track never re-downloads and stays downloadable; `worker-dl` sees the library `:ro` |
+| v39 | `dev-ui-audit` | impeccable critique + audit → `v39-ui-audit-report.md`; owner approves direction |
+| v40 | `dev-ambient-field` | Cursor-following background glow |
+| v41 | `dev-track-detail-redesign` | Job/track expanded detail — same information, calmer presentation |
+| v42 | `dev-dashboard-redesign` | Rest of `/`, type scale, panel material, tablet breakpoint |
+| v43 | `dev-secondary-surfaces` | `/settings` `/library` `/account` `/login` + destructive-action confirmations |
+| v44 | `dev-admin-stats` | Admin stats page from `track_attempts` + `breaker_events` |
+| v45 | `dev-keyboard-navigation` | Complete mouse-free operation for **Hungarian QWERTZ** first, help overlay, per-user off switch |
+| v46 | `dev-i18n` | Full Hungarian + English i18n: auto-detected locale, per-user language switch |
+| v47 | `dev-ui-polish` | impeccable polish + harden, re-audit vs v39, regenerate DESIGN.md |
+| v48 | `dev-v4-hardening` | Production close |
 
 ---
 

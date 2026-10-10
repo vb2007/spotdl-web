@@ -7,7 +7,7 @@ Version: `4.37.0`
 
 There are no committed browser tests (`frontend/package.json` has no test runner). Every UI
 version so far was verified with ad-hoc Playwright scripts in session scratchpads, which were thrown
-away afterwards. v31 recorded that v25's UI checks were never re-run in a browser. v38–v46 rewrite
+away afterwards. v31 recorded that v25's UI checks were never re-run in a browser. v39–v47 rewrite
 most of the frontend's markup, so they need a regression net that already exists **before** the
 first redesign commit.
 
@@ -22,15 +22,15 @@ first redesign commit.
   upstream). Credentials come from a gitignored `frontend/e2e/.env.e2e`, with a committed
   `.env.e2e.example`. One is admin on dev, one isn't. Never the owner's real account.
 - **Selectors target roles and accessible names** (`getByRole`, `getByLabel`), never CSS classes,
-  so v39–v42's restyling doesn't rewrite the suite. Where no accessible name exists, add one.
-  That's an accessibility fix, not a test hack, and it also feeds v44.
+  so v40–v43's restyling doesn't rewrite the suite. Where no accessible name exists, add one.
+  That's an accessibility fix, not a test hack, and it also feeds v45.
 - **Real downloads are slow and rate-limited.** The suite must not trigger a fresh YouTube
   download per run. Use tracks already in the dev ledger (`skipped_duplicate` resolves
   instantly), plus one opt-in tagged `@network` spec that does a real download, excluded by
   default.
 - Desktop (1280×800) and mobile (390×844) projects.
 - **Pin the browser locale to `en-US`** (Playwright `locale`) in every project. Accessible names
-  are text, so they change when v45 adds Hungarian. A pinned locale keeps the baseline stable. v45
+  are text, so they change when v46 adds Hungarian. A pinned locale keeps the baseline stable. v46
   adds its own `hu` smoke project rather than rewriting these specs.
 
 ## Baseline specs

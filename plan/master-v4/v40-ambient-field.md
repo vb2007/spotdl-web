@@ -1,15 +1,15 @@
-# v39 — Ambient Field (cursor-following background)
+# v40 — Ambient Field (cursor-following background)
 
 Branch: `dev-ambient-field` → PR into `main`
-Version: `4.39.0`
+Version: `4.40.0`
 
 ## Scope
 
 Today the background is a static radial gradient on `body` (`frontend/src/app.css:105-109`): an
 amber ellipse fixed at the top of the screen. The owner wants that blurred glow to **follow the
 cursor** across the background. Do this **strictly through the impeccable skill** (`animate`,
-escalating to `overdrive` only if the v38-approved direction calls for it), within the direction
-the owner approved in v38's report.
+escalating to `overdrive` only if the v39-approved direction calls for it), within the direction
+the owner approved in v39's report.
 
 ## Design constraints (non-negotiable; impeccable decides the look within them)
 
@@ -38,8 +38,8 @@ the owner approved in v38's report.
 
 ## Out of scope
 
-- Any other component's styling (v40–v42).
-- WebGL/canvas. Only if `overdrive` is approved in v38's direction *and* CSS can't achieve it.
+- Any other component's styling (v41–v43).
+- WebGL/canvas. Only if `overdrive` is approved in v39's direction *and* CSS can't achieve it.
   Record why if so.
 
 ## Done when
@@ -60,4 +60,4 @@ the owner approved in v38's report.
       (impeccable `audit` output).
 - [ ] The v37 e2e suite passes on both projects.
 - [ ] `npm run lint`, `npm run check` and `npm run build` pass, and `pytest` passes. Both version
-      files read `4.39.0`. `uv lock` is in sync. `graphify update .` has been run.
+      files read `4.40.0`. `uv lock` is in sync. `graphify update .` has been run.

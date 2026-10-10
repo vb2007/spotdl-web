@@ -4,7 +4,7 @@
 > permanent record. It gets the same treatment `plan/master-v1/`, `plan/master-v2/` and
 > `plan/master-v3/00-master-plan.md` got, for the same reason: the roadmap must never be quietly
 > reinterpreted after the fact. Individual version plans (`plan/master-v4/v32-*.md` …
-> `v47-*.md`) expand the roadmap table below with implementation detail. `CLAUDE.md` carries the
+> `v48-*.md`) expand the roadmap table below with implementation detail. `CLAUDE.md` carries the
 > durable summary every future session reads first. `IMPLEMENTATION_PROMPT.md` in this folder is
 > the template prompt handed to each version's implementation agent.
 >
@@ -84,7 +84,7 @@ Read from the repo this session, not assumed:
 | Alerts never block work | An alert that fails to send is logged and dropped. It never fails, delays or retries a download, a deploy step's *real* outcome, or a request |
 | Rollback semantics | A rollback restores the **previous successful release's commit** (compose files, scripts) **and** its image tag together. "Previous" means the last deploy that passed health with `persist=true`, recorded durably, never whatever `.env` happens to say |
 | Rollback across migrations | Not automatic. If the database is ahead of the rollback image's migrations, the pipeline stops, alerts, and points at the pre-deploy `pg_backup`, rather than starting a stack that can't come up |
-| UI work | **Every UI slice goes through the impeccable skill**, using the sub-commands its plan names, with desktop and mobile screenshots as evidence. An audit slice (v38) precedes every redesign slice. A polish slice (v46) closes them |
+| UI work | **Every UI slice goes through the impeccable skill**, using the sub-commands its plan names, with desktop and mobile screenshots as evidence. An audit slice (v39) precedes every redesign slice. A polish slice (v47) closes them |
 | Information density | The redesign **keeps every piece of monitoring information** the owner asked for. It changes how the information is presented, never whether it is shown |
 | Browser tests | A committed Playwright suite (v37), **run locally against the real dev stack**. No CI browser job: the self-hosted runner is the production host, which also runs Matrix/Synapse and Vaultwarden |
 | Keyboard | Full mouse-free operation. Single-character shortcuts must be **turn-off-able** per user (WCAG 2.1.4) and inert while focus is in a text field. Every destructive shortcut goes through a confirmation. **Bindings target Hungarian QWERTZ first**: none needs AltGr, `Y`/`Z` are never bound, keys are matched on `event.key`, and symbol keys that need Shift on Hungarian are only aliases for a letter primary |
@@ -132,16 +132,17 @@ Safety first, then correctness, then visibility, then UI. One feature per versio
 | **v35** | `dev-correctness-sweep` | Bounded debt, each item with its own commit and bullet: consistent attempt counting and numbering; `network_path`, proxy, error type and duration exposed in the attempts API; the redelivery guard for completed tracks; a warning-vs-failure flag on attempt messages; a streamed file download instead of a blob; image `.pyc` hygiene; live counts for the tracks-scope state filter |
 | **v36** | `dev-alerting` | Matrix alerts from the app: breaker trips, failure-class spikes (an early warning that YouTube has changed something), a stale beat heartbeat, and the library sweep's outcome. Per-category cooldown, admin toggles, a test-alert button, every message redacted |
 | **v37** | `dev-e2e-harness` | A committed Playwright suite against the local stack. It covers the baseline flows the redesign must not break, including a two-identity cross-user UI check. Runs locally only |
-| **v38** | `dev-ui-audit` | An impeccable `critique` + `audit` of every route and component, desktop and mobile. Produces `v38-ui-audit-report.md`, with ranked findings each assigned to a later slice. No component changes |
-| **v39** | `dev-ambient-field` | A cursor-following blurred glow replacing the static gradient. GPU-only and rAF-eased, with an idle drift for touch, static under reduced motion, paused when the tab is hidden. Reconciled with DESIGN.md's amber rule |
-| **v40** | `dev-track-detail-redesign` | Restructure the job and track expanded detail through impeccable. Same information, calmer presentation: a summary strip, an aligned grid, one action area, an attempt timeline with collapsed repeats, clamped long errors, and warnings distinct from failures |
-| **v41** | `dev-dashboard-redesign` | The rest of `/`: header, submit bar, incoming, Waterfall, queue controls, job list, empty/loading/error states. Adds a real type scale, a perceptible panel material, and a tablet breakpoint |
-| **v42** | `dev-secondary-surfaces` | `/settings`, `/library`, `/account`, `/login` in the same system, plus the confirmation affordances for destructive actions |
-| **v43** | `dev-admin-stats` | A new admin observability page: success rate per network path and per proxy, failure classes over time, breaker-trip history, queue depth. Server-side aggregation, designed through impeccable plus dataviz |
-| **v44** | `dev-keyboard-navigation` | Complete mouse-free operation on the final markup: a shortcut registry and help overlay, roving list navigation, row actions, route chords, a skip link, focus restoration, confirmations, and a per-user off switch. **Bindings designed for Hungarian QWERTZ** (no AltGr, no `Y`/`Z`, `event.key` matching) |
-| **v45** | `dev-i18n` | Full Hungarian + English i18n: auto-detected locale, a per-user language switch, every string translated (including v44's help overlay), `Intl` formatting and Hungarian plurals, stable error `code`s from the backend |
-| **v46** | `dev-ui-polish` | Impeccable `polish` + `harden`, re-run `audit` and score it against v38's report, then regenerate DESIGN.md from the shipped UI with `impeccable document` |
-| **v47** | `dev-v4-hardening` | The production close: the cross-user sweep over v4's new surfaces, full real-stack and production verification, closing or re-deferring v31's open questions, doc reconciliation, and a re-read of every "Done when" bullet |
+| **v38** | `dev-moved-file-dedup` | *(Inserted 2026-10-10, see Amendments.)* A resubmitted track whose file the library sort has moved must resolve as a duplicate, never re-download, and stay downloadable to disk from its library path. `worker-dl` gets the library mount read-only, and dedup fails safe when a root looks unmounted |
+| **v39** | `dev-ui-audit` | An impeccable `critique` + `audit` of every route and component, desktop and mobile. Produces `v39-ui-audit-report.md`, with ranked findings each assigned to a later slice. No component changes |
+| **v40** | `dev-ambient-field` | A cursor-following blurred glow replacing the static gradient. GPU-only and rAF-eased, with an idle drift for touch, static under reduced motion, paused when the tab is hidden. Reconciled with DESIGN.md's amber rule |
+| **v41** | `dev-track-detail-redesign` | Restructure the job and track expanded detail through impeccable. Same information, calmer presentation: a summary strip, an aligned grid, one action area, an attempt timeline with collapsed repeats, clamped long errors, and warnings distinct from failures |
+| **v42** | `dev-dashboard-redesign` | The rest of `/`: header, submit bar, incoming, Waterfall, queue controls, job list, empty/loading/error states. Adds a real type scale, a perceptible panel material, and a tablet breakpoint |
+| **v43** | `dev-secondary-surfaces` | `/settings`, `/library`, `/account`, `/login` in the same system, plus the confirmation affordances for destructive actions |
+| **v44** | `dev-admin-stats` | A new admin observability page: success rate per network path and per proxy, failure classes over time, breaker-trip history, queue depth. Server-side aggregation, designed through impeccable plus dataviz |
+| **v45** | `dev-keyboard-navigation` | Complete mouse-free operation on the final markup: a shortcut registry and help overlay, roving list navigation, row actions, route chords, a skip link, focus restoration, confirmations, and a per-user off switch. **Bindings designed for Hungarian QWERTZ** (no AltGr, no `Y`/`Z`, `event.key` matching) |
+| **v46** | `dev-i18n` | Full Hungarian + English i18n: auto-detected locale, a per-user language switch, every string translated (including v45's help overlay), `Intl` formatting and Hungarian plurals, stable error `code`s from the backend |
+| **v47** | `dev-ui-polish` | Impeccable `polish` + `harden`, re-run `audit` and score it against v39's report, then regenerate DESIGN.md from the shipped UI with `impeccable document` |
+| **v48** | `dev-v4-hardening` | The production close: the cross-user sweep over v4's new surfaces, full real-stack and production verification, closing or re-deferring v31's open questions, doc reconciliation, and a re-read of every "Done when" bullet |
 
 ### Why this order
 
@@ -153,18 +154,21 @@ Safety first, then correctness, then visibility, then UI. One feature per versio
   data: a counter that matches the history, a network path that exists in the API, and a
   warning flag. Designing around a known-wrong "passes attempted: 0" would bake the bug into the
   new layout.
-- **v36 next to v33**, because both share the Matrix channel. v43's breaker history reuses v36's
+- **v36 next to v33**, because both share the Matrix channel. v44's breaker history reuses v36's
   trip hook.
-- **v37 before any UI change**, so v39–v46 have a regression net instead of a by-eye check.
-- **v38 audits before v39–v42 redesign**, so redesign scope is evidence-led, and v46 has a
+- **v37 before any UI change**, so v40–v47 have a regression net instead of a by-eye check.
+- **v38 right after v37**, because it restores a master-v3 invariant (a move never causes a
+  re-download), and every day it waits is real rate-limit exposure. v37's suite is its regression
+  net.
+- **v39 audits before v40–v43 redesign**, so redesign scope is evidence-led, and v47 has a
   baseline to score against.
-- **v43 after the redesign**, so the new page is born in the new system rather than restyled later.
-- **v44 after every surface is final**, so shortcuts and focus management bind to markup that
+- **v44 after the redesign**, so the new page is born in the new system rather than restyled later.
+- **v45 after every surface is final**, so shortcuts and focus management bind to markup that
   won't move under them.
-- **v45 i18n after every UI slice and before polish.** It translates final strings (including
-  v44's help overlay), and v46 then polishes against real Hungarian strings, which run longer
+- **v46 i18n after every UI slice and before polish.** It translates final strings (including
+  v45's help overlay), and v47 then polishes against real Hungarian strings, which run longer
   than English.
-- **v46 polish, then v47 close**, the same role v13, v22 and v31 played.
+- **v47 polish, then v48 close**, the same role v13, v22 and v31 played.
 
 ---
 
@@ -187,21 +191,21 @@ Safety first, then correctness, then visibility, then UI. One feature per versio
 - **v36 vs `proxies.redact()`.** Alert bodies quote errors, and spotdl's errors echo proxy
   credentials. Every message goes through `redact()` before it leaves the process. The same
   applies to the deploy notification, which must never echo `.env`.
-- **v39 vs DESIGN.md's amber exclusivity.** A cursor glow is permanent chrome. It either stops
+- **v40 vs DESIGN.md's amber exclusivity.** A cursor glow is permanent chrome. It either stops
   being amber at rest, or the rule changes in DESIGN.md. It must not silently break the rule.
-- **v40–v42 vs v37.** The redesign changes markup that the e2e selectors depend on. Selectors
+- **v41–v43 vs v37.** The redesign changes markup that the e2e selectors depend on. Selectors
   should target roles and accessible names, not CSS classes, so a restyle doesn't rewrite the
   suite.
-- **v44 vs screen readers and the browser.** Single-key shortcuts conflict with assistive
+- **v45 vs screen readers and the browser.** Single-key shortcuts conflict with assistive
   technology and with typing. They must be inert in inputs, `contenteditable` and `select`,
   must not shadow browser chords, and must be off-switchable. On Hungarian QWERTZ, AltGr arrives as
   Ctrl+Alt on Windows. A shortcut must never fire while a user types `@`, `{` or `\` via AltGr.
-- **v45 vs v37/v44.** Accessible names are translated text. The e2e baseline pins `en-US`, so v45
-  adds a `hu` project rather than rewriting the specs. v44's help overlay is generated from the
+- **v46 vs v37/v45.** Accessible names are translated text. The e2e baseline pins `en-US`, so v46
+  adds a `hu` project rather than rewriting the specs. v45's help overlay is generated from the
   registry, so its descriptions become message keys, not literals.
-- **v45 vs the backend.** Translating by `detail` text would break on any wording change. Errors
+- **v46 vs the backend.** Translating by `detail` text would break on any wording change. Errors
   get an additive `code`, and the frontend falls back to `detail` for unknown codes.
-- **v43 vs the bulk-request invariant.** Stats are aggregated in SQL in one request. No per-proxy
+- **v44 vs the bulk-request invariant.** Stats are aggregated in SQL in one request. No per-proxy
   or per-day request loop.
 
 ---
@@ -255,15 +259,15 @@ session. Version-specific requirements:
    download, not a fixture.
 5. **v36 fires every alert category for real** on the dev stack into a real Matrix room, and shows
    cooldown suppressing a repeat.
-6. **v38–v46 are evidenced with impeccable's own output** (critique scores, audit findings) plus
+6. **v39–v47 are evidenced with impeccable's own output** (critique scores, audit findings) plus
    desktop and mobile screenshots. The v37 suite must stay green.
-7. **v44 is verified by completing every user journey without touching the mouse**, recorded as a
+7. **v45 is verified by completing every user journey without touching the mouse**, recorded as a
    keyboard-only e2e test, with the shortcut off-switch shown working. Hungarian QWERTZ is covered
    by emulated key events plus one manual pass on a real Hungarian layout.
-8. **v45 is verified in both languages**: auto-detect from three browser locales, a preference
+8. **v46 is verified in both languages**: auto-detect from three browser locales, a preference
    persisting across devices, and every route screenshotted in Hungarian.
-9. **v47 re-runs the cross-user sweep** (`pytest backend/tests/test_ownership.py` plus
-   `scripts/verify_separation_sse.sh`). v34, v35 and v43 add read paths, and v44 and v45 add per-user preferences.
+9. **v48 re-runs the cross-user sweep** (`pytest backend/tests/test_ownership.py` plus
+   `scripts/verify_separation_sse.sh`). v34, v35 and v44 add read paths, and v45 and v46 add per-user preferences.
 10. **`graphify update .`** after every code-modifying version. The version is bumped in both
    `backend/pyproject.toml` and `frontend/package.json` to the identical `4.NN.0` string, except
    for a slice that touches neither `backend/` nor `frontend/` (v33), which needs no bump.
@@ -308,3 +312,10 @@ here rather than edited into it, so the original record stays readable.
   403", with 18 backend assertions agreeing). The 404-not-403 rule covers a non-owner's direct-id
   access, not admin endpoints. On the owner's direction the spec asserts 403, and no backend
   change was made.
+- **2026-10-10, v38 inserted (owner-directed): moved-file dedup.** v37 found that `worker-dl`
+  mounts only `/downloads`, so `dedup.is_already_downloaded` can't see a file v28's sort moved
+  into the library, and a resubmitted moved track downloads again. The owner directed a fix slice
+  as the next version, with every later slice renumbered by one rather than a `v37.1` patch:
+  the old v38–v47 are now **v39–v48** (files renamed, every reference shifted, releases
+  `4.39.0`–`4.48.0`). Required behavior: no re-download for the same or another user, and the
+  file stays downloadable to disk from its library path. Detail in `v38-moved-file-dedup.md`.

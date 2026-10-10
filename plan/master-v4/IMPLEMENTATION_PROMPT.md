@@ -29,8 +29,8 @@ line above. Everything you need to locate it derives from that one value:
   PR under "Found, not fixed" instead.
 - If the plan contradicts itself, or contradicts the real code, **apply the plan literally,
   document the conflict in the PR, and ask** before going further. Don't silently reinterpret.
-- If a plan precondition isn't met (for example v32's dev database doesn't exist yet, v38's
-  direction isn't approved, or a field v40 needs is missing from the API), **stop and ask**.
+- If a plan precondition isn't met (for example v32's dev database doesn't exist yet, v39's
+  direction isn't approved, or a field v41 needs is missing from the API), **stop and ask**.
   Don't work around it.
 
 ## 1. Context: graphify first, strictly
@@ -72,15 +72,15 @@ line above. Everything you need to locate it derives from that one value:
   `values_callable` plus `DROP TYPE` for enums, SvelteKit exports **and** an nginx `location` per
   route, `!override` for compose lists, no per-row request loops, owner-scoped queries with 404
   for non-owners, and `queue.reset()` covering any new store state.
-- **UI slices (v38–v46): use the impeccable skill, strictly.** Load it, run its Setup
+- **UI slices (v39–v47): use the impeccable skill, strictly.** Load it, run its Setup
   (`context.mjs`), and use the sub-commands the plan names. Record each one's output in the PR.
-  Capture desktop **and** mobile screenshots before and after, from real dev data. v43 also loads
+  Capture desktop **and** mobile screenshots before and after, from real dev data. v44 also loads
   the dataviz skill before any chart.
-- **Keyboard (v44 on):** bindings target the **Hungarian QWERTZ** layout first. Nothing may need
+- **Keyboard (v45 on):** bindings target the **Hungarian QWERTZ** layout first. Nothing may need
   AltGr, `Y`/`Z` are never bound, match on `event.key`, and AltGr (Ctrl+Alt on Windows) never
-  fires a shortcut. Any new interactive element added after v44 must be keyboard-reachable and
+  fires a shortcut. Any new interactive element added after v45 must be keyboard-reachable and
   registered in the shortcut registry if it gets a key.
-- **Strings (v45 on):** every new user-visible string goes into **both** `en` and `hu` message
+- **Strings (v46 on):** every new user-visible string goes into **both** `en` and `hu` message
   files (never a literal), and every new user-facing backend error gets a stable `code`. The
   build's key-parity check must pass.
 - Any change touching the network path, proxy or IP family must verify the **real connection

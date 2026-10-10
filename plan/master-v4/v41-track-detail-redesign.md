@@ -1,7 +1,7 @@
-# v40 — Job & Track Detail Redesign
+# v41 — Job & Track Detail Redesign
 
 Branch: `dev-track-detail-redesign` → PR into `main`
-Version: `4.40.0`
+Version: `4.41.0`
 
 ## Scope
 
@@ -13,8 +13,8 @@ third, unrelated position. With five error attempts it gets much worse.
 
 **All of that information stays.** It's there by request, for monitoring. This version changes how
 it is presented, **strictly through the impeccable skill** (`layout`, `distill`, `clarify`, then
-`typeset`/`colorize` as its findings direct), following v38's report and approved direction. The
-v38 findings assigned to v40 are this slice's checklist.
+`typeset`/`colorize` as its findings direct), following v39's report and approved direction. The
+v39 findings assigned to v41 are this slice's checklist.
 
 Surfaces: `TrackRow.svelte` (row plus expanded detail), `JobRow.svelte` (row plus expanded
 state), `JobTrackList.svelte` (the nested list and its "load more"), and the tracks-scope group
@@ -25,7 +25,7 @@ header in `routes/+page.svelte`.
 - **One grid, shared.** The expanded detail aligns to the row's own columns. Today the detail is
   indented 9rem while the title starts at 10.25rem, so it lines up with neither. A nested track
   visibly nests under its job: consistent padding and a nesting indent, with JobRow and TrackRow
-  on a shared alignment. The other mismatches v38 lists all get fixed.
+  on a shared alignment. The other mismatches v39 lists all get fixed.
 - **A summary strip first:** state, attempts and failures (v35's corrected counts), last network
   path, and the next retry countdown when waiting. Scannable in one line, at a fixed position.
 - **One action area** at a predictable position (retry now / download / cancel), rendered only for
@@ -41,11 +41,11 @@ header in `routes/+page.svelte`.
   - **Warnings (v35's flag) are styled distinctly from failures.** A tag-repair note on a
     completed attempt must never read as an error.
 - **State-color semantics stay** (DESIGN.md §2: amber = live, mint = settled, blue = waiting, red =
-  fail), unless v38's approved direction changes them.
+  fail), unless v39's approved direction changes them.
 - **Responsive.** The ≤640px stack is redesigned too, not just shrunk. A tablet width is covered,
-  if v41's breakpoint lands first, or in coordination with it.
-- **Semantics for v44.** The expandable row is a real disclosure (`aria-expanded`/`aria-controls`),
-  with accessible names on every control, so v44 can add roving focus without restructuring. Keep
+  if v42's breakpoint lands first, or in coordination with it.
+- **Semantics for v45.** The expandable row is a real disclosure (`aria-expanded`/`aria-controls`),
+  with accessible names on every control, so v45 can add roving focus without restructuring. Keep
   the existing native-button behavior working.
 - **No per-row request loop.** Attempt history stays lazy-loaded on first expand and cached (the
   existing pattern).
@@ -68,14 +68,14 @@ Use real dev data for every case. Induce the failure cases with the techniques v
 
 ## Out of scope
 
-- The rest of the dashboard (v41), and keyboard shortcuts (v44).
+- The rest of the dashboard (v42), and keyboard shortcuts (v45).
 - Backend changes. If the redesign needs a field the API lacks, stop and raise it. v35 should
   have provided everything.
 
 ## Done when
 
 - [ ] impeccable was loaded, and each sub-command used is recorded with its output in the PR.
-- [ ] Every v38 finding assigned to v40 is listed in the PR as fixed, or as deferred with a reason.
+- [ ] Every v39 finding assigned to v41 is listed in the PR as fixed, or as deferred with a reason.
 - [ ] All nine cases are screenshotted **before** (from main) and **after**, on desktop and mobile,
       from real dev data.
 - [ ] Alignment: the detail block shares the row grid (a DevTools grid-overlay screenshot), and
@@ -84,8 +84,8 @@ Use real dev data for every case. Induce the failure cases with the techniques v
       full text selectable.
 - [ ] Case 5's warning does not use the failure style (screenshot plus the computed color).
 - [ ] An impeccable `audit` of these components shows no contrast or accessibility regressions
-      vs v38's baseline. Every control has an accessible name.
+      vs v39's baseline. Every control has an accessible name.
 - [ ] The v37 e2e suite passes, with specs updated by role/name only. A new spec covers case 2's
       collapse and expand.
 - [ ] `npm run lint`, `npm run check` and `npm run build` pass, and `pytest` passes. Both version
-      files read `4.40.0`. `uv lock` is in sync. `graphify update .` has been run.
+      files read `4.41.0`. `uv lock` is in sync. `graphify update .` has been run.
