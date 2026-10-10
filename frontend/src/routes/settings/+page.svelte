@@ -309,8 +309,8 @@
 		<WorkerStatus {isAdmin} />
 	</div>
 
-	<section class="panel output-settings">
-		<h2 class="label">Output defaults</h2>
+	<section class="panel output-settings" aria-labelledby="output-heading">
+		<h2 class="label" id="output-heading">Output defaults</h2>
 		<p class="hint mono">Applies to the next download — no restart needed.</p>
 
 		{#if outputOptions === null}

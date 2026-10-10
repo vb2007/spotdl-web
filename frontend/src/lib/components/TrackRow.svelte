@@ -204,8 +204,8 @@
 				{:else if attemptsError}
 					<span class="attempts-status attempts-error">{attemptsError}</span>
 				{:else if attempts.length > 0}
-					<span class="attempts-heading">attempt history</span>
-					<ul class="attempts-list">
+					<span class="attempts-heading" id="attempts-{track.id}">attempt history</span>
+					<ul class="attempts-list" aria-labelledby="attempts-{track.id}">
 						{#each attempts as attempt (attempt.id)}
 							<li class="attempt">
 								<span class="attempt-outcome {ATTEMPT_OUTCOME_COND[attempt.outcome]}"

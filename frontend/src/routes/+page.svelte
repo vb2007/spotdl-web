@@ -222,13 +222,13 @@
 	{:else if $page.items.length === 0}
 		<p class="hint mono">Nothing here.</p>
 	{:else if $filters.scope === 'jobs'}
-		<ul class="job-list panel">
+		<ul class="job-list panel" aria-label="Jobs">
 			{#each $page.items as item (item.id)}
 				<JobRow job={item as Job} allUsers={allUsersView} />
 			{/each}
 		</ul>
 	{:else}
-		<ul class="job-list panel">
+		<ul class="job-list panel" aria-label="Tracks">
 			{#each trackGroups as group (group.job.id)}
 				<li class="track-group">
 					<div class="group-header">

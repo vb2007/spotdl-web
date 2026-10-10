@@ -199,6 +199,67 @@ successful login, and `is_admin` comes from the local `.env`'s `ADMIN_EMAIL` (a 
 File-sourced proxies come back on `worker-meta`'s next boot through `sync_from_file()`. Manual
 (UI-added) proxies, jobs and settings start empty.
 
+## Browser end-to-end suite (v37)
+
+A committed Playwright suite (`frontend/e2e/`, config in `frontend/playwright.config.ts`) drives a
+real Chromium against the **running local stack**: the dev `web` origin, the real backend, the dev
+database, real SSE. Nothing is mocked and nothing is started for you. It's the regression net for
+the v38–v46 UI rework, so run it before calling any frontend change done.
+
+**One-time setup**
+
+1. Two **test** identities that log in through the real upstream: one is the dev `.env`'s
+   `ADMIN_EMAIL`, the other isn't, and both are in `ALLOWED_EMAILS`. Register fresh ones freely
+   (§4). Never the owner's real account. Keep both **dedicated to the suite**: every run cancels
+   whatever they have in flight and archives the rest of their jobs, so manual admin testing
+   belongs on another account (the dev `ADMIN_EMAIL` can be switched back for it).
+2. `cp frontend/e2e/.env.e2e.example frontend/e2e/.env.e2e` and fill in both. The copy is
+   gitignored (`git check-ignore frontend/e2e/.env.e2e` confirms it).
+3. `cd frontend && npx playwright install chromium`.
+
+**Run it** with the stack up (`docker compose up`):
+
+```bash
+cd frontend
+npm run test:e2e            # the baseline specs, desktop (1280×800) and mobile (390×844)
+npm run test:e2e:network    # opt-in: the one @network spec, a real YouTube download
+```
+
+`E2E_BASE_URL` overrides the origin (default `http://localhost:5173`), for example to aim at the
+production-style `web` image. It must stay a loopback origin, and the config refuses anything
+else: setup and teardown check the local stack's database, so the browser must drive that stack. Failures keep a trace and a screenshot under `frontend/test-results/`
+(`npx playwright show-trace <trace.zip>`), and `frontend/playwright-report/` holds the HTML report.
+
+**How it stays cheap on the real stack**
+
+- Global setup logs both identities in once through the real `/api/auth/login`, cancels anything
+  they left in flight, archives the rest ("clear log"), and seeds one job each. The specs reuse
+  those sessions. Only spec 1 drives the login form itself.
+- Every job a default run creates is a track **already in the dev ledger** (`skipped_duplicate`,
+  resolved in milliseconds by `worker-dl`'s dedup gate) or a Spotify id that doesn't exist (a
+  `failed` expansion). The tracks are listed in `e2e/support/stack.ts`'s `LEDGER_TRACKS`, and they
+  must stay in the ledger with their files under `./downloads`. Global teardown **fails the run**
+  if either identity made a network download attempt while it ran.
+- The specs run one at a time (`workers: 1`): they share one queue, one beat and one `worker-dl`.
+  A full run takes a few minutes, mostly beat's 30 s dispatch pass.
+- The `@network` spec needs `E2E_NETWORK_TRACK_URL`, a track that is **not** in the dev ledger
+  yet. A passing run adds it, so each pass names a fresh one, for example
+  `E2E_NETWORK_TRACK_URL=https://open.spotify.com/track/<id> npm run test:e2e:network`. It refuses
+  a track that's already there rather than passing on a duplicate.
+
+**Writing specs:** select by role, label and accessible name (`getByRole`, `getByLabel`), never
+by CSS class. The v39–v42 restyles must not rewrite the suite. If an element has no accessible
+name, give it one in the component: that's an accessibility fix, not a test hack. Every project
+pins `locale: 'en-US'`, because accessible names are text. v45 adds its own `hu` project rather
+than changing these. Specs are named `*.e2e.ts` so vitest's default `*.spec.ts`/`*.test.ts`
+include never picks them up.
+
+**Why local-only, with no CI browser job:** the self-hosted CI runner *is* the production host,
+which also runs real services (Matrix/Synapse, Vaultwarden). Browsers and test traffic don't
+belong there. The suite also needs the dev stack's database, ledger files and two upstream test
+accounts, none of which exist on the runner. CI still lints and typechecks `e2e/` (`npm run lint`,
+`npm run check`). Running it is part of each UI version's local checks.
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |

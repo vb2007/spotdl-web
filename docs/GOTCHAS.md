@@ -558,6 +558,14 @@ needed" claim — rather than silently deleted.
   have 404'd against an empty mount even once it existed.
 
 **Testing & verification technique**
+- The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
+  new browser checks there, by role/label, never in a scratchpad script → *v37*
+- Playwright's accessible-name match is a case-insensitive **substring** by default: `'CONNECT'`
+  matches "disconnect" and `'archive'` matches "unarchive". Use `exact: true` → *v37*
+- A `page.goto()` inside a same-tab identity switch reloads the document and silently wipes the
+  very store leak the test is looking for; stay client-side between logout and login → *v37*
+- `npx playwright test 07` filters on the **absolute** path, and this checkout lives under
+  `vb2007`, so it selects every file; pass `e2e/07-cross-user` instead → *v37*
 - A "fresh" test track must be absent from `./downloads`, not just the ledger: spotdl's own
   `file already exists` skip returns a path, and the app records a `completed direct-ipv4` attempt
   that never touched the network → *v35*
@@ -4491,3 +4499,92 @@ independently-found production bug from the same conversation)
 - **Test-alert is 404 for a non-admin, per the plan.** Every other admin-only route answers 403
   (`require_admin`). The alert settings GET/PATCH keep 403 to match their siblings.
 
+### v37 e2e-harness gotchas
+
+- **Accessible names that contain another element's text collide.** A job toggle's name is
+  "Expand tracks for <title>", which also matches a track row searched by the same title, so the
+  "track" click collapsed the job instead. Track rows are now looked up inside the job's own
+  `Tracks` list (`trackToggle` in `e2e/support/ui.ts`).
+- **A flash only exists where nothing gates rendering.** After logout, `beginResync()` hides
+  stale *page* rows behind "Loading…", so a leaked store only shows through the incoming/Waterfall
+  overlays. Spec 1 gives the first identity a failed incoming job on purpose, and a
+  `MutationObserver` records any render of its text during the second identity's login. With
+  `queue.reset()` removed from `onLogout`, it caught the URL on both projects.
+- **Spec 7 matches foreign titles exactly, minus the user's own row text** (review rounds 5–6).
+  A substring match over "every title the admin owns" also hit chrome ("done") and the user's own
+  track's album/artist cells (an admin album job titled like the user's album). Titles render as
+  their own elements, so `exact: true` still catches a leak; both owner filters were re-shown red.
+- **"Own" text in a cross-user check must not come from the listing under test.** Taking the
+  user's own titles from `GET /api/jobs` made a broken owner filter count the admin's titles as
+  the user's own. The leak still failed, but at an unrelated guard. Own jobs are filtered by
+  `owner_email` (review round 7).
+- **graphify reads only the repo-root `.gitignore`.** Nested ignore files (`frontend/.gitignore`)
+  aren't consulted, so Playwright's `playwright-report/`, `test-results/` and `e2e/.auth/` got
+  indexed: ~1,262 nodes of minified bundles outranked real code in `graphify query`. The root
+  `.gitignore` repeats them. Anything generated under a subdirectory needs a root entry before
+  `graphify update .` (review round 7).
+- **Cross-user checks need a positive control that tolerates duplicates.** Other dev users own
+  tracks with the same titles as the e2e user's own, so a leak first surfaced as a strict-mode
+  violation on the user's *own* row. The positive check uses `.first()`, so the foreign-title
+  assertion is the one that names a leak.
+- **Admin endpoints answer 403, not 404** (`require_admin`, pinned since v22). The v37 plan's
+  "404" was a slip; the owner confirmed asserting 403 (recorded in the master plan's
+  Amendments). Only the v36 test-alert POST is 404.
+- **`skipped_duplicate` attempts carry no `network_path`**, and an expected label computed from
+  the API agrees with the UI even when the API drops the field (both fall to "no network"). So
+  spec 3 requires the key on every attempt, and also checks an admin-owned track a past
+  `@network` pass left with a real path (picked in setup, unique title, archived), so a broken
+  "direct · IPv4" label fails a default run. Both were shown red (review round 1). On a dev DB
+  with no such track it **fails**, asking for one `npm run test:e2e:network` pass (review round
+  3: a warning annotation let a broken label go green).
+- **Attempt history is oldest first** (`order_by(attempt_number)`), so a retried download's
+  completed row isn't `.first()`. Locate it by the API's index (review round 3). The opt-in `@network` spec itself requires
+  the served file's mtime to postdate the test, per v35's "file already exists" trap.
+  That check earned its place on its first two runs: two "fresh" ids (`4uLU6hMCjMI75M1A2tKUQC`,
+  `7GhIk7Il098yCjg4BQjzvb`) turned out to be other Spotify releases of a song already downloaded.
+  Each recorded a `completed direct-ipv4` attempt in about 20 ms that never touched the network,
+  and only the mtime check failed. Pick a candidate by title too (`song_json->>'name'`), not just
+  by ledger absence.
+- **The default `@network` track can't be hardcoded.** A passing run puts it in the ledger, and
+  the first candidate (One More Time) was already there via the sorted Discovery album. The spec
+  requires `E2E_NETWORK_TRACK_URL` and refuses a ledger hit.
+- **A ledger row is not a ledger hit.** `dedup.is_already_downloaded` returns None when the
+  row's file is gone, which means a real download. Setup preflights every `LEDGER_TRACKS` id
+  with that same function, **inside `worker-dl`** (it mounts only `/downloads`; `worker-meta`
+  also sees the library and would approve a moved file worker-dl can't see), and refuses to start, and a seed or spec 2 job that doesn't settle as a
+  duplicate is cancelled so it can't keep retrying on the ladder (review round 1).
+- **Teardown counts `network_path is not null` for normalized emails.** Emails are stored
+  lowercased, so a mixed-case `.env.e2e` value matched no user and the check passed vacuously.
+  Outcome-based counting also misread beat's stale reclaim (`failed`, no path) as a download.
+- **Global teardown's zero-download check compares `timestamptz`.** `track_attempts.finished_at`
+  is `timestamp with time zone`, so the ISO `now()` from setup compares correctly. It was checked
+  against 91 historical network attempts, so the query isn't vacuous.
+- **Found, not fixed (pre-existing, outside v37): `worker-dl` can't see library-sorted files, so
+  its dedup gate misses them.** `worker-dl` mounts only `/downloads`, in dev and in
+  `docker-compose.prod.yml` alike, but v28's sort & move repoints `downloaded_tracks.file_path`
+  into the library root. `dedup.is_already_downloaded("3H3cOQ6LBLSvmcaV7QkZEu")` (a sorted
+  Discovery track) returns the library path in `worker-meta` and `None` in `worker-dl`, so
+  resubmitting any moved track would re-download it. That contradicts the master-v3 invariant
+  that a move must never cause a re-download. Reported to the owner in the v37 PR.
+- **The suite refuses a non-loopback `E2E_BASE_URL`** (review round 2). The preflight and the
+  teardown read the local stack, so driving another origin would leave them guarding the wrong one.
+- **An in-flight download is invisible to the DB.** An attempt row is written only when the
+  attempt ends, and cancelling a job flips a `downloading` track to `cancelled` without stopping
+  worker-dl. A first fix that counted `state = 'downloading'` missed exactly the cancel-on-timeout
+  case it was meant for (review round 4). Teardown now asks the worker
+  (`celery_app.control.inspect().active()`) and fails if any running `download_track` belongs to
+  an e2e identity, or if worker-dl doesn't answer. Setup runs the same check before recording
+  `startedAt` and refuses to start, so an aborted `@network` pass's still-running download isn't
+  blamed on the next default run (review round 10).
+- **Every resync re-renders the job list, so expand only after the first one lands.**
+  `reloadPage()` swaps the list for "Loading…", which unmounts the rows. A job's expansion
+  survives (it lives in the store, `queue.toggleExpand`), but a track row's is component-local
+  and is lost. Waiting for "Loading…" to clear isn't enough: the 5 s fallback
+  reload can clear it before a slow stream opens and re-lists. `openDashboard()` waits for the
+  stream's response, then a `/api/jobs` response after it (review rounds 8–9).
+- **Playwright runs global teardown even when global setup throws** (it registers the teardown
+  first). Setup therefore deletes the previous run's `run.json`/`seed.json` up front and writes
+  `run.json` (`startedAt`) before submitting anything, so teardown never checks an earlier run's
+  window (review round 5).
+- **Cleanup that guards against a live download uses its own request context**
+  (`cancelUnlessSettled`). A test-level timeout can close `page.request` before a `finally` runs.
