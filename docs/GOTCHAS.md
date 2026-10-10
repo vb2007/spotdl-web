@@ -4522,7 +4522,10 @@ independently-found production bug from the same conversation)
   spec 3 requires the key on every attempt, and also checks an admin-owned track a past
   `@network` pass left with a real path (picked in setup, unique title, archived), so a broken
   "direct · IPv4" label fails a default run. Both were shown red (review round 1). On a dev DB
-  with no such track, it annotates a warning instead. The opt-in `@network` spec itself requires
+  with no such track it **fails**, asking for one `npm run test:e2e:network` pass (review round
+  3: a warning annotation let a broken label go green).
+- **Attempt history is oldest first** (`order_by(attempt_number)`), so a retried download's
+  completed row isn't `.first()`. Locate it by the API's index (review round 3). The opt-in `@network` spec itself requires
   the served file's mtime to postdate the test, per v35's "file already exists" trap.
   That check earned its place on its first two runs: two "fresh" ids (`4uLU6hMCjMI75M1A2tKUQC`,
   `7GhIk7Il098yCjg4BQjzvb`) turned out to be other Spotify releases of a song already downloaded.

@@ -40,35 +40,49 @@ test('a real download completes, records its network path, and serves its file @
 
 	await page.goto('/');
 	const created = await submitUrl(page, TRACK_URL);
-	// The retry ladder may legitimately hold it for a while; dev's LADDER_SECONDS keeps it short.
-	const job: Job = await waitForJob(page.request, created.id, isSettled, 25 * 60_000);
-	expect(job.status).toEqual({ lifecycle: 'settled', outcome: 'complete' });
-	expect(job.track_counts.completed).toBe(1);
+	try {
+		// The retry ladder may legitimately hold it for a while; dev's LADDER_SECONDS keeps it short.
+		const job: Job = await waitForJob(page.request, created.id, isSettled, 25 * 60_000);
+		expect(job.status).toEqual({ lifecycle: 'settled', outcome: 'complete' });
+		expect(job.track_counts.completed).toBe(1);
 
-	const tracks = (await (
-		await page.request.get(`/api/jobs/${job.id}/tracks`)
-	).json()) as JobTracksPage;
-	const [track] = tracks.items;
-	const attempts = (await (
-		await page.request.get(`/api/tracks/${track.id}/attempts`)
-	).json()) as TrackAttempt[];
-	const completed = attempts.find((a) => a.outcome === 'completed');
-	expect(completed?.network_path, 'a real download records the path it took').toBeTruthy();
+		const tracks = (await (
+			await page.request.get(`/api/jobs/${job.id}/tracks`)
+		).json()) as JobTracksPage;
+		const [track] = tracks.items;
+		const attempts = (await (
+			await page.request.get(`/api/tracks/${track.id}/attempts`)
+		).json()) as TrackAttempt[];
+		const completed = attempts.find((a) => a.outcome === 'completed');
+		expect(completed?.network_path, 'a real download records the path it took').toBeTruthy();
 
-	await page.reload();
-	await jobToggle(page, job.title).click();
-	await trackToggle(page, job.title, track.title ?? '').click();
-	const history = page.getByRole('list', { name: 'attempt history' });
-	await expect(history.getByRole('listitem').first()).toContainText(expectedAttemptVia(completed!));
-	await expect(history.getByRole('listitem').first()).toContainText('completed');
+		await page.reload();
+		await jobToggle(page, job.title).click();
+		await trackToggle(page, job.title, track.title ?? '').click();
+		// Attempts render oldest first, so a retried download's completed row is its own index.
+		const completedRow = page
+			.getByRole('list', { name: 'attempt history' })
+			.getByRole('listitem')
+			.nth(attempts.indexOf(completed!));
+		await expect(completedRow).toContainText('completed');
+		await expect(completedRow).toContainText(expectedAttemptVia(completed!));
 
-	const downloadEvent = page.waitForEvent('download');
-	await page.getByRole('button', { name: 'download' }).click();
-	const download = await downloadEvent;
-	const sha256 = createHash('sha256')
-		.update(await readFile(await download.path()))
-		.digest('hex');
-	const server = serverTrackFile(track.id);
-	expect(server.mtime, 'the served file was written by this download').toBeGreaterThan(startedAt);
-	expect(sha256).toBe(server.sha256);
+		const downloadEvent = page.waitForEvent('download');
+		await page.getByRole('button', { name: 'download' }).click();
+		const download = await downloadEvent;
+		const sha256 = createHash('sha256')
+			.update(await readFile(await download.path()))
+			.digest('hex');
+		const server = serverTrackFile(track.id);
+		expect(server.mtime, 'the served file was written by this download').toBeGreaterThan(startedAt);
+		expect(sha256).toBe(server.sha256);
+	} finally {
+		// A timed-out or failed pass must not leave a real download retrying on the ladder (or
+		// finishing during the next default run, whose teardown would then fail).
+		const job = (await (await page.request.get(`/api/jobs/${created.id}`)).json()) as Job;
+		if (job.status.lifecycle !== 'settled') {
+			const cancelled = await page.request.delete(`/api/jobs/${created.id}`);
+			expect.soft(cancelled.status(), 'cancelling the unsettled job').toBe(200);
+		}
+	}
 });

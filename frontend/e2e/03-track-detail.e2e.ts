@@ -6,7 +6,7 @@ import { jobToggle, trackToggle } from './support/ui';
 test.use({ storageState: ADMIN_STATE });
 
 /** Expands `seed`'s job and track, then checks every attempt row against the API's own
- * attempts: count, order (newest first) and the path label its `network_path` (v35 (b)) maps
+ * attempts: count, order (oldest first, by attempt number) and the path label its `network_path` (v35 (b)) maps
  * to. Returns the API's attempts. */
 async function checkAttemptHistory(page: Page, seed: SeedJob): Promise<TrackAttempt[]> {
 	const attempts = (await (
@@ -47,15 +47,13 @@ test('expanding a job and a track loads attempt history with its network path', 
 
 	// A track whose attempts did reach the network (left by an earlier `@network` pass, its job
 	// archived by setup), so a real path label renders.
-	if (realPath === null) {
-		test.info().annotations.push({
-			type: 'warning',
-			description:
-				'no admin-owned track with a recorded network path yet, so real path labels went ' +
-				'unchecked: run `npm run test:e2e:network` once'
-		});
-		return;
-	}
+	// Without one, only the path-less branch would ever render and a broken real-path label
+	// would pass, so a dev DB that has none fails here rather than going green.
+	expect(
+		realPath,
+		'no admin-owned track with a recorded network path: run `npm run test:e2e:network` once'
+	).not.toBeNull();
+	if (realPath === null) return;
 	await page.goto('/');
 	await page.getByRole('button', { name: 'show archived' }).click();
 	// The search re-lists after a debounce and re-renders the rows, so expanding before its
