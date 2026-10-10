@@ -35,6 +35,12 @@
 /.last-good
 /.last-good.tmp
 
+# v37 e2e output (also in frontend/.gitignore). Repeated here because graphify reads only
+# the repo-root .gitignore, and it indexed Playwright's reports, traces and saved sessions.
+/frontend/playwright-report/
+/frontend/test-results/
+/frontend/e2e/.auth/
+
 # backend
 backend/__pycache__/
 backend/**/__pycache__/
