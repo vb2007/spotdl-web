@@ -4577,8 +4577,9 @@ independently-found production bug from the same conversation)
   `startedAt` and refuses to start, so an aborted `@network` pass's still-running download isn't
   blamed on the next default run (review round 10).
 - **Every resync re-renders the job list, so expand only after the first one lands.**
-  `reloadPage()` swaps the list for "Loading…", which unmounts the rows and drops their
-  component-local expanded state. Waiting for "Loading…" to clear isn't enough: the 5 s fallback
+  `reloadPage()` swaps the list for "Loading…", which unmounts the rows. A job's expansion
+  survives (it lives in the store, `queue.toggleExpand`), but a track row's is component-local
+  and is lost. Waiting for "Loading…" to clear isn't enough: the 5 s fallback
   reload can clear it before a slow stream opens and re-lists. `openDashboard()` waits for the
   stream's response, then a `/api/jobs` response after it (review rounds 8–9).
 - **Playwright runs global teardown even when global setup throws** (it registers the teardown
