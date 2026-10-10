@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-10-10)
 
 ## Corpus Check
-- 237 files · ~256,939 words
+- 237 files · ~257,095 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2334 nodes · 3781 edges · 227 communities (171 shown, 56 thin omitted)
+- 2334 nodes · 3783 edges · 227 communities (171 shown, 56 thin omitted)
 - Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 398 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `509a4d6e`
+- Built from commit: `b9b7f50d`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -218,7 +218,7 @@
 - [[_COMMUNITY__fetch_username|_fetch_username]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `$lib/api` - 111 edges
+1. `$lib/api` - 112 edges
 2. `Track` - 93 edges
 3. `User` - 64 edges
 4. `Job` - 58 edges

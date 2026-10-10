@@ -1234,7 +1234,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_librarysortrun",
-      "community": 225,
+      "community": 166,
       "norm_label": "librarysortrun"
     },
     {
@@ -1244,7 +1244,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_rationale_17",
-      "community": 225,
+      "community": 166,
       "norm_label": "single-row table (v28) tracking the admin-triggered library sort & move sweep --"
     },
     {
@@ -1524,7 +1524,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_auth",
-      "community": 180,
+      "community": 2,
       "norm_label": "auth.py"
     },
     {
@@ -1534,7 +1534,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_routers_auth_loginrequest",
-      "community": 180,
+      "community": 2,
       "norm_label": "loginrequest"
     },
     {
@@ -1574,7 +1574,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_auth_py_session",
-      "community": 180,
+      "community": 2,
       "norm_label": "session"
     },
     {
@@ -1584,7 +1584,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_routers_auth_require_session",
-      "community": 180,
+      "community": 2,
       "norm_label": "require_session()"
     },
     {
@@ -1594,7 +1594,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "backend_app_routers_auth_require_admin",
-      "community": 180,
+      "community": 2,
       "norm_label": "require_admin()"
     },
     {
@@ -1614,7 +1614,7 @@
       "source_location": "L97",
       "_origin": "ast",
       "id": "backend_app_routers_auth_set_session_cookie",
-      "community": 180,
+      "community": 2,
       "norm_label": "_set_session_cookie()"
     },
     {
@@ -1624,7 +1624,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_auth_py_response",
-      "community": 180,
+      "community": 2,
       "norm_label": "response"
     },
     {
@@ -1634,7 +1634,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_app_routers_auth_login",
-      "community": 180,
+      "community": 2,
       "norm_label": "login()"
     },
     {
@@ -1644,7 +1644,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "backend_app_routers_auth_logout",
-      "community": 180,
+      "community": 2,
       "norm_label": "logout()"
     },
     {
@@ -1654,7 +1654,7 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "backend_app_routers_auth_me",
-      "community": 180,
+      "community": 2,
       "norm_label": "me()"
     },
     {
@@ -1664,7 +1664,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_app_routers_auth_rationale_40",
-      "community": 180,
+      "community": 2,
       "norm_label": "every owner-scoped route depends on this, not `current_session` directly --"
     },
     {
@@ -1684,7 +1684,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_health",
-      "community": 181,
+      "community": 32,
       "norm_label": "health.py"
     },
     {
@@ -1694,7 +1694,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_routers_health_health",
-      "community": 181,
+      "community": 32,
       "norm_label": "health()"
     },
     {
@@ -1704,7 +1704,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_health_py_response",
-      "community": 181,
+      "community": 32,
       "norm_label": "response"
     },
     {
@@ -2464,7 +2464,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_stream",
-      "community": 186,
+      "community": 128,
       "norm_label": "stream.py"
     },
     {
@@ -2474,7 +2474,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_app_routers_stream_event_stream",
-      "community": 186,
+      "community": 128,
       "norm_label": "_event_stream()"
     },
     {
@@ -2484,7 +2484,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_stream_py_request",
-      "community": 186,
+      "community": 128,
       "norm_label": "request"
     },
     {
@@ -2494,7 +2494,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_app_routers_stream_stream",
-      "community": 186,
+      "community": 128,
       "norm_label": "stream()"
     },
     {
@@ -2504,7 +2504,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "streamingresponse",
-      "community": 186,
+      "community": 128,
       "norm_label": "streamingresponse"
     },
     {
@@ -3234,7 +3234,7 @@
       "source_location": "L433",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_init",
-      "community": 1,
+      "community": 181,
       "norm_label": ".__init__()"
     },
     {
@@ -4074,7 +4074,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_expansion",
-      "community": 137,
+      "community": 62,
       "norm_label": "expansion.py"
     },
     {
@@ -4084,7 +4084,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_services_expansion_ensure_spotify_client",
-      "community": 137,
+      "community": 62,
       "norm_label": "_ensure_spotify_client()"
     },
     {
@@ -4094,7 +4094,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_app_services_expansion_expand",
-      "community": 137,
+      "community": 62,
       "norm_label": "expand()"
     },
     {
@@ -4104,7 +4104,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_expansion_py_song",
-      "community": 137,
+      "community": 62,
       "norm_label": "song"
     },
     {
@@ -4114,7 +4114,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_expansion_rationale_1",
-      "community": 137,
+      "community": 62,
       "norm_label": "thin wrapper around spotdl's url-expansion logic.  never import spotdl.utils.sea"
     },
     {
@@ -4124,7 +4124,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_app_services_expansion_rationale_24",
-      "community": 137,
+      "community": 62,
       "norm_label": "spotifyclient is a process-wide singleton that raises if .init() runs twice, so"
     },
     {
@@ -4134,7 +4134,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "backend_app_services_expansion_rationale_48",
-      "community": 137,
+      "community": 62,
       "norm_label": "turn a spotify url (track/album/playlist/artist) or a search term into songs."
     },
     {
@@ -4164,7 +4164,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "valueerror",
-      "community": 207,
+      "community": 11,
       "norm_label": "valueerror"
     },
     {
@@ -5824,7 +5824,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_track_listing",
-      "community": 207,
+      "community": 11,
       "norm_label": "track_listing.py"
     },
     {
@@ -5834,7 +5834,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_invalidlistparams",
-      "community": 207,
+      "community": 11,
       "norm_label": "invalidlistparams"
     },
     {
@@ -5844,7 +5844,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_list_tracks",
-      "community": 207,
+      "community": 11,
       "norm_label": "list_tracks()"
     },
     {
@@ -5854,7 +5854,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_session",
-      "community": 207,
+      "community": 11,
       "norm_label": "session"
     },
     {
@@ -5864,7 +5864,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_jobsourcetype",
-      "community": 207,
+      "community": 11,
       "norm_label": "jobsourcetype"
     },
     {
@@ -5874,7 +5874,7 @@
       "source_location": "L144",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_key",
-      "community": 207,
+      "community": 11,
       "norm_label": "_sort_key()"
     },
     {
@@ -5884,7 +5884,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_value",
-      "community": 207,
+      "community": 11,
       "norm_label": "_sort_value()"
     },
     {
@@ -5894,7 +5894,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_track",
-      "community": 207,
+      "community": 11,
       "norm_label": "track"
     },
     {
@@ -5904,7 +5904,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_rationale_1",
-      "community": 207,
+      "community": 11,
       "norm_label": "paginated/filtered/sorted/searchable track listing shared by `get /api/tracks` a"
     },
     {
@@ -5914,7 +5914,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth",
-      "community": 226,
+      "community": 181,
       "norm_label": "upstream_auth.py"
     },
     {
@@ -5924,7 +5924,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_login",
-      "community": 226,
+      "community": 181,
       "norm_label": "login()"
     },
     {
@@ -5934,7 +5934,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_fetch_username",
-      "community": 226,
+      "community": 181,
       "norm_label": "_fetch_username()"
     },
     {
@@ -5944,7 +5944,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_py_response",
-      "community": 226,
+      "community": 181,
       "norm_label": "response"
     },
     {
@@ -5954,7 +5954,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_rationale_14",
-      "community": 226,
+      "community": 181,
       "norm_label": "check credentials against vb2007.hu-api, and best-effort fetch the username via"
     },
     {
@@ -5964,7 +5964,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_rationale_41",
-      "community": 226,
+      "community": 181,
       "norm_label": "`isauthenticated`'s `get /user` reads the `vb-auth` cookie itself -- extracted"
     },
     {
@@ -6124,7 +6124,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_beat",
-      "community": 221,
+      "community": 131,
       "norm_label": "beat.py"
     },
     {
@@ -6134,7 +6134,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_stale_track_after",
-      "community": 221,
+      "community": 131,
       "norm_label": "stale_track_after()"
     },
     {
@@ -6144,7 +6144,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_py_timedelta",
-      "community": 221,
+      "community": 131,
       "norm_label": "timedelta"
     },
     {
@@ -6154,7 +6154,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_reclaim_stale_tracks",
-      "community": 221,
+      "community": 131,
       "norm_label": "_reclaim_stale_tracks()"
     },
     {
@@ -6164,7 +6164,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_dispatch_due_tracks",
-      "community": 221,
+      "community": 131,
       "norm_label": "dispatch_due_tracks()"
     },
     {
@@ -6174,7 +6174,7 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_archive_due_jobs",
-      "community": 221,
+      "community": 131,
       "norm_label": "archive_due_jobs()"
     },
     {
@@ -6184,7 +6184,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_18",
-      "community": 221,
+      "community": 131,
       "norm_label": "a track stuck in downloading/queued past this long means whatever was supposed t"
     },
     {
@@ -6194,7 +6194,7 @@
       "source_location": "L175",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_175",
-      "community": 221,
+      "community": 131,
       "norm_label": "hourly (not every 30s like dispatch_due_tracks -- this is housekeeping, and it"
     },
     {
@@ -6354,7 +6354,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 222,
+      "community": 131,
       "norm_label": "expand.py"
     },
     {
@@ -6364,7 +6364,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_enqueue_pending_tracks",
-      "community": 222,
+      "community": 131,
       "norm_label": "_enqueue_pending_tracks()"
     },
     {
@@ -6374,7 +6374,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_py_job",
-      "community": 222,
+      "community": 131,
       "norm_label": "job"
     },
     {
@@ -6384,7 +6384,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 222,
+      "community": 131,
       "norm_label": "expand_job()"
     },
     {
@@ -6394,7 +6394,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_rationale_17",
-      "community": 222,
+      "community": 131,
       "norm_label": "enqueues `job`'s tracks still `pending`. for a job whose expanded commit landed"
     },
     {
@@ -7017,7 +7017,7 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_capture_enqueue",
-      "community": 225,
+      "community": 204,
       "norm_label": "_capture_enqueue()"
     },
     {
@@ -7037,7 +7037,7 @@
       "source_location": "L351",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_breaker_trip_alert_is_enqueued_only_after_commit",
-      "community": 225,
+      "community": 204,
       "norm_label": "test_breaker_trip_alert_is_enqueued_only_after_commit()"
     },
     {
@@ -7047,7 +7047,7 @@
       "source_location": "L367",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_breaker_escalation_names_the_new_step",
-      "community": 225,
+      "community": 204,
       "norm_label": "test_breaker_escalation_names_the_new_step()"
     },
     {
@@ -7057,7 +7057,7 @@
       "source_location": "L380",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_a_rolled_back_trip_sends_nothing",
-      "community": 225,
+      "community": 204,
       "norm_label": "test_a_rolled_back_trip_sends_nothing()"
     },
     {
@@ -7067,7 +7067,7 @@
       "source_location": "L391",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_below_threshold_queues_nothing",
-      "community": 225,
+      "community": 204,
       "norm_label": "test_below_threshold_queues_nothing()"
     },
     {
@@ -7267,7 +7267,7 @@
       "source_location": "L610",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_library_alert_texts",
-      "community": 225,
+      "community": 166,
       "norm_label": "test_library_alert_texts()"
     },
     {
@@ -9277,7 +9277,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_events",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_events.py"
     },
     {
@@ -9287,7 +9287,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "backend_tests_test_events_fakesongtracker",
-      "community": 148,
+      "community": 32,
       "norm_label": "_fakesongtracker"
     },
     {
@@ -9297,7 +9297,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "backend_tests_test_events_fakesongtracker_init",
-      "community": 148,
+      "community": 32,
       "norm_label": ".__init__()"
     },
     {
@@ -9307,7 +9307,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_minimal_shape",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_track_event_minimal_shape()"
     },
     {
@@ -9317,7 +9317,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_includes_optional_fields",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_track_event_includes_optional_fields()"
     },
     {
@@ -9327,7 +9327,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_omits_metadata_when_not_given",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_track_event_omits_metadata_when_not_given()"
     },
     {
@@ -9337,7 +9337,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_job_event_shape",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_job_event_shape()"
     },
     {
@@ -9347,7 +9347,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_make_progress_callback_publishes_downloading_progress",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_make_progress_callback_publishes_downloading_progress()"
     },
     {
@@ -9357,7 +9357,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_adds_timestamp_and_serializes_json",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_adds_timestamp_and_serializes_json()"
     },
     {
@@ -9367,7 +9367,7 @@
       "source_location": "L115",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_swallows_redis_errors",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_swallows_redis_errors()"
     },
     {
@@ -9377,7 +9377,7 @@
       "source_location": "L126",
       "_origin": "ast",
       "id": "backend_tests_test_events_test_publish_track_event_requires_owner",
-      "community": 148,
+      "community": 32,
       "norm_label": "test_publish_track_event_requires_owner()"
     },
     {
@@ -9387,7 +9387,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "backend_tests_test_events_rationale_50",
-      "community": 148,
+      "community": 32,
       "norm_label": "a call site with no song metadata to offer (job-level actions, tests) must not"
     },
     {
@@ -9397,7 +9397,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "backend_tests_test_events_rationale_127",
-      "community": 148,
+      "community": 32,
       "norm_label": "the whole enforcement mechanism (v17): a call site that forgets the owner fails"
     },
     {
@@ -12297,7 +12297,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub",
-      "community": 128,
+      "community": 137,
       "norm_label": "_fakepubsub"
     },
     {
@@ -12307,7 +12307,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_init",
-      "community": 128,
+      "community": 137,
       "norm_label": ".__init__()"
     },
     {
@@ -12317,7 +12317,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_subscribe",
-      "community": 128,
+      "community": 137,
       "norm_label": ".subscribe()"
     },
     {
@@ -12327,7 +12327,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_psubscribe",
-      "community": 128,
+      "community": 137,
       "norm_label": ".psubscribe()"
     },
     {
@@ -12337,7 +12337,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_unsubscribe",
-      "community": 128,
+      "community": 137,
       "norm_label": ".unsubscribe()"
     },
     {
@@ -12347,7 +12347,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_punsubscribe",
-      "community": 128,
+      "community": 137,
       "norm_label": ".punsubscribe()"
     },
     {
@@ -12357,7 +12357,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_get_message",
-      "community": 128,
+      "community": 137,
       "norm_label": ".get_message()"
     },
     {
@@ -12367,7 +12367,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_aclose",
-      "community": 128,
+      "community": 137,
       "norm_label": ".aclose()"
     },
     {
@@ -12377,7 +12377,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient",
-      "community": 128,
+      "community": 137,
       "norm_label": "_fakeredisclient"
     },
     {
@@ -12387,7 +12387,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_init",
-      "community": 128,
+      "community": 137,
       "norm_label": ".__init__()"
     },
     {
@@ -12397,7 +12397,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_pubsub",
-      "community": 128,
+      "community": 137,
       "norm_label": ".pubsub()"
     },
     {
@@ -12407,7 +12407,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_aclose",
-      "community": 128,
+      "community": 137,
       "norm_label": ".aclose()"
     },
     {
@@ -13961,10 +13961,20 @@
       "norm_label": "waitforjob()"
     },
     {
+      "label": "cancelUnlessSettled()",
+      "file_type": "code",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L183",
+      "_origin": "ast",
+      "id": "frontend_e2e_support_stack_cancelunlesssettled",
+      "community": 29,
+      "norm_label": "cancelunlesssettled()"
+    },
+    {
       "label": "isSettled()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L180",
+      "source_location": "L196",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_issettled",
       "community": 29,
@@ -13974,7 +13984,7 @@
       "label": "expectedAttemptVia()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L187",
+      "source_location": "L203",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_expectedattemptvia",
       "community": 29,
@@ -14778,7 +14788,7 @@
       "source_location": "L252",
       "_origin": "ast",
       "id": "frontend_src_lib_api_outputsettings",
-      "community": 29,
+      "community": 6,
       "norm_label": "outputsettings"
     },
     {
@@ -51532,6 +51542,17 @@
       "source_location": "L3",
       "weight": 1.0,
       "source": "frontend_e2e_02_submit_e2e",
+      "target": "frontend_e2e_support_stack_cancelunlesssettled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/02-submit.e2e.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_e2e_02_submit_e2e",
       "target": "frontend_e2e_support_stack_ledger_tracks",
       "confidence_score": 1.0
     },
@@ -52774,7 +52795,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/network.e2e.ts",
-      "source_location": "L13",
+      "source_location": "L14",
       "weight": 1.0,
       "source": "frontend_e2e_network_e2e",
       "target": "frontend_e2e_support_env",
@@ -52785,7 +52806,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/network.e2e.ts",
-      "source_location": "L13",
+      "source_location": "L14",
       "weight": 1.0,
       "source": "frontend_e2e_network_e2e",
       "target": "frontend_e2e_support_env_requireenv",
@@ -52811,6 +52832,17 @@
       "weight": 1.0,
       "source": "frontend_e2e_network_e2e",
       "target": "frontend_e2e_support_stack_admin_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/network.e2e.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "frontend_e2e_network_e2e",
+      "target": "frontend_e2e_support_stack_cancelunlesssettled",
       "confidence_score": 1.0
     },
     {
@@ -52873,7 +52905,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/network.e2e.ts",
-      "source_location": "L14",
+      "source_location": "L15",
       "weight": 1.0,
       "source": "frontend_e2e_network_e2e",
       "target": "frontend_e2e_support_ui",
@@ -52884,7 +52916,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/network.e2e.ts",
-      "source_location": "L14",
+      "source_location": "L15",
       "weight": 1.0,
       "source": "frontend_e2e_network_e2e",
       "target": "frontend_e2e_support_ui_jobtoggle",
@@ -52895,7 +52927,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/network.e2e.ts",
-      "source_location": "L14",
+      "source_location": "L15",
       "weight": 1.0,
       "source": "frontend_e2e_network_e2e",
       "target": "frontend_e2e_support_ui_submiturl",
@@ -52906,7 +52938,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/network.e2e.ts",
-      "source_location": "L14",
+      "source_location": "L15",
       "weight": 1.0,
       "source": "frontend_e2e_network_e2e",
       "target": "frontend_e2e_support_ui_tracktoggle",
@@ -53128,7 +53160,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L187",
+      "source_location": "L183",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack",
+      "target": "frontend_e2e_support_stack_cancelunlesssettled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L203",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_expectedattemptvia",
@@ -53148,7 +53190,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L180",
+      "source_location": "L196",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_issettled",
@@ -63131,5 +63173,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "b9b7f50d25030015ca3bafa424140cf3630e7462"
+  "built_at_commit": "0ca66b8e5a00f85ba9f1b9a9837efaae32ee1bb8"
 }
