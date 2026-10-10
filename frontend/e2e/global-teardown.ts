@@ -1,9 +1,9 @@
 import { existsSync } from 'node:fs';
 import {
-	SEED_FILE,
+	RUN_FILE,
 	adminIdentity,
 	normalizeEmail,
-	readSeed,
+	readRun,
 	stackPython,
 	userIdentity
 } from './support/stack';
@@ -14,8 +14,8 @@ import {
  * beat reclaim records `failed` with no path and isn't counted. The `@network` spec is the one
  * deliberate exception. */
 export default async function globalTeardown(): Promise<void> {
-	if (process.env.E2E_NETWORK === '1' || !existsSync(SEED_FILE)) return;
-	const { startedAt } = readSeed();
+	if (process.env.E2E_NETWORK === '1' || !existsSync(RUN_FILE)) return;
+	const { startedAt } = readRun();
 	const count = stackPython(
 		`
 import sys

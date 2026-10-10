@@ -9,6 +9,9 @@ export const AUTH_DIR = path.join(E2E_DIR, '.auth');
 export const ADMIN_STATE = path.join(AUTH_DIR, 'admin.json');
 export const USER_STATE = path.join(AUTH_DIR, 'user.json');
 const SEED_FILE = path.join(AUTH_DIR, 'seed.json');
+/** Written first by global setup (and removed before it), so teardown never checks a window
+ * belonging to an earlier run, even when this run's setup failed part-way. */
+const RUN_FILE = path.join(AUTH_DIR, 'run.json');
 
 export interface Identity {
 	email: string;
@@ -58,8 +61,6 @@ export interface SeedJob {
 }
 
 export interface Seed {
-	/** Database time when the run started, for the teardown's zero-download check. */
-	startedAt: string;
 	admin: SeedJob;
 	user: SeedJob;
 	/** An admin-owned track whose attempts recorded a real network path (left by an earlier
@@ -72,7 +73,16 @@ export function readSeed(): Seed {
 	return JSON.parse(readFileSync(SEED_FILE, 'utf8')) as Seed;
 }
 
-export { SEED_FILE };
+export interface Run {
+	/** Database time when the run started, for the teardown's zero-download check. */
+	startedAt: string;
+}
+
+export function readRun(): Run {
+	return JSON.parse(readFileSync(RUN_FILE, 'utf8')) as Run;
+}
+
+export { RUN_FILE, SEED_FILE };
 
 /** Runs a Python snippet inside a backend service: by default `worker-meta`, which has the app
  * code, the dev database and both file roots (`/downloads` and the library) mounted -- `api`

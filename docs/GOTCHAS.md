@@ -4561,5 +4561,9 @@ independently-found production bug from the same conversation)
   case it was meant for (review round 4). Teardown now asks the worker
   (`celery_app.control.inspect().active()`) and fails if any running `download_track` belongs to
   an e2e identity, or if worker-dl doesn't answer.
+- **Playwright runs global teardown even when global setup throws** (it registers the teardown
+  first). Setup therefore deletes the previous run's `run.json`/`seed.json` up front and writes
+  `run.json` (`startedAt`) before submitting anything, so teardown never checks an earlier run's
+  window (review round 5).
 - **Cleanup that guards against a live download uses its own request context**
   (`cancelUnlessSettled`). A test-level timeout can close `page.request` before a `finally` runs.

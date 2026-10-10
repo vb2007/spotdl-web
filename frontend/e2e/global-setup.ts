@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { request, type APIRequestContext, type FullConfig } from '@playwright/test';
 import type { Job, JobTracksPage } from '../src/lib/api';
 import { loadE2eEnv } from './support/env';
@@ -6,6 +6,7 @@ import {
 	ADMIN_STATE,
 	AUTH_DIR,
 	LEDGER_TRACKS,
+	RUN_FILE,
 	SEED_FILE,
 	USER_STATE,
 	adminIdentity,
@@ -110,6 +111,9 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 	const baseURL = config.projects[0].use.baseURL;
 	if (!baseURL) throw new Error('no baseURL configured');
 	mkdirSync(AUTH_DIR, { recursive: true });
+	// Teardown runs even when setup throws: neither file may still describe an earlier run.
+	rmSync(RUN_FILE, { force: true });
+	rmSync(SEED_FILE, { force: true });
 
 	// Every job a default run creates must resolve from the ledger. Refuse to start rather than
 	// let one become a real download.
@@ -124,6 +128,8 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 		'from sqlalchemy import text\nfrom app.db import SessionLocal\n' +
 			'print(SessionLocal().execute(text("select now()")).scalar().isoformat())'
 	);
+	// Before the first job is submitted, so teardown checks this run's window however setup ends.
+	writeFileSync(RUN_FILE, JSON.stringify({ startedAt }));
 
 	const admin = await login(baseURL, adminIdentity(), true, ADMIN_STATE);
 	const user = await login(baseURL, userIdentity(), false, USER_STATE);
@@ -134,7 +140,6 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 			seedJob(user, LEDGER_TRACKS.userSeed)
 		]);
 		const seed: Seed = {
-			startedAt,
 			admin: adminSeed,
 			user: userSeed,
 			realPath: await findRealPathTrack(admin)
