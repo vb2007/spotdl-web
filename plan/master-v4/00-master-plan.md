@@ -132,6 +132,7 @@ Safety first, then correctness, then visibility, then UI. One feature per versio
 | **v35** | `dev-correctness-sweep` | Bounded debt, each item with its own commit and bullet: consistent attempt counting and numbering; `network_path`, proxy, error type and duration exposed in the attempts API; the redelivery guard for completed tracks; a warning-vs-failure flag on attempt messages; a streamed file download instead of a blob; image `.pyc` hygiene; live counts for the tracks-scope state filter |
 | **v36** | `dev-alerting` | Matrix alerts from the app: breaker trips, failure-class spikes (an early warning that YouTube has changed something), a stale beat heartbeat, and the library sweep's outcome. Per-category cooldown, admin toggles, a test-alert button, every message redacted |
 | **v37** | `dev-e2e-harness` | A committed Playwright suite against the local stack. It covers the baseline flows the redesign must not break, including a two-identity cross-user UI check. Runs locally only |
+| **v38** | `dev-moved-file-dedup` | *(Inserted 2026-10-10, see Amendments.)* A resubmitted track whose file the library sort has moved must resolve as a duplicate, never re-download, and stay downloadable to disk from its library path. `worker-dl` gets the library mount read-only, and dedup fails safe when a root looks unmounted |
 | **v39** | `dev-ui-audit` | An impeccable `critique` + `audit` of every route and component, desktop and mobile. Produces `v39-ui-audit-report.md`, with ranked findings each assigned to a later slice. No component changes |
 | **v40** | `dev-ambient-field` | A cursor-following blurred glow replacing the static gradient. GPU-only and rAF-eased, with an idle drift for touch, static under reduced motion, paused when the tab is hidden. Reconciled with DESIGN.md's amber rule |
 | **v41** | `dev-track-detail-redesign` | Restructure the job and track expanded detail through impeccable. Same information, calmer presentation: a summary strip, an aligned grid, one action area, an attempt timeline with collapsed repeats, clamped long errors, and warnings distinct from failures |
@@ -156,6 +157,9 @@ Safety first, then correctness, then visibility, then UI. One feature per versio
 - **v36 next to v33**, because both share the Matrix channel. v44's breaker history reuses v36's
   trip hook.
 - **v37 before any UI change**, so v40–v47 have a regression net instead of a by-eye check.
+- **v38 right after v37**, because it restores a master-v3 invariant (a move never causes a
+  re-download), and every day it waits is real rate-limit exposure. v37's suite is its regression
+  net.
 - **v39 audits before v40–v43 redesign**, so redesign scope is evidence-led, and v47 has a
   baseline to score against.
 - **v44 after the redesign**, so the new page is born in the new system rather than restyled later.
@@ -308,3 +312,10 @@ here rather than edited into it, so the original record stays readable.
   403", with 18 backend assertions agreeing). The 404-not-403 rule covers a non-owner's direct-id
   access, not admin endpoints. On the owner's direction the spec asserts 403, and no backend
   change was made.
+- **2026-10-10, v38 inserted (owner-directed): moved-file dedup.** v37 found that `worker-dl`
+  mounts only `/downloads`, so `dedup.is_already_downloaded` can't see a file v28's sort moved
+  into the library, and a resubmitted moved track downloads again. The owner directed a fix slice
+  as the next version, with every later slice renumbered by one rather than a `v37.1` patch:
+  the old v38–v47 are now **v39–v48** (files renamed, every reference shifted, releases
+  `4.39.0`–`4.48.0`). Required behavior: no re-download for the same or another user, and the
+  file stays downloadable to disk from its library path. Detail in `v38-moved-file-dedup.md`.

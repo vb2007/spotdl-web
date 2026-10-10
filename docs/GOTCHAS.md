@@ -4565,7 +4565,8 @@ independently-found production bug from the same conversation)
   into the library root. `dedup.is_already_downloaded("3H3cOQ6LBLSvmcaV7QkZEu")` (a sorted
   Discovery track) returns the library path in `worker-meta` and `None` in `worker-dl`, so
   resubmitting any moved track would re-download it. That contradicts the master-v3 invariant
-  that a move must never cause a re-download. Reported to the owner in the v37 PR.
+  that a move must never cause a re-download. Reported to the owner in the v37 PR. *(2026-10-10: scheduled
+  as v38, `plan/master-v4/v38-moved-file-dedup.md`; later slices renumbered.)*
 - **The suite refuses a non-loopback `E2E_BASE_URL`** (review round 2). The preflight and the
   teardown read the local stack, so driving another origin would leave them guarding the wrong one.
 - **An in-flight download is invisible to the DB.** An attempt row is written only when the

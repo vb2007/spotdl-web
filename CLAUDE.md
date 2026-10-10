@@ -328,6 +328,7 @@ Detail in `plan/master-v3/`, findings in `docs/GOTCHAS.md`.
 | v35 | `dev-correctness-sweep` | Attempt counting, `network_path` in API, redelivery guard, warning flag, streamed download, `.pyc`, state counts |
 | v36 | `dev-alerting` | Matrix alerts: breaker, failure spikes, stale beat, library sweep |
 | v37 | `dev-e2e-harness` | Committed Playwright suite against the local stack (local-only) |
+| v38 | `dev-moved-file-dedup` | A moved (library-sorted) track never re-downloads and stays downloadable; `worker-dl` sees the library `:ro` |
 | v39 | `dev-ui-audit` | impeccable critique + audit → `v39-ui-audit-report.md`; owner approves direction |
 | v40 | `dev-ambient-field` | Cursor-following background glow |
 | v41 | `dev-track-detail-redesign` | Job/track expanded detail — same information, calmer presentation |
