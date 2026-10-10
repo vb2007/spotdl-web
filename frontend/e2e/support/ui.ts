@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page, type Response } from '@playwright/test';
 import type { Job } from '../../src/lib/api';
 import type { Identity } from './stack';
 
@@ -15,6 +15,30 @@ export async function loginViaUi(page: Page, identity: Identity): Promise<void> 
 export async function logoutViaUi(page: Page): Promise<void> {
 	await page.getByRole('button', { name: 'disconnect' }).click();
 	await expect(page.getByRole('button', { name: 'CONNECT', exact: true })).toBeVisible();
+}
+
+/** Loads the dashboard and waits until the stream's first resync has landed. Every resync
+ * re-renders the job list (its "Loading…" swap unmounts the rows), so anything expanded before
+ * it would collapse again. "Loading…" alone isn't a safe signal: the page's 5s fallback reload
+ * can clear it before a slow stream opens and re-lists. */
+export async function openDashboard(page: Page): Promise<void> {
+	let streamOpened = false;
+	let resynced = false;
+	const onResponse = (r: Response) => {
+		if (r.request().method() !== 'GET') return;
+		const path = new URL(r.url()).pathname;
+		if (path === '/api/stream') streamOpened = true;
+		else if (streamOpened && path === '/api/jobs') resynced = true;
+	};
+	page.on('response', onResponse);
+	try {
+		await page.goto('/');
+		await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
+		await expect.poll(() => resynced, { message: "the stream's first resync" }).toBe(true);
+		await expect(page.getByText('Loading…')).toHaveCount(0);
+	} finally {
+		page.off('response', onResponse);
+	}
 }
 
 /** The expand/collapse toggle of a job row, by the title in its accessible name. */

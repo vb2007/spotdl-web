@@ -1,7 +1,7 @@
 import { expect, request as apiRequest, test, type Page } from '@playwright/test';
 import type { Job, Track } from '../src/lib/api';
 import { ADMIN_STATE, USER_STATE, normalizeEmail, readSeed, userIdentity } from './support/stack';
-import { jobToggle, literal } from './support/ui';
+import { jobToggle, literal, openDashboard } from './support/ui';
 
 test.use({ storageState: USER_STATE });
 
@@ -57,7 +57,7 @@ test("a user never sees another identity's job titles", async ({ page, request, 
 		}
 	};
 
-	await page.goto('/');
+	await openDashboard(page);
 	// Jobs scope: the user's own row is there, the admin's isn't.
 	await expect(jobToggle(page, user.title)).toBeVisible();
 	await expectNoForeignText();

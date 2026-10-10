@@ -12,7 +12,7 @@ import {
 	waitForJob
 } from './support/stack';
 import { requireEnv } from './support/env';
-import { jobToggle, submitUrl, trackToggle } from './support/ui';
+import { jobToggle, openDashboard, submitUrl, trackToggle } from './support/ui';
 
 test.use({ storageState: ADMIN_STATE, acceptDownloads: true });
 
@@ -40,7 +40,7 @@ test('a real download completes, records its network path, and serves its file @
 	// real download, so note the stack's clock first.
 	const startedAt = Number(stackPython('import time; print(time.time())'));
 
-	await page.goto('/');
+	await openDashboard(page);
 	const created = await submitUrl(page, TRACK_URL);
 	try {
 		// The retry ladder may legitimately hold it for a while; dev's LADDER_SECONDS keeps it short.
@@ -58,7 +58,7 @@ test('a real download completes, records its network path, and serves its file @
 		const completed = attempts.find((a) => a.outcome === 'completed');
 		expect(completed?.network_path, 'a real download records the path it took').toBeTruthy();
 
-		await page.reload();
+		await openDashboard(page);
 		await jobToggle(page, job.title).click();
 		await trackToggle(page, job.title, track.title ?? '').click();
 		// Attempts render oldest first, so a retried download's completed row is its own index.

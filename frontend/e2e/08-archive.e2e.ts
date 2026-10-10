@@ -1,7 +1,7 @@
 import { expect, request, test, type APIRequestContext } from '@playwright/test';
 import type { Job } from '../src/lib/api';
 import { ADMIN_STATE, readSeed } from './support/stack';
-import { jobRow, jobToggle } from './support/ui';
+import { jobRow, jobToggle, openDashboard } from './support/ui';
 
 test.use({ storageState: ADMIN_STATE });
 
@@ -24,7 +24,7 @@ test('archive and unarchive round trip, with show archived', async ({ page, base
 	expect(initial.get(admin.jobId)).toBe(false);
 
 	try {
-		await page.goto('/');
+		await openDashboard(page);
 		const row = jobRow(page, admin.title);
 		await expect(row).toHaveCount(1);
 

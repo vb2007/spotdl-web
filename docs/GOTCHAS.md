@@ -4574,6 +4574,11 @@ independently-found production bug from the same conversation)
   case it was meant for (review round 4). Teardown now asks the worker
   (`celery_app.control.inspect().active()`) and fails if any running `download_track` belongs to
   an e2e identity, or if worker-dl doesn't answer.
+- **Every resync re-renders the job list, so expand only after the first one lands.**
+  `reloadPage()` swaps the list for "Loading…", which unmounts the rows and drops their
+  component-local expanded state. Waiting for "Loading…" to clear isn't enough: the 5 s fallback
+  reload can clear it before a slow stream opens and re-lists. `openDashboard()` waits for the
+  stream's response, then a `/api/jobs` response after it (review rounds 8–9).
 - **Playwright runs global teardown even when global setup throws** (it registers the teardown
   first). Setup therefore deletes the previous run's `run.json`/`seed.json` up front and writes
   `run.json` (`startedAt`) before submitting anything, so teardown never checks an earlier run's

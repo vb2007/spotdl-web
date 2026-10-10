@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Job } from '../src/lib/api';
 import { ADMIN_STATE, LEDGER_TRACKS, cancelUnlessSettled, spotifyTrackUrl } from './support/stack';
-import { jobRow, jobToggle, submitUrl } from './support/ui';
+import { jobRow, jobToggle, openDashboard, submitUrl } from './support/ui';
 
 test.use({ storageState: ADMIN_STATE });
 
@@ -18,30 +18,18 @@ test('a submitted URL appears without a refetch, settles, and its counts match t
 
 	// v23.1: the new job reaches the Jobs list from its own SSE events, never by re-listing.
 	// Every stream (re)open legitimately re-lists, so streams are counted from before the page
-	// loads, and listings only count once the first open's own resync has landed. (Waiting on
-	// "Loading…" alone isn't enough: the 5s fallback reload can clear it before a slow stream
-	// opens and re-lists.)
+	// loads, and listings only once the first open's own resync has landed (`openDashboard`).
 	let streamOpens = 0;
-	let streamOpened = false;
-	let resynced = false;
 	let armed = false;
 	const listings: string[] = [];
-	const isListing = (url: string) => new URL(url).pathname === '/api/jobs';
 	page.on('request', (r) => {
 		if (r.method() !== 'GET') return;
-		if (new URL(r.url()).pathname === '/api/stream') streamOpens++;
-		if (armed && isListing(r.url())) listings.push(r.url());
-	});
-	page.on('response', (r) => {
-		if (r.request().method() !== 'GET') return;
-		if (new URL(r.url()).pathname === '/api/stream') streamOpened = true;
-		else if (streamOpened && isListing(r.url())) resynced = true;
+		const path = new URL(r.url()).pathname;
+		if (path === '/api/stream') streamOpens++;
+		if (armed && path === '/api/jobs') listings.push(r.url());
 	});
 
-	await page.goto('/');
-	await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
-	await expect.poll(() => resynced, { message: "the stream's first resync" }).toBe(true);
-	await expect(page.getByText('Loading…')).toHaveCount(0);
+	await openDashboard(page);
 	const opensAtArm = streamOpens;
 	armed = true;
 

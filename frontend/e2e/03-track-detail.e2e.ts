@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { TrackAttempt } from '../src/lib/api';
 import { ADMIN_STATE, expectedAttemptVia, readSeed, type SeedJob } from './support/stack';
-import { jobToggle, trackToggle } from './support/ui';
+import { jobToggle, openDashboard, trackToggle } from './support/ui';
 
 test.use({ storageState: ADMIN_STATE });
 
@@ -39,7 +39,7 @@ test('expanding a job and a track loads attempt history with its network path', 
 	const { admin, realPath } = readSeed();
 
 	// The admin's seed job: one track, resolved from the ledger, so no network path.
-	await page.goto('/');
+	await openDashboard(page);
 	await checkAttemptHistory(page, admin);
 	await expect(
 		page.getByRole('list', { name: 'attempt history' }).getByRole('listitem').first()
@@ -54,10 +54,7 @@ test('expanding a job and a track loads attempt history with its network path', 
 		'no admin-owned track with a recorded network path: run `npm run test:e2e:network` once'
 	).not.toBeNull();
 	if (realPath === null) return;
-	await page.goto('/');
-	// The stream's first resync re-renders the rows; let it land before expanding anything.
-	await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
-	await expect(page.getByText('Loading…')).toHaveCount(0);
+	await openDashboard(page);
 	await page.getByRole('button', { name: 'show archived' }).click();
 	// The search re-lists after a debounce and re-renders the rows, so expanding before its
 	// answer lands would be undone.
