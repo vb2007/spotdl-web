@@ -35,7 +35,7 @@ pipeline uses.
 - **Admin settings.** Per-category on/off toggles in the `app_settings` singleton (reuse its
   get-or-create), plus a **"send test alert"** button in `/settings` (`POST
   /api/settings/alerts/test`, admin-only, non-admin 404). Minimal UI in the existing settings style.
-  The visual redesign of settings is v42.
+  The visual redesign of settings is v43.
 
 ## Categories
 
@@ -59,7 +59,7 @@ pipeline uses.
 ## Out of scope
 
 - Per-user notifications (job finished), email, or push to anything except the one admin room.
-- An alert history UI (v43 shows breaker history; alert history isn't planned).
+- An alert history UI (v44 shows breaker history; alert history isn't planned).
 - Changing the breaker or ladder behavior.
 
 ## Deploy notes

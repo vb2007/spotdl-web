@@ -1,7 +1,7 @@
-# v44 — Complete Keyboard Navigation
+# v45 — Complete Keyboard Navigation
 
 Branch: `dev-keyboard-navigation` → PR into `main`
-Version: `4.44.0`
+Version: `4.45.0`
 
 ## Scope
 
@@ -12,7 +12,7 @@ TrackRow is its own tab stop, so reaching the 300th track is 300 Tabs. Focus is 
 cancelled or archived row disappears.
 
 This version makes every action reachable and fast from the keyboard, on the **final** markup of
-v40–v43. Design the help overlay and focus visuals through the impeccable skill (in the established
+v41–v44. Design the help overlay and focus visuals through the impeccable skill (in the established
 system). The interaction model itself is specified below.
 
 ## Target layout: Hungarian QWERTZ
@@ -46,7 +46,7 @@ Rules that follow from it:
    and `/` (search) are kept as aliases for US habits, but each has a **letter primary** that's
    one keystroke on Hungarian.
 5. **The help overlay shows what a Hungarian user actually presses.** For a symbol, it shows the
-   Hungarian combination (e.g. `?` shown as "Shift + ,"). v45 localizes the labels. v44 renders the
+   Hungarian combination (e.g. `?` shown as "Shift + ,"). v46 localizes the labels. v45 renders the
    layout hint in the help overlay only, and doesn't try to detect the layout:
    `navigator.keyboard.getLayoutMap()` is Chromium-only, so it's at most a progressive
    enhancement.
@@ -85,7 +85,7 @@ is one tab stop and arrows move within it.
 | `←` | Collapse, or move from a track back to its parent job |
 | `r` | Retry now (when allowed) |
 | `d` | Download file (when allowed) |
-| `x` | Cancel job or track, **through v42's confirmation** |
+| `x` | Cancel job or track, **through v43's confirmation** |
 | `a` | Archive / unarchive (job) |
 | `b` | Bump priority. `-` (unshifted) lowers priority by one, `Shift+B` raises it by one. `+` (Shift+3) is accepted as an alias |
 | `e` | Toggle the attempt-history ("events") view of an expanded track, and collapsed repeats |
@@ -96,7 +96,7 @@ sort, and `Shift+A` toggles "show archived". "Clear log" is reachable via its bu
 confirmation. No single-key binding for a bulk destructive action.
 
 **Settings / account / library / login:** logical tab order, `Enter` submits forms, and confirmation
-dialogs are keyboard-complete (from v42). No extra single-key shortcuts are needed there beyond
+dialogs are keyboard-complete (from v43). No extra single-key shortcuts are needed there beyond
 the global ones.
 
 Keys are a proposal. Adjust where they collide with an existing behavior, **keeping rules 1–5
@@ -106,7 +106,7 @@ a second hand-maintained list.
 
 ## Focus management
 
-- **Skip link** ("Skip to queue") as the first focusable element, targeting v41's landmark.
+- **Skip link** ("Skip to queue") as the first focusable element, targeting v42's landmark.
 - A row removed by an action (cancel, archive, or filtered out by an SSE update) moves focus to the
   next row, or the previous one if it was last. Never to `body`.
 - "Load more" moves focus to the first newly loaded row.
@@ -118,7 +118,7 @@ a second hand-maintained list.
 
 ## User control (WCAG 2.1.4)
 
-A **"Keyboard shortcuts" toggle on `/account`** (the section v42 prepared). Off disables every
+A **"Keyboard shortcuts" toggle on `/account`** (the section v43 prepared). Off disables every
 single-character shortcut. Tab, arrow keys inside lists, Enter and Esc keep working. Store it
 per user server-side (on the `users` row or the per-user settings that already exist for
 retention), so it follows the user across devices. Default: **on**.
@@ -168,4 +168,4 @@ retention), so it follows the user across devices. Default: **on**.
       No `aria-hidden` focusable elements.
 - [ ] Cross-user: the shortcut preference endpoint is covered by `test_ownership.py`.
 - [ ] `pytest`, `npm run lint`, `npm run check`, `npm run build` and `npm run test:e2e` pass. Both
-      version files read `4.44.0`. `uv lock` is in sync. `graphify update .` has been run.
+      version files read `4.45.0`. `uv lock` is in sync. `graphify update .` has been run.

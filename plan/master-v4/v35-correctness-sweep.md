@@ -7,7 +7,7 @@ Version: `4.35.0`
 
 A bounded set of real defects found while planning master v4. The list below is closed. Nothing
 else gets folded in. **Each item is its own commit (`v35: (a) …`) and has its own Done-when
-bullet.** They land before the redesign (v40), because the redesign renders this data and should
+bullet.** They land before the redesign (v41), because the redesign renders this data and should
 render it correctly.
 
 ## Items
@@ -46,7 +46,7 @@ Fix:
 - Expose `network_path` (direct-ipv4 / direct-ipv6 / proxy), the proxy's **redacted** label (never
   its URL, per `proxies.redact()`), `error_type`, and a duration (`finished_at - started_at`).
 - Update `TrackRow.svelte`'s via-label to use it. A minimal text change only: the visual redesign
-  is v40.
+  is v41.
 
 ### (c) Redelivery must not rewrite a completed track
 
@@ -62,7 +62,7 @@ v26's tag-repair notes are stored in `error_message` on **completed** attempts, 
 failure red (`TrackRow.svelte:199-200,408-409`; `docs/GOTCHAS.md:3307-3315`). Add an explicit
 severity to the attempt (e.g. a `message_kind` of `error` or `warning`, or a separate
 `warning_message` column). Set it at the write site, never inferred from text. Render warnings in
-a neutral or `--waiting` style. The full visual treatment is v40.
+a neutral or `--waiting` style. The full visual treatment is v41.
 
 ### (e) Streamed file download
 
@@ -92,8 +92,8 @@ existing chips with the minimal visual change.
 
 ## Out of scope
 
-- Any visual redesign of TrackRow or QueueControls (v40/v41).
-- v31's open "file missing after COMPLETED" question (v47 observes it).
+- Any visual redesign of TrackRow or QueueControls (v41/v42).
+- v31's open "file missing after COMPLETED" question (v48 observes it).
 - Retuning `YOUTUBE_PLAYER_CLIENTS`.
 
 ## Deploy notes

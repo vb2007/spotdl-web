@@ -4495,7 +4495,7 @@ independently-found production bug from the same conversation)
   queued" rows, which is where a dead worker-dl shows today.
 - **Non-admin `/settings` already shows "Admin access required" per panel.** The new Alerts panel
   does the same as the existing Output/Library panels (the page itself isn't admin-gated). The
-  settings redesign is v42.
+  settings redesign is v43.
 - **Test-alert is 404 for a non-admin, per the plan.** Every other admin-only route answers 403
   (`require_admin`). The alert settings GET/PATCH keep 403 to match their siblings.
 

@@ -63,7 +63,7 @@ until its `job.state` event, and a failed-zero-track job never reappears at all.
 
 ## Out of scope
 
-- Any Waterfall redesign (v41).
+- Any Waterfall redesign (v42).
 - Replaying missed SSE events. The v08 contract stays: resync full state on (re)connect.
 
 ## Done when

@@ -204,7 +204,7 @@ File-sourced proxies come back on `worker-meta`'s next boot through `sync_from_f
 A committed Playwright suite (`frontend/e2e/`, config in `frontend/playwright.config.ts`) drives a
 real Chromium against the **running local stack**: the dev `web` origin, the real backend, the dev
 database, real SSE. Nothing is mocked and nothing is started for you. It's the regression net for
-the v38–v46 UI rework, so run it before calling any frontend change done.
+the v39–v47 UI rework, so run it before calling any frontend change done.
 
 **One-time setup**
 
@@ -248,9 +248,9 @@ else: setup and teardown check the local stack's database, so the browser must d
   a track that's already there rather than passing on a duplicate.
 
 **Writing specs:** select by role, label and accessible name (`getByRole`, `getByLabel`), never
-by CSS class. The v39–v42 restyles must not rewrite the suite. If an element has no accessible
+by CSS class. The v40–v43 restyles must not rewrite the suite. If an element has no accessible
 name, give it one in the component: that's an accessibility fix, not a test hack. Every project
-pins `locale: 'en-US'`, because accessible names are text. v45 adds its own `hu` project rather
+pins `locale: 'en-US'`, because accessible names are text. v46 adds its own `hu` project rather
 than changing these. Specs are named `*.e2e.ts` so vitest's default `*.spec.ts`/`*.test.ts`
 include never picks them up.
 
