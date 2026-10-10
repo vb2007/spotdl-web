@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-10-10)
 
 ## Corpus Check
-- 233 files · ~250,686 words
+- 233 files · ~250,863 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2338 nodes · 3791 edges · 225 communities (168 shown, 57 thin omitted)
+- 2338 nodes · 3793 edges · 221 communities (165 shown, 56 thin omitted)
 - Extraction: 89% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 398 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `97ef3eda`
+- Built from commit: `4e9ef8ae`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -206,10 +206,6 @@
 - [[_COMMUNITY_alerts.py|alerts.py]]
 - [[_COMMUNITY_sent|sent]]
 - [[_COMMUNITY_ApiError|ApiError]]
-- [[_COMMUNITY_One-time host setup (already done on this host — kept for reference)|One-time host setup (already done on this host — kept for reference)]]
-- [[_COMMUNITY_Upgrading an existing deployment (manual fallback)|Upgrading an existing deployment (manual fallback)]]
-- [[_COMMUNITY_Amendments|Amendments]]
-- [[_COMMUNITY_Architecture|Architecture]]
 - [[_COMMUNITY_list_tracks|list_tracks]]
 - [[_COMMUNITY__fetch_username|_fetch_username]]
 - [[_COMMUNITY_expand_job|expand_job]]
@@ -246,7 +242,7 @@
 - **CI PR-checks pipeline (pytest, publish-report, compose-config, frontend)** — github_workflows_ci_pytest_job, github_workflows_ci_publish_report_job, github_workflows_ci_compose_config_job, github_workflows_ci_frontend_job [EXTRACTED 1.00]
 - **Docker Compose layered configuration (base/override/prod)** — docker_compose_doc, docker_compose_override_doc, docker_compose_prod_doc [EXTRACTED 1.00]
 
-## Communities (225 total, 57 thin omitted)
+## Communities (221 total, 56 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
 Cohesion: 0.15
@@ -301,8 +297,8 @@ Cohesion: 0.10
 Nodes (21): Track, TrackJobSummary, TrackState, $lib/components/IncomingJobs.svelte, $lib/components/JobRow.svelte, $lib/components/QueueControls.svelte, $lib/components/TrackRow.svelte, $lib/components/Waterfall.svelte (+13 more)
 
 ### Community 14 - "Track Router Tests"
-Cohesion: 0.04
-Nodes (47): Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), Index by topic, spotdl 4.5.2 — verified API surface actually used, spotdl-web — Accumulated Gotchas (master v1, v01–v13), v01 deployment gotchas (learned deploying to the real host and local dev), v02 schema gotchas (learned building the SQLAlchemy models + initial migration), v03 auth gotchas (learned building the upstream login proxy + session cookie), v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`) (+39 more)
+Cohesion: 0.05
+Nodes (42): v01 deployment gotchas (learned deploying to the real host and local dev), v02 schema gotchas (learned building the SQLAlchemy models + initial migration), v03 auth gotchas (learned building the upstream login proxy + session cookie), v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`), v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation), v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch), v07 proxy-rotation gotchas (learned building `proxies.txt` sync + pick/cooldown + wiring), v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream) (+34 more)
 
 ### Community 16 - "Backend Dependencies"
 Cohesion: 0.08
@@ -353,8 +349,8 @@ Cohesion: 0.19
 Nodes (18): archiveJobs(), bumpJob(), cancelJob(), cancelTrack(), retryTrack(), setJobPriority(), unarchiveJobs(), $lib/stores/progressCache (+10 more)
 
 ### Community 31 - "Version Roadmap Plans"
-Cohesion: 0.14
-Nodes (13): Development environments, graphify, Job rollup status (v2) — two derived axes, never one stored flag, Locked decisions, Maintaining this file, Master v2 additions, Master v4 additions, Project: spotdl-web (+5 more)
+Cohesion: 0.11
+Nodes (17): Architecture, Development environments, graphify, Invariants — break these and things fail silently, Job rollup status (v2) — two derived axes, never one stored flag, Locked decisions, Maintaining this file, Master v2 additions (+9 more)
 
 ### Community 32 - "Stream Router Tests"
 Cohesion: 0.06
@@ -373,8 +369,8 @@ Cohesion: 0.21
 Nodes (24): _capture_progress(), _configure(), _make_ledger_row(), _NonClosingSession, _owner(), Same wrapper test_download_task.py uses -- db.close() inside the task must not, Two different spotify_track_ids whose folder+filename resolve identically in the, The plan's own Done-when checklist calls this out as its own scenario ('includin (+16 more)
 
 ### Community 44 - "Proxy Selection & Coexistence"
-Cohesion: 0.17
-Nodes (12): Adding a second (or third) user (v17+), App alerts (v36), Automated deployment (v21+), Backups, Deploying spotdl-web to the Debian 12 host, Firewall / network notes, IPv6 escalation rung (v29) — production rollout, Matrix alert bot (v33) (+4 more)
+Cohesion: 0.07
+Nodes (27): 1. Install PostgreSQL (host-native — not a container), 1. Pull the merged code, 2. Create the role and database, 2. Update `.env`, 3. Let Docker containers reach Postgres, 3. Migrate the downloads directory (one-time, before first boot with the new bind mount), 4. Bring up the stack with the production overlay, 4. Install Docker + the Compose plugin (+19 more)
 
 ### Community 45 - "Track Event Schema"
 Cohesion: 0.13
@@ -397,8 +393,8 @@ Cohesion: 0.17
 Nodes (11): Done when, `downloaded_tracks`, `jobs`, `proxies`, Scope, `sessions`, Tables, Tasks (+3 more)
 
 ### Community 60 - "Proxy Cooldown Backoff"
-Cohesion: 0.20
-Nodes (10): Context, Critical files, Job rollup status — answering the open design question, Locked decisions for v2, Plan file reorganization (part of v14), spotdl-web — Master Plan v2, Verification, Verified current state (+2 more)
+Cohesion: 0.13
+Nodes (15): 2026-08-09 — CLAUDE.md split into rules vs. reference (folded into v14), 2026-08-09 — v15 complete; two v14 findings confirmed already scheduled, one new finding added, 2026-08-09 — v16 complete; NOT NULL applied literally, login/job creation left broken for v17, 2026-08-13 — v22 complete; the v13-precedent closing pass performed, master v2 done, Amendments, Context, Critical files, Job rollup status — answering the open design question (+7 more)
 
 ### Community 61 - "Live Progress Version Doc"
 Cohesion: 0.18
@@ -547,6 +543,10 @@ Nodes (10): is_supported_format(), Path, Song, ID3/tag integrity verification an
 ### Community 137 - "_ensure_spotify_client"
 Cohesion: 0.33
 Nodes (6): _ensure_spotify_client(), expand(), Song, Thin wrapper around spotdl's URL-expansion logic.  Never import spotdl.utils.sea, SpotifyClient is a process-wide singleton that raises if .init() runs twice, so, Turn a Spotify URL (track/album/playlist/artist) or a search term into Songs.
+
+### Community 138 - "README.md"
+Cohesion: 0.17
+Nodes (7): Auth API — `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source), Index by topic, spotdl 4.5.2 — verified API surface actually used, spotdl-web — Accumulated Gotchas (master v1, v01–v13), Verified external API contracts, Plan, spotdl-web
 
 ### Community 139 - "test_rollup.py"
 Cohesion: 0.29
@@ -788,22 +788,6 @@ Nodes (7): InvalidListParams, list_jobs(), JobSourceType, Session, Paginated/fil
 Cohesion: 0.25
 Nodes (9): begin_snapshot(), get_db(), Session, Ends `db`'s current transaction and starts a REPEATABLE READ one, so every state, current_session(), Request, v31: root-caused a Postgres connection sitting `idle in transaction` for hours, require_session_for_streaming() (+1 more)
 
-### Community 217 - "One-time host setup (already done on this host — kept for reference)"
-Cohesion: 0.25
-Nodes (8): 1. Install PostgreSQL (host-native — not a container), 2. Create the role and database, 3. Let Docker containers reach Postgres, 4. Install Docker + the Compose plugin, 5. Clone the repo, 6. Configure `.env`, 7. Bring up the stack, One-time host setup (already done on this host — kept for reference)
-
-### Community 218 - "Upgrading an existing deployment (manual fallback)"
-Cohesion: 0.29
-Nodes (7): 1. Pull the merged code, 2. Update `.env`, 3. Migrate the downloads directory (one-time, before first boot with the new bind mount), 4. Bring up the stack with the production overlay, 5. Configure the Cloudflare Tunnel (Zero Trust dashboard), 6. Verify, Upgrading an existing deployment (manual fallback)
-
-### Community 219 - "Amendments"
-Cohesion: 0.40
-Nodes (5): 2026-08-09 — CLAUDE.md split into rules vs. reference (folded into v14), 2026-08-09 — v15 complete; two v14 findings confirmed already scheduled, one new finding added, 2026-08-09 — v16 complete; NOT NULL applied literally, login/job creation left broken for v17, 2026-08-13 — v22 complete; the v13-precedent closing pass performed, master v2 done, Amendments
-
-### Community 220 - "Architecture"
-Cohesion: 0.50
-Nodes (4): Architecture, Invariants — break these and things fail silently, Master v2 invariants, Master v3 invariants
-
 ### Community 221 - "list_tracks"
 Cohesion: 0.31
 Nodes (8): InvalidListParams, list_tracks(), JobSourceType, Session, Track, Paginated/filtered/sorted/searchable track listing shared by `GET /api/tracks` a, _sort_key(), _sort_value()
@@ -825,7 +809,7 @@ Nodes (4): _enqueue_pending_tracks(), expand_job(), Job, Enqueues `job`'s tracks
 ## Knowledge Gaps
 - **607 isolated node(s):** `wait_for_stack_health.sh script`, `spotdl-web-backend`, `Window`, `ADMIN_GETS`, `ENV_FILE` (+602 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **57 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **56 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
