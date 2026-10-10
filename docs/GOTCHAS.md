@@ -4510,6 +4510,10 @@ independently-found production bug from the same conversation)
   overlays. Spec 1 gives the first identity a failed incoming job on purpose, and a
   `MutationObserver` records any render of its text during the second identity's login. With
   `queue.reset()` removed from `onLogout`, it caught the URL on both projects.
+- **Spec 7 matches foreign titles exactly, minus the user's own row text** (review rounds 5–6).
+  A substring match over "every title the admin owns" also hit chrome ("done") and the user's own
+  track's album/artist cells (an admin album job titled like the user's album). Titles render as
+  their own elements, so `exact: true` still catches a leak; both owner filters were re-shown red.
 - **Cross-user checks need a positive control that tolerates duplicates.** Other dev users own
   tracks with the same titles as the e2e user's own, so a leak first surfaced as a strict-mode
   violation on the user's *own* row. The positive check uses `.first()`, so the foreign-title

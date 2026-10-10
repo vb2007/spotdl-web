@@ -210,7 +210,9 @@ the v38–v46 UI rework, so run it before calling any frontend change done.
 
 1. Two **test** identities that log in through the real upstream: one is the dev `.env`'s
    `ADMIN_EMAIL`, the other isn't, and both are in `ALLOWED_EMAILS`. Register fresh ones freely
-   (§4). Never the owner's real account.
+   (§4). Never the owner's real account. Keep both **dedicated to the suite**: every run cancels
+   whatever they have in flight and archives the rest of their jobs, so manual admin testing
+   belongs on another account (the dev `ADMIN_EMAIL` can be switched back for it).
 2. `cp frontend/e2e/.env.e2e.example frontend/e2e/.env.e2e` and fill in both. The copy is
    gitignored (`git check-ignore frontend/e2e/.env.e2e` confirms it).
 3. `cd frontend && npx playwright install chromium`.

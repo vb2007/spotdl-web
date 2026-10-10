@@ -1,5 +1,5 @@
 import { expect, request as apiRequest, test, type Page } from '@playwright/test';
-import type { Job } from '../src/lib/api';
+import type { Job, Track } from '../src/lib/api';
 import { ADMIN_STATE, USER_STATE, readSeed } from './support/stack';
 import { jobToggle, literal } from './support/ui';
 
@@ -26,13 +26,25 @@ test("a user never sees another identity's job titles", async ({ page, request, 
 	await owner.dispose();
 	expect((await request.get(`/api/jobs/${admin.jobId}`)).status()).toBe(404);
 
+	// The user's own row legitimately shows its title, artists and album: an admin job titled
+	// like one of those (an album job, say) isn't foreign text.
+	const ownTracks = (await (await request.get(`/api/jobs/${user.jobId}/tracks`)).json()) as {
+		items: Track[];
+	};
+	const ownText = new Set(
+		ownTracks.items.flatMap((t) => [t.title, t.album, ...(t.artists ?? [])]).concat(user.title)
+	);
 	const foreign = [...new Set([admin.trackTitle, ...owned.items.map((j) => j.title)])].filter(
-		(title) => title !== user.title && title !== user.trackTitle
+		(title) => !ownText.has(title)
 	);
 	expect(foreign).toContain(admin.title);
 
 	const expectNoForeignText = async () => {
-		for (const title of foreign) await expect(page.getByText(literal(title))).toHaveCount(0);
+		// Exact: a title renders as its own element (job title, track title, group header,
+		// Waterfall lane), and a substring match would also hit chrome like "done".
+		for (const title of foreign) {
+			await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+		}
 	};
 
 	await page.goto('/');

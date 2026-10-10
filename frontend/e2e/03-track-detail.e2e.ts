@@ -55,6 +55,9 @@ test('expanding a job and a track loads attempt history with its network path', 
 	).not.toBeNull();
 	if (realPath === null) return;
 	await page.goto('/');
+	// The stream's first resync re-renders the rows; let it land before expanding anything.
+	await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
+	await expect(page.getByText('Loading…')).toHaveCount(0);
 	await page.getByRole('button', { name: 'show archived' }).click();
 	// The search re-lists after a debounce and re-renders the rows, so expanding before its
 	// answer lands would be undone.

@@ -135,10 +135,15 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 	const user = await login(baseURL, userIdentity(), false, USER_STATE);
 	try {
 		await Promise.all([clearSlate(admin), clearSlate(user)]);
-		const [adminSeed, userSeed] = await Promise.all([
+		// allSettled: each seed cancels its own job on failure, which needs its context alive
+		// until it's done, so the other's rejection mustn't reach `finally` first.
+		const [adminResult, userResult] = await Promise.allSettled([
 			seedJob(admin, LEDGER_TRACKS.adminSeed),
 			seedJob(user, LEDGER_TRACKS.userSeed)
 		]);
+		if (adminResult.status === 'rejected') throw adminResult.reason;
+		if (userResult.status === 'rejected') throw userResult.reason;
+		const [adminSeed, userSeed] = [adminResult.value, userResult.value];
 		const seed: Seed = {
 			admin: adminSeed,
 			user: userSeed,

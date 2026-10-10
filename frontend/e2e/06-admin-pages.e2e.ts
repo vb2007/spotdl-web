@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, request, test } from '@playwright/test';
 import type { OutputSettings } from '../src/lib/api';
 import { ADMIN_STATE, USER_STATE } from './support/stack';
 
@@ -17,7 +17,7 @@ test.describe('admin', () => {
 
 	// Spec 6, admin half. The bitrate is changed, saved, re-read from a fresh page load and
 	// from the API, then put back.
-	test('/settings loads and a save round-trips; /library loads', async ({ page }) => {
+	test('/settings loads and a save round-trips; /library loads', async ({ page, baseURL }) => {
 		const original = (await (
 			await page.request.get('/api/settings/output')
 		).json()) as OutputSettings;
@@ -45,10 +45,13 @@ test.describe('admin', () => {
 			expect(saved.default_bitrate).toBe(next);
 		} finally {
 			// The shared dev stack keeps this value for real downloads and the next run's baseline.
-			const restored = await page.request.patch('/api/settings/output', {
+			// Own context: a test-level timeout may already have closed the page's.
+			const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
+			const restored = await admin.patch('/api/settings/output', {
 				data: { default_bitrate: original.default_bitrate }
 			});
 			expect.soft(restored.status(), 'restoring the original bitrate').toBe(200);
+			await admin.dispose();
 		}
 
 		await page.goto('/');
