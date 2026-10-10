@@ -28,7 +28,7 @@ test.describe('admin', () => {
 			const bitrate = output.getByLabel('Bitrate');
 			await expect(bitrate).toHaveValue(original.default_bitrate);
 
-			const options = await bitrate.locator('option').allTextContents();
+			const options = await bitrate.getByRole('option').allTextContents();
 			const next = options.find((o) => o !== original.default_bitrate);
 			expect(next, 'needs a second bitrate option to switch to').toBeDefined();
 			await bitrate.selectOption(next!);
