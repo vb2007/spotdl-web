@@ -635,8 +635,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1791635777.82945,
-    "ast_hash": "ae67210318be749dcb461698b4e5edb1",
+    "mtime": 1791636463.1908977,
+    "ast_hash": "54cd5d324380968e2a70f8387134f6b2",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1160,18 +1160,18 @@
     "semantic_hash": ""
   },
   "frontend/e2e/.auth/admin.json": {
-    "mtime": 1791635708.065364,
-    "ast_hash": "df8ea7715d8e1b9c138e0c0b1268e244",
+    "mtime": 1791636371.1399179,
+    "ast_hash": "84b52cdef2441de8bce9e093ce870ac9",
     "semantic_hash": ""
   },
   "frontend/e2e/.auth/seed.json": {
-    "mtime": 1791635718.3297572,
-    "ast_hash": "2c9ace977fd867f8ba274d5acbed5103",
+    "mtime": 1791636381.4990501,
+    "ast_hash": "3e3b98452b7379a45f4bea3f8d8d3110",
     "semantic_hash": ""
   },
   "frontend/e2e/.auth/user.json": {
-    "mtime": 1791635708.8303657,
-    "ast_hash": "c68af67a54379e92ef78b4ea3e1cd68e",
+    "mtime": 1791636371.9706585,
+    "ast_hash": "a58d7517061185f2ba3f4b902bad7201",
     "semantic_hash": ""
   },
   "frontend/e2e/01-login-logout.e2e.ts": {
@@ -1215,13 +1215,13 @@
     "semantic_hash": ""
   },
   "frontend/e2e/global-setup.ts": {
-    "mtime": 1791633794.4968324,
-    "ast_hash": "770ed58d1d10b2fa620208cb61e52131",
+    "mtime": 1791636361.40809,
+    "ast_hash": "1c57cdc1f3429c66c6d2b92d44231f58",
     "semantic_hash": ""
   },
   "frontend/e2e/global-teardown.ts": {
-    "mtime": 1791635598.1268008,
-    "ast_hash": "90eed6f590cf99fe8d05d35033753ec9",
+    "mtime": 1791636361.4081726,
+    "ast_hash": "08f5431d77b01474f05657ff68b49aa8",
     "semantic_hash": ""
   },
   "frontend/e2e/network.e2e.ts": {
@@ -1235,8 +1235,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/support/stack.ts": {
-    "mtime": 1791635594.4759076,
-    "ast_hash": "e30281efdf6e55d3f9211ced6a3bc8ef",
+    "mtime": 1791636353.4562,
+    "ast_hash": "9b769ff7ac15a835a7edafa248b7ace8",
     "semantic_hash": ""
   },
   "frontend/e2e/support/ui.ts": {
@@ -1250,13 +1250,18 @@
     "semantic_hash": ""
   },
   "frontend/test-results/.last-run.json": {
-    "mtime": 1791635767.5048985,
+    "mtime": 1791636454.2785382,
     "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
     "semantic_hash": ""
   },
   "frontend/playwright-report/index.html": {
-    "mtime": 1791635767.5048985,
-    "ast_hash": "ac7ed9c52dcdede47a0fa30e7534b52d",
+    "mtime": 1791636454.2785382,
+    "ast_hash": "6e6bd061f1ebb2a73e7cd03fba27cfc6",
+    "semantic_hash": ""
+  },
+  "frontend/e2e/.auth/run.json": {
+    "mtime": 1791636370.4105942,
+    "ast_hash": "08f8626d213f8af67e5ca7b633ba27cf",
     "semantic_hash": ""
   }
 }
