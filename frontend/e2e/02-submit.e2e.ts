@@ -1,16 +1,18 @@
 import { expect, test } from '@playwright/test';
 import type { Job } from '../src/lib/api';
-import { ADMIN_STATE, LEDGER_TRACKS, spotifyTrackUrl } from './support/stack';
+import { ADMIN_STATE, LEDGER_TRACKS, cancelUnlessSettled, spotifyTrackUrl } from './support/stack';
 import { jobRow, jobToggle, submitUrl } from './support/ui';
 
 test.use({ storageState: ADMIN_STATE });
 
 // Spec 2. A ledger track, so it settles as a duplicate without a download.
 test('a submitted URL appears without a refetch, settles, and its counts match the API', async ({
-	page
+	page,
+	baseURL
 }, testInfo) => {
-	// Up to a beat cycle for dispatch on top of expansion: the inner waits name what timed out.
-	test.setTimeout(240_000);
+	// The inner waits add up to 240s (a beat cycle for dispatch on top of expansion) and name
+	// what timed out; the margin lets the cleanup below run before the test-level timeout.
+	test.setTimeout(300_000);
 	const spotifyId =
 		testInfo.project.name === 'mobile' ? LEDGER_TRACKS.submitMobile : LEDGER_TRACKS.submitDesktop;
 
@@ -62,10 +64,6 @@ test('a submitted URL appears without a refetch, settles, and its counts match t
 			(settled.track_counts.completed ?? 0) + (settled.track_counts.skipped_duplicate ?? 0);
 		await expect(row.getByText(`${done} done`, { exact: true })).toBeVisible();
 	} finally {
-		// Anything but a settled duplicate could be a download in progress: stop it.
-		if ((await apiJob()).status.lifecycle !== 'settled') {
-			const cancelled = await page.request.delete(`/api/jobs/${job.id}`);
-			expect.soft(cancelled.status(), 'cancelling the unsettled job').toBe(200);
-		}
+		await cancelUnlessSettled(baseURL!, job.id);
 	}
 });

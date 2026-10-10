@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/test';
 import type { Job, JobTracksPage, TrackAttempt } from '../src/lib/api';
 import {
 	ADMIN_STATE,
+	cancelUnlessSettled,
 	expectedAttemptVia,
 	isSettled,
 	serverTrackFile,
@@ -19,7 +20,8 @@ test.use({ storageState: ADMIN_STATE, acceptDownloads: true });
 // must not be in the dev ledger yet, and is in it after one pass, so there's no default:
 // each pass names a fresh one in E2E_NETWORK_TRACK_URL.
 test('a real download completes, records its network path, and serves its file @network', async ({
-	page
+	page,
+	baseURL
 }) => {
 	test.setTimeout(30 * 60_000);
 	const TRACK_URL = requireEnv('E2E_NETWORK_TRACK_URL');
@@ -79,10 +81,6 @@ test('a real download completes, records its network path, and serves its file @
 	} finally {
 		// A timed-out or failed pass must not leave a real download retrying on the ladder (or
 		// finishing during the next default run, whose teardown would then fail).
-		const job = (await (await page.request.get(`/api/jobs/${created.id}`)).json()) as Job;
-		if (job.status.lifecycle !== 'settled') {
-			const cancelled = await page.request.delete(`/api/jobs/${created.id}`);
-			expect.soft(cancelled.status(), 'cancelling the unsettled job').toBe(200);
-		}
+		await cancelUnlessSettled(baseURL!, created.id);
 	}
 });

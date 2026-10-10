@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import type { APIRequestContext } from '@playwright/test';
+import { expect, request, type APIRequestContext } from '@playwright/test';
 import type { Job, TrackAttempt } from '../../src/lib/api';
 import { E2E_DIR, REPO_ROOT, requireEnv } from './env';
 
@@ -174,6 +174,22 @@ export async function waitForJob(
 			throw new Error(`job ${jobId} still ${JSON.stringify(job.status)} after ${timeoutMs}ms`);
 		}
 		await new Promise((resolve) => setTimeout(resolve, 2000));
+	}
+}
+
+/** Cancels an admin job unless it settled: anything else could be a real download in flight,
+ * which must not keep retrying on the ladder after the run. Uses its own request context, so it
+ * still works when a test-level timeout has already closed the page. */
+export async function cancelUnlessSettled(baseURL: string, jobId: string): Promise<void> {
+	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
+	try {
+		const job = (await (await admin.get(`/api/jobs/${jobId}`)).json()) as Job;
+		if (job.status.lifecycle !== 'settled') {
+			const cancelled = await admin.delete(`/api/jobs/${jobId}`);
+			expect.soft(cancelled.status(), `cancelling unsettled job ${jobId}`).toBe(200);
+		}
+	} finally {
+		await admin.dispose();
 	}
 }
 

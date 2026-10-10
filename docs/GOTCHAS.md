@@ -4553,7 +4553,13 @@ independently-found production bug from the same conversation)
   Discovery track) returns the library path in `worker-meta` and `None` in `worker-dl`, so
   resubmitting any moved track would re-download it. That contradicts the master-v3 invariant
   that a move must never cause a re-download. Reported to the owner in the v37 PR.
-- **The suite refuses a non-loopback `E2E_BASE_URL`, and teardown also fails on any e2e track
-  still `downloading`** (review round 2). The preflight and the teardown read the local stack, so
-  driving another origin would leave them guarding the wrong one. An attempt row is written only
-  when the attempt ends, so an in-flight download was invisible to the attempt count.
+- **The suite refuses a non-loopback `E2E_BASE_URL`** (review round 2). The preflight and the
+  teardown read the local stack, so driving another origin would leave them guarding the wrong one.
+- **An in-flight download is invisible to the DB.** An attempt row is written only when the
+  attempt ends, and cancelling a job flips a `downloading` track to `cancelled` without stopping
+  worker-dl. A first fix that counted `state = 'downloading'` missed exactly the cancel-on-timeout
+  case it was meant for (review round 4). Teardown now asks the worker
+  (`celery_app.control.inspect().active()`) and fails if any running `download_track` belongs to
+  an e2e identity, or if worker-dl doesn't answer.
+- **Cleanup that guards against a live download uses its own request context**
+  (`cancelUnlessSettled`). A test-level timeout can close `page.request` before a `finally` runs.
