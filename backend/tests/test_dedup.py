@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from app.models import DownloadedTrack
 from app.services import app_settings, dedup
 
@@ -54,6 +56,98 @@ def test_is_already_downloaded_returns_none_for_a_stale_ledger_row(db_session, m
 class _FakeSettings:
     def __init__(self, download_output_dir):
         self.download_output_dir = download_output_dir
+
+
+def _library_with_row(db_session, monkeypatch, tmp_path, *, library_dir, write_file):
+    """A healthy downloads root, `library_dir` as library_target_dir, and one in-library
+    ledger row pointing into it (its file written only if `write_file`)."""
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads_dir = tmp_path / "downloads"
+    downloads_dir.mkdir()
+    (downloads_dir / "other.mp3").write_text("audio")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads_dir)))
+    app_settings.update_library_settings(db_session, library_target_dir=str(library_dir))
+    file_path = library_dir / "Artist - Album - (2020)" / "01 - Artist - Song.mp3"
+    if write_file:
+        file_path.parent.mkdir(parents=True)
+        file_path.write_bytes(b"moved audio")
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="moved-id",
+            file_path=str(file_path),
+            format="mp3",
+            bitrate="320k",
+            in_library=True,
+        )
+    )
+    db_session.commit()
+    return file_path
+
+
+def test_is_already_downloaded_returns_the_library_path_for_a_moved_file(
+    db_session, monkeypatch, tmp_path
+):
+    """v38: the library sort repoints the ledger row; the moved file is the duplicate."""
+    file_path = _library_with_row(
+        db_session, monkeypatch, tmp_path, library_dir=tmp_path / "library", write_file=True
+    )
+
+    assert dedup.is_already_downloaded("moved-id") == file_path
+
+
+def test_is_already_downloaded_raises_when_the_library_root_is_not_mounted(
+    db_session, monkeypatch, tmp_path
+):
+    """v38: worker-dl without the library mount saw every moved file as gone and downloaded
+    it again. A missing root must never read as "not downloaded"."""
+    library_dir = tmp_path / "library-not-mounted"
+    _library_with_row(db_session, monkeypatch, tmp_path, library_dir=library_dir, write_file=False)
+
+    with pytest.raises(dedup.LedgerRootUnavailable) as exc_info:
+        dedup.is_already_downloaded("moved-id")
+    assert exc_info.value.root == library_dir
+
+
+def test_is_already_downloaded_raises_when_the_library_root_is_empty(
+    db_session, monkeypatch, tmp_path
+):
+    """An empty mount point (bind source not attached yet) is the same "can't tell" case."""
+    library_dir = tmp_path / "library-empty"
+    library_dir.mkdir()
+    _library_with_row(db_session, monkeypatch, tmp_path, library_dir=library_dir, write_file=False)
+
+    with pytest.raises(dedup.LedgerRootUnavailable):
+        dedup.is_already_downloaded("moved-id")
+
+
+def test_is_already_downloaded_returns_none_when_a_mounted_library_lost_the_file(
+    db_session, monkeypatch, tmp_path
+):
+    """The guard is per root, like reconcile_disk's: a mounted, non-empty library whose file
+    is genuinely gone still means "download it again"."""
+    library_dir = tmp_path / "library"
+    (library_dir / "Someone Else - Album - (1999)").mkdir(parents=True)
+    _library_with_row(db_session, monkeypatch, tmp_path, library_dir=library_dir, write_file=False)
+
+    assert dedup.is_already_downloaded("moved-id") is None
+
+
+def test_is_already_downloaded_raises_when_the_downloads_root_is_not_mounted(
+    db_session, monkeypatch, tmp_path
+):
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    not_mounted = tmp_path / "downloads-not-mounted"
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(not_mounted)))
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="abc123", file_path=str(not_mounted / "song.mp3"), format="mp3", bitrate="320k"
+        )
+    )
+    db_session.commit()
+
+    with pytest.raises(dedup.LedgerRootUnavailable) as exc_info:
+        dedup.is_already_downloaded("abc123")
+    assert exc_info.value.root == not_mounted
 
 
 def test_reconcile_disk_drops_rows_for_missing_files(db_session, monkeypatch, tmp_path):
