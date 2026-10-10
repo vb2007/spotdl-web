@@ -10,19 +10,19 @@ import {
 	stackPython,
 	waitForJob
 } from './support/stack';
+import { requireEnv } from './support/env';
 import { jobToggle, submitUrl, trackToggle } from './support/ui';
 
 test.use({ storageState: ADMIN_STATE, acceptDownloads: true });
 
 // Opt-in only (`npm run test:e2e:network`): one real YouTube download, end to end. Its track
-// must not be in the dev ledger yet, so each pass needs a fresh one (E2E_NETWORK_TRACK_URL).
-const TRACK_URL =
-	process.env.E2E_NETWORK_TRACK_URL || 'https://open.spotify.com/track/0DiWol3AO6WpXZgp0goxAV';
-
+// must not be in the dev ledger yet, and is in it after one pass, so there's no default:
+// each pass names a fresh one in E2E_NETWORK_TRACK_URL.
 test('a real download completes, records its network path, and serves its file @network', async ({
 	page
 }) => {
 	test.setTimeout(30 * 60_000);
+	const TRACK_URL = requireEnv('E2E_NETWORK_TRACK_URL');
 	const spotifyId = new URL(TRACK_URL).pathname.split('/').pop() ?? '';
 	const inLedger = stackPython(
 		'import sys\nfrom app.db import SessionLocal\nfrom app.models.downloaded_track import DownloadedTrack\n' +
@@ -32,6 +32,11 @@ test('a real download completes, records its network path, and serves its file @
 	expect(inLedger, `${TRACK_URL} is already in the dev ledger; set E2E_NETWORK_TRACK_URL`).toBe(
 		'False'
 	);
+
+	// v35's trap: a file already in ./downloads makes spotdl skip and the app still record a
+	// `completed` attempt with a network path. Only a file written during this test proves a
+	// real download, so note the stack's clock first.
+	const startedAt = Number(stackPython('import time; print(time.time())'));
 
 	await page.goto('/');
 	const created = await submitUrl(page, TRACK_URL);
@@ -63,5 +68,7 @@ test('a real download completes, records its network path, and serves its file @
 	const sha256 = createHash('sha256')
 		.update(await readFile(await download.path()))
 		.digest('hex');
-	expect(sha256).toBe(serverTrackFile(track.id).sha256);
+	const server = serverTrackFile(track.id);
+	expect(server.mtime, 'the served file was written by this download').toBeGreaterThan(startedAt);
+	expect(sha256).toBe(server.sha256);
 });

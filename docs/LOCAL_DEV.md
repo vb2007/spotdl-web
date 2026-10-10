@@ -239,9 +239,10 @@ production-style `web` image. Failures keep a trace and a screenshot under `fron
   if either identity made a network download attempt while it ran.
 - The specs run one at a time (`workers: 1`): they share one queue, one beat and one `worker-dl`.
   A full run takes a few minutes, mostly beat's 30 s dispatch pass.
-- The `@network` spec needs a track that is **not** in the dev ledger. Its default is one the
-  ledger doesn't hold yet, and after it passes once, set `E2E_NETWORK_TRACK_URL` to another. It
-  refuses a track that's already there rather than passing on a duplicate.
+- The `@network` spec needs `E2E_NETWORK_TRACK_URL`, a track that is **not** in the dev ledger
+  yet. A passing run adds it, so each pass names a fresh one, for example
+  `E2E_NETWORK_TRACK_URL=https://open.spotify.com/track/<id> npm run test:e2e:network`. It refuses
+  a track that's already there rather than passing on a duplicate.
 
 **Writing specs:** select by role, label and accessible name (`getByRole`, `getByLabel`), never
 by CSS class. The v39–v42 restyles must not rewrite the suite. If an element has no accessible

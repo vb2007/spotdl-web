@@ -81,8 +81,8 @@ export function stackPython(code: string, args: string[] = []): string {
 }
 
 /** The file `GET /api/tracks/{id}/file` serves, resolved by the API's own resolver and hashed
- * on the stack side. Prints `<sha256> <basename>`. */
-export function serverTrackFile(trackId: string): { sha256: string; name: string } {
+ * on the stack side, with its modification time (epoch seconds, the stack's clock). */
+export function serverTrackFile(trackId: string): { sha256: string; mtime: number; name: string } {
 	const out = stackPython(
 		`
 import hashlib, sys, uuid
@@ -91,12 +91,12 @@ from app.models.track import Track
 from app.routers.tracks import _resolve_track_file_path
 db = SessionLocal()
 path = _resolve_track_file_path(db, db.get(Track, uuid.UUID(sys.argv[1])))
-print(hashlib.sha256(path.read_bytes()).hexdigest(), path.name)
+print(hashlib.sha256(path.read_bytes()).hexdigest(), path.stat().st_mtime, path.name)
 `,
 		[trackId]
 	);
-	const [sha256, ...name] = out.split(' ');
-	return { sha256, name: name.join(' ') };
+	const [sha256, mtime, ...name] = out.split(' ');
+	return { sha256, mtime: Number(mtime), name: name.join(' ') };
 }
 
 /** Polls `GET /api/jobs/{id}` until `done` holds, returning the last job read. */
