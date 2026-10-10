@@ -44,13 +44,21 @@ test.describe('admin', () => {
 			).json()) as OutputSettings;
 			expect(saved.default_bitrate).toBe(next);
 		} finally {
-			await page.request.patch('/api/settings/output', {
+			// The shared dev stack keeps this value for real downloads and the next run's baseline.
+			const restored = await page.request.patch('/api/settings/output', {
 				data: { default_bitrate: original.default_bitrate }
 			});
+			expect.soft(restored.status(), 'restoring the original bitrate').toBe(200);
 		}
 
 		await page.goto('/');
+		// The page fills its error line from this fetch, so only its answer makes "no error" mean
+		// anything.
+		const status = page.waitForResponse(
+			(r) => new URL(r.url()).pathname === '/api/library/sort/status'
+		);
 		await page.getByRole('link', { name: 'library' }).click();
+		expect((await status).status()).toBe(200);
 		await expect(page).toHaveTitle('spotdl-web — library');
 		await expect(page.getByRole('button', { name: /SWEEP/ })).toBeVisible();
 		await expect(page.getByRole('alert')).toHaveText('');

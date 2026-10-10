@@ -29,7 +29,7 @@ export function userIdentity(): Identity {
 export const LEDGER_TRACKS = {
 	/** The admin's seed job (specs 1, 3, 4, 7, 8). */
 	adminSeed: '69kOkLUCkxIZYexIgSG8rq', // Daft Punk - Get Lucky
-	/** The user's seed job (specs 1, 6, 7). */
+	/** The user's seed job (specs 1, 7). */
 	userSeed: '2KHRENHQzTIQ001nlP9Gdc', // Daft Punk - Contact
 	/** Spec 2's fresh submissions, one per project, so each run's row is unambiguous. */
 	submitDesktop: '79koEJRtKOOGJ0VSAF3FMk', // Daft Punk - Motherboard
@@ -62,6 +62,10 @@ export interface Seed {
 	startedAt: string;
 	admin: SeedJob;
 	user: SeedJob;
+	/** An admin-owned track whose attempts recorded a real network path (left by an earlier
+	 * `@network` pass), for spec 3's real-path labels. Null on a dev DB without one. Its job is
+	 * archived by setup, and its title is the only one of its kind among the admin's jobs. */
+	realPath: SeedJob | null;
 }
 
 export function readSeed(): Seed {
@@ -78,6 +82,52 @@ export function stackPython(code: string, args: string[] = []): string {
 		['compose', 'exec', '-T', 'worker-meta', 'python', '-c', code, ...args],
 		{ cwd: REPO_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
 	).trim();
+}
+
+/** The `LEDGER_TRACKS` ids worker-dl would NOT resolve as duplicates (no ledger row, or its
+ * file is gone), by the dedup gate's own check. Submitting one of those means a download. */
+export function ledgerMisses(spotifyIds: string[]): string[] {
+	const out = stackPython(
+		`
+import sys
+from app.services.dedup import is_already_downloaded
+print(" ".join(i for i in sys.argv[1:] if is_already_downloaded(i) is None))
+`,
+		spotifyIds
+	);
+	return out ? out.split(' ') : [];
+}
+
+/** `{ trackId, jobId }` of the given user's tracks with a recorded network path, newest first. */
+export function tracksWithNetworkPath(email: string): { trackId: string; jobId: string }[] {
+	const out = stackPython(
+		`
+import sys
+from sqlalchemy import text
+from app.db import SessionLocal
+rows = SessionLocal().execute(text("""
+    select t.id, t.job_id from track_attempts a
+    join tracks t on t.id = a.track_id
+    join jobs j on j.id = t.job_id
+    join users u on u.id = j.user_id
+    where u.email = :email and a.network_path is not null
+    group by t.id, t.job_id order by max(a.finished_at) desc limit 20
+"""), {"email": sys.argv[1]})
+print(" ".join(f"{t}:{j}" for t, j in rows))
+`,
+		[normalizeEmail(email)]
+	);
+	return out
+		? out.split(' ').map((pair) => {
+				const [trackId, jobId] = pair.split(':');
+				return { trackId, jobId };
+			})
+		: [];
+}
+
+/** How the backend stores an email (`services/users.py`): login accepts any case. */
+export function normalizeEmail(email: string): string {
+	return email.trim().toLowerCase();
 }
 
 /** The file `GET /api/tracks/{id}/file` serves, resolved by the API's own resolver and hashed

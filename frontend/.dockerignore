@@ -5,3 +5,9 @@ build
 .env.*
 .git
 .impeccable
+# v37 e2e: credentials, saved sessions and failure traces stay out of the build context
+# (patterns here are anchored to the context root, so `.env.*` above misses e2e/)
+e2e/.env.e2e
+e2e/.auth
+test-results
+playwright-report

@@ -28,6 +28,9 @@ test('a hard reload still shows an incoming item', async ({ page }) => {
 		await expect(item).toHaveCount(0);
 		jobId = undefined;
 	} finally {
-		if (jobId) await page.request.delete(`/api/jobs/${jobId}`);
+		if (jobId) {
+			const cancelled = await page.request.delete(`/api/jobs/${jobId}`);
+			expect.soft(cancelled.status(), 'dismissing the failed job').toBe(200);
+		}
 	}
 });

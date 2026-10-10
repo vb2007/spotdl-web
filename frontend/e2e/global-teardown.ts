@@ -1,10 +1,18 @@
 import { existsSync } from 'node:fs';
-import { SEED_FILE, adminIdentity, readSeed, stackPython, userIdentity } from './support/stack';
+import {
+	SEED_FILE,
+	adminIdentity,
+	normalizeEmail,
+	readSeed,
+	stackPython,
+	userIdentity
+} from './support/stack';
 
 /** A default run must never reach YouTube: every job it creates is either a ledger duplicate
- * or a URL Spotify can't resolve. Any attempt that touched the network for one of the two test
- * identities since the run started means a seed or spec track wasn't in the ledger. The
- * `@network` spec is the one deliberate exception. */
+ * or a URL Spotify can't resolve. Any attempt with a recorded network path for one of the two
+ * test identities since the run started means a seed or spec track wasn't in the ledger. A
+ * beat reclaim records `failed` with no path and isn't counted. The `@network` spec is the one
+ * deliberate exception. */
 export default async function globalTeardown(): Promise<void> {
 	if (process.env.E2E_NETWORK === '1' || !existsSync(SEED_FILE)) return;
 	const { startedAt } = readSeed();
@@ -19,10 +27,10 @@ print(SessionLocal().execute(text("""
     join jobs j on j.id = t.job_id
     join users u on u.id = j.user_id
     where u.email in (:a, :b) and a.finished_at >= :since
-      and (a.outcome in ('completed', 'failed') or a.network_path is not null)
+      and a.network_path is not null
 """), {"a": sys.argv[1], "b": sys.argv[2], "since": sys.argv[3]}).scalar())
 `,
-		[adminIdentity().email, userIdentity().email, startedAt]
+		[normalizeEmail(adminIdentity().email), normalizeEmail(userIdentity().email), startedAt]
 	);
 	if (count !== '0') {
 		throw new Error(

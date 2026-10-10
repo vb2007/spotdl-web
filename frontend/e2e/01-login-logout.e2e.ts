@@ -73,7 +73,8 @@ test('login, logout, and no first-identity row flashes for the next identity', a
 	} finally {
 		if (failedJobId) {
 			const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
-			await admin.delete(`/api/jobs/${failedJobId}`);
+			const cancelled = await admin.delete(`/api/jobs/${failedJobId}`);
+			expect.soft(cancelled.status(), 'dismissing the failed job').toBe(200);
 			await admin.dispose();
 		}
 	}

@@ -37,7 +37,10 @@ test('archive and unarchive round trip, with show archived', async ({ page }) =>
 		await expect(row.getByRole('button', { name: 'unarchive' })).toHaveCount(0);
 	} finally {
 		if ((await archivedAt()) !== null) {
-			await page.request.post('/api/jobs/unarchive', { data: { job_ids: [admin.jobId] } });
+			const restored = await page.request.post('/api/jobs/unarchive', {
+				data: { job_ids: [admin.jobId] }
+			});
+			expect.soft(restored.status(), 'unarchiving the seed job').toBe(200);
 		}
 	}
 });

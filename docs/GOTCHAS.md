@@ -4517,10 +4517,13 @@ independently-found production bug from the same conversation)
 - **Admin endpoints answer 403, not 404** (`require_admin`, pinned since v22). The v37 plan's
   "404" was a slip; the owner confirmed asserting 403 (recorded in the master plan's
   Amendments). Only the v36 test-alert POST is 404.
-- **`skipped_duplicate` attempts carry no `network_path`**, so the default run's attempt-history
-  check can only show "no network". A real path label ("direct · IPv4") is covered by the
-  opt-in `@network` spec, which also requires the served file's mtime to postdate the test, per
-  v35's "file already exists" trap.
+- **`skipped_duplicate` attempts carry no `network_path`**, and an expected label computed from
+  the API agrees with the UI even when the API drops the field (both fall to "no network"). So
+  spec 3 requires the key on every attempt, and also checks an admin-owned track a past
+  `@network` pass left with a real path (picked in setup, unique title, archived), so a broken
+  "direct · IPv4" label fails a default run. Both were shown red (review round 1). On a dev DB
+  with no such track, it annotates a warning instead. The opt-in `@network` spec itself requires
+  the served file's mtime to postdate the test, per v35's "file already exists" trap.
   That check earned its place on its first two runs: two "fresh" ids (`4uLU6hMCjMI75M1A2tKUQC`,
   `7GhIk7Il098yCjg4BQjzvb`) turned out to be other Spotify releases of a song already downloaded.
   Each recorded a `completed direct-ipv4` attempt in about 20 ms that never touched the network,
@@ -4529,6 +4532,13 @@ independently-found production bug from the same conversation)
 - **The default `@network` track can't be hardcoded.** A passing run puts it in the ledger, and
   the first candidate (One More Time) was already there via the sorted Discovery album. The spec
   requires `E2E_NETWORK_TRACK_URL` and refuses a ledger hit.
+- **A ledger row is not a ledger hit.** `dedup.is_already_downloaded` returns None when the
+  row's file is gone, which means a real download. Setup preflights every `LEDGER_TRACKS` id
+  with that same function and refuses to start, and a seed or spec 2 job that doesn't settle as a
+  duplicate is cancelled so it can't keep retrying on the ladder (review round 1).
+- **Teardown counts `network_path is not null` for normalized emails.** Emails are stored
+  lowercased, so a mixed-case `.env.e2e` value matched no user and the check passed vacuously.
+  Outcome-based counting also misread beat's stale reclaim (`failed`, no path) as a download.
 - **Global teardown's zero-download check compares `timestamptz`.** `track_attempts.finished_at`
   is `timestamp with time zone`, so the ISO `now()` from setup compares correctly. It was checked
   against 91 historical network attempts, so the query isn't vacuous.

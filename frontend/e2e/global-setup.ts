@@ -10,8 +10,10 @@ import {
 	USER_STATE,
 	adminIdentity,
 	isSettled,
+	ledgerMisses,
 	spotifyTrackUrl,
 	stackPython,
+	tracksWithNetworkPath,
 	userIdentity,
 	waitForJob,
 	type Identity,
@@ -62,21 +64,45 @@ async function clearSlate(context: APIRequestContext): Promise<void> {
 }
 
 /** Submits a ledger track and waits for it to settle as a duplicate. Anything else means the
- * track wasn't in the dev ledger after all, and a real download may have started. */
+ * track wasn't a ledger hit after all; the job is cancelled so a download that did start can't
+ * keep retrying on the ladder after the run. */
 async function seedJob(context: APIRequestContext, spotifyId: string): Promise<SeedJob> {
 	const created = await context.post('/api/jobs', { data: { url: spotifyTrackUrl(spotifyId) } });
 	if (!created.ok()) throw new Error(`submitting ${spotifyId} failed: ${created.status()}`);
 	const { id } = (await created.json()) as Job;
-	const job = await waitForJob(context, id, isSettled, 150_000);
-	if (job.status.lifecycle !== 'settled' || job.track_counts.skipped_duplicate !== 1) {
-		throw new Error(
-			`seed ${spotifyId} settled as ${JSON.stringify(job.status)} with ` +
-				`${JSON.stringify(job.track_counts)}; expected one skipped_duplicate (is it still in the dev ledger?)`
-		);
+	let job: Job;
+	try {
+		job = await waitForJob(context, id, isSettled, 150_000);
+		if (job.status.lifecycle !== 'settled' || job.track_counts.skipped_duplicate !== 1) {
+			throw new Error(
+				`seed ${spotifyId} settled as ${JSON.stringify(job.status)} with ` +
+					`${JSON.stringify(job.track_counts)}; expected one skipped_duplicate`
+			);
+		}
+	} catch (err) {
+		await context.delete(`/api/jobs/${id}`);
+		throw err;
 	}
 	const tracks = (await (await context.get(`/api/jobs/${id}/tracks`)).json()) as JobTracksPage;
 	const [track] = tracks.items;
 	return { jobId: id, title: job.title, trackId: track.id, trackTitle: track.title ?? '' };
+}
+
+/** An admin-owned track with a real network path whose job title is unique among the admin's
+ * jobs (archived included), so spec 3 can find its row by title. */
+async function findRealPathTrack(context: APIRequestContext): Promise<SeedJob | null> {
+	for (const { trackId, jobId } of tracksWithNetworkPath(adminIdentity().email)) {
+		const job = (await (await context.get(`/api/jobs/${jobId}`)).json()) as Job;
+		const q = new URLSearchParams({ q: job.title, include_archived: 'true', limit: '100' });
+		const sameTitle = (
+			(await (await context.get(`/api/jobs?${q}`)).json()) as { items: Job[] }
+		).items.filter((j) => j.title === job.title);
+		if (sameTitle.length !== 1) continue;
+		const tracks = (await (await context.get(`/api/jobs/${jobId}/tracks`)).json()) as JobTracksPage;
+		if (tracks.items.length !== 1 || tracks.items[0].id !== trackId) continue;
+		return { jobId, title: job.title, trackId, trackTitle: tracks.items[0].title ?? '' };
+	}
+	return null;
 }
 
 export default async function globalSetup(config: FullConfig): Promise<void> {
@@ -84,6 +110,15 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 	const baseURL = config.projects[0].use.baseURL;
 	if (!baseURL) throw new Error('no baseURL configured');
 	mkdirSync(AUTH_DIR, { recursive: true });
+
+	// Every job a default run creates must resolve from the ledger. Refuse to start rather than
+	// let one become a real download.
+	const misses = ledgerMisses(Object.values(LEDGER_TRACKS));
+	if (misses.length) {
+		throw new Error(
+			`LEDGER_TRACKS not resolvable as duplicates (no ledger row, or its file is gone): ${misses.join(', ')}`
+		);
+	}
 
 	const startedAt = stackPython(
 		'from sqlalchemy import text\nfrom app.db import SessionLocal\n' +
@@ -98,7 +133,12 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 			seedJob(admin, LEDGER_TRACKS.adminSeed),
 			seedJob(user, LEDGER_TRACKS.userSeed)
 		]);
-		const seed: Seed = { startedAt, admin: adminSeed, user: userSeed };
+		const seed: Seed = {
+			startedAt,
+			admin: adminSeed,
+			user: userSeed,
+			realPath: await findRealPathTrack(admin)
+		};
 		writeFileSync(SEED_FILE, JSON.stringify(seed, null, '\t'));
 	} finally {
 		await admin.dispose();
