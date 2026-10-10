@@ -16,22 +16,34 @@ test('a submitted URL appears without a refetch, settles, and its counts match t
 	const spotifyId =
 		testInfo.project.name === 'mobile' ? LEDGER_TRACKS.submitMobile : LEDGER_TRACKS.submitDesktop;
 
-	await page.goto('/');
-	await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
-	// The page's own resync (the stream's onopen) has to land before counting refetches.
-	await expect(page.getByText('Loading…')).toHaveCount(0);
-
 	// v23.1: the new job reaches the Jobs list from its own SSE events, never by re-listing.
-	// Only the window before the row appears matters. Every stream (re)open legitimately
-	// re-lists, so those are recorded too, to tell a reconnect from the regression.
-	const listings: string[] = [];
+	// Every stream (re)open legitimately re-lists, so streams are counted from before the page
+	// loads, and listings only count once the first open's own resync has landed. (Waiting on
+	// "Loading…" alone isn't enough: the 5s fallback reload can clear it before a slow stream
+	// opens and re-lists.)
 	let streamOpens = 0;
+	let streamOpened = false;
+	let resynced = false;
+	let armed = false;
+	const listings: string[] = [];
+	const isListing = (url: string) => new URL(url).pathname === '/api/jobs';
 	page.on('request', (r) => {
 		if (r.method() !== 'GET') return;
-		const path = new URL(r.url()).pathname;
-		if (path === '/api/jobs') listings.push(r.url());
-		if (path === '/api/stream') streamOpens++;
+		if (new URL(r.url()).pathname === '/api/stream') streamOpens++;
+		if (armed && isListing(r.url())) listings.push(r.url());
 	});
+	page.on('response', (r) => {
+		if (r.request().method() !== 'GET') return;
+		if (new URL(r.url()).pathname === '/api/stream') streamOpened = true;
+		else if (streamOpened && isListing(r.url())) resynced = true;
+	});
+
+	await page.goto('/');
+	await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
+	await expect.poll(() => resynced, { message: "the stream's first resync" }).toBe(true);
+	await expect(page.getByText('Loading…')).toHaveCount(0);
+	const opensAtArm = streamOpens;
+	armed = true;
 
 	const job = await submitUrl(page, spotifyTrackUrl(spotifyId));
 	const apiJob = async (): Promise<Job> =>
@@ -44,8 +56,8 @@ test('a submitted URL appears without a refetch, settles, and its counts match t
 		await expect(jobToggle(page, title)).toBeVisible();
 		expect(
 			listings,
-			streamOpens
-				? `the Jobs list was re-fetched, after ${streamOpens} stream reconnect(s): inconclusive, rerun`
+			streamOpens > opensAtArm
+				? `the Jobs list was re-fetched, after ${streamOpens - opensAtArm} stream reconnect(s): inconclusive, rerun`
 				: 'the Jobs list was re-fetched to show the new job'
 		).toEqual([]);
 

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, request, test, type APIRequestContext } from '@playwright/test';
 import type { Job } from '../src/lib/api';
 import { ADMIN_STATE, readSeed } from './support/stack';
 import { jobRow, jobToggle } from './support/ui';
@@ -7,10 +7,21 @@ test.use({ storageState: ADMIN_STATE });
 
 // Spec 8. The admin's seed job, archived and brought back. Earlier runs' archived copies share
 // its title, so "show archived" can list several; the newest (this run's) sorts first.
-test('archive and unarchive round trip, with show archived', async ({ page }) => {
+test('archive and unarchive round trip, with show archived', async ({ page, baseURL }) => {
 	const { admin } = readSeed();
 	const archivedAt = async (): Promise<string | null> =>
 		((await (await page.request.get(`/api/jobs/${admin.jobId}`)).json()) as Job).archived_at;
+	// Every admin job with the seed's title, and whether it was archived, so the cleanup can put
+	// back exactly this state even if the wrong row was clicked.
+	const sameTitle = async (api: APIRequestContext): Promise<Map<string, boolean>> => {
+		const q = new URLSearchParams({ q: admin.title, include_archived: 'true', limit: '1000' });
+		const { items } = (await (await api.get(`/api/jobs?${q}`)).json()) as { items: Job[] };
+		return new Map(
+			items.filter((j) => j.title === admin.title).map((j) => [j.id, j.archived_at !== null])
+		);
+	};
+	const initial = await sameTitle(page.request);
+	expect(initial.get(admin.jobId)).toBe(false);
 
 	try {
 		await page.goto('/');
@@ -36,11 +47,19 @@ test('archive and unarchive round trip, with show archived', async ({ page }) =>
 		await expect(row).toHaveCount(1);
 		await expect(row.getByRole('button', { name: 'unarchive' })).toHaveCount(0);
 	} finally {
-		if ((await archivedAt()) !== null) {
-			const restored = await page.request.post('/api/jobs/unarchive', {
-				data: { job_ids: [admin.jobId] }
-			});
-			expect.soft(restored.status(), 'unarchiving the seed job').toBe(200);
+		// Own context: a test-level timeout may already have closed the page's.
+		const api = await request.newContext({ baseURL, storageState: ADMIN_STATE });
+		const now = await sameTitle(api);
+		const toArchive = [...now].filter(([id, a]) => !a && initial.get(id)).map(([id]) => id);
+		const toUnarchive = [...now].filter(([id, a]) => a && !initial.get(id)).map(([id]) => id);
+		if (toArchive.length) {
+			const r = await api.post('/api/jobs/archive', { data: { job_ids: toArchive } });
+			expect.soft(r.status(), 're-archiving rows the spec unarchived').toBe(200);
 		}
+		if (toUnarchive.length) {
+			const r = await api.post('/api/jobs/unarchive', { data: { job_ids: toUnarchive } });
+			expect.soft(r.status(), 'unarchiving rows the spec archived').toBe(200);
+		}
+		await api.dispose();
 	}
 });
