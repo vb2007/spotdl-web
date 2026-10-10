@@ -4521,6 +4521,11 @@ independently-found production bug from the same conversation)
   check can only show "no network". A real path label ("direct · IPv4") is covered by the
   opt-in `@network` spec, which also requires the served file's mtime to postdate the test, per
   v35's "file already exists" trap.
+  That check earned its place on its first two runs: two "fresh" ids (`4uLU6hMCjMI75M1A2tKUQC`,
+  `7GhIk7Il098yCjg4BQjzvb`) turned out to be other Spotify releases of a song already downloaded.
+  Each recorded a `completed direct-ipv4` attempt in about 20 ms that never touched the network,
+  and only the mtime check failed. Pick a candidate by title too (`song_json->>'name'`), not just
+  by ledger absence.
 - **The default `@network` track can't be hardcoded.** A passing run puts it in the ledger, and
   the first candidate (One More Time) was already there via the sorted Discovery album. The spec
   requires `E2E_NETWORK_TRACK_URL` and refuses a ledger hit.
