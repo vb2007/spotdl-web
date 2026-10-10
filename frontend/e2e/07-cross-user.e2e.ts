@@ -1,6 +1,6 @@
 import { expect, request as apiRequest, test, type Page } from '@playwright/test';
 import type { Job, Track } from '../src/lib/api';
-import { ADMIN_STATE, USER_STATE, readSeed } from './support/stack';
+import { ADMIN_STATE, USER_STATE, normalizeEmail, readSeed, userIdentity } from './support/stack';
 import { jobToggle, literal } from './support/ui';
 
 test.use({ storageState: USER_STATE });
@@ -31,9 +31,19 @@ test("a user never sees another identity's job titles", async ({ page, request, 
 	const ownTracks = (await (await request.get(`/api/jobs/${user.jobId}/tracks`)).json()) as {
 		items: Track[];
 	};
-	const ownText = new Set(
-		ownTracks.items.flatMap((t) => [t.title, t.album, ...(t.artists ?? [])]).concat(user.title)
+	// Every job the user owns counts as its own, archived included, not only this run's seed.
+	// Filtered by owner: this is the listing under test, and a leak would otherwise make the
+	// admin's titles look like the user's own.
+	const listed = (await (
+		await request.get('/api/jobs?include_archived=true&limit=1000')
+	).json()) as { items: Job[] };
+	const ownJobs = listed.items.filter(
+		(j) => normalizeEmail(j.owner_email) === normalizeEmail(userIdentity().email)
 	);
+	const ownText = new Set([
+		...ownTracks.items.flatMap((t) => [t.title, t.album, ...(t.artists ?? [])]),
+		...ownJobs.map((j) => j.title)
+	]);
 	const foreign = [...new Set([admin.trackTitle, ...owned.items.map((j) => j.title)])].filter(
 		(title) => !ownText.has(title)
 	);

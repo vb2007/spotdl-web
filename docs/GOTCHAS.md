@@ -4514,6 +4514,15 @@ independently-found production bug from the same conversation)
   A substring match over "every title the admin owns" also hit chrome ("done") and the user's own
   track's album/artist cells (an admin album job titled like the user's album). Titles render as
   their own elements, so `exact: true` still catches a leak; both owner filters were re-shown red.
+- **"Own" text in a cross-user check must not come from the listing under test.** Taking the
+  user's own titles from `GET /api/jobs` made a broken owner filter count the admin's titles as
+  the user's own. The leak still failed, but at an unrelated guard. Own jobs are filtered by
+  `owner_email` (review round 7).
+- **graphify reads only the repo-root `.gitignore`.** Nested ignore files (`frontend/.gitignore`)
+  aren't consulted, so Playwright's `playwright-report/`, `test-results/` and `e2e/.auth/` got
+  indexed: ~1,262 nodes of minified bundles outranked real code in `graphify query`. The root
+  `.gitignore` repeats them. Anything generated under a subdirectory needs a root entry before
+  `graphify update .` (review round 7).
 - **Cross-user checks need a positive control that tolerates duplicates.** Other dev users own
   tracks with the same titles as the e2e user's own, so a leak first surfaced as a strict-mode
   violation on the user's *own* row. The positive check uses `.first()`, so the foreign-title
