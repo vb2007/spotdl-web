@@ -132,6 +132,100 @@ def test_download_track_skips_when_already_downloaded(db_session, monkeypatch):
     assert (updated.attempts_made, updated.failure_count) == (0, 0)
 
 
+class _FakeDownloadsSettings:
+    def __init__(self, download_output_dir):
+        self.download_output_dir = download_output_dir
+
+
+def _moved_ledger_row(db_session, monkeypatch, tmp_path, *, library_dir, write_file):
+    """v38: the real dedup gate (not a stub) over a ledger row the library sort moved."""
+    from app.services import app_settings
+
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads_dir = tmp_path / "downloads"
+    downloads_dir.mkdir()
+    (downloads_dir / "other.mp3").write_text("audio")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeDownloadsSettings(str(downloads_dir)))
+    app_settings.update_library_settings(db_session, library_target_dir=str(library_dir))
+    file_path = library_dir / "Artist - Album - (2020)" / "01 - Artist - Song A.mp3"
+    if write_file:
+        file_path.parent.mkdir(parents=True)
+        file_path.write_bytes(b"moved audio")
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="abc123",
+            file_path=str(file_path),
+            format="mp3",
+            bitrate="320k",
+            in_library=True,
+        )
+    )
+    db_session.commit()
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("a moved track must never reach the downloader")
+
+    monkeypatch.setattr(downloads, "get_downloader", _fail_if_called)
+    return file_path
+
+
+def test_download_track_resolves_a_moved_track_as_a_duplicate_of_its_library_file(
+    db_session, monkeypatch, tmp_path
+):
+    """v38: worker-dl now sees the library, so a resubmitted moved track is a duplicate of
+    the library copy -- no network attempt, and the ledger keeps pointing at the library."""
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    file_path = _moved_ledger_row(
+        db_session, monkeypatch, tmp_path, library_dir=tmp_path / "library", write_file=True
+    )
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.SKIPPED_DUPLICATE
+    assert updated.output_path == str(file_path)
+    rows = _attempts(db_session, track)
+    assert [(r.outcome, r.network_path) for r in rows] == [
+        (TrackAttemptOutcome.SKIPPED_DUPLICATE, None)
+    ]
+    assert db_session.get(DownloadedTrack, "abc123").file_path == str(file_path)
+
+
+def test_download_track_holds_a_moved_track_when_the_library_root_is_not_mounted(
+    db_session, monkeypatch, tmp_path, caplog
+):
+    """v38: an unmounted library root must not read as "file gone". The track is held as
+    waiting (no network attempt, no ladder step, no breaker feed) and an error is logged."""
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    captured = _capture_events(monkeypatch)
+    library_dir = tmp_path / "library-not-mounted"
+    file_path = _moved_ledger_row(
+        db_session, monkeypatch, tmp_path, library_dir=library_dir, write_file=False
+    )
+    before = datetime.now(timezone.utc)
+
+    with caplog.at_level("ERROR", logger="app.tasks.download"):
+        download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.WAITING
+    scheduled_at = updated.scheduled_at.replace(tzinfo=timezone.utc)
+    assert scheduled_at >= before + retry.next_delay(0) - timedelta(seconds=5)
+    assert (updated.attempt_count, updated.attempts_made, updated.failure_count) == (0, 0, 0)
+    rows = _attempts(db_session, track)
+    assert [(r.outcome, r.network_path) for r in rows] == [(TrackAttemptOutcome.HELD, None)]
+    assert str(library_dir) in rows[0].warning_message
+    assert db_session.get(WorkerState, 1).consecutive_failures == 0
+    assert db_session.get(DownloadedTrack, "abc123").file_path == str(file_path)
+    errors = [r for r in caplog.records if r.levelname == "ERROR"]
+    assert len(errors) == 1
+    assert str(track.id) in errors[0].getMessage()
+    assert str(library_dir) in errors[0].getMessage()
+    assert captured[-1][0][3] == TrackState.WAITING.value
+
+
 def test_download_track_success_marks_completed_and_upserts_ledger(db_session, monkeypatch, tmp_path):
     track = _make_track(db_session)
     _patch_common(monkeypatch, db_session)

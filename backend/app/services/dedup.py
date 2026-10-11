@@ -13,6 +13,16 @@ from app.services import app_settings
 logger = logging.getLogger(__name__)
 
 
+class LedgerRootUnavailable(Exception):
+    """A ledger row's file is missing, but it lives under a root that looks unmounted in
+    this process, so "missing" can't be told apart from "can't see it" (v38)."""
+
+    def __init__(self, root: Path, path: Path) -> None:
+        super().__init__(f"{path} is under {root}, which is missing or empty")
+        self.root = root
+        self.path = path
+
+
 def is_already_downloaded(spotify_track_id: str) -> Path | None:
     """None means "attempt a real download" -- to the caller, a stale ledger row (file
     genuinely gone, see reconcile_disk()) must be indistinguishable from no row at all.
@@ -21,14 +31,41 @@ def is_already_downloaded(spotify_track_id: str) -> Path | None:
     ledger entry whose file doesn't exist, which is strictly worse than a false
     `COMPLETED` (it never even attempts a real download to fix itself). Doesn't touch or
     delete the stale row here -- that's reconcile_disk()'s job at boot, kept as the one
-    place that mutates the ledger for "file is gone," so this function stays read-only."""
+    place that mutates the ledger for "file is gone," so this function stays read-only.
+
+    v38: a missing file under a root that looks unmounted here raises
+    LedgerRootUnavailable instead of returning None -- reconcile_disk()'s own guard.
+    worker-dl didn't mount the library before v38, so every file the library sort had
+    moved read as gone and was downloaded again; a future mount mistake (or an admin
+    repointing library_target_dir) must not repeat that silently. A miss also re-reads
+    the row first, in case the library sweep moved the file mid-check."""
     db = SessionLocal()
     try:
         row = db.get(DownloadedTrack, spotify_track_id)
         if row is None:
             return None
         path = Path(row.file_path)
-        return path if path.exists() else None
+        if path.exists():
+            return path
+        # The library sweep (worker-expand) commits a row's repoint *before* unlinking the
+        # source, so a file missing at the path read above may just have moved: re-read the
+        # row and check its current path, as reconcile_disk() does (v34.1).
+        try:
+            db.refresh(row)
+        except InvalidRequestError:
+            return None  # reconcile_disk() dropped the row meanwhile: no row is a miss
+        path = Path(row.file_path)
+        if path.exists():
+            return path
+        roots = (
+            Path(get_settings().download_output_dir),
+            Path(app_settings.get_library_settings(db).library_target_dir),
+        )
+        db.commit()
+        for root in roots:
+            if path.is_relative_to(root) and _mount_looks_missing(root):
+                raise LedgerRootUnavailable(root, path)
+        return None
     finally:
         db.close()
 

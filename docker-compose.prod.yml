@@ -87,6 +87,9 @@ services:
     # migration rather than silently re-downloading everything.
     volumes: !override
       - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads
+      # v38: read-only, so the dedup gate sees a file the library sort moved (see the base
+      # file's worker-dl comment).
+      - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music:ro
 
   worker-meta:
     image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}

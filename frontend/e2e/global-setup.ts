@@ -121,7 +121,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 	const misses = ledgerMisses(Object.values(LEDGER_TRACKS));
 	if (misses.length) {
 		throw new Error(
-			`LEDGER_TRACKS not resolvable as duplicates (no ledger row, or its file is gone): ${misses.join(', ')}`
+			`LEDGER_TRACKS not resolvable as duplicates in worker-dl (no ledger row, its file is gone, or its root isn't mounted there): ${misses.join(', ')}`
 		);
 	}
 

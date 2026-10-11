@@ -99,16 +99,119 @@ export function stackPython(
 	}).trim();
 }
 
-/** The `LEDGER_TRACKS` ids worker-dl would NOT resolve as duplicates (no ledger row, or its
- * file is gone), by the dedup gate's own check. Submitting one of those means a download.
- * Asked inside `worker-dl` itself: it mounts only `/downloads`, so a file the library sort
- * moved is a hit for `worker-meta` and a miss for the worker that actually decides. */
+/** The `LEDGER_TRACKS` ids worker-dl would NOT resolve as duplicates right now, by the dedup
+ * gate's own check: no ledger row, its file is gone (a download), or its root looks unmounted
+ * (held as `waiting`, so the job never settles). Asked inside `worker-dl`, the worker that
+ * actually decides. Since v38 it mounts the library too, so its answer matches `worker-meta`'s;
+ * before that, a file the library sort moved was a hit there and a miss here. */
 export function ledgerMisses(spotifyIds: string[]): string[] {
 	const out = stackPython(
 		`
 import sys
-from app.services.dedup import is_already_downloaded
-print(" ".join(i for i in sys.argv[1:] if is_already_downloaded(i) is None))
+from app.services.dedup import LedgerRootUnavailable, is_already_downloaded
+def miss(i):
+    try:
+        return is_already_downloaded(i) is None
+    except LedgerRootUnavailable:
+        return True
+print(" ".join(i for i in sys.argv[1:] if miss(i)))
+`,
+		spotifyIds,
+		'worker-dl'
+	);
+	return out ? out.split(' ') : [];
+}
+
+export interface MovedTrack {
+	spotifyId: string;
+	/** The ledger's `file_path`: under the library root, where the sort moved it. */
+	filePath: string;
+	/** sha256 of that file, read on the stack side straight from the ledger path. */
+	sha256: string;
+}
+
+/** Ledger rows the library sort moved (`in_library`, the file present under the library root),
+ * that the admin identity never submitted, so they stay the user's alone (the `LEDGER_TRACKS`
+ * rule spec 7 relies on), and that the user never downloaded itself, so every resubmission is
+ * cross-user. Ordered by Spotify id, so each project picks the same row every run. */
+export function movedLedgerTracks(): MovedTrack[] {
+	const out = stackPython(
+		`
+import hashlib, json, sys
+from pathlib import Path
+from sqlalchemy import text
+from app.db import SessionLocal
+from app.services import app_settings
+db = SessionLocal()
+root = Path(app_settings.get_library_settings(db).library_target_dir)
+rows = db.execute(text("""
+    select d.spotify_track_id, d.file_path from downloaded_tracks d
+    where d.in_library
+      and not (d.spotify_track_id = any(:ledger))
+      and not exists (
+          select 1 from tracks t
+          join jobs j on j.id = t.job_id
+          join users u on u.id = j.user_id
+          where u.email = :admin and t.spotify_track_id = d.spotify_track_id
+      )
+      and not exists (
+          select 1 from track_attempts a
+          join tracks t on t.id = a.track_id
+          join jobs j on j.id = t.job_id
+          join users u on u.id = j.user_id
+          where u.email = :user and t.spotify_track_id = d.spotify_track_id
+            and a.network_path is not null
+      )
+    order by d.spotify_track_id
+"""), {"ledger": sys.argv[3:], "admin": sys.argv[1], "user": sys.argv[2]}).all()
+moved = []
+for spotify_id, file_path in rows:
+    path = Path(file_path)
+    if path.is_relative_to(root) and path.is_file():
+        moved.append({"spotifyId": spotify_id, "filePath": file_path,
+                      "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+    if len(moved) == 2:
+        break
+print(json.dumps(moved))
+`,
+		[
+			normalizeEmail(adminIdentity().email),
+			normalizeEmail(userIdentity().email),
+			...Object.values(LEDGER_TRACKS)
+		]
+	);
+	return JSON.parse(out) as MovedTrack[];
+}
+
+/** The ledger's current `file_path` for a Spotify id, or null without a row. */
+export function ledgerFilePath(spotifyId: string): string | null {
+	const out = stackPython(
+		`
+import sys
+from app.db import SessionLocal
+from app.models import DownloadedTrack
+row = SessionLocal().get(DownloadedTrack, sys.argv[1])
+print(row.file_path if row else "")
+`,
+		[spotifyId]
+	);
+	return out || null;
+}
+
+/** The ids worker-dl would actually download (no ledger row, or its file gone under a root it
+ * can see), by the dedup gate's own check. Unlike `ledgerMisses`, a root that looks unmounted
+ * isn't counted: that track is held, never downloaded. */
+export function ledgerDownloads(spotifyIds: string[]): string[] {
+	const out = stackPython(
+		`
+import sys
+from app.services.dedup import LedgerRootUnavailable, is_already_downloaded
+def downloads(i):
+    try:
+        return is_already_downloaded(i) is None
+    except LedgerRootUnavailable:
+        return False
+print(" ".join(i for i in sys.argv[1:] if downloads(i)))
 `,
 		spotifyIds,
 		'worker-dl'
@@ -213,19 +316,24 @@ export async function waitForJob(
 	}
 }
 
-/** Cancels an admin job unless it settled: anything else could be a real download in flight,
- * which must not keep retrying on the ladder after the run. Uses its own request context, so it
- * still works when a test-level timeout has already closed the page. */
-export async function cancelUnlessSettled(baseURL: string, jobId: string): Promise<void> {
-	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
+/** Cancels a job unless it settled: anything else could be a real download in flight, which
+ * must not keep retrying on the ladder after the run. Acts as the job's owner (`storageState`,
+ * the admin by default). Uses its own request context, so it still works when a test-level
+ * timeout has already closed the page. */
+export async function cancelUnlessSettled(
+	baseURL: string,
+	jobId: string,
+	storageState: string = ADMIN_STATE
+): Promise<void> {
+	const owner = await request.newContext({ baseURL, storageState });
 	try {
-		const job = (await (await admin.get(`/api/jobs/${jobId}`)).json()) as Job;
+		const job = (await (await owner.get(`/api/jobs/${jobId}`)).json()) as Job;
 		if (job.status.lifecycle !== 'settled') {
-			const cancelled = await admin.delete(`/api/jobs/${jobId}`);
+			const cancelled = await owner.delete(`/api/jobs/${jobId}`);
 			expect.soft(cancelled.status(), `cancelling unsettled job ${jobId}`).toBe(200);
 		}
 	} finally {
-		await admin.dispose();
+		await owner.dispose();
 	}
 }
 

@@ -349,6 +349,13 @@ needed" claim — rather than silently deleted.
   *(Corrected 2026-10-01, v32: the split is done. Local dev now runs on its own `spotdlwebtest`
   database behind a fail-closed `SPOTDL_ENV=dev` guard, so restarting local `worker-meta` is safe
   again. It reconciles the dev ledger only.)*
+- Every process that runs the dedup gate must mount every root the ledger can point into. A root
+  it can't see reads as "file gone", which means a re-download; `worker-dl` lacked the library
+  until v38. `is_already_downloaded` now raises `LedgerRootUnavailable` for a missing file under
+  a root that looks unmounted, and `download_track` holds the track instead → *v38*
+- A re-download over a moved track leaves `in_library = true` on a ledger row whose `file_path`
+  is back under `/downloads` (`db.merge` never touches `in_library`): that pair is the SQL
+  signature of the damage (`scripts/moved_file_redownloads.sql`) → *v38*
 - A running container keeps the environment it was **created** with. Editing `.env` changes
   nothing until the container is recreated (`docker compose up -d`, not `restart`), so "the `.env`
   points at dev" isn't proof the running stack does. Check `docker compose exec <svc> printenv` →
@@ -572,6 +579,9 @@ needed" claim — rather than silently deleted.
 - Forcing a real download failure: a compose overlay with `extra_hosts` mapping the YouTube hosts
   to `127.0.0.1`/`::1` on a recreated `worker-dl` (an in-place `/etc/hosts` edit needs both
   families) → *v35*
+- The session cookie is `Secure`, so the browser suite needs a `localhost` origin (Chromium treats
+  only that as secure over plain HTTP; `127.0.0.1` drops the cookie). Another dev server bound to
+  `[::1]:5173` silently captures `localhost` from Node and the browser → *v38*
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
   first on `sys.path` and silently imports the stale baked-in `site-packages` copy of `app` → *v11*
 - A local venv for running pytest outside Docker must be installed with `-e`, or edits are
@@ -4553,6 +4563,9 @@ independently-found production bug from the same conversation)
   with that same function, **inside `worker-dl`** (it mounts only `/downloads`; `worker-meta`
   also sees the library and would approve a moved file worker-dl can't see), and refuses to start, and a seed or spec 2 job that doesn't settle as a
   duplicate is cancelled so it can't keep retrying on the ladder (review round 1).
+  *(Corrected 2026-10-10, v38: worker-dl now mounts the library read-only, so the two agree. The
+  preflight stays in worker-dl, the worker that decides, and also counts an unmounted root as a
+  miss.)*
 - **Teardown counts `network_path is not null` for normalized emails.** Emails are stored
   lowercased, so a mixed-case `.env.e2e` value matched no user and the check passed vacuously.
   Outcome-based counting also misread beat's stale reclaim (`failed`, no path) as a download.
@@ -4566,7 +4579,8 @@ independently-found production bug from the same conversation)
   Discovery track) returns the library path in `worker-meta` and `None` in `worker-dl`, so
   resubmitting any moved track would re-download it. That contradicts the master-v3 invariant
   that a move must never cause a re-download. Reported to the owner in the v37 PR. *(2026-10-10: scheduled
-  as v38, `plan/master-v4/v38-moved-file-dedup.md`; later slices renumbered.)*
+  as v38, `plan/master-v4/v38-moved-file-dedup.md`; later slices renumbered. Fixed in v38, see
+  below.)*
 - **The suite refuses a non-loopback `E2E_BASE_URL`** (review round 2). The preflight and the
   teardown read the local stack, so driving another origin would leave them guarding the wrong one.
 - **An in-flight download is invisible to the DB.** An attempt row is written only when the
@@ -4589,3 +4603,47 @@ independently-found production bug from the same conversation)
   window (review round 5).
 - **Cleanup that guards against a live download uses its own request context**
   (`cancelUnlessSettled`). A test-level timeout can close `page.request` before a `finally` runs.
+
+### v38 moved-file-dedup gotchas
+
+- **The re-download was real, and it also corrupted the ledger.** Reproduced on dev before the fix:
+  `2KH16WveTQWT6KOG9Rg6e2` (Survivor, Eye of the Tiger, sorted into the test library on
+  2026-10-02), resubmitted by `v37admin`, recorded a `completed direct-ipv4` attempt after a 33 s
+  YouTube download, and `db.merge` repointed the ledger row to
+  `/downloads/04 - Survivor - Eye of the Tiger.mp3` while `in_library` stayed `true`. The library
+  copy was still there, so the track had two files and the next sort would have met an existing
+  target. That `in_library` + non-library path pair is what `scripts/moved_file_redownloads.sql`
+  looks for.
+- **An unmounted root holds the track rather than trusting the ledger.** Both were allowed by the
+  plan. Holding (`waiting`, a `held` attempt, `retry.next_delay(0)`, no `attempt_count` step, no
+  breaker feed) self-heals: verified live, four holds with worker-dl's library mount removed, then
+  `skipped_duplicate` on the next dispatch once it was back. Trusting the ledger would mark a
+  track a duplicate of a file nobody can confirm exists, and nothing would revisit it. The error
+  is logged once per hold, so a missing mount on production (15 min ladder) logs every 15 min per
+  affected track, which is the point.
+- **The guard is per configured root, like `reconcile_disk`'s.** A path under neither
+  `download_output_dir` nor the *current* `library_target_dir` isn't guarded: after an admin
+  repoints `library_target_dir`, rows still under the old root fall outside both. They're fine
+  while that old root stays mounted (it's the same `/mnt/raid1/media/music` mount today). The
+  damage query has the same blind spot in reverse: after a repoint it reports old-root rows as
+  `ledger_back_in_downloads`.
+- **The guard covers the downloads root too, and that can stall a track.** If `/downloads` is
+  ever genuinely empty (a sort moved everything and no `quarantine/` dir exists) while a ledger
+  row still points at a hand-deleted file there, the track is held every ladder step, forever,
+  with an error each time, and `reconcile_disk` skips the same row for the same reason. Fix it
+  by hand: delete that ledger row. Accepted as the safe direction (plan: "a silent re-download
+  is not an option").
+- **A miss re-reads the row before deciding** (blind review round 1). The sweep commits a
+  repoint and then unlinks the source, so a check that read the old `/downloads` path just
+  before saw neither file. Same fix as `reconcile_disk`'s v34.1 recheck: `db.refresh(row)`.
+- **The damage query compares path prefixes with `left()`, not `LIKE`**: `_` in a path is a
+  `LIKE` wildcard, and a trailing slash on `library_target_dir` flagged every library row.
+- **Six dev library rows also have a same-named file in `./downloads`** (Mr. Brightside, Africa,
+  Take on Me, Hotel California, Bohemian Rhapsody, Shape of You). They aren't the moved-file
+  signature (their ledger rows still point into the library) and weren't investigated: out of
+  scope, listed in the PR.
+- **`localhost:5173` can be two servers.** Docker publishes the dev `web` on `127.0.0.1:5173`
+  only, so another project's Vite dev server listening on `[::1]:5173` wins `localhost` for Node
+  and the browser. An e2e run then failed with HTML where JSON was expected and a foreign page in
+  the screenshot. `127.0.0.1` isn't a way around it: the session cookie is `Secure`, which
+  Chromium honours over HTTP only for `localhost`. Stop the other server.
