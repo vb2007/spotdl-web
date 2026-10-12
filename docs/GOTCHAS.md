@@ -732,6 +732,16 @@ needed" claim — rather than silently deleted.
   a real, years-old bug (the proxy setting never reaching the network at all) that trusting a
   passed-in flag would have missed entirely → *v29*
 
+- Forcing real failures on the dev stack: restart only `worker-dl` with a scratch compose overlay
+  setting a dead `HTTP(S)_PROXY` plus a short `LADDER_SECONDS`. The real worker then produces
+  real `no_output` failures, real proxy escalation and real breaker trips. The breaker re-trips
+  after 5, so one track needs other tracks pushed out to reach 6 attempts → *v39*
+- impeccable's `detect.mjs` CLI returns `[]` on this Svelte tree; only the in-browser overlay
+  (`live-server.mjs` + injected `detect.js`) finds anything. Run `live-server.mjs` from a scratch
+  directory (it writes state into cwd) and stop it with `--keep-inject` → *v39*
+- A `/library` sweep archives every settled job whose tracks it moved, for *every* user, so
+  dashboard screenshots or e2e expectations taken after a sweep see fewer rows → *v39*
+
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
   vanishes from PR checks rather than showing as failed → *v12*
@@ -4666,3 +4676,32 @@ independently-found production bug from the same conversation)
   started on the wrong config, so no data was touched. Recovery: the overlay's `--profile tunnel
   down`, then `up -d --no-build`, then removing the two empty volumes and the stray image. The
   table is fixed.
+
+### v39 ui-audit gotchas
+
+- **Getting every track state onto the dev stack for a UI audit.** The dev DB rarely holds a live
+  `waiting`, 5+-attempt, `lookup_failed` or tag-warning track. Real failures came from restarting
+  only `worker-dl` with a scratch overlay (`HTTP_PROXY`/`HTTPS_PROXY` = `http://127.0.0.1:9`,
+  `LADDER_SECONDS=15,15,15,15,15,3600`): the worker produced real `no_output` failures, escalated
+  to IPv6 and then to the real pool proxies, tripped the breaker, and left a real 1h countdown.
+  Five consecutive failures trip the breaker, and breaker holds record "held — not attempted"
+  rows instead of attempts. So taking one track to 6 real failures meant pushing the album's other
+  tracks' `scheduled_at` out and resetting `worker_state` once, in the dev DB. `lookup_failed` and
+  the tag-repair warning can't be forced; they were seeded by SQL with spotdl's and
+  `tagging.repair_tags`' real message texts (owner-approved). Restore with a plain
+  `docker compose up -d worker-dl`, and clear `worker_state`, or the e2e suite's dedup submissions
+  sit behind the breaker.
+- **impeccable tooling on this repo.** The `detect.mjs` CLI scan of `frontend/src` returns `[]`
+  (exit 0). A planted test file proves the engine works; it simply matches source patterns this
+  tree doesn't have. Every real detector finding (low contrast, the unpadded Alerts panel, line
+  length, flat type hierarchy) came from the browser overlay. `live-server.mjs` writes its state
+  files into the current directory and a plain `stop` edits an injected tag in source, so run it
+  from a scratch directory and stop it with `--keep-inject`. `critique-storage.mjs write` puts
+  snapshots at the repo-root `.impeccable/critique/`. `surface-brief.mjs` writes to
+  `frontend/src/.impeccable/surfaces/`, which counts as a `frontend/` change for the version bump.
+- **A library sweep changes other users' dashboards.** `_sync_tracks_and_archive_jobs`
+  (`app/tasks/library.py`) archives every settled job whose tracks the sweep moved, across all
+  users, and the sweep report doesn't say so. A sweep run mid-audit made a verifier report "the
+  job is archived" against screenshots taken minutes earlier. Take dashboard captures before any
+  sweep. (Recorded as v39 finding F34.)
+
