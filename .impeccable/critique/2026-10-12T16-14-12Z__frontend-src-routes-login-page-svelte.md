@@ -22,5 +22,3 @@ Method: dual-agent (A: design-review sub-agents A1/A2 · B: detector+browser sub
   an amber focus glow on CONNECT. (F10)
 - **Conflicting roles.** The error uses `role="alert"` together with `aria-live="polite"` (`:92`).
   (F31)
-
----

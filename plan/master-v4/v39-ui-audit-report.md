@@ -104,6 +104,13 @@ References like `shots/03` below mean `03-track-5plus-failures--{desktop,mobile}
 | 09 | empty search result | 40 / 41 | admin dashboard mine / all users |
 | 10 / 11 | offline (SSE dropped) / reconnected | `audit/tablet-*` | 820 + 1024 widths |
 | 12 | loading | `overlay-*` | detector overlays |
+| — | `axe-all.json`, `tab-*.json` | `audit/audit-results.json`, `audit/m02crop.png`, `audit/focus-*.png`, `audit/zoom200-*` | audit measurements |
+| — | `claims10/*.png`, `claims10/results.json` | `detect-cli.json`, `overlay-results.json` | known-item and detector evidence |
+
+**Stack health (Done-when):** after the audit, `worker-dl` was restored to its normal config and
+`worker_state` cleared in the dev DB, then the unchanged v37 suite ran against the same stack:
+`npm run test:e2e`, **20 passed** (desktop and mobile, specs 01–09), and teardown reported zero
+network download attempts by the e2e identities. Full output is in the PR.
 
 ---
 
@@ -130,7 +137,7 @@ single setting. Those totals are renormalized.
 
 | Dimension | Score | Key finding |
 |---|---|---|
-| Accessibility | 2 | `--text-dim` fails AA on every background (2.15–3.05:1). `/` has no h1, landmarks or skip link. The status pill re-announces every second |
+| Accessibility | 2 | `--text-dim` fails AA on every background (2.15–3.05:1). `/` has no h1, no banner/`<nav>` landmark and no skip link (`<header>` sits inside `<main>`). The status pill re-announces every second |
 | Performance | 3 | About 60 KB gzipped JS. Minor: render-blocking Google Fonts, a `localStorage` write per progress tick, one interval per countdown |
 | Responsive | 2 | No overflow at any width. But the mobile JobRow toggle is 256px tall, there is a single 640px breakpoint, and state labels are truncated at every desktop width |
 | Theming | 3 | Tokens are used almost everywhere and `design-tokens.json` matches `app.css` exactly. The Alerts panel is off-system, and amber appears on chrome |
@@ -142,7 +149,7 @@ single setting. Those totals are renormalized.
 | Pass | Result |
 |---|---|
 | CLI | `detect.mjs --json frontend/src`: exit 0, `[]` (also with `--no-config`). A test file proved the engine does fire |
-| Browser overlay | 9 distinct rules in the console summary, plus 2 more (monotonous-spacing, text-occlusion) from a second `impeccableDetectAsync()` pass (§4.2). 4 are real (low-contrast, cramped-padding, line-length, flat-type-hierarchy), 3 are documented or intentional patterns (dark-glow, pulsing-dot, em-dash), and 4 are full or partial false positives (gpt-thin-border in intent, text-overflow, single-font, text-occlusion) |
+| Browser overlay | 9 distinct rules in the console summary, plus 2 more (monotonous-spacing, text-occlusion) from a second `impeccableDetectAsync()` pass (§4.2). 4 are real (low-contrast, cramped-padding, line-length, flat-type-hierarchy), 3 are documented or intentional patterns (dark-glow, pulsing-dot, em-dash), 4 are full or partial false positives (gpt-thin-border in intent, text-overflow, single-font, text-occlusion), and 1 is unverified (monotonous-spacing) |
 
 ### axe-core (desktop, violations per surface)
 
@@ -479,7 +486,7 @@ All ten were measured live at 1440×900 in the dev stack.
 
 ## 6. Ranked findings
 
-Rows are ordered by severity (P1 → P3, then won't-fix). IDs are stable references, not ranks.
+Rows are ordered by severity (P1 → P3), with F34 (P2, backend, won't-fix in the UI series), F36 and F37 (P2, added in review) inside the P2 group and F35 (no severity) last. IDs are stable references, not ranks.
 
 **Severity** uses impeccable's P0–P3 scale:
 
@@ -515,7 +522,7 @@ Rows are ordered by severity (P1 → P3, then won't-fix). IDs are stable referen
 | F20 | P1 | `/library` | Idle shows a full amber 100% bar, which looks like a running sweep. No "finished at". Mid-sweep hides the live counts. Duplicate error rows with no recovery copy. SSE has no reconnect. No cancel | `library:41-66,101,114-127`, `shots/43,45,46` | v43 |
 | F26 | P1 | `/` states | Empty, loading and error don't teach or recover: identical "Nothing here." for a new user and a search miss; loading shows all chips at 0; raw "Internal Server Error" with no retry | `shots/09,12,13,14`, `+page.svelte:218-223` | v42 |
 | F29 | P1 | `/` keyboard | 21 stops before the first job; every TrackRow is a stop; no skip link, h1, `<nav>` or banner landmark; Esc does nothing on rows; no `aria-controls` | §4.3, §5 #10 | v45 (keyboard model, skip link); v42 (landmarks/h1, already in v42's plan); v41 (`aria-controls`) |
-| F12 | P2 | all | No type scale (6 ad hoc sizes, nothing above 15px). Mono covers prose, errors, buttons and hints, giving one undifferentiated 12px texture. Body is `15px` (px), which ignores the user's text-size setting | §5 #4, `app.css:112`, detector flat-type-hierarchy | v42 (scale + `/`); v43/v47 migrate the rest |
+| F12 | P2 | all | No type scale (6 ad hoc sizes, nothing above 15px). Mono covers prose, errors, buttons and hints, giving one undifferentiated 12px texture (narrowing mono amends DESIGN.md §3 itself, so it needs the §8 approval). Body is `15px` (px), which ignores the user's text-size setting | §5 #4, `app.css:112`, detector flat-type-hierarchy | v42 (scale + `/`); v43/v47 migrate the rest |
 | F13 | P2 | track rows | The state label truncates ("no signal — not fo…") at 1440/1024/820 with no `title`. The 3rem `.pct` column is empty unless downloading. Long titles/artists are cut | `TrackRow.svelte:245`, `shots/02,05`, `audit/tablet-*` | v41 |
 | F14 | P2 | expanded track | The tag-repair warning uses waiting-blue, the same as "held", so it reads as a scheduling note rather than a quality warning | `TrackRow.svelte:436-441`, `shots/06` | v41 |
 | F15 | P2 | `/` mobile | About 950 CSS px of chrome before the first job: header one item per line, full-width disconnect, ~780 device-px controls panel | `shots/01--mobile` | v42 |
@@ -577,7 +584,9 @@ These are for the owner to accept or reject. v40–v47's plans were not edited.
 
 Every independent assessor that judged direction (design reviews A1 and A2, and the audit) reached the
 same verdict. Every UI finding (F01–F33, F36, F37) is a violation of the world's *own* rules, or an execution
-gap; none is caused by the world itself. F34 is backend behavior and F35 is detector false positives.
+gap; none is caused by the world itself. One recommendation is a **rule change, not drift**: narrowing
+mono (F12) amends DESIGN.md §3, which today assigns mono to buttons, chips and labels. It needs the
+owner's approval with this direction. F34 is backend behavior and F35 is detector false positives.
 
 ### Keep
 
