@@ -741,6 +741,9 @@ needed" claim — rather than silently deleted.
   directory (it writes state into cwd) and stop it with `--keep-inject` → *v39*
 - A `/library` sweep archives every settled job whose tracks it moved, for *every* user, so
   dashboard screenshots or e2e expectations taken after a sweep see fewer rows → *v39*
+- Running `npm run test:e2e` cancels and archives every in-flight job of the e2e identities
+  (`v37admin`/`v37user`) in global setup. Never build audit or screenshot data on those accounts
+  and then run the suite before capturing → *v39*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -4704,4 +4707,18 @@ independently-found production bug from the same conversation)
   users, and the sweep report doesn't say so. A sweep run mid-audit made a verifier report "the
   job is archived" against screenshots taken minutes earlier. Take dashboard captures before any
   sweep. (Recorded as v39 finding F34.)
+- **The e2e suite wipes the e2e identities' in-flight jobs.** v37's global setup logs in as
+  `v37admin`/`v37user`, `DELETE`s every unsettled job they own, archives them, then posts its seed
+  jobs (seen in the api log: two logins, two `DELETE /api/jobs/{id}`, two `/archive`, two
+  `POST /api/jobs` within 0.5s). The v39 audit's "Trick" album, with its real failure history, was
+  built on `v37user`. The e2e run that proved the stack healthy cancelled and archived it, which
+  looked at first like an assessment agent breaking its read-only rule. Capture every screenshot
+  before running the suite, or build audit data on a separate identity.
+- **F01: in a column flex stack, flex-basis sizes height (fixed in v39.1).** JobRow's ≤640px block
+  switches the row to `flex-direction: column` but inherited the desktop children's bases:
+  `.toggle { flex: 2 1 16rem }` became a 256px *height*, and `.bar { flex-basis: 100% }` resolved
+  against an indefinite height, fell back to the bar's empty content and overrode its
+  `height: 0.5rem`, leaving a 2px border. It had been broken since v20. v20's 390px check measured
+  widths (overflow) only, so it never looked at heights. For any column-direction collapse, reset
+  the children's flex-basis and measure heights as well as widths.
 

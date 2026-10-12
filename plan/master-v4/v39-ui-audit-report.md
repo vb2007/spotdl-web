@@ -549,7 +549,7 @@ Rows are ordered by severity (P1 → P3), with F34 (P2, backend, won't-fix in th
 
 These are for the owner to accept or reject. v40–v47's plans were not edited.
 
-- **A1. F01 is a live mobile regression.** v41 owns JobRow's ≤640 stack, so it is assigned there. The
+- **A1. F01 is a live mobile bug, present since v20 (`git log -S` puts both rules in `f7f2620`), not a recent regression.** v41 owns JobRow's ≤640 stack, so it is assigned there. The
   bug makes every job row about 4× taller and hides its progress bar on phones *today*. It has two
   causes, so a hotfix needs both halves inside the mobile query: `.toggle { flex: 0 0 auto }` (the
   16rem height) **and** `.bar { flex-basis: auto }` (the `100%` basis collapses the bar to its border
