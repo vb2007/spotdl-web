@@ -1,7 +1,7 @@
 # Graph Report - spotdl-web  (2026-10-12)
 
 ## Corpus Check
-- 237 files · ~256,535 words
+- 237 files · ~256,575 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `882b3423`
+- Built from commit: `7d030673`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -250,8 +250,8 @@
 ## Communities (226 total, 57 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
-Cohesion: 0.16
-Nodes (29): Row created on first successful login (v17). The `ALLOWED_EMAILS` env allowlist, User, archive_jobs(), ArchiveJobsRequest, bump_job(), cancel_job(), _classify_source_type(), create_job() (+21 more)
+Cohesion: 0.15
+Nodes (27): archive_jobs(), ArchiveJobsRequest, bump_job(), cancel_job(), _classify_source_type(), create_job(), CreateJobRequest, get_job() (+19 more)
 
 ### Community 1 - "Config & Health Check"
 Cohesion: 0.09
@@ -518,8 +518,8 @@ Cohesion: 0.26
 Nodes (15): channel_for(), _get_client(), make_progress_callback(), publish(), publish_job_event(), publish_library_progress(), publish_track_event(), Any (+7 more)
 
 ### Community 130 - "stream"
-Cohesion: 0.14
-Nodes (26): _alert_settings_to_dict(), get_alert_settings(), get_library_settings(), get_output_options(), get_output_settings(), get_retention_settings(), _library_settings_to_dict(), _output_settings_to_dict() (+18 more)
+Cohesion: 0.15
+Nodes (28): Row created on first successful login (v17). The `ALLOWED_EMAILS` env allowlist, User, _alert_settings_to_dict(), get_alert_settings(), get_library_settings(), get_output_options(), get_output_settings(), get_retention_settings() (+20 more)
 
 ### Community 131 - "Base"
 Cohesion: 0.08

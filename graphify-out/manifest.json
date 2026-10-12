@@ -345,8 +345,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1790934985.8896189,
-    "ast_hash": "3d14475f91a6ae28ed08faa5d6c2ecb3",
+    "mtime": 1791836260.924832,
+    "ast_hash": "a8507c41a6f267e987d74335e71f0f35",
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
@@ -385,8 +385,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1791835836.8503423,
-    "ast_hash": "442e8fcd03332e2085b3cf81661c28b0",
+    "mtime": 1791836269.3934345,
+    "ast_hash": "c25cf198a137c1407a4744a289767c88",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
@@ -750,8 +750,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobRow.svelte": {
-    "mtime": 1791835541.3163524,
-    "ast_hash": "cfa6ac2db3212ed55d8b5792b5d0782c",
+    "mtime": 1791836260.851829,
+    "ast_hash": "1999ba010c1ccf56c10c88c5b45f8407",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobTrackList.svelte": {
@@ -1250,8 +1250,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/10-job-row-layout.e2e.ts": {
-    "mtime": 1791835501.9583752,
-    "ast_hash": "df25a3accb6d568741ab4b012129bee3",
+    "mtime": 1791836208.9922717,
+    "ast_hash": "d1956cf5edfb185eb2680c793df069d5",
     "semantic_hash": ""
   }
 }
