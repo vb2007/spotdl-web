@@ -152,6 +152,9 @@ needed" claim — rather than silently deleted.
   protected), so a queued scratch dispatch can be silently cancelled by an unrelated push → *v33*
 - Under `bash -e`, an assignment whose `$(...)` ends in a false `[ ] && echo` aborts the script.
   Test extracted Actions scripts with `bash -eo pipefail`, not plain `bash` → *v33.1*
+- On the host, every compose command needs `-f docker-compose.yml -f docker-compose.prod.yml`
+  (plus `--profile tunnel` for `up`/`down`). `up` without the overlay stops the app, creates empty
+  named volumes and fails on the network cloudflared holds → *v38*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -4647,3 +4650,19 @@ independently-found production bug from the same conversation)
   and the browser. An e2e run then failed with HTML where JSON was expected and a foreign page in
   the screenshot. `127.0.0.1` isn't a way around it: the session cookie is `Secure`, which
   Chromium honours over HTTP only for `localhost`. Stop the other server.
+- **Production's library went live after the merge (2026-10-11).** `LIBRARY_DIR` had pointed at
+  the empty test folder `/mnt/raid1/media/test`; the owner changed it to `/mnt/raid1/media/music`,
+  recreated the stack and sorted 12 already-downloaded tracks: 12 moved, 0 already present,
+  0 quarantined, 0 errors, Plex picked them up, and the Matrix sweep alert arrived. Before the
+  switch, `scripts/moved_file_redownloads.sql` on prod returned no rows (no earlier damage) and
+  worker-dl showed the mount `ro`. Safety argument for the flip: the sweep skips any destination
+  that exists (`app/tasks/library.py`), `copy_verify` renames rather than deletes a bad copy, and
+  every `unlink` is on the `/downloads` source.
+- **`docker compose -f docker-compose.yml up -d` on the host takes the app down.** CLAUDE.md's
+  environment table gave that as the host command (stale since the prod overlay); the session
+  passed it on. Without `docker-compose.prod.yml` compose stopped every app container, built a
+  local `worker-expand` image, created empty `spotdl-web_library`/`spotdl-web_downloads`
+  volumes, then failed: `network spotdl-web_default has active endpoints (cloudflared)`. Nothing
+  started on the wrong config, so no data was touched. Recovery: the overlay's `--profile tunnel
+  down`, then `up -d --no-build`, then removing the two empty volumes and the stray image. The
+  table is fixed.

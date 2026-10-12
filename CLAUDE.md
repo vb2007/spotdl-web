@@ -107,7 +107,7 @@ account. Create/reset/rebuild details are in `docs/LOCAL_DEV.md`'s "Dedicated de
 |---|---|---|
 | Purpose | Day-to-day iteration | Final per-version verification + real deployment |
 | `.env` template | `.env.dev.example` | `.env.example` |
-| Compose invocation | `docker compose up` (override applies — hot reload) | `docker compose -f docker-compose.yml up` |
+| Compose invocation | `docker compose up` (override applies — hot reload) | `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build` (the overlay is mandatory) |
 | Postgres | Same server, dev DB `spotdlwebtest`, reached over LAN by its real address | Same server, prod DB `spotdlweb`, reached via `host.docker.internal` |
 | Redis, other containers | Fully local, independent per environment | Fully local, independent per environment |
 
