@@ -13,7 +13,7 @@ Method: dual-agent (A: design-review sub-agents A1/A2 · B: detector+browser sub
 
 ### 3.8 `/login` (`shots/30`, `31`)
 
-- **The strongest surface (26/40).** The FM dial and its sweeping needle are the one fully realized
+- **The most authored surface (26/40, 65%; `/account`'s 25/36 is 69% by percentage).** The FM dial and its sweeping needle are the one fully realized
   moment of the world. The dial is `aria-hidden`, has a reduced-motion override, and reserves height
   for the error.
 - **No guidance.** "TUNE IN" and "CONNECT" never say *which* account to use, so a family member will

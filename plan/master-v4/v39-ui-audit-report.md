@@ -142,7 +142,7 @@ single setting. Those totals are renormalized.
 | Pass | Result |
 |---|---|
 | CLI | `detect.mjs --json frontend/src`: exit 0, `[]` (also with `--no-config`). A test file proved the engine does fire |
-| Browser overlay | 9 distinct rules, plus 2 more from a second API pass (§4.2). 4 are real (low-contrast, cramped-padding, line-length, flat-type-hierarchy), 3 are documented or intentional patterns (dark-glow, pulsing-dot, em-dash), and 4 are full or partial false positives (gpt-thin-border in intent, text-overflow, single-font, text-occlusion) |
+| Browser overlay | 9 distinct rules in the console summary, plus 2 more (monotonous-spacing, text-occlusion) from a second `impeccableDetectAsync()` pass (§4.2). 4 are real (low-contrast, cramped-padding, line-length, flat-type-hierarchy), 3 are documented or intentional patterns (dark-glow, pulsing-dot, em-dash), and 4 are full or partial false positives (gpt-thin-border in intent, text-overflow, single-font, text-occlusion) |
 
 ### axe-core (desktop, violations per surface)
 
@@ -164,8 +164,8 @@ single setting. Those totals are renormalized.
 It is partly true, and the cause is not density. At 1440px the page is spacious: a 64rem column with
 24px gaps. The clutter comes from four things.
 
-1. **Every control carries the same weight.** About 20 bordered 12px mono chips (scope, search, show
-   archived, clear log, 5 sort chips, 7 state chips) share a single style. Nothing is primary
+1. **Every control carries the same weight.** 16 bordered 12px mono chip buttons for a non-admin in jobs scope (2 scope, show archived, clear
+   log, 5 sort, 7 state; 18 for an admin) share a single style, next to the search box. Nothing is primary
    (`QueueControls.svelte:250-262`, `shots/01`).
 2. **The same fact is repeated.** A one-track job shows a "done" badge, "TRACK", a 265px full mint bar
    and "1 done", all saying the same thing (7 of 8 rows in `shots/01`). Tracks scope prints every
@@ -208,7 +208,7 @@ job row.
 - **Amber on chrome.**
   - The `>` prompt is permanent amber (`+page.svelte:344-346`).
   - The submit hover/focus glow is `--signal` (`:375-380`).
-  - Header links turn `--signal-dim` on hover/focus, dropping them to 2.8:1 (`:317-320`). (F10)
+  - Header links turn `--signal-dim` on hover/focus, dropping them to 3.09:1 on the page background, about 2.9:1 at the glow's peak (`:317-320`). (F10)
 - **The admin all-users view stacks stale banners.** Four stale "could not read this artist" failure
   banners pile up above the fold (`shots/41`). Their copy gives no reason and no retry
   (`IncomingJobs.svelte:39-41`). (F27)
@@ -285,7 +285,7 @@ job row.
   retrying" reassurance (`+page.svelte:218-223`). (F26)
 - **Empty.**
   - A new user (`shots/14`) and a search miss (`shots/09`) get the same "Nothing here.".
-  - The new user sees the full 20-chip panel at zero, plus a red breaker pill.
+  - The new user sees the full 16-chip panel at zero, plus a red breaker pill.
   - Nothing teaches the product: no example URL, and no "albums can take days, that's normal". (F26)
 
 ### 3.5 `/settings` (`shots/42` admin, `shots/21` non-admin)
@@ -353,7 +353,7 @@ job row.
 
 ### 3.8 `/login` (`shots/30`, `31`)
 
-- **The strongest surface (26/40).** The FM dial and its sweeping needle are the one fully realized
+- **The most authored surface (26/40, 65%; `/account`'s 25/36 is 69% by percentage).** The FM dial and its sweeping needle are the one fully realized
   moment of the world. The dial is `aria-hidden`, has a reduced-motion override, and reserves height
   for the error.
 - **No guidance.** "TUNE IN" and "CONNECT" never say *which* account to use, so a family member will
@@ -388,8 +388,8 @@ job row.
   empty/loading hints, the attempt history, and the IncomingJobs URL.
 - It accounts for **every** axe `color-contrast` violation except the amber `.inline-link`. (F09)
 
-**Borders (WCAG 1.4.11):** `--line` scores 1.39–1.53:1 against the panels, under the 3:1 non-text
-threshold.
+**Borders (WCAG 1.4.11):** `--line` scores 1.39–1.53:1 against the panels, and only 1.25:1 against a
+chip's or action's own `--bg-2` fill, all under the 3:1 non-text threshold.
 
 ### 4.2 Detector (Assessment B), verified in source
 
@@ -406,6 +406,7 @@ threshold.
 | pulsing-dot | `IncomingJobs:81-88` | Intentional live indicator with a reduced-motion guard. Keep |
 | em-dash-overuse (advisory) | status vocabulary ("fading — waiting" …) | Deliberate status copy. v46 rewrites every string anyway (won't fix, F35) |
 | text-occlusion (second API pass only) | overlay's own labels | False positive |
+| monotonous-spacing (second API pass only) | one per page except login | Unverified, low weight; spacing rhythm is v42/v47 work anyway |
 
 ### 4.3 Keyboard and semantics baseline for v45
 
@@ -466,7 +467,7 @@ All ten were measured live at 1440×900 in the dev stack.
 | 1 | TrackRow detail is indented 9rem while the title column starts at 10.25rem | **CONFIRMED** | `.detail { padding-left: 9rem }` (`TrackRow.svelte:333`). The row grid is `9rem …` with a 0.75rem gap plus 0.5rem padding, which puts the title at 10.25rem. Measured on Dóri: detail content at x=377, title at x=397 (20px left of the title), state cell at x=241 |
 | 2 | Inline and full-width detail items are mixed | **CONFIRMED** | The detail is `flex-wrap`. Inline items: the counts (203px) and the countdown (146px, same line), and "last read" (455px, wraps only by length). Full-width: `.actions`, `.attempts`, `.notice` (all 822px, `flex-basis: 100%`, `:354,380,388`) |
 | 3 | JobRow (flex) and TrackRow (grid) don't align, and there's no nesting indent | **CONFIRMED** | JobRow `.row` is `display:flex`; TrackRow is `display:grid` with columns `144/307.7/205.1/205.2/48px`. Job title at x=350 vs track title at x=397. Leading edges at 249 vs 241. The job `li`, `.job-tracks`, the Tracks `ul` and the track button all sit at x=233 with w=974, so there is no indent. The only nesting cue is a `--bg-0` background (`JobTrackList.svelte:38-41`) |
-| 4 | There is no type scale (DESIGN.md §3) | **CONFIRMED** | No font-size token exists (the `--text-*` tokens are colors). The source holds 6 hard-coded sizes: 0.8125rem ×24, 0.75rem ×24, 0.6875rem ×11, 0.875rem ×1, 0.5625rem ×1, 15px ×1. On `/` the computed sizes are only 11, 12, 13 and 15px; nothing is larger than body text |
+| 4 | There is no type scale (DESIGN.md §3) | **CONFIRMED** | No font-size token exists (the `--text-*` tokens are colors). The source holds 6 hard-coded sizes: 0.8125rem ×24, 0.75rem ×24, 0.6875rem ×11, 0.875rem ×1, 0.5625rem ×1, 15px ×1. On `/` the computed sizes are 11, 12, 13, 14 (artist/album cells, `TrackRow.svelte:275`, when tracks render) and 15px; nothing is larger than body text |
 | 5 | The panel "chassis" is imperceptible (§8.1) | **CONFIRMED** | `--bg-1` vs `--bg-0` is **1.098:1** (ΔL\* 4.8), far below a 1.2:1 perceptibility floor. Only the 1px `--line` border reads, at 1.53:1 against the page. The 0.5α black inset shadow makes the panel *darker*, cutting separation further (`app.css:171-174`) |
 | 6 | The 640px breakpoint is the only one | **CONFIRMED** | Every width query is `max-width: 640px`: `WorkerStatusPill:54`, `TrackRow:288` and `:338` (the second duplicates `:324`), `settings:689`, `account:195`, `JobRow:380`, `+page:305`. There is no min-width or tablet query |
 | 7 | The static amber body glow conflicts with the amber-is-live rule (§2) | **CONFIRMED** (barely visible) | `app.css:105-109`: `radial-gradient(… rgba(255,176,46,0.05) …)` is literally `--signal`, always on. DESIGN.md:64 says amber is "reserved exclusively for live/active state… never… permanent chrome". Its peak blend is `#161410`, only 1.065:1 against the page. It also repeats every viewport height (§4.5) |
@@ -506,9 +507,9 @@ Rows are ordered by severity (P1 → P3, then won't-fix). IDs are stable referen
 | F06 | P1 | header pill | A tripped breaker (an expected, self-healing condition) shows in `--fail` red to every user, including a new empty account | `WorkerStatusPill.svelte:30`, `shots/14` | v42 |
 | F07 | P1 | header pill | `role="status"` wraps a 1 s countdown, so screen readers re-announce it every second (5 mutations / 5 s) | `WorkerStatusPill.svelte` + `Countdown.svelte` | v42 |
 | F08 | P1 | app-wide | No confirmation on irreversible or risky actions: clear log, remove proxy, job/track cancel, **start sweep**, **breaker "release now"** (resumes downloads into an active rate limit), worker pause. Library START is enabled for non-admins | §5 #9, `shots/22` | v43 (amendment A4 adds release/pause) |
-| F09 | P1 | all | `--text-dim` fails WCAG 1.4.3 on every background (2.15–3.05:1), and so does `--signal-dim` used as link/hover text (2.5–3.1). This is every axe contrast violation (4–61 nodes per surface). `--line` control borders are 1.39–1.53:1 (1.4.11) | §4.1, `axe-all.json` | v42 (token change; amendment A2) |
+| F09 | P1 | all | `--text-dim` fails WCAG 1.4.3 on every background (2.15–3.05:1), and so does `--signal-dim` used as link/hover text (2.5–3.1). This is every axe contrast violation (4–61 nodes per surface). `--line` control borders are 1.25–1.53:1 (1.4.11) | §4.1, `axe-all.json` | v42 (token change; amendment A2) |
 | F10 | P1 | all | Amber leaks onto permanent chrome despite DESIGN.md §2: body glow, global `a` color, `>` prompt, submit/connect glow, pressed option chips (settings, account), input focus borders, hover links, the idle login needle, the idle library bar | `app.css:105,124`, `+page:344-380`, `settings:727`, `account:224`, `login:162-171,236`, `library:101` | **v40** decides the rule and fixes the body glow; v42 (`/`) and v43 (other routes) apply it (amendment A5) |
-| F11 | P1 | `/` QueueControls | About 20 equal-weight chips with no primary. Zero-count chips are always shown. Sort is 5 chips. "clear log" is styled like "show archived". This is the main source of "cluttered" | `QueueControls.svelte:250-262`, `shots/01,08` | v42 |
+| F11 | P1 | `/` QueueControls | 16 equal-weight chips (non-admin, jobs scope) with no primary. Zero-count chips are always shown. Sort is 5 chips (3 in tracks scope). "clear log" is styled like "show archived". This is the main source of "cluttered" | `QueueControls.svelte:250-262`, `shots/01,08` | v42 |
 | F16 | P1 | `/`, `/library` | Missing names: unnamed `role="progressbar"` on `/library` and each Waterfall lane. The JobRow `aria-label` hides the visible status/owner (WCAG 2.5.3). Job actions are named just "bump/cancel/archive" | axe `aria-progressbar-name`, `JobRow.svelte:135,174-178`, `Waterfall.svelte:49-55` | v41 (JobRow), v42 (Waterfall), v43 (library) |
 | F17 | P1 | `/settings` non-admin | Admin sections render, error and spin forever, and the page states the false "No proxies configured — every attempt goes out direct" | `settings:554-557`, `WorkerStatus:141-144`, `shots/21` | v43 |
 | F20 | P1 | `/library` | Idle shows a full amber 100% bar, which looks like a running sweep. No "finished at". Mid-sweep hides the live counts. Duplicate error rows with no recovery copy. SSE has no reconnect. No cancel | `library:41-66,101,114-127`, `shots/43,45,46` | v43 |
@@ -529,6 +530,8 @@ Rows are ordered by severity (P1 → P3, then won't-fix). IDs are stable referen
 | F30 | P2 | settings, account | Ambiguous names: 5 proxy toggles all "enabled", state text plus `aria-pressed` contradict each other, pause reads "resume, pressed", account `aria-label` ≠ visible label (2.5.3) | `settings:573-581`, `WorkerStatus:67-75`, `account:114` | v43 |
 | F31 | P2 | secondary | Login has no account hint and leaves focus on CONNECT after an error, with conflicting `alert` + `polite`. "Saved." never clears. Account shows the email only as a tooltip and has no logout. Control jargon ("Receiver power") | `login:30-33,92`, `settings:356`, `account:68,76` | v43 |
 | F32 | P2 | all (touch) | 27/45 (`/`) and 29/39 (`/settings`) controls under 44px at 390px; chips ~28px, header links 20px | `audit-results.json` | v42 (`/`), v43 (others) |
+| F36 | P2 | all panels | The panel "chassis" is imperceptible: `--bg-1` vs `--bg-0` is 1.098:1 and only the 1px border reads (known item #5) | §5 #5, `app.css:165-174` | v42 (panel material) |
+| F37 | P2 | all routes | 640px is the only width breakpoint; 820 and 1024 get the squeezed desktop grid (known item #6) | §5 #6, §4.4 | v42 (tablet breakpoint; v41 covers its own rows) |
 | F34 | P2 | backend | (a) The sweep error log lists the same path twice. (b) A sweep archives settled jobs of *every* user without the report saying so (v28 design). Neither is a UI-slice fix | `shots/46`, `tasks/library.py:34-77` | **won't fix in v40–v47**: backend behavior, outside the UI series' scope; proposed for v48 (amendment A6). v43 may *display* (b)'s count |
 | F28 | P3 | job list | "done — partial" red badge over an all-grey bar; cancelled no-title jobs show the raw URL as a bold title; 1-track jobs repeat badge, bar and count | `shots/01,40,41` | v42 |
 | F33 | P3 | perf | Render-blocking Google Fonts; a `localStorage` write per progress tick; one interval per Countdown; repainting lane shimmer; login needle animates `left`; library transition not zeroed under reduced motion; body glow repeats per viewport | §4.5 | v47 (optimize); body-glow repeat → v40 |
@@ -540,9 +543,11 @@ Rows are ordered by severity (P1 → P3, then won't-fix). IDs are stable referen
 These are for the owner to accept or reject. v40–v47's plans were not edited.
 
 - **A1. F01 is a live mobile regression.** v41 owns JobRow's ≤640 stack, so it is assigned there. The
-  bug makes every job row about 4× taller and hides its progress bar on phones *today*. The owner may
-  prefer a one-line hotfix (`.toggle { flex: 0 0 auto }` inside the mobile query) as a v39.1 patch
-  before the v40–v41 redesign lands. The v39 rules don't allow fixing it here.
+  bug makes every job row about 4× taller and hides its progress bar on phones *today*. It has two
+  causes, so a hotfix needs both halves inside the mobile query: `.toggle { flex: 0 0 auto }` (the
+  16rem height) **and** `.bar { flex-basis: auto }` (the `100%` basis collapses the bar to its border
+  in a column container). The owner may prefer that two-line v39.1 patch before the v40–v41 redesign
+  lands. The v39 rules don't allow fixing it here.
 - **A2. v42 should own the contrast tokens explicitly.** v42's plan lists the type scale and the panel
   material but not color tokens. F09 is one token change (`--text-dim` to ≥ ~`#85909a` for 4.5:1 on
   bg-2, `--line` up for 1.4.11, and no `--signal-dim` as text) that clears nearly every axe violation
@@ -571,7 +576,7 @@ These are for the owner to accept or reject. v40–v47's plans were not edited.
 **Recommendation: REFINEMENT, keeping the identity. Not a redesign.**
 
 Every independent assessor that judged direction (design reviews A1 and A2, and the audit) reached the
-same verdict. Every UI finding (F01–F33) is a violation of the world's *own* rules, or an execution
+same verdict. Every UI finding (F01–F33, F36, F37) is a violation of the world's *own* rules, or an execution
 gap; none is caused by the world itself. F34 is backend behavior and F35 is detector false positives.
 
 ### Keep

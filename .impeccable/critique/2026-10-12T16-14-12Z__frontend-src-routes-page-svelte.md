@@ -35,7 +35,7 @@ Method: dual-agent (A: design-review sub-agents A1/A2 · B: detector+browser sub
 - **Amber on chrome.**
   - The `>` prompt is permanent amber (`+page.svelte:344-346`).
   - The submit hover/focus glow is `--signal` (`:375-380`).
-  - Header links turn `--signal-dim` on hover/focus, dropping them to 2.8:1 (`:317-320`). (F10)
+  - Header links turn `--signal-dim` on hover/focus, dropping them to 3.09:1 on the page background, about 2.9:1 at the glow's peak (`:317-320`). (F10)
 - **The admin all-users view stacks stale banners.** Four stale "could not read this artist" failure
   banners pile up above the fold (`shots/41`). Their copy gives no reason and no retry
   (`IncomingJobs.svelte:39-41`). (F27)
@@ -112,5 +112,5 @@ Method: dual-agent (A: design-review sub-agents A1/A2 · B: detector+browser sub
   retrying" reassurance (`+page.svelte:218-223`). (F26)
 - **Empty.**
   - A new user (`shots/14`) and a search miss (`shots/09`) get the same "Nothing here.".
-  - The new user sees the full 20-chip panel at zero, plus a red breaker pill.
+  - The new user sees the full 16-chip panel at zero, plus a red breaker pill.
   - Nothing teaches the product: no example URL, and no "albums can take days, that's normal". (F26)
