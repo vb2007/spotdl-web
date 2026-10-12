@@ -164,7 +164,7 @@ Settled. Don't re-litigate without asking.
 | Dev database | Dedicated **`spotdlwebtest`** (already created, local `.env` points at it), mandatory from v32; local dev refuses to boot against the prod DB name (`spotdlweb`; also `spotdl_web`, the templates' name) |
 | Alerts | One Matrix room (host's Synapse, bot token) for pipeline and app alerts; unconfigured = off; an alert never blocks work |
 | Rollback | Restores the last healthy `persist=true` release's commit **and** tag together (`.last-good`); if the DB is ahead of it, falls back to the pre-deploy commit + tag when that knows the schema (v33.1); never across a migration the target doesn't know |
-| UI work | Every UI slice goes through the impeccable skill; all monitoring information is kept, only its presentation changes |
+| UI work | Every UI slice goes through the impeccable skill; refinement of the existing world (v39). All monitoring information is kept for the **admin**; from v41 operator detail (breaker pill, full filters, attempt diagnostics) is admin-only and non-admins get a simpler view |
 | Browser tests | Playwright suite run locally against the real stack; no CI browser job (the runner is the prod host) |
 | Keyboard | Full mouse-free operation, bindings designed for **Hungarian QWERTZ** (no AltGr, no `Y`/`Z`, match `event.key`); single-key shortcuts inert in inputs and turn-off-able per user |
 | i18n | `hu` + `en`, full coverage. Locale = saved preference → pre-login choice → `navigator.languages` → `en`. Backend stays language-neutral (error `code`s); track metadata/raw errors/alerts/logs untranslated |

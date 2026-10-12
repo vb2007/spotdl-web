@@ -580,6 +580,10 @@ These are for the owner to accept or reject. v40–v47's plans were not edited.
 
 ## 8. Design direction (owner approval requested)
 
+> **Owner decision, 2026-10-12 (PR #56):** refinement approved ("Keep the design for now"), F01
+> fixed now as v39.1, operator detail moves behind the admin view, and the surface-brief reading
+> confirmed. A2–A6 are still open. The authoritative record is `00-master-plan.md`'s Amendments.
+
 **Recommendation: REFINEMENT, keeping the identity. Not a redesign.**
 
 Every independent assessor that judged direction (design reviews A1 and A2, and the audit) reached the
