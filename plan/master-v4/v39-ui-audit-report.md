@@ -149,7 +149,7 @@ single setting. Those totals are renormalized.
 | Pass | Result |
 |---|---|
 | CLI | `detect.mjs --json frontend/src`: exit 0, `[]` (also with `--no-config`). A test file proved the engine does fire |
-| Browser overlay | 9 distinct rules in the console summary, plus 2 more (monotonous-spacing, text-occlusion) from a second `impeccableDetectAsync()` pass (§4.2). 4 are real (low-contrast, cramped-padding, line-length, flat-type-hierarchy), 3 are documented or intentional patterns (dark-glow, pulsing-dot, em-dash), 4 are full or partial false positives (gpt-thin-border in intent, text-overflow, single-font, text-occlusion), and 1 is unverified (monotonous-spacing) |
+| Browser overlay | 10 distinct rules in the console summary, plus 2 more (monotonous-spacing, text-occlusion) from a second `impeccableDetectAsync()` pass (§4.2). 4 are real (low-contrast, cramped-padding, line-length, flat-type-hierarchy), 3 are documented or intentional patterns (dark-glow, pulsing-dot, em-dash), 4 are full or partial false positives (gpt-thin-border in intent, text-overflow, single-font, text-occlusion), and 1 is unverified (monotonous-spacing) |
 
 ### axe-core (desktop, violations per surface)
 
