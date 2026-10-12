@@ -379,10 +379,11 @@
 	   text-overflow:ellipsis get to do its job and shrink+ellipsize the long string. */
 	/* v39.1 (F01): in this column stack flex-basis sizes *height*, not width. The base
 	   rules' bases were written for the desktop row, so carried over here `.toggle`'s
-	   `2 1 16rem` made every job row 256px tall, and a `100%` basis on `.bar` resolved
-	   against an indefinite height, fell back to its (empty) content and overrode its
-	   `height: 0.5rem`, leaving only the 2px border. Every stacked child sizes to its
-	   own content instead; full width comes from `align-items: stretch`. */
+	   `2 1 16rem` made it 256px tall (each job row 364px), and a `100%` basis on `.bar`
+	   resolved against an indefinite height, fell back to its (empty) content and
+	   overrode its `height: 0.5rem`, leaving only the 2px border. The stacked children
+	   now size to their own content (`.breakdown` already did: basis auto, no shrink);
+	   full width comes from `align-items: stretch`. */
 	@media (max-width: 640px) {
 		.row {
 			flex-direction: column;

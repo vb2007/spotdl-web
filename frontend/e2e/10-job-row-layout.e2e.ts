@@ -16,8 +16,11 @@ test('a job row stays compact and its progress bar visible', async ({ page }) =>
 	const row = jobRow(page, admin.title);
 	await expect(row).toHaveCount(1);
 
+	// Visible first: a missing bar fails here, not as a 180s boundingBox() wait.
+	const barEl = row.getByRole('img', { name: /^Track progress: / });
+	await expect(barEl).toBeVisible();
 	const toggle = await jobToggle(page, admin.title).boundingBox();
-	const bar = await row.getByRole('img', { name: /^Track progress: / }).boundingBox();
+	const bar = await barEl.boundingBox();
 	const whole = await row.boundingBox();
 	expect(toggle, 'job toggle box').not.toBeNull();
 	expect(bar, 'progress bar box').not.toBeNull();

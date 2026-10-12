@@ -398,10 +398,11 @@ flexbox degrades better than grid did).
 
 > **Correction, 2026-10-12 (v39 F01, fixed in v39.1).** That 390px check confirmed _width_ (no
 > overflow) only. It missed that in a `flex-direction: column` stack every flex-basis sizes
-> **height**. From v20 until v39.1, the desktop `.toggle { flex: 2 1 16rem }` made every phone job
-> row 256px tall, and `.bar`'s `flex-basis: 100%` resolved against an indefinite height, overrode
-> its `height: 0.5rem` and left only the 2px border, so job progress was invisible on phones. The
-> mobile block now gives every stacked child `flex: 0 0 auto`. Rule for any column-direction
+> **height**. From v20 until v39.1, the desktop `.toggle { flex: 2 1 16rem }` made the toggle 256px
+> tall (each phone job row 364px), and `.bar`'s `flex-basis: 100%` resolved against an indefinite
+> height, overrode its `height: 0.5rem` and left only the 2px border, so job progress was invisible
+> on phones. The mobile block now gives `.toggle`, `.bar` and `.row-actions` `flex: 0 0 auto`
+> (`.breakdown` already sized to its content). Rule for any column-direction
 > collapse: reset the children's flex-basis and check heights, not only widths. e2e spec 10 guards
 > it.
 
