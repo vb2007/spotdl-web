@@ -244,6 +244,13 @@ needed" claim — rather than silently deleted.
   setting (`YOUTUBE_PLAYER_CLIENTS`, default `android,web,mweb`), not hardcoded — this is exactly
   the kind of yt-dlp/YouTube arms-race surface that will need retuning again without a redeploy,
   same reasoning `LADDER_SECONDS`/`PACING_*_SEC` already get → *v31.1*
+- spotdl's `search_and_download` swallows **every** exception and returns a `None` path, so a
+  search with no match, an age-gated video and a real 403 all used to look like the same retryable
+  `no_output` (and all fed the breaker). `download_one` now captures the swallowed exception from
+  the song tracker's `notify_error` and raises it: a search miss as `LookupError`, a yt-dlp
+  "Sign in to confirm your age" as `AgeRestrictedError` (both terminal `lookup_failed`), anything
+  else as `NoOutputFileError` carrying the real reason. Terminal on every rung, proxy included
+  → *v39.2*
 
 **Celery, tasks & durability**
 - A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
@@ -4647,3 +4654,45 @@ independently-found production bug from the same conversation)
   and the browser. An e2e run then failed with HTML where JSON was expected and a foreign page in
   the screenshot. `127.0.0.1` isn't a way around it: the session cookie is `Secure`, which
   Chromium honours over HTTP only for `localhost`. Stop the other server.
+
+### v39.2 swallowed-error classification gotchas (learned from a production artist download)
+
+- **19 of 459 tracks of a Scooter artist job sat in `waiting` with "spotdl returned no output file
+  for this track" and tripped the global circuit breaker twice** (2026-10-12; `worker_state`
+  showed `consecutive_failures=6`, paused 2h). The stalled tail was all permanent failures retrying
+  forever, and since `NO_OUTPUT` feeds the breaker they paused the whole pipeline too. Re-running
+  spotdl's own YouTube Music search locally on the same `song_json` split them into two
+  deterministic groups. **12 had no match at all**: mostly "- Remastered"/remix variants from
+  compilation albums, e.g. "B.O.B. - Remastered 2013" and the 49-second "C.I.F.L.". spotdl raises
+  `LookupError("No results found for song")` for these. **7 matched an age-gated video**: all the
+  explicit tracks. Raw `yt-dlp` with the app's own `player_client=android,web,mweb` failed on
+  every one with "Sign in to confirm your age". Neither is a rate limit. Neither changes with time,
+  address family or proxy.
+- **Why it all looked the same: `Downloader.async_search_and_download` wraps its whole body in
+  `except (Exception, UnicodeEncodeError)`.** That includes the `self.search(song)` call that raises
+  the `LookupError`. It appends a *string* to `downloader.errors` and returns `(song, None)`. The
+  only place the real exception object surfaces is `SongTracker.notify_error(message, traceback,
+  finish)`. Its second argument is named `traceback` but is the exception, with yt-dlp's
+  `DownloadError` on `__cause__`. `download_one` wraps `progress_handler.get_new_tracker` for the
+  duration of the call (an instance override on the cached Downloader's handler, deleted in
+  `finally`) to capture it. That means the app's "LookupError is terminal" rule had never applied
+  on the download path: spotdl always turned the miss into a `None`.
+- **The age-gate marker is `"confirm your age"`, matched anywhere on the exception chain.** It must
+  not be loosened to "Sign in to confirm". yt-dlp's bot-check says "Sign in to confirm you're not a
+  bot", which *is* network-dependent (v23/v30) and has to stay on the retry ladder. Age-gated
+  tracks land `lookup_failed` and stay manually retryable (`_RETRYABLE_TRACK_STATES`), so a future
+  cookie file can still pick them up. There is no automatic route back.
+- **A search miss is terminal on every rung, the proxy one included. This is a deliberate
+  tradeoff.** v30 saw a search come back empty only through one bad proxy, so a proxy miss can be a
+  false "Not found". A guard that kept proxy misses on the ladder was written and then dropped. Any
+  track at `attempt_count >= 2` uses the proxy rung for every later attempt, and production's 10
+  enabled proxies had never recorded a success (`last_success_at` all NULL, 2026-10-12). Under that
+  guard, a genuine miss on that rung would have stayed `waiting` and kept feeding the breaker
+  forever, which is the exact failure this version fixes. 5 of the 12 real misses were already
+  there. A false `lookup_failed` is visible ("Not found") and manually retryable. A forever-waiting
+  track is neither.
+- **A local verification script run from outside `backend/` imports the main checkout's `app`, not
+  a worktree's.** The venv's editable install points there, and `sys.path[0]` is the script's own
+  directory, not the cwd. The first real-network check of this fix "failed" for exactly that reason.
+  Set `PYTHONPATH` to the worktree's `backend/` and confirm `app.__file__` before trusting the
+  result.
