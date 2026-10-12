@@ -4,7 +4,7 @@ total_score: 21
 max_score: 40
 na_heuristics: 
 p0_count: 0
-p1_count: 9
+p1_count: 14
 timestamp: 2026-10-12T16-14-12Z
 slug: frontend-src-routes-page-svelte
 ---

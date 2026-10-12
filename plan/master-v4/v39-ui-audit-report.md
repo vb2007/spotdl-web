@@ -259,7 +259,7 @@ job row.
     only `scheduled_at`. (F03, F09, F12)
 - **Waiting with countdown (`shots/04`).** "attempts: 0 · failures: 0" sits above a history whose row
   reads "held — not attempted · circuit breaker active". The line is honest but bare.
-  - Countdowns have no days unit, so past 24h they read "47:12:03" (`Countdown.svelte:74-82`). (F23)
+  - Countdowns have no days unit, so past 24h they read "47:12:03" (`Countdown.svelte:15-23`). (F23)
 - **lookup_failed (`shots/05`).**
   - The state label is clipped to "no signal — not fo…" by the fixed 9rem column at 1440, 1024 and 820,
     with no `title` attribute.
@@ -478,6 +478,8 @@ All ten were measured live at 1440×900 in the dev stack.
 
 ## 6. Ranked findings
 
+Rows are ordered by severity (P1 → P3, then won't-fix). IDs are stable references, not ranks.
+
 **Severity** uses impeccable's P0–P3 scale:
 
 - **P0:** blocks a task.
@@ -507,31 +509,30 @@ All ten were measured live at 1440×900 in the dev stack.
 | F09 | P1 | all | `--text-dim` fails WCAG 1.4.3 on every background (2.15–3.05:1), and so does `--signal-dim` used as link/hover text (2.5–3.1). This is every axe contrast violation (4–61 nodes per surface). `--line` control borders are 1.39–1.53:1 (1.4.11) | §4.1, `axe-all.json` | v42 (token change; amendment A2) |
 | F10 | P1 | all | Amber leaks onto permanent chrome despite DESIGN.md §2: body glow, global `a` color, `>` prompt, submit/connect glow, pressed option chips (settings, account), input focus borders, hover links, the idle login needle, the idle library bar | `app.css:105,124`, `+page:344-380`, `settings:727`, `account:224`, `login:162-171,236`, `library:101` | **v40** decides the rule and fixes the body glow; v42 (`/`) and v43 (other routes) apply it (amendment A5) |
 | F11 | P1 | `/` QueueControls | About 20 equal-weight chips with no primary. Zero-count chips are always shown. Sort is 5 chips. "clear log" is styled like "show archived". This is the main source of "cluttered" | `QueueControls.svelte:250-262`, `shots/01,08` | v42 |
+| F16 | P1 | `/`, `/library` | Missing names: unnamed `role="progressbar"` on `/library` and each Waterfall lane. The JobRow `aria-label` hides the visible status/owner (WCAG 2.5.3). Job actions are named just "bump/cancel/archive" | axe `aria-progressbar-name`, `JobRow.svelte:135,174-178`, `Waterfall.svelte:49-55` | v41 (JobRow), v42 (Waterfall), v43 (library) |
+| F17 | P1 | `/settings` non-admin | Admin sections render, error and spin forever, and the page states the false "No proxies configured — every attempt goes out direct" | `settings:554-557`, `WorkerStatus:141-144`, `shots/21` | v43 |
+| F20 | P1 | `/library` | Idle shows a full amber 100% bar, which looks like a running sweep. No "finished at". Mid-sweep hides the live counts. Duplicate error rows with no recovery copy. SSE has no reconnect. No cancel | `library:41-66,101,114-127`, `shots/43,45,46` | v43 |
+| F26 | P1 | `/` states | Empty, loading and error don't teach or recover: identical "Nothing here." for a new user and a search miss; loading shows all chips at 0; raw "Internal Server Error" with no retry | `shots/09,12,13,14`, `+page.svelte:218-223` | v42 |
+| F29 | P1 | `/` keyboard | 21 stops before the first job; every TrackRow is a stop; no skip link, h1, `<nav>` or banner landmark; Esc does nothing on rows; no `aria-controls` | §4.3, §5 #10 | v45 (keyboard model, skip link); v42 (landmarks/h1, already in v42's plan); v41 (`aria-controls`) |
 | F12 | P2 | all | No type scale (6 ad hoc sizes, nothing above 15px). Mono covers prose, errors, buttons and hints, giving one undifferentiated 12px texture. Body is `15px` (px), which ignores the user's text-size setting | §5 #4, `app.css:112`, detector flat-type-hierarchy | v42 (scale + `/`); v43/v47 migrate the rest |
 | F13 | P2 | track rows | The state label truncates ("no signal — not fo…") at 1440/1024/820 with no `title`. The 3rem `.pct` column is empty unless downloading. Long titles/artists are cut | `TrackRow.svelte:245`, `shots/02,05`, `audit/tablet-*` | v41 |
 | F14 | P2 | expanded track | The tag-repair warning uses waiting-blue, the same as "held", so it reads as a scheduling note rather than a quality warning | `TrackRow.svelte:436-441`, `shots/06` | v41 |
 | F15 | P2 | `/` mobile | About 950 CSS px of chrome before the first job: header one item per line, full-width disconnect, ~780 device-px controls panel | `shots/01--mobile` | v42 |
-| F16 | P1 | `/`, `/library` | Missing names: unnamed `role="progressbar"` on `/library` and each Waterfall lane. The JobRow `aria-label` hides the visible status/owner (WCAG 2.5.3). Job actions are named just "bump/cancel/archive" | axe `aria-progressbar-name`, `JobRow.svelte:135,174-178`, `Waterfall.svelte:49-55` | v41 (JobRow), v42 (Waterfall), v43 (library) |
-| F17 | P1 | `/settings` non-admin | Admin sections render, error and spin forever, and the page states the false "No proxies configured — every attempt goes out direct" | `settings:554-557`, `WorkerStatus:141-144`, `shots/21` | v43 |
 | F18 | P2 | `/settings` alerts | The Alerts panel has no padding (selector misses `.alert-settings`), and its number inputs keep the browser's grey styling | `settings:654-656,742`, detector cramped-padding, `shots/42` | v43 |
 | F19 | P2 | `/settings` | Cognitive load is high: 14 ungrouped alert controls, a 17-option bitrate select, three separate SAVEs, 157-char hint lines, ~3000px on mobile with no in-page navigation | `settings:445-521`, detector line-length | v43 |
-| F20 | P1 | `/library` | Idle shows a full amber 100% bar, which looks like a running sweep. No "finished at". Mid-sweep hides the live counts. Duplicate error rows with no recovery copy. SSE has no reconnect. No cancel | `library:41-66,101,114-127`, `shots/43,45,46` | v43 |
 | F21 | P2 | `/` vocabulary | Chip vs row vocabulary differs ("completed" vs "logged", "duplicate" vs "already logged"). Job count "waiting 1" sits next to "8 waiting" tracks | `QueueControls.svelte:48-57`, `TrackRow.svelte:93-102` | v42 (chips) + v41 (rows); v46 re-words both |
 | F22 | P2 | track rows | No chevron or other expandability cue on track rows | `TrackRow.svelte:168-176` | v41 |
-| F23 | P2 | countdowns | No days unit ("47:12:03" past 24h) | `Countdown.svelte:74-82` | v41 |
+| F23 | P2 | countdowns | No days unit ("47:12:03" past 24h) | `Countdown.svelte:15-23` | v41 |
 | F24 | P2 | lookup_failed | No next step. "cancel track" is offered on a terminal row next to "retry now" | `TrackRow.svelte:75-81`, `shots/05` | v41 |
 | F25 | P2 | skipped_duplicate | "attempts: 0 · failures: 0" contradicts its own one-row history ("already logged · no network") | live, `claims10/track-One_More_Time.png` | v41 |
-| F26 | P1 | `/` states | Empty, loading and error don't teach or recover: identical "Nothing here." for a new user and a search miss; loading shows all chips at 0; raw "Internal Server Error" with no retry | `shots/09,12,13,14`, `+page.svelte:218-223` | v42 |
 | F27 | P2 | `/` incoming (admin) | Stale "could not read this artist" banners stack above the fold in all-users view; no reason, no retry | `IncomingJobs.svelte:39-41`, `shots/41` | v42 |
-| F28 | P3 | job list | "done — partial" red badge over an all-grey bar; cancelled no-title jobs show the raw URL as a bold title; 1-track jobs repeat badge, bar and count | `shots/01,40,41` | v42 |
-| F29 | P1 | `/` keyboard | 21 stops before the first job; every TrackRow is a stop; no skip link, h1, `<nav>` or banner landmark; Esc does nothing on rows; no `aria-controls` | §4.3, §5 #10 | v45 (keyboard model, skip link); v42 (landmarks/h1, already in v42's plan); v41 (`aria-controls`) |
 | F30 | P2 | settings, account | Ambiguous names: 5 proxy toggles all "enabled", state text plus `aria-pressed` contradict each other, pause reads "resume, pressed", account `aria-label` ≠ visible label (2.5.3) | `settings:573-581`, `WorkerStatus:67-75`, `account:114` | v43 |
 | F31 | P2 | secondary | Login has no account hint and leaves focus on CONNECT after an error, with conflicting `alert` + `polite`. "Saved." never clears. Account shows the email only as a tooltip and has no logout. Control jargon ("Receiver power") | `login:30-33,92`, `settings:356`, `account:68,76` | v43 |
 | F32 | P2 | all (touch) | 27/45 (`/`) and 29/39 (`/settings`) controls under 44px at 390px; chips ~28px, header links 20px | `audit-results.json` | v42 (`/`), v43 (others) |
-| F33 | P3 | perf | Render-blocking Google Fonts; a `localStorage` write per progress tick; one interval per Countdown; repainting lane shimmer; login needle animates `left`; library transition not zeroed under reduced motion; body glow repeats per viewport | §4.5 | v47 (optimize); body-glow repeat → v40 |
 | F34 | P2 | backend | (a) The sweep error log lists the same path twice. (b) A sweep archives settled jobs of *every* user without the report saying so (v28 design). Neither is a UI-slice fix | `shots/46`, `tasks/library.py:34-77` | **won't fix in v40–v47**: backend behavior, outside the UI series' scope; proposed for v48 (amendment A6). v43 may *display* (b)'s count |
+| F28 | P3 | job list | "done — partial" red badge over an all-grey bar; cancelled no-title jobs show the raw URL as a bold title; 1-track jobs repeat badge, bar and count | `shots/01,40,41` | v42 |
+| F33 | P3 | perf | Render-blocking Google Fonts; a `localStorage` write per progress tick; one interval per Countdown; repainting lane shimmer; login needle animates `left`; library transition not zeroed under reduced motion; body glow repeats per viewport | §4.5 | v47 (optimize); body-glow repeat → v40 |
 | F35 | — | detector | gpt-thin-border-wide-shadow on `.panel`; em-dash-overuse; text-occlusion; single-font | §4.2 | **won't fix**: documented "recessed housing" design (or v42's material decision supersedes it); status vocabulary v46 rewrites; artifacts of the overlay; Plex Sans is in use |
-
 ---
 
 ## 7. Amendment proposals
@@ -604,8 +605,8 @@ caused by the world itself.
   spectrogram" stays.
 - **The panel "chassis" (§8.1).** At 1.098:1 it doesn't exist perceptually. v42 should either make it
   perceptible or drop the idea in DESIGN.md.
-- **Who sees operator detail.** Family-member users see the full 15-chip filter set, sort-by-"next
-  retry", and a red breaker pill. Whether some of that moves behind an admin or "diagnostics"
+- **Who sees operator detail.** Family-member users see every state filter (7 job-state chips in jobs scope, 8 track-state chips in
+  tracks scope), sort-by-"next retry", and a red breaker pill. Whether some of that moves behind an admin or "diagnostics"
   disclosure is a v42 question.
 
 **What this means for each later slice:** v40–v43 are **refinements**. Each keeps the identity, the
