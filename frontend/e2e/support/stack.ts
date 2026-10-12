@@ -30,7 +30,7 @@ export function userIdentity(): Identity {
  * for one settles as `skipped_duplicate` without ever reaching YouTube. Each is used by exactly
  * one identity: spec 7 relies on the user never owning a title the admin owns. */
 export const LEDGER_TRACKS = {
-	/** The admin's seed job (specs 1, 3, 4, 7, 8). */
+	/** The admin's seed job (specs 1, 3, 4, 7, 8, 10). */
 	adminSeed: '69kOkLUCkxIZYexIgSG8rq', // Daft Punk - Get Lucky
 	/** The user's seed job (specs 1, 7). */
 	userSeed: '2KHRENHQzTIQ001nlP9Gdc', // Daft Punk - Contact
