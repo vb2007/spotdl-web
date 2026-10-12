@@ -142,7 +142,7 @@ single setting. Those totals are renormalized.
 | Pass | Result |
 |---|---|
 | CLI | `detect.mjs --json frontend/src`: exit 0, `[]` (also with `--no-config`). A test file proved the engine does fire |
-| Browser overlay | 9 distinct rules (§4.2). 2 are real defects, several are real-but-documented patterns, 2 are false positives |
+| Browser overlay | 9 distinct rules, plus 2 more from a second API pass (§4.2). 4 are real (low-contrast, cramped-padding, line-length, flat-type-hierarchy), 3 are documented or intentional patterns (dark-glow, pulsing-dot, em-dash), and 4 are full or partial false positives (gpt-thin-border in intent, text-overflow, single-font, text-occlusion) |
 
 ### axe-core (desktop, violations per surface)
 
@@ -256,7 +256,7 @@ job row.
   - The attempt list keeps the browser's default `ul` padding, and TrackRow's scoped `li` border leaks
     onto the attempt rows (`TrackRow.svelte:234-236, 410-415`).
   - "next scan in 58:35" is false while the breaker holds everything for 1:58:35: `Countdown` reads
-    only `scheduled_at`. (F03, F09, F12)
+    only `scheduled_at`. (F02, F03, F04)
 - **Waiting with countdown (`shots/04`).** "attempts: 0 · failures: 0" sits above a history whose row
   reads "held — not attempted · circuit breaker active". The line is honest but bare.
   - Countdowns have no days unit, so past 24h they read "47:12:03" (`Countdown.svelte:15-23`). (F23)
@@ -559,7 +559,8 @@ These are for the owner to accept or reject. v40–v47's plans were not edited.
   apply one rule rather than re-deciding it per surface.
 - **A6. v48 (or a backend patch) should take F34**: deduplicate the sweep error rows, and decide
   whether a sweep should archive other users' jobs silently. The UI series can't fix either.
-- **No slice is unnecessary.** Every one of v40–v43, v45 and v47 has P1 findings assigned. v44 (admin
+- **No slice is unnecessary.** v40–v43 and v45 each have P1 findings assigned. v47 has P2/P3 work
+  (F12's type-scale migration, F33) plus the re-audit against this baseline. v44 (admin
   stats) wasn't audited because it doesn't exist yet. It should be born on v42's tokens, and that
   already matches its plan.
 
@@ -569,9 +570,9 @@ These are for the owner to accept or reject. v40–v47's plans were not edited.
 
 **Recommendation: REFINEMENT, keeping the identity. Not a redesign.**
 
-All three assessors (both design reviews and the audit) independently reached the same verdict. Each
-of the 35 findings is a violation of the world's *own* rules, or an execution gap. None of them is
-caused by the world itself.
+Every independent assessor that judged direction (design reviews A1 and A2, and the audit) reached the
+same verdict. Every UI finding (F01–F33) is a violation of the world's *own* rules, or an execution
+gap; none is caused by the world itself. F34 is backend behavior and F35 is detector false positives.
 
 ### Keep
 

@@ -8,6 +8,7 @@ p1_count: 14
 timestamp: 2026-10-12T16-14-12Z
 slug: frontend-src-routes-page-svelte
 ---
+
 Method: dual-agent (A: design-review sub-agents A1/A2 · B: detector+browser sub-agent). Full report: plan/master-v4/v39-ui-audit-report.md
 
 ### 3.1 `/`, group A: header, submit bar, IncomingJobs, Waterfall (`shots/01, 12, 14, 40, 41`)
@@ -82,10 +83,10 @@ Method: dual-agent (A: design-review sub-agents A1/A2 · B: detector+browser sub
   - The attempt list keeps the browser's default `ul` padding, and TrackRow's scoped `li` border leaks
     onto the attempt rows (`TrackRow.svelte:234-236, 410-415`).
   - "next scan in 58:35" is false while the breaker holds everything for 1:58:35: `Countdown` reads
-    only `scheduled_at`. (F03, F09, F12)
+    only `scheduled_at`. (F02, F03, F04)
 - **Waiting with countdown (`shots/04`).** "attempts: 0 · failures: 0" sits above a history whose row
   reads "held — not attempted · circuit breaker active". The line is honest but bare.
-  - Countdowns have no days unit, so past 24h they read "47:12:03" (`Countdown.svelte:74-82`). (F23)
+  - Countdowns have no days unit, so past 24h they read "47:12:03" (`Countdown.svelte:15-23`). (F23)
 - **lookup_failed (`shots/05`).**
   - The state label is clipped to "no signal — not fo…" by the fixed 9rem column at 1440, 1024 and 820,
     with no `title` attribute.
