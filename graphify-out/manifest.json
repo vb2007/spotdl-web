@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1791901263.1817546,
-    "ast_hash": "8d9479295b82e13319414ad7fd1f7715",
+    "mtime": 1791901655.3821561,
+    "ast_hash": "c8d40bdf522d7d02e5d7320fbc951290",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
