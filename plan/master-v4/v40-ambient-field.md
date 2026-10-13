@@ -31,6 +31,12 @@ the owner approved in v39's report.
   while something is receiving (`activeTracks.length > 0`, which ties the effect to the
   product's meaning), or DESIGN.md's rule is explicitly amended with the reason. Record the
   decision in DESIGN.md either way.
+- **The amber rule covers all chrome, not only the glow** (v39 amendment A5, F10). The decision
+  states, for each site where amber leaks onto permanent chrome today, whether it keeps amber:
+  the global `a` color, the `>` prompt, the submit/connect glow, pressed option chips
+  (`/settings`, `/account`), input focus borders, hover links, the idle `/login` needle and the
+  idle `/library` bar. v40 fixes only the body glow; v42 (`/`) and v43 (the other routes) apply
+  the rule without re-deciding it.
 - **Contrast and legibility unchanged.** Text over the glow's brightest point must still meet the
   same contrast as today (`audit` before and after).
 - It lives as one small component (e.g. `AmbientField.svelte`) mounted once in
@@ -54,7 +60,8 @@ the owner approved in v39's report.
 - [ ] Mobile emulation: no cursor chasing, and the drift or static behavior matches the design
       (screenshots).
 - [ ] A hidden tab stops the loop (profile or a counter log while backgrounded).
-- [ ] The amber-exclusivity decision is recorded in `frontend/src/DESIGN.md`, and the
+- [ ] The amber-exclusivity decision is recorded in `frontend/src/DESIGN.md`, names every F10
+      chrome site with its verdict, and the
       implementation matches it (e.g. a screenshot idle vs receiving, if tinted by state).
 - [ ] Contrast is re-audited at the glow's brightest point, and is no worse than before
       (impeccable `audit` output).

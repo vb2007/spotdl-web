@@ -152,6 +152,9 @@ needed" claim — rather than silently deleted.
   protected), so a queued scratch dispatch can be silently cancelled by an unrelated push → *v33*
 - Under `bash -e`, an assignment whose `$(...)` ends in a false `[ ] && echo` aborts the script.
   Test extracted Actions scripts with `bash -eo pipefail`, not plain `bash` → *v33.1*
+- On the host, every compose command needs `-f docker-compose.yml -f docker-compose.prod.yml`
+  (plus `--profile tunnel` for `up`/`down`). `up` without the overlay stops the app, creates empty
+  named volumes and fails on the network cloudflared holds → *v38*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -728,6 +731,19 @@ needed" claim — rather than silently deleted.
   substitute for "prove which network path a real connection used" — precise enough that it caught
   a real, years-old bug (the proxy setting never reaching the network at all) that trusting a
   passed-in flag would have missed entirely → *v29*
+
+- Forcing real failures on the dev stack: restart only `worker-dl` with a scratch compose overlay
+  setting a dead `HTTP(S)_PROXY` plus a short `LADDER_SECONDS`. The real worker then produces
+  real `no_output` failures, real proxy escalation and real breaker trips. The breaker re-trips
+  after 5, so one track needs other tracks pushed out to reach 6 attempts → *v39*
+- impeccable's `detect.mjs` CLI returns `[]` on this Svelte tree; only the in-browser overlay
+  (`live-server.mjs` + injected `detect.js`) finds anything. Run `live-server.mjs` from a scratch
+  directory (it writes state into cwd) and stop it with `--keep-inject` → *v39*
+- A `/library` sweep archives every settled job whose tracks it moved, for *every* user, so
+  dashboard screenshots or e2e expectations taken after a sweep see fewer rows → *v39*
+- Running `npm run test:e2e` cancels and archives every in-flight job of the e2e identities
+  (`v37admin`/`v37user`) in global setup. Never build audit or screenshot data on those accounts
+  and then run the suite before capturing → *v39*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -4647,3 +4663,62 @@ independently-found production bug from the same conversation)
   and the browser. An e2e run then failed with HTML where JSON was expected and a foreign page in
   the screenshot. `127.0.0.1` isn't a way around it: the session cookie is `Secure`, which
   Chromium honours over HTTP only for `localhost`. Stop the other server.
+- **Production's library went live after the merge (2026-10-11).** `LIBRARY_DIR` had pointed at
+  the empty test folder `/mnt/raid1/media/test`; the owner changed it to `/mnt/raid1/media/music`,
+  recreated the stack and sorted 12 already-downloaded tracks: 12 moved, 0 already present,
+  0 quarantined, 0 errors, Plex picked them up, and the Matrix sweep alert arrived. Before the
+  switch, `scripts/moved_file_redownloads.sql` on prod returned no rows (no earlier damage) and
+  worker-dl showed the mount `ro`. Safety argument for the flip: the sweep skips any destination
+  that exists (`app/tasks/library.py`), `copy_verify` renames rather than deletes a bad copy, and
+  every `unlink` is on the `/downloads` source.
+- **`docker compose -f docker-compose.yml up -d` on the host takes the app down.** CLAUDE.md's
+  environment table gave that as the host command (stale since the prod overlay); the session
+  passed it on. Without `docker-compose.prod.yml` compose stopped every app container, built a
+  local `worker-expand` image, created empty `spotdl-web_library`/`spotdl-web_downloads`
+  volumes, then failed: `network spotdl-web_default has active endpoints (cloudflared)`. Nothing
+  started on the wrong config, so no data was touched. Recovery: the overlay's `--profile tunnel
+  down`, then `up -d --no-build`, then removing the two empty volumes and the stray image. The
+  table is fixed.
+
+### v39 ui-audit gotchas
+
+- **Getting every track state onto the dev stack for a UI audit.** The dev DB rarely holds a live
+  `waiting`, 5+-attempt, `lookup_failed` or tag-warning track. Real failures came from restarting
+  only `worker-dl` with a scratch overlay (`HTTP_PROXY`/`HTTPS_PROXY` = `http://127.0.0.1:9`,
+  `LADDER_SECONDS=15,15,15,15,15,3600`): the worker produced real `no_output` failures, escalated
+  to IPv6 and then to the real pool proxies, tripped the breaker, and left a real 1h countdown.
+  Five consecutive failures trip the breaker, and breaker holds record "held — not attempted"
+  rows instead of attempts. So taking one track to 6 real failures meant pushing the album's other
+  tracks' `scheduled_at` out and resetting `worker_state` once, in the dev DB. `lookup_failed` and
+  the tag-repair warning can't be forced; they were seeded by SQL with spotdl's and
+  `tagging.repair_tags`' real message texts (owner-approved). Restore with a plain
+  `docker compose up -d worker-dl`, and clear `worker_state`, or the e2e suite's dedup submissions
+  sit behind the breaker.
+- **impeccable tooling on this repo.** The `detect.mjs` CLI scan of `frontend/src` returns `[]`
+  (exit 0). A planted test file proves the engine works; it simply matches source patterns this
+  tree doesn't have. Every real detector finding (low contrast, the unpadded Alerts panel, line
+  length, flat type hierarchy) came from the browser overlay. `live-server.mjs` writes its state
+  files into the current directory and a plain `stop` edits an injected tag in source, so run it
+  from a scratch directory and stop it with `--keep-inject`. `critique-storage.mjs write` puts
+  snapshots at the repo-root `.impeccable/critique/`. `surface-brief.mjs` writes to
+  `frontend/src/.impeccable/surfaces/`, which counts as a `frontend/` change for the version bump.
+- **A library sweep changes other users' dashboards.** `_sync_tracks_and_archive_jobs`
+  (`app/tasks/library.py`) archives every settled job whose tracks the sweep moved, across all
+  users, and the sweep report doesn't say so. A sweep run mid-audit made a verifier report "the
+  job is archived" against screenshots taken minutes earlier. Take dashboard captures before any
+  sweep. (Recorded as v39 finding F34.)
+- **The e2e suite wipes the e2e identities' in-flight jobs.** v37's global setup logs in as
+  `v37admin`/`v37user`, `DELETE`s every unsettled job they own, archives them, then posts its seed
+  jobs (seen in the api log: two logins, two `DELETE /api/jobs/{id}`, two `/archive`, two
+  `POST /api/jobs` within 0.5s). The v39 audit's "Trick" album, with its real failure history, was
+  built on `v37user`. The e2e run that proved the stack healthy cancelled and archived it, which
+  looked at first like an assessment agent breaking its read-only rule. Capture every screenshot
+  before running the suite, or build audit data on a separate identity.
+- **F01: in a column flex stack, flex-basis sizes height (fixed in v39.1).** JobRow's ≤640px block
+  switches the row to `flex-direction: column` but inherited the desktop children's bases:
+  `.toggle { flex: 2 1 16rem }` became a 256px *height*, and `.bar { flex-basis: 100% }` resolved
+  against an indefinite height, fell back to the bar's empty content and overrode its
+  `height: 0.5rem`, leaving a 2px border. It had been broken since v20. v20's 390px check measured
+  widths (overflow) only, so it never looked at heights. For any column-direction collapse, reset
+  the children's flex-basis and measure heights as well as widths.
+

@@ -319,3 +319,41 @@ here rather than edited into it, so the original record stays readable.
   the old v38–v47 are now **v39–v48** (files renamed, every reference shifted, releases
   `4.39.0`–`4.48.0`). Required behavior: no re-download for the same or another user, and the
   file stays downloadable to disk from its library path. Detail in `v38-moved-file-dedup.md`.
+- **2026-10-12, v39 outcome (owner decisions on PR #56).** Answers to the four questions at the end
+  of `v39-ui-audit-report.md`:
+  1. **Direction: refinement** ("Keep the design for now"). v40–v43 keep the signal-receiver world,
+     the IBM Plex pairing and the state-color semantics, and fix the leaks the report lists. No
+     slice replaces the visual world. Narrowing mono to data and state tokens (F12, a DESIGN.md §3
+     rule change) was approved along with the direction.
+  2. **v39.1 inserted: the F01 mobile JobRow fix ships now** ("it shouldn't be pushed to get
+     forgotten"), as its own patch slice, `dev-mobile-jobrow-fix`, `4.39.1`, rather than waiting for
+     v41's redesign. Scope: the two-cause layout fix (the toggle's `16rem` basis and the bar's `100%`
+     basis inside the ≤640px column stack), a mobile e2e regression check, and DESIGN.md's stale
+     "confirmed at 390px" claim corrected with a dated note. v41 still redesigns the ≤640 stack.
+  3. **Operator detail is admin-only** ("keep it simple for everyone who's not me"). Today every
+     user sees operator-level monitoring: the worker/breaker status pill, the full state-filter and
+     sort set, and per-attempt diagnostics (network path, proxy, raw error text, attempt history).
+     From v41 on, that detail is shown only to the admin. Non-admins get a deliberately simpler view
+     of their own jobs and tracks, still honest about state (waiting, next retry, done, not found).
+     v41 (track/job detail) and v42 (header, Waterfall, QueueControls) design that simpler view
+     through impeccable, and every monitoring capability stays for the admin. This is presentation
+     gating on top of the existing data separation, not a new data surface: anything a non-admin
+     still sees stays owner-scoped as today, and the admin-only parts must be absent from their DOM,
+     not merely hidden with CSS.
+  4. Writing the five surface briefs under v39 task 1 (and the resulting `4.39.0` bump) was the
+     intended reading of the plan.
+
+  5. **A2–A6 accepted** (2026-10-13, "Yes please defer all & update the docs"). Each is now written
+     into its target slice's plan, so the implementer applies it without asking again:
+     - **A2 → v42:** the contrast tokens (F09). `--text-dim` reaches 4.5:1 on every background,
+       `--line` control borders reach 3:1 (WCAG 1.4.11), and `--signal-dim` is never used as text.
+     - **A3 → v42:** the offline/reconnecting state (F05) and status honesty (F04: the Waterfall and
+       header never read "idle" while tracks wait behind the breaker) are *designed* in v42. v47
+       still hardens them.
+     - **A4 → v43:** the confirmation list adds "release now" (breaker) and worker pause.
+     - **A5 → v40:** v40's amber decision covers all chrome (F10's list), not only the body glow.
+       v42 and v43 apply that one rule.
+     - **A6 → v48:** F34 (the sweep error log's duplicate rows, and the sweep silently archiving
+       every user's settled jobs) becomes an explicit v48 task, an exception to v48's "no fixes
+       outside v4 changes" rule, since it is v28 behavior.
+
