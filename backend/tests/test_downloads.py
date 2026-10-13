@@ -1,5 +1,8 @@
-from app.models import NetworkPath
-from app.services import downloads
+import pytest
+from spotdl.providers.audio.base import AudioProviderError
+
+from app.models import NetworkPath, TrackErrorType
+from app.services import downloads, retry
 
 
 class _FakeSettings:
@@ -7,15 +10,53 @@ class _FakeSettings:
     youtube_player_clients = "android,web,mweb"
 
 
+class _FakeTracker:
+    def __init__(self):
+        self.errors = []
+
+    def notify_error(self, message, traceback, finish=False):
+        self.errors.append(traceback)
+
+
+class _FakeProgressHandler:
+    def get_new_tracker(self, song):
+        return _FakeTracker()
+
+
 class _FakeDownloader:
     instances = []
 
     def __init__(self, options):
         self.options = options
+        self.progress_handler = _FakeProgressHandler()
         _FakeDownloader.instances.append(self)
 
     def search_and_download(self, song):
         return (song, "fake-path")
+
+
+class _SwallowingDownloader(_FakeDownloader):
+    """Mirrors spotdl's real search_and_download: any exception inside it is handed to the
+    song's tracker and swallowed, and the caller only ever sees a `None` path."""
+
+    def __init__(self, exc):
+        super().__init__(options={})
+        self.exc = exc
+
+    def search_and_download(self, song):
+        tracker = self.progress_handler.get_new_tracker(song)
+        tracker.notify_error("traceback text", self.exc, True)
+        return (song, None)
+
+
+def _chained(outer, cause):
+    try:
+        try:
+            raise cause
+        except Exception as inner:
+            raise outer from inner
+    except Exception as exc:
+        return exc
 
 
 def setup_function():
@@ -240,6 +281,73 @@ def test_download_one_ensures_spotify_client_before_downloading(monkeypatch):
     downloads.download_one("a-song", downloader)
 
     assert calls == [True]
+
+
+def test_download_one_reraises_a_search_miss_spotdl_swallowed(monkeypatch):
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    downloader = _SwallowingDownloader(LookupError("No results found for song: Scooter - B.O.B."))
+
+    with pytest.raises(LookupError, match="No results found") as excinfo:
+        downloads.download_one("a-song", downloader)
+
+    assert not isinstance(excinfo.value, downloads.AgeRestrictedError)
+    assert retry.classify_error(excinfo.value) == TrackErrorType.LOOKUP
+
+
+def test_download_one_turns_a_swallowed_age_gate_into_a_terminal_error(monkeypatch):
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    # The real shape: spotdl's AudioProviderError chained from yt-dlp's DownloadError.
+    exc = _chained(
+        AudioProviderError("YT-DLP download error - https://www.youtube.com/watch?v=bKBHz_K76us"),
+        RuntimeError(
+            "ERROR: [youtube] bKBHz_K76us: Sign in to confirm your age. Use --cookies-from-browser"
+        ),
+    )
+
+    with pytest.raises(downloads.AgeRestrictedError, match="Age-restricted") as excinfo:
+        downloads.download_one("a-song", _SwallowingDownloader(exc))
+
+    assert retry.classify_error(excinfo.value) == TrackErrorType.LOOKUP
+
+
+def test_download_one_keeps_a_bot_check_on_the_retry_ladder_with_its_reason(monkeypatch):
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    exc = _chained(
+        AudioProviderError("YT-DLP download error - https://www.youtube.com/watch?v=x"),
+        RuntimeError("ERROR: [youtube] x: Sign in to confirm you're not a bot\nmore detail"),
+    )
+
+    with pytest.raises(retry.NoOutputFileError) as excinfo:
+        downloads.download_one("a-song", _SwallowingDownloader(exc))
+
+    message = str(excinfo.value)
+    assert message.startswith("spotdl returned no output file for this track (")
+    assert "AudioProviderError: YT-DLP download error" in message
+    assert "Sign in to confirm you're not a bot" in message
+    assert "more detail" not in message
+    assert retry.classify_error(excinfo.value) == TrackErrorType.NO_OUTPUT
+
+
+def test_download_one_returns_none_when_spotdl_reported_no_error(monkeypatch):
+    """Paths like a failed song reinit return None without notifying the tracker --
+    nothing to raise, so the caller's own `output_path is None` handling still applies."""
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+
+    class _SilentNone(_FakeDownloader):
+        def search_and_download(self, song):
+            return (song, None)
+
+    assert downloads.download_one("a-song", _SilentNone(options={})) == ("a-song", None)
+
+
+def test_download_one_restores_the_cached_downloaders_progress_handler(monkeypatch):
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    downloader = _SwallowingDownloader(LookupError("No results found"))
+
+    with pytest.raises(LookupError):
+        downloads.download_one("a-song", downloader)
+
+    assert "get_new_tracker" not in vars(downloader.progress_handler)
 
 
 def test_get_supported_output_options_reflects_the_real_installed_spotdl():
