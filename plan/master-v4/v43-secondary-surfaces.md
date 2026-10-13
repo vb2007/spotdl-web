@@ -32,7 +32,9 @@ are its checklist.
   - "clear log" (`QueueControls.svelte:98-100`, archives every settled job immediately today);
   - "remove proxy";
   - job "cancel" and track "cancel track";
-  - "start sweep" on `/library`.
+  - "start sweep" on `/library`;
+  - "release now" on the breaker and worker "pause" (`WorkerStatus.svelte`; v39 amendment A4).
+    Releasing early sends downloads straight back into an active rate limit.
 
   It must be keyboard-complete (focus moves in, Esc cancels, focus returns to the trigger), use
   the right ARIA semantics (`role="dialog"`/`alertdialog` with a label), and default the focus to

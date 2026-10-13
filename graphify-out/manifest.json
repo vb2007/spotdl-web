@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1791874442.2545545,
-    "ast_hash": "289221460b683ee85baedfaa3a2e45a7",
+    "mtime": 1791892001.4639597,
+    "ast_hash": "be8d68c9a89441df9b5dd3fbf5365d8f",
     "semantic_hash": ""
   },
   "README.md": {
@@ -65,7 +65,7 @@
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
-    "mtime": 1791874474.0016832,
+    "mtime": 1791892014.6043162,
     "ast_hash": "48bf463615fcfc99ab42e4948613904e",
     "semantic_hash": ""
   },
@@ -80,7 +80,7 @@
     "semantic_hash": "c727963dee0c5743b26f3d2fc99abfb6"
   },
   "frontend/package.json": {
-    "mtime": 1791874474.0023322,
+    "mtime": 1791892014.6053164,
     "ast_hash": "38b99ab42c226faf92361f508c2894b9",
     "semantic_hash": ""
   },
@@ -155,8 +155,8 @@
     "semantic_hash": "a0d1b540c1b9a2a920d5f6cae983118a"
   },
   "docs/DEPLOYMENT.md": {
-    "mtime": 1791874442.2545545,
-    "ast_hash": "9c928f1ef50f698e770e78062efb80b8",
+    "mtime": 1791892001.4639597,
+    "ast_hash": "156dad407f1272f9755606b0d11fb6a1",
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1791874469.026445,
-    "ast_hash": "cfeae79f88fbc4055ac7d15aeefdeee2",
+    "mtime": 1791892014.5963159,
+    "ast_hash": "fee830a864ac6d14770e7b4752d0e876",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -980,8 +980,8 @@
     "semantic_hash": ""
   },
   "plan/master-v4/00-master-plan.md": {
-    "mtime": 1791874442.261555,
-    "ast_hash": "b4a793a8af370ee3a9016c3c30f1b278",
+    "mtime": 1791892001.4727826,
+    "ast_hash": "d67eb56492108df5f3147f32574049d0",
     "semantic_hash": ""
   },
   "plan/master-v4/IMPLEMENTATION_PROMPT.md": {
@@ -1175,8 +1175,8 @@
     "semantic_hash": ""
   },
   "plan/master-v4/v40-ambient-field.md": {
-    "mtime": 1791835941.1970932,
-    "ast_hash": "a12b02df82c54e679020895ff8d687c8",
+    "mtime": 1791892001.4727826,
+    "ast_hash": "03c7dbb6b62d0810602c398fb05d5852",
     "semantic_hash": ""
   },
   "plan/master-v4/v41-track-detail-redesign.md": {
@@ -1185,13 +1185,13 @@
     "semantic_hash": ""
   },
   "plan/master-v4/v42-dashboard-redesign.md": {
-    "mtime": 1791835941.1970932,
-    "ast_hash": "f8f4e5e7711714bdac9a15574002e217",
+    "mtime": 1791892001.4727826,
+    "ast_hash": "105955f582cfa5182ec32f9f8a6bbfe2",
     "semantic_hash": ""
   },
   "plan/master-v4/v43-secondary-surfaces.md": {
-    "mtime": 1791835941.1970932,
-    "ast_hash": "bed090aaf16649ad6b6e651646551f82",
+    "mtime": 1791892001.4727826,
+    "ast_hash": "8685d4d92e05fba84426d1075cfa648b",
     "semantic_hash": ""
   },
   "plan/master-v4/v44-admin-stats.md": {
@@ -1215,8 +1215,8 @@
     "semantic_hash": ""
   },
   "plan/master-v4/v48-v4-hardening.md": {
-    "mtime": 1791835941.1970932,
-    "ast_hash": "170264793b8fe7459a12164a7faa8136",
+    "mtime": 1791892001.4727826,
+    "ast_hash": "ada060e49b181544c944ed02c90d730b",
     "semantic_hash": ""
   },
   "frontend/e2e/09-moved-file.e2e.ts": {
@@ -1232,6 +1232,61 @@
   "frontend/e2e/10-job-row-layout.e2e.ts": {
     "mtime": 1791874442.2555547,
     "ast_hash": "d1956cf5edfb185eb2680c793df069d5",
+    "semantic_hash": ""
+  },
+  ".impeccable/critique/2026-10-12T16-14-12Z__frontend-src-routes-account-page-svelte.md": {
+    "mtime": 1791892001.4639163,
+    "ast_hash": "16ccd863c36a1c4a181868876d53c977",
+    "semantic_hash": ""
+  },
+  ".impeccable/critique/2026-10-12T16-14-12Z__frontend-src-routes-library-page-svelte.md": {
+    "mtime": 1791892001.4639597,
+    "ast_hash": "973be0f53607c11b75139f201bf5696f",
+    "semantic_hash": ""
+  },
+  ".impeccable/critique/2026-10-12T16-14-12Z__frontend-src-routes-login-page-svelte.md": {
+    "mtime": 1791892001.4639597,
+    "ast_hash": "cbb9dd75089efcb87cf007661d7c1f11",
+    "semantic_hash": ""
+  },
+  ".impeccable/critique/2026-10-12T16-14-12Z__frontend-src-routes-page-svelte.md": {
+    "mtime": 1791892001.4639597,
+    "ast_hash": "8fee306c055bad2ed9d38d2c496efc03",
+    "semantic_hash": ""
+  },
+  ".impeccable/critique/2026-10-12T16-14-12Z__frontend-src-routes-settings-page-svelte.md": {
+    "mtime": 1791892001.4639597,
+    "ast_hash": "8e4cc9046771f590ea6c0dff97b43c42",
+    "semantic_hash": ""
+  },
+  "frontend/src/.impeccable/surfaces/frontend-src-routes-account-page-svelte.md": {
+    "mtime": 1791892001.4657824,
+    "ast_hash": "bacc91d5fd8dba0ee22912c349278b12",
+    "semantic_hash": ""
+  },
+  "frontend/src/.impeccable/surfaces/frontend-src-routes-library-page-svelte.md": {
+    "mtime": 1791892001.4658897,
+    "ast_hash": "b59258e232bc9a74197a20372c7e1420",
+    "semantic_hash": ""
+  },
+  "frontend/src/.impeccable/surfaces/frontend-src-routes-login-page-svelte.md": {
+    "mtime": 1791892001.4658897,
+    "ast_hash": "0783e0e236fb2f62bf333db94728e47e",
+    "semantic_hash": ""
+  },
+  "frontend/src/.impeccable/surfaces/frontend-src-routes-page-svelte.md": {
+    "mtime": 1791892001.4658897,
+    "ast_hash": "1f05b8ce2f0ad55b2b4e86a9df42f5d8",
+    "semantic_hash": ""
+  },
+  "frontend/src/.impeccable/surfaces/frontend-src-routes-settings-page-svelte.md": {
+    "mtime": 1791892001.4658897,
+    "ast_hash": "0b61b0db826b5544693cd580d960d170",
+    "semantic_hash": ""
+  },
+  "plan/master-v4/v39-ui-audit-report.md": {
+    "mtime": 1791892001.4727826,
+    "ast_hash": "855758a95a273aba9efbbd82336c5b34",
     "semantic_hash": ""
   }
 }

@@ -83,7 +83,7 @@ Diff your existing `.env` against `.env.example` and add whatever's new for v12:
 |---|---|
 | `FRONTEND_ORIGINS` | `https://spotdl.vb2007.hu` (see §4 below — same-origin in prod, but still worth setting correctly as the fallback allowlist) |
 | `DOWNLOADS_DIR` | A real host path, e.g. `/home/vb2007/spotdl` (this host's actual value) — read only by `docker-compose.prod.yml`, see §3 |
-| `LIBRARY_DIR` (v28) | A real host path for the actual music library the sort & move sweep (on `worker-expand` since v34.1; `worker-meta` mounts it too, for `reconcile_disk`) writes into and `web` serves file downloads from read-only — e.g. `/mnt/raid1/media/music` (this host's actual value). `docker-compose.prod.yml`'s `${LIBRARY_DIR:?...}` crash-loops the stack at `up` time if this is unset, by design. See the new "Set up the library directory" step below §3 |
+| `LIBRARY_DIR` (v28) | A real host path for the actual music library the sort & move sweep (on `worker-expand` since v34.1; `worker-meta` mounts it too, for `reconcile_disk`) writes into and `web` serves file downloads from read-only — e.g. `/mnt/raid1/media/music` (this host's actual value since 2026-10-11; before that it was the empty test folder `/mnt/raid1/media/test`). `docker-compose.prod.yml`'s `${LIBRARY_DIR:?...}` crash-loops the stack at `up` time if this is unset, by design. See the new "Set up the library directory" step below §3 |
 | `STALE_TRACK_AFTER_SECONDS` | Leave at the `.env.example` default (`1800`) for real production use — see §7's restart-survival test for why you might *temporarily* lower it during verification |
 
 **No longer needed:** a `frontend/.env` file, and a manual `alembic upgrade head` step —
@@ -124,7 +124,8 @@ APP_GID=<gid>` instead — see step 4's build command.
 
 **`LIBRARY_DIR` (v28)** is a separate, second bind mount — the real music library
 (`docker-compose.prod.yml` maps it to `/mnt/raid1/media/music` in `worker-meta` and `worker-expand`
-read-write and `web` read-only) that the admin-only sort & move sweep moves completed downloads into. Unlike
+read-write, and in `web` and `worker-dl` read-only; v38: the dedup gate on `worker-dl` must see
+moved files) that the admin-only sort & move sweep moves completed downloads into. Unlike
 `DOWNLOADS_DIR`, there's no one-time volume migration here — it's your existing library directory,
 set once in `.env`. It still needs the same uid 1000 write access, or the sweep's `copy_verify`
 fails every row with a permission error:
@@ -141,6 +142,21 @@ mount points*, never the folder layout inside it.
 
 Confirm both mounts landed correctly after `up`: `docker compose exec worker-meta ls -la /downloads
 /mnt/raid1/media/music` should show the real library's existing folders, writable by the container.
+
+**Changing `LIBRARY_DIR` later** (2026-10-11: test folder → live library) is an `.env` edit plus a
+recreate, always with the production overlay:
+
+```bash
+sed -i 's|^LIBRARY_DIR=.*|LIBRARY_DIR=/mnt/raid1/media/music|' .env
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec worker-dl ls /mnt/raid1/media/music | head -3
+```
+
+Never run `up` with only `-f docker-compose.yml` here: without the overlay, compose builds local
+images, creates empty `spotdl-web_library`/`spotdl-web_downloads` named volumes instead of the bind
+mounts, and fails on the network cloudflared still holds, leaving the app stopped (see
+`docs/GOTCHAS.md`'s v38 entry). The app never deletes or overwrites anything under the library: the
+sweep skips an existing destination, and every `unlink` acts on the `/downloads` copy.
 
 ### 4. Bring up the stack with the production overlay
 
