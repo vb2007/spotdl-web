@@ -226,7 +226,7 @@ The page's light: one `position: fixed`, full-viewport, `pointer-events: none`, 
 layer, mounted once in `routes/+layout.svelte` so every route has it. It sits behind the panels
 (their `--bg-1` fill is opaque), so it lights only the page gutters and the text set directly on
 the page (headers, hints, the `/login` ident). Its home is approximately the old body ellipse's
-composition: a 1152×704px element (the old visible ellipse was about 1080×600) centred at 50% /
+composition: a 72×44rem element (1152×704px at the default 16px; it grows with text scaling) (the old visible ellipse was about 1080×600) centred at 50% /
 −10% of the viewport, so at rest the page reads as it always did, minus the amber.
 
 **Behavior.** With a hovering fine pointer, the glow follows the cursor. `pointermove` only stores
