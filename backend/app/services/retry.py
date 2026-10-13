@@ -5,7 +5,9 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from requests.exceptions import ProxyError as RequestsProxyError
 from spotdl.providers.audio.base import AudioProviderError
+from urllib3.exceptions import ProxyError as Urllib3ProxyError
 
 from app.config import get_settings
 from app.models import Track, TrackErrorType, TrackState, WorkerState
@@ -22,6 +24,44 @@ class NoOutputFileError(Exception):
     returning `None` instead of propagating it. A bare RuntimeError here used to classify
     as OTHER, which shares the retry ladder but never feeds the circuit breaker -- so a
     100% failure rate across every track in the queue never tripped it."""
+
+
+class ProxyTransportError(Exception):
+    """The attempt never got past its proxy (connect timeout, refused, a failed CONNECT
+    tunnel, proxy auth): nothing reached YouTube, so it says nothing about rate limiting
+    and nothing about the track. v40.1: on production every enabled proxy was dead, and
+    this used to surface as a breaker-feeding `no_output`, which re-tripped the breaker on
+    every release and kept every proxy-rung track from ever reaching a verdict."""
+
+
+# yt-dlp's own wording for the same failure (its proxy errors aren't requests'/urllib3's
+# exception classes, only text on a DownloadError).
+_PROXY_TRANSPORT_MARKERS = (
+    "unable to connect to proxy",
+    "tunnel connection failed",
+    "407 proxy authentication",
+)
+
+
+def _exception_chain(exc: BaseException) -> list[BaseException]:
+    chain: list[BaseException] = []
+    cur: BaseException | None = exc
+    while cur is not None and cur not in chain:
+        chain.append(cur)
+        cur = cur.__cause__ or cur.__context__
+    return chain
+
+
+def is_proxy_transport_error(exc: BaseException) -> bool:
+    """True if anything on `exc`'s cause/context chain is a proxy-level transport failure:
+    requests'/urllib3's ProxyError, or yt-dlp's text for the same thing."""
+    for link in _exception_chain(exc):
+        if isinstance(link, (ProxyTransportError, RequestsProxyError, Urllib3ProxyError)):
+            return True
+        text = str(link).lower()
+        if any(marker in text for marker in _PROXY_TRANSPORT_MARKERS):
+            return True
+    return False
 
 
 def classify_error(exc: Exception) -> TrackErrorType:
@@ -63,6 +103,13 @@ def maybe_trip_breaker(db: Session, error_type: TrackErrorType | None = None) ->
         worker_state.breaker_trip_count += 1
         delay = BREAKER_TRIP_DELAYS[min(worker_state.breaker_trip_count - 1, len(BREAKER_TRIP_DELAYS) - 1)]
         worker_state.breaker_tripped_until = datetime.now(timezone.utc) + delay
+        tripped_on = worker_state.consecutive_failures
+        # v40.1: every trip starts a fresh streak, so re-tripping after a release takes
+        # another BREAKER_TRIP_THRESHOLD consecutive failures, not one. Before this the
+        # counter only reset on a success: once the queue held nothing but tracks that
+        # can't succeed, one failure per release re-tripped it at 6h, forever, for every
+        # user. Escalation still holds until a success (breaker_trip_count isn't reset).
+        worker_state.consecutive_failures = 0
         # v36: queued on this session, sent only if the caller's commit lands (never in
         # the download's own path -- see alerts.enqueue_after_commit).
         step = alerts.format_duration(delay)
@@ -76,7 +123,7 @@ def maybe_trip_breaker(db: Session, error_type: TrackErrorType | None = None) ->
             f"trip:{step}:{worker_state.breaker_tripped_until:%Y%m%dT%H%M%S}",
             f"Circuit breaker {verb}: downloads paused for {step} "
             f"(trip #{worker_state.breaker_trip_count}, after "
-            f"{worker_state.consecutive_failures} consecutive failures; last error "
+            f"{tripped_on} consecutive failures; last error "
             f"{last_error}). Paused until "
             f"{worker_state.breaker_tripped_until:%Y-%m-%d %H:%M} UTC.",
         )
@@ -108,6 +155,18 @@ def record_failure(db: Session, track: Track, error_type: TrackErrorType, messag
         worker_state = get_worker_state(db)
         worker_state.consecutive_failures += 1
         maybe_trip_breaker(db, error_type)
+
+
+def record_transport_failure(db: Session, track: Track, message: str) -> None:
+    """A proxy-rung attempt that never got past its proxy (ProxyTransportError). The track
+    wasn't evaluated, so it doesn't climb the ladder (attempt_count unchanged: the next
+    try is still this rung) and nothing feeds the breaker. It comes back after the
+    ladder's first step, by which time this proxy is cooling down and the dispatch either
+    picks another one or, with every proxy cooling, falls back to direct."""
+    track.last_error = message
+    track.last_error_type = TrackErrorType.OTHER
+    track.state = TrackState.WAITING
+    track.scheduled_at = datetime.now(timezone.utc) + next_delay(0)
 
 
 def record_success(db: Session, track: Track) -> None:

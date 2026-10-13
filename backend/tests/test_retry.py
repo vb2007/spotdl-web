@@ -134,10 +134,90 @@ def test_breaker_trips_after_five_consecutive_failures(db_session):
         db_session.commit()
 
     worker_state = db_session.get(WorkerState, 1)
-    assert worker_state.consecutive_failures == 5
+    # v40.1: the trip itself starts a fresh streak.
+    assert worker_state.consecutive_failures == 0
     assert worker_state.breaker_trip_count == 1
     assert worker_state.breaker_tripped_until is not None
     assert _aware(worker_state.breaker_tripped_until) - datetime.now(timezone.utc) >= timedelta(minutes=29)
+
+
+def test_one_failure_after_a_trip_does_not_retrip(db_session):
+    """v40.1, the production wedge: the streak used to survive the trip, so after every
+    release a single failure re-tripped at the top step, and a queue of tracks that can
+    never succeed held the breaker shut forever. Re-tripping now takes a full new streak."""
+    track = _make_track(db_session)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = retry.BREAKER_TRIP_THRESHOLD - 1
+    worker_state.breaker_trip_count = 5
+    db_session.commit()
+
+    retry.record_failure(db_session, track, TrackErrorType.NO_OUTPUT, "no output")
+    db_session.commit()
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.breaker_trip_count == 6
+    first_trip_until = worker_state.breaker_tripped_until
+
+    # The release (time passing) followed by one more failure.
+    worker_state.breaker_tripped_until = None
+    db_session.commit()
+    retry.record_failure(db_session, track, TrackErrorType.NO_OUTPUT, "no output")
+    db_session.commit()
+
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.consecutive_failures == 1
+    assert worker_state.breaker_tripped_until is None
+    assert worker_state.breaker_trip_count == 6
+    assert first_trip_until is not None
+
+    # A full new streak still re-trips, at the escalated step (escalation only resets on
+    # a success).
+    for _ in range(retry.BREAKER_TRIP_THRESHOLD - 1):
+        retry.record_failure(db_session, track, TrackErrorType.AUDIO_PROVIDER, "rate limited")
+        db_session.commit()
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.breaker_trip_count == 7
+    assert _aware(worker_state.breaker_tripped_until) - datetime.now(timezone.utc) >= timedelta(
+        hours=5, minutes=59
+    )
+
+
+def test_record_transport_failure_keeps_the_rung_and_never_feeds_the_breaker(db_session):
+    track = _make_track(db_session)
+    track.attempt_count = 2
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = retry.BREAKER_TRIP_THRESHOLD - 1
+    db_session.commit()
+    before = datetime.now(timezone.utc)
+
+    retry.record_transport_failure(db_session, track, "proxy unreachable")
+    db_session.commit()
+
+    assert track.state == TrackState.WAITING
+    assert track.attempt_count == 2
+    assert track.last_error_type == TrackErrorType.OTHER
+    assert track.last_error == "proxy unreachable"
+    assert _aware(track.scheduled_at) - before >= retry.next_delay(0) - timedelta(seconds=1)
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.consecutive_failures == retry.BREAKER_TRIP_THRESHOLD - 1
+    assert worker_state.breaker_tripped_until is None
+
+
+def test_is_proxy_transport_error_walks_the_chain():
+    from requests.exceptions import ProxyError as RequestsProxyError
+    from urllib3.exceptions import ProxyError as Urllib3ProxyError
+
+    assert retry.is_proxy_transport_error(RequestsProxyError("Max retries exceeded"))
+    assert retry.is_proxy_transport_error(Urllib3ProxyError("Unable to connect to proxy", None))
+    assert retry.is_proxy_transport_error(retry.ProxyTransportError("dead"))
+    try:
+        try:
+            raise RuntimeError("ERROR: Unable to download webpage: Tunnel connection failed: 502")
+        except RuntimeError as inner:
+            raise AudioProviderError("YT-DLP download error - url") from inner
+    except AudioProviderError as chained:
+        assert retry.is_proxy_transport_error(chained)
+    assert not retry.is_proxy_transport_error(AudioProviderError("HTTP Error 429"))
+    assert not retry.is_proxy_transport_error(LookupError("No results found"))
 
 
 def test_breaker_escalates_delay_on_successive_trips(db_session):

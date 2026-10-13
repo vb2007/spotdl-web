@@ -160,6 +160,58 @@ def test_record_proxy_result_updates_a_manual_source_proxy(db_session):
     assert updated.cooldown_until is not None
 
 
+def test_pick_proxy_skips_and_cools_down_a_proxy_that_refuses_tcp(db_session, monkeypatch):
+    """v40.1: production's whole pool was dead, and every proxy-rung attempt was spent on
+    one. An unreachable proxy is now cooled down at pick time and the next one is tried."""
+    db_session.add_all(
+        [
+            Proxy(url="http://198.51.100.1:3128", source=ProxySource.FILE, enabled=True),
+            Proxy(
+                url="http://198.51.100.2:3128",
+                source=ProxySource.FILE,
+                enabled=True,
+                last_used_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            ),
+        ]
+    )
+    db_session.commit()
+    monkeypatch.setattr(
+        proxies, "_probe_reachable", lambda url, timeout=2.0: url.endswith(".2:3128")
+    )
+
+    chosen = proxies.pick_proxy(db_session)
+    db_session.commit()
+
+    assert chosen.url == "http://198.51.100.2:3128"
+    dead = db_session.query(Proxy).filter(Proxy.url == "http://198.51.100.1:3128").one()
+    assert dead.consecutive_failures == 1
+    assert dead.cooldown_until is not None
+    assert chosen.consecutive_failures == 0
+    assert chosen.cooldown_until is None
+
+
+def test_pick_proxy_returns_none_when_every_proxy_refuses_tcp(db_session, monkeypatch):
+    db_session.add_all(
+        [
+            Proxy(url="http://198.51.100.1:3128", source=ProxySource.FILE, enabled=True),
+            Proxy(url="http://198.51.100.2:3128", source=ProxySource.MANUAL, enabled=True),
+        ]
+    )
+    db_session.commit()
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: False)
+
+    assert proxies.pick_proxy(db_session) is None
+    db_session.commit()
+
+    rows = db_session.query(Proxy).all()
+    assert all(row.consecutive_failures == 1 and row.cooldown_until is not None for row in rows)
+    # A second pick finds both cooling down, so it doesn't probe them again.
+    monkeypatch.setattr(
+        proxies, "_probe_reachable", lambda url, timeout=2.0: pytest.fail("probed a cooling proxy")
+    )
+    assert proxies.pick_proxy(db_session) is None
+
+
 def test_pick_proxy_stamps_last_used_at_on_selection(db_session):
     before = datetime.now(timezone.utc)
     proxy = Proxy(url="http://healthy", source=ProxySource.FILE, enabled=True)

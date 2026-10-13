@@ -26,6 +26,10 @@ from app.services import dedup, downloads, events, proxies, retry, tagging
 from app.tasks import download as download_task
 
 
+def _aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
 def _owner(db_session) -> User:
     user = db_session.query(User).filter(User.email == "owner@example.com").one_or_none()
     if user is None:
@@ -834,6 +838,139 @@ def test_download_track_retry_proxy_failure_sets_cooldown(db_session, monkeypatc
     assert len(rows) == 1
     assert rows[0].outcome == TrackAttemptOutcome.FAILED
     assert rows[0].proxy_id == proxy.id
+
+
+def _proxy_rung_track(db_session, monkeypatch):
+    track = _make_track(db_session)
+    track.attempt_count = 2  # v29: proxy is the third rung
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    proxy = Proxy(url="http://proxy-1", source=ProxySource.FILE, enabled=True)
+    db_session.add(proxy)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = retry.BREAKER_TRIP_THRESHOLD - 1
+    db_session.commit()
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
+    return track, proxy
+
+
+def _assert_proxy_transport_failure(db_session, track, proxy, before):
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.WAITING
+    # Never reached YouTube: the track keeps its rung...
+    assert updated.attempt_count == 2
+    assert updated.last_error_type == TrackErrorType.OTHER
+    assert _aware(updated.scheduled_at) - before >= retry.next_delay(0) - timedelta(seconds=1)
+    # ...the breaker hears nothing (one more breaker-feeding failure would have tripped it)...
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.consecutive_failures == retry.BREAKER_TRIP_THRESHOLD - 1
+    assert worker_state.breaker_tripped_until is None
+    # ...and the proxy is the one that cools down.
+    updated_proxy = db_session.get(Proxy, proxy.id)
+    assert updated_proxy.consecutive_failures == 1
+    assert updated_proxy.cooldown_until is not None
+    rows = _attempts(db_session, track)
+    assert len(rows) == 1
+    assert rows[0].outcome == TrackAttemptOutcome.FAILED
+    assert rows[0].error_type == TrackErrorType.OTHER
+    assert rows[0].network_path == NetworkPath.PROXY
+    assert rows[0].proxy_id == proxy.id
+
+
+def test_download_track_proxy_transport_failure_keeps_rung_and_spares_breaker(db_session, monkeypatch):
+    """v40.1: the swallowed shape production hit -- download_one turns it into a
+    ProxyTransportError."""
+    track, proxy = _proxy_rung_track(db_session, monkeypatch)
+
+    def fake_download_one(song, downloader):
+        raise retry.ProxyTransportError("proxy unreachable, YouTube was never reached (ProxyError: ...)")
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+    before = datetime.now(timezone.utc)
+
+    download_task.download_track(str(track.id))
+
+    _assert_proxy_transport_failure(db_session, track, proxy, before)
+
+
+def test_download_track_directly_raised_proxy_error_is_a_transport_failure(db_session, monkeypatch):
+    """The same failure raised outside spotdl's swallow, e.g. by force_proxy building its
+    proxied YTMusic client on entry."""
+    from requests.exceptions import ProxyError as RequestsProxyError
+
+    track, proxy = _proxy_rung_track(db_session, monkeypatch)
+
+    def fake_download_one(song, downloader):
+        raise RequestsProxyError("Max retries exceeded (Caused by ProxyError('Unable to connect to proxy'))")
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+    before = datetime.now(timezone.utc)
+
+    download_task.download_track(str(track.id))
+
+    _assert_proxy_transport_failure(db_session, track, proxy, before)
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        LookupError("No results found for song: Scooter - C.I.F.L. - Remastered"),
+        downloads.AgeRestrictedError("Age-restricted on YouTube (sign-in required): ..."),
+        downloads.UnavailableVideoError("Unavailable on YouTube: ..."),
+    ],
+)
+def test_download_track_terminal_verdict_via_proxy_credits_the_proxy(db_session, monkeypatch, exc):
+    """v40.1: a verdict about the video means the proxy carried the request to YouTube and
+    back. Production cooled down the first proxy that ever worked for exactly that."""
+    track, proxy = _proxy_rung_track(db_session, monkeypatch)
+
+    def fake_download_one(song, downloader):
+        raise exc
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.LOOKUP_FAILED
+    updated_proxy = db_session.get(Proxy, proxy.id)
+    assert updated_proxy.consecutive_failures == 0
+    assert updated_proxy.cooldown_until is None
+    assert updated_proxy.last_success_at is not None
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.consecutive_failures == retry.BREAKER_TRIP_THRESHOLD - 1
+
+
+def test_download_track_falls_back_to_direct_when_every_proxy_is_unreachable(db_session, monkeypatch):
+    """v40.1: pick_proxy probes before use; a pool that refuses TCP connections cools down
+    and the attempt goes out direct (the existing no-proxy-available fallback)."""
+    track, proxy = _proxy_rung_track(db_session, monkeypatch)
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: False)
+    captured = {}
+
+    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None, network_path=None):
+        captured["proxy"] = proxy
+        captured["network_path"] = network_path
+        return _FakeDownloader()
+
+    monkeypatch.setattr(downloads, "get_downloader", fake_get_downloader)
+
+    def fake_download_one(song, downloader):
+        raise downloads.AgeRestrictedError("Age-restricted on YouTube (sign-in required): ...")
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+
+    assert captured == {"proxy": None, "network_path": NetworkPath.DIRECT_IPV4}
+    assert db_session.get(Track, track.id).state == TrackState.LOOKUP_FAILED
+    cooled = db_session.get(Proxy, proxy.id)
+    assert cooled.consecutive_failures == 1
+    assert cooled.cooldown_until is not None
+    rows = _attempts(db_session, track)
+    assert rows[0].network_path == NetworkPath.DIRECT_IPV4
+    assert rows[0].proxy_id is None
 
 
 def test_download_track_retry_failure_redacts_proxy_credentials_from_last_error(db_session, monkeypatch):

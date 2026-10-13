@@ -17,7 +17,7 @@ from spotdl.utils.arguments import create_parser
 from app.config import get_settings
 from app.models import NetworkPath
 from app.services.expansion import _ensure_spotify_client
-from app.services.retry import NoOutputFileError
+from app.services.retry import NoOutputFileError, ProxyTransportError, is_proxy_transport_error
 
 # yt-dlp's own -4/-6 flags (see get_downloader below) -- confirmed against the installed
 # yt_dlp source (yt_dlp/options.py) to set source_address to '0.0.0.0'/'::' and nothing else.
@@ -142,9 +142,34 @@ class AgeRestrictedError(LookupError):
     still retry by hand once a cookie file is configured."""
 
 
-# yt-dlp's own age-gate wording. Distinct from its bot-check ("Sign in to confirm you're
-# not a bot"), which *is* network-dependent and must stay on the retry ladder.
-_AGE_GATE_MARKER = "confirm your age"
+class UnavailableVideoError(LookupError):
+    """The matched YouTube video is private, removed, from a terminated account, members-
+    only or geo-blocked (v40.1). Like the age gate, a property of the video that no retry
+    changes, so terminal (`lookup_failed`) and still retryable by hand."""
+
+
+# yt-dlp's own wording, matched case-insensitively. Distinct from its bot-check ("Sign in
+# to confirm you're not a bot") and its rate-limit text ("This content isn't available,
+# try again later", a bare "Video unavailable"), which *are* network-dependent and must
+# stay on the retry ladder -- none of these markers is a substring of those.
+_AGE_GATE_MARKERS = (
+    "confirm your age",
+    "age-restricted",
+    "inappropriate for some users",
+)
+_UNAVAILABLE_MARKERS = (
+    "private video",
+    "video is private",
+    "video has been removed",
+    "account associated with this video has been terminated",
+    "members-only",
+    "not made this video available in your country",
+    "geo restriction",
+)
+
+
+def _chain_text_has(chain: list[BaseException], markers: tuple[str, ...]) -> bool:
+    return any(marker in str(e).lower() for e in chain for marker in markers)
 
 
 def _swallowed_error_to_raise(exc: BaseException) -> Exception:
@@ -155,10 +180,6 @@ def _swallowed_error_to_raise(exc: BaseException) -> Exception:
     while cur is not None and cur not in chain:
         chain.append(cur)
         cur = cur.__cause__ or cur.__context__
-    if any(_AGE_GATE_MARKER in str(e) for e in chain):
-        return AgeRestrictedError(f"Age-restricted on YouTube (sign-in required): {exc}")
-    if isinstance(exc, LookupError):
-        return exc
     # spotdl's own message is often just "YT-DLP download error - <url>"; the reason
     # (403, bot-check, ...) is on the yt-dlp exception it chains from.
     detail = f"{type(exc).__name__}: {exc}"
@@ -166,6 +187,15 @@ def _swallowed_error_to_raise(exc: BaseException) -> Exception:
     if root is not exc:
         root_line = str(root).strip().splitlines()[0] if str(root).strip() else ""
         detail += f" <- {type(root).__name__}: {root_line[:300]}"
+    # First: a dead proxy says nothing about the video, whatever else is on the chain.
+    if is_proxy_transport_error(exc):
+        return ProxyTransportError(f"proxy unreachable, YouTube was never reached ({detail})")
+    if _chain_text_has(chain, _AGE_GATE_MARKERS):
+        return AgeRestrictedError(f"Age-restricted on YouTube (sign-in required): {exc}")
+    if _chain_text_has(chain, _UNAVAILABLE_MARKERS):
+        return UnavailableVideoError(f"Unavailable on YouTube: {detail}")
+    if isinstance(exc, LookupError):
+        return exc
     return NoOutputFileError(f"spotdl returned no output file for this track ({detail})")
 
 

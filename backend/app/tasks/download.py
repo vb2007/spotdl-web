@@ -9,7 +9,15 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import DownloadedTrack, Job, NetworkPath, Track, TrackAttemptOutcome, TrackState
+from app.models import (
+    DownloadedTrack,
+    Job,
+    NetworkPath,
+    Track,
+    TrackAttemptOutcome,
+    TrackErrorType,
+    TrackState,
+)
 from app.services import app_settings, attempts, dedup, downloads, events, proxies, retry, tagging
 from app.services import network_path as network_path_svc
 from app.services.serializers import track_song_meta
@@ -495,10 +503,23 @@ def download_track(track_id: str) -> None:
                 )
                 db.commit()
                 return
-            error_type = retry.classify_error(exc)
-            retry.record_failure(db, track, error_type, error_message)
-            if proxy_id is not None:
+            if proxy_id is not None and retry.is_proxy_transport_error(exc):
+                # v40.1: the attempt died at its proxy and never reached YouTube -- the
+                # proxy's own cooldown handles it; the track keeps its rung and the
+                # breaker hears nothing (see retry.ProxyTransportError).
+                error_type = TrackErrorType.OTHER
+                retry.record_transport_failure(db, track, error_message)
                 proxies.record_proxy_result(db, proxy_id, success=False)
+            else:
+                error_type = retry.classify_error(exc)
+                retry.record_failure(db, track, error_type, error_message)
+                if proxy_id is not None:
+                    # A terminal verdict (no match, age gate, unavailable video) means
+                    # this proxy carried the request to YouTube and back: it worked, so
+                    # it's not the proxy's failure to be cooled down for.
+                    proxies.record_proxy_result(
+                        db, proxy_id, success=error_type == TrackErrorType.LOOKUP
+                    )
             attempts.record_attempt(
                 db,
                 track.id,

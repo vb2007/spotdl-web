@@ -328,6 +328,101 @@ def test_download_one_keeps_a_bot_check_on_the_retry_ladder_with_its_reason(monk
     assert retry.classify_error(excinfo.value) == TrackErrorType.NO_OUTPUT
 
 
+def test_download_one_turns_a_dead_proxy_into_a_transport_error(monkeypatch):
+    """v40.1, production's exact failure: ytmusicapi couldn't reach music.youtube.com
+    through the proxy (raised while building the client, before any search). It used to
+    become a breaker-feeding NoOutputFileError."""
+    from requests.exceptions import ProxyError as RequestsProxyError
+
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    exc = RequestsProxyError(
+        "HTTPSConnectionPool(host='music.youtube.com', port=443): Max retries exceeded with "
+        "url: / (Caused by ProxyError('Unable to connect to proxy', ConnectTimeoutError()))"
+    )
+
+    with pytest.raises(retry.ProxyTransportError, match="proxy unreachable") as excinfo:
+        downloads.download_one("a-song", _SwallowingDownloader(exc))
+
+    assert retry.is_proxy_transport_error(excinfo.value)
+    assert retry.classify_error(excinfo.value) == TrackErrorType.OTHER
+
+
+def test_download_one_checks_the_proxy_before_any_video_marker(monkeypatch):
+    """A dead proxy says nothing about the video, even if some other text on the chain
+    happens to look like a hard failure."""
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    exc = _chained(
+        AudioProviderError("YT-DLP download error - url"),
+        RuntimeError("ERROR: Unable to connect to proxy; video has been removed?"),
+    )
+
+    with pytest.raises(retry.ProxyTransportError):
+        downloads.download_one("a-song", _SwallowingDownloader(exc))
+
+
+@pytest.mark.parametrize(
+    "ytdlp_text",
+    [
+        "Sign in to confirm your age. This video may be inappropriate for some users.",
+        "This video is age-restricted and only available on YouTube",
+        "SIGN IN TO CONFIRM YOUR AGE",
+    ],
+)
+def test_download_one_recognises_every_age_gate_wording(monkeypatch, ytdlp_text):
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    exc = _chained(AudioProviderError("YT-DLP download error - url"), RuntimeError(f"ERROR: [youtube] x: {ytdlp_text}"))
+
+    with pytest.raises(downloads.AgeRestrictedError) as excinfo:
+        downloads.download_one("a-song", _SwallowingDownloader(exc))
+
+    assert retry.classify_error(excinfo.value) == TrackErrorType.LOOKUP
+
+
+@pytest.mark.parametrize(
+    "ytdlp_text",
+    [
+        "Private video. Sign in if you've been granted access to this video",
+        "This video is private",
+        "This video has been removed by the uploader",
+        "This video has been removed for violating YouTube's Terms of Service",
+        "This video is no longer available because the YouTube account associated with this video has been terminated.",
+        "Join this channel to get access to members-only content like this video",
+        "The uploader has not made this video available in your country",
+        "This video is not available from your location due to geo restriction",
+    ],
+)
+def test_download_one_makes_an_unavailable_video_terminal(monkeypatch, ytdlp_text):
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    exc = _chained(AudioProviderError("YT-DLP download error - url"), RuntimeError(f"ERROR: [youtube] x: {ytdlp_text}"))
+
+    with pytest.raises(downloads.UnavailableVideoError, match="Unavailable on YouTube") as excinfo:
+        downloads.download_one("a-song", _SwallowingDownloader(exc))
+
+    assert ytdlp_text[:20] in str(excinfo.value)
+    assert retry.classify_error(excinfo.value) == TrackErrorType.LOOKUP
+
+
+@pytest.mark.parametrize(
+    "ytdlp_text",
+    [
+        # Bot-check and rate-limit wording: network-dependent, must stay on the ladder.
+        "Sign in to confirm you're not a bot",
+        "Video unavailable. This content isn't available, try again later.",
+        "Video unavailable",
+        "HTTP Error 429: Too Many Requests",
+        "HTTP Error 403: Forbidden",
+    ],
+)
+def test_download_one_keeps_rate_limit_wording_on_the_ladder(monkeypatch, ytdlp_text):
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    exc = _chained(AudioProviderError("YT-DLP download error - url"), RuntimeError(f"ERROR: [youtube] x: {ytdlp_text}"))
+
+    with pytest.raises(retry.NoOutputFileError) as excinfo:
+        downloads.download_one("a-song", _SwallowingDownloader(exc))
+
+    assert retry.classify_error(excinfo.value) == TrackErrorType.NO_OUTPUT
+
+
 def test_download_one_returns_none_when_spotdl_reported_no_error(monkeypatch):
     """Paths like a failed song reinit return None without notifying the tracker --
     nothing to raise, so the caller's own `output_path is None` handling still applies."""
