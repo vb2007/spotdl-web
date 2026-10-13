@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1791900502.0032344,
-    "ast_hash": "de1701a79ff36fa0b48afda459935f46",
+    "mtime": 1791901263.1817546,
+    "ast_hash": "8d9479295b82e13319414ad7fd1f7715",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1791900066.32497,
-    "ast_hash": "02f0b3c0989044af5bea65e76a31a773",
+    "mtime": 1791901263.1813486,
+    "ast_hash": "67ae392b32fb6b58ce5e182435883950",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1300,8 +1300,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/AmbientField.svelte": {
-    "mtime": 1791900502.0029485,
-    "ast_hash": "8b9914d4638fdd3c5739cd38fe31c3b0",
+    "mtime": 1791901263.179615,
+    "ast_hash": "6ca42b699eb283128bb718523f3c3886",
     "semantic_hash": ""
   },
   "master-v4-pipeline-issues.md": {
