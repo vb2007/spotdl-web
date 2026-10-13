@@ -946,6 +946,68 @@ def test_download_track_dropped_connection_via_proxy_is_a_transport_failure(db_s
     assert db_session.get(Track, track.id).last_error.startswith("proxy failed to carry the request: ")
 
 
+def test_download_track_second_transport_failure_in_a_row_consumes_the_rung(db_session, monkeypatch):
+    """Review finding: a read timeout or reset can also happen *after* YouTube was reached
+    (mid-download), so a rung-free retry every 15m could go on forever while other tracks
+    keep the proxies healthy. Only one in a row is free; the next one climbs the ladder --
+    still `other`, so still no breaker."""
+    from requests.exceptions import ConnectionError as RequestsConnectionError
+
+    track, proxy = _proxy_rung_track(db_session, monkeypatch)
+    second_proxy = Proxy(url="http://proxy-2", source=ProxySource.FILE, enabled=True)
+    db_session.add(second_proxy)
+    db_session.commit()
+
+    def fake_download_one(song, downloader):
+        raise _chained_no_output(RequestsConnectionError("Read timed out."))
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+    assert db_session.get(Track, track.id).attempt_count == 2
+
+    track = db_session.get(Track, track.id)
+    track.state = TrackState.QUEUED
+    db_session.commit()
+    before = datetime.now(timezone.utc)
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.WAITING
+    assert updated.attempt_count == 3
+    assert _aware(updated.scheduled_at) - before >= retry.next_delay(2) - timedelta(seconds=1)
+    assert updated.last_error_type == TrackErrorType.OTHER
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state.consecutive_failures == retry.BREAKER_TRIP_THRESHOLD - 1
+    rows = _attempts(db_session, track)
+    assert [r.network_path for r in rows] == [NetworkPath.PROXY, NetworkPath.PROXY]
+    assert all(r.error_message.startswith("proxy failed to carry the request: ") for r in rows)
+
+
+def test_download_track_cancel_during_the_proxy_probe_is_not_overwritten(db_session, monkeypatch):
+    """Review finding: pick_proxy's probes can take seconds; a cancel committed meanwhile
+    must not be overwritten by the DOWNLOADING write."""
+    track, _proxy = _proxy_rung_track(db_session, monkeypatch)
+
+    def cancelling_pick_proxy(db):
+        db_session.get(Track, track.id).state = TrackState.CANCELLED
+        db_session.commit()
+        return None
+
+    monkeypatch.setattr(proxies, "pick_proxy", cancelling_pick_proxy)
+
+    def _fail_if_called(*args, **kwargs):
+        raise AssertionError("a track cancelled while picking a proxy must not download")
+
+    monkeypatch.setattr(downloads, "get_downloader", _fail_if_called)
+
+    download_task.download_track(str(track.id))
+
+    assert db_session.get(Track, track.id).state == TrackState.CANCELLED
+    rows = _attempts(db_session, track)
+    assert [r.outcome for r in rows] == [TrackAttemptOutcome.CANCELLED]
+
+
 def test_download_track_dropped_connection_on_a_direct_rung_still_feeds_the_breaker(db_session, monkeypatch):
     """The same error without a proxy is ambiguous, so it keeps its old classification."""
     from requests.exceptions import ConnectionError as RequestsConnectionError

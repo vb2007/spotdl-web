@@ -274,8 +274,29 @@ def download_track(track_id: str) -> None:
             # was used. Falling back to DIRECT_IPV4 (not leaving it unforced) matches
             # attempt 1's own "forced explicitly, not left to whatever the OS picks"
             # determinism above, and keeps every stored network_path value truthful.
+            # v40.1: pick_proxy now TCP-probes candidates (up to 2s per dead one), so
+            # commit first rather than holding this transaction open across the probes,
+            # and commit the cooldowns it records right after.
+            db.commit()
             proxy = proxies.pick_proxy(db)
             chosen_path = NetworkPath.PROXY if proxy is not None else NetworkPath.DIRECT_IPV4
+            db.commit()
+            # A cancel committed during the probes would otherwise be overwritten by the
+            # DOWNLOADING write below (the commit above reloaded track.state).
+            if track.state == TrackState.CANCELLED:
+                logger.info(
+                    "download_track: track %s was cancelled while picking a proxy, skipping",
+                    track_id,
+                )
+                attempts.record_attempt(
+                    db,
+                    track.id,
+                    attempt_started_at,
+                    datetime.now(timezone.utc),
+                    TrackAttemptOutcome.CANCELLED,
+                )
+                db.commit()
+                return
         proxy_id = proxy.id if proxy is not None else None
         proxy_url = proxy.url if proxy is not None else None
 
@@ -508,9 +529,14 @@ def download_track(track_id: str) -> None:
                 # proxy's own cooldown handles it; the track keeps its rung and the
                 # breaker hears nothing (see retry.ProxyTransportError).
                 error_type = TrackErrorType.OTHER
-                if not isinstance(exc, retry.ProxyTransportError):
-                    error_message = f"proxy failed to carry the request: {error_message}"
-                retry.record_transport_failure(db, track, error_message)
+                error_message = attempts.TRANSPORT_FAILURE_PREFIX + error_message
+                if attempts.previous_was_transport_failure(db, track.id):
+                    # One rung-free retry only (see record_transport_failure's docstring):
+                    # the second in a row climbs the ladder. Still OTHER, so still no
+                    # breaker.
+                    retry.record_failure(db, track, error_type, error_message)
+                else:
+                    retry.record_transport_failure(db, track, error_message)
                 proxies.record_proxy_result(db, proxy_id, success=False)
             else:
                 error_type = retry.classify_error(exc)

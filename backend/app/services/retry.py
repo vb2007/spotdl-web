@@ -205,7 +205,11 @@ def record_transport_failure(db: Session, track: Track, message: str) -> None:
     wasn't evaluated, so it doesn't climb the ladder (attempt_count unchanged: the next
     try is still this rung) and nothing feeds the breaker. It comes back after the
     ladder's first step, by which time this proxy is cooling down and the dispatch either
-    picks another one or, with every proxy cooling, falls back to direct."""
+    picks another one or, with every proxy cooling, falls back to direct. download_track
+    grants this only once in a row: a second consecutive transport failure goes through
+    record_failure and consumes the rung, so a track whose proxied attempts keep dying
+    (possibly after reaching YouTube, e.g. a reset mid-download) still follows the ladder's
+    pace instead of retrying every 15m forever."""
     track.last_error = message
     track.last_error_type = TrackErrorType.OTHER
     track.state = TrackState.WAITING

@@ -143,8 +143,8 @@ class AgeRestrictedError(LookupError):
 
 
 class UnavailableVideoError(LookupError):
-    """The matched YouTube video is private, removed, from a terminated account, members-
-    only or geo-blocked (v40.1). Like the age gate, a property of the video that no retry
+    """The matched YouTube video is private, removed, from a terminated account or members-
+    only (v40.1). Like the age gate, a property of the video that no retry
     changes, so terminal (`lookup_failed`) and still retryable by hand."""
 
 
@@ -163,9 +163,10 @@ _UNAVAILABLE_MARKERS = (
     "video has been removed",
     "account associated with this video has been terminated",
     "members-only",
-    "not made this video available in your country",
-    "geo restriction",
 )
+# Deliberately absent: geo-blocking ("not made this video available in your country",
+# yt-dlp's GeoRestrictedError). It depends on the egress IP, so the IPv6 and proxy rungs
+# can still change it; it stays on the ladder.
 
 
 def _chain_text_has(chain: list[BaseException], markers: tuple[str, ...]) -> bool:
@@ -189,7 +190,7 @@ def _swallowed_error_to_raise(exc: BaseException) -> Exception:
         detail += f" <- {type(root).__name__}: {root_line[:300]}"
     # First: a dead proxy says nothing about the video, whatever else is on the chain.
     if is_proxy_transport_error(exc):
-        return ProxyTransportError(f"proxy unreachable, YouTube was never reached ({detail})")
+        return ProxyTransportError(f"the proxy was unreachable ({detail})")
     if _chain_text_has(chain, _AGE_GATE_MARKERS):
         return AgeRestrictedError(f"Age-restricted on YouTube (sign-in required): {exc}")
     if _chain_text_has(chain, _UNAVAILABLE_MARKERS):

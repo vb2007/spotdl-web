@@ -340,7 +340,7 @@ def test_download_one_turns_a_dead_proxy_into_a_transport_error(monkeypatch):
         "url: / (Caused by ProxyError('Unable to connect to proxy', ConnectTimeoutError()))"
     )
 
-    with pytest.raises(retry.ProxyTransportError, match="proxy unreachable") as excinfo:
+    with pytest.raises(retry.ProxyTransportError, match="the proxy was unreachable") as excinfo:
         downloads.download_one("a-song", _SwallowingDownloader(exc))
 
     assert retry.is_proxy_transport_error(excinfo.value)
@@ -387,8 +387,6 @@ def test_download_one_recognises_every_age_gate_wording(monkeypatch, ytdlp_text)
         "This video has been removed for violating YouTube's Terms of Service",
         "This video is no longer available because the YouTube account associated with this video has been terminated.",
         "Join this channel to get access to members-only content like this video",
-        "The uploader has not made this video available in your country",
-        "This video is not available from your location due to geo restriction",
     ],
 )
 def test_download_one_makes_an_unavailable_video_terminal(monkeypatch, ytdlp_text):
@@ -411,6 +409,9 @@ def test_download_one_makes_an_unavailable_video_terminal(monkeypatch, ytdlp_tex
         "Video unavailable",
         "HTTP Error 429: Too Many Requests",
         "HTTP Error 403: Forbidden",
+        # Geo-blocking depends on the egress IP: another rung can change it.
+        "The uploader has not made this video available in your country",
+        "This video is not available from your location due to geo restriction",
     ],
 )
 def test_download_one_keeps_rate_limit_wording_on_the_ladder(monkeypatch, ytdlp_text):
