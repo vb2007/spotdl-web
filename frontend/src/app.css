@@ -101,12 +101,9 @@ body {
 
 body {
 	margin: 0;
+	/* v40: the page's glow is AmbientField.svelte's fixed layer, not a background-image here
+	   (which was permanent amber, and repeated every viewport height on a tall page). */
 	background: var(--bg-0);
-	background-image: radial-gradient(
-		ellipse 900px 500px at 50% -10%,
-		rgba(255, 176, 46, 0.05),
-		transparent 60%
-	);
 	color: var(--text-primary);
 	font-family: var(--font-sans);
 	font-size: 15px;
