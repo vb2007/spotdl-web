@@ -1102,6 +1102,9 @@ def test_download_track_retry_failure_redacts_proxy_credentials_from_last_error(
     proxy = Proxy(url="http://sneaky:hunter2@proxy-1:8080", source=ProxySource.FILE, enabled=True)
     db_session.add(proxy)
     db_session.commit()
+    # v40.1: this URL has a port, so pick_proxy would really probe it (and fall back to
+    # direct when `proxy-1` doesn't resolve) -- keep the attempt on the proxy it's about.
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: True)
 
     monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
 
@@ -1123,6 +1126,7 @@ def test_download_track_retry_failure_redacts_proxy_credentials_from_last_error(
     assert "hunter2" not in rows[0].error_message
     assert "sneaky" not in rows[0].error_message
     assert "http://proxy-1:8080" in rows[0].error_message
+    assert rows[0].network_path == NetworkPath.PROXY
 
 
 def test_download_track_skips_entirely_when_already_cancelled(db_session, monkeypatch):

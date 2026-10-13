@@ -280,6 +280,10 @@ def download_track(track_id: str) -> None:
             db.commit()
             proxy = proxies.pick_proxy(db)
             chosen_path = NetworkPath.PROXY if proxy is not None else NetworkPath.DIRECT_IPV4
+            # Read before the commit expires the row: reloading it afterwards would raise
+            # outside the try below if an admin deleted the proxy in between.
+            proxy_id = proxy.id if proxy is not None else None
+            proxy_url = proxy.url if proxy is not None else None
             db.commit()
             # A cancel committed during the probes would otherwise be overwritten by the
             # DOWNLOADING write below (the commit above reloaded track.state).
@@ -297,8 +301,9 @@ def download_track(track_id: str) -> None:
                 )
                 db.commit()
                 return
-        proxy_id = proxy.id if proxy is not None else None
-        proxy_url = proxy.url if proxy is not None else None
+        if proxy is None:
+            proxy_id = None
+            proxy_url = None
 
         track.state = TrackState.DOWNLOADING
         if proxy_id is not None:
