@@ -23,7 +23,8 @@
 	const SETTLE = 0.5;
 	/** Slate's peak per unit of amber peak. Luminance-equal over --bg-0 is ~1.25, but after
 	 * 8-bit rounding that can land slate one code value brighter than amber at some heights;
-	 * 1.15 keeps slate at or under amber's luminance on every viewport (see `peaks`). */
+	 * 1.15 keeps slate at or under amber's rendered luminance across the measured range (up to
+	 * 2560×1440); far taller viewports can differ by one blue code value (see `peaks`). */
 	const SLATE_PER_AMBER = 1.15;
 
 	/** Peak strength is a contrast budget, not taste. The old body ellipse's centre sat
@@ -69,12 +70,20 @@
 		}
 
 		const resize = new ResizeObserver(([entry]) => {
+			const dWidth = entry.contentRect.width - width;
+			const dHeight = entry.contentRect.height - height;
 			width = entry.contentRect.width;
 			height = entry.contentRect.height;
 			const peak = peaks(height);
 			field.style.setProperty('--live-peak', peak.live);
 			field.style.setProperty('--rest-peak', peak.rest);
-			if (!following) return;
+			if (!following || !pointer) return;
+			// Home just moved with the viewport (a maximize, a scrollbar appearing). Shift the
+			// offset by the opposite amount, before this frame paints, so the glow stays where it
+			// was on screen instead of lurching off the cursor and easing back.
+			x -= dWidth / 2;
+			y += dHeight * 0.1;
+			glow.style.transform = `translate3d(${x}px, ${y}px, 0)`;
 			aim();
 			wake();
 		});
