@@ -45,30 +45,46 @@
 		// The glow's transform is an offset from its CSS home (left 50%, top -10% of the
 		// field), so (0, 0) is home and the viewport size only turns a pointer position into
 		// an offset (and sets the peaks). ResizeObserver hands that size over without a
-		// forced layout, so the frame loop itself never reads layout.
-		let width = 0;
-		let height = 0;
+		// forced layout, so the frame loop itself never reads layout. One read here seeds it,
+		// so a pointer already moving at mount aims right before the first observation lands.
+		let width = innerWidth;
+		let height = innerHeight;
+
+		let x = 0;
+		let y = 0;
+		let targetX = 0;
+		let targetY = 0;
+		/** The last pointer position inside the window, or null once it left (target: home). */
+		let pointer: { x: number; y: number } | null = null;
+		let frame = 0;
+		/** The previous frame's timestamp; -1 means the loop was just woken. */
+		let last = -1;
+
+		/** Turns the pointer position into the glow's offset from home. Also re-run on resize:
+		 * home moves with the viewport, so a still pointer would otherwise end up off-centre. */
+		function aim() {
+			targetX = pointer ? pointer.x - width / 2 : 0;
+			targetY = pointer ? pointer.y + height * 0.1 : 0;
+		}
+
 		const resize = new ResizeObserver(([entry]) => {
 			width = entry.contentRect.width;
 			height = entry.contentRect.height;
 			const peak = peaks(height);
 			field.style.setProperty('--live-peak', peak.live);
 			field.style.setProperty('--rest-peak', peak.rest);
+			if (!following) return;
+			aim();
+			wake();
 		});
 		resize.observe(field);
 
-		let x = 0;
-		let y = 0;
-		let targetX = 0;
-		let targetY = 0;
-		let frame = 0;
-		let last = 0;
-
 		function tick(now: number) {
-			// Clamp dt so a long-throttled frame eases in rather than jumping to the target, and
-			// at 0: a frame's timestamp can precede the pointermove that woke the loop, and a
-			// negative dt would step the glow away from its target.
-			const k = 1 - Math.exp(-Math.min(Math.max(now - last, 0), 64) / TAU);
+			// The first frame after a wake has no previous timestamp (and a frame's timestamp can
+			// precede the pointermove that woke it), so it counts as one 60Hz frame. Later
+			// frames clamp dt so a long-throttled frame eases in rather than jumping.
+			const dt = last < 0 ? 1000 / 60 : Math.min(Math.max(now - last, 0), 64);
+			const k = 1 - Math.exp(-dt / TAU);
 			last = now;
 			x += (targetX - x) * k;
 			y += (targetY - y) * k;
@@ -85,7 +101,7 @@
 		function wake() {
 			if (frame || !following || document.hidden) return;
 			if (x === targetX && y === targetY) return;
-			last = performance.now();
+			last = -1;
 			frame = requestAnimationFrame(tick);
 		}
 
@@ -97,8 +113,8 @@
 		function onPointerMove(event: PointerEvent) {
 			// A touch on a hybrid device still fires pointermove; the field never chases a tap.
 			if (event.pointerType === 'touch') return;
-			targetX = event.clientX - width / 2;
-			targetY = event.clientY + height * 0.1;
+			pointer = { x: event.clientX, y: event.clientY };
+			aim();
 			wake();
 		}
 
@@ -107,8 +123,8 @@
 			// touch pointer also fires a null-relatedTarget pointerout after every tap on a
 			// hybrid device; a tap never drives the field, so that one is ignored too.
 			if (event.pointerType === 'touch' || event.relatedTarget !== null) return;
-			targetX = 0;
-			targetY = 0;
+			pointer = null;
+			aim();
 			wake();
 		}
 
@@ -130,6 +146,7 @@
 				window.removeEventListener('pointermove', onPointerMove);
 				window.removeEventListener('pointerout', onPointerOut);
 				sleep();
+				pointer = null;
 				x = y = targetX = targetY = 0;
 				glow.style.transform = '';
 			}

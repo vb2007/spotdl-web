@@ -4817,5 +4817,5 @@ independently-found production bug from the same conversation)
   is slightly *brighter* than anything text ever sat on. The peak is now computed from the
   viewport height in the component. To measure "before", render the exact old rule in the same
   browser (inject the old `body` gradient and hide the field) rather than trusting arithmetic.
-  This budget leaves only 3–4 8-bit code values above `--bg-0`, so faint banding stays, as it did
-  before v40.
+  This budget leaves only about 4–9 8-bit code values above `--bg-0` in the strongest channel, so
+  faint banding stays, as it did before v40.

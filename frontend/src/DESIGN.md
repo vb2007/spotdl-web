@@ -236,7 +236,8 @@ within 0.5px, and restarts on the next move. When the pointer leaves the window 
 home. A touch-type `pointermove` is ignored, so it never chases a tap. The loop reads no layout:
 the viewport size comes from a `ResizeObserver`. While it can move, the layer carries
 `will-change: transform`, so its gradient rasterizes once. Each frame then costs one 1-element
-style update and a commit, with no layout and no repaint (measured, v40 PR). That is the floor for
+style update and a commit, with no layout and no repaint (measured on `/account`, v40 PR; on `/`
+the same style update also re-samples the Waterfall noise floor's ~80 animated bars, 0.3ms). That is the floor for
 any script-driven transform; "composite only" is reachable only for CSS/WAAPI keyframes.
 
 **Static cases (owner's choice, 2026-10-13): no hover or a coarse pointer, and
@@ -263,7 +264,8 @@ height on resize (3.5% at 900px, 2.6% at 1440px), and `--rest-peak` at 1.24× th
 luminance-equal factor. Text under the brightest point therefore keeps the contrast it had before
 v40 on every viewport. Measured against the old rule rendered in the same browser, from 1280×700
 to 2560×1440 plus a 390×844 phone, no token is worse at either tone. Raising either peak breaks
-that. The gradient is only 3–4 8-bit code values above the page color, so faint stepping
+that. The gradient peaks only about 4–9 8-bit code values above the page color in its strongest
+channel (amber's red at a 900px viewport is the most), so faint stepping
 (banding) shows on close inspection. The pre-v40 glow had the same stepping. It is accepted,
 because the only cure that stays inside the budget (dithering) costs more than it buys.
 
