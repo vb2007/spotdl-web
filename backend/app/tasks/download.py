@@ -503,11 +503,13 @@ def download_track(track_id: str) -> None:
                 )
                 db.commit()
                 return
-            if proxy_id is not None and retry.is_proxy_transport_error(exc):
+            if proxy_id is not None and retry.is_proxy_transport_error(exc, via_proxy=True):
                 # v40.1: the attempt died at its proxy and never reached YouTube -- the
                 # proxy's own cooldown handles it; the track keeps its rung and the
                 # breaker hears nothing (see retry.ProxyTransportError).
                 error_type = TrackErrorType.OTHER
+                if not isinstance(exc, retry.ProxyTransportError):
+                    error_message = f"proxy failed to carry the request: {error_message}"
                 retry.record_transport_failure(db, track, error_message)
                 proxies.record_proxy_result(db, proxy_id, success=False)
             else:

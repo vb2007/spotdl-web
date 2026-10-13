@@ -242,5 +242,11 @@ def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]
         del handler.get_new_tracker
 
     if output_path is None and swallowed:
-        raise _swallowed_error_to_raise(swallowed[-1])
+        mapped = _swallowed_error_to_raise(swallowed[-1])
+        if mapped is swallowed[-1]:
+            raise mapped
+        # Chained, so download_track can still read the original: on a proxied attempt a
+        # plain connection error underneath is the proxy's failure (retry.
+        # is_proxy_transport_error), which only the caller knows to look for.
+        raise mapped from swallowed[-1]
     return result_song, output_path

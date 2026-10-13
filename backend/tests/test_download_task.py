@@ -912,6 +912,63 @@ def test_download_track_directly_raised_proxy_error_is_a_transport_failure(db_se
     _assert_proxy_transport_failure(db_session, track, proxy, before)
 
 
+def _chained_no_output(cause):
+    """download_one's real shape: a NoOutputFileError raised from what spotdl swallowed."""
+    try:
+        try:
+            raise cause
+        except Exception as inner:
+            raise retry.NoOutputFileError(
+                f"spotdl returned no output file for this track (ConnectionError: {cause})"
+            ) from inner
+    except retry.NoOutputFileError as exc:
+        return exc
+
+
+def test_download_track_dropped_connection_via_proxy_is_a_transport_failure(db_session, monkeypatch):
+    """v40.1, found on the real stack: a proxy that accepts the TCP connection and drops it
+    raised requests' plain ConnectionError ("Connection aborted."), which fed the breaker
+    and tripped it."""
+    from requests.exceptions import ConnectionError as RequestsConnectionError
+
+    track, proxy = _proxy_rung_track(db_session, monkeypatch)
+    exc = _chained_no_output(RequestsConnectionError("('Connection aborted.', ConnectionResetError(104))"))
+
+    def fake_download_one(song, downloader):
+        raise exc
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+    before = datetime.now(timezone.utc)
+
+    download_task.download_track(str(track.id))
+
+    _assert_proxy_transport_failure(db_session, track, proxy, before)
+    assert db_session.get(Track, track.id).last_error.startswith("proxy failed to carry the request: ")
+
+
+def test_download_track_dropped_connection_on_a_direct_rung_still_feeds_the_breaker(db_session, monkeypatch):
+    """The same error without a proxy is ambiguous, so it keeps its old classification."""
+    from requests.exceptions import ConnectionError as RequestsConnectionError
+
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
+    exc = _chained_no_output(RequestsConnectionError("('Connection aborted.', ConnectionResetError(104))"))
+
+    def fake_download_one(song, downloader):
+        raise exc
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.last_error_type == TrackErrorType.NO_OUTPUT
+    assert updated.attempt_count == 1
+    assert db_session.get(WorkerState, 1).consecutive_failures == 1
+
+
 @pytest.mark.parametrize(
     "exc",
     [

@@ -5,9 +5,15 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import ProxyError as RequestsProxyError
+from requests.exceptions import Timeout as RequestsTimeout
 from spotdl.providers.audio.base import AudioProviderError
+from urllib3.exceptions import ProtocolError as Urllib3ProtocolError
 from urllib3.exceptions import ProxyError as Urllib3ProxyError
+from urllib3.exceptions import TimeoutError as Urllib3TimeoutError
+from yt_dlp.networking.exceptions import ProxyError as YtDlpProxyError
+from yt_dlp.networking.exceptions import TransportError as YtDlpTransportError
 
 from app.config import get_settings
 from app.models import Track, TrackErrorType, TrackState, WorkerState
@@ -34,32 +40,69 @@ class ProxyTransportError(Exception):
     every release and kept every proxy-rung track from ever reaching a verdict."""
 
 
-# yt-dlp's own wording for the same failure (its proxy errors aren't requests'/urllib3's
-# exception classes, only text on a DownloadError).
-_PROXY_TRANSPORT_MARKERS = (
+# Errors that can only mean a proxy failed, wherever they're seen: requests'/urllib3's
+# ProxyError, and yt-dlp's wording for the same (its errors are mostly text on a
+# DownloadError).
+_PROXY_ONLY_TYPES = (ProxyTransportError, RequestsProxyError, Urllib3ProxyError, YtDlpProxyError)
+_PROXY_ONLY_MARKERS = (
     "unable to connect to proxy",
     "tunnel connection failed",
     "407 proxy authentication",
 )
 
+# Connection-level failures (aborted, reset, refused, timed out). On a direct attempt
+# these are ambiguous, so they keep their old classification there. On a proxied attempt
+# our only TCP peer is the proxy, so they're the proxy failing to carry the request:
+# found on the real stack, a proxy that accepts and then drops the connection surfaces as
+# requests' plain ConnectionError("Connection aborted."), not its ProxyError. YouTube's
+# own rate limiting comes back as an HTTP answer (429, a bot-check page), which a working
+# proxy relays as such -- none of these types or markers covers that.
+_TRANSPORT_TYPES = (
+    RequestsConnectionError,
+    RequestsTimeout,
+    ConnectionError,
+    TimeoutError,
+    Urllib3ProtocolError,
+    Urllib3TimeoutError,
+    YtDlpTransportError,
+)
+_TRANSPORT_MARKERS = (
+    "connection aborted",
+    "connection reset by peer",
+    "remote end closed connection",
+    "connection refused",
+    "timed out",
+    "transporterror",
+)
+
 
 def _exception_chain(exc: BaseException) -> list[BaseException]:
+    """`exc` and everything it was raised from. Also follows yt-dlp's DownloadError, which
+    keeps the original error in `.exc_info` instead of chaining it."""
     chain: list[BaseException] = []
     cur: BaseException | None = exc
     while cur is not None and cur not in chain:
         chain.append(cur)
-        cur = cur.__cause__ or cur.__context__
+        nxt = cur.__cause__ or cur.__context__
+        if nxt is None:
+            exc_info = getattr(cur, "exc_info", None)
+            if isinstance(exc_info, tuple) and len(exc_info) > 1 and isinstance(exc_info[1], BaseException):
+                nxt = exc_info[1]
+        cur = nxt
     return chain
 
 
-def is_proxy_transport_error(exc: BaseException) -> bool:
-    """True if anything on `exc`'s cause/context chain is a proxy-level transport failure:
-    requests'/urllib3's ProxyError, or yt-dlp's text for the same thing."""
+def is_proxy_transport_error(exc: BaseException, *, via_proxy: bool = False) -> bool:
+    """True if `exc` (or anything it was raised from) shows the request never got through
+    its proxy. Without `via_proxy` only proxy-specific errors count; with it (the attempt
+    went through a proxy) any connection-level failure does too."""
+    types = _PROXY_ONLY_TYPES + (_TRANSPORT_TYPES if via_proxy else ())
+    markers = _PROXY_ONLY_MARKERS + (_TRANSPORT_MARKERS if via_proxy else ())
     for link in _exception_chain(exc):
-        if isinstance(link, (ProxyTransportError, RequestsProxyError, Urllib3ProxyError)):
+        if isinstance(link, types):
             return True
         text = str(link).lower()
-        if any(marker in text for marker in _PROXY_TRANSPORT_MARKERS):
+        if any(marker in text for marker in markers):
             return True
     return False
 

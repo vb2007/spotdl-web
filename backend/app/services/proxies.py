@@ -258,7 +258,7 @@ def pick_proxy(db: Session) -> Proxy | None:
         if _probe_reachable(candidate.url):
             return candidate
         logger.warning(
-            "pick_proxy: %s refused a TCP connection; cooling it down and trying the next",
+            "pick_proxy: %s didn't accept a TCP connection; cooling it down and trying the next",
             redact(candidate.url),
         )
         record_proxy_result(db, candidate.id, success=False)

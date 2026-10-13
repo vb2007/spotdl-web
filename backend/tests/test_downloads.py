@@ -423,6 +423,21 @@ def test_download_one_keeps_rate_limit_wording_on_the_ladder(monkeypatch, ytdlp_
     assert retry.classify_error(excinfo.value) == TrackErrorType.NO_OUTPUT
 
 
+def test_download_one_chains_the_swallowed_error_it_replaces(monkeypatch):
+    """download_track needs the original to recognise a dropped proxy connection."""
+    from requests.exceptions import ConnectionError as RequestsConnectionError
+
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    original = RequestsConnectionError("('Connection aborted.', ConnectionResetError(104))")
+
+    with pytest.raises(retry.NoOutputFileError) as excinfo:
+        downloads.download_one("a-song", _SwallowingDownloader(original))
+
+    assert excinfo.value.__cause__ is original
+    assert retry.is_proxy_transport_error(excinfo.value, via_proxy=True)
+    assert not retry.is_proxy_transport_error(excinfo.value)
+
+
 def test_download_one_returns_none_when_spotdl_reported_no_error(monkeypatch):
     """Paths like a failed song reinit return None without notifying the tracker --
     nothing to raise, so the caller's own `output_path is None` handling still applies."""

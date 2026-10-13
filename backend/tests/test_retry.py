@@ -283,3 +283,36 @@ def test_breaker_active_checks_paused_and_tripped_until():
 
     idle = WorkerState(id=1, paused=False, breaker_tripped_until=None)
     assert retry.breaker_active(idle, now) is False
+
+
+def test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt():
+    """v40.1, found on the real stack: a proxy that accepts and drops the connection
+    surfaces as requests' plain ConnectionError, not ProxyError."""
+    from requests.exceptions import ConnectionError as RequestsConnectionError
+    from requests.exceptions import HTTPError as RequestsHTTPError
+    from yt_dlp.networking.exceptions import HTTPError as YtDlpHTTPError
+    from yt_dlp.networking.exceptions import TransportError
+    from yt_dlp.utils import DownloadError
+
+    aborted = RequestsConnectionError("('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))")
+    assert retry.is_proxy_transport_error(aborted, via_proxy=True)
+    assert not retry.is_proxy_transport_error(aborted)
+    assert retry.is_proxy_transport_error(ConnectionResetError(104, "reset"), via_proxy=True)
+
+    # yt-dlp keeps the original error in DownloadError.exc_info rather than chaining it.
+    transport = TransportError("boom")
+    download_error = DownloadError("ERROR: Unable to download webpage", (type(transport), transport, None))
+    try:
+        raise AudioProviderError("YT-DLP download error - url") from download_error
+    except AudioProviderError as wrapped:
+        assert retry.is_proxy_transport_error(wrapped, via_proxy=True)
+        assert not retry.is_proxy_transport_error(wrapped)
+
+    # YouTube answering -- even with a rate limit -- is not a transport failure.
+    assert not retry.is_proxy_transport_error(RequestsHTTPError("429 Client Error: Too Many Requests"), via_proxy=True)
+    assert not retry.is_proxy_transport_error(AudioProviderError("HTTP Error 429: Too Many Requests"), via_proxy=True)
+    assert not retry.is_proxy_transport_error(
+        AudioProviderError("Sign in to confirm you're not a bot"), via_proxy=True
+    )
+    # yt-dlp's HTTP errors (an answer, e.g. 429) aren't part of its transport family.
+    assert not issubclass(YtDlpHTTPError, TransportError)
