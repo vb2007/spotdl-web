@@ -573,6 +573,11 @@ needed" claim — rather than silently deleted.
   (a separate, always-empty, Docker-managed named volume) instead of `!override`-ing to the real
   `./downloads` host bind worker-dl/worker-meta actually write into, so the plugin would otherwise
   have 404'd against an empty mount even once it existed.
+- A selector on a class added via `classList.toggle` is pruned by Svelte (`css_unused_selector`); bind
+  the class with a `class:` directive on `$state` → *v40*
+- `queue.activeTracks` is only current on `/`: leaving the dashboard closes the SSE stream but
+  leaves `liveActive` at its last value, so anything reading it on another route must gate on
+  `page.route.id === '/'` → *v40*
 
 **Testing & verification technique**
 - The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
@@ -751,6 +756,13 @@ needed" claim — rather than silently deleted.
 - Running `npm run test:e2e` cancels and archives every in-flight job of the e2e identities
   (`v37admin`/`v37user`) in global setup. Never build audit or screenshot data on those accounts
   and then run the suite before capturing → *v39*
+- "Contrast no worse than before" under a moving glow means the old glow's brightest *visible*
+  pixel, not its off-screen centre; measure "before" by rendering the old rule in the same browser
+  → *v40*
+- Playwright can't produce a hidden tab (`document.hidden` stays `false` through `bringToFront`,
+  window minimize, a same-window CDP tab and focus emulation off, headed or not). Launch the cached
+  Chromium binary directly and drive it over raw CDP, with a real second tab (`/json/new`) under
+  `xvfb-run` → *v40*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -785,6 +797,9 @@ needed" claim — rather than silently deleted.
   the N+1 impossible to silently reintroduce → *v15*
 - Filter jobs *before* aggregating their tracks, not after — a search/archived/source_type filter
   that excludes a huge job should never pay to aggregate it → *v18*
+- A rAF loop writing `transform` costs a 1-element style recalc + commit per frame, never zero.
+  On an idle `/` every main frame also re-samples the Waterfall noise floor's 40 animated bars
+  (~80 elements in the trace's style count), so profile a frame loop on `/account` → *v40*
 
 **Reference (not a gotcha)**
 - Upstream `vb2007.hu-api` endpoint shapes, token scheme, and the two constraints they impose →
@@ -4770,3 +4785,47 @@ independently-found production bug from the same conversation)
   directory, not the cwd. The first real-network check of this fix "failed" for exactly that reason.
   Set `PYTHONPATH` to the worktree's `backend/` and confirm `app.__file__` before trusting the
   result.
+
+### v40 ambient-field gotchas
+
+- **`queue.activeTracks` goes stale off `/`.** `+page.svelte` owns the SSE stream and closes it on
+  unmount, but `queue` is a module singleton, so `liveActive` keeps whatever it held when the user
+  navigated away. A track that finishes while the user is on `/settings` stays "active" in the
+  store until they return. The ambient field's amber tint is therefore gated on
+  `page.route.id === '/'` in `routes/+layout.svelte`. Verified on a real download: a second tab
+  client-navigated from a live `/` to `/settings` showed the rest tone while `/` showed amber.
+- **Playwright never reports a hidden tab.** Each Playwright page is its own window, Playwright
+  enables CDP focus emulation, and it passes the anti-backgrounding flags. `bringToFront()` on
+  another page, a CDP window minimize, a same-window `Target.createTarget` and
+  `Emulation.setFocusEmulationEnabled({enabled: false})` all left `document.hidden === false`,
+  headless and headed alike. What works is launching
+  `~/.cache/ms-playwright/chromium-*/chrome-linux64/chrome --remote-debugging-port=…` under
+  `xvfb-run`, driving it over raw CDP (Node's global `WebSocket`; cookies via `Network.setCookie`,
+  instrumentation via `Page.addScriptToEvaluateOnNewDocument`), and opening a real second tab with
+  `PUT /json/new`. Switching tabs that way also fires a `pointerout` with a null `relatedTarget`.
+- **The cost floor of a script-driven transform.** Measured with a Chrome trace on `/account`, the
+  field alone: each frame is one `FireAnimationFrame`, one `UpdateLayoutTree` touching **1
+  element**, then PrePaint, Layerize and Commit, about 0.3ms per frame in total. There was no
+  Layout, and Paint didn't recur per frame. That's the minimum for any rAF loop writing
+  `style.transform`. "Composite only" is reachable only for CSS/WAAPI animations with fixed
+  keyframes. On an idle `/` (the noise floor only renders with no active track) the same frames
+  show `elementCount: 81`, because Chrome re-samples the
+  Waterfall noise floor's 40 compositor-animated bars whenever *any* main frame runs. The
+  reduced-motion control (no field frames at all) shows almost no `UpdateLayoutTree`. The
+  occasional full-viewport Paint bursts were the cursor crossing hover targets: the same bursts
+  appear with the field static.
+- **A native drag looks like the pointer leaving the window.** Dragging a link or a text
+  selection fires `dragstart`, then `pointercancel` and a `pointerout` with a null
+  `relatedTarget`, while the cursor is still on the page (verified headless and headed). Window-
+  leave detection must ignore that `pointerout` until the next `pointermove` after the drop.
+- **A selector on a class added with `classList.toggle` is pruned by Svelte** (`css_unused_selector`
+  from svelte-check). Use a `class:` directive bound to `$state`.
+- **"No worse than before" means the old glow's brightest *visible* pixel, not its centre.** The
+  old ellipse was centred at −10%, off-screen, so what anyone saw was its top edge, and that edge
+  dims with viewport height (amber 5% × (1 − 0.1·h/300px): 3.5% at 900px, 2.6% at 1440px). v40's
+  first cut capped the peak at the off-screen centre (`#161410`). A blind reviewer caught that this
+  is slightly *brighter* than anything text ever sat on. The peak is now computed from the
+  viewport height in the component. To measure "before", render the exact old rule in the same
+  browser (inject the old `body` gradient and hide the field) rather than trusting arithmetic.
+  This budget leaves only about 4–9 8-bit code values above `--bg-0` in the strongest channel, so
+  faint banding stays, as it did before v40.
