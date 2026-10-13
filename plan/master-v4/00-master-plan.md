@@ -343,7 +343,17 @@ here rather than edited into it, so the original record stays readable.
   4. Writing the five surface briefs under v39 task 1 (and the resulting `4.39.0` bump) was the
      intended reading of the plan.
 
-  A2–A6 (contrast tokens in v42, offline/status honesty in v42, release/pause confirmations in v43,
-  the amber rule for all chrome in v40, the backend sweep items in v48) were not answered in this
-  round. They remain proposals: each slice's implementer asks before applying one.
+  5. **A2–A6 accepted** (2026-10-13, "Yes please defer all & update the docs"). Each is now written
+     into its target slice's plan, so the implementer applies it without asking again:
+     - **A2 → v42:** the contrast tokens (F09). `--text-dim` reaches 4.5:1 on every background,
+       `--line` control borders reach 3:1 (WCAG 1.4.11), and `--signal-dim` is never used as text.
+     - **A3 → v42:** the offline/reconnecting state (F05) and status honesty (F04: the Waterfall and
+       header never read "idle" while tracks wait behind the breaker) are *designed* in v42. v47
+       still hardens them.
+     - **A4 → v43:** the confirmation list adds "release now" (breaker) and worker pause.
+     - **A5 → v40:** v40's amber decision covers all chrome (F10's list), not only the body glow.
+       v42 and v43 apply that one rule.
+     - **A6 → v48:** F34 (the sweep error log's duplicate rows, and the sweep silently archiving
+       every user's settled jobs) becomes an explicit v48 task, an exception to v48's "no fixes
+       outside v4 changes" rule, since it is v28 behavior.
 

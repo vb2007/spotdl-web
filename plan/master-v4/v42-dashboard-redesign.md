@@ -16,6 +16,17 @@ coherent dashboard. The v39 findings assigned to v42 are its checklist.
 - **A type scale** (DESIGN.md §3 gap). A small named set of size and weight tokens in `app.css` and
   `design-tokens.json`, used by every component touched here. Components outside v42's scope
   migrate in v43/v47. No ad hoc `font-size`s remain in v42's files.
+- **Contrast tokens** (v39 amendment A2, F09). Change the color tokens in `app.css` and
+  `design-tokens.json`: `--text-dim` reaches 4.5:1 (WCAG 1.4.3) on every background it sits on
+  (about `#85909a` or lighter on bg-2), `--line` control borders reach 3:1 (1.4.11), and
+  `--signal-dim` is never used as text. This is tree-wide by nature, so it clears every route's axe
+  contrast violations, not only `/`'s.
+- **Status honesty** (v39 amendment A3, F04). The Waterfall and header never read "idle" while
+  tracks are waiting behind a tripped breaker; that state is shown as a deliberate hold with its
+  release time. (The per-track countdown half of F04 is v41's.)
+- **Offline / reconnecting state** (v39 amendment A3, F05). A dropped SSE stream must look
+  different from a connected one: a visible live/reconnecting tell, designed here. v47 still
+  hardens it.
 - **Panel material** (§8.1 gap: the "matte charcoal chassis" never reads against the near-black).
   Resolve it with impeccable, or record that the approved direction drops the chassis idea.
 - **Breakpoints.** Add at least one tablet breakpoint beyond today's single 640px (`adapt`). The
@@ -46,6 +57,10 @@ coherent dashboard. The v39 findings assigned to v42 are its checklist.
 - [ ] Before and after screenshots of `/` at 390, 768, 1024 and 1440 widths: idle, receiving (a live
       Waterfall), with an incoming job, with a failed incoming job, empty, loading, the error
       state, and the admin all-users view. Real dev data.
+- [ ] The contrast tokens pass: an impeccable `audit` (axe) shows no `color-contrast` violations
+      on `/`, and the new `--text-dim`/`--line` ratios are listed in the PR.
+- [ ] Screenshots of `/` with the breaker tripped (no "idle" anywhere) and with the SSE stream
+      dropped then recovered (the tell appears, then clears).
 - [ ] The type scale tokens exist and are the only font sizes in v42's files (grep for
       `font-size:` literals in those files).
 - [ ] The panel material decision is recorded in DESIGN.md and visible in the screenshots.

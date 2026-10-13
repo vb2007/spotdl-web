@@ -539,7 +539,7 @@ Rows are ordered by severity (P1 → P3), with F34 (P2, backend, won't-fix in th
 | F32 | P2 | all (touch) | 27/45 (`/`) and 29/39 (`/settings`) controls under 44px at 390px; chips ~28px, header links 20px | `audit-results.json` | v42 (`/`), v43 (others) |
 | F36 | P2 | all panels | The panel "chassis" is imperceptible: `--bg-1` vs `--bg-0` is 1.098:1 and only the 1px border reads (known item #5) | §5 #5, `app.css:165-174` | v42 (panel material) |
 | F37 | P2 | all routes | 640px is the only width breakpoint; 820 and 1024 get the squeezed desktop grid (known item #6) | §5 #6, §4.4 | v42 (tablet breakpoint; v41 covers its own rows) |
-| F34 | P2 | backend | (a) The sweep error log lists the same path twice. (b) A sweep archives settled jobs of *every* user without the report saying so (v28 design). Neither is a UI-slice fix | `shots/46`, `tasks/library.py:34-77` | **won't fix in v40–v47**: backend behavior, outside the UI series' scope; proposed for v48 (amendment A6). v43 may *display* (b)'s count |
+| F34 | P2 | backend | (a) The sweep error log lists the same path twice. (b) A sweep archives settled jobs of *every* user without the report saying so (v28 design). Neither is a UI-slice fix | `shots/46`, `tasks/library.py:34-77` | **won't fix in v40–v47**: backend behavior, outside the UI series' scope; assigned to v48 (amendment A6, accepted). v43 may *display* (b)'s count |
 | F28 | P3 | job list | "done — partial" red badge over an all-grey bar; cancelled no-title jobs show the raw URL as a bold title; 1-track jobs repeat badge, bar and count | `shots/01,40,41` | v42 |
 | F33 | P3 | perf | Render-blocking Google Fonts; a `localStorage` write per progress tick; one interval per Countdown; repainting lane shimmer; login needle animates `left`; library transition not zeroed under reduced motion; body glow repeats per viewport | §4.5 | v47 (optimize); body-glow repeat → v40 |
 | F35 | — | detector | gpt-thin-border-wide-shadow on `.panel`; em-dash-overuse; text-occlusion; single-font | §4.2 | **won't fix**: documented "recessed housing" design (or v42's material decision supersedes it); status vocabulary v46 rewrites; artifacts of the overlay; Plex Sans is in use |
@@ -547,7 +547,8 @@ Rows are ordered by severity (P1 → P3), with F34 (P2, backend, won't-fix in th
 
 ## 7. Amendment proposals
 
-These are for the owner to accept or reject. v40–v47's plans were not edited.
+These were for the owner to accept or reject. **All six were accepted** (A1 as the v39.1 patch on
+2026-10-12, A2–A6 on 2026-10-13), and A2–A6 are now written into the v40, v42, v43 and v48 plans.
 
 - **A1. F01 is a live mobile bug, present since v20 (`git log -S` puts both rules in `f7f2620`), not a recent regression.** v41 owns JobRow's ≤640 stack, so it is assigned there. The
   bug makes every job row about 4× taller and hides its progress bar on phones *today*. It has two
@@ -582,7 +583,8 @@ These are for the owner to accept or reject. v40–v47's plans were not edited.
 
 > **Owner decision, 2026-10-12 (PR #56):** refinement approved ("Keep the design for now"), F01
 > fixed now as v39.1, operator detail moves behind the admin view, and the surface-brief reading
-> confirmed. A2–A6 are still open. The authoritative record is `00-master-plan.md`'s Amendments.
+> confirmed. A2–A6 accepted on 2026-10-13 and written into the v40, v42, v43 and v48 plans. The
+> authoritative record is `00-master-plan.md`'s Amendments.
 
 **Recommendation: REFINEMENT, keeping the identity. Not a redesign.**
 

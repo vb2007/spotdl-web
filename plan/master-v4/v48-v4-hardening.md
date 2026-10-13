@@ -43,14 +43,19 @@ verified its own slice. The failures that survive are the ones *between* slices:
    - `docs/DEPLOYMENT.md`, `docs/LOCAL_DEV.md` and `docs/RELEASE_PIPELINE.md`: match reality.
    - `PRODUCT.md`: the keyboard requirement (Hungarian QWERTZ first) and the `hu`/`en` i18n are
      now met, so record how.
-7. **The closing re-read.** Go through every "Done when" bullet across `plan/master-v4/v32`–`v47`
+7. **The library sweep's v39 findings** (amendment A6, F34; an explicit exception to "Out of
+   scope", since this is v28 behavior). (a) The sweep error log lists the same path twice:
+   deduplicate it. (b) A sweep archives settled jobs of *every* user, and the report doesn't say
+   so: decide with the owner whether that stays (then the report states the count) or is scoped,
+   and record the decision. A scoping change re-runs the cross-user sweep.
+8. **The closing re-read.** Go through every "Done when" bullet across `plan/master-v4/v32`–`v47`
    fresh, against the merged code and the evidence in each PR. Anything that can't be re-evidenced
    now gets re-verified, or listed as a known gap in this PR.
 
 ## Out of scope
 
 - New features. Anything found that isn't a regression is logged for a future master, and not
-  fixed here unless it is a real defect in a v4 change.
+  fixed here unless it is a real defect in a v4 change (or task 7's F34, by owner decision).
 
 ## Done when
 
@@ -65,6 +70,9 @@ verified its own slice. The failures that survive are the ones *between* slices:
 - [ ] Real album run on dev: per-track file existence checked (`ls`/`stat` against every
       `output_path`). The v31 questions are recorded in GOTCHAS as closed or still-open, with the
       evidence.
+- [ ] F34: the sweep error log has no duplicate paths (a sweep with a known failing file, before
+      and after), and the cross-user archiving decision is recorded in the PR and GOTCHAS, with the
+      report showing the count if it stays.
 - [ ] CLAUDE.md is at or under about 250 lines (`wc -l`), with its roadmap and invariants current.
       GOTCHAS index entries exist for v32–v48.
 - [ ] The closing re-read is done: every v32–v47 Done-when bullet listed with a pointer to its
