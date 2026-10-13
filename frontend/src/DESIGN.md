@@ -234,8 +234,8 @@ the latest position, and one `requestAnimationFrame` loop eases toward it (expon
 τ = 180ms), moving the element by `transform: translate3d()` alone. It snaps and stops when it is
 within 0.5px, and restarts on the next move. When the pointer leaves the window it drifts back
 home. A touch-type `pointermove` is ignored, so it never chases a tap. The loop reads no layout:
-the viewport size comes from a `ResizeObserver`. While it can move, the layer carries
-`will-change: transform`, so its gradient rasterizes once. Each frame then costs one 1-element
+the viewport size comes from a `ResizeObserver`. While it can move, the moving `.glow` element
+carries `will-change: transform`, so its gradient rasterizes once. Each frame then costs one 1-element
 style update and a commit, with no layout and no repaint: about 0.3ms of main-thread work per
 frame, measured on `/account` (v40 PR). On an idle `/` the same style update also re-samples the
 Waterfall noise floor's 40 animated bars (~80 elements, ~0.3ms more). That is the floor for any

@@ -49,8 +49,9 @@
 		// an offset (and sets the peaks). ResizeObserver hands that size over without a
 		// forced layout, so the frame loop itself never reads layout. One read here seeds it,
 		// so a pointer already moving at mount aims right before the first observation lands.
-		let width = innerWidth;
-		let height = innerHeight;
+		// The root's client size excludes a classic scrollbar, matching the fixed field.
+		let width = document.documentElement.clientWidth;
+		let height = document.documentElement.clientHeight;
 
 		let x = 0;
 		let y = 0;
@@ -77,13 +78,16 @@
 			const peak = peaks(height);
 			field.style.setProperty('--live-peak', peak.live);
 			field.style.setProperty('--rest-peak', peak.rest);
-			if (!following || !pointer) return;
-			// Home just moved with the viewport (a maximize, a scrollbar appearing). Shift the
-			// offset by the opposite amount, before this frame paints, so the glow stays where it
-			// was on screen instead of lurching off the cursor and easing back.
-			x -= dWidth / 2;
-			y += dHeight * 0.1;
-			glow.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+			if (!following) return;
+			// Home just moved with the viewport (a maximize, a scrollbar appearing). Wherever the
+			// glow is off home (under the pointer, drifting back, or paused mid-drift in a hidden
+			// tab), shift its offset by the opposite amount before this frame paints, so it stays
+			// where it was on screen instead of lurching sideways. At home it moves with home.
+			if (x !== 0 || y !== 0) {
+				x -= dWidth / 2;
+				y += dHeight * 0.1;
+				glow.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+			}
 			aim();
 			wake();
 		});
