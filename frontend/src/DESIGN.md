@@ -74,17 +74,17 @@ receiving _right now_, and nothing else. The v39 audit (F10) found it leaking on
 permanent chrome sites. Each now has a verdict. v40 applies only the first row. v42 (`/`) and v43
 (the other routes) apply the rest without re-deciding them.
 
-| Site (F10)                                                                | Verdict                                                                                                                                                                                                                    | Applied in |
-| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Body glow (`app.css` `body` background)                                   | **No amber at rest.** Replaced by `AmbientField.svelte`: slate (`--text-muted` at 6%) at rest, crossfading to amber (`--signal` at 5%) only while `/` shows ≥1 receiving track. Always slate on every other route (see §6) | **v40**    |
-| Global `a` color (`app.css` `a { color: var(--signal) }`)                 | No amber. Links are `--text-primary` with an underline: the affordance is the underline, not the hue                                                                                                                       | v42        |
-| The `>` prompt (`+page.svelte` `.prompt`)                                 | `--text-muted` at rest. It may take `--signal` only while a submission is in flight (SENDING…), which is a real transmission                                                                                               | v42        |
-| Submit / connect hover-focus glow (`+page.svelte`, `login/+page.svelte`)  | No amber, and no zero-offset halo. Hover is `--bg-3` with a `--line-bright` → `--text-muted` border; focus is the global `--focus-ring` outline alone                                                                      | v42 / v43  |
-| Pressed option chips (`/settings`, `/account` `.option-group`)            | `--line-bright` border with `--text-primary` text: the scope-toggle idiom already in §6, since a pressed setting is a selection, not a signal                                                                              | v43        |
-| Input focus borders (submit, login, settings, account)                    | No amber border. The global `--focus-ring` outline already marks focus; the border stays `--line` (or `--line-bright`)                                                                                                     | v42 / v43  |
-| Hover links (`.settings-link`, `.back`, `.inline-link` at `--signal-dim`) | `--text-primary` on hover/focus. `--signal-dim` as text is 3.09:1 on the page, so this is a contrast fix too (F09)                                                                                                         | v42 / v43  |
-| Idle `/login` needle                                                      | `--text-muted`, no glow, at rest. Amber with its glow only while sweeping (`submitting`), the one moment the dial is actually tuning                                                                                       | v43        |
-| Idle `/library` progress bar                                              | `--signal-dim` only while a sweep is running (the existing "happening, but not this session's track" carve-out in §6). A finished run's bar is `--settled-dim`                                                             | v43        |
+| Site (F10)                                                                | Verdict                                                                                                                                                                                                        | Applied in |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Body glow (`app.css` `body` background)                                   | **No amber at rest.** Replaced by `AmbientField.svelte`: slate (`--text-muted`) at rest, crossfading to amber (`--signal`) only while `/` shows ≥1 receiving track. Always slate on every other route (see §6) | **v40**    |
+| Global `a` color (`app.css` `a { color: var(--signal) }`)                 | No amber. Links are `--text-primary` with an underline: the affordance is the underline, not the hue                                                                                                           | v42        |
+| The `>` prompt (`+page.svelte` `.prompt`)                                 | `--text-muted` at rest. It may take `--signal` only while a submission is in flight (SENDING…), which is a real transmission                                                                                   | v42        |
+| Submit / connect hover-focus glow (`+page.svelte`, `login/+page.svelte`)  | No amber, and no zero-offset halo. Hover is `--bg-3` with a `--line-bright` → `--text-muted` border; focus is the global `--focus-ring` outline alone                                                          | v42 / v43  |
+| Pressed option chips (`/settings`, `/account` `.option-group`)            | `--line-bright` border with `--text-primary` text: the scope-toggle idiom already in §6, since a pressed setting is a selection, not a signal                                                                  | v43        |
+| Input focus borders (submit, login, settings, account)                    | No amber border. The global `--focus-ring` outline already marks focus; the border stays `--line` (or `--line-bright`)                                                                                         | v42 / v43  |
+| Hover links (`.settings-link`, `.back`, `.inline-link` at `--signal-dim`) | `--text-primary` on hover/focus. `--signal-dim` as text is 3.09:1 on the page, so this is a contrast fix too (F09)                                                                                             | v42 / v43  |
+| Idle `/login` needle                                                      | `--text-muted`, no glow, at rest. Amber with its glow only while sweeping (`submitting`), the one moment the dial is actually tuning                                                                           | v43        |
+| Idle `/library` progress bar                                              | `--signal-dim` only while a sweep is running (the existing "happening, but not this session's track" carve-out in §6). A finished run's bar is `--settled-dim`                                                 | v43        |
 
 The same test covers sites F10 didn't list (for example `.load-more`'s and QueueControls' hover
 borders at `--signal-dim`): a hover, focus, pressed or selected state is never "receiving", so it
@@ -177,7 +177,7 @@ animation: none }` fallback).
 
 **Script-driven motion follows the same rule** (v40, `AmbientField.svelte`, the tree's first). A
 frame loop has no CSS duration to zero, so it checks `prefers-reduced-motion` itself and, when
-reduced, never starts: no listener, no `requestAnimationFrame`, a static layer. Any later
+reduced, never starts: no pointer listener, no `requestAnimationFrame`, a static layer. Any later
 script-driven animation needs the same check. It must also stop when settled and while
 `document.hidden`; no frame loop may spin permanently.
 
@@ -225,9 +225,9 @@ stop, not "the global worker."
 The page's light: one `position: fixed`, full-viewport, `pointer-events: none`, `z-index: -1`
 layer, mounted once in `routes/+layout.svelte` so every route has it. It sits behind the panels
 (their `--bg-1` fill is opaque), so it lights only the page gutters and the text set directly on
-the page (headers, hints, the `/login` ident). Its home is the old body ellipse's composition, a
-1152×704px ellipse centred at 50% / −10% of the viewport, so at rest the page reads as it always
-did, minus the amber.
+the page (headers, hints, the `/login` ident). Its home is approximately the old body ellipse's
+composition: a 1152×704px element (the old visible ellipse was about 1080×600) centred at 50% /
+−10% of the viewport, so at rest the page reads as it always did, minus the amber.
 
 **Behavior.** With a hovering fine pointer, the glow follows the cursor. `pointermove` only stores
 the latest position, and one `requestAnimationFrame` loop eases toward it (exponential approach,
@@ -235,30 +235,37 @@ the latest position, and one `requestAnimationFrame` loop eases toward it (expon
 within 0.5px, and restarts on the next move. When the pointer leaves the window it drifts back
 home. A touch-type `pointermove` is ignored, so it never chases a tap. The loop reads no layout:
 the viewport size comes from a `ResizeObserver`. While it can move, the layer carries
-`will-change: transform`, so its gradient rasterizes once and every frame after that is
-compositor-only.
+`will-change: transform`, so its gradient rasterizes once. Each frame then costs one 1-element
+style update and a commit, with no layout and no repaint (measured, v40 PR). That is the floor for
+any script-driven transform; "composite only" is reachable only for CSS/WAAPI keyframes.
 
 **Static cases (owner's choice, 2026-10-13): no hover or a coarse pointer, and
-`prefers-reduced-motion: reduce`.** Phones keep the home position with no listener and no frame
+`prefers-reduced-motion: reduce`.** Phones keep the home position with no pointer listener and no frame
 loop, which saves battery and leaves the Waterfall's noise floor as the only idle motion (§1). In a
 hidden tab, the loop is cancelled.
 
 **Tone, which is the amber rule (§2).** The two gradients are stacked and crossfaded on `opacity`
-(`--dur-slow`, zeroed under reduced motion like every duration token): slate (`--text-muted` at
-6% peak) at rest, and amber (`--signal` at 5% peak) only while live. The layout defines live as
+(`--dur-slow`, zeroed under reduced motion like every duration token): slate (`--text-muted`) at
+rest, and amber (`--signal`) only while live. The layout defines live as
 `page.route.id === '/' && activeTracks.length > 0`, the same condition as the Waterfall's
 `.live` border. **Only `/` holds the live stream.** Navigating away closes it but leaves
 `queue.activeTracks` at its last value, so on any other route that store is stale and must never
-light the page. Any future consumer of `activeTracks` outside `/` has the same problem.
+light the page. Any future consumer of `activeTracks` outside `/` has the same problem. On
+re-entering `/`, the stale value still holds until the new stream's `onopen` resync replaces it,
+so the field (like the Waterfall's border) can begin warming for a moment, or stay warm while the
+API is unreachable, before settling to the truth. That window is the Waterfall's own, not new.
 
-**Contrast budget.** The peaks aren't a matter of taste. Neither tone may be brighter at its
-centre than the old amber ellipse (`#161410`, 1.067:1 against `--bg-0`). Slate at 6% and amber at
-5% both land on that luminance, so text over the brightest point keeps exactly the contrast it had
-before v40. Raising either peak lowers every token's contrast where the glow sits (`--text-dim`
-falls below its already-failing 2.86:1). The gradient is only 4–5 8-bit code values above the page
-color, so faint stepping (banding) is visible on close inspection. The pre-v40 glow had the same
-stepping. It is accepted, because the only cure that stays inside the budget (dithering) costs more
-than it buys.
+**Contrast budget.** The peaks aren't a matter of taste. The old ellipse's centre sat off-screen,
+so the brightest pixel anyone saw was its top edge, and that edge dims as the viewport grows
+taller: amber at 5% × (1 − 0.1·height / 300px). The new peak sits under the cursor, over any text,
+so it is held to exactly that visible maximum. `peaks()` sets `--live-peak` from the viewport
+height on resize (3.5% at 900px, 2.6% at 1440px), and `--rest-peak` at 1.24× that, which is slate's
+luminance-equal factor. Text under the brightest point therefore keeps the contrast it had before
+v40 on every viewport. Measured against the old rule rendered in the same browser, from 1280×700
+to 2560×1440 plus a 390×844 phone, no token is worse at either tone. Raising either peak breaks
+that. The gradient is only 3–4 8-bit code values above the page color, so faint stepping
+(banding) shows on close inspection. The pre-v40 glow had the same stepping. It is accepted,
+because the only cure that stays inside the budget (dithering) costs more than it buys.
 
 ### Worker status pill + settings-page worker controls (`WorkerStatusPill.svelte`, `WorkerStatus.svelte`, `stores/worker.ts`, v25)
 

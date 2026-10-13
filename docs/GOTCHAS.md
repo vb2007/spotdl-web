@@ -4810,7 +4810,12 @@ independently-found production bug from the same conversation)
   appear with the field static.
 - **A selector on a class added with `classList.toggle` is pruned by Svelte** (`css_unused_selector`
   from svelte-check). Use a `class:` directive bound to `$state`.
-- **The glow's strength is capped by contrast, so its banding can't be tuned away.** Text sits on
-  the page background under it, so the peak may not exceed the old ellipse's luminance (`#161410`).
-  That leaves only 4–5 8-bit code values above `--bg-0`, and the stepping is visible on close
-  inspection. The pre-v40 glow had the same stepping.
+- **"No worse than before" means the old glow's brightest *visible* pixel, not its centre.** The
+  old ellipse was centred at −10%, off-screen, so what anyone saw was its top edge, and that edge
+  dims with viewport height (amber 5% × (1 − 0.1·h/300px): 3.5% at 900px, 2.6% at 1440px). v40's
+  first cut capped the peak at the off-screen centre (`#161410`). A blind reviewer caught that this
+  is slightly *brighter* than anything text ever sat on. The peak is now computed from the
+  viewport height in the component. To measure "before", render the exact old rule in the same
+  browser (inject the old `body` gradient and hide the field) rather than trusting arithmetic.
+  This budget leaves only 3–4 8-bit code values above `--bg-0`, so faint banding stays, as it did
+  before v40.

@@ -21,20 +21,39 @@
 	const TAU = 180;
 	/** Below this distance (px) the glow snaps to its target and the frame loop stops. */
 	const SETTLE = 0.5;
+	/** Slate's peak per unit of amber peak that gives the same luminance over --bg-0, so
+	 * the two tones share one contrast budget (see `peaks`). */
+	const SLATE_PER_AMBER = 1.24;
+
+	/** Peak strength is a contrast budget, not taste. The old body ellipse's centre sat
+	 * off-screen (-10%), so the brightest pixel anyone saw was its top edge, which dims as the
+	 * viewport grows taller: amber at 5% × (1 − 0.1·height / 300px), a 300px linear falloff.
+	 * The new peak sits under the cursor, over any text, so it is held to exactly that visible
+	 * maximum: text under the brightest point keeps today's contrast on every viewport. */
+	function peaks(height: number): { live: string; rest: string } {
+		const amber = Math.max(0, 0.05 * (1 - (0.1 * height) / 300));
+		return {
+			live: `${(amber * 100).toFixed(2)}%`,
+			rest: `${(amber * SLATE_PER_AMBER * 100).toFixed(2)}%`
+		};
+	}
 
 	onMount(() => {
 		const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
 		const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 		// The glow's transform is an offset from its CSS home (left 50%, top -10% of the
-		// field), so (0, 0) is home and nothing here needs the viewport size except turning
-		// a pointer position into an offset. ResizeObserver hands that size over without a
+		// field), so (0, 0) is home and the viewport size only turns a pointer position into
+		// an offset (and sets the peaks). ResizeObserver hands that size over without a
 		// forced layout, so the frame loop itself never reads layout.
 		let width = 0;
 		let height = 0;
 		const resize = new ResizeObserver(([entry]) => {
 			width = entry.contentRect.width;
 			height = entry.contentRect.height;
+			const peak = peaks(height);
+			field.style.setProperty('--live-peak', peak.live);
+			field.style.setProperty('--rest-peak', peak.rest);
 		});
 		resize.observe(field);
 
@@ -46,8 +65,10 @@
 		let last = 0;
 
 		function tick(now: number) {
-			// Clamp dt so a long-throttled frame eases in rather than jumping to the target.
-			const k = 1 - Math.exp(-Math.min(now - last, 64) / TAU);
+			// Clamp dt so a long-throttled frame eases in rather than jumping to the target, and
+			// at 0: a frame's timestamp can precede the pointermove that woke the loop, and a
+			// negative dt would step the glow away from its target.
+			const k = 1 - Math.exp(-Math.min(Math.max(now - last, 0), 64) / TAU);
 			last = now;
 			x += (targetX - x) * k;
 			y += (targetY - y) * k;
@@ -82,8 +103,10 @@
 		}
 
 		function onPointerOut(event: PointerEvent) {
-			// The pointer left the window: drift back home rather than freeze at the edge.
-			if (event.relatedTarget !== null) return;
+			// The pointer left the window: drift back home rather than freeze at the edge. A
+			// touch pointer also fires a null-relatedTarget pointerout after every tap on a
+			// hybrid device; a tap never drives the field, so that one is ignored too.
+			if (event.pointerType === 'touch' || event.relatedTarget !== null) return;
 			targetX = 0;
 			targetY = 0;
 			wake();
@@ -95,7 +118,7 @@
 		}
 
 		/** Following needs a hovering fine pointer and motion allowed. Otherwise the glow sits
-		 * at home with no listener and no frame loop at all. */
+		 * at home with no pointer listener and no frame loop at all. */
 		function configure() {
 			const next = finePointer.matches && !reducedMotion.matches;
 			if (next === following) return;
@@ -146,8 +169,9 @@
 		contain: strict;
 	}
 
-	/* The old body ellipse's footprint (radii 540×300px, centred at 50% -10%), as an element
-	   the frame loop can move by transform alone. */
+	/* About the old body ellipse's footprint (its visible radii were ~540×300px, centred at
+	   50% -10%; these are 576×352px), as an element the frame loop can move by transform
+	   alone. */
 	.glow {
 		position: absolute;
 		left: 50%;
@@ -157,16 +181,15 @@
 		margin: -22rem 0 0 -36rem;
 	}
 
-	/* Promoted only while it can move, so the gradient is rasterized once and every frame
-	   after that is compositor-only. A static field (touch, reduced motion) stays unpromoted. */
+	/* Promoted only while it can move, so the gradient is rasterized once: each frame then
+	   costs a one-element style update and a commit, with no layout and no repaint. A static
+	   field (touch, reduced motion) stays unpromoted. */
 	.glow.following {
 		will-change: transform;
 	}
 
-	/* Peak strength is a contrast budget, not taste: neither tone may be brighter at its
-	   centre than the old amber ellipse (#161410, 1.067:1 over --bg-0), so text that sits
-	   over the brightest point keeps exactly today's contrast (DESIGN.md §2, Ambient field).
-	   Slate at 6% and amber at 5% both land on that luminance. */
+	/* The peaks come from `peaks()` (the old glow's brightest visible pixel for this viewport
+	   height); the fallbacks are its value at a 900px-tall viewport. */
 	.tone {
 		position: absolute;
 		inset: 0;
@@ -184,12 +207,12 @@
 
 	.rest {
 		--tone: var(--text-muted);
-		--peak: 6%;
+		--peak: var(--rest-peak, 4.34%);
 	}
 
 	.live {
 		--tone: var(--signal);
-		--peak: 5%;
+		--peak: var(--live-peak, 3.5%);
 	}
 
 	/* A crossfade, never both at full: the two tones' sum stays inside the budget above. */
