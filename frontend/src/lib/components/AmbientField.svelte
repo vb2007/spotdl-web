@@ -21,9 +21,10 @@
 	const TAU = 180;
 	/** Below this distance (px) the glow snaps to its target and the frame loop stops. */
 	const SETTLE = 0.5;
-	/** Slate's peak per unit of amber peak that gives the same luminance over --bg-0, so
-	 * the two tones share one contrast budget (see `peaks`). */
-	const SLATE_PER_AMBER = 1.24;
+	/** Slate's peak per unit of amber peak. Luminance-equal over --bg-0 is ~1.25, but after
+	 * 8-bit rounding that can land slate one code value brighter than amber at some heights;
+	 * 1.15 keeps slate at or under amber's luminance on every viewport (see `peaks`). */
+	const SLATE_PER_AMBER = 1.15;
 
 	/** Peak strength is a contrast budget, not taste. The old body ellipse's centre sat
 	 * off-screen (-10%), so the brightest pixel anyone saw was its top edge, which dims as the
@@ -224,7 +225,7 @@
 
 	.rest {
 		--tone: var(--text-muted);
-		--peak: var(--rest-peak, 4.34%);
+		--peak: var(--rest-peak, 4.03%);
 	}
 
 	.live {
