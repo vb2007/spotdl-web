@@ -264,13 +264,18 @@ needed" claim — rather than silently deleted.
   reset, refused, timed out) is the proxy's, not YouTube's or the track's. A proxy that accepts
   and then drops surfaces as requests' plain `ConnectionError`, not `ProxyError`. A dead proxy
   raises while ytmusicapi builds its client, before any search. Neither may feed the breaker or
-  consume the track's rung (`retry.is_proxy_transport_error(..., via_proxy=True)`) → *v40.1*
+  consume the track's rung (`retry.is_proxy_transport_error(..., via_proxy=True)`). The free retry
+  is granted only once in a row: a reset or read timeout can also happen *after* YouTube was
+  reached, mid-download, and while other tracks keep the proxies healthy a rung-free 15m retry
+  could repeat forever → *v40.1*
 - yt-dlp's `DownloadError` keeps the original error in `.exc_info`, not `__cause__`; walk both
   when classifying an exception chain → *v40.1*
 - Hard-failure markers are matched case-insensitively and must never be a substring of rate-limit
   or bot-check text: "not a bot", "try again later", "This content isn't available", a bare
-  "Video unavailable", 429 and 403 all stay on the ladder. Each exclusion has a negative test
-  → *v40.1*
+  "Video unavailable", 429 and 403 all stay on the ladder. So does geo-blocking: it depends on the
+  egress IP, so another rung can change it. Each exclusion has a negative test → *v40.1*
+- `alerts.py` runs in the watchdog process and must not import spotdl, even indirectly through
+  `retry.py`. A constant both of them need lives in a light module (`attempts.py`) → *v40.1*
 
 **Celery, tasks & durability**
 - A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
