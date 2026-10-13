@@ -357,3 +357,29 @@ here rather than edited into it, so the original record stays readable.
        every user's settled jobs) becomes an explicit v48 task, an exception to v48's "no fixes
        outside v4 changes" rule, since it is v28 behavior.
 
+- **2026-10-12, v39.2 inserted (recorded retroactively on 2026-10-13): swallowed-error
+  classification.** The owner ran this patch slice in another session, so it never got an entry
+  here. Branch `dev-swallowed-error-classification`, `4.39.2`, PR #57, stacked on v39.1 and merged
+  2026-10-12. It had no plan file; the PR body is its record. A production Scooter discography left
+  19 tracks `waiting` with "spotdl returned no output file", and they tripped the breaker.
+  spotdl's `search_and_download` swallows every exception. `download_one` now captures the
+  swallowed one from the song tracker's `notify_error`: a search miss becomes `LookupError` and a
+  yt-dlp age gate becomes `AgeRestrictedError`, both terminal `lookup_failed`; anything else stays
+  a `NoOutputFileError` carrying the real reason. Owner-accepted tradeoff: a search miss is
+  terminal on every rung, the proxy rung included. **It was incomplete**, see v40.1.
+- **2026-10-13, v40.1 inserted (owner-directed): breaker wedge fix.** Production on `4.40.0` still
+  had 16 tracks `waiting` and the breaker re-tripping at 6h after every release, blocking every
+  user. v39.2's classification was right but mostly unreachable:
+  - the breaker's streak only reset on a success, so one failure per release re-tripped it;
+  - every enabled proxy was dead, and its `ProxyError` became a breaker-feeding `no_output`, so
+    proxy-rung tracks never reached a verdict;
+  - a terminal verdict through a proxy was charged to that proxy.
+
+  Owner decisions:
+  - **Fresh breaker streak per trip and on manual release.** Escalation still resets only on a
+    success. CLAUDE.md's "Retry engine numbers" were edited to match.
+  - **Hard failures** (age gate, no match, unavailable video) **stay terminal with no retry
+    attention.** Fetching them by other means is out of scope.
+
+  Branch `dev-breaker-wedge-fix`, `4.40.1`, between v40 and v41. Detail in
+  `v40.1-breaker-wedge-fix.md`.

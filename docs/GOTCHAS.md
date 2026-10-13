@@ -253,7 +253,24 @@ needed" claim — rather than silently deleted.
   the song tracker's `notify_error` and raises it: a search miss as `LookupError`, a yt-dlp
   "Sign in to confirm your age" as `AgeRestrictedError` (both terminal `lookup_failed`), anything
   else as `NoOutputFileError` carrying the real reason. Terminal on every rung, proxy included
-  → *v39.2*
+  → *v39.2*. *(2026-10-13: right but mostly unreachable in production. A dead proxy failed before
+  any search, as a breaker-feeding `no_output`, so proxy-rung tracks never reached this
+  classification, and the breaker's streak outlived every trip. See the v40.1 entries.)*
+- A breaker streak that survives its own trip turns a queue of tracks that can never succeed
+  into a permanent global pause. One failure per release re-trips it at the top step, and the
+  success that would reset it never comes. Every trip and manual release now start a fresh
+  streak; escalation still waits for a success → *v40.1*
+- On a proxied attempt our only TCP peer is the proxy, so a connection-level failure (aborted,
+  reset, refused, timed out) is the proxy's, not YouTube's or the track's. A proxy that accepts
+  and then drops surfaces as requests' plain `ConnectionError`, not `ProxyError`. A dead proxy
+  raises while ytmusicapi builds its client, before any search. Neither may feed the breaker or
+  consume the track's rung (`retry.is_proxy_transport_error(..., via_proxy=True)`) → *v40.1*
+- yt-dlp's `DownloadError` keeps the original error in `.exc_info`, not `__cause__`; walk both
+  when classifying an exception chain → *v40.1*
+- Hard-failure markers are matched case-insensitively and must never be a substring of rate-limit
+  or bot-check text: "not a bot", "try again later", "This content isn't available", a bare
+  "Video unavailable", 429 and 403 all stay on the ladder. Each exclusion has a negative test
+  → *v40.1*
 
 **Celery, tasks & durability**
 - A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
@@ -278,7 +295,8 @@ needed" claim — rather than silently deleted.
 - `record_failure` computes the ladder delay **before** incrementing `attempt_count`; reversing it
   skips the first rung → *v06*
 - Only real `AudioProviderError`s feed the circuit breaker; the "other" bucket shares the ladder but
-  never trips it → *v06*
+  never trips it → *v06*. *(2026-10-13: stale since v23. `no_output` feeds it too; terminal
+  verdicts and proxy transport failures never do, see v40.1.)*
 - Importing `app.tasks.*` directly hits a circular import — import `app.tasks.celery_app` first
   → *v06*
 - Worker-boot hooks are gated by explicit env vars (`RUN_DISK_RECONCILE`, `RUN_PROXY_SYNC`), never
@@ -479,6 +497,13 @@ needed" claim — rather than silently deleted.
   *shaped* like a credentialed URL anywhere in a message (requires an actual `user:pass@` to be
   present, so it never touches a message with nothing to redact), applied unconditionally rather
   than gated behind a match against one specific `proxy_url` → *v31*
+
+- `pick_proxy` TCP-probes each candidate before use and cools down the ones that don't accept.
+  Production's whole file-sourced pool was dead (`last_success_at` NULL on all 10), and every
+  proxy-rung attempt was spent on one. With none reachable, the existing direct-IPv4 fallback
+  applies → *v40.1*
+- A terminal verdict reached through a proxy (no match, age gate) proves the proxy carried the
+  request, so it's the proxy's success, not a failure to cool it down for → *v40.1*
 
 **File serving & HTTP headers**
 - A FastAPI `@router.get` does **not** answer `HEAD` (405); the file endpoint lists both. nginx
@@ -4829,3 +4854,37 @@ independently-found production bug from the same conversation)
   browser (inject the old `body` gradient and hide the field) rather than trusting arithmetic.
   This budget leaves only about 4–9 8-bit code values above `--bg-0` in the strongest channel, so
   faint banding stays, as it did before v40.
+
+### v40.1 breaker wedge fix gotchas (learned from production still stuck after v39.2)
+
+- **v39.2's classification worked, and production stayed stuck anyway** (read-only, 2026-10-13,
+  `4.40.0`). The track the owner was watching had gone `lookup_failed` ("Age-restricted", IPv6
+  rung) on its first post-deploy attempt. The same Scooter job still had 16 tracks `waiting`, and
+  `worker_state` read `consecutive_failures=10`, `trip_count=6`, paused 6h. Every user's jobs were
+  blocked. Look at the job's *other* tracks before concluding a fix didn't take: four more "Fuck
+  The Millennium" tracks, on other albums, were the ones still waiting.
+- **The wedge.** The streak reset only on a success, and a release (timed or manual) kept it.
+  After each release, the first breaker-feeding failure took it from 10 to 11 and re-tripped it at
+  6h. Everything else dispatched in that window was `held` to the next release. A queue of tracks
+  that can't succeed produced about one real attempt per 6h, forever, and never the success that
+  would end it.
+- **The dead proxies.** 9 of the 16 tracks were at `attempt_count >= 2`, so every attempt took
+  the proxy rung, and every proxy was dead. The 18:01 re-trip was `ProxyError … Unable to connect
+  to proxy (ConnectTimeout)`, raised while ytmusicapi built its client (`url: /`), before any
+  search. v39.2 wrapped it as `no_output`. Proxy cooldown caps at 4h and the track ladder at 24h,
+  so each retry met a fresh dead proxy. Those tracks could never reach the terminal
+  classification v39.2 added.
+- **The unit tests didn't catch the drop-the-connection case; the real stack did.** A local
+  listener that accepts and closes, used as the only proxy, raised `requests.exceptions.
+  ConnectionError(('Connection aborted.', ConnectionResetError(104)))`, which is not `ProxyError`.
+  It fed the breaker and tripped the dev breaker 4→5. Fixed by treating any connection-level
+  failure on a proxied attempt as the proxy's. That needed `download_one` to `raise … from` the
+  swallowed error so the task could still see it.
+- **Real-stack fixtures that worked, for next time.**
+  - Unreachable proxy: a `manual` row at `http://10.255.255.1:3128`.
+  - Drop-the-connection proxy: `python:3.12-alpine` running a 5-line accept-and-close loop on the
+    compose network.
+  - Working proxy: `alpine` + `apk add tinyproxy` with the `Allow` lines commented out.
+  - A real breaker-feeding `no_output` with search still working: a worker-dl overlay with
+    `extra_hosts` pointing `www.youtube.com` and `youtubei.googleapis.com` at `127.0.0.1` **and**
+    `::1`. With only the IPv4 entry, the IPv6 rung resolved through DNS and downloaded fine.
