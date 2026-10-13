@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1791900051.3613617,
-    "ast_hash": "80f84d1cc8f6b5f0d3ecdc88496f521c",
+    "mtime": 1791900502.0032344,
+    "ast_hash": "de1701a79ff36fa0b48afda459935f46",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
@@ -1300,8 +1300,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/AmbientField.svelte": {
-    "mtime": 1791900034.823662,
-    "ast_hash": "b8fd131b7fb489978238274c53844a98",
+    "mtime": 1791900502.0029485,
+    "ast_hash": "8b9914d4638fdd3c5739cd38fe31c3b0",
     "semantic_hash": ""
   },
   "master-v4-pipeline-issues.md": {
