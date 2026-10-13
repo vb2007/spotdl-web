@@ -17,6 +17,7 @@ from spotdl.utils.arguments import create_parser
 from app.config import get_settings
 from app.models import NetworkPath
 from app.services.expansion import _ensure_spotify_client
+from app.services.retry import NoOutputFileError
 
 # yt-dlp's own -4/-6 flags (see get_downloader below) -- confirmed against the installed
 # yt_dlp source (yt_dlp/options.py) to set source_address to '0.0.0.0'/'::' and nothing else.
@@ -134,9 +135,50 @@ def get_supported_output_options() -> dict[str, list[str]]:
     }
 
 
+class AgeRestrictedError(LookupError):
+    """The matched YouTube video is age-gated ("Sign in to confirm your age"). A property
+    of the video, not of this network or the moment, so no amount of waiting or proxying
+    changes it -- a LookupError so it lands terminal (`lookup_failed`), which a user can
+    still retry by hand once a cookie file is configured."""
+
+
+# yt-dlp's own age-gate wording. Distinct from its bot-check ("Sign in to confirm you're
+# not a bot"), which *is* network-dependent and must stay on the retry ladder.
+_AGE_GATE_MARKER = "confirm your age"
+
+
+def _swallowed_error_to_raise(exc: BaseException) -> Exception:
+    """Map the exception spotdl swallowed to what the caller should see instead of a bare
+    `None` output path."""
+    chain = []
+    cur: BaseException | None = exc
+    while cur is not None and cur not in chain:
+        chain.append(cur)
+        cur = cur.__cause__ or cur.__context__
+    if any(_AGE_GATE_MARKER in str(e) for e in chain):
+        return AgeRestrictedError(f"Age-restricted on YouTube (sign-in required): {exc}")
+    if isinstance(exc, LookupError):
+        return exc
+    # spotdl's own message is often just "YT-DLP download error - <url>"; the reason
+    # (403, bot-check, ...) is on the yt-dlp exception it chains from.
+    detail = f"{type(exc).__name__}: {exc}"
+    root = chain[-1]
+    if root is not exc:
+        root_line = str(root).strip().splitlines()[0] if str(root).strip() else ""
+        detail += f" <- {type(root).__name__}: {root_line[:300]}"
+    return NoOutputFileError(f"spotdl returned no output file for this track ({detail})")
+
+
 def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]:
     """Must be called from a plain sync context — search_and_download raises
-    DownloaderError if a asyncio event loop is already running in this thread."""
+    DownloaderError if a asyncio event loop is already running in this thread.
+
+    spotdl's search_and_download catches *every* exception (a search with no match, an
+    age-gated video, a yt-dlp 403...) and returns a `None` path instead, so on its own
+    every one of them looks identical. The exception it swallowed is still handed to the
+    song's progress tracker (`notify_error`), so it's captured there and raised in its
+    place: a LookupError/age gate as the terminal error it really is, anything else as a
+    NoOutputFileError carrying the real reason."""
 
     # search_and_download "reinitializes" the song (re-fetches missing metadata like
     # genres/album_id/track_number, common for album/playlist-expanded songs) via a live
@@ -144,4 +186,31 @@ def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]
     # otherwise initializes one, so every such reinit failed with "Spotify client not
     # created" until this call was added (caught during real album-download testing).
     _ensure_spotify_client()
-    return downloader.search_and_download(song)
+
+    swallowed: list[BaseException] = []
+    handler = downloader.progress_handler
+    original_get_new_tracker = handler.get_new_tracker
+
+    def capturing_get_new_tracker(tracked_song):
+        tracker = original_get_new_tracker(tracked_song)
+        original_notify_error = tracker.notify_error
+
+        # spotdl names the exception argument `traceback`.
+        def notify_error(message, traceback, finish=False):
+            swallowed.append(traceback)
+            return original_notify_error(message, traceback, finish)
+
+        tracker.notify_error = notify_error
+        return tracker
+
+    handler.get_new_tracker = capturing_get_new_tracker
+    try:
+        result_song, output_path = downloader.search_and_download(song)
+    finally:
+        # Drop the instance override so the cached Downloader's handler is left exactly
+        # as spotdl built it.
+        del handler.get_new_tracker
+
+    if output_path is None and swallowed:
+        raise _swallowed_error_to_raise(swallowed[-1])
+    return result_song, output_path

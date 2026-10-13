@@ -513,6 +513,34 @@ def test_download_track_nonexistent_output_path_feeds_breaker(db_session, monkey
     assert worker_state.consecutive_failures == 1
 
 
+def test_download_track_age_gate_is_terminal_even_through_a_proxy(db_session, monkeypatch):
+    """A search miss or age gate spotdl swallowed now reaches download_track as a
+    LookupError (downloads.download_one) -- terminal on every rung, the proxy one included,
+    and never fed to the breaker."""
+    track = _make_track(db_session)
+    track.attempt_count = 2  # v29: proxy is the third rung
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    db_session.add(Proxy(url="http://proxy-1", source=ProxySource.FILE, enabled=True))
+    db_session.commit()
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
+
+    def fake_download_one(song, downloader):
+        raise downloads.AgeRestrictedError("Age-restricted on YouTube (sign-in required): x")
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.LOOKUP_FAILED
+    assert updated.last_error_type == TrackErrorType.LOOKUP
+    assert updated.scheduled_at is None
+    worker_state = db_session.get(WorkerState, 1)
+    assert worker_state is None or worker_state.consecutive_failures == 0
+
+
 def test_download_track_lookup_error_is_terminal(db_session, monkeypatch):
     track = _make_track(db_session)
     _patch_common(monkeypatch, db_session)
