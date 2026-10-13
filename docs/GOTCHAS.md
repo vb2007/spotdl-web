@@ -798,8 +798,8 @@ needed" claim — rather than silently deleted.
 - Filter jobs *before* aggregating their tracks, not after — a search/archived/source_type filter
   that excludes a huge job should never pay to aggregate it → *v18*
 - A rAF loop writing `transform` costs a 1-element style recalc + commit per frame, never zero.
-  On an idle `/` every main frame also re-samples the Waterfall noise floor's ~80 animated
-  elements, so profile a frame loop on `/account` to see its own cost → *v40*
+  On an idle `/` every main frame also re-samples the Waterfall noise floor's 40 animated bars
+  (~80 elements in the trace's style count), so profile a frame loop on `/account` → *v40*
 
 **Reference (not a gotcha)**
 - Upstream `vb2007.hu-api` endpoint shapes, token scheme, and the two constraints they impose →
@@ -4814,6 +4814,10 @@ independently-found production bug from the same conversation)
   reduced-motion control (no field frames at all) shows almost no `UpdateLayoutTree`. The
   occasional full-viewport Paint bursts were the cursor crossing hover targets: the same bursts
   appear with the field static.
+- **A native drag looks like the pointer leaving the window.** Dragging a link or a text
+  selection fires `dragstart`, then `pointercancel` and a `pointerout` with a null
+  `relatedTarget`, while the cursor is still on the page (verified headless and headed). Window-
+  leave detection must ignore that `pointerout` until the next `pointermove` after the drop.
 - **A selector on a class added with `classList.toggle` is pruned by Svelte** (`css_unused_selector`
   from svelte-check). Use a `class:` directive bound to `$state`.
 - **"No worse than before" means the old glow's brightest *visible* pixel, not its centre.** The

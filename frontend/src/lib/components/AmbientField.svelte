@@ -24,7 +24,8 @@
 	/** Slate's peak per unit of amber peak. Luminance-equal over --bg-0 is ~1.25, but after
 	 * 8-bit rounding that can land slate one code value brighter than amber at some heights;
 	 * 1.15 keeps slate at or under amber's rendered luminance across the measured range (up to
-	 * 2560×1440); far taller viewports can differ by one blue code value (see `peaks`). */
+	 * 2560×1440); far taller viewports can differ by one blue code value (DESIGN.md §6,
+	 * Ambient field, "Contrast budget"). */
 	const SLATE_PER_AMBER = 1.15;
 
 	/** Peak strength is a contrast budget, not taste. The old body ellipse's centre sat
@@ -59,6 +60,9 @@
 		let targetY = 0;
 		/** The last pointer position inside the window, or null once it left (target: home). */
 		let pointer: { x: number; y: number } | null = null;
+		/** A native drag (a link, a text selection) is in progress: the browser cancels the
+		 * pointer and sends no pointermove until the drop. */
+		let dragging = false;
 		let frame = 0;
 		/** The previous frame's timestamp; -1 means the loop was just woken. */
 		let last = -1;
@@ -127,6 +131,7 @@
 		function onPointerMove(event: PointerEvent) {
 			// A touch on a hybrid device still fires pointermove; the field never chases a tap.
 			if (event.pointerType === 'touch') return;
+			dragging = false;
 			pointer = { x: event.clientX, y: event.clientY };
 			aim();
 			wake();
@@ -136,10 +141,16 @@
 			// The pointer left the window: drift back home rather than freeze at the edge. A
 			// touch pointer also fires a null-relatedTarget pointerout after every tap on a
 			// hybrid device; a tap never drives the field, so that one is ignored too.
-			if (event.pointerType === 'touch' || event.relatedTarget !== null) return;
+			// A native drag also cancels the pointer and fires a null-relatedTarget pointerout
+			// while the cursor is still on the page, so that one doesn't count as leaving.
+			if (event.pointerType === 'touch' || event.relatedTarget !== null || dragging) return;
 			pointer = null;
 			aim();
 			wake();
+		}
+
+		function onPointerCancel(event: PointerEvent) {
+			if (event.pointerType !== 'touch') dragging = true;
 		}
 
 		function onVisibilityChange() {
@@ -156,11 +167,14 @@
 			if (following) {
 				window.addEventListener('pointermove', onPointerMove, { passive: true });
 				window.addEventListener('pointerout', onPointerOut, { passive: true });
+				window.addEventListener('pointercancel', onPointerCancel, { passive: true });
 			} else {
 				window.removeEventListener('pointermove', onPointerMove);
 				window.removeEventListener('pointerout', onPointerOut);
+				window.removeEventListener('pointercancel', onPointerCancel);
 				sleep();
 				pointer = null;
+				dragging = false;
 				x = y = targetX = targetY = 0;
 				glow.style.transform = '';
 			}
@@ -179,6 +193,7 @@
 			document.removeEventListener('visibilitychange', onVisibilityChange);
 			window.removeEventListener('pointermove', onPointerMove);
 			window.removeEventListener('pointerout', onPointerOut);
+			window.removeEventListener('pointercancel', onPointerCancel);
 		};
 	});
 </script>
