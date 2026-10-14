@@ -140,14 +140,19 @@
 	});
 
 	// The cache is keyed on what an attempt row changes, not just the track id: a row
-	// opened mid-download (no attempts yet) refetches once the worker records one, and
-	// a live progress tick never refetches.
+	// opened mid-download (no attempts yet) refetches once the worker records one, and a
+	// `held` row, which changes no count, still moves `scheduled_at`. A live progress tick
+	// changes none of these, so it never refetches.
 	let attemptsKey = $derived(
-		`${track.id}|${track.state}|${track.attempts_made}|${track.failure_count}`
+		`${track.id}|${track.state}|${track.attempts_made}|${track.failure_count}|${track.scheduled_at}`
 	);
 
 	async function loadAttempts(key: string) {
-		if (attemptsLoadedFor === key) return;
+		if (attemptsLoadedFor === key) {
+			// Back on a key already loaded: whatever request is still out is superseded.
+			attemptsLoading = false;
+			return;
+		}
 		attemptsLoading = true;
 		attemptsError = null;
 		try {
@@ -156,9 +161,11 @@
 			attempts = loaded;
 			attemptsLoadedFor = key;
 		} catch (err) {
+			// A request superseded by a newer key never touches the newer one's state.
+			if (key !== attemptsKey) return;
 			attemptsError = err instanceof api.ApiError ? err.message : 'Could not load attempt history.';
 		} finally {
-			attemptsLoading = false;
+			if (key === attemptsKey) attemptsLoading = false;
 		}
 	}
 
@@ -264,7 +271,7 @@
 		aria-pressed={pinnedTimes.has(key)}
 		onclick={() => toggleIn(pinnedTimes, key)}
 		><time datetime={iso}>{relativeTime(iso, now)}</time><span class="abs"
-			>{formatTimestamp(iso)}</span
+			><span class="sep">, </span>{formatTimestamp(iso)}</span
 		></button
 	>
 {/snippet}
@@ -715,6 +722,16 @@
 		overflow: hidden;
 		clip-path: inset(50%);
 		white-space: nowrap;
+	}
+
+	/* Keeps the button's name "12m ago, 10/14/2026, …" rather than run together; never
+	   shown in the tooltip. */
+	.when .sep {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 
 	.when:hover .abs,
