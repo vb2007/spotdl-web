@@ -740,8 +740,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobRow.svelte": {
-    "mtime": 1791992866.7593226,
-    "ast_hash": "aeed27002b619d6126e6b10f8ecd0ae8",
+    "mtime": 1791995700.4785838,
+    "ast_hash": "ea42651b5b21276edb50938a13da7b59",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobTrackList.svelte": {
@@ -755,8 +755,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/TrackRow.svelte": {
-    "mtime": 1791995064.7361703,
-    "ast_hash": "f2699a79d0e5c08bb76138c75ca0bda1",
+    "mtime": 1791995727.3292022,
+    "ast_hash": "94a401e2f32aac16b1a3838d42a54029",
     "semantic_hash": ""
   },
   "frontend/src/routes/account/+page.svelte": {

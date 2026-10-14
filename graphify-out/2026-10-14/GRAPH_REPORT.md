@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-10-14)
 
 ## Corpus Check
-- 254 files · ~286,073 words
+- 254 files · ~286,167 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2586 nodes · 4245 edges · 230 communities (170 shown, 60 thin omitted)
+- 2586 nodes · 4245 edges · 229 communities (169 shown, 60 thin omitted)
 - Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 441 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5ae17ce9`
+- Built from commit: `1ccccac8`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -218,7 +218,6 @@
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_Proxy|Proxy]]
-- [[_COMMUNITY_spawn_watchdog|spawn_watchdog]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `$lib/api` - 115 edges
@@ -251,7 +250,7 @@
 - **CI PR-checks pipeline (pytest, publish-report, compose-config, frontend)** — github_workflows_ci_pytest_job, github_workflows_ci_publish_report_job, github_workflows_ci_compose_config_job, github_workflows_ci_frontend_job [EXTRACTED 1.00]
 - **Docker Compose layered configuration (base/override/prod)** — docker_compose_doc, docker_compose_override_doc, docker_compose_prod_doc [EXTRACTED 1.00]
 
-## Communities (230 total, 60 thin omitted)
+## Communities (229 total, 60 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
 Cohesion: 0.05
@@ -354,8 +353,8 @@ Cohesion: 0.19
 Nodes (18): archiveJobs(), bumpJob(), cancelJob(), cancelTrack(), retryTrack(), setJobPriority(), unarchiveJobs(), $lib/stores/progressCache (+10 more)
 
 ### Community 31 - "Version Roadmap Plans"
-Cohesion: 0.13
-Nodes (23): AlertSendError, AlertsNotConfigured, _claim_cooldown(), _config_values(), deliver(), enqueue(), _enqueue_pending(), format_body() (+15 more)
+Cohesion: 0.11
+Nodes (26): AlertSendError, AlertsNotConfigured, _claim_cooldown(), _config_values(), deliver(), enqueue(), _enqueue_pending(), format_body() (+18 more)
 
 ### Community 32 - "Stream Router Tests"
 Cohesion: 0.18
@@ -382,7 +381,7 @@ Cohesion: 0.17
 Nodes (18): copy_verify(), destination_path(), files_match(), Path, quarantine(), _quarantine_destination(), Library sort & move (v28) -- destination-path building from tags, conflict detec, Preserves the source's own basename under quarantine_dir, disambiguated with a (+10 more)
 
 ### Community 41 - "API Error Class"
-Cohesion: 0.16
+Cohesion: 0.21
 Nodes (10): _configure_celery_logging(), JsonFormatter, Structured JSON logging (v12) — one shared formatter both uvicorn (`api`, via `l, Adds Celery task context (`task_id`/`task_name`) when a log call happens inside, Connecting *any* receiver to this signal tells Celery to skip its own logging, _redact(), _exit_with_parent(), main() (+2 more)
 
 ### Community 42 - "Layout Load Guard"
@@ -822,12 +821,8 @@ Cohesion: 0.29
 Nodes (6): Deploy notes, Done when, Out of scope, Scope, Tasks, v40.1 — Breaker Wedge Fix (hard failures end by themselves)
 
 ### Community 242 - "Proxy"
-Cohesion: 0.12
+Cohesion: 0.10
 Nodes (15): check_not_production_database(), get_settings(), get_settings() runs at import in every backend process (db.py, main.py,, Refuses a dev-marked process pointed at the production database. Fails closed: i, health(), Response, _fetch_username(), login() (+7 more)
-
-### Community 245 - "spawn_watchdog"
-Cohesion: 0.67
-Nodes (3): Starts app/services/alert_watchdog.py as a child of the calling process (worker-, spawn_watchdog(), Popen
 
 ## Ambiguous Edges - Review These
 - `favicon.svg (Svelte default logo)` → `Instrument-panel THESIS (Operate mode)`  [AMBIGUOUS]

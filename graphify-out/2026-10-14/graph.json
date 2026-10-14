@@ -314,7 +314,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_alembic_env",
-      "community": 41,
+      "community": 242,
       "norm_label": "env.py"
     },
     {
@@ -324,7 +324,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_alembic_env_run_migrations_offline",
-      "community": 41,
+      "community": 242,
       "norm_label": "run_migrations_offline()"
     },
     {
@@ -334,7 +334,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_alembic_env_run_migrations_online",
-      "community": 41,
+      "community": 242,
       "norm_label": "run_migrations_online()"
     },
     {
@@ -3264,7 +3264,7 @@
       "source_location": "L514",
       "_origin": "ast",
       "id": "backend_app_services_alerts_spawn_watchdog",
-      "community": 245,
+      "community": 31,
       "norm_label": "spawn_watchdog()"
     },
     {
@@ -3274,7 +3274,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "popen",
-      "community": 245,
+      "community": 31,
       "norm_label": "popen"
     },
     {
@@ -3404,7 +3404,7 @@
       "source_location": "L515",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_515",
-      "community": 245,
+      "community": 31,
       "norm_label": "starts app/services/alert_watchdog.py as a child of the calling process (worker-"
     },
     {
@@ -16914,7 +16914,7 @@
       "label": "group()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L359",
+      "source_location": "L366",
       "_origin": "ast",
       "id": "frontend_src_lib_components_trackrow_group",
       "community": 13,
@@ -62556,7 +62556,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L359",
+      "source_location": "L366",
       "weight": 1.0,
       "source": "frontend_src_lib_components_trackrow",
       "target": "frontend_src_lib_components_trackrow_group",
@@ -70482,5 +70482,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "5ae17ce961b6211f95a30783bb7f80460555b7b8"
+  "built_at_commit": "1ccccac85afa0d979909c392852e029407df2eb5"
 }
