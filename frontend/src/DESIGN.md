@@ -67,6 +67,12 @@ component — map any new state onto one of these five.
 | **Fail** (terminal only)      | `--fail` / `--fail-dim`                                        | `#e5595c` / `#5c2f30`                                      | **Terminal failure only** — `lookup_failed` ("no signal — given up") and `failed`. Also used for the logout button's hover/focus state (a destructive-adjacent action) and for `last_error` text. | Held back deliberately — never used for `waiting`/backoff, which is expected and recoverable, only for states the retry engine will not revisit                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | **Idle**                      | `--text-muted` (via `.cond-idle`)                              | `#8b969d`                                                  | Not-yet-started (`pending`, `queued`, `cancelled`)                                                                                                                                                | No dedicated hue — idle borrows the muted text color rather than inventing a sixth signal color                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
+> **v41 (2026-10-14, F03/F14):** inside the expanded track, red now marks only a terminal verdict.
+> A failed attempt the ladder will retry reads in the waiting blue, `last_error` is no longer
+> painted red, and a note on an attempt that didn't fail (a tag-repair warning) is neutral text
+> behind an outlined `NOTE` tag, neither fail red nor the waiting blue. Still five conditions,
+> no sixth hue.
+
 ### Amber on chrome: the v40 decision (v39 F10, amendment A5)
 
 **Decided 2026-10-13 by the owner (v40): the rule above stands unamended.** Amber marks something
@@ -156,6 +162,16 @@ Reuse it rather than inventing a second all-caps convention.
 **Rule**: every gap/padding value in every component reads from this scale. No bespoke pixel
 value appears in any `.svelte` style block read for this document — treat that as the standing
 convention for v10+.
+
+### Row grid (v41)
+
+`app.css` also defines the columns the job list shares, so rows line up instead of each
+component guessing: `--row-pad-x`, `--row-gap`, `--col-lead` (a job's chevron, and the nesting
+rail under an open job), `--col-state` (a job's badge and a track's state), `--col-progress`,
+`--col-actions`, `--row-nest` (one lead column plus a gap: the indent of a nested track list) and
+`--cell-inset` (a badge's text offset, so a track's state text sits under the badge text). A
+nested track's state is under its job's badge and its title under the job's title; the expanded
+detail hangs off the same title column. Any new row in the job list uses these, not local widths.
 
 ## 5. Motion
 
@@ -319,6 +335,11 @@ maps cover exactly the eight states that remain, no `failed` entry. v20 renamed
 never "given up" (the state is terminal and never auto-retried, same as always), only the old
 wording implied abandonment rather than "this specific lookup came up empty."
 
+> **v41 (2026-10-14, F21, owner's call):** `STATE_LABEL` now uses the state-filter chips' words
+> (pending, queued, downloading, completed, waiting, not found, duplicate, cancelled), so a state
+> reads the same on a chip and on a row, and no label truncates in the state column (F13). The
+> in-world voice stays on idents and moments; v46 re-words both for i18n.
+
 ### Job status → color/label mapping (`JobRow.svelte`, v20)
 
 The job-level counterpart of the above, over `JobStatus`'s `statusKey()` token (`"expanding"`,
@@ -425,6 +446,19 @@ text: attempt count, a live `Countdown` (only when `state === 'waiting'` and `sc
 set), and `last_error` in `--fail` color when present. **This whole row-as-button disclosure
 pattern is the convention for any future expandable list row.**
 
+> **v41 (2026-10-14): the detail was redesigned; the description above is the v20 shape.** The
+> row button now carries `aria-controls` and a trailing chevron (F22). The detail is the row's own
+> grid, two columns: a status strip first (the state in plain words, the next-try countdown,
+> which follows the breaker's clear when that's later (F04), and, for the admin, attempts /
+> failed / last path), then one action area (retry now · download · cancel track, the destructive
+> one set apart and outlined in `--fail-dim`), then, **admin only**, the attempt timeline: newest
+> first, the time in the state column's gutter (absolute time on hover, focus, or a click that
+> pins it), consecutive identical readings collapsed into one `×n` entry that opens on demand,
+> raw errors clamped to three lines with a "show full message" control and always selectable.
+> A non-admin's expanded track shows the status and actions only; the history's markup never
+> renders and its request is never made (master plan amendment, v39 outcome 3). History is
+> fetched on open and cached until the track's state or counts change.
+
 ### File-download action (`TrackRow.svelte`, v27)
 
 The expanded row's `.actions` group (retry / cancel, above) gains a third button, `download`,
@@ -461,6 +495,11 @@ fresh on first expand — never all of a job's tracks eagerly. Expansion state l
 survives a filter/search change within the same session (the plan's explicit requirement) rather
 than resetting every time the underlying page reloads.
 
+> **v41 (2026-10-14):** the toggle has no `aria-label` any more, so its name is what it shows
+> (status, title, type, owner; F16), plus `aria-controls` to the track list. The row sits on the
+> row grid (§4), and the open job's tracks hang off a 1px rail in its chevron column, indented by
+> `--row-nest`, on the panel's own surface rather than the old darker `--bg-0` well (F02).
+
 ### Mobile stacked layout (`TrackRow.svelte`, `JobRow.svelte`, ≤640px)
 
 `TrackRow`'s five-column grid collapses to a fully stacked flex column, one cell per line, in an
@@ -489,6 +528,14 @@ flexbox degrades better than grid did).
 > (`.breakdown` already sized to its content). Rule for any column-direction
 > collapse: reset the children's flex-basis and check heights, not only widths. e2e spec 10 guards
 > it.
+
+> **v41 (2026-10-14): both stacks were redesigned on the row grid; the one-cell-per-line text above
+> describes v20–v40.** A phone job row is grid rows: chevron · badge · type (and owner) on the
+> first line, the whole title on the second, then the bar with its breakdown and the actions, all
+> on the column the nested tracks indent to. A phone track row is state, title, then
+> "artist · album" as one muted line, with the chevron at the right. Between 641 and 960px a
+> track folds artist · album under its title and a job's actions drop under its title (F37, for
+> these rows only; the page breakpoint is v42's).
 
 ### Command-line submit bar
 
