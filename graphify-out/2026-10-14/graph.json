@@ -2934,7 +2934,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "backend_app_services_alerts_alertsnotconfigured",
-      "community": 36,
+      "community": 31,
       "norm_label": "alertsnotconfigured"
     },
     {
@@ -2954,7 +2954,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_app_services_alerts_alertsenderror",
-      "community": 36,
+      "community": 31,
       "norm_label": "alertsenderror"
     },
     {
@@ -3024,7 +3024,7 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "backend_app_services_alerts_send_now",
-      "community": 36,
+      "community": 31,
       "norm_label": "send_now()"
     },
     {
@@ -3224,7 +3224,7 @@
       "source_location": "L424",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog",
-      "community": 31,
+      "community": 45,
       "norm_label": "watchdog"
     },
     {
@@ -3234,7 +3234,7 @@
       "source_location": "L439",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_init",
-      "community": 31,
+      "community": 45,
       "norm_label": ".__init__()"
     },
     {
@@ -3254,7 +3254,7 @@
       "source_location": "L505",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_run",
-      "community": 31,
+      "community": 45,
       "norm_label": ".run()"
     },
     {
@@ -3264,7 +3264,7 @@
       "source_location": "L514",
       "_origin": "ast",
       "id": "backend_app_services_alerts_spawn_watchdog",
-      "community": 45,
+      "community": 31,
       "norm_label": "spawn_watchdog()"
     },
     {
@@ -3274,7 +3274,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "popen",
-      "community": 45,
+      "community": 31,
       "norm_label": "popen"
     },
     {
@@ -3294,7 +3294,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_110",
-      "community": 36,
+      "community": 31,
       "norm_label": "carries only a redacted, token-free description of what went wrong."
     },
     {
@@ -3314,7 +3314,7 @@
       "source_location": "L164",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_164",
-      "community": 36,
+      "community": 31,
       "norm_label": "one put to the room. raises alertsnotconfigured or alertsenderror; never retries"
     },
     {
@@ -3394,7 +3394,7 @@
       "source_location": "L425",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_425",
-      "community": 31,
+      "community": 45,
       "norm_label": "runs as its own small process (alert_watchdog.py, started and supervised by"
     },
     {
@@ -3404,7 +3404,7 @@
       "source_location": "L515",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_515",
-      "community": 45,
+      "community": 31,
       "norm_label": "starts app/services/alert_watchdog.py as a child of the calling process (worker-"
     },
     {
@@ -16914,7 +16914,7 @@
       "label": "group()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L436",
+      "source_location": "L438",
       "_origin": "ast",
       "id": "frontend_src_lib_components_trackrow_group",
       "community": 13,
@@ -62556,7 +62556,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L436",
+      "source_location": "L438",
       "weight": 1.0,
       "source": "frontend_src_lib_components_trackrow",
       "target": "frontend_src_lib_components_trackrow_group",
@@ -70482,5 +70482,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "2ced70feddbcf7a0dbbba452ef99a9c2df209938"
+  "built_at_commit": "7a7200fe1791e857d538a18d0f05b4e3ffb68d6d"
 }
