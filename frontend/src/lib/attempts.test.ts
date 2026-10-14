@@ -97,5 +97,7 @@ describe('formatting', () => {
 		expect(formatDuration(0.42)).toBe('0.4s');
 		expect(formatDuration(24.1)).toBe('24s');
 		expect(formatDuration(183.2)).toBe('3m 03s');
+		expect(formatDuration(9.96)).toBe('10s');
+		expect(formatDuration(59.6)).toBe('1m 00s');
 	});
 });

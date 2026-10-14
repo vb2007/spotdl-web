@@ -69,9 +69,10 @@ export function relativeTime(iso: string, now: number): string {
 
 /** "0.4s", "24s", "3m 05s". */
 export function formatDuration(seconds: number): string {
-	if (seconds < 10) return `${seconds.toFixed(1)}s`;
-	if (seconds < 60) return `${Math.round(seconds)}s`;
+	// Rounded before the unit is picked, so 9.96s never reads "10.0s" nor 59.6s "60s".
+	if (Number(seconds.toFixed(1)) < 10) return `${seconds.toFixed(1)}s`;
 	const whole = Math.round(seconds);
+	if (whole < 60) return `${whole}s`;
 	return `${Math.floor(whole / 60)}m ${String(whole % 60).padStart(2, '0')}s`;
 }
 
