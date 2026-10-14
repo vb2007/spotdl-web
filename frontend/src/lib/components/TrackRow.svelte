@@ -156,7 +156,8 @@
 			IN_FLIGHT_KEY.has(track.state) ? 'in-flight' : track.state,
 			track.attempts_made,
 			track.failure_count,
-			track.scheduled_at
+			// Parsed: REST and the worker's events spell the same instant in different zones.
+			track.scheduled_at ? Date.parse(track.scheduled_at) : null
 		].join('|')
 	);
 
@@ -508,9 +509,7 @@
 												aria-expanded={openRuns.has(group.key)}
 												aria-controls="run-{group.key}"
 												onclick={() => toggleIn(openRuns, group.key)}
-												>{openRuns.has(group.key)
-													? 'hide the repeats'
-													: `show all ${run} attempts`}</button
+												>{openRuns.has(group.key) ? 'hide the repeats' : `show all ${run}`}</button
 											>
 											{#if openRuns.has(group.key)}
 												<ol class="run" id="run-{group.key}" aria-label="repeated attempts">

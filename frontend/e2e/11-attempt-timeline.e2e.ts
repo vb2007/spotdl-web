@@ -102,7 +102,7 @@ test.describe('admin', () => {
 
 			// Collapsed repeats expand on demand into one row each, and collapse again.
 			const run = entries.nth(1);
-			const showRun = run.getByRole('button', { name: 'show all 3 attempts' });
+			const showRun = run.getByRole('button', { name: 'show all 3', exact: true });
 			await expect(showRun).toHaveAttribute('aria-expanded', 'false');
 			await showRun.click();
 			const repeats = run.getByRole('list', { name: 'repeated attempts' }).getByRole('listitem');
