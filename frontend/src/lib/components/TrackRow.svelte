@@ -126,7 +126,10 @@
 	let groups = $derived(groupAttempts(attempts));
 	let lastPath = $derived.by(() => {
 		const reached = attempts.filter((a) => a.network_path !== null || a.proxy_id !== null);
-		return reached.length ? attemptVia(reached[reached.length - 1]) : null;
+		if (!reached.length) return null;
+		// The strip names the family; the proxy's address is in the timeline's own entry.
+		const via = attemptVia(reached[reached.length - 1]);
+		return via.startsWith('via proxy') ? 'via proxy' : via;
 	});
 	// `last_error` is the newest failure's text, which the timeline already shows. It only
 	// gets its own line when the timeline can't: a track failed before v24 kept attempts.
@@ -416,11 +419,14 @@
 					{/if}
 				{/if}
 				{#if isAdmin && track.state !== 'skipped_duplicate'}
-					<span class="fact mono"><span class="key">attempts</span> {track.attempts_made}</span>
-					<span class="fact mono"><span class="key">failed</span> {track.failure_count}</span>
-					{#if lastPath}
-						<span class="fact mono"><span class="key">last path</span> {lastPath}</span>
-					{/if}
+					<!-- One unit: the counts and the path wrap together, never apart. -->
+					<span class="facts">
+						<span class="fact mono"><span class="key">attempts</span> {track.attempts_made}</span>
+						<span class="fact mono"><span class="key">failed</span> {track.failure_count}</span>
+						{#if lastPath}
+							<span class="fact mono"><span class="key">last path</span> {lastPath}</span>
+						{/if}
+					</span>
 				{/if}
 			</div>
 
@@ -646,6 +652,13 @@
 
 	.status {
 		font-weight: 500;
+	}
+
+	.facts {
+		display: inline-flex;
+		flex-wrap: nowrap;
+		column-gap: var(--space-4);
+		white-space: nowrap;
 	}
 
 	/* Value in primary text, its key in muted: both at full opacity (AA on every panel). */
@@ -1097,6 +1110,12 @@
 
 		.action + .action.danger {
 			margin-left: 0;
+		}
+
+		/* A phone can't fit the unit on one line; it wraps inside itself instead. */
+		.facts {
+			flex-wrap: wrap;
+			white-space: normal;
 		}
 	}
 </style>
