@@ -248,10 +248,16 @@
 		}, 4000);
 	}
 
+	// The pending re-read, cleared when the row is destroyed (a collapsed job, a scope
+	// switch, a logout) so no request goes out from a row that's gone.
+	let cancelReread: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => () => clearTimeout(cancelReread));
+
 	function awaitCancelledAttempt(seen: number, delays: number[]) {
 		const [delay, ...rest] = delays;
 		if (delay === undefined) return;
-		setTimeout(async () => {
+		clearTimeout(cancelReread);
+		cancelReread = setTimeout(async () => {
 			if (!expanded || !isAdmin) return;
 			attemptsLoadedFor = null;
 			await loadAttempts(attemptsKey);
