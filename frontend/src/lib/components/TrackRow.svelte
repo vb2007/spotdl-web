@@ -139,13 +139,22 @@
 		return () => clearInterval(id);
 	});
 
-	async function loadAttempts() {
-		if (attemptsLoadedFor === track.id) return;
+	// The cache is keyed on what an attempt row changes, not just the track id: a row
+	// opened mid-download (no attempts yet) refetches once the worker records one, and
+	// a live progress tick never refetches.
+	let attemptsKey = $derived(
+		`${track.id}|${track.state}|${track.attempts_made}|${track.failure_count}`
+	);
+
+	async function loadAttempts(key: string) {
+		if (attemptsLoadedFor === key) return;
 		attemptsLoading = true;
 		attemptsError = null;
 		try {
-			attempts = await api.getTrackAttempts(track.id);
-			attemptsLoadedFor = track.id;
+			const loaded = await api.getTrackAttempts(track.id);
+			if (key !== attemptsKey) return;
+			attempts = loaded;
+			attemptsLoadedFor = key;
 		} catch (err) {
 			attemptsError = err instanceof api.ApiError ? err.message : 'Could not load attempt history.';
 		} finally {
@@ -153,9 +162,14 @@
 		}
 	}
 
+	// Lazy: only an open row of an admin ever requests its history (no per-row loop).
+	$effect(() => {
+		const key = attemptsKey;
+		if (expanded && isAdmin) untrack(() => loadAttempts(key));
+	});
+
 	function toggleExpanded() {
 		expanded = !expanded;
-		if (expanded && isAdmin) loadAttempts();
 	}
 
 	// Collapsed runs the operator opened, and long messages they unclamped -- keyed by the
@@ -264,10 +278,14 @@
 		aria-controls={detailId}
 	>
 		<span class="cell state {STATE_COND[track.state]} mono"
-			>{STATE_LABEL[track.state]}{#if track.state === 'downloading' && track.progress !== undefined}
-				<span class="pct">{track.progress}%</span>{/if}</span
+			>{STATE_LABEL[
+				track.state
+			]}{#if track.state === 'downloading' && track.progress !== undefined}{' '}<span class="pct"
+					>{track.progress}%</span
+				>{/if}</span
 		>
-		<span class="cell title" title={track.title ?? undefined}>{track.title ?? 'Unknown title'}</span>
+		<span class="cell title" title={track.title ?? undefined}>{track.title ?? 'Unknown title'}</span
+		>
 		<span class="meta">
 			<span class="cell artist" title={track.artists?.join(', ')}
 				>{track.artists?.join(', ') ?? '—'}</span
@@ -292,7 +310,7 @@
 					>
 						<span class="progress-fill" style:width="{track.progress}%"></span>
 					</span>
-					<span class="fact mono cond-live">{track.progress}%</span>
+					<span class="fact mono">{track.progress}%</span>
 				{/if}
 				{#if nextTry}
 					<span class="fact"><Countdown scheduledAt={nextTry.at} label="next try in" /></span>
@@ -329,7 +347,7 @@
 
 			{#if isAdmin}
 				<div class="history">
-					{#if attemptsLoading}
+					{#if attemptsLoading && attemptsLoadedFor === null}
 						<p class="history-status">loading attempt history…</p>
 					{:else if attemptsError}
 						<p class="history-status history-error">{attemptsError}</p>
@@ -480,10 +498,6 @@
 		padding-left: var(--cell-inset);
 		font-size: 0.75rem;
 		letter-spacing: 0.04em;
-	}
-
-	.pct {
-		margin-left: var(--space-1);
 	}
 
 	.cell.artist,
