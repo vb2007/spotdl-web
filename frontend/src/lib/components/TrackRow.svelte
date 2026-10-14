@@ -391,7 +391,12 @@
 				{/if}
 				{#if nextTry}
 					<span class="fact"
-						><Countdown scheduledAt={nextTry.at} label="next try in" dueLive={false} /></span
+						><Countdown
+							scheduledAt={nextTry.at}
+							label="next try in"
+							dueLive={false}
+							dueText={workerPaused ? 'due' : 'due on the next pass'}
+						/></span
 					>
 					{#if nextTry.heldByBreaker}
 						<span class="fact quiet">after the global pause clears</span>
