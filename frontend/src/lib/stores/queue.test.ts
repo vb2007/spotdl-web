@@ -558,3 +558,83 @@ describe('v35 (g) tracks-scope state counts', () => {
 		expect(get(queue.page).countsByState).toEqual({ completed: 2 });
 	});
 });
+
+describe('v40.2 live view stays in sync with a settling job', () => {
+	function settled(id: string): Job {
+		return {
+			...job(id, 'expanded', 'settled'),
+			status: { lifecycle: 'settled', outcome: 'partial' }
+		};
+	}
+
+	async function loadJobsPage(items: Job[], counts: Record<string, number>) {
+		listJobsPage.mockImplementation((params = {}) =>
+			Promise.resolve(
+				params.status?.includes('expanding')
+					? jobsPage([])
+					: { ...jobsPage(items), counts_by_status: counts }
+			)
+		);
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		await queue.reload();
+	}
+
+	it('a lookup_failed track leaves the Waterfall at once, not after the grace window', async () => {
+		routeLists({});
+		getJob.mockResolvedValue(job('job-1', 'expanded', 'active'));
+		await queue.applyEvent(trackEvent('t1', 'downloading', 25));
+		await queue.applyEvent(trackEvent('t1', 'lookup_failed'));
+		expect(get(queue.activeTracks)).toHaveLength(0);
+	});
+
+	it('a hand retry of a lookup_failed track brings its lane back', async () => {
+		routeLists({});
+		getJob.mockResolvedValue(job('job-1', 'expanded', 'active'));
+		await queue.applyEvent(trackEvent('t1', 'downloading', 25));
+		await queue.applyEvent(trackEvent('t1', 'lookup_failed'));
+		await queue.applyEvent(trackEvent('t1', 'queued'));
+		await queue.applyEvent(trackEvent('t1', 'downloading', 5));
+		expect(get(queue.activeTracks)).toMatchObject([{ id: 't1', progress: 5 }]);
+	});
+
+	it('a waiting track still keeps its lane for the grace window', async () => {
+		routeLists({});
+		getJob.mockResolvedValue(job('job-1', 'expanded', 'active'));
+		await queue.applyEvent(trackEvent('t1', 'downloading', 25));
+		await queue.applyEvent(trackEvent('t1', 'waiting'));
+		expect(get(queue.activeTracks).map((t) => t.id)).toEqual(['t1']);
+		vi.advanceTimersByTime(60_000);
+		expect(get(queue.activeTracks)).toHaveLength(0);
+	});
+
+	it("a job settling through its track's event moves its state chip count, once", async () => {
+		await loadJobsPage([job('job-1', 'expanded', 'active')], { active: 1 });
+		getJob.mockResolvedValue(settled('job-1'));
+
+		await queue.applyEvent(trackEvent('t1', 'lookup_failed'));
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(get(queue.page).countsByStatus).toEqual({ active: 0, 'settled:partial': 1 });
+
+		// The job's own event re-fetches the same, already-applied status: nothing moves twice.
+		await queue.applyEvent({
+			type: 'job.state',
+			job_id: 'job-1',
+			state: 'expanded',
+			ts: '2026-10-01T18:00:05+00:00'
+		});
+		expect(get(queue.page).countsByStatus).toEqual({ active: 0, 'settled:partial': 1 });
+	});
+
+	it('a job that 404s on refresh leaves its state chip count and the total', async () => {
+		await loadJobsPage([job('job-1', 'expanded', 'active'), job('job-2', 'expanded', 'active')], {
+			active: 2
+		});
+		getJob.mockRejectedValue(new Error('404'));
+
+		await queue.applyEvent(trackEvent('t1', 'completed'));
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(get(queue.page).items.map((i) => i.id)).toEqual(['job-2']);
+		expect(get(queue.page).countsByStatus).toEqual({ active: 1 });
+		expect(get(queue.page).totalEstimate).toBe(1);
+	});
+});
