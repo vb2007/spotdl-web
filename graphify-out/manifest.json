@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1791997109.9752614,
-    "ast_hash": "aa56946ee36d2f44fce513513539f272",
+    "mtime": 1791998110.4234993,
+    "ast_hash": "5b7c058f05d2dfd07bd1debd90215bb9",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -740,8 +740,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobRow.svelte": {
-    "mtime": 1791997109.9751163,
-    "ast_hash": "ea42651b5b21276edb50938a13da7b59",
+    "mtime": 1791998110.42337,
+    "ast_hash": "1a42fb80bc7b493d5c1ed63a34669bed",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobTrackList.svelte": {
