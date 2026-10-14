@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-10-14)
 
 ## Corpus Check
-- 254 files · ~287,050 words
+- 254 files · ~287,117 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2586 nodes · 4245 edges · 229 communities (169 shown, 60 thin omitted)
+- 2586 nodes · 4245 edges · 229 communities (168 shown, 61 thin omitted)
 - Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 441 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `2ced70fe`
+- Built from commit: `7a7200fe`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -250,7 +250,7 @@
 - **CI PR-checks pipeline (pytest, publish-report, compose-config, frontend)** — github_workflows_ci_pytest_job, github_workflows_ci_publish_report_job, github_workflows_ci_compose_config_job, github_workflows_ci_frontend_job [EXTRACTED 1.00]
 - **Docker Compose layered configuration (base/override/prod)** — docker_compose_doc, docker_compose_override_doc, docker_compose_prod_doc [EXTRACTED 1.00]
 
-## Communities (229 total, 60 thin omitted)
+## Communities (229 total, 61 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
 Cohesion: 0.05
@@ -353,8 +353,8 @@ Cohesion: 0.19
 Nodes (18): archiveJobs(), bumpJob(), cancelJob(), cancelTrack(), retryTrack(), setJobPriority(), unarchiveJobs(), $lib/stores/progressCache (+10 more)
 
 ### Community 31 - "Version Roadmap Plans"
-Cohesion: 0.09
-Nodes (35): beat_heartbeat_age(), breaker_released(), category_enabled(), _claim_cooldown(), _config_values(), _delete_if_equals(), deliver(), _drop_pending() (+27 more)
+Cohesion: 0.08
+Nodes (41): AlertSendError, AlertsNotConfigured, beat_heartbeat_age(), breaker_released(), category_enabled(), _claim_cooldown(), _config_values(), _delete_if_equals() (+33 more)
 
 ### Community 32 - "Stream Router Tests"
 Cohesion: 0.18
@@ -373,8 +373,8 @@ Cohesion: 0.10
 Nodes (19): Architecture invariants, Locked decisions (`plan/master-v1/00-master-plan.md`), Remediation list, v00 — Planning, v01 — Scaffold, v02 — DB Schema, v03 — Auth, v04 — URL Expansion (+11 more)
 
 ### Community 36 - "Output Dir Drop Migration"
-Cohesion: 0.20
-Nodes (10): AlertSendError, AlertsNotConfigured, format_body(), Carries only a redacted, token-free description of what went wrong., The message exactly as it reaches the room: labelled (dev and production share, One PUT to the room. Raises AlertsNotConfigured or AlertSendError; never retries, send_now(), Credentialed-URL redaction for free-form text (v31, moved here from proxies.py i (+2 more)
+Cohesion: 0.33
+Nodes (5): format_body(), The message exactly as it reaches the room: labelled (dev and production share, Credentialed-URL redaction for free-form text (v31, moved here from proxies.py i, Redacts every credentialed-URL-shaped substring found anywhere in `text`, not, redact_text()
 
 ### Community 37 - "Initial Schema Migration"
 Cohesion: 0.17
@@ -395,10 +395,6 @@ Nodes (17): count_queries(), Counts SQL statements executed inside a `with` bloc
 ### Community 44 - "Proxy Selection & Coexistence"
 Cohesion: 0.14
 Nodes (10): svelte, workerStatus, $lib/components/Countdown.svelte, $lib/components/WorkerStatus.svelte, $lib/components/WorkerStatusPill.svelte, paused, $lib/stores/worker, worker (+2 more)
-
-### Community 45 - "spawn_watchdog"
-Cohesion: 0.67
-Nodes (3): Starts app/services/alert_watchdog.py as a child of the calling process (worker-, spawn_watchdog(), Popen
 
 ### Community 46 - "Postgres Backup Script"
 Cohesion: 0.11
@@ -831,7 +827,7 @@ Nodes (15): check_not_production_database(), get_settings(), get_settings() runs
 ## Knowledge Gaps
 - **691 isolated node(s):** `wait_for_stack_health.sh script`, `spotdl-web-backend`, `Window`, `ADMIN_GETS`, `ENV_FILE` (+686 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **60 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **61 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
