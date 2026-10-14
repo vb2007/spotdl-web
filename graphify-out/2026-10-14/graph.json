@@ -314,7 +314,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_alembic_env",
-      "community": 242,
+      "community": 41,
       "norm_label": "env.py"
     },
     {
@@ -324,7 +324,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_alembic_env_run_migrations_offline",
-      "community": 242,
+      "community": 41,
       "norm_label": "run_migrations_offline()"
     },
     {
@@ -334,7 +334,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_alembic_env_run_migrations_online",
-      "community": 242,
+      "community": 41,
       "norm_label": "run_migrations_online()"
     },
     {
@@ -914,7 +914,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_db",
-      "community": 162,
+      "community": 69,
       "norm_label": "db.py"
     },
     {
@@ -944,7 +944,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_db_begin_snapshot",
-      "community": 65,
+      "community": 69,
       "norm_label": "begin_snapshot()"
     },
     {
@@ -954,7 +954,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_db_py_session",
-      "community": 65,
+      "community": 69,
       "norm_label": "session"
     },
     {
@@ -964,7 +964,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_db_get_db",
-      "community": 65,
+      "community": 69,
       "norm_label": "get_db()"
     },
     {
@@ -974,7 +974,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_db_rationale_23",
-      "community": 65,
+      "community": 69,
       "norm_label": "ends `db`'s current transaction and starts a repeatable read one, so every state"
     },
     {
@@ -1094,7 +1094,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_app_settings",
-      "community": 162,
+      "community": 69,
       "norm_label": "app_settings.py"
     },
     {
@@ -1124,7 +1124,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 162,
+      "community": 69,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -1424,7 +1424,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_user",
-      "community": 162,
+      "community": 69,
       "norm_label": "user.py"
     },
     {
@@ -1484,7 +1484,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_worker_state",
-      "community": 162,
+      "community": 69,
       "norm_label": "worker_state.py"
     },
     {
@@ -3224,7 +3224,7 @@
       "source_location": "L424",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog",
-      "community": 41,
+      "community": 31,
       "norm_label": "watchdog"
     },
     {
@@ -3234,7 +3234,7 @@
       "source_location": "L439",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_init",
-      "community": 41,
+      "community": 31,
       "norm_label": ".__init__()"
     },
     {
@@ -3254,7 +3254,7 @@
       "source_location": "L505",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_run",
-      "community": 41,
+      "community": 31,
       "norm_label": ".run()"
     },
     {
@@ -3394,7 +3394,7 @@
       "source_location": "L425",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_425",
-      "community": 41,
+      "community": 31,
       "norm_label": "runs as its own small process (alert_watchdog.py, started and supervised by"
     },
     {
@@ -16746,7 +16746,7 @@
       "label": "groupAttempts()",
       "file_type": "code",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L22",
+      "source_location": "L24",
       "_origin": "ast",
       "id": "frontend_src_lib_attempts_groupattempts",
       "community": 1,
@@ -16756,7 +16756,7 @@
       "label": "attemptVia()",
       "file_type": "code",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L35",
+      "source_location": "L39",
       "_origin": "ast",
       "id": "frontend_src_lib_attempts_attemptvia",
       "community": 1,
@@ -16766,7 +16766,7 @@
       "label": "summarizeVia()",
       "file_type": "code",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L46",
+      "source_location": "L50",
       "_origin": "ast",
       "id": "frontend_src_lib_attempts_summarizevia",
       "community": 1,
@@ -16776,7 +16776,7 @@
       "label": "relativeTime()",
       "file_type": "code",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L56",
+      "source_location": "L60",
       "_origin": "ast",
       "id": "frontend_src_lib_attempts_relativetime",
       "community": 1,
@@ -16786,7 +16786,7 @@
       "label": "formatDuration()",
       "file_type": "code",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L67",
+      "source_location": "L71",
       "_origin": "ast",
       "id": "frontend_src_lib_attempts_formatduration",
       "community": 1,
@@ -16796,7 +16796,7 @@
       "label": "formatCountdown()",
       "file_type": "code",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L75",
+      "source_location": "L79",
       "_origin": "ast",
       "id": "frontend_src_lib_attempts_formatcountdown",
       "community": 1,
@@ -16914,7 +16914,7 @@
       "label": "group()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L385",
+      "source_location": "L392",
       "_origin": "ast",
       "id": "frontend_src_lib_components_trackrow_group",
       "community": 13,
@@ -61965,7 +61965,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L26",
+      "source_location": "L28",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts_groupattempts",
       "target": "frontend_src_lib_attempts_test_attempt"
@@ -61976,7 +61976,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L49",
+      "source_location": "L53",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts_summarizevia",
       "target": "frontend_src_lib_attempts_test_attempt"
@@ -61995,7 +61995,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L35",
+      "source_location": "L39",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts",
       "target": "frontend_src_lib_attempts_attemptvia",
@@ -62005,7 +62005,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L75",
+      "source_location": "L79",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts",
       "target": "frontend_src_lib_attempts_formatcountdown",
@@ -62015,7 +62015,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L67",
+      "source_location": "L71",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts",
       "target": "frontend_src_lib_attempts_formatduration",
@@ -62025,7 +62025,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L22",
+      "source_location": "L24",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts",
       "target": "frontend_src_lib_attempts_groupattempts",
@@ -62035,7 +62035,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L56",
+      "source_location": "L60",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts",
       "target": "frontend_src_lib_attempts_relativetime",
@@ -62055,7 +62055,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L46",
+      "source_location": "L50",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts",
       "target": "frontend_src_lib_attempts_summarizevia",
@@ -62082,7 +62082,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L26",
+      "source_location": "L28",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts_groupattempts",
       "target": "frontend_src_lib_attempts_samereading",
@@ -62093,7 +62093,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L49",
+      "source_location": "L53",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts_summarizevia",
       "target": "frontend_src_lib_attempts_attemptvia",
@@ -62556,7 +62556,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L385",
+      "source_location": "L392",
       "weight": 1.0,
       "source": "frontend_src_lib_components_trackrow",
       "target": "frontend_src_lib_components_trackrow_group",
@@ -70482,5 +70482,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "ff84e1ea97b817d2cbfff58964de61a2580c0478"
+  "built_at_commit": "b7657fa57a366720b58ac24028d0c6d5ae86edcf"
 }
