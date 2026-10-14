@@ -280,8 +280,8 @@
 		<span class="cell state {STATE_COND[track.state]} mono"
 			>{STATE_LABEL[
 				track.state
-			]}{#if track.state === 'downloading' && track.progress !== undefined}{' '}<span class="pct"
-					>{track.progress}%</span
+			]}{#if track.state === 'downloading' && track.progress !== undefined}<span class="pct"
+					>&nbsp;{track.progress}%</span
 				>{/if}</span
 		>
 		<span class="cell title" title={track.title ?? undefined}>{track.title ?? 'Unknown title'}</span
