@@ -360,8 +360,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1791988785.7894394,
-    "ast_hash": "f0a4b5dae43bbc516ac0d364949387b7",
+    "mtime": 1792005009.3420415,
+    "ast_hash": "35959198d2b41f37374912e2845117db",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -745,8 +745,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobTrackList.svelte": {
-    "mtime": 1792002905.2490902,
-    "ast_hash": "82b5d7d54b59a20c15a507b49f99a935",
+    "mtime": 1792004996.5001953,
+    "ast_hash": "24a6341e38fabfd1bbc6e35367dc2615",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/QueueControls.svelte": {

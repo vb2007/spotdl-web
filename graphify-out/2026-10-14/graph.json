@@ -16796,7 +16796,7 @@
       "label": "formatCountdown()",
       "file_type": "code",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L79",
+      "source_location": "L80",
       "_origin": "ast",
       "id": "frontend_src_lib_attempts_formatcountdown",
       "community": 1,
@@ -16914,7 +16914,7 @@
       "label": "group()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L443",
+      "source_location": "L448",
       "_origin": "ast",
       "id": "frontend_src_lib_components_trackrow_group",
       "community": 13,
@@ -62005,7 +62005,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/attempts.ts",
-      "source_location": "L79",
+      "source_location": "L80",
       "weight": 1.0,
       "source": "frontend_src_lib_attempts",
       "target": "frontend_src_lib_attempts_formatcountdown",
@@ -62556,7 +62556,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L443",
+      "source_location": "L448",
       "weight": 1.0,
       "source": "frontend_src_lib_components_trackrow",
       "target": "frontend_src_lib_components_trackrow_group",
@@ -70482,5 +70482,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "17b7628019d95b1809c357cd8b76f13a3c6551fb"
+  "built_at_commit": "f47e6fca86b9913229f84bcb7d0fde84b28d18ef"
 }
