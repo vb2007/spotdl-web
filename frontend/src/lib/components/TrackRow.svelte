@@ -695,6 +695,7 @@
 
 	.when {
 		position: relative;
+		min-height: 1.5rem;
 		background: none;
 		border: none;
 		padding: 0;
@@ -781,7 +782,9 @@
 		overflow: hidden;
 	}
 
+	/* Text-sized, but a 24px-tall hit area (WCAG 2.5.8) on every inline control. */
 	.inline-toggle {
+		min-height: 1.5rem;
 		background: none;
 		border: none;
 		padding: 0;
