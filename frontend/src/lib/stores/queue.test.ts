@@ -8,7 +8,8 @@ vi.mock('$lib/api', async (importOriginal) => {
 		...actual,
 		listJobsPage: vi.fn(),
 		listTracksPage: vi.fn(),
-		getJob: vi.fn()
+		getJob: vi.fn(),
+		cancelJob: vi.fn()
 	};
 });
 
@@ -18,6 +19,7 @@ const { queue } = await import('$lib/stores/queue');
 const listJobsPage = vi.mocked(api.listJobsPage);
 const listTracksPage = vi.mocked(api.listTracksPage);
 const getJob = vi.mocked(api.getJob);
+const cancelJob = vi.mocked(api.cancelJob);
 
 function deferred<T>() {
 	let resolve!: (value: T) => void;
@@ -634,6 +636,42 @@ describe('v40.2 live view stays in sync with a settling job', () => {
 		await queue.applyEvent(trackEvent('t1', 'completed'));
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(get(queue.page).items.map((i) => i.id)).toEqual(['job-2']);
+		expect(get(queue.page).countsByStatus).toEqual({ active: 1 });
+		expect(get(queue.page).totalEstimate).toBe(1);
+	});
+
+	it('a job.state event on its own moves the count', async () => {
+		await loadJobsPage([job('job-1', 'expanded', 'active')], { active: 1 });
+		getJob.mockResolvedValue(settled('job-1'));
+		await queue.applyEvent({
+			type: 'job.state',
+			job_id: 'job-1',
+			state: 'expanded',
+			ts: '2026-10-01T18:00:05+00:00'
+		});
+		expect(get(queue.page).countsByStatus).toEqual({ active: 0, 'settled:partial': 1 });
+	});
+
+	it("a cancel moves the row's count from active to cancelled", async () => {
+		await loadJobsPage([job('job-1', 'expanded', 'active')], { active: 1 });
+		cancelJob.mockResolvedValue(job('job-1', 'cancelled', 'cancelled'));
+		await queue.cancelJob('job-1');
+		expect(get(queue.page).countsByStatus).toEqual({ active: 0, cancelled: 1 });
+	});
+
+	it('a 404 reached by both the job event and the refresh is counted once', async () => {
+		await loadJobsPage([job('job-1', 'expanded', 'active'), job('job-2', 'expanded', 'active')], {
+			active: 2
+		});
+		getJob.mockRejectedValue(new Error('404'));
+		await queue.applyEvent(trackEvent('t1', 'completed'));
+		await queue.applyEvent({
+			type: 'job.state',
+			job_id: 'job-1',
+			state: 'expanded',
+			ts: '2026-10-01T18:00:05+00:00'
+		});
+		await vi.advanceTimersByTimeAsync(1000);
 		expect(get(queue.page).countsByStatus).toEqual({ active: 1 });
 		expect(get(queue.page).totalEstimate).toBe(1);
 	});
