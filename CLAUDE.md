@@ -272,11 +272,16 @@ any ──> cancelled
 
 - **Per-track ladder** (`AudioProviderError`): `15m → 1h → 4h → 12h → 24h`, then 24h forever.
   Never gives up. `LADDER_SECONDS` overrides it for testing.
-- **Global circuit breaker**: 5 consecutive `AudioProviderError`s (any track) trips a pause —
-  `30m → 2h → 6h` escalating; resets to zero on the first success. While tripped,
-  `dispatch_due_tracks` dispatches nothing. Only real `AudioProviderError`s feed it.
+- **Global circuit breaker**: 5 consecutive breaker-feeding failures (`audio_provider` or
+  `no_output`, any track) trip a pause — `30m → 2h → 6h` escalating. Every trip and every manual
+  release starts a fresh streak; escalation resets only on the first success (v40.1: a streak that
+  outlived its trip let one unfetchable track re-trip it forever). While tripped,
+  `dispatch_due_tracks` dispatches nothing. Terminal verdicts and proxy transport failures never
+  feed it.
 - **Proxy escalation**: attempt 1 is always direct. On failure, wait out the ladder delay *first*;
-  only the following attempt uses a proxy. A failing proxy gets its own `cooldown_until`.
+  only the following attempt uses a proxy. A failing proxy gets its own `cooldown_until`. A proxy
+  is TCP-probed before use, and a proxied attempt that dies at its proxy doesn't consume the
+  track's rung (v40.1).
 - **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`): randomized inter-track delay, applied in
   `download_track` after the cancel/breaker/dedup gates and before the actual attempt. `MAX_SEC=0`
   (default) means off; `MIN` must not exceed `MAX` (rejected at startup). The first dial to turn if

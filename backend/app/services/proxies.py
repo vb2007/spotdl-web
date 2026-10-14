@@ -151,8 +151,9 @@ def force_proxy(proxy_url: str | None, downloader: "Downloader") -> Iterator[Non
 
 
 def _probe_reachable(url: str, timeout: float = 2.0) -> bool:
-    """Best-effort TCP connect so an obviously dead new entry doesn't get picked first —
-    never raises, and an unparseable host/port is treated as reachable (don't block it)."""
+    """Best-effort TCP connect so an obviously dead entry isn't picked: at sync time for a
+    new entry, and by pick_proxy before every use (v40.1) — never raises, and an
+    unparseable host/port is treated as reachable (don't block it)."""
     parsed = urlsplit(url)
     if not parsed.hostname or not parsed.port:
         return True
@@ -222,8 +223,9 @@ def sync_from_file() -> None:
 
 
 def pick_proxy(db: Session) -> Proxy | None:
-    """Least-recently-used selection among enabled, out-of-cooldown proxies — simple LRU,
-    no scoring needed for a personal tool's handful of proxies. Comparisons happen in
+    """Least-recently-used selection among enabled, out-of-cooldown proxies that accept a
+    TCP connection (v40.1) — simple LRU, no scoring needed for a personal tool's handful
+    of proxies. Comparisons happen in
     Python rather than a SQL filter, matching retry.py's naive/aware-datetime convention
     for SQLite test compatibility (a no-op against real Postgres/psycopg)."""
     now = datetime.now(timezone.utc)
@@ -247,9 +249,20 @@ def pick_proxy(db: Session) -> Proxy | None:
         return (last_used_at is not None, last_used_at or datetime.min.replace(tzinfo=timezone.utc))
 
     candidates.sort(key=_sort_key)
-    chosen = candidates[0]
-    chosen.last_used_at = now
-    return chosen
+    # v40.1: probe before use. A proxy that doesn't even accept a TCP connection would
+    # spend a real attempt on nothing (production's whole pool was dead, which kept every
+    # proxy-rung track from ever reaching a verdict), so it's cooled down like any failed
+    # proxy and the next one is tried. None left means the caller's direct fallback.
+    for candidate in candidates:
+        candidate.last_used_at = now
+        if _probe_reachable(candidate.url):
+            return candidate
+        logger.warning(
+            "pick_proxy: %s didn't accept a TCP connection; cooling it down and trying the next",
+            redact(candidate.url),
+        )
+        record_proxy_result(db, candidate.id, success=False)
+    return None
 
 
 def record_proxy_result(db: Session, proxy_id: uuid.UUID, success: bool) -> None:

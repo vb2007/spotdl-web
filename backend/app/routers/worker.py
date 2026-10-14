@@ -72,10 +72,12 @@ def release_breaker(
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ) -> dict:
-    """Clears the countdown early without resetting `consecutive_failures` or
-    `breaker_trip_count` — a manual release is not an earned recovery, so the next
-    failure re-trips at the *next* escalation step, not back at 30m."""
+    """Clears the countdown early and starts a fresh failure streak, exactly like a trip
+    does (v40.1), but keeps `breaker_trip_count`: a manual release is not an earned
+    recovery, so if a new streak re-trips it, that trip is the *next* escalation step,
+    not back at 30m."""
     worker_state = retry.get_worker_state(db)
     worker_state.breaker_tripped_until = None
+    worker_state.consecutive_failures = 0
     db.commit()
     return _status_dict(worker_state, _is_busy(db))

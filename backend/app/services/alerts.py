@@ -334,8 +334,10 @@ def failure_spike(db: Session, threshold: int, window_minutes: int, now: datetim
     touched the network, so they neither break nor extend a run. `lookup` failures are
     left out the same way: "Not found" is terminal and about the track itself (a playlist
     of unavailable tracks fails them back to back), never a sign YouTube changed. A
-    reclaimed-stuck row (failed, no error_type) does break a run."""
+    reclaimed-stuck row (failed, no error_type) does break a run. Proxy transport failures
+    (v40.1) are left out too."""
     from app.models import TrackAttempt, TrackAttemptOutcome, TrackErrorType
+    from app.services.attempts import TRANSPORT_FAILURE_PREFIX
 
     if threshold < 1:
         return None
@@ -350,6 +352,10 @@ def failure_spike(db: Session, threshold: int, window_minutes: int, now: datetim
             TrackAttempt.outcome.in_([TrackAttemptOutcome.COMPLETED, TrackAttemptOutcome.FAILED]),
             TrackAttempt.finished_at >= now - timedelta(minutes=window_minutes),
             (TrackAttempt.error_type.is_(None)) | (TrackAttempt.error_type != TrackErrorType.LOOKUP),
+            # v40.1: a proxy that failed to carry the request says nothing about YouTube
+            # either; a dead pool is the proxies page's news, not a "YouTube changed" spike.
+            (TrackAttempt.error_message.is_(None))
+            | ~TrackAttempt.error_message.startswith(TRANSPORT_FAILURE_PREFIX),
         )
         .order_by(TrackAttempt.finished_at.desc())
         .limit(threshold)

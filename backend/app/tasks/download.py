@@ -9,7 +9,15 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import DownloadedTrack, Job, NetworkPath, Track, TrackAttemptOutcome, TrackState
+from app.models import (
+    DownloadedTrack,
+    Job,
+    NetworkPath,
+    Track,
+    TrackAttemptOutcome,
+    TrackErrorType,
+    TrackState,
+)
 from app.services import app_settings, attempts, dedup, downloads, events, proxies, retry, tagging
 from app.services import network_path as network_path_svc
 from app.services.serializers import track_song_meta
@@ -266,10 +274,36 @@ def download_track(track_id: str) -> None:
             # was used. Falling back to DIRECT_IPV4 (not leaving it unforced) matches
             # attempt 1's own "forced explicitly, not left to whatever the OS picks"
             # determinism above, and keeps every stored network_path value truthful.
+            # v40.1: pick_proxy now TCP-probes candidates (up to 2s per dead one), so
+            # commit first rather than holding this transaction open across the probes,
+            # and commit the cooldowns it records right after.
+            db.commit()
             proxy = proxies.pick_proxy(db)
             chosen_path = NetworkPath.PROXY if proxy is not None else NetworkPath.DIRECT_IPV4
-        proxy_id = proxy.id if proxy is not None else None
-        proxy_url = proxy.url if proxy is not None else None
+            # Read before the commit expires the row: reloading it afterwards would raise
+            # outside the try below if an admin deleted the proxy in between.
+            proxy_id = proxy.id if proxy is not None else None
+            proxy_url = proxy.url if proxy is not None else None
+            db.commit()
+            # A cancel committed during the probes would otherwise be overwritten by the
+            # DOWNLOADING write below (the commit above reloaded track.state).
+            if track.state == TrackState.CANCELLED:
+                logger.info(
+                    "download_track: track %s was cancelled while picking a proxy, skipping",
+                    track_id,
+                )
+                attempts.record_attempt(
+                    db,
+                    track.id,
+                    attempt_started_at,
+                    datetime.now(timezone.utc),
+                    TrackAttemptOutcome.CANCELLED,
+                )
+                db.commit()
+                return
+        if proxy is None:
+            proxy_id = None
+            proxy_url = None
 
         track.state = TrackState.DOWNLOADING
         if proxy_id is not None:
@@ -495,10 +529,30 @@ def download_track(track_id: str) -> None:
                 )
                 db.commit()
                 return
-            error_type = retry.classify_error(exc)
-            retry.record_failure(db, track, error_type, error_message)
-            if proxy_id is not None:
+            if proxy_id is not None and retry.is_proxy_transport_error(exc, via_proxy=True):
+                # v40.1: the attempt died at its proxy and never reached YouTube -- the
+                # proxy's own cooldown handles it; the track keeps its rung and the
+                # breaker hears nothing (see retry.ProxyTransportError).
+                error_type = TrackErrorType.OTHER
+                error_message = attempts.TRANSPORT_FAILURE_PREFIX + error_message
+                if attempts.previous_was_transport_failure(db, track.id):
+                    # One rung-free retry only (see record_transport_failure's docstring):
+                    # the second in a row climbs the ladder. Still OTHER, so still no
+                    # breaker.
+                    retry.record_failure(db, track, error_type, error_message)
+                else:
+                    retry.record_transport_failure(db, track, error_message)
                 proxies.record_proxy_result(db, proxy_id, success=False)
+            else:
+                error_type = retry.classify_error(exc)
+                retry.record_failure(db, track, error_type, error_message)
+                if proxy_id is not None:
+                    # A terminal verdict (no match, age gate, unavailable video) means
+                    # this proxy carried the request to YouTube and back: it worked, so
+                    # it's not the proxy's failure to be cooled down for.
+                    proxies.record_proxy_result(
+                        db, proxy_id, success=error_type == TrackErrorType.LOOKUP
+                    )
             attempts.record_attempt(
                 db,
                 track.id,

@@ -65,3 +65,30 @@ def test_admin_pause_and_resume_worker(admin_client, db_session):
     assert resumed.status_code == 200
     assert resumed.json()["paused"] is False
     assert admin_client.get("/api/worker/status").json()["paused"] is False
+
+
+def test_admin_breaker_release_starts_a_fresh_streak_but_keeps_escalation(admin_client, db_session):
+    """v40.1: a release used to keep the streak, so the first failure after it re-tripped
+    straight away. It now resets the streak like a trip does, and keeps trip_count so a
+    new full streak still escalates."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.services import retry
+
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = 10
+    worker_state.breaker_trip_count = 6
+    worker_state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(hours=6)
+    db_session.commit()
+
+    response = admin_client.post("/api/worker/breaker/release")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["consecutive_failures"] == 0
+    assert body["breaker_trip_count"] == 6
+
+    db_session.expire_all()
+    worker_state = retry.get_worker_state(db_session)
+    assert worker_state.consecutive_failures == 0
+    assert worker_state.breaker_trip_count == 6
+    assert worker_state.breaker_tripped_until is None

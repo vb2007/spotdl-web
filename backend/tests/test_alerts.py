@@ -512,6 +512,25 @@ def test_lookup_failures_never_make_a_spike(db_session, make_user):
     assert alerts.failure_spike(db_session, 2, 60, now)[0] == "no_output"
 
 
+def test_proxy_transport_failures_never_make_a_spike(db_session, make_user):
+    """v40.1: a dead proxy pool fails attempts back to back as `other`, which says nothing
+    about YouTube -- not a "retune YOUTUBE_PLAYER_CLIENTS" alert."""
+    from app.services.attempts import TRANSPORT_FAILURE_PREFIX
+
+    track = _track(db_session, make_user)
+    _attempt(db_session, track, 9, TrackAttemptOutcome.FAILED, TrackErrorType.OTHER, "real other")
+    for i in range(5):
+        _attempt(
+            db_session, track, 8 - i, TrackAttemptOutcome.FAILED, TrackErrorType.OTHER,
+            TRANSPORT_FAILURE_PREFIX + "the proxy was unreachable (ProxyError: ...)",
+        )
+    _attempt(db_session, track, 1, TrackAttemptOutcome.FAILED, TrackErrorType.OTHER, "real other")
+    now = datetime.now(timezone.utc)
+    assert alerts.failure_spike(db_session, 3, 60, now) is None
+    # Left out like lookups, so they don't break a run of real ones either.
+    assert alerts.failure_spike(db_session, 2, 60, now)[0] == "other"
+
+
 def test_breaker_released_once_the_pause_has_passed():
     now = datetime.now(timezone.utc)
     assert alerts.breaker_released(None, now)

@@ -24,6 +24,30 @@ from app.models import NetworkPath, Track, TrackAttempt, TrackAttemptOutcome, Tr
 _NETWORK_OUTCOMES = {TrackAttemptOutcome.COMPLETED, TrackAttemptOutcome.FAILED}
 
 
+# v40.1: every proxy transport failure's error message starts with this, so the next
+# attempt (download_track) and the failure-spike alert (alerts.failure_spike) can tell one
+# apart in track_attempts without a new error_type. Here rather than in retry.py because
+# alerts.py must not import spotdl (see its module docstring).
+TRANSPORT_FAILURE_PREFIX = "proxy failed to carry the request: "
+
+
+def previous_was_transport_failure(db: Session, track_id: uuid.UUID) -> bool:
+    """Whether this track's latest real attempt was itself a proxy transport failure. Holds
+    never touched the network, so they're skipped. Call before recording the current
+    attempt."""
+    previous = db.execute(
+        select(TrackAttempt.outcome, TrackAttempt.error_message)
+        .where(TrackAttempt.track_id == track_id, TrackAttempt.outcome != TrackAttemptOutcome.HELD)
+        .order_by(TrackAttempt.attempt_number.desc())
+        .limit(1)
+    ).first()
+    return (
+        previous is not None
+        and previous.outcome == TrackAttemptOutcome.FAILED
+        and (previous.error_message or "").startswith(TRANSPORT_FAILURE_PREFIX)
+    )
+
+
 class RecordedAttempt(NamedTuple):
     attempt_number: int
     attempts_made: int
