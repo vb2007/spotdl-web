@@ -1,57 +1,143 @@
 <script lang="ts">
-	import { SvelteMap } from 'svelte/reactivity';
+	import { untrack } from 'svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
+	import { worker } from '$lib/stores/worker';
 	import Countdown from '$lib/components/Countdown.svelte';
+	import {
+		attemptVia,
+		formatDuration,
+		groupAttempts,
+		relativeTime,
+		summarizeVia
+	} from '$lib/attempts';
 	import type { TrackAttempt, TrackAttemptOutcome, TrackState } from '$lib/api';
 	import type { LiveTrack } from '$lib/stores/queue';
 
-	let { track, jobId }: { track: LiveTrack; jobId: string } = $props();
+	let { track, jobId, isAdmin }: { track: LiveTrack; jobId: string; isAdmin: boolean } = $props();
 
 	let expanded = $state(false);
+	const detailId = $derived(`track-detail-${track.id}`);
+
+	const { status: workerStatus } = worker;
 
 	// Attempt history (v24) is diagnostic, not part of the live queue -- fetched lazily on
 	// first expand rather than carried in the queue store, and cached per track id so
-	// re-collapsing/re-expanding the same row doesn't refetch.
+	// re-collapsing/re-expanding the same row doesn't refetch. v41: admin-only (master plan
+	// amendment, v39 outcome 3). A non-admin never requests it and its markup never renders.
 	let attempts = $state<TrackAttempt[]>([]);
 	let attemptsLoading = $state(false);
 	let attemptsError = $state<string | null>(null);
 	let attemptsLoadedFor = $state<string | null>(null);
 
+	// v41 (F21): the same words the state-filter chips use, so a state reads the same on a
+	// chip and on a row (and none of them truncates in the state column, F13).
+	const STATE_LABEL: Record<TrackState, string> = {
+		pending: 'pending',
+		queued: 'queued',
+		downloading: 'downloading',
+		completed: 'completed',
+		waiting: 'waiting',
+		lookup_failed: 'not found',
+		skipped_duplicate: 'duplicate',
+		cancelled: 'cancelled'
+	};
+
+	const STATE_COND: Record<TrackState, string> = {
+		pending: 'cond-idle',
+		queued: 'cond-idle',
+		downloading: 'cond-live',
+		completed: 'cond-settled',
+		waiting: 'cond-waiting',
+		lookup_failed: 'cond-fail',
+		skipped_duplicate: 'cond-settled',
+		cancelled: 'cond-idle'
+	};
+
+	// The first thing the expanded view says: what this state means for the listener, in
+	// plain words, with the next step where there is one (F24, F25).
+	const STATUS_TEXT: Record<TrackState, string> = {
+		pending: 'in line, not dispatched yet',
+		queued: 'queued for the downloader',
+		downloading: 'downloading',
+		completed: 'downloaded',
+		waiting: 'waiting to retry',
+		lookup_failed: "won't retry on its own · retry now to try again",
+		skipped_duplicate: 'already downloaded earlier · nothing fetched',
+		cancelled: "cancelled · won't be downloaded"
+	};
+
 	const ATTEMPT_OUTCOME_LABEL: Record<TrackAttemptOutcome, string> = {
 		completed: 'completed',
 		failed: 'failed',
 		cancelled: 'cancelled',
-		skipped_duplicate: 'already logged',
-		held: 'held — not attempted'
+		skipped_duplicate: 'duplicate',
+		held: 'held · not attempted'
 	};
 
-	// Reuses the same signal-condition color mapping as the waterfall/spectrum log
-	// (app.css's .cond-* classes, see STATE_COND above) so an outcome's color means the
-	// same thing everywhere a track's status appears, not a second palette invented here.
-	const ATTEMPT_OUTCOME_COND: Record<TrackAttemptOutcome, string> = {
-		completed: 'cond-settled',
-		failed: 'cond-fail',
-		cancelled: 'cond-idle',
-		skipped_duplicate: 'cond-settled',
-		held: 'cond-waiting'
-	};
-
-	// v35 (b): the path the attempt actually took, from the API's network_path. A row
-	// without one either never reached the network or predates v29 recording it; only
-	// a completed/failed pre-v29 row falls back to the old proxy-or-direct label.
-	function attemptVia(attempt: TrackAttempt): string {
-		if (attempt.network_path === 'direct-ipv4') return 'direct · IPv4';
-		if (attempt.network_path === 'direct-ipv6') return 'direct · IPv6';
-		if (attempt.network_path === 'proxy') return `via proxy ${attempt.proxy_label ?? ''}`.trim();
-		if (attempt.proxy_id) return 'via proxy';
-		if (attempt.outcome === 'completed' || attempt.outcome === 'failed') return 'direct';
-		return 'no network';
+	// Same `.cond-*` vocabulary as the row (app.css), so a color means one thing everywhere.
+	// v41 (F03): only a terminal verdict is red. A failure the ladder retries is the
+	// waiting condition (DESIGN.md §2: fail is "terminal only, never backoff"), so a
+	// recoverable track's history is no longer a wall of red.
+	function outcomeCond(attempt: TrackAttempt): string {
+		if (attempt.outcome === 'failed') {
+			return attempt.error_type === 'lookup' ? 'cond-fail' : 'cond-waiting';
+		}
+		if (attempt.outcome === 'completed' || attempt.outcome === 'skipped_duplicate') {
+			return 'cond-settled';
+		}
+		return attempt.outcome === 'held' ? 'cond-waiting' : 'cond-idle';
 	}
 
-	function formatTimestamp(value: string): string {
-		return new Date(value).toLocaleString();
-	}
+	const CANCELLABLE_STATES = new Set<TrackState>(['pending', 'queued', 'downloading', 'waiting']);
+	// v41 (F24, owner's call): a lookup_failed track is already terminal, so it offers
+	// "retry now" only. The backend still accepts a cancel; the UI no longer asks for one.
+	const RETRYABLE_STATES = new Set<TrackState>(['waiting', 'lookup_failed']);
+	// The only two states download_track ever sets `output_path` from (backend/app/tasks/
+	// download.py) -- every other state never had a file, so the action simply doesn't
+	// render rather than rendering and failing (v27's plan: "nothing for tracks without a
+	// file"). A file deleted from disk after the fact still shows the button; that request
+	// 404s and surfaces through the same notice as any other action error.
+	const DOWNLOADABLE_STATES = new Set<TrackState>(['completed', 'skipped_duplicate']);
+
+	let canRetry = $derived(RETRYABLE_STATES.has(track.state));
+	let canDownload = $derived(DOWNLOADABLE_STATES.has(track.state));
+	let canCancel = $derived(CANCELLABLE_STATES.has(track.state));
+
+	// v41 (F04, the countdown half): beat dispatches nothing while the breaker holds, so a
+	// waiting track's real next try is the later of its own slot and the breaker's clear.
+	let nextTry = $derived.by((): { at: string; heldByBreaker: boolean } | null => {
+		if (track.state !== 'waiting' || !track.scheduled_at) return null;
+		const breakerUntil = $workerStatus?.breaker_tripped_until ?? null;
+		if (breakerUntil && Date.parse(breakerUntil) > Date.parse(track.scheduled_at)) {
+			return { at: breakerUntil, heldByBreaker: true };
+		}
+		return { at: track.scheduled_at, heldByBreaker: false };
+	});
+	let workerPaused = $derived($workerStatus?.paused ?? false);
+
+	let groups = $derived(groupAttempts(attempts));
+	let lastPath = $derived.by(() => {
+		const reached = attempts.filter((a) => a.network_path !== null || a.proxy_id !== null);
+		return reached.length ? attemptVia(reached[reached.length - 1]) : null;
+	});
+	// `last_error` is the newest failure's text, which the timeline already shows. It only
+	// gets its own line when the timeline can't: a track failed before v24 kept attempts.
+	let lastErrorUnshown = $derived(
+		track.last_error !== null && !attempts.some((a) => a.error_message === track.last_error)
+	);
+
+	// Relative times in the timeline tick coarsely while the row is open.
+	let now = $state(Date.now());
+	$effect(() => {
+		if (!expanded) return;
+		now = Date.now();
+		const id = setInterval(() => {
+			now = Date.now();
+		}, 30_000);
+		return () => clearInterval(id);
+	});
 
 	async function loadAttempts() {
 		if (attemptsLoadedFor === track.id) return;
@@ -69,48 +155,38 @@
 
 	function toggleExpanded() {
 		expanded = !expanded;
-		if (expanded) loadAttempts();
+		if (expanded && isAdmin) loadAttempts();
 	}
 
-	const CANCELLABLE_STATES = new Set<TrackState>([
-		'pending',
-		'queued',
-		'downloading',
-		'waiting',
-		'lookup_failed'
-	]);
-	const RETRYABLE_STATES = new Set<TrackState>(['waiting', 'lookup_failed']);
-	// The only two states download_track ever sets `output_path` from (backend/app/tasks/
-	// download.py) -- every other state never had a file, so the action simply doesn't
-	// render rather than rendering and failing (v27's plan: "nothing for tracks without a
-	// file"). A file deleted from disk after the fact still shows the button; that request
-	// 404s and surfaces through the same notice as any other action error.
-	const DOWNLOADABLE_STATES = new Set<TrackState>(['completed', 'skipped_duplicate']);
+	// Collapsed runs the operator opened, and long messages they unclamped -- keyed by the
+	// group's newest attempt id.
+	const openRuns = new SvelteSet<string>();
+	const openMessages = new SvelteSet<string>();
+	const pinnedTimes = new SvelteSet<string>();
+	const clampable = new SvelteMap<string, boolean>();
 
-	// v20: "no signal — given up" read as permanent even though a lookup_failed track is
-	// never retried automatically only, not literally abandoned -- the terminal/no-retry
-	// behavior itself is unchanged from v1, only this label was misleading.
-	const STATE_LABEL: Record<TrackState, string> = {
-		pending: 'pending',
-		queued: 'queued',
-		downloading: 'receiving',
-		completed: 'logged',
-		waiting: 'fading — waiting',
-		lookup_failed: 'no signal — not found',
-		skipped_duplicate: 'already logged',
-		cancelled: 'cancelled'
-	};
+	function toggleIn(set: SvelteSet<string>, key: string) {
+		if (set.has(key)) set.delete(key);
+		else set.add(key);
+	}
 
-	const STATE_COND: Record<TrackState, string> = {
-		pending: 'cond-idle',
-		queued: 'cond-idle',
-		downloading: 'cond-live',
-		completed: 'cond-settled',
-		waiting: 'cond-waiting',
-		lookup_failed: 'cond-fail',
-		skipped_duplicate: 'cond-settled',
-		cancelled: 'cond-idle'
-	};
+	/** Shows a message's expand control only when the 3-line clamp actually cut it. */
+	function measureClamp(key: string) {
+		return (node: HTMLElement) => {
+			const check = () => {
+				if (untrack(() => openMessages.has(key))) return;
+				clampable.set(key, node.scrollHeight > node.clientHeight + 1);
+			};
+			const observer = new ResizeObserver(check);
+			observer.observe(node);
+			untrack(check);
+			return () => observer.disconnect();
+		};
+	}
+
+	function formatTimestamp(value: string): string {
+		return new Date(value).toLocaleString();
+	}
 
 	// Per-row transient feedback (e.g. "held behind the global pause") -- SvelteMap so
 	// mutations are tracked without wholesale reassignment (see v09's reactivity gotcha).
@@ -164,68 +240,186 @@
 	}
 </script>
 
+{#snippet when(iso: string, key: string)}
+	<!-- Relative at a glance; the absolute time on hover and on keyboard focus, and pinned
+	     open by a click or Enter for reading it alongside the error. -->
+	<button
+		type="button"
+		class="when mono"
+		class:pinned={pinnedTimes.has(key)}
+		aria-pressed={pinnedTimes.has(key)}
+		onclick={() => toggleIn(pinnedTimes, key)}
+		><time datetime={iso}>{relativeTime(iso, now)}</time><span class="abs"
+			>{formatTimestamp(iso)}</span
+		></button
+	>
+{/snippet}
+
 <li>
-	<button type="button" class="row" onclick={toggleExpanded} aria-expanded={expanded}>
-		<span class="cell state {STATE_COND[track.state]} mono">{STATE_LABEL[track.state]}</span>
-		<span class="cell title">{track.title ?? 'Unknown title'}</span>
-		<span class="cell artist">{track.artists?.join(', ') ?? '—'}</span>
-		<span class="cell album">{track.album ?? '—'}</span>
-		{#if track.state === 'downloading' && track.progress !== undefined}
-			<span class="cell pct mono">{track.progress}%</span>
-		{/if}
+	<button
+		type="button"
+		class="row"
+		onclick={toggleExpanded}
+		aria-expanded={expanded}
+		aria-controls={detailId}
+	>
+		<span class="cell state {STATE_COND[track.state]} mono"
+			>{STATE_LABEL[track.state]}{#if track.state === 'downloading' && track.progress !== undefined}
+				<span class="pct">{track.progress}%</span>{/if}</span
+		>
+		<span class="cell title" title={track.title ?? undefined}>{track.title ?? 'Unknown title'}</span>
+		<span class="meta">
+			<span class="cell artist" title={track.artists?.join(', ')}
+				>{track.artists?.join(', ') ?? '—'}</span
+			>
+			<span class="cell album" title={track.album ?? undefined}>{track.album ?? '—'}</span>
+		</span>
+		<span class="chevron" aria-hidden="true"></span>
 	</button>
 
 	{#if expanded}
-		<div class="detail mono">
-			<span>attempts: {track.attempts_made} · failures: {track.failure_count}</span>
-			{#if track.state === 'waiting' && track.scheduled_at}
-				<Countdown scheduledAt={track.scheduled_at} />
-			{/if}
-			{#if track.last_error}
-				<span class="last-error">last read: {track.last_error}</span>
-			{/if}
-			<div class="actions">
-				{#if RETRYABLE_STATES.has(track.state)}
-					<button type="button" class="action" onclick={handleRetry}> retry now </button>
+		<div class="detail" id={detailId}>
+			<div class="strip">
+				<span class="status {STATE_COND[track.state]}">{STATUS_TEXT[track.state]}</span>
+				{#if track.state === 'downloading' && track.progress !== undefined}
+					<span
+						class="progress"
+						role="progressbar"
+						aria-label="Download progress"
+						aria-valuemin={0}
+						aria-valuemax={100}
+						aria-valuenow={track.progress}
+					>
+						<span class="progress-fill" style:width="{track.progress}%"></span>
+					</span>
+					<span class="fact mono cond-live">{track.progress}%</span>
 				{/if}
-				{#if DOWNLOADABLE_STATES.has(track.state)}
-					<button type="button" class="action" onclick={handleDownload}> download </button>
+				{#if nextTry}
+					<span class="fact"><Countdown scheduledAt={nextTry.at} label="next try in" /></span>
+					{#if nextTry.heldByBreaker}
+						<span class="fact quiet">after the global pause clears</span>
+					{/if}
+					{#if workerPaused}
+						<span class="fact quiet">downloads are paused</span>
+					{/if}
 				{/if}
-				{#if CANCELLABLE_STATES.has(track.state)}
-					<button type="button" class="action danger" onclick={handleCancel}> cancel track </button>
-				{/if}
-			</div>
-			{#if notice.has(track.id)}
-				<span class="notice" role="status">{notice.get(track.id)}</span>
-			{/if}
-			<div class="attempts">
-				{#if attemptsLoading}
-					<span class="attempts-status">loading attempt history…</span>
-				{:else if attemptsError}
-					<span class="attempts-status attempts-error">{attemptsError}</span>
-				{:else if attempts.length > 0}
-					<span class="attempts-heading" id="attempts-{track.id}">attempt history</span>
-					<ul class="attempts-list" aria-labelledby="attempts-{track.id}">
-						{#each attempts as attempt (attempt.id)}
-							<li class="attempt">
-								<span class="attempt-outcome {ATTEMPT_OUTCOME_COND[attempt.outcome]}"
-									>{ATTEMPT_OUTCOME_LABEL[attempt.outcome]}</span
-								>
-								<span class="attempt-via">{attemptVia(attempt)}</span>
-								<span class="attempt-time">{formatTimestamp(attempt.finished_at)}</span>
-								{#if attempt.error_message}
-									<span class="attempt-error">{attempt.error_message}</span>
-								{/if}
-								{#if attempt.warning_message}
-									<span class="attempt-warning">{attempt.warning_message}</span>
-								{/if}
-							</li>
-						{/each}
-					</ul>
-				{:else}
-					<span class="attempts-status">no attempts yet</span>
+				{#if isAdmin && track.state !== 'skipped_duplicate'}
+					<span class="fact mono"><span class="key">attempts</span> {track.attempts_made}</span>
+					<span class="fact mono"><span class="key">failed</span> {track.failure_count}</span>
+					{#if lastPath}
+						<span class="fact mono"><span class="key">last path</span> {lastPath}</span>
+					{/if}
 				{/if}
 			</div>
+
+			{#if canRetry || canDownload || canCancel}
+				<div class="actions" role="group" aria-label="Track actions">
+					{#if canRetry}
+						<button type="button" class="action" onclick={handleRetry}>retry now</button>
+					{/if}
+					{#if canDownload}
+						<button type="button" class="action" onclick={handleDownload}>download</button>
+					{/if}
+					{#if canCancel}
+						<button type="button" class="action danger" onclick={handleCancel}>cancel track</button>
+					{/if}
+				</div>
+			{/if}
+			<p class="notice" role="status">{notice.get(track.id) ?? ''}</p>
+
+			{#if isAdmin}
+				<div class="history">
+					{#if attemptsLoading}
+						<p class="history-status">loading attempt history…</p>
+					{:else if attemptsError}
+						<p class="history-status history-error">{attemptsError}</p>
+					{:else if attempts.length === 0}
+						<p class="history-status">no attempts yet</p>
+					{:else}
+						<p class="history-heading mono">attempt history · newest first</p>
+						<ol class="timeline" aria-label="attempt history">
+							{#each groups as group (group.key)}
+								{@const head = group.attempts[0]}
+								{@const run = group.attempts.length}
+								{@const message = head.error_message}
+								<li class="entry">
+									{@render when(head.finished_at, head.id)}
+									<div class="entry-body">
+										<p class="reading mono">
+											{#if run > 1}<span class="times">×{run}</span>{/if}
+											<span class="outcome {outcomeCond(head)}"
+												>{ATTEMPT_OUTCOME_LABEL[head.outcome]}</span
+											>
+											{#if head.error_type}<span class="class">{head.error_type}</span>{/if}
+											<span class="via"
+												>{run > 1 ? summarizeVia(group.attempts) : attemptVia(head)}</span
+											>
+											{#if run === 1 && head.outcome !== 'held'}
+												<span class="dur">{formatDuration(head.duration_seconds)}</span>
+											{/if}
+										</p>
+										{#if message}
+											<p
+												class="message mono"
+												class:clamped={!openMessages.has(group.key)}
+												id="msg-{group.key}"
+												{@attach measureClamp(group.key)}
+											>
+												{message}
+											</p>
+											{#if clampable.get(group.key) || openMessages.has(group.key)}
+												<button
+													type="button"
+													class="inline-toggle"
+													aria-expanded={openMessages.has(group.key)}
+													aria-controls="msg-{group.key}"
+													onclick={() => toggleIn(openMessages, group.key)}
+													>{openMessages.has(group.key) ? 'show less' : 'show full message'}</button
+												>
+											{/if}
+										{/if}
+										{#if head.warning_message}
+											<p class="note">
+												<span class="note-tag mono">note</span>
+												<span class="note-text mono">{head.warning_message}</span>
+											</p>
+										{/if}
+										{#if run > 1}
+											<button
+												type="button"
+												class="inline-toggle"
+												aria-expanded={openRuns.has(group.key)}
+												aria-controls="run-{group.key}"
+												onclick={() => toggleIn(openRuns, group.key)}
+												>{openRuns.has(group.key)
+													? 'hide the repeats'
+													: `show all ${run} attempts`}</button
+											>
+											{#if openRuns.has(group.key)}
+												<ol class="run" id="run-{group.key}" aria-label="repeated attempts">
+													{#each group.attempts as attempt (attempt.id)}
+														<li class="run-item mono">
+															{@render when(attempt.finished_at, `run-${attempt.id}`)}
+															<span class="via">{attemptVia(attempt)}</span>
+															{#if attempt.outcome !== 'held'}
+																<span class="dur">{formatDuration(attempt.duration_seconds)}</span>
+															{/if}
+															<span class="quiet">same reading</span>
+														</li>
+													{/each}
+												</ol>
+											{/if}
+										{/if}
+									</div>
+								</li>
+							{/each}
+						</ol>
+					{/if}
+					{#if lastErrorUnshown && !attemptsLoading}
+						<p class="last-error mono"><span class="key">last error</span> {track.last_error}</p>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	{/if}
 </li>
@@ -239,13 +433,19 @@
 		border-bottom: none;
 	}
 
+	/* The shared row grid (app.css "Row grid"): the state column is exactly a job badge's
+	   width, so inside a job (indented by one lead column) the state sits under the
+	   badge and the title under the job's title. The trailing lead-width column is the
+	   disclosure chevron (F22). */
 	.row {
 		width: 100%;
 		display: grid;
-		grid-template-columns: 9rem minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 3rem;
-		gap: var(--space-3);
-		align-items: center;
-		padding: var(--space-2) var(--space-2);
+		grid-template-columns:
+			var(--col-state) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr)
+			var(--col-lead);
+		column-gap: var(--row-gap);
+		align-items: baseline;
+		padding: var(--space-2) var(--row-pad-x) var(--space-2) 0;
 		background: transparent;
 		border: none;
 		text-align: left;
@@ -257,6 +457,12 @@
 		background: var(--bg-2);
 	}
 
+	/* Artist and album are grid cells of the row on desktop; the wrapper only exists so
+	   tablet and phone widths can set them as one muted line under the title. */
+	.meta {
+		display: contents;
+	}
+
 	.cell {
 		min-width: 0;
 		white-space: nowrap;
@@ -264,9 +470,20 @@
 		text-overflow: ellipsis;
 	}
 
+	/* An open row shows its whole title, artist and album instead of the ellipsis (F13). */
+	.row[aria-expanded='true'] .cell {
+		white-space: normal;
+		overflow-wrap: anywhere;
+	}
+
 	.cell.state {
+		padding-left: var(--cell-inset);
 		font-size: 0.75rem;
 		letter-spacing: 0.04em;
+	}
+
+	.pct {
+		margin-left: var(--space-1);
 	}
 
 	.cell.artist,
@@ -275,83 +492,86 @@
 		font-size: 0.875rem;
 	}
 
-	.cell.pct {
-		text-align: right;
-		color: var(--signal);
-		font-size: 0.75rem;
+	.chevron {
+		justify-self: center;
+		align-self: center;
+		width: 0.4rem;
+		height: 0.4rem;
+		border-right: 1.5px solid var(--text-muted);
+		border-bottom: 1.5px solid var(--text-muted);
+		transform: translateY(-25%) rotate(45deg);
+		transition: transform var(--dur-fast) var(--ease-signal);
 	}
 
-	/* Same one-cell-per-line mobile collapse QueueTable established (DESIGN.md §6) --
-	   squeezing columns or pairing them onto shared grid tracks both failed on real,
-	   varied-length data; every cell gets its own full-width line, nothing competes
-	   for width. */
-	@media (max-width: 640px) {
-		.row {
-			display: flex;
-			flex-direction: column;
-			align-items: stretch;
-			gap: var(--space-1);
-		}
-
-		.cell {
-			width: 100%;
-			text-align: left;
-		}
-
-		.cell.state {
-			order: 1;
-			overflow: visible;
-			white-space: normal;
-		}
-
-		.cell.title {
-			order: 2;
-		}
-
-		.cell.artist {
-			order: 3;
-		}
-
-		.cell.album {
-			order: 4;
-		}
-
-		.cell.pct {
-			order: 5;
-			text-align: left;
-		}
-
-		.detail {
-			padding-left: var(--space-2);
-		}
+	.row[aria-expanded='true'] .chevron {
+		transform: translateY(15%) rotate(-135deg);
 	}
 
+	/* The detail is the row's own grid, two columns wide: the state column becomes a
+	   time gutter for the history, everything else hangs off the title column. */
 	.detail {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-4);
-		padding: 0 var(--space-2) var(--space-3) 9rem;
+		display: grid;
+		grid-template-columns: var(--col-state) minmax(0, 1fr);
+		column-gap: var(--row-gap);
+		row-gap: var(--space-3);
+		padding: var(--space-1) var(--row-pad-x) var(--space-4) 0;
 		font-size: 0.8125rem;
 		color: var(--text-muted);
 	}
 
-	@media (max-width: 640px) {
-		.detail {
-			padding-left: var(--space-2);
-		}
+	.detail > * {
+		grid-column: 2;
+		margin: 0;
 	}
 
-	.last-error {
-		color: var(--fail);
-		white-space: normal;
-		overflow-wrap: anywhere;
+	.strip {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		column-gap: var(--space-4);
+		row-gap: var(--space-1);
+	}
+
+	.status {
+		font-weight: 500;
+	}
+
+	.fact {
+		font-size: 0.75rem;
+		color: var(--text-muted);
+	}
+
+	.key {
+		color: var(--text-muted);
+		opacity: 0.8;
+		margin-right: var(--space-1);
+	}
+
+	.quiet {
+		color: var(--text-muted);
+	}
+
+	.progress {
+		align-self: center;
+		width: 8rem;
+		height: 0.375rem;
+		border-radius: 3px;
+		background: var(--bg-0);
+		border: 1px solid var(--line);
+		overflow: hidden;
+	}
+
+	.progress-fill {
+		display: block;
+		height: 100%;
+		background: var(--signal);
+		transition: width var(--dur-med) var(--ease-signal);
 	}
 
 	.actions {
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-2);
-		flex-basis: 100%;
 	}
 
 	.action {
@@ -359,6 +579,7 @@
 		border: 1px solid var(--line);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
+		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		color: var(--text-muted);
 		cursor: pointer;
@@ -370,6 +591,14 @@
 		color: var(--text-primary);
 	}
 
+	/* Destructive, so set apart from the neutral actions and outlined in the fail tone
+	   at rest; full fail red only on hover/focus, the moment it's about to be used. */
+	.action.danger {
+		margin-left: var(--space-4);
+		background: transparent;
+		border-color: var(--fail-dim);
+	}
+
 	.action.danger:hover,
 	.action.danger:focus-visible {
 		border-color: var(--fail);
@@ -377,66 +606,312 @@
 	}
 
 	.notice {
-		flex-basis: 100%;
 		color: var(--waiting);
-	}
-
-	/* Diagnostic, not a headline feature (v24) -- deliberately quieter than the rest of
-	   the detail panel (smaller, dimmer) so it never competes with the track's current
-	   state for attention. */
-	.attempts {
-		flex-basis: 100%;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-	}
-
-	.attempts-status {
-		color: var(--text-dim);
+		font-family: var(--font-mono);
 		font-size: 0.75rem;
 	}
 
-	.attempts-error {
+	.notice:empty {
+		display: none;
+	}
+
+	/* The history spans both columns: times in the state column's gutter, readings under
+	   the title. Diagnostic (v24), so quieter than the strip above it. */
+	.history {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: subgrid;
+		row-gap: var(--space-2);
+		padding-top: var(--space-2);
+		border-top: 1px solid var(--line);
+	}
+
+	.history > * {
+		grid-column: 2;
+		margin: 0;
+	}
+
+	.history-heading {
+		font-size: 0.6875rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+	}
+
+	.history-status {
+		font-size: 0.75rem;
+	}
+
+	.history-error {
 		color: var(--fail);
 	}
 
-	.attempts-heading {
-		color: var(--text-dim);
-		font-size: 0.6875rem;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
+	.timeline {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: subgrid;
+		row-gap: var(--space-3);
+		list-style: none;
+		margin: 0;
+		padding: 0;
 	}
 
-	.attempts-list {
+	.entry {
+		grid-column: 1 / -1;
+		display: grid;
+		grid-template-columns: subgrid;
+		align-items: baseline;
+		border: none;
+	}
+
+	.entry > .when {
+		grid-column: 1;
+		justify-self: start;
+		margin-left: var(--cell-inset);
+	}
+
+	.entry-body {
+		grid-column: 2;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
+		align-items: flex-start;
 		gap: var(--space-1);
+	}
+
+	.when {
+		position: relative;
+		background: none;
+		border: none;
+		padding: 0;
+		font-size: 0.75rem;
+		color: var(--text-muted);
+		white-space: nowrap;
+		cursor: pointer;
+	}
+
+	/* The absolute time: visually hidden until the relative one is hovered or focused,
+	   but always in the accessibility tree. */
+	.when .abs {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.when:hover .abs,
+	.when:focus-visible .abs,
+	.when.pinned .abs {
+		left: 0;
+		bottom: calc(100% + var(--space-1));
+		z-index: 1;
+		width: auto;
+		height: auto;
+		clip-path: none;
+		padding: var(--space-1) var(--space-2);
+		background: var(--bg-3);
+		border: 1px solid var(--line-bright);
+		border-radius: 3px;
+		color: var(--text-primary);
+	}
+
+	.reading {
+		margin: 0;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		column-gap: var(--space-3);
 		font-size: 0.75rem;
 	}
 
-	.attempt {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
-		color: var(--text-dim);
-	}
-
-	.attempt-outcome {
+	.times {
+		color: var(--text-primary);
 		font-weight: 600;
 	}
 
-	.attempt-error {
-		color: var(--fail);
-		flex-basis: 100%;
-		white-space: normal;
+	.outcome {
+		font-weight: 600;
+	}
+
+	.class {
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--text-primary);
+	}
+
+	.via,
+	.dur {
+		color: var(--text-muted);
+	}
+
+	/* The raw error stays exactly as the worker wrote it, selectable and copyable;
+	   three lines unless the operator asks for the rest. */
+	.message {
+		margin: 0;
+		max-width: 80ch;
+		font-size: 0.75rem;
+		line-height: 1.5;
+		color: var(--text-muted);
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		user-select: text;
+	}
+
+	.message.clamped {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
+		overflow: hidden;
+	}
+
+	.inline-toggle {
+		background: none;
+		border: none;
+		padding: 0;
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: var(--text-primary);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+		cursor: pointer;
+	}
+
+	/* v41 (F14): a note on an attempt that didn't fail. Neither failure red nor the
+	   waiting blue a scheduling note uses -- an outlined "note" tag on neutral text. */
+	.note {
+		margin: 0;
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
+		max-width: 80ch;
+	}
+
+	.note-tag {
+		flex-shrink: 0;
+		padding: 0 var(--space-1);
+		border: 1px solid var(--line-bright);
+		border-radius: 3px;
+		font-size: 0.6875rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--text-primary);
+	}
+
+	.note-text {
+		font-size: 0.75rem;
+		color: var(--text-muted);
 		overflow-wrap: anywhere;
 	}
 
-	/* v35 (d): a note on an attempt that didn't fail -- never failure red. */
-	.attempt-warning {
-		color: var(--waiting);
-		flex-basis: 100%;
-		white-space: normal;
+	.run {
+		list-style: none;
+		margin: 0;
+		padding: 0 0 0 var(--space-3);
+		border-left: 1px solid var(--line);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
+	.run-item {
+		display: flex;
+		flex-wrap: wrap;
+		column-gap: var(--space-3);
+		font-size: 0.75rem;
+		border: none;
+	}
+
+	.last-error {
+		font-size: 0.75rem;
 		overflow-wrap: anywhere;
+	}
+
+	/* Tablet: artist and album fold into one muted line under the title rather than
+	   squeezing three text columns (F37, for these rows; v42 owns the page breakpoint). */
+	@media (max-width: 960px) {
+		.row {
+			grid-template-columns: var(--col-state) minmax(0, 1fr) var(--col-lead);
+			grid-template-areas:
+				'state title chevron'
+				'. meta chevron';
+			row-gap: 0.125rem;
+		}
+
+		.cell.state {
+			grid-area: state;
+		}
+
+		.cell.title {
+			grid-area: title;
+		}
+
+		.chevron {
+			grid-area: chevron;
+		}
+
+		.meta {
+			grid-area: meta;
+			display: block;
+			min-width: 0;
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			color: var(--text-muted);
+			font-size: 0.8125rem;
+		}
+
+		.row[aria-expanded='true'] .meta {
+			white-space: normal;
+		}
+
+		.meta .cell {
+			display: inline;
+		}
+
+		.meta .cell.album::before {
+			content: ' · ';
+		}
+	}
+
+	/* Phone: state and chevron share the first line, then the title, then artist · album.
+	   The detail drops the gutter column; each attempt's time leads its own reading. */
+	@media (max-width: 640px) {
+		.row {
+			grid-template-columns: minmax(0, 1fr) var(--col-lead);
+			grid-template-areas:
+				'state chevron'
+				'title chevron'
+				'meta chevron';
+			row-gap: 0.125rem;
+		}
+
+		.cell.state {
+			padding-left: 0;
+		}
+
+		.detail,
+		.history,
+		.timeline,
+		.entry {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.detail > *,
+		.history > *,
+		.entry > .when,
+		.entry-body {
+			grid-column: 1;
+		}
+
+		.entry > .when {
+			margin-left: 0;
+		}
+
+		.action.danger {
+			margin-left: 0;
+		}
 	}
 </style>
