@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-10-14)
 
 ## Corpus Check
-- 254 files · ~286,971 words
+- 254 files · ~287,014 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2586 nodes · 4245 edges · 230 communities (169 shown, 61 thin omitted)
+- 2586 nodes · 4245 edges · 229 communities (169 shown, 60 thin omitted)
 - Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 441 edges (avg confidence: 0.77)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `492cb9f9`
+- Built from commit: `3188410e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -60,7 +60,6 @@
 - [[_COMMUNITY_Layout Load Guard|Layout Load Guard]]
 - [[_COMMUNITY_JUnit Report Script|JUnit Report Script]]
 - [[_COMMUNITY_Proxy Selection & Coexistence|Proxy Selection & Coexistence]]
-- [[_COMMUNITY_Track Event Schema|Track Event Schema]]
 - [[_COMMUNITY_Postgres Backup Script|Postgres Backup Script]]
 - [[_COMMUNITY_Backend Package Init|Backend Package Init]]
 - [[_COMMUNITY_Backend Package Init|Backend Package Init]]
@@ -251,7 +250,7 @@
 - **CI PR-checks pipeline (pytest, publish-report, compose-config, frontend)** — github_workflows_ci_pytest_job, github_workflows_ci_publish_report_job, github_workflows_ci_compose_config_job, github_workflows_ci_frontend_job [EXTRACTED 1.00]
 - **Docker Compose layered configuration (base/override/prod)** — docker_compose_doc, docker_compose_override_doc, docker_compose_prod_doc [EXTRACTED 1.00]
 
-## Communities (230 total, 61 thin omitted)
+## Communities (229 total, 60 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
 Cohesion: 0.05
@@ -354,8 +353,8 @@ Cohesion: 0.19
 Nodes (18): archiveJobs(), bumpJob(), cancelJob(), cancelTrack(), retryTrack(), setJobPriority(), unarchiveJobs(), $lib/stores/progressCache (+10 more)
 
 ### Community 31 - "Version Roadmap Plans"
-Cohesion: 0.13
-Nodes (23): AlertSendError, AlertsNotConfigured, _claim_cooldown(), _config_values(), deliver(), enqueue(), _enqueue_pending(), format_body() (+15 more)
+Cohesion: 0.11
+Nodes (26): AlertSendError, AlertsNotConfigured, _claim_cooldown(), _config_values(), deliver(), enqueue(), _enqueue_pending(), format_body() (+18 more)
 
 ### Community 32 - "Stream Router Tests"
 Cohesion: 0.18
@@ -382,7 +381,7 @@ Cohesion: 0.17
 Nodes (18): copy_verify(), destination_path(), files_match(), Path, quarantine(), _quarantine_destination(), Library sort & move (v28) -- destination-path building from tags, conflict detec, Preserves the source's own basename under quarantine_dir, disambiguated with a (+10 more)
 
 ### Community 41 - "API Error Class"
-Cohesion: 0.16
+Cohesion: 0.21
 Nodes (10): _configure_celery_logging(), JsonFormatter, Structured JSON logging (v12) — one shared formatter both uvicorn (`api`, via `l, Adds Celery task context (`task_id`/`task_name`) when a log call happens inside, Connecting *any* receiver to this signal tells Celery to skip its own logging, _redact(), _exit_with_parent(), main() (+2 more)
 
 ### Community 42 - "Layout Load Guard"
@@ -396,10 +395,6 @@ Nodes (17): count_queries(), Counts SQL statements executed inside a `with` bloc
 ### Community 44 - "Proxy Selection & Coexistence"
 Cohesion: 0.14
 Nodes (10): svelte, workerStatus, $lib/components/Countdown.svelte, $lib/components/WorkerStatus.svelte, $lib/components/WorkerStatusPill.svelte, paused, $lib/stores/worker, worker (+2 more)
-
-### Community 45 - "Track Event Schema"
-Cohesion: 0.67
-Nodes (3): Starts app/services/alert_watchdog.py as a child of the calling process (worker-, spawn_watchdog(), Popen
 
 ### Community 46 - "Postgres Backup Script"
 Cohesion: 0.11
@@ -462,12 +457,16 @@ Cohesion: 0.18
 Nodes (11): breaker_released(), _drop_pending(), enqueue_after_commit(), failure_spike(), format_duration(), datetime, Session, timedelta (+3 more)
 
 ### Community 65 - "Deploy Hardening Version Doc"
-Cohesion: 0.19
-Nodes (12): begin_snapshot(), get_db(), Session, Ends `db`'s current transaction and starts a REPEATABLE READ one, so every state, InvalidListParams, list_tracks(), JobSourceType, Session (+4 more)
+Cohesion: 0.31
+Nodes (8): InvalidListParams, list_tracks(), JobSourceType, Session, Track, Paginated/filtered/sorted/searchable track listing shared by `GET /api/tracks` a, _sort_key(), _sort_value()
 
 ### Community 68 - "v14 — Master v1 Implementation Audit"
 Cohesion: 0.15
 Nodes (12): compilerOptions, allowJs, checkJs, esModuleInterop, forceConsistentCasingInFileNames, moduleResolution, resolveJsonModule, rewriteRelativeImportExtensions (+4 more)
+
+### Community 69 - "v17 — Multi-User Auth & Ownership Enforcement"
+Cohesion: 0.18
+Nodes (6): begin_snapshot(), get_db(), Session, Ends `db`'s current transaction and starts a REPEATABLE READ one, so every state, v36: the one place an enqueued alert is actually sent (worker-meta, `meta` queue, send_alert()
 
 ### Community 70 - "v19 — Archive & Retention"
 Cohesion: 0.17
@@ -650,7 +649,7 @@ Cohesion: 0.29
 Nodes (6): Baseline specs, Design, Done when, Out of scope, Scope, v37 — Playwright E2E Harness
 
 ### Community 162 - "Upgrading an existing deployment (manual fallback)"
-Cohesion: 0.16
+Cohesion: 0.20
 Nodes (13): Base, JobSourceType, JobState, LibrarySortState, Proxy, ProxySource, NetworkPath, Which network path an attempt actually used (v29). Only the two *direct* rungs a (+5 more)
 
 ### Community 163 - "proxies.py"
@@ -822,7 +821,7 @@ Cohesion: 0.29
 Nodes (6): Deploy notes, Done when, Out of scope, Scope, Tasks, v40.1 — Breaker Wedge Fix (hard failures end by themselves)
 
 ### Community 242 - "Proxy"
-Cohesion: 0.12
+Cohesion: 0.10
 Nodes (15): check_not_production_database(), get_settings(), get_settings() runs at import in every backend process (db.py, main.py,, Refuses a dev-marked process pointed at the production database. Fails closed: i, health(), Response, _fetch_username(), login() (+7 more)
 
 ## Ambiguous Edges - Review These
@@ -832,7 +831,7 @@ Nodes (15): check_not_production_database(), get_settings(), get_settings() runs
 ## Knowledge Gaps
 - **691 isolated node(s):** `wait_for_stack_health.sh script`, `spotdl-web-backend`, `Window`, `ADMIN_GETS`, `ENV_FILE` (+686 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **61 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **60 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_

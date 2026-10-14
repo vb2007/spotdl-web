@@ -755,8 +755,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/TrackRow.svelte": {
-    "mtime": 1792001084.002708,
-    "ast_hash": "39e697033b0577d3f262193e7cd51944",
+    "mtime": 1792002105.2879453,
+    "ast_hash": "6b7829e15a32d2daa8a2145a93c4021f",
     "semantic_hash": ""
   },
   "frontend/src/routes/account/+page.svelte": {
