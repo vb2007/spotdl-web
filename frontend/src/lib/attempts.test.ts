@@ -43,6 +43,19 @@ describe('groupAttempts', () => {
 		]);
 	});
 
+	it('keys a run by its oldest attempt, so the key survives the run growing', () => {
+		const three = groupAttempts([attempt(1, { error_type: 'other' }), attempt(2), attempt(3)]);
+		const four = groupAttempts([
+			attempt(1, { error_type: 'other' }),
+			attempt(2),
+			attempt(3),
+			attempt(4)
+		]);
+		expect(three[0].key).toBe('a2');
+		expect(four[0].key).toBe('a2');
+		expect(four[0].attempts).toHaveLength(3);
+	});
+
 	it('never merges a different outcome or note', () => {
 		const groups = groupAttempts([
 			attempt(1, { outcome: 'completed', error_type: null, error_message: null }),

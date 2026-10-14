@@ -18,13 +18,17 @@ function sameReading(a: TrackAttempt, b: TrackAttempt): boolean {
 
 /** v41: the API answers oldest first; the timeline reads newest first, and a run of
  * identical consecutive readings collapses into one entry ("×5 · NO_OUTPUT"). Only
- * *consecutive* repeats merge, so the order of events is never rewritten. */
+ * *consecutive* repeats merge, so the order of events is never rewritten. A group is keyed
+ * by its *oldest* attempt, which stays put while a run grows at its newest end, so an open
+ * run stays open (and keeps focus) when the next identical failure lands. */
 export function groupAttempts(oldestFirst: TrackAttempt[]): AttemptGroup[] {
 	const groups: AttemptGroup[] = [];
 	for (const attempt of [...oldestFirst].reverse()) {
 		const last = groups.at(-1);
-		if (last && sameReading(last.attempts[0], attempt)) last.attempts.push(attempt);
-		else groups.push({ key: attempt.id, attempts: [attempt] });
+		if (last && sameReading(last.attempts[0], attempt)) {
+			last.attempts.push(attempt);
+			last.key = attempt.id;
+		} else groups.push({ key: attempt.id, attempts: [attempt] });
 	}
 	return groups;
 }

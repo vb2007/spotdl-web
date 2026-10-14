@@ -617,7 +617,7 @@ needed" claim — rather than silently deleted.
 
 - An expanded row's lazily-fetched attempt history cached on the track id alone kept a row
   opened mid-download at "no attempts yet" after the worker wrote one; key the cache on the
-  track's state and counts → *v41*
+  track's settled state, counts and `scheduled_at` → *v41*
 - Svelte drops the whitespace at an `{#if}` boundary, so `label{#if …} <span>40%` renders (and
   names the button) "label40%"; eslint rejects `{' '}`, so put `&nbsp;` inside the span → *v41*
 
@@ -4947,8 +4947,11 @@ independently-found production bug from the same conversation)
 - **Stale history in an open row.** v24's lazy attempt fetch cached per track id. With the
   timeline now the admin's main read of a track, a row opened while it was `downloading` fetched
   zero attempts and kept saying "no attempts yet" after it completed, beside a strip reading
-  "attempts 1". The cache key is now `id|state|attempts_made|failure_count`, so the row refetches
-  once when an attempt lands and never on a progress tick.
+  "attempts 1". The cache key is now what writing an attempt row changes: the counts (a failure or
+  success), `scheduled_at` (a `held` row moves no count), and the state, with
+  pending/queued/downloading sharing one value so a dispatch or a progress tick never refetches.
+  A collapsed run is keyed by its *oldest* attempt, so it stays open when the next identical
+  failure lands and the refetch re-renders the timeline.
 - **Disclosure names vs the e2e helpers.** The job toggle's `aria-label` ("Expand tracks for X")
   hid its visible status and owner (WCAG 2.5.3, F16), and every spec found jobs through it. Rows
   are now `<li aria-labelledby>` the title, so `jobRow` is `getByRole('listitem', { name })` and

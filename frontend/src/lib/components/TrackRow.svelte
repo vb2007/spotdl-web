@@ -145,12 +145,19 @@
 		return () => clearInterval(id);
 	});
 
-	// The cache is keyed on what an attempt row changes, not just the track id: a row
-	// opened mid-download (no attempts yet) refetches once the worker records one, and a
-	// `held` row, which changes no count, still moves `scheduled_at`. A live progress tick
-	// changes none of these, so it never refetches.
+	// The cache is keyed on what writing an attempt row changes, not just the track id: a
+	// failure or success moves the counts, a `held` row (which moves no count) moves
+	// `scheduled_at`, and a settle moves the state. The in-flight states share one key, so
+	// pending → queued → downloading (no row written) never refetches, nor does a progress tick.
+	const IN_FLIGHT_KEY = new Set<TrackState>(['pending', 'queued', 'downloading']);
 	let attemptsKey = $derived(
-		`${track.id}|${track.state}|${track.attempts_made}|${track.failure_count}|${track.scheduled_at}`
+		[
+			track.id,
+			IN_FLIGHT_KEY.has(track.state) ? 'in-flight' : track.state,
+			track.attempts_made,
+			track.failure_count,
+			track.scheduled_at
+		].join('|')
 	);
 
 	async function loadAttempts(key: string) {
@@ -635,9 +642,14 @@
 	/* Destructive, so set apart from the neutral actions and outlined in the fail tone
 	   at rest; full fail red only on hover/focus, the moment it's about to be used. */
 	.action.danger {
-		margin-left: var(--space-4);
 		background: transparent;
 		border-color: var(--fail-dim);
+	}
+
+	/* Set apart only when it follows a neutral action, so the action area always starts
+	   at the title column. */
+	.action + .action.danger {
+		margin-left: var(--space-4);
 	}
 
 	.action.danger:hover,
@@ -773,6 +785,17 @@
 		border: 1px solid var(--line-bright);
 		border-radius: 3px;
 		color: var(--text-primary);
+	}
+
+	/* Bridges the gap down to the button, so the pointer can move onto the tooltip without
+	   losing it (WCAG 1.4.13, hoverable). */
+	.when:hover .abs::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		top: 100%;
+		height: calc(var(--space-1) + 2px);
 	}
 
 	/* Back to the resting clip, so the absolute time stays in the button's name. */
@@ -979,7 +1002,7 @@
 			margin-left: 0;
 		}
 
-		.action.danger {
+		.action + .action.danger {
 			margin-left: 0;
 		}
 	}
