@@ -1,6 +1,6 @@
 {
   "CLAUDE.md": {
-    "mtime": 1791926340.8944776,
+    "mtime": 1791984800.0384645,
     "ast_hash": "80ec5509f4f2720f79ed8637a98b1510",
     "semantic_hash": ""
   },
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
-    "mtime": 1791926379.6352153,
-    "ast_hash": "059de7ae27f21e571b871aacec9b9c69",
+    "mtime": 1791984915.15805,
+    "ast_hash": "58ee5bf050940dd48c23e37a6b72a780",
     "semantic_hash": ""
   },
   "frontend/.vscode/extensions.json": {
@@ -80,8 +80,8 @@
     "semantic_hash": "c727963dee0c5743b26f3d2fc99abfb6"
   },
   "frontend/package.json": {
-    "mtime": 1791926379.6943352,
-    "ast_hash": "4e3875994e2e49087927daaa1e8b6eb1",
+    "mtime": 1791984915.2288043,
+    "ast_hash": "5ad19a68a8f804f6048cd4efa94da43c",
     "semantic_hash": ""
   },
   "frontend/prettier.config.js": {
@@ -260,12 +260,12 @@
     "semantic_hash": ""
   },
   "backend/app/services/downloads.py": {
-    "mtime": 1791926551.1081707,
+    "mtime": 1791984800.0386584,
     "ast_hash": "ed9b4c82d7dd5ddefd42542d820f5eb2",
     "semantic_hash": ""
   },
   "backend/app/tasks/download.py": {
-    "mtime": 1791927274.648375,
+    "mtime": 1791984800.0387998,
     "ast_hash": "01164d9fdf4db14b4a82c1b0ccb351d9",
     "semantic_hash": ""
   },
@@ -275,12 +275,12 @@
     "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
-    "mtime": 1791927274.6493385,
+    "mtime": 1791984800.0389717,
     "ast_hash": "f67185818149ecf4f665367bc20751e4",
     "semantic_hash": ""
   },
   "backend/tests/test_downloads.py": {
-    "mtime": 1791926609.6286843,
+    "mtime": 1791984800.0389717,
     "ast_hash": "ae8440af104acdfb3e3f1222dcf599c7",
     "semantic_hash": ""
   },
@@ -295,7 +295,7 @@
     "semantic_hash": ""
   },
   "backend/app/services/retry.py": {
-    "mtime": 1791926573.4489446,
+    "mtime": 1791984800.0387444,
     "ast_hash": "527764843536c13a7971035e6bcc0dd2",
     "semantic_hash": ""
   },
@@ -310,17 +310,17 @@
     "semantic_hash": ""
   },
   "backend/tests/test_retry.py": {
-    "mtime": 1791925813.1655266,
+    "mtime": 1791984800.0389717,
     "ast_hash": "c350048c6116c02d1cb2f110277972b8",
     "semantic_hash": ""
   },
   "backend/app/services/proxies.py": {
-    "mtime": 1791925763.233501,
+    "mtime": 1791984800.0387044,
     "ast_hash": "d3a4082e355b491db6932ca23ecbd27f",
     "semantic_hash": ""
   },
   "backend/tests/test_proxies.py": {
-    "mtime": 1791925237.4164102,
+    "mtime": 1791984800.0389717,
     "ast_hash": "3cb154fc609e94d740d5ac44dc887d46",
     "semantic_hash": ""
   },
@@ -360,8 +360,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1791639305.3648489,
-    "ast_hash": "45cfe0661393c00692c1eb8b3f65eff3",
+    "mtime": 1791985015.877185,
+    "ast_hash": "f0a4b5dae43bbc516ac0d364949387b7",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -395,7 +395,7 @@
     "semantic_hash": ""
   },
   "backend/app/routers/worker.py": {
-    "mtime": 1791925077.6464124,
+    "mtime": 1791984800.0384645,
     "ast_hash": "76786453c79afcc55b98b9454946060d",
     "semantic_hash": ""
   },
@@ -410,7 +410,7 @@
     "semantic_hash": ""
   },
   "backend/tests/test_worker.py": {
-    "mtime": 1791925188.603463,
+    "mtime": 1791984800.0389717,
     "ast_hash": "62394f2363187ecf56a6c56fd3c118ca",
     "semantic_hash": ""
   },
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1791927025.532607,
-    "ast_hash": "d96b3404a77df2b58e59505d36a4b50f",
+    "mtime": 1791985073.6563044,
+    "ast_hash": "ea667fa8ee780f631819a995036631fe",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -865,7 +865,7 @@
     "semantic_hash": ""
   },
   "backend/app/services/attempts.py": {
-    "mtime": 1791926573.4490445,
+    "mtime": 1791984800.0385654,
     "ast_hash": "889aaec322dc25d1f141e8c71e7bcf9a",
     "semantic_hash": ""
   },
@@ -980,8 +980,8 @@
     "semantic_hash": ""
   },
   "plan/master-v4/00-master-plan.md": {
-    "mtime": 1791926334.0874722,
-    "ast_hash": "7ea4c773bdd4807c9a8afe341b25a95c",
+    "mtime": 1791985094.7282724,
+    "ast_hash": "3c40ce69289268c01480320458934233",
     "semantic_hash": ""
   },
   "plan/master-v4/IMPLEMENTATION_PROMPT.md": {
@@ -1040,8 +1040,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.test.ts": {
-    "mtime": 1790975112.2471952,
-    "ast_hash": "4306f08b2684a614e3c32a20db119191",
+    "mtime": 1791985309.2442923,
+    "ast_hash": "a44f7aa47160bb404b35bcfb7a67f83b",
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/progressCache.ts": {
@@ -1070,7 +1070,7 @@
     "semantic_hash": ""
   },
   "backend/app/services/alerts.py": {
-    "mtime": 1791926573.4493153,
+    "mtime": 1791984800.0385654,
     "ast_hash": "43da1c0a07e97fe1181c2315f9e342b8",
     "semantic_hash": ""
   },
@@ -1085,7 +1085,7 @@
     "semantic_hash": ""
   },
   "backend/tests/test_alerts.py": {
-    "mtime": 1791926609.6285205,
+    "mtime": 1791984800.0389087,
     "ast_hash": "eead17eca470db19cf08235e8ea2b196",
     "semantic_hash": ""
   },
@@ -1295,8 +1295,8 @@
     "semantic_hash": ""
   },
   "frontend/.impeccable/hook.cache.json": {
-    "mtime": 1791897075.7051528,
-    "ast_hash": "9acd37ae7c5506b96a7b10c392258b5b",
+    "mtime": 1791984874.688141,
+    "ast_hash": "7e3564785f018426e1416427998a53ba",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/AmbientField.svelte": {
@@ -1315,8 +1315,13 @@
     "semantic_hash": ""
   },
   "plan/master-v4/v40.1-breaker-wedge-fix.md": {
-    "mtime": 1791927025.5305989,
+    "mtime": 1791984800.0476797,
     "ast_hash": "703f4808d8f687f0559cdee7f42bd554",
+    "semantic_hash": ""
+  },
+  "plan/master-v4/v40.2-live-desync-fix.md": {
+    "mtime": 1791985323.0621881,
+    "ast_hash": "197458b746b6e11782e9a79c0c847efa",
     "semantic_hash": ""
   }
 }
