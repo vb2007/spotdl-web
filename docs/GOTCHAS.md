@@ -444,7 +444,10 @@ needed" claim — rather than silently deleted.
   measurement; 60s (covering beat's worst-case ~30s dispatch latency after a track becomes due, plus
   jitter) is what actually bridged every observed cycle. This is a trivial fraction of the real
   retry ladder's 15-minute floor either way, so it doesn't misrepresent a genuine multi-minute wait
-  as "still active" → *v23*
+  as "still active" → *v23* *(Corrected 2026-10-14, v40.2: the window applied to `lookup_failed`
+  too, which nothing automatic ever re-dispatches, so a "Not found" lane sat frozen at its last
+  percentage for up to a minute after its job already read settled. It now ends at once; only
+  `waiting` keeps the window.)*
 - A `StreamingResponse` route's `Depends(...)` dependency chain isn't torn down until the whole
   streamed body finishes, not when the route function returns — a `yield`-based dependency
   (`get_db`) used there holds its DB session (and whatever transaction its last query left open)
@@ -464,6 +467,9 @@ needed" claim — rather than silently deleted.
 - Job listings read count, per-status counts and page from separate statements; under READ
   COMMITTED they disagreed ("9 items of 8") when a job committed mid-listing. They use one
   REPEATABLE READ snapshot since v34.2 (`db.begin_snapshot`) → *v34.2*
+- The jobs scope's state chips are patched locally, not re-read, so every path that replaces or
+  removes a job row must move its count too. A row refreshed after a track event used to swap the
+  row only, so a settled job stayed counted as "active" until a hard reload → *v40.2*
 - Vite's dev `/api` proxy never closes the browser's SSE response when `api` dies, so in the
   normal `docker compose up` loop an `api` restart never triggers a reconnect at all (production
   nginx does close it). Test reconnect behavior through the real `web` image → *v34* (fixed
@@ -4893,3 +4899,27 @@ independently-found production bug from the same conversation)
   - A real breaker-feeding `no_output` with search still working: a worker-dl overlay with
     `extra_hosts` pointing `www.youtube.com` and `youtubei.googleapis.com` at `127.0.0.1` **and**
     `::1`. With only the IPv4 entry, the IPv6 rung resolved through DNS and downloaded fine.
+
+### v40.2 live-desync fix gotchas (learned from production's Scooter job settling)
+
+- **What the owner saw** (2026-10-14, `4.40.1`): the last three Scooter tracks went
+  `lookup_failed` 20s apart. The job row already read `done — partial`, but the Waterfall kept
+  three amber lanes at 25–40% for up to a minute, and the state chips still said "active 1 ·
+  done — partial 0". The backend was right throughout. Both faults were in `queue.ts`.
+- **The lanes:** v23's 60s removal grace (see the corrected Live progress entry) skipped only
+  `completed`/`skipped_duplicate`/`cancelled`. `lookup_failed` was left out because a hand retry
+  can revive it, but that retry sends its own `downloading` event, which re-adds a lane anyway.
+  `LANE_ENDING_STATES` adds it for lane removal only. `TRULY_TERMINAL_STATES` (which also
+  discards later events for a track) is unchanged.
+- **The chips:** `refreshJobRow` (run 400ms after any track's state change) replaced the row
+  without touching `countsByStatus`. It now goes through `patchPageJob`, which moves one count
+  from the old `statusKey` to the new one. The comparison is against the row as it is now, so the
+  job event's second re-fetch of the same status moves nothing. The two 404 removal paths had the
+  same gap and now share `dropPageJob`. Limitation: a job off the loaded page can't be moved (its
+  old status is unknown locally); its chips catch up on the next reload.
+- **Real-stack check that reproduced it:** a scratch Playwright script logging in through the real
+  upstream, opening `/`, submitting the age-gated `2veKKJYeJjc3MnyhfZ2Gma` (it lands
+  `lookup_failed` in about 6s) and sampling the lane count and chip text every 250ms. Against the
+  old `queue.ts` (vite HMR swaps it live), the lane stayed and the chips read "active 1" until a
+  hard reload. With the fix, both changed within one sample of the API reporting `lookup_failed`.
+
