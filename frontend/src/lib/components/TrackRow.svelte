@@ -308,7 +308,7 @@
 						aria-valuemax={100}
 						aria-valuenow={track.progress}
 					>
-						<span class="progress-fill" style:width="{track.progress}%"></span>
+						<span class="progress-fill" style:transform="scaleX({track.progress / 100})"></span>
 					</span>
 					<span class="fact mono">{track.progress}%</span>
 				{/if}
@@ -579,7 +579,8 @@
 		display: block;
 		height: 100%;
 		background: var(--signal);
-		transition: width var(--dur-med) var(--ease-signal);
+		transform-origin: left;
+		transition: transform var(--dur-med) var(--ease-signal);
 	}
 
 	.actions {
