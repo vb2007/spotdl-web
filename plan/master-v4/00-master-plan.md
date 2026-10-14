@@ -383,3 +383,8 @@ here rather than edited into it, so the original record stays readable.
 
   Branch `dev-breaker-wedge-fix`, `4.40.1`, between v40 and v41. Detail in
   `v40.1-breaker-wedge-fix.md`.
+- **2026-10-14, v40.2 inserted (owner-directed): live desync fix.** Found while verifying v40.1
+  on production. A job read `done — partial`, but the Waterfall kept its `lookup_failed` lanes for
+  up to a minute (v23's grace window), and the state chips still counted it "active" until a hard
+  reload (a refreshed row never moved its chip count). Frontend only. Branch
+  `dev-live-desync-fix`, `4.40.2`, between v40.1 and v41. Detail in `v40.2-live-desync-fix.md`.

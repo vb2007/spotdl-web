@@ -22,6 +22,14 @@ import type {
  * stale and must be ignored, not applied. */
 const TRULY_TERMINAL_STATES = new Set<TrackState>(['completed', 'skipped_duplicate', 'cancelled']);
 
+/** v40.2: states that end a Waterfall lane at once, skipping the v23 grace window. That
+ * window bridges a fast fail-then-redispatch cycle, and nothing automatic ever
+ * re-dispatches a `lookup_failed` track, so for one it only ever left a frozen "live"
+ * lane up to a minute after its job already read settled. Not added to
+ * TRULY_TERMINAL_STATES: a hand retry does revive it, and that retry's own `downloading`
+ * event brings the lane back by itself. */
+const LANE_ENDING_STATES = new Set<TrackState>([...TRULY_TERMINAL_STATES, 'lookup_failed']);
+
 export type LiveTrack = Track & { progress?: number };
 export type LiveTrackWithJob = TrackWithJob & { progress?: number };
 
@@ -306,16 +314,35 @@ function createQueueStore() {
 			job = await api.getJob(jobId);
 		} catch {
 			// 404 (deleted, or this session lost visibility) -- drop it from view.
-			page.update((p) => ({ ...p, items: p.items.filter((i) => i.id !== jobId) }));
+			dropPageJob(jobId);
 			return;
 		}
+		// v40.2: through patchPageJob (no insert, as before) so a status change also moves
+		// the state chips' counts -- this used to swap the row only, and a job settling
+		// left its chip counted as "active" until the next full reload.
+		patchPageJob(job);
+	}
+
+	/** Removes a job row that's gone for good (a 404), taking it out of the state chips'
+	 * counts with it -- v40.2, the same drift `applyOwnArchiveAction` already guards
+	 * against for an archived-away row. */
+	function dropPageJob(jobId: string): void {
+		const scope = get(filters).scope;
 		page.update((p) => {
-			if (get(filters).scope !== 'jobs') return p;
-			const idx = p.items.findIndex((i) => i.id === jobId);
-			if (idx === -1) return p;
-			const items = [...p.items];
-			items[idx] = job;
-			return { ...p, items };
+			const gone = p.items.find((i) => i.id === jobId);
+			if (gone === undefined) return p;
+			const items = p.items.filter((i) => i.id !== jobId);
+			if (scope !== 'jobs') return { ...p, items };
+			const key = api.statusKey((gone as Job).status);
+			return {
+				...p,
+				items,
+				totalEstimate: Math.max(0, p.totalEstimate - 1),
+				countsByStatus: {
+					...p.countsByStatus,
+					[key]: Math.max(0, (p.countsByStatus[key] ?? 0) - 1)
+				}
+			};
 		});
 	}
 
@@ -807,8 +834,22 @@ function createQueueStore() {
 			const idx = p.items.findIndex((i) => i.id === job.id);
 			if (idx !== -1) {
 				const items = [...p.items];
+				const from = api.statusKey((items[idx] as Job).status);
+				const to = api.statusKey(job.status);
 				items[idx] = job;
-				return { ...p, items };
+				if (from === to) return { ...p, items };
+				// v40.2: the row changed state chip (active -> settled, a cancel), so its
+				// count moves with it. A job off the loaded page can't be moved this way
+				// (its old status is unknown here); its chips catch up on the next reload.
+				return {
+					...p,
+					items,
+					countsByStatus: {
+						...p.countsByStatus,
+						[from]: Math.max(0, (p.countsByStatus[from] ?? 0) - 1),
+						[to]: (p.countsByStatus[to] ?? 0) + 1
+					}
+				};
 			}
 			if (!opts.allowInsert) return p;
 			// `expanding`/`failed` belong only in the `incoming` overlay (the same check
@@ -1126,8 +1167,8 @@ function createQueueStore() {
 				// finished/cancelled download would sit in the Waterfall at its last
 				// progress reading for the full grace window instead of vanishing right
 				// away -- caught by a fresh-eyes review, reproducing the very glitch this
-				// version fixes in a new shape.
-				if (TRULY_TERMINAL_STATES.has(event.state)) {
+				// version fixes in a new shape. v40.2: `lookup_failed` ends its lane too.
+				if (LANE_ENDING_STATES.has(event.state)) {
 					clearLiveRemovalTimer(event.track_id);
 					const { [event.track_id]: _drop, ...rest } = current;
 					return rest;
@@ -1246,7 +1287,7 @@ function createQueueStore() {
 				const { [event.job_id]: _drop, ...rest } = current;
 				return rest;
 			});
-			page.update((p) => ({ ...p, items: p.items.filter((i) => i.id !== event.job_id) }));
+			dropPageJob(event.job_id);
 			return;
 		}
 
