@@ -160,8 +160,11 @@
 		].join('|')
 	);
 
-	async function loadAttempts(key: string) {
-		if (attemptsLoadedFor === key) {
+	/** `force` re-reads a key already loaded, keeping the current list on screen meanwhile
+	 * (clearing `attemptsLoadedFor` instead would swap it for the loading line and drop any
+	 * focus inside it). */
+	async function loadAttempts(key: string, force = false) {
+		if (!force && attemptsLoadedFor === key) {
 			// Back on a key already loaded: whatever request is still out is superseded.
 			attemptsLoading = false;
 			return;
@@ -259,8 +262,7 @@
 		clearTimeout(cancelReread);
 		cancelReread = setTimeout(async () => {
 			if (!expanded || !isAdmin) return;
-			attemptsLoadedFor = null;
-			await loadAttempts(attemptsKey);
+			await loadAttempts(attemptsKey, true);
 			if (attempts.length <= seen) awaitCancelledAttempt(seen, rest);
 		}, delay);
 	}
