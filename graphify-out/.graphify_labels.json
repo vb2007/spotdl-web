@@ -227,6 +227,5 @@
   "237": "JobSourceType",
   "238": "Session",
   "241": "Session",
-  "242": "Proxy",
-  "245": "spawn_watchdog"
+  "242": "Proxy"
 }
