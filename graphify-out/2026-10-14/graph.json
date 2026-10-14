@@ -2934,7 +2934,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "backend_app_services_alerts_alertsnotconfigured",
-      "community": 36,
+      "community": 31,
       "norm_label": "alertsnotconfigured"
     },
     {
@@ -2954,7 +2954,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_app_services_alerts_alertsenderror",
-      "community": 36,
+      "community": 31,
       "norm_label": "alertsenderror"
     },
     {
@@ -3014,7 +3014,7 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "backend_app_services_alerts_format_body",
-      "community": 36,
+      "community": 31,
       "norm_label": "format_body()"
     },
     {
@@ -3024,7 +3024,7 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "backend_app_services_alerts_send_now",
-      "community": 36,
+      "community": 31,
       "norm_label": "send_now()"
     },
     {
@@ -3034,7 +3034,7 @@
       "source_location": "L207",
       "_origin": "ast",
       "id": "backend_app_services_alerts_redis",
-      "community": 31,
+      "community": 36,
       "norm_label": "_redis()"
     },
     {
@@ -3064,7 +3064,7 @@
       "source_location": "L255",
       "_origin": "ast",
       "id": "backend_app_services_alerts_category_enabled",
-      "community": 31,
+      "community": 36,
       "norm_label": "category_enabled()"
     },
     {
@@ -3084,7 +3084,7 @@
       "source_location": "L284",
       "_origin": "ast",
       "id": "backend_app_services_alerts_enqueue_after_commit",
-      "community": 31,
+      "community": 64,
       "norm_label": "enqueue_after_commit()"
     },
     {
@@ -3094,7 +3094,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_session",
-      "community": 31,
+      "community": 64,
       "norm_label": "session"
     },
     {
@@ -3114,7 +3114,7 @@
       "source_location": "L298",
       "_origin": "ast",
       "id": "backend_app_services_alerts_drop_pending",
-      "community": 31,
+      "community": 64,
       "norm_label": "_drop_pending()"
     },
     {
@@ -3124,7 +3124,7 @@
       "source_location": "L302",
       "_origin": "ast",
       "id": "backend_app_services_alerts_format_duration",
-      "community": 31,
+      "community": 64,
       "norm_label": "format_duration()"
     },
     {
@@ -3134,7 +3134,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_timedelta",
-      "community": 31,
+      "community": 64,
       "norm_label": "timedelta"
     },
     {
@@ -3144,7 +3144,7 @@
       "source_location": "L311",
       "_origin": "ast",
       "id": "backend_app_services_alerts_mark_breaker_open",
-      "community": 31,
+      "community": 36,
       "norm_label": "mark_breaker_open()"
     },
     {
@@ -3154,7 +3154,7 @@
       "source_location": "L318",
       "_origin": "ast",
       "id": "backend_app_services_alerts_record_beat_heartbeat",
-      "community": 31,
+      "community": 36,
       "norm_label": "record_beat_heartbeat()"
     },
     {
@@ -3164,7 +3164,7 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "backend_app_services_alerts_failure_spike",
-      "community": 31,
+      "community": 64,
       "norm_label": "failure_spike()"
     },
     {
@@ -3174,7 +3174,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_datetime",
-      "community": 31,
+      "community": 64,
       "norm_label": "datetime"
     },
     {
@@ -3184,7 +3184,7 @@
       "source_location": "L382",
       "_origin": "ast",
       "id": "backend_app_services_alerts_breaker_released",
-      "community": 31,
+      "community": 64,
       "norm_label": "breaker_released()"
     },
     {
@@ -3194,7 +3194,7 @@
       "source_location": "L398",
       "_origin": "ast",
       "id": "backend_app_services_alerts_text",
-      "community": 31,
+      "community": 36,
       "norm_label": "_text()"
     },
     {
@@ -3204,7 +3204,7 @@
       "source_location": "L408",
       "_origin": "ast",
       "id": "backend_app_services_alerts_delete_if_equals",
-      "community": 31,
+      "community": 36,
       "norm_label": "_delete_if_equals()"
     },
     {
@@ -3214,7 +3214,7 @@
       "source_location": "L412",
       "_origin": "ast",
       "id": "backend_app_services_alerts_beat_heartbeat_age",
-      "community": 31,
+      "community": 36,
       "norm_label": "beat_heartbeat_age()"
     },
     {
@@ -3224,7 +3224,7 @@
       "source_location": "L424",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog",
-      "community": 31,
+      "community": 36,
       "norm_label": "watchdog"
     },
     {
@@ -3234,7 +3234,7 @@
       "source_location": "L439",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_init",
-      "community": 31,
+      "community": 36,
       "norm_label": ".__init__()"
     },
     {
@@ -3244,7 +3244,7 @@
       "source_location": "L443",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_check_once",
-      "community": 31,
+      "community": 36,
       "norm_label": ".check_once()"
     },
     {
@@ -3254,7 +3254,7 @@
       "source_location": "L505",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_run",
-      "community": 31,
+      "community": 36,
       "norm_label": ".run()"
     },
     {
@@ -3294,7 +3294,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_110",
-      "community": 36,
+      "community": 31,
       "norm_label": "carries only a redacted, token-free description of what went wrong."
     },
     {
@@ -3304,7 +3304,7 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_149",
-      "community": 36,
+      "community": 31,
       "norm_label": "the message exactly as it reaches the room: labelled (dev and production share"
     },
     {
@@ -3314,7 +3314,7 @@
       "source_location": "L164",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_164",
-      "community": 36,
+      "community": 31,
       "norm_label": "one put to the room. raises alertsnotconfigured or alertsenderror; never retries"
     },
     {
@@ -3344,7 +3344,7 @@
       "source_location": "L285",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_285",
-      "community": 31,
+      "community": 64,
       "norm_label": "queues an alert on `db` that is enqueued only once its transaction commits, and"
     },
     {
@@ -3354,7 +3354,7 @@
       "source_location": "L319",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_319",
-      "community": 31,
+      "community": 36,
       "norm_label": "called on every dispatch_due_tracks tick, whether or not alerts are configured."
     },
     {
@@ -3364,7 +3364,7 @@
       "source_location": "L331",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_331",
-      "community": 31,
+      "community": 64,
       "norm_label": "(fingerprint, text, newest finished_at) when the newest `threshold` real attempt"
     },
     {
@@ -3374,7 +3374,7 @@
       "source_location": "L383",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_383",
-      "community": 31,
+      "community": 64,
       "norm_label": "the trip's pause is over and nothing else holds downloads: a manual pause still"
     },
     {
@@ -3384,7 +3384,7 @@
       "source_location": "L413",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_413",
-      "community": 31,
+      "community": 36,
       "norm_label": "seconds since beat's last tick. no heartbeat at all (a fresh redis, or beat neve"
     },
     {
@@ -3394,7 +3394,7 @@
       "source_location": "L425",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_425",
-      "community": 31,
+      "community": 36,
       "norm_label": "runs as its own small process (alert_watchdog.py, started and supervised by"
     },
     {
@@ -4984,7 +4984,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_redaction",
-      "community": 36,
+      "community": 31,
       "norm_label": "redaction.py"
     },
     {
@@ -4994,7 +4994,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "backend_app_services_redaction_redact_text",
-      "community": 36,
+      "community": 31,
       "norm_label": "redact_text()"
     },
     {
@@ -5004,7 +5004,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_redaction_rationale_1",
-      "community": 36,
+      "community": 31,
       "norm_label": "credentialed-url redaction for free-form text (v31, moved here from proxies.py i"
     },
     {
@@ -5014,7 +5014,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "backend_app_services_redaction_rationale_29",
-      "community": 36,
+      "community": 31,
       "norm_label": "redacts every credentialed-url-shaped substring found anywhere in `text`, not"
     },
     {
@@ -16914,7 +16914,7 @@
       "label": "group()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L392",
+      "source_location": "L407",
       "_origin": "ast",
       "id": "frontend_src_lib_components_trackrow_group",
       "community": 13,
@@ -62556,7 +62556,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L392",
+      "source_location": "L407",
       "weight": 1.0,
       "source": "frontend_src_lib_components_trackrow",
       "target": "frontend_src_lib_components_trackrow_group",
@@ -70482,5 +70482,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "b7657fa57a366720b58ac24028d0c6d5ae86edcf"
+  "built_at_commit": "93505e1510cc1f9475c91c16350167939f1c9ddf"
 }

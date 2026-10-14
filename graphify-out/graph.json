@@ -914,7 +914,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_db",
-      "community": 69,
+      "community": 162,
       "norm_label": "db.py"
     },
     {
@@ -944,7 +944,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_db_begin_snapshot",
-      "community": 69,
+      "community": 65,
       "norm_label": "begin_snapshot()"
     },
     {
@@ -954,7 +954,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_db_py_session",
-      "community": 69,
+      "community": 65,
       "norm_label": "session"
     },
     {
@@ -964,7 +964,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_db_get_db",
-      "community": 69,
+      "community": 65,
       "norm_label": "get_db()"
     },
     {
@@ -974,7 +974,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_db_rationale_23",
-      "community": 69,
+      "community": 65,
       "norm_label": "ends `db`'s current transaction and starts a repeatable read one, so every state"
     },
     {
@@ -1094,7 +1094,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_app_settings",
-      "community": 69,
+      "community": 162,
       "norm_label": "app_settings.py"
     },
     {
@@ -1124,7 +1124,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 69,
+      "community": 162,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -1424,7 +1424,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_user",
-      "community": 69,
+      "community": 162,
       "norm_label": "user.py"
     },
     {
@@ -1484,7 +1484,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_worker_state",
-      "community": 69,
+      "community": 162,
       "norm_label": "worker_state.py"
     },
     {
@@ -16914,7 +16914,7 @@
       "label": "group()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L407",
+      "source_location": "L428",
       "_origin": "ast",
       "id": "frontend_src_lib_components_trackrow_group",
       "community": 13,
@@ -62556,7 +62556,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L407",
+      "source_location": "L428",
       "weight": 1.0,
       "source": "frontend_src_lib_components_trackrow",
       "target": "frontend_src_lib_components_trackrow_group",
@@ -70482,5 +70482,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "93505e1510cc1f9475c91c16350167939f1c9ddf"
+  "built_at_commit": "492cb9f9fabbf9d0039b9672159817a0bf64b19d"
 }

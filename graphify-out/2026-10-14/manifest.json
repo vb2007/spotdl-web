@@ -65,7 +65,7 @@
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
-    "mtime": 1791994094.5385635,
+    "mtime": 1791997109.9710145,
     "ast_hash": "174ececb37a29c70c968faa37d7b6467",
     "semantic_hash": ""
   },
@@ -80,7 +80,7 @@
     "semantic_hash": "c727963dee0c5743b26f3d2fc99abfb6"
   },
   "frontend/package.json": {
-    "mtime": 1791994094.539169,
+    "mtime": 1791997109.97469,
     "ast_hash": "1e24cc33ec8b6f8470826384bf7777ae",
     "semantic_hash": ""
   },
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1791994064.101441,
-    "ast_hash": "aa56946ee36d2f44fce513513539f272",
+    "mtime": 1791998110.4234993,
+    "ast_hash": "5b7c058f05d2dfd07bd1debd90215bb9",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -350,7 +350,7 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/Countdown.svelte": {
-    "mtime": 1791992558.88995,
+    "mtime": 1791997109.9750164,
     "ast_hash": "364314986f65a00c486f7ea50f0903f0",
     "semantic_hash": ""
   },
@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1791994581.7710128,
-    "ast_hash": "8f679f270a545576d677b7bfd0220926",
+    "mtime": 1791998834.8980458,
+    "ast_hash": "e1804e9a6f6895ece4b5611fe6bdea8a",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
@@ -625,7 +625,7 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1791996449.2706366,
+    "mtime": 1791997109.9730146,
     "ast_hash": "e157f2029495c60dd4f9930ab7e1a52d",
     "semantic_hash": ""
   },
@@ -740,12 +740,12 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobRow.svelte": {
-    "mtime": 1791995700.4785838,
-    "ast_hash": "ea42651b5b21276edb50938a13da7b59",
+    "mtime": 1791998825.5124812,
+    "ast_hash": "11d22304ee73b61398867dc8d24d3095",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobTrackList.svelte": {
-    "mtime": 1791994055.413073,
+    "mtime": 1791997109.9751422,
     "ast_hash": "889c2ba32521fbd1a4a046795c8b2e3e",
     "semantic_hash": ""
   },
@@ -755,8 +755,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/TrackRow.svelte": {
-    "mtime": 1791996430.6363258,
-    "ast_hash": "dbd0d4b3d86aa6215a25438100e5df2a",
+    "mtime": 1791998825.5123217,
+    "ast_hash": "5d22bc13784347ec88f671b0390f75c3",
     "semantic_hash": ""
   },
   "frontend/src/routes/account/+page.svelte": {
@@ -1100,12 +1100,12 @@
     "semantic_hash": ""
   },
   "frontend/e2e/03-track-detail.e2e.ts": {
-    "mtime": 1791993861.4780848,
+    "mtime": 1791997109.9744186,
     "ast_hash": "e71584d91d3b09d2b2a688be42fc478e",
     "semantic_hash": ""
   },
   "frontend/e2e/04-file-download.e2e.ts": {
-    "mtime": 1791993861.4781468,
+    "mtime": 1791997109.9744186,
     "ast_hash": "1b66dd7afd60ae7758271c9a279ace4b",
     "semantic_hash": ""
   },
@@ -1125,7 +1125,7 @@
     "semantic_hash": ""
   },
   "frontend/e2e/08-archive.e2e.ts": {
-    "mtime": 1791994055.1560621,
+    "mtime": 1791997109.9744716,
     "ast_hash": "aa70529acb83dab31df6f6d8e38b864f",
     "semantic_hash": ""
   },
@@ -1140,7 +1140,7 @@
     "semantic_hash": ""
   },
   "frontend/e2e/network.e2e.ts": {
-    "mtime": 1791993861.4781218,
+    "mtime": 1791997109.9744716,
     "ast_hash": "b1148ea3104275c71a53f3d1c4b1988a",
     "semantic_hash": ""
   },
@@ -1150,12 +1150,12 @@
     "semantic_hash": ""
   },
   "frontend/e2e/support/stack.ts": {
-    "mtime": 1791993861.4780176,
+    "mtime": 1791997109.9745953,
     "ast_hash": "0b217215f63f41775d9f181b608ee298",
     "semantic_hash": ""
   },
   "frontend/e2e/support/ui.ts": {
-    "mtime": 1791994055.2300653,
+    "mtime": 1791997109.9745953,
     "ast_hash": "7607ba8e6520e4d2c19c1c2085f1df5a",
     "semantic_hash": ""
   },
@@ -1220,7 +1220,7 @@
     "semantic_hash": ""
   },
   "frontend/e2e/09-moved-file.e2e.ts": {
-    "mtime": 1791993861.4781759,
+    "mtime": 1791997109.9744716,
     "ast_hash": "1bc7c877eeda813084d7d2c8beb3a9ee",
     "semantic_hash": ""
   },
@@ -1325,17 +1325,17 @@
     "semantic_hash": ""
   },
   "frontend/e2e/11-attempt-timeline.e2e.ts": {
-    "mtime": 1791994055.1780632,
+    "mtime": 1791997109.9744716,
     "ast_hash": "59fd6be9d7a16b3b24fd7c771affece6",
     "semantic_hash": ""
   },
   "frontend/src/lib/attempts.test.ts": {
-    "mtime": 1791996430.6361513,
+    "mtime": 1791997109.9750164,
     "ast_hash": "c2254c449a354dced907d59de42881ce",
     "semantic_hash": ""
   },
   "frontend/src/lib/attempts.ts": {
-    "mtime": 1791996430.636091,
+    "mtime": 1791997109.9750164,
     "ast_hash": "ed1c8bf8779564dc580a8005d20aedcd",
     "semantic_hash": ""
   }
