@@ -1040,8 +1040,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.test.ts": {
-    "mtime": 1791984904.4673629,
-    "ast_hash": "89b1995274ad89433f3c93425bc09553",
+    "mtime": 1791985309.2442923,
+    "ast_hash": "a44f7aa47160bb404b35bcfb7a67f83b",
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/progressCache.ts": {
@@ -1320,8 +1320,8 @@
     "semantic_hash": ""
   },
   "plan/master-v4/v40.2-live-desync-fix.md": {
-    "mtime": 1791985094.4981594,
-    "ast_hash": "b91cd3182ee57a477f13f88104550665",
+    "mtime": 1791985323.0621881,
+    "ast_hash": "197458b746b6e11782e9a79c0c847efa",
     "semantic_hash": ""
   }
 }

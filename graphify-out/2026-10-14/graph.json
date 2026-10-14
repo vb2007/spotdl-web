@@ -2464,7 +2464,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_stream",
-      "community": 130,
+      "community": 80,
       "norm_label": "stream.py"
     },
     {
@@ -2474,7 +2474,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_app_routers_stream_event_stream",
-      "community": 130,
+      "community": 80,
       "norm_label": "_event_stream()"
     },
     {
@@ -2484,7 +2484,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_stream_py_request",
-      "community": 130,
+      "community": 80,
       "norm_label": "request"
     },
     {
@@ -2494,7 +2494,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_app_routers_stream_stream",
-      "community": 130,
+      "community": 80,
       "norm_label": "stream()"
     },
     {
@@ -2504,7 +2504,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "streamingresponse",
-      "community": 130,
+      "community": 80,
       "norm_label": "streamingresponse"
     },
     {
@@ -6704,7 +6704,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_library",
-      "community": 2,
+      "community": 76,
       "norm_label": "library.py"
     },
     {
@@ -6714,7 +6714,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_tasks_library_get_run",
-      "community": 2,
+      "community": 76,
       "norm_label": "_get_run()"
     },
     {
@@ -6724,7 +6724,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_library_py_librarysortrun",
-      "community": 2,
+      "community": 76,
       "norm_label": "librarysortrun"
     },
     {
@@ -6734,7 +6734,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "backend_app_tasks_library_record_error",
-      "community": 2,
+      "community": 76,
       "norm_label": "_record_error()"
     },
     {
@@ -6744,7 +6744,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "backend_app_tasks_library_sync_tracks_and_archive_jobs",
-      "community": 2,
+      "community": 76,
       "norm_label": "_sync_tracks_and_archive_jobs()"
     },
     {
@@ -6754,7 +6754,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "backend_app_tasks_library_publish_progress",
-      "community": 2,
+      "community": 76,
       "norm_label": "_publish_progress()"
     },
     {
@@ -6764,7 +6764,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "backend_app_tasks_library_run_sweep",
-      "community": 2,
+      "community": 76,
       "norm_label": "_run_sweep()"
     },
     {
@@ -6774,7 +6774,7 @@
       "source_location": "L211",
       "_origin": "ast",
       "id": "backend_app_tasks_library_alert_sweep_finished",
-      "community": 2,
+      "community": 76,
       "norm_label": "_alert_sweep_finished()"
     },
     {
@@ -6784,7 +6784,7 @@
       "source_location": "L235",
       "_origin": "ast",
       "id": "backend_app_tasks_library_sort_library",
-      "community": 2,
+      "community": 76,
       "norm_label": "sort_library()"
     },
     {
@@ -6794,7 +6794,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_tasks_library_rationale_35",
-      "community": 2,
+      "community": 76,
       "norm_label": "repoints every affected track.output_path to the ledger's new location (the"
     },
     {
@@ -6804,7 +6804,7 @@
       "source_location": "L212",
       "_origin": "ast",
       "id": "backend_app_tasks_library_rationale_212",
-      "community": 2,
+      "community": 76,
       "norm_label": "v36: one matrix alert per sweep, keyed on its finish time so no two runs share a"
     },
     {
@@ -6814,7 +6814,7 @@
       "source_location": "L236",
       "_origin": "ast",
       "id": "backend_app_tasks_library_rationale_236",
-      "community": 2,
+      "community": 76,
       "norm_label": "admin-triggered, on-demand sweep (v28) -- runs on worker-expand's `expand` queue"
     },
     {
@@ -13367,7 +13367,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_stream",
-      "community": 29,
+      "community": 20,
       "norm_label": "test_stream.py"
     },
     {
@@ -13377,7 +13377,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fake_event_stream",
-      "community": 29,
+      "community": 20,
       "norm_label": "_fake_event_stream()"
     },
     {
@@ -13387,7 +13387,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_requires_session",
-      "community": 29,
+      "community": 20,
       "norm_label": "test_stream_requires_session()"
     },
     {
@@ -13397,7 +13397,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_returns_sse_headers_and_forwarded_events",
-      "community": 29,
+      "community": 20,
       "norm_label": "test_stream_returns_sse_headers_and_forwarded_events()"
     },
     {
@@ -13427,7 +13427,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub",
-      "community": 29,
+      "community": 20,
       "norm_label": "_fakepubsub"
     },
     {
@@ -13437,7 +13437,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_init",
-      "community": 29,
+      "community": 20,
       "norm_label": ".__init__()"
     },
     {
@@ -13447,7 +13447,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_subscribe",
-      "community": 29,
+      "community": 20,
       "norm_label": ".subscribe()"
     },
     {
@@ -13457,7 +13457,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_psubscribe",
-      "community": 29,
+      "community": 20,
       "norm_label": ".psubscribe()"
     },
     {
@@ -13467,7 +13467,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_unsubscribe",
-      "community": 29,
+      "community": 20,
       "norm_label": ".unsubscribe()"
     },
     {
@@ -13477,7 +13477,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_punsubscribe",
-      "community": 29,
+      "community": 20,
       "norm_label": ".punsubscribe()"
     },
     {
@@ -13487,7 +13487,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_get_message",
-      "community": 29,
+      "community": 20,
       "norm_label": ".get_message()"
     },
     {
@@ -13497,7 +13497,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_aclose",
-      "community": 29,
+      "community": 20,
       "norm_label": ".aclose()"
     },
     {
@@ -13507,7 +13507,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient",
-      "community": 29,
+      "community": 20,
       "norm_label": "_fakeredisclient"
     },
     {
@@ -13517,7 +13517,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_init",
-      "community": 29,
+      "community": 20,
       "norm_label": ".__init__()"
     },
     {
@@ -13527,7 +13527,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_pubsub",
-      "community": 29,
+      "community": 20,
       "norm_label": ".pubsub()"
     },
     {
@@ -13537,7 +13537,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_aclose",
-      "community": 29,
+      "community": 20,
       "norm_label": ".aclose()"
     },
     {
@@ -13547,7 +13547,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_tests_test_stream_drive",
-      "community": 29,
+      "community": 20,
       "norm_label": "_drive()"
     },
     {
@@ -13557,7 +13557,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_subscribes_to_the_users_own_channel",
-      "community": 29,
+      "community": 20,
       "norm_label": "test_event_stream_subscribes_to_the_users_own_channel()"
     },
     {
@@ -13567,7 +13567,7 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern",
-      "community": 29,
+      "community": 20,
       "norm_label": "test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern()"
     },
     {
@@ -13577,7 +13577,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_non_admin_all_users_flag_is_ignored",
-      "community": 29,
+      "community": 20,
       "norm_label": "test_event_stream_non_admin_all_users_flag_is_ignored()"
     },
     {
@@ -13587,7 +13587,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_110",
-      "community": 29,
+      "community": 20,
       "norm_label": "v17's threat model: a client-supplied scope flag is never trusted -- a non-admin"
     },
     {
@@ -16048,7 +16048,7 @@
       "source_location": "L252",
       "_origin": "ast",
       "id": "frontend_src_lib_api_outputsettings",
-      "community": 6,
+      "community": 1,
       "norm_label": "outputsettings"
     },
     {
@@ -16679,7 +16679,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_ambientfield",
-      "community": 50,
+      "community": 44,
       "norm_label": "$lib/components/ambientfield.svelte"
     },
     {
@@ -16968,7 +16968,7 @@
       "label": "listJobsPage",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L18",
+      "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_listjobspage",
       "community": 175,
@@ -16978,7 +16978,7 @@
       "label": "listTracksPage",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L19",
+      "source_location": "L20",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_listtrackspage",
       "community": 175,
@@ -16988,17 +16988,27 @@
       "label": "getJob",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L20",
+      "source_location": "L21",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_getjob",
       "community": 175,
       "norm_label": "getjob"
     },
     {
-      "label": "deferred()",
+      "label": "cancelJob",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
       "source_location": "L22",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_queue_test_canceljob",
+      "community": 175,
+      "norm_label": "canceljob"
+    },
+    {
+      "label": "deferred()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/queue.test.ts",
+      "source_location": "L24",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_deferred",
       "community": 175,
@@ -17008,7 +17018,7 @@
       "label": "job()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L28",
+      "source_location": "L30",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_job",
       "community": 175,
@@ -17018,7 +17028,7 @@
       "label": "downloadingTrack()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L46",
+      "source_location": "L48",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_downloadingtrack",
       "community": 175,
@@ -17028,7 +17038,7 @@
       "label": "jobsPage()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L72",
+      "source_location": "L74",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_jobspage",
       "community": 175,
@@ -17038,7 +17048,7 @@
       "label": "tracksPage()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L76",
+      "source_location": "L78",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_trackspage",
       "community": 175,
@@ -17048,7 +17058,7 @@
       "label": "trackEvent()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L80",
+      "source_location": "L82",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_trackevent",
       "community": 175,
@@ -17058,7 +17068,7 @@
       "label": "routeLists()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L96",
+      "source_location": "L98",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_routelists",
       "community": 175,
@@ -17068,7 +17078,7 @@
       "label": "hydrationCalls()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L108",
+      "source_location": "L110",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_hydrationcalls",
       "community": 175,
@@ -17078,7 +17088,7 @@
       "label": "fakeStorage()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L377",
+      "source_location": "L379",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_fakestorage",
       "community": 175,
@@ -17088,7 +17098,7 @@
       "label": "hardReload()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L391",
+      "source_location": "L393",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_hardreload",
       "community": 175,
@@ -17098,7 +17108,7 @@
       "label": "countsCalls()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L465",
+      "source_location": "L467",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_countscalls",
       "community": 175,
@@ -17108,7 +17118,7 @@
       "label": "settled()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L563",
+      "source_location": "L565",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_settled",
       "community": 175,
@@ -17118,7 +17128,7 @@
       "label": "loadJobsPage()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L570",
+      "source_location": "L572",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_loadjobspage",
       "community": 175,
@@ -17311,7 +17321,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "community": 50,
+      "community": 44,
       "norm_label": "+layout.svelte"
     },
     {
@@ -17331,7 +17341,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_lib_assets_favicon_svg",
-      "community": 50,
+      "community": 44,
       "norm_label": "$lib/assets/favicon.svg"
     },
     {
@@ -17341,7 +17351,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "state",
-      "community": 50,
+      "community": 44,
       "norm_label": "$app/state"
     },
     {
@@ -17911,7 +17921,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "claude_architecture",
-      "community": 244,
+      "community": 46,
       "norm_label": "architecture"
     },
     {
@@ -17921,7 +17931,7 @@
       "source_location": "L188",
       "_origin": "ast",
       "id": "claude_invariants_break_these_and_things_fail_silently",
-      "community": 244,
+      "community": 46,
       "norm_label": "invariants \u2014 break these and things fail silently"
     },
     {
@@ -17931,7 +17941,7 @@
       "source_location": "L206",
       "_origin": "ast",
       "id": "claude_master_v2_invariants",
-      "community": 244,
+      "community": 46,
       "norm_label": "master v2 invariants"
     },
     {
@@ -17941,7 +17951,7 @@
       "source_location": "L229",
       "_origin": "ast",
       "id": "claude_master_v3_invariants",
-      "community": 244,
+      "community": 46,
       "norm_label": "master v3 invariants"
     },
     {
@@ -18331,7 +18341,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "docs_deployment_upgrading_an_existing_deployment_manual_fallback",
-      "community": 240,
+      "community": 22,
       "norm_label": "upgrading an existing deployment (manual fallback)"
     },
     {
@@ -18341,7 +18351,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "docs_deployment_1_pull_the_merged_code",
-      "community": 240,
+      "community": 22,
       "norm_label": "1. pull the merged code"
     },
     {
@@ -18351,7 +18361,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "docs_deployment_2_update_env",
-      "community": 240,
+      "community": 22,
       "norm_label": "2. update `.env`"
     },
     {
@@ -18361,7 +18371,7 @@
       "source_location": "L93",
       "_origin": "ast",
       "id": "docs_deployment_3_migrate_the_downloads_directory_one_time_before_first_boot_with_the_new_bind_mount",
-      "community": 240,
+      "community": 22,
       "norm_label": "3. migrate the downloads directory (one-time, before first boot with the new bind mount)"
     },
     {
@@ -18371,7 +18381,7 @@
       "source_location": "L161",
       "_origin": "ast",
       "id": "docs_deployment_4_bring_up_the_stack_with_the_production_overlay",
-      "community": 240,
+      "community": 22,
       "norm_label": "4. bring up the stack with the production overlay"
     },
     {
@@ -18381,7 +18391,7 @@
       "source_location": "L185",
       "_origin": "ast",
       "id": "docs_deployment_5_configure_the_cloudflare_tunnel_zero_trust_dashboard",
-      "community": 240,
+      "community": 22,
       "norm_label": "5. configure the cloudflare tunnel (zero trust dashboard)"
     },
     {
@@ -18391,7 +18401,7 @@
       "source_location": "L211",
       "_origin": "ast",
       "id": "docs_deployment_6_verify",
-      "community": 240,
+      "community": 22,
       "norm_label": "6. verify"
     },
     {
@@ -18441,7 +18451,7 @@
       "source_location": "L500",
       "_origin": "ast",
       "id": "docs_deployment_one_time_host_setup_already_done_on_this_host_kept_for_reference",
-      "community": 239,
+      "community": 22,
       "norm_label": "one-time host setup (already done on this host \u2014 kept for reference)"
     },
     {
@@ -18451,7 +18461,7 @@
       "source_location": "L502",
       "_origin": "ast",
       "id": "docs_deployment_1_install_postgresql_host_native_not_a_container",
-      "community": 239,
+      "community": 22,
       "norm_label": "1. install postgresql (host-native \u2014 not a container)"
     },
     {
@@ -18461,7 +18471,7 @@
       "source_location": "L523",
       "_origin": "ast",
       "id": "docs_deployment_2_create_the_role_and_database",
-      "community": 239,
+      "community": 22,
       "norm_label": "2. create the role and database"
     },
     {
@@ -18471,7 +18481,7 @@
       "source_location": "L535",
       "_origin": "ast",
       "id": "docs_deployment_3_let_docker_containers_reach_postgres",
-      "community": 239,
+      "community": 22,
       "norm_label": "3. let docker containers reach postgres"
     },
     {
@@ -18481,7 +18491,7 @@
       "source_location": "L556",
       "_origin": "ast",
       "id": "docs_deployment_4_install_docker_the_compose_plugin",
-      "community": 239,
+      "community": 22,
       "norm_label": "4. install docker + the compose plugin"
     },
     {
@@ -18491,7 +18501,7 @@
       "source_location": "L574",
       "_origin": "ast",
       "id": "docs_deployment_5_clone_the_repo",
-      "community": 239,
+      "community": 22,
       "norm_label": "5. clone the repo"
     },
     {
@@ -18501,7 +18511,7 @@
       "source_location": "L585",
       "_origin": "ast",
       "id": "docs_deployment_6_configure_env",
-      "community": 239,
+      "community": 22,
       "norm_label": "6. configure `.env`"
     },
     {
@@ -18511,7 +18521,7 @@
       "source_location": "L602",
       "_origin": "ast",
       "id": "docs_deployment_7_bring_up_the_stack",
-      "community": 239,
+      "community": 22,
       "norm_label": "7. bring up the stack"
     },
     {
@@ -18581,7 +18591,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_gotchas",
-      "community": 243,
+      "community": 138,
       "norm_label": "gotchas.md"
     },
     {
@@ -18591,7 +18601,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_web_accumulated_gotchas_master_v1_v01_v13",
-      "community": 243,
+      "community": 138,
       "norm_label": "spotdl-web \u2014 accumulated gotchas (master v1, v01\u2013v13)"
     },
     {
@@ -18601,7 +18611,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "docs_gotchas_index_by_topic",
-      "community": 243,
+      "community": 138,
       "norm_label": "index by topic"
     },
     {
@@ -18611,7 +18621,7 @@
       "source_location": "L847",
       "_origin": "ast",
       "id": "docs_gotchas_verified_external_api_contracts",
-      "community": 243,
+      "community": 138,
       "norm_label": "verified external api contracts"
     },
     {
@@ -18621,7 +18631,7 @@
       "source_location": "L852",
       "_origin": "ast",
       "id": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
-      "community": 243,
+      "community": 138,
       "norm_label": "auth api \u2014 `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)"
     },
     {
@@ -18631,7 +18641,7 @@
       "source_location": "L870",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
-      "community": 243,
+      "community": 138,
       "norm_label": "spotdl 4.5.2 \u2014 verified api surface actually used"
     },
     {
@@ -21271,7 +21281,7 @@
       "source_location": "L215",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_amendments",
-      "community": 204,
+      "community": 128,
       "norm_label": "amendments"
     },
     {
@@ -21281,7 +21291,7 @@
       "source_location": "L220",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_09_claude_md_split_into_rules_vs_reference_folded_into_v14",
-      "community": 204,
+      "community": 128,
       "norm_label": "2026-08-09 \u2014 claude.md split into rules vs. reference (folded into v14)"
     },
     {
@@ -21291,7 +21301,7 @@
       "source_location": "L235",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_09_v15_complete_two_v14_findings_confirmed_already_scheduled_one_new_finding_added",
-      "community": 204,
+      "community": 128,
       "norm_label": "2026-08-09 \u2014 v15 complete; two v14 findings confirmed already scheduled, one new finding added"
     },
     {
@@ -21301,7 +21311,7 @@
       "source_location": "L262",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_09_v16_complete_not_null_applied_literally_login_job_creation_left_broken_for_v17",
-      "community": 204,
+      "community": 128,
       "norm_label": "2026-08-09 \u2014 v16 complete; not null applied literally, login/job creation left broken for v17"
     },
     {
@@ -21311,7 +21321,7 @@
       "source_location": "L277",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_13_v22_complete_the_v13_precedent_closing_pass_performed_master_v2_done",
-      "community": 204,
+      "community": 128,
       "norm_label": "2026-08-13 \u2014 v22 complete; the v13-precedent closing pass performed, master v2 done"
     },
     {
@@ -24488,7 +24498,7 @@
       "label": "Deploy notes",
       "file_type": "document",
       "source_file": "plan/master-v4/v40.2-live-desync-fix.md",
-      "source_location": "L46",
+      "source_location": "L50",
       "_origin": "ast",
       "id": "plan_master_v4_v40_2_live_desync_fix_deploy_notes",
       "community": 71,
@@ -24498,7 +24508,7 @@
       "label": "Done when",
       "file_type": "document",
       "source_file": "plan/master-v4/v40.2-live-desync-fix.md",
-      "source_location": "L50",
+      "source_location": "L54",
       "_origin": "ast",
       "id": "plan_master_v4_v40_2_live_desync_fix_done_when",
       "community": 71,
@@ -60678,7 +60688,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L393",
+      "source_location": "L395",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test_hardreload",
       "target": "frontend_src_lib_api",
@@ -61865,7 +61875,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L394",
+      "source_location": "L396",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test_hardreload",
       "target": "frontend_src_lib_stores_queue",
@@ -62287,7 +62297,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L465",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue_test",
+      "target": "frontend_src_lib_stores_queue_test_canceljob",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.test.ts",
+      "source_location": "L467",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_countscalls",
@@ -62297,7 +62317,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L22",
+      "source_location": "L24",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_deferred",
@@ -62307,7 +62327,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L46",
+      "source_location": "L48",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_downloadingtrack",
@@ -62317,7 +62337,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L377",
+      "source_location": "L379",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_fakestorage",
@@ -62327,7 +62347,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L20",
+      "source_location": "L21",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_getjob",
@@ -62337,7 +62357,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L391",
+      "source_location": "L393",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_hardreload",
@@ -62347,7 +62367,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L108",
+      "source_location": "L110",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_hydrationcalls",
@@ -62357,7 +62377,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L28",
+      "source_location": "L30",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_job",
@@ -62367,7 +62387,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L72",
+      "source_location": "L74",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_jobspage",
@@ -62377,7 +62397,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L18",
+      "source_location": "L19",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_listjobspage",
@@ -62387,7 +62407,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L19",
+      "source_location": "L20",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_listtrackspage",
@@ -62397,7 +62417,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L570",
+      "source_location": "L572",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_loadjobspage",
@@ -62407,7 +62427,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L96",
+      "source_location": "L98",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_routelists",
@@ -62417,7 +62437,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L563",
+      "source_location": "L565",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_settled",
@@ -62427,7 +62447,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L80",
+      "source_location": "L82",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_trackevent",
@@ -62437,7 +62457,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L76",
+      "source_location": "L78",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test",
       "target": "frontend_src_lib_stores_queue_test_trackspage",
@@ -62448,7 +62468,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L565",
+      "source_location": "L567",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test_settled",
       "target": "frontend_src_lib_stores_queue_test_job",
@@ -62459,7 +62479,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L395",
+      "source_location": "L397",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test_hardreload",
       "target": "frontend_src_lib_stores_queue_test_jobspage",
@@ -62470,7 +62490,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L574",
+      "source_location": "L576",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test_loadjobspage",
       "target": "frontend_src_lib_stores_queue_test_jobspage",
@@ -62481,7 +62501,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L102",
+      "source_location": "L104",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test_routelists",
       "target": "frontend_src_lib_stores_queue_test_jobspage",
@@ -62492,7 +62512,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L578",
+      "source_location": "L580",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test_loadjobspage",
       "target": "frontend_src_lib_stores_queue_test_trackspage",
@@ -62503,7 +62523,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.test.ts",
-      "source_location": "L105",
+      "source_location": "L107",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_test_routelists",
       "target": "frontend_src_lib_stores_queue_test_trackspage",
@@ -68904,7 +68924,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "plan/master-v4/v40.2-live-desync-fix.md",
-      "source_location": "L46",
+      "source_location": "L50",
       "weight": 1.0,
       "source": "plan_master_v4_v40_2_live_desync_fix_v40_2_live_desync_fix_a_settled_job_s_lanes_and_chips_catch_up_at_once",
       "target": "plan_master_v4_v40_2_live_desync_fix_deploy_notes",
@@ -68914,7 +68934,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "plan/master-v4/v40.2-live-desync-fix.md",
-      "source_location": "L50",
+      "source_location": "L54",
       "weight": 1.0,
       "source": "plan_master_v4_v40_2_live_desync_fix_v40_2_live_desync_fix_a_settled_job_s_lanes_and_chips_catch_up_at_once",
       "target": "plan_master_v4_v40_2_live_desync_fix_done_when",
@@ -69820,5 +69840,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "4d552ca253244853e64d87141c23c70927a6ad6c"
+  "built_at_commit": "8920e3dedfeb3ed4065884b53be8807a76f19a8b"
 }

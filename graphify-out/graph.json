@@ -314,7 +314,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_alembic_env",
-      "community": 242,
+      "community": 41,
       "norm_label": "env.py"
     },
     {
@@ -324,7 +324,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_alembic_env_run_migrations_offline",
-      "community": 242,
+      "community": 41,
       "norm_label": "run_migrations_offline()"
     },
     {
@@ -334,7 +334,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_alembic_env_run_migrations_online",
-      "community": 242,
+      "community": 41,
       "norm_label": "run_migrations_online()"
     },
     {
@@ -864,7 +864,7 @@
       "source_location": "L215",
       "_origin": "ast",
       "id": "backend_app_config_get_settings",
-      "community": 36,
+      "community": 242,
       "norm_label": "get_settings()"
     },
     {
@@ -1194,7 +1194,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_models_job_job",
-      "community": 64,
+      "community": 28,
       "norm_label": "job"
     },
     {
@@ -1204,7 +1204,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_models_job_rationale_27",
-      "community": 64,
+      "community": 28,
       "norm_label": "one row per submitted url (album/playlist/artist/track)."
     },
     {
@@ -1394,7 +1394,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_trackattempt",
-      "community": 162,
+      "community": 4,
       "norm_label": "trackattempt"
     },
     {
@@ -1414,7 +1414,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_rationale_36",
-      "community": 162,
+      "community": 4,
       "norm_label": "one row per `download_track` invocation (v24) -- what it tried (direct vs. which"
     },
     {
@@ -1684,7 +1684,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_health",
-      "community": 29,
+      "community": 242,
       "norm_label": "health.py"
     },
     {
@@ -1694,7 +1694,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_routers_health_health",
-      "community": 29,
+      "community": 242,
       "norm_label": "health()"
     },
     {
@@ -1704,7 +1704,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_health_py_response",
-      "community": 29,
+      "community": 242,
       "norm_label": "response"
     },
     {
@@ -2464,7 +2464,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_stream",
-      "community": 80,
+      "community": 130,
       "norm_label": "stream.py"
     },
     {
@@ -2474,7 +2474,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_app_routers_stream_event_stream",
-      "community": 80,
+      "community": 130,
       "norm_label": "_event_stream()"
     },
     {
@@ -2484,7 +2484,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_stream_py_request",
-      "community": 80,
+      "community": 130,
       "norm_label": "request"
     },
     {
@@ -2494,7 +2494,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_app_routers_stream_stream",
-      "community": 80,
+      "community": 130,
       "norm_label": "stream()"
     },
     {
@@ -2504,7 +2504,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "streamingresponse",
-      "community": 80,
+      "community": 130,
       "norm_label": "streamingresponse"
     },
     {
@@ -2924,7 +2924,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "namedtuple",
-      "community": 45,
+      "community": 4,
       "norm_label": "namedtuple"
     },
     {
@@ -2934,7 +2934,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "backend_app_services_alerts_alertsnotconfigured",
-      "community": 83,
+      "community": 31,
       "norm_label": "alertsnotconfigured"
     },
     {
@@ -2954,7 +2954,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_app_services_alerts_alertsenderror",
-      "community": 83,
+      "community": 31,
       "norm_label": "alertsenderror"
     },
     {
@@ -3014,7 +3014,7 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "backend_app_services_alerts_format_body",
-      "community": 83,
+      "community": 31,
       "norm_label": "format_body()"
     },
     {
@@ -3024,7 +3024,7 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "backend_app_services_alerts_send_now",
-      "community": 83,
+      "community": 31,
       "norm_label": "send_now()"
     },
     {
@@ -3034,7 +3034,7 @@
       "source_location": "L207",
       "_origin": "ast",
       "id": "backend_app_services_alerts_redis",
-      "community": 31,
+      "community": 36,
       "norm_label": "_redis()"
     },
     {
@@ -3064,7 +3064,7 @@
       "source_location": "L255",
       "_origin": "ast",
       "id": "backend_app_services_alerts_category_enabled",
-      "community": 31,
+      "community": 36,
       "norm_label": "category_enabled()"
     },
     {
@@ -3084,7 +3084,7 @@
       "source_location": "L284",
       "_origin": "ast",
       "id": "backend_app_services_alerts_enqueue_after_commit",
-      "community": 31,
+      "community": 45,
       "norm_label": "enqueue_after_commit()"
     },
     {
@@ -3094,7 +3094,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_session",
-      "community": 31,
+      "community": 45,
       "norm_label": "session"
     },
     {
@@ -3114,7 +3114,7 @@
       "source_location": "L298",
       "_origin": "ast",
       "id": "backend_app_services_alerts_drop_pending",
-      "community": 31,
+      "community": 45,
       "norm_label": "_drop_pending()"
     },
     {
@@ -3124,7 +3124,7 @@
       "source_location": "L302",
       "_origin": "ast",
       "id": "backend_app_services_alerts_format_duration",
-      "community": 31,
+      "community": 45,
       "norm_label": "format_duration()"
     },
     {
@@ -3134,7 +3134,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_timedelta",
-      "community": 31,
+      "community": 45,
       "norm_label": "timedelta"
     },
     {
@@ -3144,7 +3144,7 @@
       "source_location": "L311",
       "_origin": "ast",
       "id": "backend_app_services_alerts_mark_breaker_open",
-      "community": 31,
+      "community": 36,
       "norm_label": "mark_breaker_open()"
     },
     {
@@ -3154,7 +3154,7 @@
       "source_location": "L318",
       "_origin": "ast",
       "id": "backend_app_services_alerts_record_beat_heartbeat",
-      "community": 31,
+      "community": 36,
       "norm_label": "record_beat_heartbeat()"
     },
     {
@@ -3164,7 +3164,7 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "backend_app_services_alerts_failure_spike",
-      "community": 31,
+      "community": 45,
       "norm_label": "failure_spike()"
     },
     {
@@ -3174,7 +3174,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_datetime",
-      "community": 31,
+      "community": 45,
       "norm_label": "datetime"
     },
     {
@@ -3184,7 +3184,7 @@
       "source_location": "L382",
       "_origin": "ast",
       "id": "backend_app_services_alerts_breaker_released",
-      "community": 31,
+      "community": 45,
       "norm_label": "breaker_released()"
     },
     {
@@ -3194,7 +3194,7 @@
       "source_location": "L398",
       "_origin": "ast",
       "id": "backend_app_services_alerts_text",
-      "community": 31,
+      "community": 36,
       "norm_label": "_text()"
     },
     {
@@ -3204,7 +3204,7 @@
       "source_location": "L408",
       "_origin": "ast",
       "id": "backend_app_services_alerts_delete_if_equals",
-      "community": 31,
+      "community": 36,
       "norm_label": "_delete_if_equals()"
     },
     {
@@ -3214,7 +3214,7 @@
       "source_location": "L412",
       "_origin": "ast",
       "id": "backend_app_services_alerts_beat_heartbeat_age",
-      "community": 31,
+      "community": 36,
       "norm_label": "beat_heartbeat_age()"
     },
     {
@@ -3244,7 +3244,7 @@
       "source_location": "L443",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_check_once",
-      "community": 31,
+      "community": 36,
       "norm_label": ".check_once()"
     },
     {
@@ -3294,7 +3294,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_110",
-      "community": 83,
+      "community": 31,
       "norm_label": "carries only a redacted, token-free description of what went wrong."
     },
     {
@@ -3304,7 +3304,7 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_149",
-      "community": 83,
+      "community": 31,
       "norm_label": "the message exactly as it reaches the room: labelled (dev and production share"
     },
     {
@@ -3314,7 +3314,7 @@
       "source_location": "L164",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_164",
-      "community": 83,
+      "community": 31,
       "norm_label": "one put to the room. raises alertsnotconfigured or alertsenderror; never retries"
     },
     {
@@ -3344,7 +3344,7 @@
       "source_location": "L285",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_285",
-      "community": 31,
+      "community": 45,
       "norm_label": "queues an alert on `db` that is enqueued only once its transaction commits, and"
     },
     {
@@ -3354,7 +3354,7 @@
       "source_location": "L319",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_319",
-      "community": 31,
+      "community": 36,
       "norm_label": "called on every dispatch_due_tracks tick, whether or not alerts are configured."
     },
     {
@@ -3364,7 +3364,7 @@
       "source_location": "L331",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_331",
-      "community": 31,
+      "community": 45,
       "norm_label": "(fingerprint, text, newest finished_at) when the newest `threshold` real attempt"
     },
     {
@@ -3374,7 +3374,7 @@
       "source_location": "L383",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_383",
-      "community": 31,
+      "community": 45,
       "norm_label": "the trip's pause is over and nothing else holds downloads: a manual pause still"
     },
     {
@@ -3384,7 +3384,7 @@
       "source_location": "L413",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_413",
-      "community": 31,
+      "community": 36,
       "norm_label": "seconds since beat's last tick. no heartbeat at all (a fresh redis, or beat neve"
     },
     {
@@ -3514,7 +3514,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_archive",
-      "community": 82,
+      "community": 28,
       "norm_label": "archive.py"
     },
     {
@@ -3524,7 +3524,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_services_archive_eligible_job_ids",
-      "community": 82,
+      "community": 28,
       "norm_label": "_eligible_job_ids()"
     },
     {
@@ -3534,7 +3534,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_session",
-      "community": 82,
+      "community": 28,
       "norm_label": "session"
     },
     {
@@ -3544,7 +3544,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_uuid",
-      "community": 82,
+      "community": 28,
       "norm_label": "uuid"
     },
     {
@@ -3554,7 +3554,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_timedelta",
-      "community": 82,
+      "community": 28,
       "norm_label": "timedelta"
     },
     {
@@ -3564,7 +3564,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "backend_app_services_archive_archive_jobs",
-      "community": 82,
+      "community": 28,
       "norm_label": "archive_jobs()"
     },
     {
@@ -3574,7 +3574,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_archive_py_job",
-      "community": 82,
+      "community": 28,
       "norm_label": "job"
     },
     {
@@ -3584,7 +3584,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "backend_app_services_archive_unarchive_jobs",
-      "community": 82,
+      "community": 28,
       "norm_label": "unarchive_jobs()"
     },
     {
@@ -3594,7 +3594,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_archive_rationale_1",
-      "community": 82,
+      "community": 28,
       "norm_label": "soft-archive lifecycle for jobs (v19). see `plan/master-v2/v19-archive-retention"
     },
     {
@@ -3604,7 +3604,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "backend_app_services_archive_rationale_78",
-      "community": 82,
+      "community": 28,
       "norm_label": "`job_ids=none, older_than=none` (the \"clear log\" case) archives every eligible j"
     },
     {
@@ -3614,7 +3614,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_attempts",
-      "community": 45,
+      "community": 4,
       "norm_label": "attempts.py"
     },
     {
@@ -3624,7 +3624,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "backend_app_services_attempts_previous_was_transport_failure",
-      "community": 45,
+      "community": 4,
       "norm_label": "previous_was_transport_failure()"
     },
     {
@@ -3634,7 +3634,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_session",
-      "community": 45,
+      "community": 4,
       "norm_label": "session"
     },
     {
@@ -3644,7 +3644,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_uuid",
-      "community": 45,
+      "community": 4,
       "norm_label": "uuid"
     },
     {
@@ -3654,7 +3654,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_app_services_attempts_recordedattempt",
-      "community": 45,
+      "community": 4,
       "norm_label": "recordedattempt"
     },
     {
@@ -3664,7 +3664,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "backend_app_services_attempts_record_attempt",
-      "community": 45,
+      "community": 4,
       "norm_label": "record_attempt()"
     },
     {
@@ -3674,7 +3674,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_datetime",
-      "community": 45,
+      "community": 4,
       "norm_label": "datetime"
     },
     {
@@ -3684,7 +3684,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "trackattemptoutcome",
-      "community": 45,
+      "community": 4,
       "norm_label": "trackattemptoutcome"
     },
     {
@@ -3694,7 +3694,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_trackerrortype",
-      "community": 45,
+      "community": 4,
       "norm_label": "trackerrortype"
     },
     {
@@ -3704,7 +3704,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_networkpath",
-      "community": 45,
+      "community": 4,
       "norm_label": "networkpath"
     },
     {
@@ -3714,7 +3714,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_1",
-      "community": 45,
+      "community": 4,
       "norm_label": "per-attempt download history (v24) -- see app/models/track_attempt.py's docstrin"
     },
     {
@@ -3724,7 +3724,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_35",
-      "community": 45,
+      "community": 4,
       "norm_label": "whether this track's latest real attempt was itself a proxy transport failure. h"
     },
     {
@@ -3734,7 +3734,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_70",
-      "community": 45,
+      "community": 4,
       "norm_label": "adds one `track_attempts` row and returns its attempt_number together with the"
     },
     {
@@ -4984,7 +4984,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_redaction",
-      "community": 83,
+      "community": 31,
       "norm_label": "redaction.py"
     },
     {
@@ -4994,7 +4994,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "backend_app_services_redaction_redact_text",
-      "community": 83,
+      "community": 31,
       "norm_label": "redact_text()"
     },
     {
@@ -5004,7 +5004,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_redaction_rationale_1",
-      "community": 83,
+      "community": 31,
       "norm_label": "credentialed-url redaction for free-form text (v31, moved here from proxies.py i"
     },
     {
@@ -5014,7 +5014,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "backend_app_services_redaction_rationale_29",
-      "community": 83,
+      "community": 31,
       "norm_label": "redacts every credentialed-url-shaped substring found anywhere in `text`, not"
     },
     {
@@ -6704,7 +6704,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_library",
-      "community": 76,
+      "community": 2,
       "norm_label": "library.py"
     },
     {
@@ -6714,7 +6714,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_tasks_library_get_run",
-      "community": 76,
+      "community": 2,
       "norm_label": "_get_run()"
     },
     {
@@ -6724,7 +6724,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_library_py_librarysortrun",
-      "community": 76,
+      "community": 2,
       "norm_label": "librarysortrun"
     },
     {
@@ -6734,7 +6734,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "backend_app_tasks_library_record_error",
-      "community": 76,
+      "community": 2,
       "norm_label": "_record_error()"
     },
     {
@@ -6744,7 +6744,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "backend_app_tasks_library_sync_tracks_and_archive_jobs",
-      "community": 76,
+      "community": 2,
       "norm_label": "_sync_tracks_and_archive_jobs()"
     },
     {
@@ -6754,7 +6754,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "backend_app_tasks_library_publish_progress",
-      "community": 76,
+      "community": 2,
       "norm_label": "_publish_progress()"
     },
     {
@@ -6764,7 +6764,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "backend_app_tasks_library_run_sweep",
-      "community": 76,
+      "community": 2,
       "norm_label": "_run_sweep()"
     },
     {
@@ -6774,7 +6774,7 @@
       "source_location": "L211",
       "_origin": "ast",
       "id": "backend_app_tasks_library_alert_sweep_finished",
-      "community": 76,
+      "community": 2,
       "norm_label": "_alert_sweep_finished()"
     },
     {
@@ -6784,7 +6784,7 @@
       "source_location": "L235",
       "_origin": "ast",
       "id": "backend_app_tasks_library_sort_library",
-      "community": 76,
+      "community": 2,
       "norm_label": "sort_library()"
     },
     {
@@ -6794,7 +6794,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_tasks_library_rationale_35",
-      "community": 76,
+      "community": 2,
       "norm_label": "repoints every affected track.output_path to the ledger's new location (the"
     },
     {
@@ -6804,7 +6804,7 @@
       "source_location": "L212",
       "_origin": "ast",
       "id": "backend_app_tasks_library_rationale_212",
-      "community": 76,
+      "community": 2,
       "norm_label": "v36: one matrix alert per sweep, keyed on its finish time so no two runs share a"
     },
     {
@@ -6814,7 +6814,7 @@
       "source_location": "L236",
       "_origin": "ast",
       "id": "backend_app_tasks_library_rationale_236",
-      "community": 76,
+      "community": 2,
       "norm_label": "admin-triggered, on-demand sweep (v28) -- runs on worker-expand's `expand` queue"
     },
     {
@@ -6824,7 +6824,7 @@
       "ecosystem": "python",
       "source_file": "backend/pyproject.toml",
       "source_location": "L1",
-      "version": "4.40.2",
+      "version": "4.41.0",
       "_origin": "ast",
       "id": "pkg_spotdl_web_backend",
       "community": 55,
@@ -7087,7 +7087,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_configured",
-      "community": 36,
+      "community": 242,
       "norm_label": "configured()"
     },
     {
@@ -7107,7 +7107,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_alerts_off_when_any_variable_is_missing_or_blank",
-      "community": 36,
+      "community": 242,
       "norm_label": "test_alerts_off_when_any_variable_is_missing_or_blank()"
     },
     {
@@ -7787,7 +7787,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_archive",
-      "community": 64,
+      "community": 28,
       "norm_label": "test_archive.py"
     },
     {
@@ -7797,7 +7797,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "backend_tests_test_archive_owner",
-      "community": 64,
+      "community": 28,
       "norm_label": "_owner()"
     },
     {
@@ -7807,7 +7807,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_tests_test_archive_make_job",
-      "community": 64,
+      "community": 28,
       "norm_label": "_make_job()"
     },
     {
@@ -7817,7 +7817,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_archive_py_job",
-      "community": 64,
+      "community": 28,
       "norm_label": "job"
     },
     {
@@ -7827,7 +7827,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_archives_only_settled_failed_or_cancelled_jobs_for_the_owner",
-      "community": 64,
+      "community": 28,
       "norm_label": "test_archive_jobs_archives_only_settled_failed_or_cancelled_jobs_for_the_owner()"
     },
     {
@@ -7837,7 +7837,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_never_archives_a_waiting_job_regardless_of_age",
-      "community": 64,
+      "community": 28,
       "norm_label": "test_archive_jobs_never_archives_a_waiting_job_regardless_of_age()"
     },
     {
@@ -7847,7 +7847,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_age_is_measured_from_newest_track_activity_not_job_created_at",
-      "community": 64,
+      "community": 28,
       "norm_label": "test_archive_jobs_age_is_measured_from_newest_track_activity_not_job_created_at()"
     },
     {
@@ -7857,7 +7857,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_sweep_archives_settled_jobs_past_the_threshold",
-      "community": 64,
+      "community": 28,
       "norm_label": "test_archive_jobs_sweep_archives_settled_jobs_past_the_threshold()"
     },
     {
@@ -7867,7 +7867,7 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_with_job_ids_restricts_to_the_given_ids",
-      "community": 64,
+      "community": 28,
       "norm_label": "test_archive_jobs_with_job_ids_restricts_to_the_given_ids()"
     },
     {
@@ -7877,7 +7877,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_ignores_job_ids_belonging_to_another_user",
-      "community": 64,
+      "community": 28,
       "norm_label": "test_archive_jobs_ignores_job_ids_belonging_to_another_user()"
     },
     {
@@ -7887,7 +7887,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_never_touches_downloaded_tracks",
-      "community": 64,
+      "community": 28,
       "norm_label": "test_archive_jobs_never_touches_downloaded_tracks()"
     },
     {
@@ -7897,7 +7897,7 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_unarchive_jobs_restores_only_owned_archived_jobs",
-      "community": 64,
+      "community": 28,
       "norm_label": "test_unarchive_jobs_restores_only_owned_archived_jobs()"
     },
     {
@@ -7907,7 +7907,7 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_unarchive_jobs_on_a_non_archived_job_is_a_noop",
-      "community": 64,
+      "community": 28,
       "norm_label": "test_unarchive_jobs_on_a_non_archived_job_is_a_noop()"
     },
     {
@@ -9557,7 +9557,7 @@
       "source_location": "L1561",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_next_delay_is_pinned_for_every_failure_count",
-      "community": 36,
+      "community": 242,
       "norm_label": "test_next_delay_is_pinned_for_every_failure_count()"
     },
     {
@@ -12097,7 +12097,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_pagination",
-      "community": 132,
+      "community": 28,
       "norm_label": "test_pagination.py"
     },
     {
@@ -12107,7 +12107,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_make_job",
-      "community": 132,
+      "community": 28,
       "norm_label": "_make_job()"
     },
     {
@@ -12117,7 +12117,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_test_paging_forward_through_every_job_visits_each_exactly_once",
-      "community": 132,
+      "community": 28,
       "norm_label": "test_paging_forward_through_every_job_visits_each_exactly_once()"
     },
     {
@@ -12127,7 +12127,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_test_pages_stay_correct_when_a_row_is_archived_between_fetches",
-      "community": 132,
+      "community": 28,
       "norm_label": "test_pages_stay_correct_when_a_row_is_archived_between_fetches()"
     },
     {
@@ -12137,7 +12137,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_test_nullable_sort_key_keeps_nulls_last_regardless_of_direction",
-      "community": 132,
+      "community": 28,
       "norm_label": "test_nullable_sort_key_keeps_nulls_last_regardless_of_direction()"
     },
     {
@@ -12147,7 +12147,7 @@
       "source_location": "L117",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_test_malformed_cursor_returns_400_not_500",
-      "community": 132,
+      "community": 28,
       "norm_label": "test_malformed_cursor_returns_400_not_500()"
     },
     {
@@ -12157,7 +12157,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_test_encode_decode_cursor_round_trips_uuid_and_datetime",
-      "community": 132,
+      "community": 28,
       "norm_label": "test_encode_decode_cursor_round_trips_uuid_and_datetime()"
     },
     {
@@ -12167,7 +12167,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_rationale_1",
-      "community": 132,
+      "community": 28,
       "norm_label": "v18's cursor (keyset) pagination -- the specific failure mode it exists to avoid"
     },
     {
@@ -12177,7 +12177,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "backend_tests_test_pagination_rationale_54",
-      "community": 132,
+      "community": 28,
       "norm_label": "the concrete failure offset pagination has: mutating rows *before* the still-"
     },
     {
@@ -12857,7 +12857,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_next_delay_follows_ladder_and_caps_at_final_step",
-      "community": 36,
+      "community": 242,
       "norm_label": "test_next_delay_follows_ladder_and_caps_at_final_step()"
     },
     {
@@ -13367,7 +13367,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_stream",
-      "community": 20,
+      "community": 29,
       "norm_label": "test_stream.py"
     },
     {
@@ -13377,7 +13377,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fake_event_stream",
-      "community": 20,
+      "community": 29,
       "norm_label": "_fake_event_stream()"
     },
     {
@@ -13387,7 +13387,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_requires_session",
-      "community": 20,
+      "community": 29,
       "norm_label": "test_stream_requires_session()"
     },
     {
@@ -13397,7 +13397,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_returns_sse_headers_and_forwarded_events",
-      "community": 20,
+      "community": 29,
       "norm_label": "test_stream_returns_sse_headers_and_forwarded_events()"
     },
     {
@@ -13427,7 +13427,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub",
-      "community": 20,
+      "community": 29,
       "norm_label": "_fakepubsub"
     },
     {
@@ -13437,7 +13437,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_init",
-      "community": 20,
+      "community": 29,
       "norm_label": ".__init__()"
     },
     {
@@ -13447,7 +13447,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_subscribe",
-      "community": 20,
+      "community": 29,
       "norm_label": ".subscribe()"
     },
     {
@@ -13457,7 +13457,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_psubscribe",
-      "community": 20,
+      "community": 29,
       "norm_label": ".psubscribe()"
     },
     {
@@ -13467,7 +13467,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_unsubscribe",
-      "community": 20,
+      "community": 29,
       "norm_label": ".unsubscribe()"
     },
     {
@@ -13477,7 +13477,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_punsubscribe",
-      "community": 20,
+      "community": 29,
       "norm_label": ".punsubscribe()"
     },
     {
@@ -13487,7 +13487,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_get_message",
-      "community": 20,
+      "community": 29,
       "norm_label": ".get_message()"
     },
     {
@@ -13497,7 +13497,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_aclose",
-      "community": 20,
+      "community": 29,
       "norm_label": ".aclose()"
     },
     {
@@ -13507,7 +13507,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient",
-      "community": 20,
+      "community": 29,
       "norm_label": "_fakeredisclient"
     },
     {
@@ -13517,7 +13517,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_init",
-      "community": 20,
+      "community": 29,
       "norm_label": ".__init__()"
     },
     {
@@ -13527,7 +13527,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_pubsub",
-      "community": 20,
+      "community": 29,
       "norm_label": ".pubsub()"
     },
     {
@@ -13537,7 +13537,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_aclose",
-      "community": 20,
+      "community": 29,
       "norm_label": ".aclose()"
     },
     {
@@ -13547,7 +13547,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_tests_test_stream_drive",
-      "community": 20,
+      "community": 29,
       "norm_label": "_drive()"
     },
     {
@@ -13557,7 +13557,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_subscribes_to_the_users_own_channel",
-      "community": 20,
+      "community": 29,
       "norm_label": "test_event_stream_subscribes_to_the_users_own_channel()"
     },
     {
@@ -13567,7 +13567,7 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern",
-      "community": 20,
+      "community": 29,
       "norm_label": "test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern()"
     },
     {
@@ -13577,7 +13577,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_non_admin_all_users_flag_is_ignored",
-      "community": 20,
+      "community": 29,
       "norm_label": "test_event_stream_non_admin_all_users_flag_is_ignored()"
     },
     {
@@ -13587,7 +13587,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_110",
-      "community": 20,
+      "community": 29,
       "norm_label": "v17's threat model: a client-supplied scope flag is never trusted -- a non-admin"
     },
     {
@@ -14684,7 +14684,7 @@
       "label": "checkAttemptHistory()",
       "file_type": "code",
       "source_file": "frontend/e2e/03-track-detail.e2e.ts",
-      "source_location": "L11",
+      "source_location": "L18",
       "_origin": "ast",
       "id": "frontend_e2e_03_track_detail_e2e_checkattempthistory",
       "community": 1,
@@ -14779,6 +14779,16 @@
       "id": "frontend_e2e_10_job_row_layout_e2e",
       "community": 1,
       "norm_label": "10-job-row-layout.e2e.ts"
+    },
+    {
+      "label": "11-attempt-timeline.e2e.ts",
+      "file_type": "code",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "frontend_e2e_11_attempt_timeline_e2e",
+      "community": 1,
+      "norm_label": "11-attempt-timeline.e2e.ts"
     },
     {
       "label": "global-setup.ts",
@@ -15231,10 +15241,20 @@
       "norm_label": "issettled()"
     },
     {
-      "label": "expectedAttemptVia()",
+      "label": "expectedTimeline()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/stack.ts",
       "source_location": "L347",
+      "_origin": "ast",
+      "id": "frontend_e2e_support_stack_expectedtimeline",
+      "community": 1,
+      "norm_label": "expectedtimeline()"
+    },
+    {
+      "label": "expectedAttemptVia()",
+      "file_type": "code",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L366",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_expectedattemptvia",
       "community": 1,
@@ -15281,30 +15301,30 @@
       "norm_label": "opendashboard()"
     },
     {
-      "label": "jobToggle()",
-      "file_type": "code",
-      "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L45",
-      "_origin": "ast",
-      "id": "frontend_e2e_support_ui_jobtoggle",
-      "community": 1,
-      "norm_label": "jobtoggle()"
-    },
-    {
       "label": "jobRow()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L52",
+      "source_location": "L46",
       "_origin": "ast",
       "id": "frontend_e2e_support_ui_jobrow",
       "community": 1,
       "norm_label": "jobrow()"
     },
     {
+      "label": "jobToggle()",
+      "file_type": "code",
+      "source_file": "frontend/e2e/support/ui.ts",
+      "source_location": "L54",
+      "_origin": "ast",
+      "id": "frontend_e2e_support_ui_jobtoggle",
+      "community": 1,
+      "norm_label": "jobtoggle()"
+    },
+    {
       "label": "trackToggle()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L60",
+      "source_location": "L61",
       "_origin": "ast",
       "id": "frontend_e2e_support_ui_tracktoggle",
       "community": 1,
@@ -15314,7 +15334,7 @@
       "label": "submitUrl()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L67",
+      "source_location": "L68",
       "_origin": "ast",
       "id": "frontend_e2e_support_ui_submiturl",
       "community": 1,
@@ -15324,7 +15344,7 @@
       "label": "literal()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L79",
+      "source_location": "L80",
       "_origin": "ast",
       "id": "frontend_e2e_support_ui_literal",
       "community": 1,
@@ -15334,7 +15354,7 @@
       "label": "escape()",
       "file_type": "code",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L83",
+      "source_location": "L84",
       "_origin": "ast",
       "id": "frontend_e2e_support_ui_escape",
       "community": 1,
@@ -16048,7 +16068,7 @@
       "source_location": "L252",
       "_origin": "ast",
       "id": "frontend_src_lib_api_outputsettings",
-      "community": 1,
+      "community": 6,
       "norm_label": "outputsettings"
     },
     {
@@ -16672,6 +16692,117 @@
       "norm_label": "createeventsource()"
     },
     {
+      "label": "attempts.test.ts",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "frontend_src_lib_attempts_test",
+      "community": 1,
+      "norm_label": "attempts.test.ts"
+    },
+    {
+      "label": "attempt()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L11",
+      "_origin": "ast",
+      "id": "frontend_src_lib_attempts_test_attempt",
+      "community": 1,
+      "norm_label": "attempt()"
+    },
+    {
+      "label": "$lib/attempts",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "id": "frontend_src_lib_attempts",
+      "community": 1,
+      "norm_label": "$lib/attempts"
+    },
+    {
+      "label": "AttemptGroup",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "frontend_src_lib_attempts_attemptgroup",
+      "community": 1,
+      "norm_label": "attemptgroup"
+    },
+    {
+      "label": "sameReading()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "frontend_src_lib_attempts_samereading",
+      "community": 1,
+      "norm_label": "samereading()"
+    },
+    {
+      "label": "groupAttempts()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "frontend_src_lib_attempts_groupattempts",
+      "community": 1,
+      "norm_label": "groupattempts()"
+    },
+    {
+      "label": "attemptVia()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L35",
+      "_origin": "ast",
+      "id": "frontend_src_lib_attempts_attemptvia",
+      "community": 1,
+      "norm_label": "attemptvia()"
+    },
+    {
+      "label": "summarizeVia()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L46",
+      "_origin": "ast",
+      "id": "frontend_src_lib_attempts_summarizevia",
+      "community": 1,
+      "norm_label": "summarizevia()"
+    },
+    {
+      "label": "relativeTime()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L56",
+      "_origin": "ast",
+      "id": "frontend_src_lib_attempts_relativetime",
+      "community": 1,
+      "norm_label": "relativetime()"
+    },
+    {
+      "label": "formatDuration()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L67",
+      "_origin": "ast",
+      "id": "frontend_src_lib_attempts_formatduration",
+      "community": 1,
+      "norm_label": "formatduration()"
+    },
+    {
+      "label": "formatCountdown()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L75",
+      "_origin": "ast",
+      "id": "frontend_src_lib_attempts_formatcountdown",
+      "community": 1,
+      "norm_label": "formatcountdown()"
+    },
+    {
       "label": "$lib/components/AmbientField.svelte",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/AmbientField.svelte",
@@ -16679,7 +16810,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_ambientfield",
-      "community": 44,
+      "community": 50,
       "norm_label": "$lib/components/ambientfield.svelte"
     },
     {
@@ -16780,6 +16911,27 @@
       "norm_label": "$lib/components/queuecontrols.svelte"
     },
     {
+      "label": "group()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/TrackRow.svelte",
+      "source_location": "L359",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_trackrow_group",
+      "community": 13,
+      "norm_label": "group()"
+    },
+    {
+      "label": "$lib/stores/worker",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/worker.ts",
+      "confidence": "EXTRACTED",
+      "_origin": "ast",
+      "source_location": "L1",
+      "id": "frontend_src_lib_stores_worker",
+      "community": 44,
+      "norm_label": "$lib/stores/worker"
+    },
+    {
       "label": "$lib/components/Waterfall.svelte",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/Waterfall.svelte",
@@ -16810,17 +16962,6 @@
       "id": "frontend_src_lib_components_workerstatus_if",
       "community": 44,
       "norm_label": "if()"
-    },
-    {
-      "label": "$lib/stores/worker",
-      "file_type": "code",
-      "source_file": "frontend/src/lib/stores/worker.ts",
-      "confidence": "EXTRACTED",
-      "_origin": "ast",
-      "source_location": "L1",
-      "id": "frontend_src_lib_stores_worker",
-      "community": 44,
-      "norm_label": "$lib/stores/worker"
     },
     {
       "label": "$lib/components/WorkerStatusPill.svelte",
@@ -17321,7 +17462,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "community": 44,
+      "community": 50,
       "norm_label": "+layout.svelte"
     },
     {
@@ -17341,7 +17482,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_lib_assets_favicon_svg",
-      "community": 44,
+      "community": 50,
       "norm_label": "$lib/assets/favicon.svg"
     },
     {
@@ -17351,7 +17492,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "state",
-      "community": 44,
+      "community": 50,
       "norm_label": "$app/state"
     },
     {
@@ -18618,7 +18759,7 @@
       "label": "Verified external API contracts",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L847",
+      "source_location": "L866",
       "_origin": "ast",
       "id": "docs_gotchas_verified_external_api_contracts",
       "community": 138,
@@ -18628,7 +18769,7 @@
       "label": "Auth API \u2014 `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L852",
+      "source_location": "L871",
       "_origin": "ast",
       "id": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
       "community": 138,
@@ -18638,7 +18779,7 @@
       "label": "spotdl 4.5.2 \u2014 verified API surface actually used",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L870",
+      "source_location": "L889",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
       "community": 138,
@@ -18648,7 +18789,7 @@
       "label": "Version log",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L894",
+      "source_location": "L913",
       "_origin": "ast",
       "id": "docs_gotchas_version_log",
       "community": 14,
@@ -18658,7 +18799,7 @@
       "label": "v01 deployment gotchas (learned deploying to the real host and local dev)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L897",
+      "source_location": "L916",
       "_origin": "ast",
       "id": "docs_gotchas_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
       "community": 14,
@@ -18668,7 +18809,7 @@
       "label": "v02 schema gotchas (learned building the SQLAlchemy models + initial migration)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L936",
+      "source_location": "L955",
       "_origin": "ast",
       "id": "docs_gotchas_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
       "community": 14,
@@ -18678,7 +18819,7 @@
       "label": "v03 auth gotchas (learned building the upstream login proxy + session cookie)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L976",
+      "source_location": "L995",
       "_origin": "ast",
       "id": "docs_gotchas_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
       "community": 14,
@@ -18688,7 +18829,7 @@
       "label": "v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1034",
+      "source_location": "L1053",
       "_origin": "ast",
       "id": "docs_gotchas_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
       "community": 14,
@@ -18698,7 +18839,7 @@
       "label": "v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1119",
+      "source_location": "L1138",
       "_origin": "ast",
       "id": "docs_gotchas_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
       "community": 14,
@@ -18708,7 +18849,7 @@
       "label": "v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1189",
+      "source_location": "L1208",
       "_origin": "ast",
       "id": "docs_gotchas_v06_retry_engine_gotchas_learned_building_error_classification_ladder_breaker_beat_dispatch",
       "community": 14,
@@ -18718,7 +18859,7 @@
       "label": "v07 proxy-rotation gotchas (learned building `proxies.txt` sync + pick/cooldown + wiring)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1245",
+      "source_location": "L1264",
       "_origin": "ast",
       "id": "docs_gotchas_v07_proxy_rotation_gotchas_learned_building_proxies_txt_sync_pick_cooldown_wiring",
       "community": 14,
@@ -18728,7 +18869,7 @@
       "label": "v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1338",
+      "source_location": "L1357",
       "_origin": "ast",
       "id": "docs_gotchas_v08_live_progress_gotchas_learned_building_the_redis_pub_sub_event_bus_sse_stream",
       "community": 14,
@@ -18738,7 +18879,7 @@
       "label": "v09 frontend gotchas (learned building the SvelteKit login/dashboard UI)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1413",
+      "source_location": "L1432",
       "_origin": "ast",
       "id": "docs_gotchas_v09_frontend_gotchas_learned_building_the_sveltekit_login_dashboard_ui",
       "community": 14,
@@ -18748,7 +18889,7 @@
       "label": "v10 queue-controls gotchas (learned building cancel/retry-now/pause/breaker-release)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1647",
+      "source_location": "L1666",
       "_origin": "ast",
       "id": "docs_gotchas_v10_queue_controls_gotchas_learned_building_cancel_retry_now_pause_breaker_release",
       "community": 14,
@@ -18758,7 +18899,7 @@
       "label": "v11 priority gotchas (learned building job-priority-ordered dispatch + bump/priority endpoints)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1764",
+      "source_location": "L1783",
       "_origin": "ast",
       "id": "docs_gotchas_v11_priority_gotchas_learned_building_job_priority_ordered_dispatch_bump_priority_endpoints",
       "community": 14,
@@ -18768,7 +18909,7 @@
       "label": "v12 deploy-hardening gotchas (learned building durability fixes, same-origin nginx, non-root, JSON logging, backups)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1831",
+      "source_location": "L1850",
       "_origin": "ast",
       "id": "docs_gotchas_v12_deploy_hardening_gotchas_learned_building_durability_fixes_same_origin_nginx_non_root_json_logging_backups",
       "community": 14,
@@ -18778,7 +18919,7 @@
       "label": "v13 settings-UI gotchas (learned building proxy management + output-config override UI)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2141",
+      "source_location": "L2160",
       "_origin": "ast",
       "id": "docs_gotchas_v13_settings_ui_gotchas_learned_building_proxy_management_output_config_override_ui",
       "community": 14,
@@ -18788,7 +18929,7 @@
       "label": "v15 gap-fixes gotchas (learned closing v14's audit findings \u2014 pacing hook, N+1, stale docs)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2342",
+      "source_location": "L2361",
       "_origin": "ast",
       "id": "docs_gotchas_v15_gap_fixes_gotchas_learned_closing_v14_s_audit_findings_pacing_hook_n_1_stale_docs",
       "community": 14,
@@ -18798,7 +18939,7 @@
       "label": "v16 users-schema gotchas (learned building `users`/`user_settings` and ownership columns)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2444",
+      "source_location": "L2463",
       "_origin": "ast",
       "id": "docs_gotchas_v16_users_schema_gotchas_learned_building_users_user_settings_and_ownership_columns",
       "community": 14,
@@ -18808,7 +18949,7 @@
       "label": "v17 multi-user-auth gotchas (learned wiring user-creation-on-login + owner scoping + per-user SSE)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2501",
+      "source_location": "L2520",
       "_origin": "ast",
       "id": "docs_gotchas_v17_multi_user_auth_gotchas_learned_wiring_user_creation_on_login_owner_scoping_per_user_sse",
       "community": 14,
@@ -18818,7 +18959,7 @@
       "label": "v18 job-centric-api gotchas (learned building cursor pagination, rollup status, and search)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2593",
+      "source_location": "L2612",
       "_origin": "ast",
       "id": "docs_gotchas_v18_job_centric_api_gotchas_learned_building_cursor_pagination_rollup_status_and_search",
       "community": 14,
@@ -18828,7 +18969,7 @@
       "label": "v19 archive-retention gotchas (learned building soft-archive lifecycle + per-user retention)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2690",
+      "source_location": "L2709",
       "_origin": "ast",
       "id": "docs_gotchas_v19_archive_retention_gotchas_learned_building_soft_archive_lifecycle_per_user_retention",
       "community": 14,
@@ -18838,7 +18979,7 @@
       "label": "v20 job-centric-ui gotchas (learned building the job/track hierarchy UI, search/sort, archive",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2747",
+      "source_location": "L2766",
       "_origin": "ast",
       "id": "docs_gotchas_v20_job_centric_ui_gotchas_learned_building_the_job_track_hierarchy_ui_search_sort_archive",
       "community": 14,
@@ -18848,7 +18989,7 @@
       "label": "v21 release-automation gotchas (learned building GitHub releases, GHCR image publishing, and",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2888",
+      "source_location": "L2907",
       "_origin": "ast",
       "id": "docs_gotchas_v21_release_automation_gotchas_learned_building_github_releases_ghcr_image_publishing_and",
       "community": 14,
@@ -18858,7 +18999,7 @@
       "label": "v22 multi-user-hardening gotchas (learned re-running the cross-user sweep at the seams v14\u2013v20",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3046",
+      "source_location": "L3065",
       "_origin": "ast",
       "id": "docs_gotchas_v22_multi_user_hardening_gotchas_learned_re_running_the_cross_user_sweep_at_the_seams_v14_v20",
       "community": 14,
@@ -18868,7 +19009,7 @@
       "label": "v23 download-reliability gotchas (learned root-causing the download outage, fixing the",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3217",
+      "source_location": "L3236",
       "_origin": "ast",
       "id": "docs_gotchas_v23_download_reliability_gotchas_learned_root_causing_the_download_outage_fixing_the",
       "community": 14,
@@ -18878,7 +19019,7 @@
       "label": "v23.1 download-reliability-followup gotchas (learned recording v23's production",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3258",
+      "source_location": "L3277",
       "_origin": "ast",
       "id": "docs_gotchas_v23_1_download_reliability_followup_gotchas_learned_recording_v23_s_production",
       "community": 14,
@@ -18888,7 +19029,7 @@
       "label": "v24 attempt-history gotchas (learned building `track_attempts`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3336",
+      "source_location": "L3355",
       "_origin": "ast",
       "id": "docs_gotchas_v24_attempt_history_gotchas_learned_building_track_attempts",
       "community": 14,
@@ -18898,7 +19039,7 @@
       "label": "v25 username-ui gotchas (learned building `users.username` + moving worker controls)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3369",
+      "source_location": "L3388",
       "_origin": "ast",
       "id": "docs_gotchas_v25_username_ui_gotchas_learned_building_users_username_moving_worker_controls",
       "community": 14,
@@ -18908,7 +19049,7 @@
       "label": "v26 id3-integrity gotchas (learned building tag verify/repair)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3413",
+      "source_location": "L3432",
       "_origin": "ast",
       "id": "docs_gotchas_v26_id3_integrity_gotchas_learned_building_tag_verify_repair",
       "community": 14,
@@ -18918,7 +19059,7 @@
       "label": "v27 file-downloads gotchas (learned building `GET /api/tracks/{id}/file`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3491",
+      "source_location": "L3510",
       "_origin": "ast",
       "id": "docs_gotchas_v27_file_downloads_gotchas_learned_building_get_api_tracks_id_file",
       "community": 14,
@@ -18928,7 +19069,7 @@
       "label": "v28 library-sort-move gotchas (learned building the admin-only sort & move sweep)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3556",
+      "source_location": "L3575",
       "_origin": "ast",
       "id": "docs_gotchas_v28_library_sort_move_gotchas_learned_building_the_admin_only_sort_move_sweep",
       "community": 14,
@@ -18938,7 +19079,7 @@
       "label": "v29 network-path-escalation gotchas (learned building the IPv4/IPv6 escalation rung)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3682",
+      "source_location": "L3701",
       "_origin": "ast",
       "id": "docs_gotchas_v29_network_path_escalation_gotchas_learned_building_the_ipv4_ipv6_escalation_rung",
       "community": 14,
@@ -18948,7 +19089,7 @@
       "label": "v30 proxy-routing-fix gotchas (learned making the proxy rung actually route real traffic)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3779",
+      "source_location": "L3798",
       "_origin": "ast",
       "id": "docs_gotchas_v30_proxy_routing_fix_gotchas_learned_making_the_proxy_rung_actually_route_real_traffic",
       "community": 14,
@@ -18958,7 +19099,7 @@
       "label": "v31 v3-hardening gotchas (learned closing out master v3: the cross-user sweep, three",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3841",
+      "source_location": "L3860",
       "_origin": "ast",
       "id": "docs_gotchas_v31_v3_hardening_gotchas_learned_closing_out_master_v3_the_cross_user_sweep_three",
       "community": 14,
@@ -18968,7 +19109,7 @@
       "label": "v31.1 followup gotchas (learned closing out v31's one deferred item, plus a second,",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4111",
+      "source_location": "L4130",
       "_origin": "ast",
       "id": "docs_gotchas_v31_1_followup_gotchas_learned_closing_out_v31_s_one_deferred_item_plus_a_second",
       "community": 14,
@@ -18978,7 +19119,7 @@
       "label": "v32 dev-database gotchas (learned moving local dev onto `spotdlwebtest` and adding the guard)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4140",
+      "source_location": "L4159",
       "_origin": "ast",
       "id": "docs_gotchas_v32_dev_database_gotchas_learned_moving_local_dev_onto_spotdlwebtest_and_adding_the_guard",
       "community": 14,
@@ -18988,7 +19129,7 @@
       "label": "v33 deploy-safety gotchas (learned hardening publish-deploy.yml's preflight, rollback and alerts)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4181",
+      "source_location": "L4200",
       "_origin": "ast",
       "id": "docs_gotchas_v33_deploy_safety_gotchas_learned_hardening_publish_deploy_yml_s_preflight_rollback_and_alerts",
       "community": 14,
@@ -18998,7 +19139,7 @@
       "label": "v33.1 v33-followup gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4253",
+      "source_location": "L4272",
       "_origin": "ast",
       "id": "docs_gotchas_v33_1_v33_followup_gotchas",
       "community": 14,
@@ -19008,7 +19149,7 @@
       "label": "v34 live-hydration gotchas (learned fixing \"Active signal\"/incoming jobs vanishing on refresh)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4263",
+      "source_location": "L4282",
       "_origin": "ast",
       "id": "docs_gotchas_v34_live_hydration_gotchas_learned_fixing_active_signal_incoming_jobs_vanishing_on_refresh",
       "community": 14,
@@ -19018,7 +19159,7 @@
       "label": "v34.1 expansion-fixes gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4322",
+      "source_location": "L4341",
       "_origin": "ast",
       "id": "docs_gotchas_v34_1_expansion_fixes_gotchas",
       "community": 14,
@@ -19028,7 +19169,7 @@
       "label": "v34.2 live-view-followup gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4384",
+      "source_location": "L4403",
       "_origin": "ast",
       "id": "docs_gotchas_v34_2_live_view_followup_gotchas",
       "community": 14,
@@ -19038,7 +19179,7 @@
       "label": "v35 correctness-sweep gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4426",
+      "source_location": "L4445",
       "_origin": "ast",
       "id": "docs_gotchas_v35_correctness_sweep_gotchas",
       "community": 14,
@@ -19048,7 +19189,7 @@
       "label": "v36 alerting gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4490",
+      "source_location": "L4509",
       "_origin": "ast",
       "id": "docs_gotchas_v36_alerting_gotchas",
       "community": 14,
@@ -19058,7 +19199,7 @@
       "label": "v37 e2e-harness gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4586",
+      "source_location": "L4605",
       "_origin": "ast",
       "id": "docs_gotchas_v37_e2e_harness_gotchas",
       "community": 14,
@@ -19068,7 +19209,7 @@
       "label": "v38 moved-file-dedup gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4681",
+      "source_location": "L4700",
       "_origin": "ast",
       "id": "docs_gotchas_v38_moved_file_dedup_gotchas",
       "community": 14,
@@ -19078,7 +19219,7 @@
       "label": "v39 ui-audit gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4741",
+      "source_location": "L4760",
       "_origin": "ast",
       "id": "docs_gotchas_v39_ui_audit_gotchas",
       "community": 14,
@@ -19088,7 +19229,7 @@
       "label": "v39.2 swallowed-error classification gotchas (learned from a production artist download)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4783",
+      "source_location": "L4802",
       "_origin": "ast",
       "id": "docs_gotchas_v39_2_swallowed_error_classification_gotchas_learned_from_a_production_artist_download",
       "community": 14,
@@ -19098,7 +19239,7 @@
       "label": "v40 ambient-field gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4825",
+      "source_location": "L4844",
       "_origin": "ast",
       "id": "docs_gotchas_v40_ambient_field_gotchas",
       "community": 14,
@@ -19108,7 +19249,7 @@
       "label": "v40.1 breaker wedge fix gotchas (learned from production still stuck after v39.2)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4869",
+      "source_location": "L4888",
       "_origin": "ast",
       "id": "docs_gotchas_v40_1_breaker_wedge_fix_gotchas_learned_from_production_still_stuck_after_v39_2",
       "community": 14,
@@ -19118,11 +19259,21 @@
       "label": "v40.2 live-desync fix gotchas (learned from production's Scooter job settling)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4903",
+      "source_location": "L4922",
       "_origin": "ast",
       "id": "docs_gotchas_v40_2_live_desync_fix_gotchas_learned_from_production_s_scooter_job_settling",
       "community": 14,
       "norm_label": "v40.2 live-desync fix gotchas (learned from production's scooter job settling)"
+    },
+    {
+      "label": "v41 track-detail-redesign gotchas",
+      "file_type": "document",
+      "source_file": "docs/GOTCHAS.md",
+      "source_location": "L4945",
+      "_origin": "ast",
+      "id": "docs_gotchas_v41_track_detail_redesign_gotchas",
+      "community": 14,
+      "norm_label": "v41 track-detail-redesign gotchas"
     },
     {
       "label": "LOCAL_DEV.md",
@@ -19748,7 +19899,7 @@
       "label": "Amber on chrome: the v40 decision (v39 F10, amendment A5)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L70",
+      "source_location": "L76",
       "_origin": "ast",
       "id": "frontend_src_design_amber_on_chrome_the_v40_decision_v39_f10_amendment_a5",
       "community": 5,
@@ -19758,7 +19909,7 @@
       "label": "Focus",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L94",
+      "source_location": "L100",
       "_origin": "ast",
       "id": "frontend_src_design_focus",
       "community": 5,
@@ -19768,7 +19919,7 @@
       "label": "3. Type system",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L103",
+      "source_location": "L109",
       "_origin": "ast",
       "id": "frontend_src_design_3_type_system",
       "community": 5,
@@ -19778,7 +19929,7 @@
       "label": "Sizes actually in use (no formal type-scale variable exists \u2014 sizes are set ad hoc per",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L118",
+      "source_location": "L124",
       "_origin": "ast",
       "id": "frontend_src_design_sizes_actually_in_use_no_formal_type_scale_variable_exists_sizes_are_set_ad_hoc_per",
       "community": 5,
@@ -19788,17 +19939,27 @@
       "label": "4. Spacing scale",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L141",
+      "source_location": "L147",
       "_origin": "ast",
       "id": "frontend_src_design_4_spacing_scale",
       "community": 5,
       "norm_label": "4. spacing scale"
     },
     {
+      "label": "Row grid (v41)",
+      "file_type": "document",
+      "source_file": "frontend/src/DESIGN.md",
+      "source_location": "L166",
+      "_origin": "ast",
+      "id": "frontend_src_design_row_grid_v41",
+      "community": 5,
+      "norm_label": "row grid (v41)"
+    },
+    {
       "label": "5. Motion",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L160",
+      "source_location": "L176",
       "_origin": "ast",
       "id": "frontend_src_design_5_motion",
       "community": 5,
@@ -19808,7 +19969,7 @@
       "label": "6. Component patterns",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L184",
+      "source_location": "L200",
       "_origin": "ast",
       "id": "frontend_src_design_6_component_patterns",
       "community": 5,
@@ -19818,7 +19979,7 @@
       "label": "`.panel` \u2014 the recessed instrument housing",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L186",
+      "source_location": "L202",
       "_origin": "ast",
       "id": "frontend_src_design_panel_the_recessed_instrument_housing",
       "community": 5,
@@ -19828,7 +19989,7 @@
       "label": "Hero-marking border (the \"is anything live\" tell)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L205",
+      "source_location": "L221",
       "_origin": "ast",
       "id": "frontend_src_design_hero_marking_border_the_is_anything_live_tell",
       "community": 5,
@@ -19838,7 +19999,7 @@
       "label": "Ambient field (`AmbientField.svelte`, v40)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L223",
+      "source_location": "L239",
       "_origin": "ast",
       "id": "frontend_src_design_ambient_field_ambientfield_svelte_v40",
       "community": 5,
@@ -19848,7 +20009,7 @@
       "label": "Worker status pill + settings-page worker controls (`WorkerStatusPill.svelte`, `WorkerStatus.svelte`, `stores/worker.ts`, v25)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L277",
+      "source_location": "L293",
       "_origin": "ast",
       "id": "frontend_src_design_worker_status_pill_settings_page_worker_controls_workerstatuspill_svelte_workerstatus_svelte_stores_worker_ts_v25",
       "community": 5,
@@ -19858,7 +20019,7 @@
       "label": "State \u2192 color/label mapping (`TrackRow.svelte`, v20; formerly `QueueTable.svelte`)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L309",
+      "source_location": "L325",
       "_origin": "ast",
       "id": "frontend_src_design_state_color_label_mapping_trackrow_svelte_v20_formerly_queuetable_svelte",
       "community": 5,
@@ -19868,7 +20029,7 @@
       "label": "Job status \u2192 color/label mapping (`JobRow.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L322",
+      "source_location": "L343",
       "_origin": "ast",
       "id": "frontend_src_design_job_status_color_label_mapping_jobrow_svelte_v20",
       "community": 5,
@@ -19878,7 +20039,7 @@
       "label": "Segmented job progress bar (`JobRow.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L337",
+      "source_location": "L358",
       "_origin": "ast",
       "id": "frontend_src_design_segmented_job_progress_bar_jobrow_svelte_v20",
       "community": 5,
@@ -19888,7 +20049,7 @@
       "label": "Library sweep page (`routes/library/+page.svelte`, v28)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L348",
+      "source_location": "L369",
       "_origin": "ast",
       "id": "frontend_src_design_library_sweep_page_routes_library_page_svelte_v28",
       "community": 5,
@@ -19898,7 +20059,7 @@
       "label": "Sort headers (`QueueControls.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L375",
+      "source_location": "L396",
       "_origin": "ast",
       "id": "frontend_src_design_sort_headers_queuecontrols_svelte_v20",
       "community": 5,
@@ -19908,7 +20069,7 @@
       "label": "Search box (`QueueControls.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L387",
+      "source_location": "L408",
       "_origin": "ast",
       "id": "frontend_src_design_search_box_queuecontrols_svelte_v20",
       "community": 5,
@@ -19918,7 +20079,7 @@
       "label": "Jobs/Tracks scope toggle and archived/all-users toggles (`QueueControls.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L396",
+      "source_location": "L417",
       "_origin": "ast",
       "id": "frontend_src_design_jobs_tracks_scope_toggle_and_archived_all_users_toggles_queuecontrols_svelte_v20",
       "community": 5,
@@ -19928,7 +20089,7 @@
       "label": "Filter tabs",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L404",
+      "source_location": "L425",
       "_origin": "ast",
       "id": "frontend_src_design_filter_tabs",
       "community": 5,
@@ -19938,7 +20099,7 @@
       "label": "Scope toggle (mine / all users, admin-only, v17)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L411",
+      "source_location": "L432",
       "_origin": "ast",
       "id": "frontend_src_design_scope_toggle_mine_all_users_admin_only_v17",
       "community": 5,
@@ -19948,7 +20109,7 @@
       "label": "Attempt-history fan-out (expand/collapse row detail) (`TrackRow.svelte`)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L420",
+      "source_location": "L441",
       "_origin": "ast",
       "id": "frontend_src_design_attempt_history_fan_out_expand_collapse_row_detail_trackrow_svelte",
       "community": 5,
@@ -19958,7 +20119,7 @@
       "label": "File-download action (`TrackRow.svelte`, v27)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L428",
+      "source_location": "L462",
       "_origin": "ast",
       "id": "frontend_src_design_file_download_action_trackrow_svelte_v27",
       "community": 5,
@@ -19968,7 +20129,7 @@
       "label": "Job-row expansion (`JobRow.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L450",
+      "source_location": "L484",
       "_origin": "ast",
       "id": "frontend_src_design_job_row_expansion_jobrow_svelte_v20",
       "community": 5,
@@ -19978,7 +20139,7 @@
       "label": "Mobile stacked layout (`TrackRow.svelte`, `JobRow.svelte`, \u2264640px)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L464",
+      "source_location": "L503",
       "_origin": "ast",
       "id": "frontend_src_design_mobile_stacked_layout_trackrow_svelte_jobrow_svelte_640px",
       "community": 5,
@@ -19988,7 +20149,7 @@
       "label": "Command-line submit bar",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L493",
+      "source_location": "L540",
       "_origin": "ast",
       "id": "frontend_src_design_command_line_submit_bar",
       "community": 5,
@@ -19998,7 +20159,7 @@
       "label": "Login \"tuning in\" instrument",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L500",
+      "source_location": "L547",
       "_origin": "ast",
       "id": "frontend_src_design_login_tuning_in_instrument",
       "community": 5,
@@ -20008,7 +20169,7 @@
       "label": "Error / status text",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L508",
+      "source_location": "L555",
       "_origin": "ast",
       "id": "frontend_src_design_error_status_text",
       "community": 5,
@@ -20018,7 +20179,7 @@
       "label": "7. Accessibility (confirmed hard requirement, PRODUCT.md)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L515",
+      "source_location": "L562",
       "_origin": "ast",
       "id": "frontend_src_design_7_accessibility_confirmed_hard_requirement_product_md",
       "community": 5,
@@ -20028,7 +20189,7 @@
       "label": "8. Known, accepted gaps (do not silently \"fix\" without re-reading this section first)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L528",
+      "source_location": "L575",
       "_origin": "ast",
       "id": "frontend_src_design_8_known_accepted_gaps_do_not_silently_fix_without_re_reading_this_section_first",
       "community": 5,
@@ -20038,7 +20199,7 @@
       "label": "9. Sidecar",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L538",
+      "source_location": "L585",
       "_origin": "ast",
       "id": "frontend_src_design_9_sidecar",
       "community": 5,
@@ -56701,7 +56862,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/03-track-detail.e2e.ts",
-      "source_location": "L11",
+      "source_location": "L18",
       "weight": 1.0,
       "source": "frontend_e2e_03_track_detail_e2e",
       "target": "frontend_e2e_03_track_detail_e2e_checkattempthistory",
@@ -56748,6 +56909,17 @@
       "source_location": "L3",
       "weight": 1.0,
       "source": "frontend_e2e_03_track_detail_e2e",
+      "target": "frontend_e2e_support_stack_expectedtimeline",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/03-track-detail.e2e.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_e2e_03_track_detail_e2e",
       "target": "frontend_e2e_support_stack_readseed",
       "confidence_score": 1.0
     },
@@ -56767,7 +56939,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/03-track-detail.e2e.ts",
-      "source_location": "L4",
+      "source_location": "L10",
       "weight": 1.0,
       "source": "frontend_e2e_03_track_detail_e2e",
       "target": "frontend_e2e_support_ui",
@@ -56778,7 +56950,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/03-track-detail.e2e.ts",
-      "source_location": "L4",
+      "source_location": "L10",
       "weight": 1.0,
       "source": "frontend_e2e_03_track_detail_e2e",
       "target": "frontend_e2e_support_ui_jobtoggle",
@@ -56789,7 +56961,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/03-track-detail.e2e.ts",
-      "source_location": "L4",
+      "source_location": "L10",
       "weight": 1.0,
       "source": "frontend_e2e_03_track_detail_e2e",
       "target": "frontend_e2e_support_ui_opendashboard",
@@ -56800,7 +56972,7 @@
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/03-track-detail.e2e.ts",
-      "source_location": "L4",
+      "source_location": "L10",
       "weight": 1.0,
       "source": "frontend_e2e_03_track_detail_e2e",
       "target": "frontend_e2e_support_ui_tracktoggle",
@@ -56833,7 +57005,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/03-track-detail.e2e.ts",
-      "source_location": "L30",
+      "source_location": "L38",
       "weight": 1.0,
       "source": "frontend_e2e_03_track_detail_e2e_checkattempthistory",
       "target": "frontend_e2e_support_stack_expectedattemptvia",
@@ -56844,7 +57016,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/03-track-detail.e2e.ts",
-      "source_location": "L20",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "frontend_e2e_03_track_detail_e2e_checkattempthistory",
+      "target": "frontend_e2e_support_stack_expectedtimeline",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/03-track-detail.e2e.ts",
+      "source_location": "L27",
       "weight": 1.0,
       "source": "frontend_e2e_03_track_detail_e2e_checkattempthistory",
       "target": "frontend_e2e_support_ui_jobtoggle",
@@ -56855,7 +57038,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/03-track-detail.e2e.ts",
-      "source_location": "L23",
+      "source_location": "L30",
       "weight": 1.0,
       "source": "frontend_e2e_03_track_detail_e2e_checkattempthistory",
       "target": "frontend_e2e_support_ui_tracktoggle",
@@ -56867,10 +57050,21 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/03-track-detail.e2e.ts",
-      "source_location": "L27",
+      "source_location": "L35",
       "weight": 1.0,
       "source": "frontend_e2e_03_track_detail_e2e_checkattempthistory",
       "target": "frontend_src_lib_api_page"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "frontend/e2e/03-track-detail.e2e.ts",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "frontend_e2e_03_track_detail_e2e_checkattempthistory",
+      "target": "frontend_src_lib_attempts_test_attempt"
     },
     {
       "relation": "imports_from",
@@ -57605,6 +57799,127 @@
       "weight": 1.0,
       "source": "frontend_e2e_10_job_row_layout_e2e",
       "target": "frontend_e2e_support_ui_opendashboard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_stack",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_stack_admin_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_stack_adminidentity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_stack_normalizeemail",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_stack_readseed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_stack_stackpython",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_stack_user_state",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_ui",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_ui_jobtoggle",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_ui_opendashboard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/11-attempt-timeline.e2e.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "frontend_e2e_11_attempt_timeline_e2e",
+      "target": "frontend_e2e_support_ui_tracktoggle",
       "confidence_score": 1.0
     },
     {
@@ -58651,10 +58966,20 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/stack.ts",
-      "source_location": "L347",
+      "source_location": "L366",
       "weight": 1.0,
       "source": "frontend_e2e_support_stack",
       "target": "frontend_e2e_support_stack_expectedattemptvia",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L347",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack",
+      "target": "frontend_e2e_support_stack_expectedtimeline",
       "confidence_score": 1.0
     },
     {
@@ -59118,10 +59443,21 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "frontend/e2e/support/stack.ts",
+      "source_location": "L357",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_stack_expectedtimeline",
+      "target": "frontend_src_lib_attempts_test_attempt"
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L83",
+      "source_location": "L84",
       "weight": 1.0,
       "source": "frontend_e2e_support_ui",
       "target": "frontend_e2e_support_ui_escape",
@@ -59131,7 +59467,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L52",
+      "source_location": "L46",
       "weight": 1.0,
       "source": "frontend_e2e_support_ui",
       "target": "frontend_e2e_support_ui_jobrow",
@@ -59141,7 +59477,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L45",
+      "source_location": "L54",
       "weight": 1.0,
       "source": "frontend_e2e_support_ui",
       "target": "frontend_e2e_support_ui_jobtoggle",
@@ -59151,7 +59487,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L79",
+      "source_location": "L80",
       "weight": 1.0,
       "source": "frontend_e2e_support_ui",
       "target": "frontend_e2e_support_ui_literal",
@@ -59191,7 +59527,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L67",
+      "source_location": "L68",
       "weight": 1.0,
       "source": "frontend_e2e_support_ui",
       "target": "frontend_e2e_support_ui_submiturl",
@@ -59201,7 +59537,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L60",
+      "source_location": "L61",
       "weight": 1.0,
       "source": "frontend_e2e_support_ui",
       "target": "frontend_e2e_support_ui_tracktoggle",
@@ -59263,46 +59599,13 @@
       "target": "frontend_src_lib_api_page"
     },
     {
-      "relation": "calls",
+      "relation": "references",
       "context": "call",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L56",
-      "weight": 1.0,
-      "source": "frontend_e2e_support_ui_jobrow",
-      "target": "frontend_e2e_support_ui_jobtoggle",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
       "source_file": "frontend/e2e/support/ui.ts",
       "source_location": "L47",
       "weight": 1.0,
-      "source": "frontend_e2e_support_ui_jobtoggle",
-      "target": "frontend_e2e_support_ui_escape",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L46",
-      "weight": 1.0,
-      "source": "frontend_e2e_support_ui_jobtoggle",
-      "target": "frontend_src_lib_api_page"
-    },
-    {
-      "relation": "references",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L53",
-      "weight": 1.0,
       "source": "frontend_e2e_support_ui_jobrow",
       "target": "frontend_src_lib_api_page"
     },
@@ -59311,7 +59614,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L61",
+      "source_location": "L55",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_ui_jobtoggle",
+      "target": "frontend_e2e_support_ui_jobrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/ui.ts",
+      "source_location": "L62",
       "weight": 1.0,
       "source": "frontend_e2e_support_ui_tracktoggle",
       "target": "frontend_e2e_support_ui_jobrow",
@@ -59322,7 +59636,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L63",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "frontend_e2e_support_ui_jobtoggle",
+      "target": "frontend_e2e_support_ui_literal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/e2e/support/ui.ts",
+      "source_location": "L64",
       "weight": 1.0,
       "source": "frontend_e2e_support_ui_tracktoggle",
       "target": "frontend_e2e_support_ui_literal",
@@ -59334,7 +59659,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L68",
+      "source_location": "L69",
       "weight": 1.0,
       "source": "frontend_e2e_support_ui_submiturl",
       "target": "frontend_src_lib_api_page"
@@ -59344,7 +59669,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/support/ui.ts",
-      "source_location": "L80",
+      "source_location": "L81",
       "weight": 1.0,
       "source": "frontend_e2e_support_ui_literal",
       "target": "frontend_e2e_support_ui_escape",
@@ -60623,6 +60948,28 @@
     },
     {
       "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts",
+      "target": "frontend_src_lib_api",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_test",
+      "target": "frontend_src_lib_api",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
       "source": "frontend_src_lib_components_incomingjobs",
@@ -60798,6 +61145,39 @@
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_api_track",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts",
+      "target": "frontend_src_lib_api_trackattempt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "field",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_attemptgroup",
+      "target": "frontend_src_lib_api_trackattempt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_test",
+      "target": "frontend_src_lib_api_trackattempt",
       "confidence_score": 1.0
     },
     {
@@ -61505,6 +61885,222 @@
     },
     {
       "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_test",
+      "target": "frontend_src_lib_attempts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_test",
+      "target": "frontend_src_lib_attempts_formatcountdown",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_test",
+      "target": "frontend_src_lib_attempts_formatduration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_test",
+      "target": "frontend_src_lib_attempts_groupattempts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_test",
+      "target": "frontend_src_lib_attempts_relativetime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_test",
+      "target": "frontend_src_lib_attempts_summarizevia",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.test.ts",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_test",
+      "target": "frontend_src_lib_attempts_test_attempt",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_groupattempts",
+      "target": "frontend_src_lib_attempts_test_attempt"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L49",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_summarizevia",
+      "target": "frontend_src_lib_attempts_test_attempt"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts",
+      "target": "frontend_src_lib_attempts_attemptgroup",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts",
+      "target": "frontend_src_lib_attempts_attemptvia",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L75",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts",
+      "target": "frontend_src_lib_attempts_formatcountdown",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L67",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts",
+      "target": "frontend_src_lib_attempts_formatduration",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts",
+      "target": "frontend_src_lib_attempts_groupattempts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts",
+      "target": "frontend_src_lib_attempts_relativetime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts",
+      "target": "frontend_src_lib_attempts_samereading",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L46",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts",
+      "target": "frontend_src_lib_attempts_summarizevia",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/Countdown.svelte",
+      "source": "frontend_src_lib_components_countdown",
+      "target": "frontend_src_lib_attempts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/TrackRow.svelte",
+      "source": "frontend_src_lib_components_trackrow",
+      "target": "frontend_src_lib_attempts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_groupattempts",
+      "target": "frontend_src_lib_attempts_samereading",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/attempts.ts",
+      "source_location": "L49",
+      "weight": 1.0,
+      "source": "frontend_src_lib_attempts_summarizevia",
+      "target": "frontend_src_lib_attempts_attemptvia",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/AmbientField.svelte",
       "source": "frontend_src_lib_components_ambientfield",
@@ -61517,6 +62113,14 @@
       "source_file": "frontend/src/routes/+layout.svelte",
       "source": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
       "target": "frontend_src_lib_components_ambientfield",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/TrackRow.svelte",
+      "source": "frontend_src_lib_components_trackrow",
+      "target": "svelte",
       "confidence_score": 1.0
     },
     {
@@ -61949,6 +62553,24 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/TrackRow.svelte",
+      "source_location": "L359",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_trackrow",
+      "target": "frontend_src_lib_components_trackrow_group",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/TrackRow.svelte",
+      "source": "frontend_src_lib_components_trackrow",
+      "target": "frontend_src_lib_stores_worker",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "imports_from",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
@@ -61967,35 +62589,9 @@
     {
       "relation": "imports_from",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/routes/+page.svelte",
-      "source": "frontend_src_routes_page",
-      "target": "frontend_src_lib_components_waterfall",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/components/WorkerStatus.svelte",
-      "source_location": "L28",
-      "weight": 1.0,
-      "source": "frontend_src_lib_components_workerstatus",
-      "target": "frontend_src_lib_components_workerstatus_if",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/WorkerStatus.svelte",
       "source": "frontend_src_lib_components_workerstatus",
       "target": "frontend_src_lib_stores_worker",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/routes/settings/+page.svelte",
-      "source": "frontend_src_routes_settings_page",
-      "target": "frontend_src_lib_components_workerstatus",
       "confidence_score": 1.0
     },
     {
@@ -62032,6 +62628,32 @@
       "source_file": "frontend/src/routes/+page.svelte",
       "source": "frontend_src_routes_page",
       "target": "frontend_src_lib_stores_worker",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/+page.svelte",
+      "source": "frontend_src_routes_page",
+      "target": "frontend_src_lib_components_waterfall",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/WorkerStatus.svelte",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_workerstatus",
+      "target": "frontend_src_lib_components_workerstatus_if",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/settings/+page.svelte",
+      "source": "frontend_src_routes_settings_page",
+      "target": "frontend_src_lib_components_workerstatus",
       "confidence_score": 1.0
     },
     {
@@ -63684,7 +64306,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L847",
+      "source_location": "L866",
       "weight": 1.0,
       "source": "docs_gotchas_spotdl_web_accumulated_gotchas_master_v1_v01_v13",
       "target": "docs_gotchas_verified_external_api_contracts",
@@ -63694,7 +64316,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L894",
+      "source_location": "L913",
       "weight": 1.0,
       "source": "docs_gotchas_spotdl_web_accumulated_gotchas_master_v1_v01_v13",
       "target": "docs_gotchas_version_log",
@@ -63704,7 +64326,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L852",
+      "source_location": "L871",
       "weight": 1.0,
       "source": "docs_gotchas_verified_external_api_contracts",
       "target": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
@@ -63714,7 +64336,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L870",
+      "source_location": "L889",
       "weight": 1.0,
       "source": "docs_gotchas_verified_external_api_contracts",
       "target": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
@@ -63724,7 +64346,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L897",
+      "source_location": "L916",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
@@ -63734,7 +64356,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L936",
+      "source_location": "L955",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
@@ -63744,7 +64366,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L976",
+      "source_location": "L995",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
@@ -63754,7 +64376,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1034",
+      "source_location": "L1053",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
@@ -63764,7 +64386,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1119",
+      "source_location": "L1138",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
@@ -63774,7 +64396,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1189",
+      "source_location": "L1208",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v06_retry_engine_gotchas_learned_building_error_classification_ladder_breaker_beat_dispatch",
@@ -63784,7 +64406,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1245",
+      "source_location": "L1264",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v07_proxy_rotation_gotchas_learned_building_proxies_txt_sync_pick_cooldown_wiring",
@@ -63794,7 +64416,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1338",
+      "source_location": "L1357",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v08_live_progress_gotchas_learned_building_the_redis_pub_sub_event_bus_sse_stream",
@@ -63804,7 +64426,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1413",
+      "source_location": "L1432",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v09_frontend_gotchas_learned_building_the_sveltekit_login_dashboard_ui",
@@ -63814,7 +64436,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1647",
+      "source_location": "L1666",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v10_queue_controls_gotchas_learned_building_cancel_retry_now_pause_breaker_release",
@@ -63824,7 +64446,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1764",
+      "source_location": "L1783",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v11_priority_gotchas_learned_building_job_priority_ordered_dispatch_bump_priority_endpoints",
@@ -63834,7 +64456,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1831",
+      "source_location": "L1850",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v12_deploy_hardening_gotchas_learned_building_durability_fixes_same_origin_nginx_non_root_json_logging_backups",
@@ -63844,7 +64466,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2141",
+      "source_location": "L2160",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v13_settings_ui_gotchas_learned_building_proxy_management_output_config_override_ui",
@@ -63854,7 +64476,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2342",
+      "source_location": "L2361",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v15_gap_fixes_gotchas_learned_closing_v14_s_audit_findings_pacing_hook_n_1_stale_docs",
@@ -63864,7 +64486,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2444",
+      "source_location": "L2463",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v16_users_schema_gotchas_learned_building_users_user_settings_and_ownership_columns",
@@ -63874,7 +64496,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2501",
+      "source_location": "L2520",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v17_multi_user_auth_gotchas_learned_wiring_user_creation_on_login_owner_scoping_per_user_sse",
@@ -63884,7 +64506,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2593",
+      "source_location": "L2612",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v18_job_centric_api_gotchas_learned_building_cursor_pagination_rollup_status_and_search",
@@ -63894,7 +64516,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2690",
+      "source_location": "L2709",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v19_archive_retention_gotchas_learned_building_soft_archive_lifecycle_per_user_retention",
@@ -63904,7 +64526,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2747",
+      "source_location": "L2766",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v20_job_centric_ui_gotchas_learned_building_the_job_track_hierarchy_ui_search_sort_archive",
@@ -63914,7 +64536,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2888",
+      "source_location": "L2907",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v21_release_automation_gotchas_learned_building_github_releases_ghcr_image_publishing_and",
@@ -63924,7 +64546,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3046",
+      "source_location": "L3065",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v22_multi_user_hardening_gotchas_learned_re_running_the_cross_user_sweep_at_the_seams_v14_v20",
@@ -63934,7 +64556,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3258",
+      "source_location": "L3277",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v23_1_download_reliability_followup_gotchas_learned_recording_v23_s_production",
@@ -63944,7 +64566,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3217",
+      "source_location": "L3236",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v23_download_reliability_gotchas_learned_root_causing_the_download_outage_fixing_the",
@@ -63954,7 +64576,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3336",
+      "source_location": "L3355",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v24_attempt_history_gotchas_learned_building_track_attempts",
@@ -63964,7 +64586,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3369",
+      "source_location": "L3388",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v25_username_ui_gotchas_learned_building_users_username_moving_worker_controls",
@@ -63974,7 +64596,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3413",
+      "source_location": "L3432",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v26_id3_integrity_gotchas_learned_building_tag_verify_repair",
@@ -63984,7 +64606,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3491",
+      "source_location": "L3510",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v27_file_downloads_gotchas_learned_building_get_api_tracks_id_file",
@@ -63994,7 +64616,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3556",
+      "source_location": "L3575",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v28_library_sort_move_gotchas_learned_building_the_admin_only_sort_move_sweep",
@@ -64004,7 +64626,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3682",
+      "source_location": "L3701",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v29_network_path_escalation_gotchas_learned_building_the_ipv4_ipv6_escalation_rung",
@@ -64014,7 +64636,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3779",
+      "source_location": "L3798",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v30_proxy_routing_fix_gotchas_learned_making_the_proxy_rung_actually_route_real_traffic",
@@ -64024,7 +64646,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4111",
+      "source_location": "L4130",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v31_1_followup_gotchas_learned_closing_out_v31_s_one_deferred_item_plus_a_second",
@@ -64034,7 +64656,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3841",
+      "source_location": "L3860",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v31_v3_hardening_gotchas_learned_closing_out_master_v3_the_cross_user_sweep_three",
@@ -64044,7 +64666,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4140",
+      "source_location": "L4159",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v32_dev_database_gotchas_learned_moving_local_dev_onto_spotdlwebtest_and_adding_the_guard",
@@ -64054,7 +64676,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4253",
+      "source_location": "L4272",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v33_1_v33_followup_gotchas",
@@ -64064,7 +64686,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4181",
+      "source_location": "L4200",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v33_deploy_safety_gotchas_learned_hardening_publish_deploy_yml_s_preflight_rollback_and_alerts",
@@ -64074,7 +64696,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4322",
+      "source_location": "L4341",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v34_1_expansion_fixes_gotchas",
@@ -64084,7 +64706,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4384",
+      "source_location": "L4403",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v34_2_live_view_followup_gotchas",
@@ -64094,7 +64716,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4263",
+      "source_location": "L4282",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v34_live_hydration_gotchas_learned_fixing_active_signal_incoming_jobs_vanishing_on_refresh",
@@ -64104,7 +64726,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4426",
+      "source_location": "L4445",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v35_correctness_sweep_gotchas",
@@ -64114,7 +64736,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4490",
+      "source_location": "L4509",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v36_alerting_gotchas",
@@ -64124,7 +64746,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4586",
+      "source_location": "L4605",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v37_e2e_harness_gotchas",
@@ -64134,7 +64756,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4681",
+      "source_location": "L4700",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v38_moved_file_dedup_gotchas",
@@ -64144,7 +64766,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4783",
+      "source_location": "L4802",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v39_2_swallowed_error_classification_gotchas_learned_from_a_production_artist_download",
@@ -64154,7 +64776,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4741",
+      "source_location": "L4760",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v39_ui_audit_gotchas",
@@ -64164,7 +64786,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4869",
+      "source_location": "L4888",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v40_1_breaker_wedge_fix_gotchas_learned_from_production_still_stuck_after_v39_2",
@@ -64174,7 +64796,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4903",
+      "source_location": "L4922",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v40_2_live_desync_fix_gotchas_learned_from_production_s_scooter_job_settling",
@@ -64184,10 +64806,20 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4825",
+      "source_location": "L4844",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v40_ambient_field_gotchas",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "docs/GOTCHAS.md",
+      "source_location": "L4945",
+      "weight": 1.0,
+      "source": "docs_gotchas_version_log",
+      "target": "docs_gotchas_v41_track_detail_redesign_gotchas",
       "confidence_score": 1.0
     },
     {
@@ -64694,7 +65326,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L103",
+      "source_location": "L109",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_3_type_system",
@@ -64704,7 +65336,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L141",
+      "source_location": "L147",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_4_spacing_scale",
@@ -64714,7 +65346,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L160",
+      "source_location": "L176",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_5_motion",
@@ -64724,7 +65356,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L184",
+      "source_location": "L200",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_6_component_patterns",
@@ -64734,7 +65366,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L515",
+      "source_location": "L562",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_7_accessibility_confirmed_hard_requirement_product_md",
@@ -64744,7 +65376,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L528",
+      "source_location": "L575",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_8_known_accepted_gaps_do_not_silently_fix_without_re_reading_this_section_first",
@@ -64754,7 +65386,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L538",
+      "source_location": "L585",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_9_sidecar",
@@ -64764,7 +65396,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L70",
+      "source_location": "L76",
       "weight": 1.0,
       "source": "frontend_src_design_2_palette",
       "target": "frontend_src_design_amber_on_chrome_the_v40_decision_v39_f10_amendment_a5",
@@ -64784,7 +65416,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L94",
+      "source_location": "L100",
       "weight": 1.0,
       "source": "frontend_src_design_2_palette",
       "target": "frontend_src_design_focus",
@@ -64814,7 +65446,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L118",
+      "source_location": "L124",
       "weight": 1.0,
       "source": "frontend_src_design_3_type_system",
       "target": "frontend_src_design_sizes_actually_in_use_no_formal_type_scale_variable_exists_sizes_are_set_ad_hoc_per",
@@ -64824,7 +65456,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L223",
+      "source_location": "L166",
+      "weight": 1.0,
+      "source": "frontend_src_design_4_spacing_scale",
+      "target": "frontend_src_design_row_grid_v41",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/DESIGN.md",
+      "source_location": "L239",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_ambient_field_ambientfield_svelte_v40",
@@ -64834,7 +65476,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L420",
+      "source_location": "L441",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_attempt_history_fan_out_expand_collapse_row_detail_trackrow_svelte",
@@ -64844,7 +65486,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L493",
+      "source_location": "L540",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_command_line_submit_bar",
@@ -64854,7 +65496,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L508",
+      "source_location": "L555",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_error_status_text",
@@ -64864,7 +65506,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L428",
+      "source_location": "L462",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_file_download_action_trackrow_svelte_v27",
@@ -64874,7 +65516,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L404",
+      "source_location": "L425",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_filter_tabs",
@@ -64884,7 +65526,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L205",
+      "source_location": "L221",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_hero_marking_border_the_is_anything_live_tell",
@@ -64894,7 +65536,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L450",
+      "source_location": "L484",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_job_row_expansion_jobrow_svelte_v20",
@@ -64904,7 +65546,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L322",
+      "source_location": "L343",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_job_status_color_label_mapping_jobrow_svelte_v20",
@@ -64914,7 +65556,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L396",
+      "source_location": "L417",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_jobs_tracks_scope_toggle_and_archived_all_users_toggles_queuecontrols_svelte_v20",
@@ -64924,7 +65566,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L348",
+      "source_location": "L369",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_library_sweep_page_routes_library_page_svelte_v28",
@@ -64934,7 +65576,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L500",
+      "source_location": "L547",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_login_tuning_in_instrument",
@@ -64944,7 +65586,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L464",
+      "source_location": "L503",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_mobile_stacked_layout_trackrow_svelte_jobrow_svelte_640px",
@@ -64954,7 +65596,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L186",
+      "source_location": "L202",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_panel_the_recessed_instrument_housing",
@@ -64964,7 +65606,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L411",
+      "source_location": "L432",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_scope_toggle_mine_all_users_admin_only_v17",
@@ -64974,7 +65616,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L387",
+      "source_location": "L408",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_search_box_queuecontrols_svelte_v20",
@@ -64984,7 +65626,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L337",
+      "source_location": "L358",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_segmented_job_progress_bar_jobrow_svelte_v20",
@@ -64994,7 +65636,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L375",
+      "source_location": "L396",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_sort_headers_queuecontrols_svelte_v20",
@@ -65004,7 +65646,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L309",
+      "source_location": "L325",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_state_color_label_mapping_trackrow_svelte_v20_formerly_queuetable_svelte",
@@ -65014,7 +65656,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L277",
+      "source_location": "L293",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_worker_status_pill_settings_page_worker_controls_workerstatuspill_svelte_workerstatus_svelte_stores_worker_ts_v25",
@@ -69840,5 +70482,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "8920e3dedfeb3ed4065884b53be8807a76f19a8b"
+  "built_at_commit": "5ae17ce961b6211f95a30783bb7f80460555b7b8"
 }
