@@ -435,8 +435,14 @@
 		font-size: 0.8125rem;
 	}
 
+	/* Empty, it stays in the accessibility tree (a status region inserted together with
+	   its text is often not announced) but takes no room. */
 	.notice:empty {
-		display: none;
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 
 	/* Tablet: the actions drop to a second line under the title instead of squeezing it

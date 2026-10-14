@@ -80,7 +80,7 @@
 	--row-pad-x: var(--space-4);
 	--row-gap: var(--space-3);
 	--col-lead: 1rem;
-	--col-state: 8rem;
+	--col-state: 8.5rem;
 	--col-progress: 12rem;
 	--col-actions: 18rem;
 	--row-nest: calc(var(--col-lead) + var(--row-gap));

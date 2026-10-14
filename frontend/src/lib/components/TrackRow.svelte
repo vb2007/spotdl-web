@@ -110,7 +110,13 @@
 	let nextTry = $derived.by((): { at: string; heldByBreaker: boolean } | null => {
 		if (track.state !== 'waiting' || !track.scheduled_at) return null;
 		const breakerUntil = $workerStatus?.breaker_tripped_until ?? null;
-		if (breakerUntil && Date.parse(breakerUntil) > Date.parse(track.scheduled_at)) {
+		// An expired trip keeps its timestamp until the next success or release, so it only
+		// counts while it's still in the future (the backend's own `breaker_active` test).
+		if (
+			breakerUntil &&
+			Date.parse(breakerUntil) > Date.now() &&
+			Date.parse(breakerUntil) > Date.parse(track.scheduled_at)
+		) {
 			return { at: breakerUntil, heldByBreaker: true };
 		}
 		return { at: track.scheduled_at, heldByBreaker: false };
@@ -184,6 +190,8 @@
 	const openRuns = new SvelteSet<string>();
 	const openMessages = new SvelteSet<string>();
 	const pinnedTimes = new SvelteSet<string>();
+	// Esc hides an open time tooltip until the pointer or focus leaves (WCAG 1.4.13).
+	const dismissedTimes = new SvelteSet<string>();
 	const clampable = new SvelteMap<string, boolean>();
 
 	function toggleIn(set: SvelteSet<string>, key: string) {
@@ -268,8 +276,19 @@
 		type="button"
 		class="when mono"
 		class:pinned={pinnedTimes.has(key)}
+		class:dismissed={dismissedTimes.has(key)}
 		aria-pressed={pinnedTimes.has(key)}
-		onclick={() => toggleIn(pinnedTimes, key)}
+		onclick={() => {
+			dismissedTimes.delete(key);
+			toggleIn(pinnedTimes, key);
+		}}
+		onkeydown={(e) => {
+			if (e.key !== 'Escape') return;
+			pinnedTimes.delete(key);
+			dismissedTimes.add(key);
+		}}
+		onpointerleave={() => dismissedTimes.delete(key)}
+		onblur={() => dismissedTimes.delete(key)}
 		><time datetime={iso}>{relativeTime(iso, now)}</time><span class="abs"
 			><span class="sep">, </span>{formatTimestamp(iso)}</span
 		></button
@@ -557,14 +576,14 @@
 		font-weight: 500;
 	}
 
+	/* Value in primary text, its key in muted: both at full opacity (AA on every panel). */
 	.fact {
 		font-size: 0.75rem;
-		color: var(--text-muted);
+		color: var(--text-primary);
 	}
 
 	.key {
 		color: var(--text-muted);
-		opacity: 0.8;
 		margin-right: var(--space-1);
 	}
 
@@ -633,8 +652,14 @@
 		font-size: 0.75rem;
 	}
 
+	/* Empty, it stays in the accessibility tree (a status region inserted together with
+	   its text is often not announced) but takes no room. */
 	.notice:empty {
-		display: none;
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 
 	/* The history spans both columns: times in the state column's gutter, readings under
@@ -748,6 +773,15 @@
 		border: 1px solid var(--line-bright);
 		border-radius: 3px;
 		color: var(--text-primary);
+	}
+
+	/* Back to the resting clip, so the absolute time stays in the button's name. */
+	.when.dismissed .abs {
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		border: 0;
+		clip-path: inset(50%);
 	}
 
 	.reading {
