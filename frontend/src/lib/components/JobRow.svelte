@@ -245,7 +245,7 @@
 	.toggle {
 		grid-column: 1 / 4;
 		display: grid;
-		grid-template-columns: var(--col-lead) var(--col-state) minmax(0, max-content) auto;
+		grid-template-columns: var(--col-lead) var(--col-state) minmax(0, max-content) minmax(0, auto);
 		column-gap: var(--row-gap);
 		align-items: center;
 		min-width: 0;
@@ -289,10 +289,14 @@
 		letter-spacing: 0.04em;
 	}
 
+	/* Title and tags share whatever the toggle has left, so a long owner (an email, when
+	   there's no username) ellipsizes instead of crushing the title to nothing. */
 	.tags {
 		display: flex;
 		align-items: baseline;
 		gap: var(--space-2);
+		min-width: 0;
+		overflow: hidden;
 		margin-left: calc(var(--space-2) - var(--row-gap));
 	}
 
@@ -312,7 +316,10 @@
 	}
 
 	.owner {
-		flex-shrink: 0;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 		color: var(--text-muted);
 		font-size: 0.75rem;
 	}

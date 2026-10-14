@@ -423,7 +423,7 @@
 
 	.group-header {
 		display: grid;
-		grid-template-columns: var(--col-state) minmax(0, 1fr) auto;
+		grid-template-columns: var(--col-state) minmax(0, max-content) minmax(0, auto);
 		column-gap: var(--row-gap);
 		align-items: baseline;
 		padding: var(--space-3) var(--row-pad-x) var(--space-2) calc(var(--row-pad-x) + var(--row-nest));
@@ -445,7 +445,13 @@
 		text-transform: uppercase;
 	}
 
+	/* Shares the line with the title; a long owner (an email) ellipsizes rather than
+	   crushing it. */
 	.group-header .owner {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 		color: var(--text-muted);
 		font-size: 0.75rem;
 	}
@@ -471,7 +477,7 @@
 
 	@media (max-width: 640px) {
 		.group-header {
-			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-columns: minmax(0, max-content) minmax(0, auto);
 		}
 
 		.group-header .source-type {
