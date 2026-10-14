@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1791994613.732645,
-    "ast_hash": "4e54aa3308ce2ba92e1530388c50ba2b",
+    "mtime": 1791996449.2706366,
+    "ast_hash": "e157f2029495c60dd4f9930ab7e1a52d",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -755,8 +755,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/TrackRow.svelte": {
-    "mtime": 1791995727.3292022,
-    "ast_hash": "94a401e2f32aac16b1a3838d42a54029",
+    "mtime": 1791996430.6363258,
+    "ast_hash": "dbd0d4b3d86aa6215a25438100e5df2a",
     "semantic_hash": ""
   },
   "frontend/src/routes/account/+page.svelte": {
@@ -1330,13 +1330,13 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/attempts.test.ts": {
-    "mtime": 1791992551.9696643,
-    "ast_hash": "c9c6f074672bfe496ddd87c1d50b4565",
+    "mtime": 1791996430.6361513,
+    "ast_hash": "c2254c449a354dced907d59de42881ce",
     "semantic_hash": ""
   },
   "frontend/src/lib/attempts.ts": {
-    "mtime": 1791992551.793657,
-    "ast_hash": "9d2f8e4555535de800d42d6703b66e2d",
+    "mtime": 1791996430.636091,
+    "ast_hash": "ed1c8bf8779564dc580a8005d20aedcd",
     "semantic_hash": ""
   }
 }
