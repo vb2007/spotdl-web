@@ -196,7 +196,11 @@
 	// history is refetched on every open rather than served from the cache.
 	function toggleExpanded() {
 		expanded = !expanded;
-		if (expanded && track.state === 'cancelled') attemptsLoadedFor = null;
+		// Forced, so the history already on screen stays there while it's re-read; a row
+		// never loaded is fetched by the effect below as usual.
+		if (expanded && isAdmin && track.state === 'cancelled' && attemptsLoadedFor !== null) {
+			loadAttempts(attemptsKey, true);
+		}
 	}
 
 	// Collapsed runs the operator opened, and long messages they unclamped -- keyed by the
@@ -436,9 +440,15 @@
 
 			{#if isAdmin}
 				<div class="history">
+					{#if attemptsError && attemptsLoadedFor !== null}
+						<!-- A failed re-read never hides the history already loaded. -->
+						<p class="history-status history-error">
+							couldn't refresh ({attemptsError}) · showing the last loaded history
+						</p>
+					{/if}
 					{#if attemptsLoading && attemptsLoadedFor === null}
 						<p class="history-status">loading attempt history…</p>
-					{:else if attemptsError}
+					{:else if attemptsError && attemptsLoadedFor === null}
 						<p class="history-status history-error">{attemptsError}</p>
 					{:else if attempts.length === 0}
 						<p class="history-status">no attempts yet</p>
