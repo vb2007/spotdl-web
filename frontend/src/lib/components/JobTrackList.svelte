@@ -13,7 +13,7 @@
 <div class="job-tracks" id="job-tracks-{jobId}">
 	{#if state === undefined || state.loading}
 		<p class="hint mono">Loading tracks…</p>
-	{:else if state.error}
+	{:else if state.error && state.items.length === 0}
 		<p class="hint fail mono" role="alert">{state.error}</p>
 	{:else if state.items.length === 0}
 		<p class="hint mono">No tracks.</p>
@@ -40,6 +40,8 @@
 				>
 			</button>
 		{/if}
+		<!-- A failed "load more" keeps the rows already loaded; the button above retries. -->
+		<p class="hint fail mono" role="alert">{state.error ?? ''}</p>
 	{/if}
 </div>
 
@@ -70,6 +72,10 @@
 
 	.hint.fail {
 		color: var(--fail);
+	}
+
+	.hint.fail:empty {
+		display: none;
 	}
 
 	.rows {

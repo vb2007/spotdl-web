@@ -707,7 +707,8 @@ function createQueueStore() {
 		const current = get(expanded)[jobId];
 		if (!current || current.nextCursor === null || current.loadingMore) return;
 		const seq = expandedFetchSeq[jobId];
-		expanded.update((e) => ({ ...e, [jobId]: { ...e[jobId], loadingMore: true } }));
+		// v41: a retry clears the last failure, which JobTrackList shows beside the button.
+		expanded.update((e) => ({ ...e, [jobId]: { ...e[jobId], loadingMore: true, error: '' } }));
 		try {
 			const result: JobTracksPage = await api.listJobTracksPage(jobId, {
 				cursor: current.nextCursor
