@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1791997109.9748957,
-    "ast_hash": "8f679f270a545576d677b7bfd0220926",
+    "mtime": 1791998834.8980458,
+    "ast_hash": "e1804e9a6f6895ece4b5611fe6bdea8a",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
@@ -740,8 +740,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobRow.svelte": {
-    "mtime": 1791998110.42337,
-    "ast_hash": "1a42fb80bc7b493d5c1ed63a34669bed",
+    "mtime": 1791998825.5124812,
+    "ast_hash": "11d22304ee73b61398867dc8d24d3095",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobTrackList.svelte": {
@@ -755,8 +755,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/TrackRow.svelte": {
-    "mtime": 1791997411.7842197,
-    "ast_hash": "a6db8088b7b6b046f4db28cd0026526c",
+    "mtime": 1791998825.5123217,
+    "ast_hash": "5d22bc13784347ec88f671b0390f75c3",
     "semantic_hash": ""
   },
   "frontend/src/routes/account/+page.svelte": {
