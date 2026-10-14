@@ -73,6 +73,19 @@
 	--space-7: 3rem;
 	--space-8: 4rem;
 
+	/* Row grid (v41): the one set of columns JobRow, TrackRow, their expanded detail and the
+	   tracks-scope group header all line up on. A nested track list is indented by exactly
+	   one lead column, so a track's state sits under its job's badge and its title under the
+	   job's title. */
+	--row-pad-x: var(--space-4);
+	--row-gap: var(--space-3);
+	--col-lead: 1rem;
+	--col-state: 8rem;
+	--col-progress: 12rem;
+	--col-actions: 18rem;
+	--row-nest: calc(var(--col-lead) + var(--row-gap));
+	--cell-inset: calc(var(--space-2) + 1px);
+
 	/* Motion */
 	--ease-signal: cubic-bezier(0.16, 1, 0.3, 1);
 	--dur-fast: 120ms;
