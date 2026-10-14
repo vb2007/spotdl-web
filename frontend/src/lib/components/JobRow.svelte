@@ -5,7 +5,7 @@
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
 	import type { Job, JobLifecycle } from '$lib/api';
 
-	let { job, allUsers }: { job: Job; allUsers: boolean } = $props();
+	let { job, allUsers, isAdmin }: { job: Job; allUsers: boolean; isAdmin: boolean } = $props();
 
 	const { expanded } = queue;
 	let isOpen = $derived(job.id in $expanded);
@@ -126,38 +126,44 @@
 	}
 </script>
 
-<li class="job">
+<li class="job" aria-labelledby="job-title-{job.id}">
 	<div class="row">
+		<!-- v41 (F16): no aria-label, so the button's name is what it shows (status, title,
+		     type, owner; WCAG 2.5.3), and aria-controls ties it to the track list (F29). -->
 		<button
 			type="button"
 			class="toggle"
 			aria-expanded={isOpen}
-			aria-label="{isOpen ? 'Collapse' : 'Expand'} tracks for {job.title}"
+			aria-controls="job-tracks-{job.id}"
 			onclick={() => queue.toggleExpand(job.id)}
 		>
-			<span class="chevron" aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
-			<span class="badge {cond} mono">{badgeLabel}</span>
-			<span class="title">{job.title}</span>
-			<span class="source-type mono">{job.source_type}</span>
-			{#if allUsers}
-				<span class="owner mono" title={job.owner_email}
-					>{api.displayName(job.owner_username, job.owner_email)}</span
-				>
-			{/if}
+			<span class="chevron" aria-hidden="true"></span>
+			<span class="badge-cell"><span class="badge {cond} mono">{badgeLabel}</span></span>
+			<span class="title" id="job-title-{job.id}" title={job.title}>{job.title}</span>
+			<span class="tags">
+				<span class="source-type mono">{job.source_type}</span>
+				{#if allUsers}
+					<span class="owner mono" title={job.owner_email}
+						>{api.displayName(job.owner_username, job.owner_email)}</span
+					>
+				{/if}
+			</span>
 		</button>
 
-		{#if totalTracks > 0}
-			<div class="bar" role="img" aria-label="Track progress: {breakdown}">
-				{#each segments as seg, i (i)}
-					<span
-						class="seg {seg.cond}"
-						style:flex-grow={seg.n}
-						style:flex-basis={`${(seg.n / totalTracks) * 100}%`}
-					></span>
-				{/each}
-			</div>
-		{/if}
-		<span class="breakdown mono">{breakdown}</span>
+		<div class="progress">
+			{#if totalTracks > 0}
+				<div class="bar" role="img" aria-label="Track progress: {breakdown}">
+					{#each segments as seg, i (i)}
+						<span
+							class="seg {seg.cond}"
+							style:flex-grow={seg.n}
+							style:flex-basis={`${(seg.n / totalTracks) * 100}%`}
+						></span>
+					{/each}
+				</div>
+			{/if}
+			<span class="breakdown mono">{breakdown}</span>
+		</div>
 
 		<div class="row-actions">
 			{#if showInFlight}
@@ -167,29 +173,47 @@
 						type="number"
 						class="priority-input"
 						value={job.priority}
-						aria-label="Job priority"
+						aria-label="priority of {job.title}"
 						onchange={(e) => handlePriority(e.currentTarget.value)}
 					/>
 				</label>
-				<button type="button" class="action" onclick={handleBump}>bump</button>
-				<button type="button" class="action danger" onclick={handleCancel}>cancel</button>
+				<button
+					type="button"
+					class="action"
+					aria-label="bump {job.title} to the front"
+					onclick={handleBump}>bump</button
+				>
+				<button
+					type="button"
+					class="action danger"
+					aria-label="cancel {job.title}"
+					onclick={handleCancel}>cancel</button
+				>
 			{/if}
 			{#if showArchive}
-				<button type="button" class="action" onclick={handleArchive}>archive</button>
+				<button
+					type="button"
+					class="action"
+					aria-label="archive {job.title}"
+					onclick={handleArchive}>archive</button
+				>
 			{/if}
 			{#if job.archived_at !== null}
 				<span class="archived-tag mono">archived</span>
-				<button type="button" class="action" onclick={handleUnarchive}>unarchive</button>
+				<button
+					type="button"
+					class="action"
+					aria-label="unarchive {job.title}"
+					onclick={handleUnarchive}>unarchive</button
+				>
 			{/if}
 		</div>
 	</div>
 
-	{#if notice.has(job.id)}
-		<p class="notice mono" role="status">{notice.get(job.id)}</p>
-	{/if}
+	<p class="notice mono" role="status">{notice.get(job.id) ?? ''}</p>
 
 	{#if isOpen}
-		<JobTrackList jobId={job.id} />
+		<JobTrackList jobId={job.id} {isAdmin} total={totalTracks} />
 	{/if}
 </li>
 
@@ -202,20 +226,29 @@
 		border-bottom: none;
 	}
 
+	/* v41: the shared row grid (app.css "Row grid") -- chevron, badge, title, progress,
+	   actions. Fixed progress and actions columns keep every job's bar at the same x, and
+	   a nested track's state and title land under this row's badge and title (F02). */
 	.row {
-		display: flex;
-		flex-wrap: wrap;
+		display: grid;
+		grid-template-columns:
+			var(--col-lead) var(--col-state) minmax(0, 1fr) var(--col-progress)
+			var(--col-actions);
+		column-gap: var(--row-gap);
+		row-gap: var(--space-2);
 		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3) var(--space-4);
+		padding: var(--space-3) var(--row-pad-x);
 	}
 
+	/* Spans the row's first three columns with the same tokens and gap, so its chevron,
+	   badge and title sit exactly on them; the title and its tags share the third. */
 	.toggle {
-		display: flex;
+		grid-column: 1 / 4;
+		display: grid;
+		grid-template-columns: var(--col-lead) var(--col-state) minmax(0, max-content) auto;
+		column-gap: var(--row-gap);
 		align-items: center;
-		gap: var(--space-2);
 		min-width: 0;
-		flex: 2 1 16rem;
 		background: transparent;
 		border: none;
 		padding: 0;
@@ -225,18 +258,42 @@
 	}
 
 	.chevron {
-		flex-shrink: 0;
-		color: var(--text-dim);
-		width: 1em;
+		justify-self: center;
+		width: 0.45rem;
+		height: 0.45rem;
+		border-right: 1.5px solid var(--text-muted);
+		border-bottom: 1.5px solid var(--text-muted);
+		transform: translateX(-20%) rotate(-45deg);
+		transition: transform var(--dur-fast) var(--ease-signal);
+	}
+
+	.toggle[aria-expanded='true'] .chevron {
+		transform: translateY(-20%) rotate(45deg);
+	}
+
+	.badge-cell {
+		min-width: 0;
 	}
 
 	.badge {
-		flex-shrink: 0;
+		display: inline-block;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		vertical-align: middle;
 		padding: 0.125rem var(--space-2);
 		border: 1px solid var(--line);
 		border-radius: 3px;
 		font-size: 0.6875rem;
 		letter-spacing: 0.04em;
+	}
+
+	.tags {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
+		margin-left: calc(var(--space-2) - var(--row-gap));
 	}
 
 	.title {
@@ -249,7 +306,7 @@
 
 	.source-type {
 		flex-shrink: 0;
-		color: var(--text-dim);
+		color: var(--text-muted);
 		font-size: 0.6875rem;
 		text-transform: uppercase;
 	}
@@ -260,8 +317,14 @@
 		font-size: 0.75rem;
 	}
 
+	.progress {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
 	.bar {
-		flex: 1 1 8rem;
 		display: flex;
 		height: 0.5rem;
 		border-radius: 3px;
@@ -287,15 +350,17 @@
 	}
 
 	.breakdown {
-		flex-shrink: 0;
 		color: var(--text-muted);
 		font-size: 0.75rem;
 		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.row-actions {
 		display: flex;
 		align-items: center;
+		justify-content: flex-end;
 		flex-wrap: wrap;
 		gap: var(--space-2);
 	}
@@ -305,7 +370,7 @@
 		align-items: center;
 		gap: var(--space-1);
 		font-size: 0.6875rem;
-		color: var(--text-dim);
+		color: var(--text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 	}
@@ -330,6 +395,7 @@
 		border: 1px solid var(--line);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
+		font-family: var(--font-mono);
 		font-size: 0.75rem;
 		color: var(--text-muted);
 		cursor: pointer;
@@ -342,6 +408,13 @@
 		color: var(--text-primary);
 	}
 
+	/* Destructive: outlined in the fail tone at rest, full red only when about to be used
+	   -- the same treatment as TrackRow's "cancel track". */
+	.action.danger {
+		background: transparent;
+		border-color: var(--fail-dim);
+	}
+
 	.action.danger:hover,
 	.action.danger:focus-visible {
 		border-color: var(--fail);
@@ -350,63 +423,79 @@
 
 	.archived-tag {
 		font-size: 0.6875rem;
-		color: var(--text-dim);
+		color: var(--text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 	}
 
 	.notice {
 		margin: 0;
-		padding: 0 var(--space-4) var(--space-2);
+		padding: 0 var(--row-pad-x) var(--space-2) calc(var(--row-pad-x) + var(--row-nest));
 		color: var(--waiting);
 		font-size: 0.8125rem;
 	}
 
-	/* Same one-cell-per-line mobile rule as TrackRow/QueueTable (DESIGN.md §6) -- a
-	   flex-wrap row already reflows reasonably, but stacking explicitly removes any
-	   ambiguity at the 390px width real screenshots are checked against.
-	   `flex-wrap: nowrap` here is load-bearing, not a no-op override of the base rule's
-	   `flex-wrap: wrap` (§.row above): a title-less job's title falls back to its raw
-	   source_url (v18), a single long unbroken string with no wrap opportunity of its
-	   own. With the row still multi-line-capable, `align-items: stretch` stretches each
-	   child only within its own flex *line*, and a wrapping-capable container sizes each
-	   line's cross axis (width, since direction is now column) to fit that line's
-	   content instead of the full row width -- so `.toggle` was measured stretching to
-	   its own unshrunk content width (up to 517px) rather than the row's real ~358px, a
-	   real 390px screenshot overflow caught before this fix, gone after it. Forcing a
-	   single nowrap line restores the intended behavior: `.toggle` stretches to the
-	   row's actual width, and only then does `.title`'s own min-width:0/overflow:hidden/
-	   text-overflow:ellipsis get to do its job and shrink+ellipsize the long string. */
-	/* v39.1 (F01): in this column stack flex-basis sizes *height*, not width. The base
-	   rules' bases were written for the desktop row, so carried over here `.toggle`'s
-	   `2 1 16rem` made it 256px tall (each job row 364px), and a `100%` basis on `.bar`
-	   resolved against an indefinite height, fell back to its (empty) content and
-	   overrode its `height: 0.5rem`, leaving only the 2px border. The stacked children
-	   now size to their own content (`.breakdown` already did: basis auto, no shrink);
-	   full width comes from `align-items: stretch`. */
+	.notice:empty {
+		display: none;
+	}
+
+	/* Tablet: the actions drop to a second line under the title instead of squeezing it
+	   (F37, for this row; v42 owns the page breakpoint). */
+	@media (max-width: 960px) {
+		.row {
+			grid-template-columns: var(--col-lead) var(--col-state) minmax(0, 1fr) 10rem;
+		}
+
+		.row-actions {
+			grid-column: 3 / -1;
+			justify-content: flex-start;
+		}
+
+		.row-actions:empty {
+			display: none;
+		}
+	}
+
+	/* Phone (v39.1 F01, redesigned in v41): one line for chevron, badge and title, then
+	   the bar with its breakdown, then the actions, all hanging off the same second
+	   column the nested tracks indent to. No flex-basis sizes a height here any more:
+	   the stack is grid rows, each as tall as its content. */
 	@media (max-width: 640px) {
 		.row {
-			flex-direction: column;
-			flex-wrap: nowrap;
-			align-items: stretch;
+			grid-template-columns: var(--col-lead) minmax(0, 1fr);
 		}
 
-		.toggle,
-		.bar,
+		/* Badge and tags on the first line, the whole title width on the second. */
+		.toggle {
+			grid-column: 1 / -1;
+			grid-template-columns: var(--col-lead) auto minmax(0, 1fr);
+			grid-template-areas:
+				'chevron badge tags'
+				'. title title';
+		}
+
+		.chevron {
+			grid-area: chevron;
+		}
+
+		.badge-cell {
+			grid-area: badge;
+		}
+
+		.tags {
+			grid-area: tags;
+			margin-left: 0;
+			min-width: 0;
+			overflow: hidden;
+		}
+
+		.title {
+			grid-area: title;
+		}
+
+		.progress,
 		.row-actions {
-			flex: 0 0 auto;
-		}
-
-		.bar {
-			order: 3;
-		}
-
-		.breakdown {
-			order: 4;
-		}
-
-		.row-actions {
-			order: 5;
+			grid-column: 2;
 		}
 	}
 </style>
