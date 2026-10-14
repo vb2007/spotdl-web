@@ -41,19 +41,20 @@ export async function openDashboard(page: Page): Promise<void> {
 	}
 }
 
-/** The expand/collapse toggle of a job row, by the title in its accessible name. */
-export function jobToggle(page: Page | Locator, title: string): Locator {
-	return page.getByRole('button', {
-		name: new RegExp(`^(Expand|Collapse) tracks for ${escape(title)}$`)
-	});
-}
-
-/** The whole job row (`<li>`), so its actions and progress can be read in scope. */
+/** The whole job row (`<li>`), named by its title (v41: `aria-labelledby` on the row), so its
+ * actions and progress can be read in scope. */
 export function jobRow(page: Page, title: string): Locator {
 	return page
 		.getByRole('list', { name: 'Jobs' })
-		.getByRole('listitem')
-		.filter({ has: jobToggle(page, title) });
+		.getByRole('listitem', { name: title, exact: true });
+}
+
+/** The expand/collapse toggle of a job row: since v41 its name is what it shows (status,
+ * title, type), so it's the row's first button carrying the title. */
+export function jobToggle(page: Page, title: string): Locator {
+	return jobRow(page, title)
+		.getByRole('button', { name: literal(title) })
+		.first();
 }
 
 /** A track row's expand button inside an expanded job, by the track title in its name. */

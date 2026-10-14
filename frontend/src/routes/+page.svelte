@@ -426,8 +426,7 @@
 		grid-template-columns: var(--col-state) minmax(0, 1fr) auto;
 		column-gap: var(--row-gap);
 		align-items: baseline;
-		padding: var(--space-3) var(--row-pad-x) var(--space-2)
-			calc(var(--row-pad-x) + var(--row-nest));
+		padding: var(--space-3) var(--row-pad-x) var(--space-2) calc(var(--row-pad-x) + var(--row-nest));
 	}
 
 	.group-header .title {

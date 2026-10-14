@@ -61,7 +61,7 @@ test('a moved track resolves as a duplicate of its library file and downloads fr
 		await jobToggle(page, settled.title).click();
 		await trackToggle(page, settled.title, apiTrack.title ?? '').click();
 		const downloadEvent = page.waitForEvent('download');
-		await page.getByRole('button', { name: 'download' }).click();
+		await page.getByRole('button', { name: 'download', exact: true }).click();
 		const download = await downloadEvent;
 		expect(await download.failure()).toBeNull();
 

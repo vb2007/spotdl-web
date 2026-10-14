@@ -31,7 +31,9 @@
 				onclick={() => queue.loadMoreExpandedTracks(jobId)}
 			>
 				{state.loadingMore ? 'loading…' : 'load more tracks'}
-				<span class="shown">{state.items.length.toLocaleString()} of {total.toLocaleString()} shown</span>
+				<span class="shown"
+					>{state.items.length.toLocaleString()} of {total.toLocaleString()} shown</span
+				>
 			</button>
 		{/if}
 	{/if}

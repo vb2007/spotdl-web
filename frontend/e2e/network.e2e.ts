@@ -61,16 +61,18 @@ test('a real download completes, records its network path, and serves its file @
 		await openDashboard(page);
 		await jobToggle(page, job.title).click();
 		await trackToggle(page, job.title, track.title ?? '').click();
-		// Attempts render oldest first, so a retried download's completed row is its own index.
+		// v41: the timeline reads newest first and merges repeats, so find the completed entry
+		// by its outcome rather than by index.
 		const completedRow = page
 			.getByRole('list', { name: 'attempt history' })
 			.getByRole('listitem')
-			.nth(attempts.indexOf(completed!));
+			.filter({ hasText: 'completed' })
+			.first();
 		await expect(completedRow).toContainText('completed');
 		await expect(completedRow).toContainText(expectedAttemptVia(completed!));
 
 		const downloadEvent = page.waitForEvent('download');
-		await page.getByRole('button', { name: 'download' }).click();
+		await page.getByRole('button', { name: 'download', exact: true }).click();
 		const download = await downloadEvent;
 		const sha256 = createHash('sha256')
 			.update(await readFile(await download.path()))
