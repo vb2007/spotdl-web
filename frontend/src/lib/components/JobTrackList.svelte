@@ -24,11 +24,15 @@
 			{/each}
 		</ul>
 		{#if state.nextCursor}
+			<!-- aria-disabled, not disabled: disabling the focused button would drop keyboard
+			     focus to the page while the next page loads. -->
 			<button
 				type="button"
 				class="load-more mono"
-				disabled={state.loadingMore}
-				onclick={() => queue.loadMoreExpandedTracks(jobId)}
+				aria-disabled={state.loadingMore}
+				onclick={() => {
+					if (!state.loadingMore) queue.loadMoreExpandedTracks(jobId);
+				}}
 			>
 				{state.loadingMore ? 'loading…' : 'load more tracks'}
 				<span class="shown"
@@ -95,12 +99,12 @@
 		color: var(--text-muted);
 	}
 
-	.load-more:hover:not(:disabled),
+	.load-more:hover:not([aria-disabled='true']),
 	.load-more:focus-visible {
 		background: var(--bg-2);
 	}
 
-	.load-more:disabled {
+	.load-more[aria-disabled='true'] {
 		opacity: 0.6;
 		cursor: default;
 	}

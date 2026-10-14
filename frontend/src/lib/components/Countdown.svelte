@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { formatCountdown } from '$lib/attempts';
 
-	let { scheduledAt, label = 'next scan in' }: { scheduledAt: string; label?: string } = $props();
+	// `dueLive`: whether "due now" may take the live amber. A waiting track that's due is
+	// still waiting (the next beat pass, or a pause, decides), so TrackRow turns it off.
+	let {
+		scheduledAt,
+		label = 'next scan in',
+		dueLive = true
+	}: { scheduledAt: string; label?: string; dueLive?: boolean } = $props();
 
 	let now = $state(Date.now());
 
@@ -15,7 +21,7 @@
 	let remainingMs = $derived(new Date(scheduledAt).getTime() - now);
 </script>
 
-<span class="mono countdown" class:due={remainingMs <= 0}>
+<span class="mono countdown" class:due={dueLive && remainingMs <= 0}>
 	{label}
 	{formatCountdown(remainingMs)}
 </span>

@@ -390,7 +390,9 @@
 					<span class="fact mono">{track.progress}%</span>
 				{/if}
 				{#if nextTry}
-					<span class="fact"><Countdown scheduledAt={nextTry.at} label="next try in" /></span>
+					<span class="fact"
+						><Countdown scheduledAt={nextTry.at} label="next try in" dueLive={false} /></span
+					>
 					{#if nextTry.heldByBreaker}
 						<span class="fact quiet">after the global pause clears</span>
 					{/if}
