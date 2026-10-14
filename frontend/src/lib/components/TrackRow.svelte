@@ -188,8 +188,12 @@
 		if (expanded && isAdmin) untrack(() => loadAttempts(key));
 	});
 
+	// The worker publishes a cancelled download's event before it writes that attempt's
+	// row (and without counts), so a cancelled track's key can't see the row land. Its
+	// history is refetched on every open rather than served from the cache.
 	function toggleExpanded() {
 		expanded = !expanded;
+		if (expanded && track.state === 'cancelled') attemptsLoadedFor = null;
 	}
 
 	// Collapsed runs the operator opened, and long messages they unclamped -- keyed by the
@@ -244,9 +248,26 @@
 		}, 4000);
 	}
 
+	function awaitCancelledAttempt(seen: number, delays: number[]) {
+		const [delay, ...rest] = delays;
+		if (delay === undefined) return;
+		setTimeout(async () => {
+			if (!expanded || !isAdmin) return;
+			attemptsLoadedFor = null;
+			await loadAttempts(attemptsKey);
+			if (attempts.length <= seen) awaitCancelledAttempt(seen, rest);
+		}, delay);
+	}
+
 	async function handleCancel() {
+		const wasDownloading = track.state === 'downloading';
+		const seenAttempts = attempts.length;
 		try {
 			await queue.cancelTrack(track.id, jobId);
+			// Same reason as above: the worker records the cancelled attempt only once its
+			// download call returns, seconds later. Re-read a few times, bounded, until the
+			// newest attempt is that cancel.
+			if (wasDownloading) awaitCancelledAttempt(seenAttempts, [3000, 5000, 7000, 15000, 30000]);
 		} catch (err) {
 			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this track.');
 		}
@@ -813,6 +834,27 @@
 		right: 0;
 		top: 100%;
 		height: calc(var(--space-1) + 2px);
+	}
+
+	/* Pinned, the absolute time joins the gutter under the relative one instead of
+	   floating over the entry above. */
+	.when.pinned {
+		display: inline-flex;
+		flex-direction: column;
+		align-items: flex-start;
+		text-align: left;
+	}
+
+	.when.pinned .abs {
+		position: static;
+		width: auto;
+		height: auto;
+		padding: 0;
+		border: 0;
+		background: none;
+		clip-path: none;
+		white-space: normal;
+		color: var(--text-primary);
 	}
 
 	/* Back to the resting clip, so the absolute time stays in the button's name. */
