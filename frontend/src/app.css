@@ -82,7 +82,6 @@
 	--col-lead: 1rem;
 	--col-state: 8.5rem;
 	--col-progress: 12rem;
-	--col-actions: 18rem;
 	--row-nest: calc(var(--col-lead) + var(--row-gap));
 	--cell-inset: calc(var(--space-2) + 1px);
 

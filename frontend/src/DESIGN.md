@@ -168,7 +168,7 @@ convention for v10+.
 `app.css` also defines the columns the job list shares, so rows line up instead of each
 component guessing: `--row-pad-x`, `--row-gap`, `--col-lead` (a job's chevron, and the nesting
 rail under an open job), `--col-state` (a job's badge and a track's state), `--col-progress`,
-`--col-actions`, `--row-nest` (one lead column plus a gap: the indent of a nested track list) and
+`--row-nest` (one lead column plus a gap: the indent of a nested track list) and
 `--cell-inset` (a badge's text offset, so a track's state text sits under the badge text). A
 nested track's state is under its job's badge and its title under the job's title; the expanded
 detail hangs off the same title column. Any new row in the job list uses these, not local widths.

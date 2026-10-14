@@ -600,8 +600,10 @@
 
 	/* Value in primary text, its key in muted: both at full opacity (AA on every panel). */
 	.fact {
+		min-width: 0;
 		font-size: 0.75rem;
 		color: var(--text-primary);
+		overflow-wrap: anywhere;
 	}
 
 	.key {
@@ -846,9 +848,12 @@
 		color: var(--text-primary);
 	}
 
+	/* A proxy label (an IPv6 host, a long hostname) has no break opportunity of its own. */
 	.via,
 	.dur {
+		min-width: 0;
 		color: var(--text-muted);
+		overflow-wrap: anywhere;
 	}
 
 	/* The raw error stays exactly as the worker wrote it, selectable and copyable;

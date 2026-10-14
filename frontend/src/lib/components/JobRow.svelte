@@ -227,13 +227,14 @@
 	}
 
 	/* v41: the shared row grid (app.css "Row grid") -- chevron, badge, title, progress,
-	   actions. Fixed progress and actions columns keep every job's bar at the same x, and
-	   a nested track's state and title land under this row's badge and title (F02). */
+	   actions. The fixed-width progress column sits last, at the row's right edge, so every
+	   job's bar lines up while the title takes whatever its actions don't use; a nested
+	   track's state and title land under this row's badge and title (F02). */
 	.row {
 		display: grid;
 		grid-template-columns:
-			var(--col-lead) var(--col-state) minmax(0, 1fr) var(--col-progress)
-			var(--col-actions);
+			var(--col-lead) var(--col-state) minmax(0, 1fr) auto
+			var(--col-progress);
 		column-gap: var(--row-gap);
 		row-gap: var(--space-2);
 		align-items: center;
@@ -325,6 +326,8 @@
 	}
 
 	.progress {
+		grid-column: 5;
+		grid-row: 1;
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
@@ -365,6 +368,8 @@
 	}
 
 	.row-actions {
+		grid-column: 4;
+		grid-row: 1;
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
@@ -459,8 +464,13 @@
 			grid-template-columns: var(--col-lead) var(--col-state) minmax(0, 1fr) 10rem;
 		}
 
+		.progress {
+			grid-column: 4;
+		}
+
 		.row-actions {
 			grid-column: 3 / -1;
+			grid-row: 2;
 			justify-content: flex-start;
 		}
 
@@ -509,6 +519,7 @@
 		.progress,
 		.row-actions {
 			grid-column: 2;
+			grid-row: auto;
 		}
 	}
 </style>

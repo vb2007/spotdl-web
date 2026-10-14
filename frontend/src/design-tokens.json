@@ -79,7 +79,6 @@
 		"col-lead": "1rem",
 		"col-state": "8.5rem",
 		"col-progress": "12rem",
-		"col-actions": "18rem",
 		"row-nest": "calc(var(--col-lead) + var(--row-gap))",
 		"cell-inset": "calc(var(--space-2) + 1px)",
 		"note": "v41: shared columns of JobRow, TrackRow, the expanded detail and the tracks-scope group header; a nested track list indents by row-nest"
