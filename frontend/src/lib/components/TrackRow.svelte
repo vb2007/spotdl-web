@@ -842,6 +842,8 @@
 	.when:hover .abs,
 	.when:focus-visible .abs,
 	.when.pinned .abs {
+		/* Visible, or it clips its own hover bridge below. */
+		overflow: visible;
 		left: 0;
 		bottom: calc(100% + var(--space-1));
 		z-index: 1;

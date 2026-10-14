@@ -73,6 +73,14 @@
 		if (idle) parts.push(`${idle.toLocaleString()} cancelled`);
 		return parts.length ? parts.join(' · ') : '—';
 	});
+	// v41: the visible copy wraps only between parts ("120 done · 3 waiting"), never
+	// inside one, so every count stays readable in the fixed progress column.
+	let breakdownVisible = $derived(
+		breakdown
+			.split(' · ')
+			.map((part) => part.replace(/ /g, '\u00a0'))
+			.join(' · ')
+	);
 
 	const notice = new SvelteMap<string, string>();
 	function showNotice(text: string) {
@@ -162,7 +170,7 @@
 					{/each}
 				</div>
 			{/if}
-			<span class="breakdown mono">{breakdown}</span>
+			<span class="breakdown mono">{breakdownVisible}</span>
 		</div>
 
 		<div class="row-actions">
@@ -362,9 +370,6 @@
 	.breakdown {
 		color: var(--text-muted);
 		font-size: 0.75rem;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
 	}
 
 	.row-actions {

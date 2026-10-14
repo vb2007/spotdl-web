@@ -476,13 +476,26 @@
 	}
 
 	@media (max-width: 640px) {
+		/* Type and owner on the first line, the whole title on the second, as JobRow's
+		   phone stack does; a long owner never takes the title's width. */
 		.group-header {
-			grid-template-columns: minmax(0, max-content) minmax(0, auto);
+			grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
 		}
 
 		.group-header .source-type {
-			grid-column: 1 / -1;
+			grid-column: 1;
+			grid-row: 1;
 			padding-left: 0;
+		}
+
+		.group-header .owner {
+			grid-column: 2;
+			grid-row: 1;
+		}
+
+		.group-header .title {
+			grid-column: 1 / -1;
+			grid-row: 2;
 		}
 	}
 
