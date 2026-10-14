@@ -193,12 +193,21 @@
 	}
 
 	// Collapsed runs the operator opened, and long messages they unclamped -- keyed by the
-	// group's newest attempt id.
+	// group's *oldest* attempt id (attempts.ts), which survives the run growing.
 	const openRuns = new SvelteSet<string>();
 	const openMessages = new SvelteSet<string>();
 	const pinnedTimes = new SvelteSet<string>();
 	// Esc hides an open time tooltip until the pointer or focus leaves (WCAG 1.4.13).
 	const dismissedTimes = new SvelteSet<string>();
+	// The time under the pointer, so Esc can dismiss a tooltip opened by hover alone while
+	// keyboard focus sits elsewhere.
+	let hoveredTime = $state<string | null>(null);
+
+	function dismissTimeOnEscape(e: KeyboardEvent) {
+		if (e.key !== 'Escape' || hoveredTime === null) return;
+		pinnedTimes.delete(hoveredTime);
+		dismissedTimes.add(hoveredTime);
+	}
 	const clampable = new SvelteMap<string, boolean>();
 
 	function toggleIn(set: SvelteSet<string>, key: string) {
@@ -276,6 +285,8 @@
 	}
 </script>
 
+<svelte:window onkeydown={hoveredTime !== null ? dismissTimeOnEscape : undefined} />
+
 {#snippet when(iso: string, key: string)}
 	<!-- Relative at a glance; the absolute time on hover and on keyboard focus, and pinned
 	     open by a click or Enter for reading it alongside the error. -->
@@ -294,7 +305,11 @@
 			pinnedTimes.delete(key);
 			dismissedTimes.add(key);
 		}}
-		onpointerleave={() => dismissedTimes.delete(key)}
+		onpointerenter={() => (hoveredTime = key)}
+		onpointerleave={() => {
+			if (hoveredTime === key) hoveredTime = null;
+			dismissedTimes.delete(key);
+		}}
 		onblur={() => dismissedTimes.delete(key)}
 		><time datetime={iso}>{relativeTime(iso, now)}</time><span class="abs"
 			><span class="sep">, </span>{formatTimestamp(iso)}</span
