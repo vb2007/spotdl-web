@@ -58,8 +58,16 @@
 					: `${$page.items.length}${$page.nextCursor ? '+' : ''} tracks`
 	);
 
+	// v42: both state buttons swap their own block out (loading replaces it), so focus is
+	// handed to a target that stays: the search box, or the queue's heading.
 	function clearSearchAndFilters() {
 		queue.setFilters({ q: '', status: [], state: [] });
+		document.getElementById('queue-search')?.focus();
+	}
+
+	function retryQueue() {
+		queue.reload();
+		document.getElementById('queue-heading')?.focus();
 	}
 
 	function focusSubmit() {
@@ -276,6 +284,7 @@
 			jobs={$incomingJobs}
 			allUsers={allUsersView}
 			sessionEmail={data.session?.email ?? ''}
+			{isAdmin}
 		/>
 
 		<Waterfall
@@ -310,9 +319,7 @@
 					<p class="state-text">
 						<span class="mono">{$page.error}</span>
 					</p>
-					<button type="button" class="state-action mono" onclick={() => queue.reload()}
-						>try again</button
-					>
+					<button type="button" class="state-action mono" onclick={retryQueue}>try again</button>
 				</div>
 			{:else if $page.items.length === 0}
 				<div class="state">

@@ -163,8 +163,8 @@
 		   genuinely live. Round-1 review flagged a constant amber border as spending
 		   the one committed live-signal color on permanent chrome, diluting its
 		   exclusive meaning ("something is live right now"); this restores that.
-		   v42: a deliberate hold (breaker or pause) takes the waiting edge, the same
-		   neutral -> condition swap. */
+		   v42: a breaker hold takes the waiting edge, the same neutral -> condition
+		   swap; a pause keeps the neutral one (it isn't scheduled). */
 		border-top: 2px solid var(--line-bright);
 	}
 

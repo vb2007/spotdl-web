@@ -119,7 +119,8 @@ not chrome, and keeps its color.
 > **v42 (2026-10-15):** every `/` row above is applied (✓), plus the unlisted `/` sites:
 > `.load-more`, the queue controls and JobRow's priority-input focus border. On `/`, `--signal` now
 > appears only on genuinely live things: a receiving lane, an expanding job's dot, the prompt while
-> sending, a due countdown, the live bar segment and `::selection`. On the other routes v42 changed only what A2 required (no `--signal-dim` text, so `.inline-link` rests at `--text-primary` and `.back` hovers to it); `.inline-link`'s amber hover and the remaining rows stay v43's.
+> sending, a due countdown, the live bar segment, `::selection`, and an active or expanding job's
+> badge (v20's `cond-live` mapping, v41's row; unchanged here). On the other routes v42 changed only what A2 required (no `--signal-dim` text, so `.inline-link` rests at `--text-primary` and `.back` hovers to it); `.inline-link`'s amber hover and the remaining rows stay v43's.
 
 ### Focus
 
@@ -141,7 +142,8 @@ Two families, strictly divided by _kind of content_, not by visual weight:
 > **v42 (2026-10-15, F12, owner-approved narrowing):** on `/`'s v42 surfaces mono now covers
 > numbers, timestamps, state tokens, addresses (URLs), idents and control labels only. Sentences
 > moved to Sans: error and hint lines, the Waterfall's status notes, the incoming failure reason,
-> and every empty, loading and error state's copy. Control labels (buttons, chips) **stay mono** in
+> and every empty, loading and error state's sentences (the server's own error string and the head's
+> "Loading…" count stay mono, as machine text and a count). Control labels (buttons, chips) **stay mono** in
 > v42 so they match v41's row actions on the same screen; moving every control to Sans at once,
 > tree-wide, is v47's.
 
@@ -498,8 +500,8 @@ to it at `dir=desc`. Available fields differ by scope (`created_at`/`title`/`sta
 since the two endpoints' own `sort=` parameters genuinely differ.
 
 > **v42 (2026-10-15, F11):** five equal-weight sort chips were a large part of "cluttered", so sort
-> is now a native `<select>` (a `.well`, labelled "sort") plus one direction button ("Sort
-> ascending/descending", ↑/↓). Behaviour is unchanged: a different field starts descending; the
+> is now a native `<select>` (a `.well`, labelled "sort") plus one direction button ("Reverse sort order (now
+> ascending/descending)", ↑/↓). Behaviour is unchanged: a different field starts descending; the
 > button flips. `next_retry` ("next retry") is offered to the admin only: it orders by the retry
 > ladder, operator detail (v39 outcome 3).
 

@@ -156,7 +156,7 @@
 </script>
 
 <div class="queue-head">
-	<h2 id="queue-heading" class="label">Queue</h2>
+	<h2 id="queue-heading" class="label" tabindex="-1">Queue</h2>
 	<span class="count mono">{countText}</span>
 	<div class="log-tools">
 		<button
@@ -195,6 +195,7 @@
 
 		<input
 			type="search"
+			id="queue-search"
 			class="search well"
 			placeholder={$filters.scope === 'jobs' ? 'search jobs…' : 'search tracks…'}
 			value={searchInput}

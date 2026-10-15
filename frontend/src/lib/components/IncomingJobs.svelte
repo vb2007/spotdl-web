@@ -9,8 +9,9 @@
 	let {
 		jobs,
 		allUsers = false,
-		sessionEmail = ''
-	}: { jobs: Job[]; allUsers?: boolean; sessionEmail?: string } = $props();
+		sessionEmail = '',
+		isAdmin = false
+	}: { jobs: Job[]; allUsers?: boolean; sessionEmail?: string; isAdmin?: boolean } = $props();
 
 	const SOURCE_LABEL: Record<Job['source_type'], string> = {
 		track: 'track',
@@ -34,6 +35,7 @@
 	let newestFailed = $derived(failed[0]);
 	let olderFailed = $derived(failed.slice(1));
 
+	let incomingSection = $state<HTMLElement>();
 	let rowError = $state<Record<string, string>>({});
 	let busy = $state<Record<string, boolean>>({});
 	// Rows whose link was already submitted again: never offered twice, even if the dismiss
@@ -66,6 +68,8 @@
 		}
 		await handleCancel(job.id);
 		busy = { ...busy, [job.id]: false };
+		// The row (and the focused button) is gone or loses its button: keep focus in the list.
+		incomingSection?.focus();
 	}
 
 	function isOwn(job: Job): boolean {
@@ -83,8 +87,12 @@
 				>{api.displayName(job.owner_username, job.owner_email)}</span
 			>
 		{/if}
-		{#if job.error}
+		<!-- The raw expansion error is operator detail (v39 outcome 3): the admin reads it,
+		     everyone else gets the next step. -->
+		{#if isAdmin && job.error}
 			<span class="reason" title={job.error}>{job.error}</span>
+		{:else if !isAdmin}
+			<span class="reason">Check that the link opens in Spotify, then try again.</span>
 		{/if}
 		<span class="actions">
 			{#if isOwn(job) && !resubmitted[job.id]}
@@ -110,7 +118,12 @@
 {/snippet}
 
 {#if jobs.length > 0}
-	<section class="incoming panel" aria-labelledby="incoming-heading">
+	<section
+		class="incoming panel"
+		aria-labelledby="incoming-heading"
+		tabindex="-1"
+		bind:this={incomingSection}
+	>
 		<h2 id="incoming-heading" class="sr-only">Incoming submissions</h2>
 		<ul class="rows" aria-label="Incoming submissions">
 			{#each tuning as job (job.id)}
@@ -169,6 +182,11 @@
 <style>
 	.incoming {
 		padding: var(--space-1) 0;
+	}
+
+	/* A programmatic focus target only (after "try again"), not a tab stop. */
+	.incoming:focus {
+		outline: none;
 	}
 
 	.rows {

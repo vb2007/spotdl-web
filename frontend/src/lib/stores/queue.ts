@@ -525,9 +525,12 @@ function createQueueStore() {
 			}
 		} catch (err) {
 			if (seq !== pageFetchSeq) return;
+			// v42: the old cursor belongs to the previous query; with it kept, "load more"
+			// would page the new filter from the old one's position.
 			page.update((p) => ({
 				...p,
 				loading: false,
+				nextCursor: null,
 				error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
 			}));
 		}
@@ -553,7 +556,9 @@ function createQueueStore() {
 					nextCursor: result.next_cursor,
 					totalEstimate: result.total_estimate,
 					countsByStatus: result.counts_by_status,
-					loadingMore: false
+					loadingMore: false,
+					// v42: "load more" is how a failed load-more is retried, so a success clears it.
+					error: ''
 				}));
 			} else {
 				const result = await api.listTracksPage({
@@ -570,7 +575,8 @@ function createQueueStore() {
 					// countsByState deliberately not taken from a later page: it's the same
 					// set's counts, and this (older) read could land after a fresher
 					// refreshTrackCounts.
-					loadingMore: false
+					loadingMore: false,
+					error: ''
 				}));
 			}
 		} catch (err) {
