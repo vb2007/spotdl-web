@@ -258,8 +258,9 @@
 		</nav>
 	</header>
 
-	<!-- v42 (F29): the one main landmark, focusable so v45's skip link can land on it. -->
-	<main id="main" class="main" tabindex="-1">
+	<!-- v42 (F29): the one main landmark; v45's skip link targets #main. No tabindex here:
+	     a tabindex="-1" container takes focus on any click inside it and resets Tab order. -->
+	<main id="main" class="main">
 		<div class="submit-area">
 			<form class="panel submit" {onsubmit} aria-label="Submit a link">
 				<span class="prompt mono" class:sending={submitting} aria-hidden="true">&gt;</span>
@@ -548,11 +549,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-5);
-	}
-
-	/* Skip-link target: focus lands here programmatically, not as a visible stop. */
-	.main:focus {
-		outline: none;
 	}
 
 	.submit-area {

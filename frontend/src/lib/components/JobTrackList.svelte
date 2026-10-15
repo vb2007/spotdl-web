@@ -118,6 +118,13 @@
 	}
 
 	/* A phone's track rows drop the state inset (TrackRow.svelte), so the hints follow. */
+	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
+	@media (pointer: coarse) {
+		.load-more {
+			min-height: 2.75rem;
+		}
+	}
+
 	@media (max-width: 640px) {
 		.hint,
 		.load-more {

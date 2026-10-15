@@ -507,6 +507,14 @@
 	   the bar with its breakdown, then the actions, all hanging off the same second
 	   column the nested tracks indent to. No flex-basis sizes a height here any more:
 	   the stack is grid rows, each as tall as its content. */
+	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
+	@media (pointer: coarse) {
+		.action,
+		.priority-input {
+			min-height: 2.75rem;
+		}
+	}
+
 	@media (max-width: 640px) {
 		.row {
 			grid-template-columns: var(--col-lead) minmax(0, 1fr);

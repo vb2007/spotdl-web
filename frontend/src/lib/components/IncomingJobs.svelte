@@ -2,6 +2,7 @@
 	import { tick } from 'svelte';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
+	import { link } from '$lib/stores/link';
 	import type { Job } from '$lib/api';
 
 	/** `allUsers`: the admin's all-users scope, where rows can be someone else's -- they
@@ -58,12 +59,14 @@
 		keepFocus();
 	}
 
-	// The row and its focused button are gone: keep focus in the list, or, with the list
-	// gone too, on the submit box that the user would use next.
+	// The row and its focused button are gone: move focus to the list's first remaining
+	// button (a visible, real stop), or, with the list gone too, to the submit box.
 	function keepFocus() {
 		if (document.activeElement && document.activeElement !== document.body) return;
-		if (incomingSection?.isConnected) incomingSection.focus();
-		else document.getElementById('submit-url')?.focus();
+		const next = incomingSection?.isConnected
+			? incomingSection.querySelector<HTMLButtonElement>('button:not(:disabled)')
+			: null;
+		(next ?? document.getElementById('submit-url'))?.focus();
 	}
 
 	/** Submits the same link again as a new job, then dismisses the failed one -- what a
@@ -130,17 +133,13 @@
 {/snippet}
 
 {#if jobs.length > 0}
-	<section
-		class="incoming panel"
-		aria-labelledby="incoming-heading"
-		tabindex="-1"
-		bind:this={incomingSection}
-	>
+	<section class="incoming panel" aria-labelledby="incoming-heading" bind:this={incomingSection}>
 		<h2 id="incoming-heading" class="sr-only">Incoming submissions</h2>
 		<ul class="rows" aria-label="Incoming submissions">
 			{#each tuning as job (job.id)}
 				<li class="row">
-					<span class="dot" aria-hidden="true"></span>
+					<!-- Without the live link the row may be stale: no amber, no pulse. -->
+					<span class="dot" class:stale={$link !== 'live'} aria-hidden="true"></span>
 					<span class="mono state">tuning in {SOURCE_LABEL[job.source_type]}</span>
 					<span class="url mono" title={job.source_url}>{job.source_url}</span>
 					{#if allUsers}
@@ -196,11 +195,6 @@
 		padding: var(--space-1) 0;
 	}
 
-	/* A programmatic focus target only (after "try again"), not a tab stop. */
-	.incoming:focus {
-		outline: none;
-	}
-
 	.rows {
 		list-style: none;
 		margin: 0;
@@ -240,6 +234,12 @@
 		background: var(--signal);
 		box-shadow: 0 0 6px 1px var(--signal-glow);
 		animation: pulse 1.2s ease-in-out infinite;
+	}
+
+	.dot.stale {
+		background: var(--text-muted);
+		box-shadow: none;
+		animation: none;
 	}
 
 	.dot.fail {

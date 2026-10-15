@@ -1080,6 +1080,13 @@
 
 	/* Phone: state and chevron share the first line, then the title, then artist · album.
 	   The detail drops the gutter column; each attempt's time leads its own reading. */
+	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
+	@media (pointer: coarse) {
+		.action {
+			min-height: 2.75rem;
+		}
+	}
+
 	@media (max-width: 640px) {
 		.row {
 			grid-template-columns: minmax(0, 1fr) var(--col-lead);

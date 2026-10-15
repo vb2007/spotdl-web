@@ -303,7 +303,7 @@ The masthead carries the same link as a small tell: **linked** (a filled muted d
 reconnecting**; both not-linked states take a hollow waiting-blue ring that pulses slowly (the pulse
 is off under reduced motion). Lanes on screen while the link isn't open came from a REST snapshot
 and don't update, so they dim, lose the amber fill, the panel edge stays neutral and the ambient
-field stays slate; the head reads "link lost — progress may be stale" (or "linking… — …").
+field stays slate (an expanding submission's dot likewise turns muted and still); the head reads "link lost — progress may be stale" (or "linking… — …").
 The tell differs in shape as well as hue, and it is never amber: a link is not a download. It is a
 `role="status"` region that changes only with the state.
 
@@ -427,6 +427,10 @@ wording implied abandonment rather than "this specific lookup came up empty."
 > (pending, queued, downloading, completed, waiting, not found, duplicate, cancelled), so a state
 > reads the same on a chip and on a row, and no label truncates in the state column (F13). The
 > in-world voice stays on idents and moments; v46 re-words both for i18n.
+>
+> **v42 (2026-10-15):** one deliberate exception, the owner's choice: a non-admin's tracks scope
+> has a single **in progress** chip standing for pending, queued and downloading (v39 outcome 3),
+> while the rows keep the exact state word. The chip is a grouping of row words, not a fourth word.
 
 ### Job status → color/label mapping (`JobRow.svelte`, v20)
 
@@ -639,7 +643,7 @@ nav share the first row and the status drops under them. Phone: the masthead is 
 with the link tell, then the nav, **disconnect** pushed right; an admin's five items wrap it to a second row), the page gutter is
 16px, the Waterfall's lanes put the title line above meter + percentage, and the incoming rows put
 their actions under the link (phone and tablet, ≤1023px). Coarse pointers get 44px targets whatever the width (`@media
-(pointer: coarse)`). v41's rows keep their own 640/960 folds.
+(pointer: coarse)`), v41's job and track row actions included (F32). v41's rows keep their own 640/960 folds.
 
 ### Mobile stacked layout (`TrackRow.svelte`, `JobRow.svelte`, ≤640px)
 
@@ -713,7 +717,7 @@ validation message.
 - All decorative-only motion (noise floor, dial ticks, the v40 ambient field) is
   `aria-hidden="true"`.
 - **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →
-  `main#main` (`tabindex="-1"`, the target v45's skip link will use). One `h1` (the wordmark; its
+  `main#main` (the id v45's skip link will target; no `tabindex` on it, since a `tabindex="-1"` container takes focus on any click inside and resets Tab order). One `h1` (the wordmark; its
   name is "spotdl-web"), then `h2`s for Incoming submissions (visually hidden), Active signal and
   Queue, each section labelled by its heading. A countdown is never inside a live region.
 
