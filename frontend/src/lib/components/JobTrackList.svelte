@@ -105,9 +105,11 @@
 		color: var(--text-muted);
 	}
 
+	/* v42: a --bg-2 fill no longer reads on the faceplate; hover underlines instead. */
 	.load-more:hover:not([aria-disabled='true']),
 	.load-more:focus-visible {
-		background: var(--bg-2);
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
 	}
 
 	.load-more[aria-disabled='true'] {

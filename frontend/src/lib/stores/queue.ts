@@ -349,7 +349,9 @@ function createQueueStore() {
 	function currentQueryParams() {
 		const f = get(filters);
 		return {
-			q: f.q || undefined,
+			// v42: trimmed here, not in the box (which must keep a trailing space while
+			// typing): a search of only spaces is no search.
+			q: f.q.trim() || undefined,
 			includeArchived: f.includeArchived,
 			sort: f.sort,
 			dir: f.dir,

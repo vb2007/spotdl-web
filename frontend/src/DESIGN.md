@@ -35,15 +35,15 @@ light theme exists or is planned.
 
 ### Chassis / ground
 
-| Token            | Hex       | Use                                                                          |
-| ---------------- | --------- | ---------------------------------------------------------------------------- |
-| `--bg-0`         | `#0a0c0e` | Page background, recessed input wells                                        |
-| `--bg-1`         | `#191e23` | `.panel` surface: the raised faceplate (v42; was `#14181c`)                  |
-| `--bg-2`         | `#1c2227` | Raised/hover surface for buttons, filter chips                               |
-| `--bg-3`         | `#262e34` | Hover/active surface one step brighter than `--bg-2`                         |
-| `--line`         | `#2b3339` | Default hairline border                                                      |
-| `--line-bright`  | `#3a444c` | Emphasized border (buttons, major dial ticks, idle waterfall top edge)       |
-| `--line-control` | `#6a757e` | v42: the border of every neutral control (input, select, button, chip): ≥3:1 |
+| Token            | Hex       | Use                                                                                                                                     |
+| ---------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `--bg-0`         | `#0a0c0e` | Page background, recessed input wells                                                                                                   |
+| `--bg-1`         | `#191e23` | `.panel` surface: the raised faceplate (v42; was `#14181c`)                                                                             |
+| `--bg-2`         | `#1c2227` | A control's fill (buttons, chips). v42: on the `--bg-1` faceplate it is only 1.045:1, so a row's hover is a title underline, not a fill |
+| `--bg-3`         | `#262e34` | Hover/active surface one step brighter than `--bg-2`                                                                                    |
+| `--line`         | `#2b3339` | Default hairline border                                                                                                                 |
+| `--line-bright`  | `#3a444c` | Emphasized border (buttons, major dial ticks, idle waterfall top edge)                                                                  |
+| `--line-control` | `#6a757e` | v42: the border of every neutral control (input, select, button, chip): ≥3:1                                                            |
 
 > **v42 (2026-10-15, F09/A2, owner's choice):** `--line` stays the quiet divider between rows and
 > around panels (1.31:1 on `--bg-1`). A control's edge is `--line-control` instead, which reaches
@@ -99,17 +99,17 @@ receiving _right now_, and nothing else. The v39 audit (F10) found it leaking on
 permanent chrome sites. Each now has a verdict. v40 applies only the first row. v42 (`/`) and v43
 (the other routes) apply the rest without re-deciding them.
 
-| Site (F10)                                                                                                                                         | Verdict                                                                                                                                                                                                           | Applied in                  |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| Body glow (`app.css` `body` background)                                                                                                            | **No amber at rest.** Replaced by `AmbientField.svelte`: slate (`--text-muted`) at rest, crossfading to amber (`--signal`) only while `/` shows ≥1 receiving track. Always slate on every other route (see §6)    | **v40**                     |
-| Global `a` color (`app.css` `a { color: var(--signal) }`)                                                                                          | No amber. Links are `--text-primary` with an underline: the affordance is the underline, not the hue                                                                                                              | v42 ✓                       |
-| The `>` prompt (`+page.svelte` `.prompt`)                                                                                                          | `--text-muted` at rest. It may take `--signal` only while a submission is in flight (SENDING…), which is a real transmission                                                                                      | v42 ✓                       |
-| Submit / connect / save / add hover-focus glow (`+page.svelte`, `login/+page.svelte`, `/settings` SAVE and ADD, `/account` SAVE, `/library` START) | No amber, and no zero-offset halo. Hover is `--bg-3` with a `--line-bright` → `--text-muted` border; focus is the global `--focus-ring` outline alone (v42: the rest edge is `--line-control`, A2)                | v42 ✓ (`/`) / v43           |
-| Pressed option chips (`/settings`, `/account` `.option-group`)                                                                                     | `--line-bright` border with `--text-primary` text: the scope-toggle idiom already in §6, since a pressed setting is a selection, not a signal                                                                     | v43                         |
-| Input focus borders (submit, login, settings, account)                                                                                             | No amber border. The global `--focus-ring` outline already marks focus; the border stays `--line` (or `--line-bright`) (v42: `--line-control`, A2)                                                                | v42 ✓ (`/`) / v43           |
-| Links at rest and on hover (`.settings-link`/`.back` hover at `--signal-dim`; `.inline-link` `--signal-dim` at rest, `--signal` on hover)          | `.inline-link` at rest follows the global `a` row (`--text-primary` + underline). Every link's hover/focus is `--text-primary`. `--signal-dim` as text is 3.09:1 on the page, so this is a contrast fix too (F09) | v42 ✓ (all routes, with A2) |
-| Idle `/login` needle                                                                                                                               | `--text-muted`, no glow, at rest. Amber with its glow only while sweeping (`submitting`), the one moment the dial is actually tuning                                                                              | v43                         |
-| Idle `/library` progress bar                                                                                                                       | `--signal-dim` only while a sweep is running (the existing "happening, but not this session's track" carve-out in §6). A finished run's bar is `--settled-dim`                                                    | v43                         |
+| Site (F10)                                                                                                                                         | Verdict                                                                                                                                                                                                           | Applied in                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Body glow (`app.css` `body` background)                                                                                                            | **No amber at rest.** Replaced by `AmbientField.svelte`: slate (`--text-muted`) at rest, crossfading to amber (`--signal`) only while `/` shows ≥1 receiving track. Always slate on every other route (see §6)    | **v40**                                              |
+| Global `a` color (`app.css` `a { color: var(--signal) }`)                                                                                          | No amber. Links are `--text-primary` with an underline: the affordance is the underline, not the hue                                                                                                              | v42 ✓                                                |
+| The `>` prompt (`+page.svelte` `.prompt`)                                                                                                          | `--text-muted` at rest. It may take `--signal` only while a submission is in flight (SENDING…), which is a real transmission                                                                                      | v42 ✓                                                |
+| Submit / connect / save / add hover-focus glow (`+page.svelte`, `login/+page.svelte`, `/settings` SAVE and ADD, `/account` SAVE, `/library` START) | No amber, and no zero-offset halo. Hover is `--bg-3` with a `--line-bright` → `--text-muted` border; focus is the global `--focus-ring` outline alone (v42: the rest edge is `--line-control`, A2)                | v42 ✓ (`/`) / v43                                    |
+| Pressed option chips (`/settings`, `/account` `.option-group`)                                                                                     | `--line-bright` border with `--text-primary` text: the scope-toggle idiom already in §6, since a pressed setting is a selection, not a signal                                                                     | v43                                                  |
+| Input focus borders (submit, login, settings, account)                                                                                             | No amber border. The global `--focus-ring` outline already marks focus; the border stays `--line` (or `--line-bright`) (v42: `--line-control`, A2)                                                                | v42 ✓ (`/`) / v43                                    |
+| Links at rest and on hover (`.settings-link`/`.back` hover at `--signal-dim`; `.inline-link` `--signal-dim` at rest, `--signal` on hover)          | `.inline-link` at rest follows the global `a` row (`--text-primary` + underline). Every link's hover/focus is `--text-primary`. `--signal-dim` as text is 3.09:1 on the page, so this is a contrast fix too (F09) | v42 (rest colour, all routes, with A2) / v43 (hover) |
+| Idle `/login` needle                                                                                                                               | `--text-muted`, no glow, at rest. Amber with its glow only while sweeping (`submitting`), the one moment the dial is actually tuning                                                                              | v43                                                  |
+| Idle `/library` progress bar                                                                                                                       | `--signal-dim` only while a sweep is running (the existing "happening, but not this session's track" carve-out in §6). A finished run's bar is `--settled-dim`                                                    | v43                                                  |
 
 The same test covers sites F10 didn't list (for example `.load-more`'s and QueueControls' hover
 borders at `--signal-dim`): a hover, focus, pressed or selected state is never "receiving", so it
@@ -119,7 +119,7 @@ not chrome, and keeps its color.
 > **v42 (2026-10-15):** every `/` row above is applied (✓), plus the unlisted `/` sites:
 > `.load-more`, the queue controls and JobRow's priority-input focus border. On `/`, `--signal` now
 > appears only on genuinely live things: a receiving lane, an expanding job's dot, the prompt while
-> sending, a due countdown, the live bar segment and `::selection`. The links row is applied on every route (A2 changed their rest colour anyway); the other routes' remaining rows stay v43's.
+> sending, a due countdown, the live bar segment and `::selection`. On the other routes v42 changed only what A2 required (no `--signal-dim` text, so `.inline-link` rests at `--text-primary` and `.back` hovers to it); `.inline-link`'s amber hover and the remaining rows stay v43's.
 
 ### Focus
 
@@ -277,9 +277,10 @@ reserved, not just a color-token comment. **Any future panel that wants to signa
 is currently active" should use this same neutral→signal-dim border-color swap pattern, not a
 persistent accent border.**
 
-> **v42 (2026-10-15, F04):** a third edge state. While the receiver is deliberately not listening
-> (a breaker hold or a pause) and nothing of this session's is receiving, the edge is
-> `--waiting-dim`: a hold is a scheduled, recoverable condition, the waiting colour's meaning.
+> **v42 (2026-10-15, F04):** a third edge state. While the breaker holds and nothing of this
+> session's is receiving, the edge is `--waiting-dim`: a hold is a scheduled, self-clearing
+> condition, the waiting colour's meaning. A pause keeps the neutral edge: it isn't scheduled (it
+> holds until a human resumes it, which is why the admin's pill shows it red).
 
 ### Waterfall idle status and the link tell (v42, F04/F05)
 

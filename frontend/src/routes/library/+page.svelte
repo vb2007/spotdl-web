@@ -194,10 +194,9 @@
 		color: var(--text-primary);
 	}
 
-	/* Hover never takes amber (F10); the underline thickens instead. */
 	.inline-link:hover,
 	.inline-link:focus-visible {
-		text-decoration-thickness: 2px;
+		color: var(--signal);
 	}
 
 	.start {

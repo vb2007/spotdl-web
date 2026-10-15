@@ -35,8 +35,7 @@
 	function onSearchInput(value: string) {
 		searchInput = value;
 		clearTimeout(searchTimer);
-		// Trimmed: a search of only spaces is no search (the backend would ILIKE '%  %').
-		searchTimer = setTimeout(() => queue.setFilters({ q: searchInput.trim() }), 300);
+		searchTimer = setTimeout(() => queue.setFilters({ q: searchInput }), 300);
 	}
 
 	function setScope(scope: Scope) {
@@ -90,8 +89,10 @@
 	}
 
 	// A chip the user has toggled in this scope stays put even once its count reaches zero,
-	// so unpressing it never pulls the focused button out from under the keyboard.
+	// so unpressing it never pulls the focused button out from under the keyboard; so does
+	// whichever chip has focus while a live count refresh drops it to zero.
 	const touched = new SvelteSet<string>();
+	let focusedChip = $state<string | null>(null);
 	let touchedScope = $state<Scope>('jobs');
 
 	// v42 (F11): a chip with nothing behind it is noise. It stays while pressed (so a filter
@@ -101,6 +102,7 @@
 			(c) =>
 				chipCount(c) > 0 ||
 				chipPressed(c) ||
+				focusedChip === c.key ||
 				(touchedScope === $filters.scope && touched.has(c.key))
 		)
 	);
@@ -228,6 +230,8 @@
 						type="button"
 						class="chip"
 						aria-pressed={chipPressed(chip)}
+						onfocus={() => (focusedChip = chip.key)}
+						onblur={() => (focusedChip = null)}
 						onclick={() => toggleChip(chip)}
 					>
 						{chip.label}&nbsp;<span class="n mono">{chipCount(chip)}</span>

@@ -68,7 +68,7 @@
 <section
 	class="panel waterfall"
 	class:live={tracks.length > 0 && link === 'live'}
-	class:held={tracks.length === 0 && (idle === 'holding' || idle === 'paused')}
+	class:held={tracks.length === 0 && idle === 'holding'}
 	aria-labelledby="waterfall-heading"
 >
 	<div class="head">

@@ -636,7 +636,7 @@
 		display: block;
 		height: 0.75rem;
 		border-radius: 3px;
-		background: var(--bg-2);
+		background: var(--bg-3);
 	}
 
 	.bone.badge {
