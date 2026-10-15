@@ -631,9 +631,10 @@
 		text-decoration: none;
 	}
 
+	/* v42 (A2/F09): --signal-dim is never text (3.09:1); hover is --text-primary (v40's F10 verdict). */
 	.back:hover,
 	.back:focus-visible {
-		color: var(--signal-dim);
+		color: var(--text-primary);
 	}
 
 	.worker-section {
@@ -642,8 +643,9 @@
 		gap: var(--space-2);
 	}
 
+	/* v42 (A2/F09): the global link treatment (underline, --text-primary), never --signal-dim text. */
 	.inline-link {
-		color: var(--signal-dim);
+		color: var(--text-primary);
 	}
 
 	.inline-link:hover,
@@ -715,7 +717,7 @@
 
 	.option-group button {
 		background: var(--bg-2);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);
@@ -742,7 +744,7 @@
 	input[type='text'],
 	select {
 		background: var(--bg-0);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-3);
 		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -759,7 +761,7 @@
 		grid-column: 1 / -1;
 		justify-self: start;
 		background: var(--bg-2);
-		border: 1px solid var(--line-bright);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-3) var(--space-4);
 		font-family: var(--font-mono);
@@ -801,7 +803,7 @@
 		flex: 1;
 		min-width: 0;
 		background: var(--bg-0);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-3);
 		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -814,7 +816,7 @@
 
 	.add-proxy button {
 		background: var(--bg-2);
-		border: 1px solid var(--line-bright);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-3) var(--space-4);
 		font-family: var(--font-mono);
@@ -886,7 +888,7 @@
 	.remove {
 		flex-shrink: 0;
 		background: transparent;
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-2);
 		font-size: 0.6875rem;

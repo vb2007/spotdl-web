@@ -704,7 +704,7 @@
 
 	.action {
 		background: var(--bg-2);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);

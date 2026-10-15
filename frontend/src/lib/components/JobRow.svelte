@@ -395,7 +395,7 @@
 	.priority-input {
 		width: 3.5rem;
 		background: var(--bg-0);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-2);
 		color: var(--text-primary);
@@ -403,13 +403,9 @@
 		font-size: 0.8125rem;
 	}
 
-	.priority-input:focus-visible {
-		border-color: var(--signal-dim);
-	}
-
 	.action {
 		background: var(--bg-2);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);

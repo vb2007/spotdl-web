@@ -162,9 +162,10 @@
 		text-decoration: none;
 	}
 
+	/* v42 (A2/F09): --signal-dim is never text (3.09:1); hover is --text-primary (v40's F10 verdict). */
 	.back:hover,
 	.back:focus-visible {
-		color: var(--signal-dim);
+		color: var(--text-primary);
 	}
 
 	.identity,
@@ -212,7 +213,7 @@
 
 	.option-group button {
 		background: var(--bg-2);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);
@@ -238,7 +239,7 @@
 
 	input[type='number'] {
 		background: var(--bg-0);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-3);
 		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -258,7 +259,7 @@
 		grid-column: 1 / -1;
 		justify-self: start;
 		background: var(--bg-2);
-		border: 1px solid var(--line-bright);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-3) var(--space-4);
 		font-family: var(--font-mono);

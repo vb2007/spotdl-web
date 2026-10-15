@@ -9,16 +9,19 @@
 	"color": {
 		"chassis": {
 			"bg-0": "#0a0c0e",
-			"bg-1": "#14181c",
+			"bg-1": "#191e23",
 			"bg-2": "#1c2227",
 			"bg-3": "#262e34",
 			"line": "#2b3339",
-			"line-bright": "#3a444c"
+			"line-bright": "#3a444c",
+			"line-control": "#6a757e",
+			"note": "v42: bg-1 is the raised faceplate (1.17:1 vs bg-0); line is the quiet divider, line-control the >=3:1 border of every control (WCAG 1.4.11)"
 		},
 		"text": {
 			"primary": "#e8ecee",
 			"muted": "#8b969d",
-			"dim": "#566068"
+			"dim": "#808b94",
+			"note": "v42: dim reaches 4.5:1 on bg-0/1/2 (5.63/4.83/4.62); signal-dim is never text"
 		},
 		"signal": {
 			"meaning": "live/active only — exclusive, never used as permanent chrome or decoration",
@@ -52,14 +55,20 @@
 			"font-mono": "'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
 			"font-sans": "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
 		},
-		"rule": "mono = numbers/timestamps/state tags/UI chrome; sans = real content (song/artist/album)",
-		"sizesInUse": {
-			"0.5625rem": "login dial frequency ticks",
-			"0.6875rem": "label utility / job-type cell",
-			"0.75rem": "filter chips / state cell",
-			"0.8125rem": "secondary lines (artist byline, errors, countdown, detail rows)",
-			"0.875rem": "queue table artist/album cells",
-			"15px": "body root default"
+		"rule": "mono = numbers, timestamps, state tokens, addresses, idents and (until v47) control labels; sans = content, sentences, hints, errors, empty-state copy (v39 F12, narrowed in v42)",
+		"scale": {
+			"fs-label": "0.6875rem",
+			"fs-meta": "0.75rem",
+			"fs-detail": "0.8125rem",
+			"fs-body": "0.9375rem",
+			"fs-lead": "1.0625rem",
+			"fs-title": "1.25rem",
+			"note": "v42: fixed rem roles; body is var(--fs-body), so text follows the user setting. Only the login dial ticks (0.5625rem) and v41/v43 files still carry literals until v43/v47 migrate them"
+		},
+		"weights": {
+			"fw-regular": 400,
+			"fw-medium": 500,
+			"fw-strong": 600
 		}
 	},
 	"space": {

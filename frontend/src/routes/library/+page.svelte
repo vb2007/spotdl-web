@@ -170,9 +170,10 @@
 		text-decoration: none;
 	}
 
+	/* v42 (A2/F09): --signal-dim is never text (3.09:1); hover is --text-primary (v40's F10 verdict). */
 	.back:hover,
 	.back:focus-visible {
-		color: var(--signal-dim);
+		color: var(--text-primary);
 	}
 
 	.panel {
@@ -188,8 +189,9 @@
 		font-size: 0.75rem;
 	}
 
+	/* v42 (A2/F09): the global link treatment (underline, --text-primary), never --signal-dim text. */
 	.inline-link {
-		color: var(--signal-dim);
+		color: var(--text-primary);
 	}
 
 	.inline-link:hover,
@@ -200,7 +202,7 @@
 	.start {
 		align-self: start;
 		background: var(--bg-2);
-		border: 1px solid var(--line-bright);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-3) var(--space-4);
 		font-family: var(--font-mono);
