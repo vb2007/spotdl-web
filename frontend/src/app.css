@@ -63,6 +63,9 @@
 	/* Failure (sparing — terminal states only) */
 	--fail: #e5595c;
 	--fail-dim: #5c2f30;
+	/* v42: a destructive control's outline at rest, >=3:1 on --bg-0/1/2 (3.87/3.32/3.17);
+	   --fail-dim (1.5:1) is a fill and segment tone, never a control's only edge. */
+	--fail-edge: #b05154;
 
 	/* Focus (accessibility — keyboard-only nav is a hard requirement, never suppressed) */
 	--focus-ring: #ffd479;

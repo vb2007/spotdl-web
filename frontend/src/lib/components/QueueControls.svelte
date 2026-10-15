@@ -2,6 +2,7 @@
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import type { Scope } from '$lib/stores/queue';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	let {
 		isAdmin,
@@ -87,11 +88,28 @@
 		return chip.tokens.every((t) => selected.includes(t));
 	}
 
-	// v42 (F11): a chip with nothing behind it is noise. It stays only while pressed, so a
-	// filter can always be switched off again.
-	let visibleChips = $derived(chips.filter((c) => chipCount(c) > 0 || chipPressed(c)));
+	// A chip the user has toggled in this scope stays put even once its count reaches zero,
+	// so unpressing it never pulls the focused button out from under the keyboard.
+	const touched = new SvelteSet<string>();
+	let touchedScope = $state<Scope>('jobs');
+
+	// v42 (F11): a chip with nothing behind it is noise. It stays while pressed (so a filter
+	// can always be switched off again) and once touched (above).
+	let visibleChips = $derived(
+		chips.filter(
+			(c) =>
+				chipCount(c) > 0 ||
+				chipPressed(c) ||
+				(touchedScope === $filters.scope && touched.has(c.key))
+		)
+	);
 
 	function toggleChip(chip: Chip) {
+		if (touchedScope !== $filters.scope) {
+			touchedScope = $filters.scope;
+			touched.clear();
+		}
+		touched.add(chip.key);
 		const next = chipPressed(chip)
 			? selected.filter((t) => !chip.tokens.includes(t))
 			: [...selected, ...chip.tokens.filter((t) => !selected.includes(t))];
@@ -368,8 +386,13 @@
 		color: var(--text-primary);
 	}
 
+	/* On a pressed or hovered chip's --bg-3 the dim count would drop under 4.5:1. */
 	.chip[aria-pressed='true'] .n {
 		color: var(--text-primary);
+	}
+
+	.chip:hover .n {
+		color: var(--text-muted);
 	}
 
 	.segmented button:hover:not([aria-pressed='true']),
@@ -382,7 +405,7 @@
 	   tone at rest, as v41's row actions are, so it never reads as one more toggle. */
 	.chip.danger {
 		background: transparent;
-		border-color: var(--fail-dim);
+		border-color: var(--fail-edge);
 	}
 
 	.chip.danger:hover,

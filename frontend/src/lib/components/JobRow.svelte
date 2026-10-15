@@ -446,7 +446,7 @@
 	   -- the same treatment as TrackRow's "cancel track". */
 	.action.danger {
 		background: transparent;
-		border-color: var(--fail-dim);
+		border-color: var(--fail-edge);
 	}
 
 	.action.danger:hover,

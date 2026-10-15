@@ -24,11 +24,13 @@
 
 	// v42 (F07): the live region holds one fixed sentence per state, so it speaks when the
 	// state changes, never on the countdown's per-second tick.
+	// A pause outranks a hold, as on the Waterfall: nothing dispatches until a human
+	// resumes, even after the breaker clears, so it is the binding explanation.
 	let announcement = $derived(
-		breakerUntil
-			? `Worker: breaker holding until ${clockTime(breakerUntil)}`
-			: paused
-				? 'Worker: paused'
+		paused
+			? 'Worker: paused'
+			: breakerUntil
+				? `Worker: breaker holding until ${clockTime(breakerUntil)}`
 				: 'Worker: ready'
 	);
 </script>
@@ -38,7 +40,9 @@
 	<!-- v42 (F06): a tripped breaker is expected and self-healing, so it reads in the
 	     waiting blue, never the terminal red. A pause stays red: it holds until a human
 	     resumes it. -->
-	{#if breakerUntil}
+	{#if paused}
+		<span class="cond-fail" aria-hidden="true">receiver paused</span>
+	{:else if breakerUntil}
 		<span class="cond-waiting" aria-hidden="true">breaker holding</span>
 		<span aria-hidden="true"
 			><Countdown
@@ -48,8 +52,6 @@
 				dueText="clearing…"
 			/></span
 		>
-	{:else if paused}
-		<span class="cond-fail" aria-hidden="true">receiver paused</span>
 	{:else}
 		<span class="cond-idle" aria-hidden="true">worker ready</span>
 	{/if}

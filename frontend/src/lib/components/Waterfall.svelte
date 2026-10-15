@@ -1,10 +1,6 @@
-<script lang="ts" module>
-	/** This page's SSE stream: not yet open, open, or dropped and retrying (v42, F05). */
-	export type LinkState = 'connecting' | 'live' | 'reconnecting';
-</script>
-
 <script lang="ts">
 	import type { LiveTrack } from '$lib/stores/queue';
+	import type { LinkState } from '$lib/stores/link';
 	import Countdown from '$lib/components/Countdown.svelte';
 
 	/** v20: `busy` reflects `GET /api/worker/status`'s global `busy` flag -- since
@@ -71,7 +67,7 @@
 
 <section
 	class="panel waterfall"
-	class:live={tracks.length > 0}
+	class:live={tracks.length > 0 && link !== 'reconnecting'}
 	class:held={tracks.length === 0 && (idle === 'holding' || idle === 'paused')}
 	aria-labelledby="waterfall-heading"
 >
@@ -290,8 +286,20 @@
 		gap: var(--space-3);
 	}
 
+	/* Without a link the lanes may be stale: dimmed, and off the amber, which only ever
+	   means "receiving right now" (DESIGN.md §2). */
 	.lanes.stale {
 		opacity: 0.6;
+	}
+
+	.lanes.stale .fill {
+		background: var(--line-bright);
+		box-shadow: none;
+		animation: none;
+	}
+
+	.lanes.stale .pct {
+		color: var(--text-muted);
 	}
 
 	.lane {

@@ -723,7 +723,7 @@
 	   at rest; full fail red only on hover/focus, the moment it's about to be used. */
 	.action.danger {
 		background: transparent;
-		border-color: var(--fail-dim);
+		border-color: var(--fail-edge);
 	}
 
 	/* Set apart only when it follows a neutral action, so the action area always starts

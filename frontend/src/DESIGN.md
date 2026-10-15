@@ -35,15 +35,15 @@ light theme exists or is planned.
 
 ### Chassis / ground
 
-| Token            | Hex       | Use                                                                    |
-| ---------------- | --------- | ---------------------------------------------------------------------- |
-| `--bg-0`         | `#0a0c0e` | Page background, recessed input wells                                  |
-| `--bg-1`         | `#191e23` | `.panel` surface: the raised faceplate (v42; was `#14181c`)            |
-| `--bg-2`         | `#1c2227` | Raised/hover surface for buttons, filter chips                         |
-| `--bg-3`         | `#262e34` | Hover/active surface one step brighter than `--bg-2`                   |
-| `--line`         | `#2b3339` | Default hairline border                                                |
-| `--line-bright`  | `#3a444c` | Emphasized border (buttons, major dial ticks, idle waterfall top edge) |
-| `--line-control` | `#6a757e` | v42: the border of every control (input, select, button, chip): ≥3:1   |
+| Token            | Hex       | Use                                                                          |
+| ---------------- | --------- | ---------------------------------------------------------------------------- |
+| `--bg-0`         | `#0a0c0e` | Page background, recessed input wells                                        |
+| `--bg-1`         | `#191e23` | `.panel` surface: the raised faceplate (v42; was `#14181c`)                  |
+| `--bg-2`         | `#1c2227` | Raised/hover surface for buttons, filter chips                               |
+| `--bg-3`         | `#262e34` | Hover/active surface one step brighter than `--bg-2`                         |
+| `--line`         | `#2b3339` | Default hairline border                                                      |
+| `--line-bright`  | `#3a444c` | Emphasized border (buttons, major dial ticks, idle waterfall top edge)       |
+| `--line-control` | `#6a757e` | v42: the border of every neutral control (input, select, button, chip): ≥3:1 |
 
 > **v42 (2026-10-15, F09/A2, owner's choice):** `--line` stays the quiet divider between rows and
 > around panels (1.31:1 on `--bg-1`). A control's edge is `--line-control` instead, which reaches
@@ -65,6 +65,11 @@ light theme exists or is planned.
 > tracking: `.label`), not by luminance. `--text-muted` stays put because `AmbientField.svelte`'s
 > slate tone is calibrated against it (§6). `--signal-dim` is never text (it was 3.09:1 as link hover
 > on four routes; those links now hover to `--text-primary`).
+>
+> A destructive control's outline at rest (clear log, a job's cancel, cancel track) is the new
+> `--fail-edge` (`#b05154`: 3.87 / 3.32 / 3.17 on `--bg-0/1/2`), not `--fail-dim` (1.5:1). `--fail-dim`
+> stays a fill and segment tone. `/settings`' and `WorkerStatus`' state toggles still edge in
+> `--fail-dim`/`--settled-dim` with full-strength state text; they are v43's (F30).
 
 ### Signal-condition colors — the semantic core of the system
 
@@ -108,13 +113,13 @@ permanent chrome sites. Each now has a verdict. v40 applies only the first row. 
 
 The same test covers sites F10 didn't list (for example `.load-more`'s and QueueControls' hover
 borders at `--signal-dim`): a hover, focus, pressed or selected state is never "receiving", so it
-never takes amber.
+never takes amber. Text selection (`::selection` at `--signal-dim`) is transient and user-initiated,
+not chrome, and keeps its color.
 
 > **v42 (2026-10-15):** every `/` row above is applied (✓), plus the unlisted `/` sites:
 > `.load-more`, the queue controls and JobRow's priority-input focus border. On `/`, `--signal` now
 > appears only on genuinely live things: a receiving lane, an expanding job's dot, the prompt while
-> sending, a due countdown, the live bar segment and `::selection`. The other routes' rows stay v43's. Text selection (`::selection` at `--signal-dim`) is transient and user-initiated,
-> not chrome, and keeps its color.
+> sending, a due countdown, the live bar segment and `::selection`. The other routes' rows stay v43's.
 
 ### Focus
 
@@ -425,17 +430,16 @@ pulsing-dot treatment for the same state, not `cond-idle` — a job actively bei
 `settled:partial` maps to `cond-fail`: it is a genuinely terminal, no-further-action state with a
 real gap (≥1 track that didn't make it), the same bucket `lookup_failed` already occupies at the
 track level — never `cond-waiting`, which §2 reserves for recoverable backoff, not "done, but
-incomplete." > **v42 (2026-10-15, F28):** `settled:partial` is `cond-fail` only when the job has a
+incomplete." The labels themselves (`api.STATUS_LABEL`) are shared between the state-filter chips
+and the job-row badge so the two can't drift apart: `"done — partial"` for `settled:partial`,
+never "failed" or "partial" alone, so a glance at either surface reads the same story.
 
+> **v42 (2026-10-15, F28):** `settled:partial` is `cond-fail` only when the job has a
 > `lookup_failed` track. A job that is partial only because its owner cancelled tracks has no gap
 > they didn't choose, so it reads `cond-idle`. A job whose title is still its link (nothing read yet)
 > shows the link as an address (mono, muted, regular weight), not a bold title. A one-track job
 > shows no separate count line, since the badge and bar already say it (the bar's accessible name
 > still carries the count).
-
-The labels themselves (`api.STATUS_LABEL`) are shared between the state-filter chips
-and the job-row badge so the two can't drift apart: `"done — partial"` for `settled:partial`,
-never "failed" or "partial" alone, so a glance at either surface reads the same story.
 
 ### Segmented job progress bar (`JobRow.svelte`, v20)
 
@@ -531,7 +535,7 @@ or unlabeled icon toggle.
 The controls and the list are one faceplate (`section.queue`, headed by an `h2` "Queue" and the
 list's size, e.g. "7 of 7 jobs" or "Loading…"). The log's own tools sit at the head's right, apart
 from the view controls: **show archived** (a toggle chip) and **clear log**, outlined in
-`--fail-dim` at rest like v41's destructive row actions, so it never reads as one more toggle (its
+`--fail-edge` at rest like v41's destructive row actions, so it never reads as one more toggle (its
 confirmation is v43's). Then the find row (scope switch, search, the admin's mine/all users), the
 refine row (chips, sort), a divider, and the list or its state:
 
@@ -564,7 +568,7 @@ pattern is the convention for any future expandable list row.**
 > grid, two columns: a status strip first (the state in plain words, the next-try countdown,
 > which follows the breaker's clear when that's later (F04), and, for the admin, attempts /
 > failed / last path), then one action area (retry now · download · cancel track, the destructive
-> one set apart and outlined in `--fail-dim`), then, **admin only**, the attempt timeline: newest
+> one set apart and outlined in `--fail-dim`, `--fail-edge` from v42), then, **admin only**, the attempt timeline: newest
 > first, the time in the state column's gutter (absolute time on hover, focus, or a click that
 > pins it), consecutive identical readings collapsed into one `×n` entry that opens on demand,
 > raw errors clamped to three lines with a "show full message" control and always selectable.

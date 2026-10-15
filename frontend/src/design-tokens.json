@@ -43,7 +43,9 @@
 		"fail": {
 			"meaning": "terminal failure only — never used for waiting/backoff",
 			"fail": "#e5595c",
-			"fail-dim": "#5c2f30"
+			"fail-dim": "#5c2f30",
+			"fail-edge": "#b05154",
+			"note": "v42: fail-edge is a destructive control outline at rest (>=3:1); fail-dim is a fill/segment tone, never a control edge"
 		},
 		"focus": {
 			"meaning": "keyboard focus ring, never suppressed (hard accessibility requirement)",

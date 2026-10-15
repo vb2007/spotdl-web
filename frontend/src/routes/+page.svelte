@@ -8,7 +8,7 @@
 	import type { LiveTrackWithJob } from '$lib/stores/queue';
 	import { worker } from '$lib/stores/worker';
 	import Waterfall from '$lib/components/Waterfall.svelte';
-	import type { LinkState } from '$lib/components/Waterfall.svelte';
+	import { link } from '$lib/stores/link';
 	import IncomingJobs from '$lib/components/IncomingJobs.svelte';
 	import WorkerStatusPill from '$lib/components/WorkerStatusPill.svelte';
 	import QueueControls from '$lib/components/QueueControls.svelte';
@@ -36,9 +36,8 @@
 			: null
 	);
 
-	// v42 (F05): this page's own SSE link, shown in the header and the Waterfall, so a
-	// dropped stream never looks like a connected one.
-	let link: LinkState = $state('connecting');
+	// v42 (F05): this page's own SSE link (`$link`), shown in the header and the Waterfall,
+	// so a dropped stream never looks like a connected one; the layout reads it too.
 
 	// Admin-only (v17): mine/all-users scope. Off by default even for an admin --
 	// switching it clears the queue store (see queue.setAllUsers) and reconnects the
@@ -144,7 +143,7 @@
 	function connectStream() {
 		source = api.createEventSource(allUsersView);
 		source.onopen = () => {
-			link = 'live';
+			link.set('live');
 			awaitingResync = false;
 			clearTimeout(resyncFallbackTimer);
 			streamRetryDelayMs = 1000;
@@ -158,7 +157,7 @@
 		source.onerror = () => {
 			// Either way the stream is down right now: the browser retrying on its own
 			// (CONNECTING) or given up until the retry below (CLOSED).
-			link = 'reconnecting';
+			link.set('reconnecting');
 			if (source?.readyState !== EventSource.CLOSED) {
 				// Browser is already retrying on its own (readyState === CONNECTING).
 				return;
@@ -178,7 +177,7 @@
 	async function onAllUsersChange(next: boolean) {
 		if (next === allUsersView) return;
 		allUsersView = next;
-		link = 'connecting';
+		link.set('connecting');
 		clearTimeout(streamRetryTimer);
 		streamRetryDelayMs = 1000;
 		source?.close();
@@ -197,6 +196,7 @@
 	}
 
 	onMount(() => {
+		link.set('connecting');
 		queue.beginResync();
 		armResyncFallback();
 		connectStream();
@@ -225,11 +225,11 @@
 			<span class="label">signal receiver</span>
 		</div>
 		<div class="status">
-			<span class="link mono" class:down={link !== 'live'} role="status">
+			<span class="link mono" class:down={$link !== 'live'} role="status">
 				<span class="link-dot" aria-hidden="true"></span>
-				{link === 'live'
+				{$link === 'live'
 					? 'linked'
-					: link === 'connecting'
+					: $link === 'connecting'
 						? 'linking…'
 						: 'link lost — reconnecting'}
 			</span>
@@ -281,7 +281,7 @@
 		<Waterfall
 			tracks={$activeTracks}
 			busy={workerBusy}
-			{link}
+			link={$link}
 			{breakerUntil}
 			paused={workerPaused}
 			{isAdmin}

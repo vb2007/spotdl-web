@@ -21,15 +21,24 @@
 	};
 
 	let tuning = $derived(jobs.filter((j) => j.state === 'expanding'));
-	let failed = $derived(jobs.filter((j) => j.state !== 'expanding'));
+	// Newest first: the one just submitted is the one the user is looking for.
+	let failed = $derived(
+		jobs
+			.filter((j) => j.state !== 'expanding')
+			.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+	);
 
 	// v42 (F27): failed reads pile up (they stay until dismissed), and in the all-users
-	// scope they're often days old. One stays open; two or more fold into a summary line.
-	let showFailed = $state(false);
-	let failedOpen = $derived(failed.length < 2 || showFailed);
+	// scope they're often days old. The newest always shows; older ones fold into one line.
+	let showOlder = $state(false);
+	let newestFailed = $derived(failed[0]);
+	let olderFailed = $derived(failed.slice(1));
 
 	let rowError = $state<Record<string, string>>({});
 	let busy = $state<Record<string, boolean>>({});
+	// Rows whose link was already submitted again: never offered twice, even if the dismiss
+	// that follows fails and leaves the row up.
+	let resubmitted = $state<Record<string, boolean>>({});
 
 	function setError(jobId: string, message: string) {
 		rowError = { ...rowError, [jobId]: message };
@@ -49,6 +58,7 @@
 		busy = { ...busy, [job.id]: true };
 		try {
 			queue.addJob(await api.createJob(job.source_url));
+			resubmitted = { ...resubmitted, [job.id]: true };
 		} catch (err) {
 			setError(job.id, err instanceof api.ApiError ? err.message : 'Could not submit it again.');
 			busy = { ...busy, [job.id]: false };
@@ -62,6 +72,36 @@
 		return !allUsers || job.owner_email === sessionEmail;
 	}
 </script>
+
+{#snippet failedRow(job: Job)}
+	<li class="row failed">
+		<span class="dot fail" aria-hidden="true"></span>
+		<span class="mono state">no signal — could not read this {SOURCE_LABEL[job.source_type]}</span>
+		<span class="url mono" title={job.source_url}>{job.source_url}</span>
+		{#if allUsers}
+			<span class="owner mono" title={job.owner_email}
+				>{api.displayName(job.owner_username, job.owner_email)}</span
+			>
+		{/if}
+		{#if job.error}
+			<span class="reason" title={job.error}>{job.error}</span>
+		{/if}
+		<span class="actions">
+			{#if isOwn(job) && !resubmitted[job.id]}
+				<button
+					type="button"
+					class="action"
+					disabled={busy[job.id]}
+					onclick={() => handleRetry(job)}>try again</button
+				>
+			{/if}
+			<button type="button" class="action" onclick={() => handleCancel(job.id)}>dismiss</button>
+		</span>
+		{#if rowError[job.id]}
+			<span class="error" role="alert">{rowError[job.id]}</span>
+		{/if}
+	</li>
+{/snippet}
 
 {#if jobs.length > 0}
 	<section class="incoming panel" aria-labelledby="incoming-heading">
@@ -87,56 +127,30 @@
 				</li>
 			{/each}
 
-			{#if failed.length >= 2}
+			{#if newestFailed}
+				{@render failedRow(newestFailed)}
+			{/if}
+
+			{#if olderFailed.length > 0}
 				<li class="row summary">
 					<span class="dot fail" aria-hidden="true"></span>
-					<span class="summary-text">{failed.length} links couldn't be read</span>
+					<span class="summary-text"
+						>{olderFailed.length} older link{olderFailed.length === 1 ? '' : 's'} couldn't be read</span
+					>
 					<span class="actions">
 						<button
 							type="button"
 							class="action"
-							aria-expanded={showFailed}
-							onclick={() => (showFailed = !showFailed)}
-							>{showFailed ? 'hide them' : 'show them'}</button
+							aria-expanded={showOlder}
+							onclick={() => (showOlder = !showOlder)}>{showOlder ? 'hide' : 'show'}</button
 						>
 					</span>
 				</li>
-			{/if}
-
-			{#if failedOpen}
-				{#each failed as job (job.id)}
-					<li class="row failed">
-						<span class="dot fail" aria-hidden="true"></span>
-						<span class="mono state"
-							>no signal — could not read this {SOURCE_LABEL[job.source_type]}</span
-						>
-						<span class="url mono" title={job.source_url}>{job.source_url}</span>
-						{#if allUsers}
-							<span class="owner mono" title={job.owner_email}
-								>{api.displayName(job.owner_username, job.owner_email)}</span
-							>
-						{/if}
-						{#if job.error}
-							<span class="reason" title={job.error}>{job.error}</span>
-						{/if}
-						<span class="actions">
-							{#if isOwn(job)}
-								<button
-									type="button"
-									class="action"
-									disabled={busy[job.id]}
-									onclick={() => handleRetry(job)}>try again</button
-								>
-							{/if}
-							<button type="button" class="action" onclick={() => handleCancel(job.id)}
-								>dismiss</button
-							>
-						</span>
-						{#if rowError[job.id]}
-							<span class="error" role="alert">{rowError[job.id]}</span>
-						{/if}
-					</li>
-				{/each}
+				{#if showOlder}
+					{#each olderFailed as job (job.id)}
+						{@render failedRow(job)}
+					{/each}
+				{/if}
 			{/if}
 		</ul>
 	</section>
