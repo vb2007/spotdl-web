@@ -66,14 +66,26 @@
 
 	// One fixed sentence per state, so a screen reader hears a hold or pause start and end
 	// (the admin-only pill is the only other place that says it) and never a countdown tick.
-	// A lost link is announced once, by the masthead's own tell.
-	let announcement = $derived(
-		tracks.length === 0 && idle === 'holding' && breakerUntil
+	let heldSentence = $derived(
+		idle === 'holding' && breakerUntil
 			? `Downloads holding until ${clockTime(breakerUntil)}`
-			: tracks.length === 0 && idle === 'paused'
+			: idle === 'paused'
 				? 'Receiver paused'
-				: ''
+				: null
 	);
+	// The region keeps the hold's sentence while it lasts, then says it ended once: an
+	// emptied live region announces nothing. A lost link is the masthead tell's to say.
+	let announcement = $state('');
+	let wasHeld = false;
+	$effect(() => {
+		if (heldSentence) {
+			announcement = heldSentence;
+			wasHeld = true;
+		} else if (wasHeld && idle !== 'reconnecting' && idle !== 'connecting') {
+			announcement = 'Downloads resumed';
+			wasHeld = false;
+		}
+	});
 </script>
 
 <section

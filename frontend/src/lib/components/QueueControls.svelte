@@ -168,7 +168,8 @@
 			show archived
 		</button>
 		{#if $filters.scope === 'jobs'}
-			<!-- Archives this view's settled jobs. Its confirmation is v43's. -->
+			<!-- Archives every settled job of *yours*, whatever the search, filters or all-users
+			     view (archive.archive_jobs). Unchanged in v42; its confirmation is v43's. -->
 			<button type="button" class="chip danger" onclick={onClearLog}>clear log</button>
 		{/if}
 	</div>
@@ -428,7 +429,7 @@
 		color: var(--text-primary);
 	}
 
-	/* Destructive-adjacent (it archives every settled job in view): outlined in the fail
+	/* Destructive-adjacent (it archives all of your settled jobs): outlined in the fail
 	   tone at rest, as v41's row actions are, so it never reads as one more toggle. */
 	.chip.danger {
 		background: transparent;

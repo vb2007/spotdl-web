@@ -48,7 +48,8 @@
 		rowError = { ...rowError, [jobId]: message };
 	}
 
-	async function handleCancel(jobId: string) {
+	/** `then`: where focus goes once the row (and its focused button) is gone. */
+	async function handleCancel(jobId: string, then: 'next-dismiss' | 'submit') {
 		try {
 			await queue.cancelJob(jobId);
 		} catch (err) {
@@ -56,16 +57,18 @@
 			return;
 		}
 		await tick();
-		keepFocus();
+		keepFocus(then);
 	}
 
-	// The row and its focused button are gone: move focus to the list's first remaining
-	// button (a visible, real stop), or, with the list gone too, to the submit box.
-	function keepFocus() {
+	// After a dismiss, the next failed row's own "dismiss" (the same action, so clearing a
+	// pile stays one key); after a cancel or a resubmit, the submit box. Never a different
+	// job's cancel or retry, where a repeated Enter would act on the wrong submission.
+	function keepFocus(then: 'next-dismiss' | 'submit') {
 		if (document.activeElement && document.activeElement !== document.body) return;
-		const next = incomingSection?.isConnected
-			? incomingSection.querySelector<HTMLButtonElement>('button:not(:disabled)')
-			: null;
+		const next =
+			then === 'next-dismiss' && incomingSection?.isConnected
+				? incomingSection.querySelector<HTMLButtonElement>('button[data-act="dismiss"]')
+				: null;
 		(next ?? document.getElementById('submit-url'))?.focus();
 	}
 
@@ -81,10 +84,8 @@
 			busy = { ...busy, [job.id]: false };
 			return;
 		}
-		await handleCancel(job.id);
+		await handleCancel(job.id, 'submit');
 		busy = { ...busy, [job.id]: false };
-		await tick();
-		keepFocus();
 	}
 
 	function isOwn(job: Job): boolean {
@@ -123,7 +124,8 @@
 				type="button"
 				class="action"
 				aria-label="dismiss {job.source_url}"
-				onclick={() => handleCancel(job.id)}>dismiss</button
+				data-act="dismiss"
+				onclick={() => handleCancel(job.id, 'next-dismiss')}>dismiss</button
 			>
 		</span>
 		{#if rowError[job.id]}
@@ -152,7 +154,7 @@
 							type="button"
 							class="action danger"
 							aria-label="cancel {job.source_url}"
-							onclick={() => handleCancel(job.id)}>cancel</button
+							onclick={() => handleCancel(job.id, 'submit')}>cancel</button
 						>
 					</span>
 					{#if rowError[job.id]}
