@@ -815,11 +815,15 @@
 		}
 
 		.masthead {
-			grid-template-columns: minmax(0, 1fr) auto;
+			grid-template-columns: auto minmax(0, 1fr);
 			grid-template-areas:
 				'ident status'
 				'nav nav';
 			align-items: start;
+		}
+
+		.wordmark {
+			white-space: nowrap;
 		}
 
 		.ident .label {
@@ -830,6 +834,7 @@
 			flex-direction: column;
 			align-items: flex-end;
 			gap: var(--space-1);
+			text-align: right;
 		}
 
 		.session {
