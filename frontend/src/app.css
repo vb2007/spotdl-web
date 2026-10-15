@@ -161,8 +161,7 @@ a {
 }
 
 button,
-input,
-select {
+input {
 	font: inherit;
 	color: inherit;
 }

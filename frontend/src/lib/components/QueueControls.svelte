@@ -250,7 +250,9 @@
 			<button
 				type="button"
 				class="chip dir"
-				aria-label={$filters.dir === 'asc' ? 'Sort ascending' : 'Sort descending'}
+				aria-label={$filters.dir === 'asc'
+					? 'Reverse sort order (now ascending)'
+					: 'Reverse sort order (now descending)'}
 				title={$filters.dir === 'asc' ? 'ascending' : 'descending'}
 				onclick={flipDir}
 			>
@@ -329,6 +331,7 @@
 	}
 
 	.sort select {
+		font: inherit;
 		padding: var(--space-1) var(--space-2);
 		color: var(--text-primary);
 		font-family: var(--font-mono);
@@ -408,8 +411,10 @@
 		border-color: var(--fail-edge);
 	}
 
+	/* Stays transparent on hover: --fail on the generic --bg-3 hover is only 3.88:1. */
 	.chip.danger:hover,
 	.chip.danger:focus-visible {
+		background: transparent;
 		border-color: var(--fail);
 		color: var(--fail);
 	}

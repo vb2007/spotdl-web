@@ -306,7 +306,7 @@
 				</ul>
 			{:else if $page.error}
 				<div class="state" role="alert">
-					<p class="state-title">Couldn't load the queue</p>
+					<h3 class="state-title">Couldn't load the queue</h3>
 					<p class="state-text">
 						The list didn't load. <span class="mono">{$page.error}</span>
 					</p>
@@ -317,9 +317,9 @@
 			{:else if $page.items.length === 0}
 				<div class="state">
 					{#if filtersActive}
-						<p class="state-title">
+						<h3 class="state-title">
 							No {scopeNoun} match {$filters.q.trim() ? `“${$filters.q.trim()}”` : 'these filters'}
-						</p>
+						</h3>
 						<p class="state-text">
 							{$filters.includeArchived
 								? 'Archived ones are included.'
@@ -329,10 +329,10 @@
 							>clear search and filters</button
 						>
 					{:else if allUsersView}
-						<p class="state-title">Nobody has anything queued</p>
+						<h3 class="state-title">Nobody has anything queued</h3>
 						<p class="state-text">Every user's queue is empty in this view.</p>
 					{:else}
-						<p class="state-title">Your queue is empty</p>
+						<h3 class="state-title">Your queue is empty</h3>
 						<p class="state-text">
 							Paste a Spotify link above. Each track downloads in the background, and a rate limit
 							only means it waits its turn{$filters.includeArchived

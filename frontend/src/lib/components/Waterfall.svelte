@@ -292,8 +292,13 @@
 
 	/* Without a link the lanes may be stale: dimmed, and off the amber, which only ever
 	   means "receiving right now" (DESIGN.md §2). */
-	.lanes.stale {
-		opacity: 0.6;
+	/* Dimmed by colour, not opacity, so every line keeps its contrast (WCAG 1.4.3). */
+	.lanes.stale .title {
+		color: var(--text-muted);
+	}
+
+	.lanes.stale .artist {
+		color: var(--text-dim);
 	}
 
 	.lanes.stale .fill {

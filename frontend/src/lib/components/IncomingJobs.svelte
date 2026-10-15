@@ -92,10 +92,16 @@
 					type="button"
 					class="action"
 					disabled={busy[job.id]}
+					aria-label="try again {job.source_url}"
 					onclick={() => handleRetry(job)}>try again</button
 				>
 			{/if}
-			<button type="button" class="action" onclick={() => handleCancel(job.id)}>dismiss</button>
+			<button
+				type="button"
+				class="action"
+				aria-label="dismiss {job.source_url}"
+				onclick={() => handleCancel(job.id)}>dismiss</button
+			>
 		</span>
 		{#if rowError[job.id]}
 			<span class="error" role="alert">{rowError[job.id]}</span>
@@ -118,7 +124,11 @@
 						>
 					{/if}
 					<span class="actions">
-						<button type="button" class="action" onclick={() => handleCancel(job.id)}>cancel</button
+						<button
+							type="button"
+							class="action"
+							aria-label="cancel {job.source_url}"
+							onclick={() => handleCancel(job.id)}>cancel</button
 						>
 					</span>
 					{#if rowError[job.id]}

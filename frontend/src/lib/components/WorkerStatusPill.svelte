@@ -35,27 +35,30 @@
 	);
 </script>
 
-<div class="pill mono">
-	<span class="sr-only" role="status">{announcement}</span>
-	<!-- v42 (F06): a tripped breaker is expected and self-healing, so it reads in the
+<!-- Nothing until the first poll lands: "worker ready" on no data would be a guess. -->
+{#if $status}
+	<div class="pill mono">
+		<span class="sr-only" role="status">{announcement}</span>
+		<!-- v42 (F06): a tripped breaker is expected and self-healing, so it reads in the
 	     waiting blue, never the terminal red. A pause stays red: it holds until a human
 	     resumes it. -->
-	{#if paused}
-		<span class="cond-fail" aria-hidden="true">receiver paused</span>
-	{:else if breakerUntil}
-		<span class="cond-waiting" aria-hidden="true">breaker holding</span>
-		<span aria-hidden="true"
-			><Countdown
-				scheduledAt={breakerUntil}
-				label="clears in"
-				dueLive={false}
-				dueText="clearing…"
-			/></span
-		>
-	{:else}
-		<span class="cond-idle" aria-hidden="true">worker ready</span>
-	{/if}
-</div>
+		{#if paused}
+			<span class="cond-fail" aria-hidden="true">receiver paused</span>
+		{:else if breakerUntil}
+			<span class="cond-waiting" aria-hidden="true">breaker holding</span>
+			<span aria-hidden="true"
+				><Countdown
+					scheduledAt={breakerUntil}
+					label="clears in"
+					dueLive={false}
+					dueText="clearing…"
+				/></span
+			>
+		{:else}
+			<span class="cond-idle" aria-hidden="true">worker ready</span>
+		{/if}
+	</div>
+{/if}
 
 <style>
 	/* Quiet by default (--text-muted via .cond-idle) -- amber is reserved for something
