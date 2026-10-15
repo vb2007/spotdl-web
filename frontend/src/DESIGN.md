@@ -104,9 +104,9 @@ permanent chrome sites. Each now has a verdict. v40 applies only the first row. 
 | Body glow (`app.css` `body` background)                                                                                                            | **No amber at rest.** Replaced by `AmbientField.svelte`: slate (`--text-muted`) at rest, crossfading to amber (`--signal`) only while `/` shows ≥1 receiving track. Always slate on every other route (see §6)    | **v40**                     |
 | Global `a` color (`app.css` `a { color: var(--signal) }`)                                                                                          | No amber. Links are `--text-primary` with an underline: the affordance is the underline, not the hue                                                                                                              | v42 ✓                       |
 | The `>` prompt (`+page.svelte` `.prompt`)                                                                                                          | `--text-muted` at rest. It may take `--signal` only while a submission is in flight (SENDING…), which is a real transmission                                                                                      | v42 ✓                       |
-| Submit / connect / save / add hover-focus glow (`+page.svelte`, `login/+page.svelte`, `/settings` SAVE and ADD, `/account` SAVE, `/library` START) | No amber, and no zero-offset halo. Hover is `--bg-3` with a `--line-bright` → `--text-muted` border; focus is the global `--focus-ring` outline alone                                                             | v42 ✓ (`/`) / v43           |
+| Submit / connect / save / add hover-focus glow (`+page.svelte`, `login/+page.svelte`, `/settings` SAVE and ADD, `/account` SAVE, `/library` START) | No amber, and no zero-offset halo. Hover is `--bg-3` with a `--line-bright` → `--text-muted` border; focus is the global `--focus-ring` outline alone (v42: the rest edge is `--line-control`, A2)                | v42 ✓ (`/`) / v43           |
 | Pressed option chips (`/settings`, `/account` `.option-group`)                                                                                     | `--line-bright` border with `--text-primary` text: the scope-toggle idiom already in §6, since a pressed setting is a selection, not a signal                                                                     | v43                         |
-| Input focus borders (submit, login, settings, account)                                                                                             | No amber border. The global `--focus-ring` outline already marks focus; the border stays `--line` (or `--line-bright`)                                                                                            | v42 ✓ (`/`) / v43           |
+| Input focus borders (submit, login, settings, account)                                                                                             | No amber border. The global `--focus-ring` outline already marks focus; the border stays `--line` (or `--line-bright`) (v42: `--line-control`, A2)                                                                | v42 ✓ (`/`) / v43           |
 | Links at rest and on hover (`.settings-link`/`.back` hover at `--signal-dim`; `.inline-link` `--signal-dim` at rest, `--signal` on hover)          | `.inline-link` at rest follows the global `a` row (`--text-primary` + underline). Every link's hover/focus is `--text-primary`. `--signal-dim` as text is 3.09:1 on the page, so this is a contrast fix too (F09) | v42 ✓ (all routes, with A2) |
 | Idle `/login` needle                                                                                                                               | `--text-muted`, no glow, at rest. Amber with its glow only while sweeping (`submitting`), the one moment the dial is actually tuning                                                                              | v43                         |
 | Idle `/library` progress bar                                                                                                                       | `--signal-dim` only while a sweep is running (the existing "happening, but not this session's track" carve-out in §6). A finished run's bar is `--settled-dim`                                                    | v43                         |
@@ -531,8 +531,9 @@ or unlabeled icon toggle.
 > (**jobs** or **tracks**), so a job chip's "waiting 1" isn't read against a row's "8 waiting".
 > One chip may stand for several tokens: a non-admin's tracks scope merges pending, queued and
 > downloading into **in progress** (owner's choice; the admin keeps all eight). Pressed is
-> `--bg-3` with a `--text-muted` edge and primary text. On a coarse pointer every chip, segment and
-> the sort select are 44px tall. The scope switches (jobs/tracks, mine/all users) are one
+> `--bg-3` with a `--text-muted` edge, primary text and a 2px `--text-muted` floor line (segments
+> too); hover only lifts the text, so a hovered option never passes for the selected one. On a coarse
+> pointer every chip, segment, the sort select and both text inputs are 44px tall. The scope switches (jobs/tracks, mine/all users) are one
 > segmented control each rather than loose chips.
 
 ### Queue panel (v42)
@@ -629,7 +630,7 @@ column). Desktop: the masthead is one row (ident · receiver status · account n
 nav share the first row and the status drops under them. Phone: the masthead is two lines (wordmark
 with the link tell, then the nav, **disconnect** pushed right; an admin's five items wrap it to a second row), the page gutter is
 16px, the Waterfall's lanes put the title line above meter + percentage, and the incoming rows put
-their actions under the link. Coarse pointers get 44px targets whatever the width (`@media
+their actions under the link (phone and tablet, ≤1023px). Coarse pointers get 44px targets whatever the width (`@media
 (pointer: coarse)`). v41's rows keep their own 640/960 folds.
 
 ### Mobile stacked layout (`TrackRow.svelte`, `JobRow.svelte`, ≤640px)

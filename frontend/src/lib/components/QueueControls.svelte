@@ -35,7 +35,8 @@
 	function onSearchInput(value: string) {
 		searchInput = value;
 		clearTimeout(searchTimer);
-		searchTimer = setTimeout(() => queue.setFilters({ q: searchInput }), 300);
+		// Trimmed: a search of only spaces is no search (the backend would ILIKE '%  %').
+		searchTimer = setTimeout(() => queue.setFilters({ q: searchInput.trim() }), 300);
 	}
 
 	function setScope(scope: Scope) {
@@ -361,9 +362,12 @@
 		border-left: 1px solid var(--line-control);
 	}
 
+	/* Pressed carries a mark hover never has: a 2px floor line (shape, not only fill), so
+	   a hovered option can't pass for the selected one. */
 	.segmented button[aria-pressed='true'] {
 		background: var(--bg-3);
 		color: var(--text-primary);
+		box-shadow: inset 0 -2px 0 var(--text-muted);
 	}
 
 	.chip {
@@ -387,9 +391,10 @@
 		background: var(--bg-3);
 		border-color: var(--text-muted);
 		color: var(--text-primary);
+		box-shadow: inset 0 -2px 0 var(--text-muted);
 	}
 
-	/* On a pressed or hovered chip's --bg-3 the dim count would drop under 4.5:1. */
+	/* On a pressed chip's --bg-3 the dim count would drop under 4.5:1. */
 	.chip[aria-pressed='true'] .n {
 		color: var(--text-primary);
 	}
@@ -398,9 +403,9 @@
 		color: var(--text-muted);
 	}
 
+	/* Hover lifts only the text: the fill and floor line stay the pressed state's. */
 	.segmented button:hover:not([aria-pressed='true']),
 	.chip:hover:not([aria-pressed='true']) {
-		background: var(--bg-3);
 		color: var(--text-primary);
 	}
 
@@ -428,7 +433,8 @@
 	@media (pointer: coarse) {
 		.chip,
 		.segmented button,
-		.sort select {
+		.sort select,
+		.search {
 			min-height: 2.75rem;
 		}
 

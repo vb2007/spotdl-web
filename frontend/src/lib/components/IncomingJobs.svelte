@@ -126,7 +126,7 @@
 					<span class="actions">
 						<button
 							type="button"
-							class="action"
+							class="action danger"
 							aria-label="cancel {job.source_url}"
 							onclick={() => handleCancel(job.id)}>cancel</button
 						>
@@ -312,6 +312,19 @@
 	.action:focus-visible {
 		background: var(--bg-3);
 		color: var(--text-primary);
+	}
+
+	/* Cancelling a submission is destructive: the same outline as v41's row cancel. */
+	.action.danger {
+		background: transparent;
+		border-color: var(--fail-edge);
+	}
+
+	.action.danger:hover,
+	.action.danger:focus-visible {
+		background: transparent;
+		border-color: var(--fail);
+		color: var(--fail);
 	}
 
 	.action:disabled {

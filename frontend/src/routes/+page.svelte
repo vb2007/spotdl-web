@@ -308,7 +308,7 @@
 				<div class="state" role="alert">
 					<h3 class="state-title">Couldn't load the queue</h3>
 					<p class="state-text">
-						The list didn't load. <span class="mono">{$page.error}</span>
+						<span class="mono">{$page.error}</span>
 					</p>
 					<button type="button" class="state-action mono" onclick={() => queue.reload()}
 						>try again</button
@@ -377,7 +377,9 @@
 				</ul>
 			{/if}
 
-			{#if $page.nextCursor && !$page.loading && !$page.error}
+			<!-- Shown on error too, as before v42: a failed "load more" leaves page.error set,
+			     and this button is how that request is retried. -->
+			{#if $page.nextCursor && !$page.loading}
 				<button
 					type="button"
 					class="load-more mono"
@@ -775,7 +777,8 @@
 		.logout,
 		.state-action,
 		.load-more,
-		.submit button {
+		.submit button,
+		.submit input {
 			min-height: 2.75rem;
 		}
 
@@ -787,7 +790,7 @@
 	}
 
 	/* Tablet (F37): the masthead keeps ident and nav on one line and drops the status to
-	   its own line under them, right-aligned, instead of squeezing three columns. */
+	   its own line under them, left-aligned under the ident, instead of squeezing three columns. */
 	@media (max-width: 1023px) {
 		.masthead {
 			grid-template-columns: auto minmax(0, 1fr);
