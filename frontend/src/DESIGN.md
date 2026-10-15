@@ -299,7 +299,8 @@ a lost link is announced by the masthead tell instead), and the ticking text is 
 up and the link down, the lanes dim and the head reads "link lost — progress may be stale".
 
 The masthead carries the same link as a small tell: **linked** (a filled muted dot), **linking…**
-(on load and on a mine/all-users switch, before the stream first opens) or **link lost —
+(on load and on a mine/all-users switch, until the first attempt resolves; a first attempt that
+fails reads link lost, since there is no link) or **link lost —
 reconnecting**; both not-linked states take a hollow waiting-blue ring that pulses slowly (the pulse
 is off under reduced motion). Lanes on screen while the link isn't open came from a REST snapshot
 and don't update, so they dim, lose the amber fill, the panel edge stays neutral and the ambient

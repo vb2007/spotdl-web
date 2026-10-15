@@ -32,6 +32,15 @@
 	let storeQ = $derived($filters.q);
 	let searchInput = $derived(storeQ);
 
+	/** v42: the page's "clear search and filters". Here, not on the page, so a search still
+	 * waiting in the debounce can't re-apply itself right after the clear. */
+	export function clearSearchAndFilters() {
+		clearTimeout(searchTimer);
+		searchInput = '';
+		queue.setFilters({ q: '', status: [], state: [] });
+		document.getElementById('queue-search')?.focus();
+	}
+
 	function onSearchInput(value: string) {
 		searchInput = value;
 		clearTimeout(searchTimer);

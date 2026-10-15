@@ -54,6 +54,10 @@
 			await queue.cancelJob(jobId);
 		} catch (err) {
 			setError(jobId, err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
+			// The row stays; if its focused button went away meanwhile (a resubmit hides
+			// "try again"), its own dismiss is the place to land.
+			await tick();
+			keepFocus('next-dismiss', jobId);
 			return;
 		}
 		await tick();
@@ -63,12 +67,17 @@
 	// After a dismiss, the next failed row's own "dismiss" (the same action, so clearing a
 	// pile stays one key); after a cancel or a resubmit, the submit box. Never a different
 	// job's cancel or retry, where a repeated Enter would act on the wrong submission.
-	function keepFocus(then: 'next-dismiss' | 'submit') {
+	function keepFocus(then: 'next-dismiss' | 'submit', ownJobId?: string) {
 		if (document.activeElement && document.activeElement !== document.body) return;
+		const scope = incomingSection?.isConnected ? incomingSection : null;
 		const next =
-			then === 'next-dismiss' && incomingSection?.isConnected
-				? incomingSection.querySelector<HTMLButtonElement>('button[data-act="dismiss"]')
-				: null;
+			(ownJobId &&
+				scope?.querySelector<HTMLButtonElement>(
+					`button[data-act="dismiss"][data-job="${ownJobId}"]`
+				)) ||
+			(then === 'next-dismiss'
+				? scope?.querySelector<HTMLButtonElement>('button[data-act="dismiss"]')
+				: null);
 		(next ?? document.getElementById('submit-url'))?.focus();
 	}
 
@@ -84,8 +93,11 @@
 			busy = { ...busy, [job.id]: false };
 			return;
 		}
-		await handleCancel(job.id, 'submit');
+		// Re-enabled before the dismiss, so a failed dismiss can hand focus to this row's
+		// own (now usable) dismiss button.
 		busy = { ...busy, [job.id]: false };
+		await tick();
+		await handleCancel(job.id, 'submit');
 	}
 
 	function isOwn(job: Job): boolean {
@@ -125,6 +137,8 @@
 				class="action"
 				aria-label="dismiss {job.source_url}"
 				data-act="dismiss"
+				data-job={job.id}
+				disabled={busy[job.id]}
 				onclick={() => handleCancel(job.id, 'next-dismiss')}>dismiss</button
 			>
 		</span>
@@ -317,10 +331,10 @@
 		min-width: 0;
 	}
 
+	/* Wraps rather than truncating: it is the next step (or, for the admin, the cause),
+	   and a phone can't open a tooltip. */
 	.reason {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
 		color: var(--text-muted);
 	}
 

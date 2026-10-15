@@ -60,9 +60,10 @@
 
 	// v42: both state buttons swap their own block out (loading replaces it), so focus is
 	// handed to a target that stays: the search box, or the queue's heading.
+	let controls: ReturnType<typeof QueueControls> | undefined = $state();
+
 	function clearSearchAndFilters() {
-		queue.setFilters({ q: '', status: [], state: [] });
-		document.getElementById('queue-search')?.focus();
+		controls?.clearSearchAndFilters();
 	}
 
 	function retryQueue() {
@@ -299,6 +300,7 @@
 
 		<section class="panel queue" aria-labelledby="queue-heading">
 			<QueueControls
+				bind:this={controls}
 				{isAdmin}
 				allUsers={allUsersView}
 				{onAllUsersChange}
