@@ -620,6 +620,14 @@ needed" claim — rather than silently deleted.
   track's settled state, counts and `scheduled_at` → *v41*
 - Svelte drops the whitespace at an `{#if}` boundary, so `label{#if …} <span>40%` renders (and
   names the button) "label40%"; eslint rejects `{' '}`, so put `&nbsp;` inside the span → *v41*
+- `/`'s `<header>` sat inside `<main>`, so the page had no banner landmark; landmarks only count
+  outside `main`. The worker-status poll lived in the pill, so gating the pill to the admin would
+  have silently frozen the store TrackRow and the Waterfall read; the poll is now the page's → *v42*
+- Raising `--text-dim` to WCAG's floor lands it next to `--text-muted`; don't move `--text-muted`
+  to restore the gap, since `AmbientField.svelte`'s slate glow is calibrated against it → *v42*
+- Following one field of a store with a writable `$derived` resets on *every* store emission; chain
+  it through an intermediate derived of that field (`storeQ`), which only notifies on a new value
+  → *v42*
 
 **Testing & verification technique**
 - The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
@@ -818,6 +826,13 @@ needed" claim — rather than silently deleted.
   it by the clip origin: take the full viewport, then crop → *v41*
 - An e2e fixture written straight to the dev DB must date its attempts before the run started,
   or global teardown's zero-download check counts them as network attempts → *v41*
+- `/`'s queue error state can't be produced by stopping `api` (`+layout.ts`'s session check
+  redirects to `/login` first); answer `GET /api/jobs` with a 500 from Playwright, as v39 did. A real
+  breaker trip needs no SQL: the dead-proxy overlay plus one album missing from the ledger trips it
+  within about two minutes → *v42*
+- impeccable's URL detector can't log in. Inject `detector/detect-antipatterns-browser.js` into an
+  authenticated Playwright page and call `impeccableDetectAsync()`; its page-level rules then match
+  the injected script's own source (`gradient-text`, `marquee`): false positives → *v42*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -4967,3 +4982,32 @@ independently-found production bug from the same conversation)
   proxy, `LADDER_SECONDS=15,…`) produced the 5-attempt IPv4 → IPv6 → proxy track with two
   identical consecutive proxy errors and a real `lookup_failed` on its own. The 1h waiting case
   is the same overlay with `LADDER_SECONDS=15,3600`. Only the tag-repair warning was SQL-seeded.
+
+### v42 dashboard-redesign gotchas
+
+- **The pill was the only worker poller.** `WorkerStatusPill.svelte` started the 5s
+  `worker.refresh()` loop in its own `onMount`. TrackRow's breaker-aware countdown (v41) and, from
+  v42, the Waterfall's "holding" line read the same store. Making the pill admin-only (v39 outcome
+  3) would have left a non-admin's store at `null` forever, with no error anywhere. The poll moved
+  to `+page.svelte` before the pill was gated.
+- **Contrast floor vs hierarchy.** At 4.5:1 on `--bg-2`, `--text-dim` (`#808b94`) sits next to
+  `--text-muted` (`#8b969d`). The tempting fix is to brighten `--text-muted` to restore the step,
+  but v40's ambient field mixes its slate tone from `--text-muted` under a measured contrast budget,
+  so that would quietly brighten the page glow. Dim and muted now differ by role (size, case and
+  tracking), not by luminance.
+- **A live region must not contain a countdown** (F07). The breaker pill re-announced every second
+  because `role="status"` wrapped a `Countdown`. The pattern now: one `sr-only` sentence per state
+  with a fixed clock time inside the live region, and the ticking text `aria-hidden` beside it.
+- **Error state on the dev stack.** Stopping `api` doesn't show the queue's error state: the
+  layout's session check fails first and redirects to `/login`. v39 and v42 forced it by answering
+  `GET /api/jobs` with a 500 from Playwright. Stopping `api` *after* the page loaded is the real way
+  to drop the SSE link (the masthead tell appeared ~10s later and cleared ~6s after `api` returned).
+- **A real breaker trip, no SQL.** The v39 dead-proxy overlay (`HTTP(S)_PROXY=127.0.0.1:9`,
+  `LADDER_SECONDS=15,…`) plus one album absent from the dev ledger fails five tracks in a row and
+  trips the breaker within about two minutes; leaving it running re-trips at 2h after the first
+  clears. Restore with `docker compose up -d worker-dl` and clear `worker_state` afterwards.
+- **Detector on an authenticated page.** `detect.mjs` accepts URLs but can't log in, and the CLI on
+  `.svelte` files misses rendered-only rules. Injecting `detect-antipatterns-browser.js` into a
+  logged-in Playwright page and calling `impeccableDetectAsync()` works, but its page-level checks
+  then scan the injected script's own text, so `gradient-text` and `marquee` on `body` are false
+  positives. Its `gpt-thin-border-wide-shadow` fires at a 16px blur with two thin borders.
