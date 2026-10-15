@@ -30,7 +30,16 @@
 
 	let statusToken = $derived(api.statusKey(job.status));
 	let badgeLabel = $derived(api.STATUS_LABEL[statusToken] ?? statusToken);
-	let cond = $derived(JOB_STATUS_COND[statusToken] ?? 'cond-idle');
+	// v42 (F28): red is for a real gap. A job that is partial only because its owner
+	// cancelled tracks has nothing missing they didn't choose, so it reads muted.
+	let cond = $derived(
+		statusToken === 'settled:partial' && !(job.track_counts.lookup_failed ?? 0)
+			? 'cond-idle'
+			: (JOB_STATUS_COND[statusToken] ?? 'cond-idle')
+	);
+	// v42 (F28): with no tracks read yet the backend falls back to the link itself; show it
+	// as the address it is, not as a bold title.
+	let titleIsUrl = $derived(job.title === job.source_url);
 	let showInFlight = $derived(IN_FLIGHT_LIFECYCLES.has(job.status.lifecycle));
 	let showArchive = $derived(
 		job.archived_at === null && ARCHIVABLE_LIFECYCLES.has(job.status.lifecycle)
@@ -147,7 +156,9 @@
 		>
 			<span class="chevron" aria-hidden="true"></span>
 			<span class="badge-cell"><span class="badge {cond} mono">{badgeLabel}</span></span>
-			<span class="title" id="job-title-{job.id}" title={job.title}>{job.title}</span>
+			<span class="title" class:address={titleIsUrl} id="job-title-{job.id}" title={job.title}
+				>{job.title}</span
+			>
 			<span class="tags">
 				<span class="source-type mono">{job.source_type}</span>
 				{#if allUsers}
@@ -170,7 +181,10 @@
 					{/each}
 				</div>
 			{/if}
-			<span class="breakdown mono">{breakdownVisible}</span>
+			<!-- v42 (F28): one track's count only repeats its badge and bar; the bar's name keeps it. -->
+			{#if totalTracks !== 1}
+				<span class="breakdown mono">{breakdownVisible}</span>
+			{/if}
 		</div>
 
 		<div class="row-actions">
@@ -315,6 +329,13 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		font-weight: 500;
+	}
+
+	.title.address {
+		font-family: var(--font-mono);
+		font-size: var(--fs-meta);
+		font-weight: var(--fw-regular);
+		color: var(--text-muted);
 	}
 
 	.source-type {
