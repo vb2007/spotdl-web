@@ -1082,6 +1082,7 @@
 	   The detail drops the gutter column; each attempt's time leads its own reading. */
 	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
 	@media (pointer: coarse) {
+		.row,
 		.action {
 			min-height: 2.75rem;
 		}

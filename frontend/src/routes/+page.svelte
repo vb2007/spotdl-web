@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -100,6 +100,9 @@
 		} finally {
 			submitting = false;
 		}
+		// The disabled input lost focus while sending; give it back for the next link.
+		await tick();
+		if (document.activeElement === document.body) document.getElementById('submit-url')?.focus();
 	}
 
 	async function onLogout() {
@@ -398,7 +401,7 @@
 				<button
 					type="button"
 					class="load-more mono"
-					disabled={$page.loadingMore}
+					aria-disabled={$page.loadingMore}
 					onclick={() => queue.loadMore()}
 				>
 					{$page.loadingMore ? 'loading…' : `load more ${scopeNoun}`}
@@ -705,7 +708,7 @@
 	}
 
 	.state-action:hover,
-	.load-more:hover:not(:disabled) {
+	.load-more:hover:not([aria-disabled='true']) {
 		background: var(--bg-3);
 		border-color: var(--text-muted);
 	}
@@ -721,7 +724,9 @@
 		font-size: var(--fs-detail);
 	}
 
-	.load-more:disabled {
+	/* aria-disabled, not disabled: disabling the focused button would drop focus to the
+	   page, and this button is also how a failed page is retried (v41's JobTrackList fix). */
+	.load-more[aria-disabled='true'] {
 		opacity: 0.6;
 		cursor: default;
 	}
@@ -863,6 +868,12 @@
 
 		.logout {
 			margin-left: auto;
+		}
+
+		.who {
+			max-width: none;
+			white-space: normal;
+			overflow-wrap: anywhere;
 		}
 
 		.submit {

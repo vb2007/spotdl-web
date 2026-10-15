@@ -644,7 +644,7 @@ nav share the first row and the status drops under them. Phone: the masthead is 
 with the link tell, then the nav, **disconnect** pushed right; an admin's five items wrap it to a second row), the page gutter is
 16px, the Waterfall's lanes put the title line above meter + percentage, and the incoming rows put
 their actions under the link (phone and tablet, ≤1023px). Coarse pointers get 44px targets whatever the width (`@media
-(pointer: coarse)`), v41's job and track row actions included (F32). v41's rows keep their own 640/960 folds.
+(pointer: coarse)`), v41's job and track row toggles and actions included (F32). v41's rows keep their own 640/960 folds.
 
 ### Mobile stacked layout (`TrackRow.svelte`, `JobRow.svelte`, ≤640px)
 

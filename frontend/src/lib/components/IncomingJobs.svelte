@@ -91,6 +91,13 @@
 		} catch (err) {
 			setError(job.id, err instanceof api.ApiError ? err.message : 'Could not submit it again.');
 			busy = { ...busy, [job.id]: false };
+			// Disabling the focused "try again" dropped focus to the page; give it back.
+			await tick();
+			if (document.activeElement === document.body) {
+				incomingSection
+					?.querySelector<HTMLButtonElement>(`button[data-act="retry"][data-job="${job.id}"]`)
+					?.focus();
+			}
 			return;
 		}
 		// Re-enabled before the dismiss, so a failed dismiss can hand focus to this row's
@@ -129,6 +136,8 @@
 					class="action"
 					disabled={busy[job.id]}
 					aria-label="try again {job.source_url}"
+					data-act="retry"
+					data-job={job.id}
 					onclick={() => handleRetry(job)}>try again</button
 				>
 			{/if}
@@ -177,9 +186,11 @@
 				</li>
 			{/each}
 
-			{#if newestFailed}
-				{@render failedRow(newestFailed)}
-			{/if}
+			<!-- Keyed, so a newer failure arriving over SSE gets its own row and buttons
+			     instead of taking over the one that has focus. -->
+			{#each newestFailed ? [newestFailed] : [] as job (job.id)}
+				{@render failedRow(job)}
+			{/each}
 
 			{#if olderFailed.length > 0}
 				<li class="row summary">
@@ -402,6 +413,15 @@
 		.reason,
 		.error {
 			grid-column: 2 / -1;
+		}
+
+		/* With the full width to themselves they wrap: the link's tail is what tells two
+		   failed links apart, and a phone can't open the tooltip. */
+		.row .url,
+		.row .owner {
+			max-width: none;
+			white-space: normal;
+			overflow-wrap: anywhere;
 		}
 
 		.row:not(.summary) .actions,

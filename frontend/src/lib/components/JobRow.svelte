@@ -509,6 +509,7 @@
 	   the stack is grid rows, each as tall as its content. */
 	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
 	@media (pointer: coarse) {
+		.toggle,
 		.action,
 		.priority-input {
 			min-height: 2.75rem;

@@ -41,6 +41,10 @@
 		document.getElementById('queue-search')?.focus();
 	}
 
+	// A search still waiting when the page goes away (a logout) must not land in the
+	// module-level store after queue.reset() and filter the next identity's queue.
+	$effect(() => () => clearTimeout(searchTimer));
+
 	function onSearchInput(value: string) {
 		searchInput = value;
 		clearTimeout(searchTimer);
