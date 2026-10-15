@@ -308,7 +308,7 @@
 				<div class="state" role="alert">
 					<p class="state-title">Couldn't load the queue</p>
 					<p class="state-text">
-						The list didn't load: the server answered <span class="mono">{$page.error}</span>.
+						The list didn't load. <span class="mono">{$page.error}</span>
 					</p>
 					<button type="button" class="state-action mono" onclick={() => queue.reload()}
 						>try again</button

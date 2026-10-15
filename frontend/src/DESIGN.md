@@ -47,7 +47,7 @@ light theme exists or is planned.
 
 > **v42 (2026-10-15, F09/A2, owner's choice):** `--line` stays the quiet divider between rows and
 > around panels (1.31:1 on `--bg-1`). A control's edge is `--line-control` instead, which reaches
-> WCAG 1.4.11's 3:1 against `--bg-0` (4.16), `--bg-1` (3.56) and `--bg-2` (3.25). The owner chose a
+> WCAG 1.4.11's 3:1 against `--bg-0` (4.16), `--bg-1` (3.56) and `--bg-2` (3.41). The owner chose a
 > separate token over raising `--line` itself, so the job list doesn't turn into a 3:1 grid. Swapped
 > tree-wide (border property only) on every route.
 
@@ -61,7 +61,7 @@ light theme exists or is planned.
 
 > **v42 (2026-10-15, F09/A2):** `--text-dim` failed WCAG 1.4.3 everywhere (2.15–3.05:1). It now
 > reaches 4.5:1 on every surface it sits on: `--bg-0` 5.63, `--bg-1` 4.83, `--bg-2` 4.62. That puts
-> it close to `--text-muted` (6.48 / 5.55 / 5.06), so the two now read apart by role (size, case and
+> it close to `--text-muted` (6.48 / 5.55 / 5.31), so the two now read apart by role (size, case and
 > tracking: `.label`), not by luminance. `--text-muted` stays put because `AmbientField.svelte`'s
 > slate tone is calibrated against it (§6). `--signal-dim` is never text (it was 3.09:1 as link hover
 > on four routes; those links now hover to `--text-primary`).
@@ -262,8 +262,9 @@ changelog entry without new evidence.
 > does. `--bg-1` moved from `#14181c` (1.10:1 against the page) to `#191e23` (1.17:1), and the shadow
 > is now a machined top bevel (`inset 0 1px 0 rgba(255,255,255,.055)`), a 1px dark lower edge and a
 > short offset drop shadow (`0 6px 12px -7px`, under the detector's 16px wide-shadow line). What is
-> _cut into_ a plate keeps the old recessed language: text inputs, the sort select and the Waterfall
-> meters are `.well`s (`--bg-0`, `--line-control` edge, an inset shadow). So plates are raised and
+> _cut into_ a plate keeps the old recessed language: text inputs and the sort select are `.well`s
+> (`--bg-0`, `--line-control` edge, an inset shadow); the Waterfall meters are wells too but keep the
+> quiet `--line` edge, since a meter is read by its fill, not its border. So plates are raised and
 > wells recessed, and the two read apart at a glance. The ambient field (§6) still lights only the
 > gutters: plates are opaque. Visible in every v42 screenshot. §8.1 is closed by this.
 
@@ -293,9 +294,13 @@ never sits inside a live region: the region gets one fixed sentence with a clock
 resume at 23:20"), and the ticking text is `aria-hidden` (F07's lesson, same in the pill). With lanes
 up and the link down, the lanes dim and the head reads "link lost — progress may be stale".
 
-The masthead carries the same link as a small tell: **linked** (a filled muted dot) or **link lost —
-reconnecting** (a hollow waiting-blue ring that pulses slowly; the pulse is off under reduced motion).
-It differs in shape as well as hue, and it is never amber: a link is not a download. It is a
+The masthead carries the same link as a small tell: **linked** (a filled muted dot), **linking…**
+(on load and on a mine/all-users switch, before the stream first opens) or **link lost —
+reconnecting**; both not-linked states take a hollow waiting-blue ring that pulses slowly (the pulse
+is off under reduced motion). Lanes on screen while the link isn't open came from a REST snapshot
+and don't update, so they dim, lose the amber fill, the panel edge stays neutral and the ambient
+field stays slate; the head reads "link lost — progress may be stale" (or "linking… — …").
+The tell differs in shape as well as hue, and it is never amber: a link is not a download. It is a
 `role="status"` region that changes only with the state.
 
 **v20's "worker busy elsewhere" indicator is the sharpest test of this rule yet.** `worker-dl`'s

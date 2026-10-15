@@ -33,7 +33,7 @@
 	--bg-3: #262e34;
 	/* --line is the quiet divider (between rows, around a panel). It is not a control
 	   border: a control's edge has to reach 3:1 against what it sits on (WCAG 1.4.11),
-	   which --line-control does on --bg-0, --bg-1 and --bg-2 (v42, F09). */
+	   which --line-control does on --bg-0, --bg-1 and --bg-2 (4.16 / 3.56 / 3.41; v42, F09). */
 	--line: #2b3339;
 	--line-bright: #3a444c;
 	--line-control: #6a757e;

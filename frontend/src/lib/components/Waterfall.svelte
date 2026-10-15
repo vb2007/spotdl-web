@@ -67,14 +67,18 @@
 
 <section
 	class="panel waterfall"
-	class:live={tracks.length > 0 && link !== 'reconnecting'}
+	class:live={tracks.length > 0 && link === 'live'}
 	class:held={tracks.length === 0 && (idle === 'holding' || idle === 'paused')}
 	aria-labelledby="waterfall-heading"
 >
 	<div class="head">
 		<h2 id="waterfall-heading" class="label">Active signal</h2>
-		{#if tracks.length > 0 && link === 'reconnecting'}
-			<span class="label stale">link lost — progress may be stale</span>
+		{#if tracks.length > 0 && link !== 'live'}
+			<!-- Lanes without an open stream came from a REST snapshot (a reconnect's or the
+			     page's fallback reload) and don't update: never amber, never "receiving". -->
+			<span class="label stale"
+				>{link === 'reconnecting' ? 'link lost' : 'linking…'} — progress may be stale</span
+			>
 		{:else}
 			<span class="label count">{tracks.length} lane{tracks.length === 1 ? '' : 's'}</span>
 		{/if}
@@ -125,7 +129,7 @@
 			{/if}
 		</div>
 	{:else}
-		<ul class="lanes" class:stale={link === 'reconnecting'}>
+		<ul class="lanes" class:stale={link !== 'live'}>
 			{#each tracks as track (track.id)}
 				<li class="lane">
 					<div class="meta">
