@@ -35,22 +35,36 @@ light theme exists or is planned.
 
 ### Chassis / ground
 
-| Token           | Hex       | Use                                                                    |
-| --------------- | --------- | ---------------------------------------------------------------------- |
-| `--bg-0`        | `#0a0c0e` | Page background, recessed input wells                                  |
-| `--bg-1`        | `#14181c` | `.panel` surface (the base "instrument housing" fill)                  |
-| `--bg-2`        | `#1c2227` | Raised/hover surface for buttons, filter chips                         |
-| `--bg-3`        | `#262e34` | Hover/active surface one step brighter than `--bg-2`                   |
-| `--line`        | `#2b3339` | Default hairline border                                                |
-| `--line-bright` | `#3a444c` | Emphasized border (buttons, major dial ticks, idle waterfall top edge) |
+| Token            | Hex       | Use                                                                    |
+| ---------------- | --------- | ---------------------------------------------------------------------- |
+| `--bg-0`         | `#0a0c0e` | Page background, recessed input wells                                  |
+| `--bg-1`         | `#191e23` | `.panel` surface: the raised faceplate (v42; was `#14181c`)            |
+| `--bg-2`         | `#1c2227` | Raised/hover surface for buttons, filter chips                         |
+| `--bg-3`         | `#262e34` | Hover/active surface one step brighter than `--bg-2`                   |
+| `--line`         | `#2b3339` | Default hairline border                                                |
+| `--line-bright`  | `#3a444c` | Emphasized border (buttons, major dial ticks, idle waterfall top edge) |
+| `--line-control` | `#6a757e` | v42: the border of every control (input, select, button, chip): ≥3:1   |
+
+> **v42 (2026-10-15, F09/A2, owner's choice):** `--line` stays the quiet divider between rows and
+> around panels (1.31:1 on `--bg-1`). A control's edge is `--line-control` instead, which reaches
+> WCAG 1.4.11's 3:1 against `--bg-0` (4.16), `--bg-1` (3.56) and `--bg-2` (3.25). The owner chose a
+> separate token over raising `--line` itself, so the job list doesn't turn into a 3:1 grid. Swapped
+> tree-wide (border property only) on every route.
 
 ### Text
 
-| Token            | Hex       | Use                                                  |
-| ---------------- | --------- | ---------------------------------------------------- |
-| `--text-primary` | `#e8ecee` | Body text, primary content                           |
-| `--text-muted`   | `#8b969d` | Secondary content (artist lines, byline-weight text) |
-| `--text-dim`     | `#566068` | Labels, meta, deliberately quiet text                |
+| Token            | Hex       | Use                                                        |
+| ---------------- | --------- | ---------------------------------------------------------- |
+| `--text-primary` | `#e8ecee` | Body text, primary content                                 |
+| `--text-muted`   | `#8b969d` | Secondary content (artist lines, byline-weight text)       |
+| `--text-dim`     | `#808b94` | Labels, meta, deliberately quiet text (v42; was `#566068`) |
+
+> **v42 (2026-10-15, F09/A2):** `--text-dim` failed WCAG 1.4.3 everywhere (2.15–3.05:1). It now
+> reaches 4.5:1 on every surface it sits on: `--bg-0` 5.63, `--bg-1` 4.83, `--bg-2` 4.62. That puts
+> it close to `--text-muted` (6.48 / 5.55 / 5.06), so the two now read apart by role (size, case and
+> tracking: `.label`), not by luminance. `--text-muted` stays put because `AmbientField.svelte`'s
+> slate tone is calibrated against it (§6). `--signal-dim` is never text (it was 3.09:1 as link hover
+> on four routes; those links now hover to `--text-primary`).
 
 ### Signal-condition colors — the semantic core of the system
 
@@ -80,22 +94,27 @@ receiving _right now_, and nothing else. The v39 audit (F10) found it leaking on
 permanent chrome sites. Each now has a verdict. v40 applies only the first row. v42 (`/`) and v43
 (the other routes) apply the rest without re-deciding them.
 
-| Site (F10)                                                                                                                                         | Verdict                                                                                                                                                                                                           | Applied in |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Body glow (`app.css` `body` background)                                                                                                            | **No amber at rest.** Replaced by `AmbientField.svelte`: slate (`--text-muted`) at rest, crossfading to amber (`--signal`) only while `/` shows ≥1 receiving track. Always slate on every other route (see §6)    | **v40**    |
-| Global `a` color (`app.css` `a { color: var(--signal) }`)                                                                                          | No amber. Links are `--text-primary` with an underline: the affordance is the underline, not the hue                                                                                                              | v42        |
-| The `>` prompt (`+page.svelte` `.prompt`)                                                                                                          | `--text-muted` at rest. It may take `--signal` only while a submission is in flight (SENDING…), which is a real transmission                                                                                      | v42        |
-| Submit / connect / save / add hover-focus glow (`+page.svelte`, `login/+page.svelte`, `/settings` SAVE and ADD, `/account` SAVE, `/library` START) | No amber, and no zero-offset halo. Hover is `--bg-3` with a `--line-bright` → `--text-muted` border; focus is the global `--focus-ring` outline alone                                                             | v42 / v43  |
-| Pressed option chips (`/settings`, `/account` `.option-group`)                                                                                     | `--line-bright` border with `--text-primary` text: the scope-toggle idiom already in §6, since a pressed setting is a selection, not a signal                                                                     | v43        |
-| Input focus borders (submit, login, settings, account)                                                                                             | No amber border. The global `--focus-ring` outline already marks focus; the border stays `--line` (or `--line-bright`)                                                                                            | v42 / v43  |
-| Links at rest and on hover (`.settings-link`/`.back` hover at `--signal-dim`; `.inline-link` `--signal-dim` at rest, `--signal` on hover)          | `.inline-link` at rest follows the global `a` row (`--text-primary` + underline). Every link's hover/focus is `--text-primary`. `--signal-dim` as text is 3.09:1 on the page, so this is a contrast fix too (F09) | v42 / v43  |
-| Idle `/login` needle                                                                                                                               | `--text-muted`, no glow, at rest. Amber with its glow only while sweeping (`submitting`), the one moment the dial is actually tuning                                                                              | v43        |
-| Idle `/library` progress bar                                                                                                                       | `--signal-dim` only while a sweep is running (the existing "happening, but not this session's track" carve-out in §6). A finished run's bar is `--settled-dim`                                                    | v43        |
+| Site (F10)                                                                                                                                         | Verdict                                                                                                                                                                                                           | Applied in        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Body glow (`app.css` `body` background)                                                                                                            | **No amber at rest.** Replaced by `AmbientField.svelte`: slate (`--text-muted`) at rest, crossfading to amber (`--signal`) only while `/` shows ≥1 receiving track. Always slate on every other route (see §6)    | **v40**           |
+| Global `a` color (`app.css` `a { color: var(--signal) }`)                                                                                          | No amber. Links are `--text-primary` with an underline: the affordance is the underline, not the hue                                                                                                              | v42 ✓             |
+| The `>` prompt (`+page.svelte` `.prompt`)                                                                                                          | `--text-muted` at rest. It may take `--signal` only while a submission is in flight (SENDING…), which is a real transmission                                                                                      | v42 ✓             |
+| Submit / connect / save / add hover-focus glow (`+page.svelte`, `login/+page.svelte`, `/settings` SAVE and ADD, `/account` SAVE, `/library` START) | No amber, and no zero-offset halo. Hover is `--bg-3` with a `--line-bright` → `--text-muted` border; focus is the global `--focus-ring` outline alone                                                             | v42 ✓ (`/`) / v43 |
+| Pressed option chips (`/settings`, `/account` `.option-group`)                                                                                     | `--line-bright` border with `--text-primary` text: the scope-toggle idiom already in §6, since a pressed setting is a selection, not a signal                                                                     | v43               |
+| Input focus borders (submit, login, settings, account)                                                                                             | No amber border. The global `--focus-ring` outline already marks focus; the border stays `--line` (or `--line-bright`)                                                                                            | v42 ✓ (`/`) / v43 |
+| Links at rest and on hover (`.settings-link`/`.back` hover at `--signal-dim`; `.inline-link` `--signal-dim` at rest, `--signal` on hover)          | `.inline-link` at rest follows the global `a` row (`--text-primary` + underline). Every link's hover/focus is `--text-primary`. `--signal-dim` as text is 3.09:1 on the page, so this is a contrast fix too (F09) | v42 / v43         |
+| Idle `/login` needle                                                                                                                               | `--text-muted`, no glow, at rest. Amber with its glow only while sweeping (`submitting`), the one moment the dial is actually tuning                                                                              | v43               |
+| Idle `/library` progress bar                                                                                                                       | `--signal-dim` only while a sweep is running (the existing "happening, but not this session's track" carve-out in §6). A finished run's bar is `--settled-dim`                                                    | v43               |
 
 The same test covers sites F10 didn't list (for example `.load-more`'s and QueueControls' hover
 borders at `--signal-dim`): a hover, focus, pressed or selected state is never "receiving", so it
-never takes amber. Text selection (`::selection` at `--signal-dim`) is transient and user-initiated,
-not chrome, and keeps its color.
+never takes amber.
+
+> **v42 (2026-10-15):** every `/` row above is applied (✓), plus the unlisted `/` sites:
+> `.load-more`, the queue controls and JobRow's priority-input focus border. On `/`, `--signal` now
+> appears only on genuinely live things: a receiving lane, an expanding job's dot, the prompt while
+> sending, a due countdown, the live bar segment and `::selection`. The other routes' rows stay v43's. Text selection (`::selection` at `--signal-dim`) is transient and user-initiated,
+> not chrome, and keeps its color.
 
 ### Focus
 
@@ -113,6 +132,14 @@ Two families, strictly divided by _kind of content_, not by visual weight:
 - **IBM Plex Mono** (`--font-mono`) — every number, timestamp, state tag, label, countdown, and
   UI chrome text (buttons, filter chips, the login dial's frequency ticks). Loaded at weights
   400/500/600 via Google Fonts in `app.html`.
+
+> **v42 (2026-10-15, F12, owner-approved narrowing):** on `/`'s v42 surfaces mono now covers
+> numbers, timestamps, state tokens, addresses (URLs), idents and control labels only. Sentences
+> moved to Sans: error and hint lines, the Waterfall's status notes, the incoming failure reason,
+> and every empty, loading and error state's copy. Control labels (buttons, chips) **stay mono** in
+> v42 so they match v41's row actions on the same screen; moving every control to Sans at once,
+> tree-wide, is v47's.
+
 - **IBM Plex Sans** (`--font-sans`) — the document body default and all real content: song
   titles, artist names, album names. Loaded at weights 400/500/600 alongside the mono family.
 
@@ -121,20 +148,27 @@ listener's song/artist/album text is never rendered in the "instrument" typeface
 component must ask "is this a system/meta value or is it content a user is trying to read" before
 picking a family; do not default new components to mono just because the world is technical.
 
-### Sizes actually in use (no formal type-scale variable exists — sizes are set ad hoc per
+### Type scale (v42, F12)
 
-component; the following is the ramp as built, worth keeping consistent rather than inventing new
-in-between sizes)
+v39 found six ad hoc sizes, nothing above 15px, and a `15px` body that ignored the user's own text
+size. v42 replaces them with a small set of named **role** tokens in `app.css` (mirrored in
+`design-tokens.json`), fixed rem steps of about 1.08–1.18 (Operate mode: a dense product surface,
+not a fluid display ramp):
 
-| Size                             | Used for                                                                                                                   |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `0.5625rem` (9px)                | Login dial frequency tick labels                                                                                           |
-| `0.6875rem` (11px)               | `.label` (uppercase, letter-spaced meta), queue-table job-type cell                                                        |
-| `0.75rem` (12px)                 | Filter chip buttons, state cell letter-spacing context                                                                     |
-| `0.8125rem` (13px)               | Secondary/muted lines: artist byline in waterfall, error text, session email, countdown text, detail row text              |
-| `15px` (root, unitless rem base) | Body default (`body { font-size: 15px }`)                                                                                  |
-| `0.875rem` (14px)                | Queue-table artist/album cells                                                                                             |
-| No explicit `h1` size token      | Both `h1`s in the tree (login "TUNE IN", none on dashboard) are set locally per component, not from a shared heading scale |
+| Token         | Size               | Role                                                                    |
+| ------------- | ------------------ | ----------------------------------------------------------------------- |
+| `--fs-label`  | `0.6875rem` (11px) | Uppercase idents and section labels (`.label`, the panel headings)      |
+| `--fs-meta`   | `0.75rem` (12px)   | Chips, counts, mono meta, small controls                                |
+| `--fs-detail` | `0.8125rem` (13px) | Secondary lines: artists, reasons, errors, countdowns, the masthead nav |
+| `--fs-body`   | `0.9375rem` (15px) | Body and content; `body` uses it, so text scales with the browser       |
+| `--fs-lead`   | `1.0625rem` (17px) | The wordmark (`/`'s one `h1`)                                           |
+| `--fs-title`  | `1.25rem` (20px)   | A state's own heading (the empty and error states)                      |
+
+Weights: `--fw-regular` 400, `--fw-medium` 500, `--fw-strong` 600. Every `font-size` in v42's files
+(`+page.svelte`, `Waterfall`, `IncomingJobs`, `QueueControls`, `WorkerStatusPill`, `Countdown`,
+`app.css`) is one of these. v41's rows and the v43 routes still carry literals from the old ramp
+(all of which map onto the scale; the login dial's 9px ticks are the only off-scale size) and
+migrate in v43/v47. Don't add a size between the steps.
 
 `.mono` utility class adds `font-variant-numeric: tabular-nums` and `letter-spacing: 0.01em` —
 **any new numeric/timestamp display should use `.mono`, not a bare font-family override**, to get
@@ -199,7 +233,7 @@ script-driven animation needs the same check. It must also stop when settled and
 
 ## 6. Component patterns
 
-### `.panel` — the recessed instrument housing
+### `.panel` — the raised faceplate (v42; was "the recessed instrument housing")
 
 The one shared surface convention (`bg-1`, `1px solid var(--line)`, `border-radius: 6px`, plus a
 compound `box-shadow`: inset top shadow + inset bottom highlight hairline + outer drop shadow).
@@ -218,6 +252,16 @@ do not spend more `box-shadow` layers chasing it without first checking whether 
 legible on a real device, and do not describe the chassis material as "done" in any future
 changelog entry without new evidence.
 
+> **Decided 2026-10-15 (v42, F36; owner's choice: "make it perceptible"):** the chassis is kept and
+> inverted from _recessed_ to _raised_. Shadow layers were never going to carry it: the surface step
+> does. `--bg-1` moved from `#14181c` (1.10:1 against the page) to `#191e23` (1.17:1), and the shadow
+> is now a machined top bevel (`inset 0 1px 0 rgba(255,255,255,.055)`), a 1px dark lower edge and a
+> short offset drop shadow (`0 6px 12px -7px`, under the detector's 16px wide-shadow line). What is
+> _cut into_ a plate keeps the old recessed language: text inputs, the sort select and the Waterfall
+> meters are `.well`s (`--bg-0`, `--line-control` edge, an inset shadow). So plates are raised and
+> wells recessed, and the two read apart at a glance. The ambient field (§6) still lights only the
+> gutters: plates are opaque. Visible in every v42 screenshot. §8.1 is closed by this.
+
 ### Hero-marking border (the "is anything live" tell)
 
 `Waterfall.svelte`'s top border is neutral (`--line-bright`) by default and switches to
@@ -226,6 +270,28 @@ of the amber-exclusivity rule in §2 — the panel itself is the primary visual 
 reserved, not just a color-token comment. **Any future panel that wants to signal "something in me
 is currently active" should use this same neutral→signal-dim border-color swap pattern, not a
 persistent accent border.**
+
+> **v42 (2026-10-15, F04):** a third edge state. While the receiver is deliberately not listening
+> (a breaker hold or a pause) and nothing of this session's is receiving, the edge is
+> `--waiting-dim`: a hold is a scheduled, recoverable condition, the waiting colour's meaning.
+
+### Waterfall idle status and the link tell (v42, F04/F05)
+
+The full idle panel stays (owner's choice over a one-line strip). Its status line says _why_ nothing
+is receiving, in priority order: **link lost — reconnecting** (this page's SSE stream is down, so
+nothing else on the panel can be trusted), **tuning in…** (not yet connected), **receiver paused**,
+**holding · resumes in …** (the breaker; a countdown, plus "a deliberate pause after repeated rate
+limits; waiting tracks keep their place"), **no signal here — worker busy elsewhere**, and **no
+signal — nothing downloading**. It never says "idle" while the breaker holds. The noise floor only
+moves while the receiver is listening: held, paused or without a link it lies flat. A countdown
+never sits inside a live region: the region gets one fixed sentence with a clock time ("downloads
+resume at 23:20"), and the ticking text is `aria-hidden` (F07's lesson, same in the pill). With lanes
+up and the link down, the lanes dim and the head reads "link lost — progress may be stale".
+
+The masthead carries the same link as a small tell: **linked** (a filled muted dot) or **link lost —
+reconnecting** (a hollow waiting-blue ring that pulses slowly; the pulse is off under reduced motion).
+It differs in shape as well as hue, and it is never amber: a link is not a download. It is a
+`role="status"` region that changes only with the state.
 
 **v20's "worker busy elsewhere" indicator is the sharpest test of this rule yet.** `worker-dl`'s
 global `--concurrency=1` means the waterfall is idle-for-this-session far more often than not —
@@ -313,6 +379,14 @@ used, so the meaning doesn't shift just because the surface did. The default sta
 not `--signal` — a "nothing's wrong" pill visible to every user on every page load is exactly the
 kind of near-permanent chrome §2's amber-exclusivity rule exists to keep amber out of.
 
+> **v42 (2026-10-15, F06/F07, v39 outcome 3):** the pill is operator detail, so `/` renders it
+> for the admin only (absent from a non-admin's DOM; they get the Waterfall's plain status line). Its
+> 5s poll moved to the page, which every user needs (the Waterfall and TrackRow's breaker-aware
+> countdown read the store). A tripped breaker now reads **breaker holding · clears in …** in the
+> waiting blue, not `--fail`: it is expected and self-heals. **receiver paused** stays red, since it
+> holds until a human resumes it. The normal state reads **worker ready**. The live region is one
+> `sr-only` sentence per state, never the per-second countdown.
+
 v25 also threads a `username` (nullable, populated from the upstream `GET /user`) through
 `SessionInfo` and the pre-existing job/track `owner_username`/`owner_email` fields. One
 `api.displayName(username, email)` helper (`api.ts` L296-298) is now the single place that decides
@@ -351,7 +425,15 @@ pulsing-dot treatment for the same state, not `cond-idle` — a job actively bei
 `settled:partial` maps to `cond-fail`: it is a genuinely terminal, no-further-action state with a
 real gap (≥1 track that didn't make it), the same bucket `lookup_failed` already occupies at the
 track level — never `cond-waiting`, which §2 reserves for recoverable backoff, not "done, but
-incomplete." The labels themselves (`api.STATUS_LABEL`) are shared between the state-filter chips
+incomplete." > **v42 (2026-10-15, F28):** `settled:partial` is `cond-fail` only when the job has a
+
+> `lookup_failed` track. A job that is partial only because its owner cancelled tracks has no gap
+> they didn't choose, so it reads `cond-idle`. A job whose title is still its link (nothing read yet)
+> shows the link as an address (mono, muted, regular weight), not a bold title. A one-track job
+> shows no separate count line, since the badge and bar already say it (the bar's accessible name
+> still carries the count).
+
+The labels themselves (`api.STATUS_LABEL`) are shared between the state-filter chips
 and the job-row badge so the two can't drift apart: `"done — partial"` for `settled:partial`,
 never "failed" or "partial" alone, so a glance at either surface reads the same story.
 
@@ -405,6 +487,12 @@ to it at `dir=desc`. Available fields differ by scope (`created_at`/`title`/`sta
 `next_retry` for Jobs, `created_at`/`title`/`state` for Tracks) — never the same fixed list for both,
 since the two endpoints' own `sort=` parameters genuinely differ.
 
+> **v42 (2026-10-15, F11):** five equal-weight sort chips were a large part of "cluttered", so sort
+> is now a native `<select>` (a `.well`, labelled "sort") plus one direction button ("Sort
+> ascending/descending", ↑/↓). Behaviour is unchanged: a different field starts descending; the
+> button flips. `next_retry` ("next retry") is offered to the admin only: it orders by the retry
+> ladder, operator detail (v39 outcome 3).
+
 ### Search box (`QueueControls.svelte`, v20)
 
 The first plain `<input type="search">` in the tree — every prior text input (`login`, URL submit,
@@ -428,6 +516,31 @@ visible at once and don't interact.
 mono count next to the label (`all 12`, `waiting 3`, `given up 1`). This is the pattern for any
 future filter/tab control — `aria-pressed` boolean buttons with an inline count, not a `<select>`
 or unlabeled icon toggle.
+
+> **v42 (2026-10-15, F11/F21/F32):** a chip with a zero count is hidden (a pressed one always stays,
+> so a filter can be switched off). A small `.label` before the chips names what the counts count
+> (**jobs** or **tracks**), so a job chip's "waiting 1" isn't read against a row's "8 waiting".
+> One chip may stand for several tokens: a non-admin's tracks scope merges pending, queued and
+> downloading into **in progress** (owner's choice; the admin keeps all eight). Pressed is
+> `--bg-3` with a `--text-muted` edge and primary text. On a coarse pointer every chip, segment and
+> the sort select are 44px tall. The scope switches (jobs/tracks, mine/all users) are one
+> segmented control each rather than loose chips.
+
+### Queue panel (v42)
+
+The controls and the list are one faceplate (`section.queue`, headed by an `h2` "Queue" and the
+list's size, e.g. "7 of 7 jobs" or "Loading…"). The log's own tools sit at the head's right, apart
+from the view controls: **show archived** (a toggle chip) and **clear log**, outlined in
+`--fail-dim` at rest like v41's destructive row actions, so it never reads as one more toggle (its
+confirmation is v43's). Then the find row (scope switch, search, the admin's mine/all users), the
+refine row (chips, sort), a divider, and the list or its state:
+
+- **Loading:** three still placeholder rows on the row grid (no shimmer); the head says "Loading…".
+- **Error:** "Couldn't load the queue", the server's own words, and **try again** (`queue.reload()`).
+- **Empty**, three cases: a search or filter miss ("No jobs match "…"" + **clear search and
+  filters**), the admin's all-users view ("Nobody has anything queued"), and a user's own empty
+  queue ("Your queue is empty", what happens to a pasted link, where archived jobs went, and
+  **paste a link**, which focuses the submit box).
 
 ### Scope toggle (mine / all users, admin-only, v17)
 
@@ -500,6 +613,16 @@ than resetting every time the underlying page reloads.
 > row grid (§4), and the open job's tracks hang off a 1px rail in its chevron column, indented by
 > `--row-nest`, on the panel's own surface rather than the old darker `--bg-0` well (F02).
 
+### Page breakpoints (v42, F15/F37)
+
+Three bands: phone `≤640px`, tablet `641–1023px`, desktop `≥1024px` (the stage stays a 64rem
+column). Desktop: the masthead is one row (ident · receiver status · account nav). Tablet: ident and
+nav share the first row and the status drops under them. Phone: the masthead is two lines (wordmark
+with the link tell, then the nav in one row with **disconnect** pushed right), the page gutter is
+16px, the Waterfall's lanes put the title line above meter + percentage, and the incoming rows put
+their actions under the link. Coarse pointers get 44px targets whatever the width (`@media
+(pointer: coarse)`). v41's rows keep their own 640/960 folds.
+
 ### Mobile stacked layout (`TrackRow.svelte`, `JobRow.svelte`, ≤640px)
 
 `TrackRow`'s five-column grid collapses to a fully stacked flex column, one cell per line, in an
@@ -540,7 +663,7 @@ flexbox degrades better than grid did).
 ### Command-line submit bar
 
 The primary action (`+page.svelte`'s URL submit) is framed as a console prompt: a static `>`
-glyph in `--signal` color, a single input, a mono SEND/SUBMIT button — deliberately not a
+glyph (v42: `--text-muted` at rest, `--signal` only while sending, per §2's F10 table), a single input, a mono SEND/SUBMIT button — deliberately not a
 labeled form field with a floating label or a card-style "New Job" affordance. This is the FIRST
 VIEWPORT commitment from the direction contract, shipped as literally described.
 
@@ -571,12 +694,17 @@ validation message.
   that looks interactive but lacks the matching ARIA role/state.
 - All decorative-only motion (noise floor, dial ticks, the v40 ambient field) is
   `aria-hidden="true"`.
+- **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →
+  `main#main` (`tabindex="-1"`, the target v45's skip link will use). One `h1` (the wordmark; its
+  name is "spotdl-web"), then `h2`s for Incoming submissions (visually hidden), Active signal and
+  Queue, each section labelled by its heading. A countdown is never inside a live region.
 
 ## 8. Known, accepted gaps (do not silently "fix" without re-reading this section first)
 
 1. **Matte charcoal chassis material** — asserted in the OWN-WORLD direction contract, attempted
    over two correction rounds, still not confirmed clearly perceptible against the near-black
    background. See §6 `.panel`. Open for future visual polish, not resolved.
+   **Closed 2026-10-15 (v42):** resolved as a raised faceplate; see §6 `.panel`.
 2. **Waterfall as progress-lane list, not a literal spectrogram** — this one is _not_ a gap, it is
    a deliberate, cited Operate-mode simplification (legibility of real song titles over decorative
    visualization). Recorded here explicitly so it is never "corrected" into a literal spectrogram
