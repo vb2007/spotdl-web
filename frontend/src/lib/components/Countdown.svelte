@@ -34,7 +34,7 @@
 
 <style>
 	.countdown {
-		font-size: 0.8125rem;
+		font-size: var(--fs-detail);
 		color: var(--waiting);
 	}
 
