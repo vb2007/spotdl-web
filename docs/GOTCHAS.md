@@ -615,6 +615,12 @@ needed" claim — rather than silently deleted.
   leaves `liveActive` at its last value, so anything reading it on another route must gate on
   `page.route.id === '/'` → *v40*
 
+- An expanded row's lazily-fetched attempt history cached on the track id alone kept a row
+  opened mid-download at "no attempts yet" after the worker wrote one; key the cache on the
+  track's settled state, counts and `scheduled_at` → *v41*
+- Svelte drops the whitespace at an `{#if}` boundary, so `label{#if …} <span>40%` renders (and
+  names the button) "label40%"; eslint rejects `{' '}`, so put `&nbsp;` inside the span → *v41*
+
 **Testing & verification technique**
 - The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
   new browser checks there, by role/label, never in a scratchpad script → *v37*
@@ -786,7 +792,10 @@ needed" claim — rather than silently deleted.
   after 5, so one track needs other tracks pushed out to reach 6 attempts → *v39*
 - impeccable's `detect.mjs` CLI returns `[]` on this Svelte tree; only the in-browser overlay
   (`live-server.mjs` + injected `detect.js`) finds anything. Run `live-server.mjs` from a scratch
-  directory (it writes state into cwd) and stop it with `--keep-inject` → *v39*
+  directory (it writes state into cwd) and stop it with `--keep-inject` → *v39* *(Corrected
+  2026-10-14, v41: not always. The CLI on named `.svelte` files did flag a `transition: width`
+  in `TrackRow.svelte`'s style block. It reads CSS in Svelte files; what it misses is
+  rendered-only rules like contrast.)*
 - A `/library` sweep archives every settled job whose tracks it moved, for *every* user, so
   dashboard screenshots or e2e expectations taken after a sweep see fewer rows → *v39*
 - Running `npm run test:e2e` cancels and archives every in-flight job of the e2e identities
@@ -799,6 +808,16 @@ needed" claim — rather than silently deleted.
   window minimize, a same-window CDP tab and focus emulation off, headed or not). Launch the cached
   Chromium binary directly and drive it over raw CDP, with a real second tab (`/json/new`) under
   `xvfb-run` → *v40*
+
+- A dead proxy for forcing failures should be a refused port (`127.0.0.1:9`), not a blackhole
+  address: each attempt through `10.255.255.1` hangs ~3 minutes on connect timeouts. Once the
+  ladder reaches the pool-proxy rung, the dev pool's bot-checked proxies return spotdl's real "No
+  results found", so real `lookup_failed` tracks come out of the same run → *v41*
+- A DevTools grid overlay (`Overlay.setShowGridOverlays` over CDP) paints only in headed Chromium
+  (`xvfb-run`), its colors must be `{r,g,b,a}` objects, and a clipped `page.screenshot` shifts
+  it by the clip origin: take the full viewport, then crop → *v41*
+- An e2e fixture written straight to the dev DB must date its attempts before the run started,
+  or global teardown's zero-download check counts them as network attempts → *v41*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -4923,3 +4942,28 @@ independently-found production bug from the same conversation)
   old `queue.ts` (vite HMR swaps it live), the lane stayed and the chips read "active 1" until a
   hard reload. With the fix, both changed within one sample of the API reporting `lookup_failed`.
 
+### v41 track-detail-redesign gotchas
+
+- **Stale history in an open row.** v24's lazy attempt fetch cached per track id. With the
+  timeline now the admin's main read of a track, a row opened while it was `downloading` fetched
+  zero attempts and kept saying "no attempts yet" after it completed, beside a strip reading
+  "attempts 1". The cache key is now what writing an attempt row changes: the counts (a failure or
+  success), `scheduled_at` (a `held` row moves no count), and the state, with
+  pending/queued/downloading sharing one value so a dispatch or a progress tick never refetches.
+  A collapsed run is keyed by its *oldest* attempt, so it stays open when the next identical
+  failure lands and the refetch re-renders the timeline.
+- **Disclosure names vs the e2e helpers.** The job toggle's `aria-label` ("Expand tracks for X")
+  hid its visible status and owner (WCAG 2.5.3, F16), and every spec found jobs through it. Rows
+  are now `<li aria-labelledby>` the title, so `jobRow` is `getByRole('listitem', { name })` and
+  `jobToggle` the row's first button carrying the title. Job actions are named "archive X",
+  "bump X to the front" and so on, so an `exact: true` match on a bare verb no longer finds them.
+- **A focusable `<time>` is a Svelte a11y warning** (`a11y_no_noninteractive_tabindex`). The
+  plan wants the absolute time "on hover/focus", so each timeline time is a real button that
+  also pins the absolute time on click.
+- **Forcing the nine cases on the dev stack.** First-try success, live downloading and a
+  cancelled track are ordinary real runs (the downloading capture waits on the open page for a row
+  to read "downloading N%", since a track takes ~10s). An artist submitted with the worker paused
+  and then cancelled gives a 193-track job for "load more". The failure overlay (refused env
+  proxy, `LADDER_SECONDS=15,…`) produced the 5-attempt IPv4 → IPv6 → proxy track with two
+  identical consecutive proxy errors and a real `lookup_failed` on its own. The 1h waiting case
+  is the same overlay with `LADDER_SECONDS=15,3600`. Only the tag-repair warning was SQL-seeded.

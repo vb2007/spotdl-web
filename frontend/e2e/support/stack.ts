@@ -341,6 +341,25 @@ export function isSettled(job: Job): boolean {
 	return ['settled', 'failed', 'cancelled'].includes(job.status.lifecycle);
 }
 
+/** v41: the timeline's entries, newest first, with consecutive attempts that read the same
+ * (outcome, error class, error text, note) collapsed into one. A copy of the component's rule
+ * for the same reason as `expectedAttemptVia` below. */
+export function expectedTimeline(oldestFirst: TrackAttempt[]): TrackAttempt[][] {
+	const entries: TrackAttempt[][] = [];
+	for (const attempt of [...oldestFirst].reverse()) {
+		const last = entries.at(-1)?.[0];
+		const same =
+			last !== undefined &&
+			last.outcome === attempt.outcome &&
+			last.error_type === attempt.error_type &&
+			last.error_message === attempt.error_message &&
+			last.warning_message === attempt.warning_message;
+		if (same) entries.at(-1)!.push(attempt);
+		else entries.push([attempt]);
+	}
+	return entries;
+}
+
 /** What `TrackRow.svelte` renders for an attempt's network path (v35 (b)). Kept as a copy on
  * purpose: spec 3 checks the UI against the API's `network_path`, so this is the contract,
  * not a reuse of the component's own function. */

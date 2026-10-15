@@ -73,6 +73,16 @@
 		"space-8": "4rem",
 		"note": "space-7/space-8 defined but not yet consumed by any built component"
 	},
+	"rowGrid": {
+		"row-pad-x": "var(--space-4)",
+		"row-gap": "var(--space-3)",
+		"col-lead": "1rem",
+		"col-state": "8.5rem",
+		"col-progress": "12rem",
+		"row-nest": "calc(var(--col-lead) + var(--row-gap))",
+		"cell-inset": "calc(var(--space-2) + 1px)",
+		"note": "v41: shared columns of JobRow, TrackRow, the expanded detail and the tracks-scope group header; a nested track list indents by row-nest"
+	},
 	"motion": {
 		"ease-signal": "cubic-bezier(0.16, 1, 0.3, 1)",
 		"dur-fast": "120ms",

@@ -224,16 +224,20 @@
 	{:else if $filters.scope === 'jobs'}
 		<ul class="job-list panel" aria-label="Jobs">
 			{#each $page.items as item (item.id)}
-				<JobRow job={item as Job} allUsers={allUsersView} />
+				<JobRow job={item as Job} allUsers={allUsersView} {isAdmin} />
 			{/each}
 		</ul>
 	{:else}
 		<ul class="job-list panel" aria-label="Tracks">
 			{#each trackGroups as group (group.job.id)}
-				<li class="track-group">
+				<li class="track-group" aria-labelledby="group-title-{group.job.id}">
+					<!-- v41: the job row's grid, minus the chevron -- its type sits in the badge
+					     column and its title over the track titles below (F02). -->
 					<div class="group-header">
-						<span class="title">{group.job.title}</span>
 						<span class="source-type mono">{group.job.source_type}</span>
+						<span class="title" id="group-title-{group.job.id}" title={group.job.title}
+							>{group.job.title}</span
+						>
 						{#if allUsersView}
 							<span class="owner mono" title={group.job.owner_email}
 								>{api.displayName(group.job.owner_username, group.job.owner_email)}</span
@@ -242,7 +246,7 @@
 					</div>
 					<ul class="rows">
 						{#each group.tracks as track (track.id)}
-							<TrackRow {track} jobId={group.job.id} />
+							<TrackRow {track} jobId={group.job.id} {isAdmin} />
 						{/each}
 					</ul>
 				</li>
@@ -418,11 +422,11 @@
 	}
 
 	.group-header {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3) var(--space-4);
-		background: var(--bg-2);
+		display: grid;
+		grid-template-columns: var(--col-state) minmax(0, max-content) minmax(0, auto);
+		column-gap: var(--row-gap);
+		align-items: baseline;
+		padding: var(--space-3) var(--row-pad-x) var(--space-2) calc(var(--row-pad-x) + var(--row-nest));
 	}
 
 	.group-header .title {
@@ -431,26 +435,68 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		font-weight: 500;
-		flex: 1;
 	}
 
 	.group-header .source-type {
-		flex-shrink: 0;
-		color: var(--text-dim);
+		padding-left: var(--cell-inset);
+		color: var(--text-muted);
 		font-size: 0.6875rem;
+		letter-spacing: 0.04em;
 		text-transform: uppercase;
 	}
 
+	/* Shares the line with the title; a long owner (an email) ellipsizes rather than
+	   crushing it. */
 	.group-header .owner {
-		flex-shrink: 0;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 		color: var(--text-muted);
 		font-size: 0.75rem;
 	}
 
+	/* The same nesting as an open job's tracks (JobTrackList.svelte): one lead column in,
+	   hanging off a rail where the job row's chevron would be. */
 	.rows {
+		position: relative;
 		list-style: none;
 		margin: 0;
-		padding: 0;
+		padding: 0 0 0 calc(var(--row-pad-x) + var(--row-nest));
+	}
+
+	.rows::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		bottom: var(--space-3);
+		left: calc(var(--row-pad-x) + var(--col-lead) / 2);
+		width: 1px;
+		background: var(--line-bright);
+	}
+
+	@media (max-width: 640px) {
+		/* Type and owner on the first line, the whole title on the second, as JobRow's
+		   phone stack does; a long owner never takes the title's width. */
+		.group-header {
+			grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+		}
+
+		.group-header .source-type {
+			grid-column: 1;
+			grid-row: 1;
+			padding-left: 0;
+		}
+
+		.group-header .owner {
+			grid-column: 2;
+			grid-row: 1;
+		}
+
+		.group-header .title {
+			grid-column: 1 / -1;
+			grid-row: 2;
+		}
 	}
 
 	.load-more {

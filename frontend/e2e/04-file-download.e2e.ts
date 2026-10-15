@@ -16,7 +16,7 @@ test('a downloaded file matches the API-side file byte for byte', async ({ page 
 	await trackToggle(page, admin.title, admin.trackTitle).click();
 
 	const downloadEvent = page.waitForEvent('download');
-	await page.getByRole('button', { name: 'download' }).click();
+	await page.getByRole('button', { name: 'download', exact: true }).click();
 	const download = await downloadEvent;
 	expect(await download.failure()).toBeNull();
 

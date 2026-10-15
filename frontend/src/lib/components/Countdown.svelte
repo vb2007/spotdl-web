@@ -1,5 +1,15 @@
 <script lang="ts">
-	let { scheduledAt, label = 'next scan in' }: { scheduledAt: string; label?: string } = $props();
+	import { formatCountdown } from '$lib/attempts';
+
+	// `dueLive`: whether "due now" may take the live amber. A waiting track that's due is
+	// still waiting (the next beat pass, or a pause, decides), so TrackRow turns it off.
+	// `dueText`: replaces the whole line once due, so a caller never reads "<label> due now".
+	let {
+		scheduledAt,
+		label = 'next scan in',
+		dueLive = true,
+		dueText
+	}: { scheduledAt: string; label?: string; dueLive?: boolean; dueText?: string } = $props();
 
 	let now = $state(Date.now());
 
@@ -11,21 +21,15 @@
 	});
 
 	let remainingMs = $derived(new Date(scheduledAt).getTime() - now);
-
-	function format(ms: number): string {
-		if (ms <= 0) return 'due now';
-		const totalSeconds = Math.floor(ms / 1000);
-		const h = Math.floor(totalSeconds / 3600);
-		const m = Math.floor((totalSeconds % 3600) / 60);
-		const s = totalSeconds % 60;
-		const pad = (n: number) => String(n).padStart(2, '0');
-		return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-	}
 </script>
 
-<span class="mono countdown" class:due={remainingMs <= 0}>
-	{label}
-	{format(remainingMs)}
+<span class="mono countdown" class:due={dueLive && remainingMs <= 0}>
+	{#if dueText !== undefined && remainingMs <= 0}
+		{dueText}
+	{:else}
+		{label}
+		{formatCountdown(remainingMs)}
+	{/if}
 </span>
 
 <style>
