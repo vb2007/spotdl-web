@@ -384,9 +384,14 @@
 				</ul>
 			{/if}
 
-			<!-- Shown on error too, as before v42: a failed "load more" leaves page.error set,
-			     and this button is how that request is retried. -->
-			{#if $page.nextCursor && !$page.loading}
+			<!-- A failed "load more" keeps the loaded rows (moreError, not error); this button
+			     retries just that page. -->
+			{#if $page.moreError}
+				<p class="more-error" role="alert">
+					Couldn't load more. <span class="mono">{$page.moreError}</span>
+				</p>
+			{/if}
+			{#if $page.nextCursor && !$page.loading && !$page.error}
 				<button
 					type="button"
 					class="load-more mono"
@@ -710,6 +715,12 @@
 	.load-more {
 		margin: var(--space-3) var(--space-4);
 		color: var(--text-muted);
+	}
+
+	.more-error {
+		margin: var(--space-3) var(--space-4) 0;
+		color: var(--fail);
+		font-size: var(--fs-detail);
 	}
 
 	.load-more:disabled {

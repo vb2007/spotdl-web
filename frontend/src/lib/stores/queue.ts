@@ -73,6 +73,9 @@ interface PageState {
 	loading: boolean;
 	loadingMore: boolean;
 	error: string;
+	/** v42: a failed "load more" -- kept apart from `error` (the page itself failing), so
+	 * the rows already loaded stay on screen and the button retries just that page. */
+	moreError: string;
 }
 
 const EMPTY_PAGE: PageState = {
@@ -83,7 +86,8 @@ const EMPTY_PAGE: PageState = {
 	countsByState: {},
 	loading: false,
 	loadingMore: false,
-	error: ''
+	error: '',
+	moreError: ''
 };
 
 export interface ExpandedJob {
@@ -482,7 +486,7 @@ function createQueueStore() {
 	async function reloadPage(): Promise<void> {
 		const f = get(filters);
 		const seq = ++pageFetchSeq;
-		page.update((p) => ({ ...p, loading: true, error: '' }));
+		page.update((p) => ({ ...p, loading: true, error: '', moreError: '' }));
 		try {
 			if (f.scope === 'jobs') {
 				const result: JobsPage = await api.listJobsPage({
@@ -498,7 +502,8 @@ function createQueueStore() {
 					countsByState: {},
 					loading: false,
 					loadingMore: false,
-					error: ''
+					error: '',
+					moreError: ''
 				});
 			} else {
 				const countsSeqAtStart = trackCountsSeq;
@@ -516,7 +521,8 @@ function createQueueStore() {
 					countsByState: result.counts_by_state,
 					loading: false,
 					loadingMore: false,
-					error: ''
+					error: '',
+					moreError: ''
 				});
 				// A counts refresh that started during this reload may have read a newer
 				// snapshot than these counts (or failed): one more re-read converges on
@@ -541,7 +547,7 @@ function createQueueStore() {
 		if (current.nextCursor === null || current.loadingMore) return;
 		const f = get(filters);
 		const seq = pageFetchSeq;
-		page.update((p) => ({ ...p, loadingMore: true }));
+		page.update((p) => ({ ...p, loadingMore: true, moreError: '' }));
 		try {
 			if (f.scope === 'jobs') {
 				const result: JobsPage = await api.listJobsPage({
@@ -558,7 +564,7 @@ function createQueueStore() {
 					countsByStatus: result.counts_by_status,
 					loadingMore: false,
 					// v42: "load more" is how a failed load-more is retried, so a success clears it.
-					error: ''
+					moreError: ''
 				}));
 			} else {
 				const result = await api.listTracksPage({
@@ -576,7 +582,7 @@ function createQueueStore() {
 					// set's counts, and this (older) read could land after a fresher
 					// refreshTrackCounts.
 					loadingMore: false,
-					error: ''
+					moreError: ''
 				}));
 			}
 		} catch (err) {
@@ -584,7 +590,7 @@ function createQueueStore() {
 			page.update((p) => ({
 				...p,
 				loadingMore: false,
-				error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
+				moreError: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
 			}));
 		}
 	}

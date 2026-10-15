@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import type { Job } from '$lib/api';
@@ -51,7 +52,18 @@
 			await queue.cancelJob(jobId);
 		} catch (err) {
 			setError(jobId, err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
+			return;
 		}
+		await tick();
+		keepFocus();
+	}
+
+	// The row and its focused button are gone: keep focus in the list, or, with the list
+	// gone too, on the submit box that the user would use next.
+	function keepFocus() {
+		if (document.activeElement && document.activeElement !== document.body) return;
+		if (incomingSection?.isConnected) incomingSection.focus();
+		else document.getElementById('submit-url')?.focus();
 	}
 
 	/** Submits the same link again as a new job, then dismisses the failed one -- what a
@@ -68,8 +80,8 @@
 		}
 		await handleCancel(job.id);
 		busy = { ...busy, [job.id]: false };
-		// The row (and the focused button) is gone or loses its button: keep focus in the list.
-		incomingSection?.focus();
+		await tick();
+		keepFocus();
 	}
 
 	function isOwn(job: Job): boolean {

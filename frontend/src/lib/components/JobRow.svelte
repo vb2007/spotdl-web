@@ -181,8 +181,10 @@
 					{/each}
 				</div>
 			{/if}
-			<!-- v42 (F28): one track's count only repeats its badge and bar; the bar's name keeps it. -->
-			{#if totalTracks !== 1}
+			<!-- v42 (F28): one track's count only repeats its badge and bar; the bar's name keeps
+			     it. Not for a partial job: "done — partial" doesn't say whether the track was not
+			     found or cancelled, and the bar's colour alone mustn't carry that (WCAG 1.4.1). -->
+			{#if totalTracks !== 1 || statusToken === 'settled:partial'}
 				<span class="breakdown mono">{breakdownVisible}</span>
 			{/if}
 		</div>

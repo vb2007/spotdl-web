@@ -293,8 +293,9 @@ nothing else on the panel can be trusted), **tuning in…** (not yet connected),
 limits; waiting tracks keep their place"), **no signal here — worker busy elsewhere**, and **no
 signal — nothing downloading**. It never says "idle" while the breaker holds. The noise floor only
 moves while the receiver is listening (or tuning in, before the stream first opens): held, paused or with the link lost it lies flat. A countdown
-never sits inside a live region: the region gets one fixed sentence with a clock time ("downloads
-resume at 23:20"), and the ticking text is `aria-hidden` (F07's lesson, same in the pill). With lanes
+never sits inside a live region: the panel has one `sr-only` status region holding a fixed sentence
+per state ("Downloads holding until 23:20", "Receiver paused"; a lost link is announced by the
+masthead tell instead), and the ticking text is `aria-hidden` (F07's lesson, same in the pill). With lanes
 up and the link down, the lanes dim and the head reads "link lost — progress may be stale".
 
 The masthead carries the same link as a small tell: **linked** (a filled muted dot), **linking…**
@@ -447,7 +448,8 @@ never "failed" or "partial" alone, so a glance at either surface reads the same 
 > they didn't choose, so it reads `cond-idle`. A job whose title is still its link (nothing read yet)
 > shows the link as an address (mono, muted, regular weight), not a bold title. A one-track job
 > shows no separate count line, since the badge and bar already say it (the bar's accessible name
-> still carries the count).
+> still carries the count). A one-track **partial** job keeps it: "done — partial" doesn't say
+> whether the track was not found or cancelled, and colour alone mustn't (WCAG 1.4.1).
 
 ### Segmented job progress bar (`JobRow.svelte`, v20)
 
@@ -537,7 +539,8 @@ or unlabeled icon toggle.
 > `--bg-3` with a `--text-muted` edge, primary text and a 2px `--text-muted` floor line (segments
 > too); hover only lifts the text, so a hovered option never passes for the selected one. On a coarse
 > pointer every chip, segment, the sort select and both text inputs are 44px tall. The scope switches (jobs/tracks, mine/all users) are one
-> segmented control each rather than loose chips.
+> segmented control each rather than loose chips. The segment group doesn't clip its children, so the focus ring
+> (outside the button) always shows.
 
 ### Queue panel (v42)
 
@@ -550,6 +553,8 @@ refine row (chips, sort), a divider, and the list or its state:
 
 - **Loading:** three still placeholder rows on the row grid (no shimmer); the head says "Loading…".
 - **Error:** "Couldn't load the queue", the server's own words, and **try again** (`queue.reload()`).
+  A failed **load more** is not this state: the loaded rows stay, a "Couldn't load more" line
+  appears above the button, and the button retries that page (`page.moreError`).
 - **Empty**, three cases: a search or filter miss ("No jobs match "…"" + **clear search and
   filters**), the admin's all-users view ("Nobody has anything queued"), and a user's own empty
   queue ("Your queue is empty", what happens to a pasted link, where archived jobs went, and

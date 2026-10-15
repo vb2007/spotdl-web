@@ -60,8 +60,13 @@ test('a submitted URL appears without a refetch, settles, and its counts match t
 		const settled = await apiJob();
 		expect(settled.status).toEqual({ lifecycle: 'settled', outcome: 'complete' });
 		expect(settled.track_counts).toEqual({ skipped_duplicate: 1 });
-		// v42 (F28): a one-track job shows no separate count line; the bar's name above
-		// carries "1 done".
+		// v42 (F28): a one-track job shows no separate count line, so its count is read from
+		// the bar's accessible name, against the API's own counts.
+		const done =
+			(settled.track_counts.completed ?? 0) + (settled.track_counts.skipped_duplicate ?? 0);
+		await expect(
+			row.getByRole('img', { name: `Track progress: ${done} done`, exact: true })
+		).toBeVisible();
 	} finally {
 		await cancelUnlessSettled(baseURL!, job.id);
 	}

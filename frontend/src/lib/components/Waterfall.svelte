@@ -63,6 +63,17 @@
 	function clockTime(iso: string): string {
 		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
+
+	// One fixed sentence per state, so a screen reader hears a hold or pause start and end
+	// (the admin-only pill is the only other place that says it) and never a countdown tick.
+	// A lost link is announced once, by the masthead's own tell.
+	let announcement = $derived(
+		tracks.length === 0 && idle === 'holding' && breakerUntil
+			? `Downloads holding until ${clockTime(breakerUntil)}`
+			: tracks.length === 0 && idle === 'paused'
+				? 'Receiver paused'
+				: ''
+	);
 </script>
 
 <section
@@ -83,6 +94,8 @@
 			<span class="label count">{tracks.length} lane{tracks.length === 1 ? '' : 's'}</span>
 		{/if}
 	</div>
+
+	<span class="sr-only" role="status">{announcement}</span>
 
 	{#if tracks.length === 0}
 		<div class="idle" class:still>

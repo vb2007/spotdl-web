@@ -346,11 +346,25 @@
 
 	/* A segmented switch: two options, one pressed, one shared edge. View scope, never
 	   a live condition, so §2 keeps it off --signal. */
+	/* No overflow clipping: the global focus ring sits outside the button and must show. */
 	.segmented {
 		display: inline-flex;
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
-		overflow: hidden;
+	}
+
+	.segmented button:first-child {
+		border-radius: 3px 0 0 3px;
+	}
+
+	.segmented button:last-child {
+		border-radius: 0 3px 3px 0;
+	}
+
+	/* Above its neighbour, so the ring isn't painted over by the next button. */
+	.segmented button:focus-visible {
+		position: relative;
+		z-index: 1;
 	}
 
 	.segmented button {
