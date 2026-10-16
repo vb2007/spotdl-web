@@ -333,6 +333,7 @@
 							<div
 								class="progress-bar"
 								class:done={!running && !crashed}
+								class:crashed
 								class:stale={running && linkDown}
 								role="progressbar"
 								aria-label="Sweep progress"
@@ -505,6 +506,11 @@
 
 	.progress-bar.done .progress-fill {
 		background: var(--settled-dim);
+	}
+
+	/* Over, but cut short by a crash: neither live (amber) nor a success (mint). */
+	.progress-bar.crashed .progress-fill {
+		background: var(--line-bright);
 	}
 
 	/* v42's rule for stale data: with the link down the fill can't be trusted as live, so it

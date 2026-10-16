@@ -218,6 +218,11 @@
 		} catch (err) {
 			if (queue.getResetCount() !== session) return;
 			clearError = `Couldn't clear the log: ${err instanceof api.ApiError ? err.message : 'could not reach the server'}.`;
+			// It answers one press; it doesn't stay under the heading for the rest of the visit.
+			const shown = clearError;
+			setTimeout(() => {
+				if (clearError === shown) clearError = '';
+			}, 10_000);
 		}
 	}
 </script>

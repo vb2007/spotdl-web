@@ -307,6 +307,16 @@
 		font-weight: var(--fw-medium);
 	}
 
+	/* Live regions present at rest (so their text is announced) take no room while empty. */
+	.worker > .note:empty,
+	.worker > .form-error:empty {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+	}
+
 	.note {
 		font-size: var(--fs-detail);
 		color: var(--text-muted);
