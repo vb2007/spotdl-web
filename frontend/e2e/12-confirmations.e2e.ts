@@ -13,6 +13,7 @@ import {
 	ADMIN_STATE,
 	expandWorkerBusy,
 	ledgerMisses,
+	recordHeldSubmission,
 	restartExpandWorker,
 	restoreSweepReport,
 	snapshotSweepReport,
@@ -158,9 +159,10 @@ test('clear log asks first', async ({ page, baseURL }) => {
 test('job cancel and cancel track ask first', async ({ page, baseURL }, testInfo) => {
 	test.setTimeout(240_000);
 	const ids = testInfo.project.name === 'mobile' ? CANCEL_TRACKS.mobile : CANCEL_TRACKS.desktop;
+	// Before any context of its own: a skip then leaves nothing open.
+	await requireQuietWorker(page.request);
 	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
 	const created: Job[] = [];
-	await requireQuietWorker(admin);
 	// Held by a paused worker they never download, but only a ledger hit is safe if something
 	// went wrong and one did run.
 	expect(ledgerMisses([ids.track, ids.job]), 'cancel tracks are ledger hits').toEqual([]);
@@ -238,8 +240,9 @@ test('job cancel and cancel track ask first', async ({ page, baseURL }, testInfo
 });
 
 test('worker pause and breaker release ask first', async ({ page, baseURL }) => {
+	// Before any context of its own: a skip then leaves nothing open.
+	await requireQuietWorker(page.request);
 	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
-	await requireQuietWorker(admin);
 	try {
 		await page.goto('/settings');
 		const worker = page.getByRole('region', { name: 'Worker control' });
@@ -265,6 +268,8 @@ test('worker pause and breaker release ask first', async ({ page, baseURL }) => 
 		// one column, so it is set directly and released through the page. The release zeroes
 		// the failure streak, so the streak is recorded first and put back afterwards.
 		const hold = new Date(Date.now() + 3_600_000).toISOString();
+		// Recorded before it's written, so even a run killed right after leaves it undoable.
+		stageWorker({ hold });
 		const failures = Number(
 			stackPython(`
 from app.db import SessionLocal
@@ -273,22 +278,18 @@ print(SessionLocal().query(WorkerState).one().consecutive_failures)
 `)
 		);
 		stageWorker({ failures });
-		const staged = stackPython(
+		stackPython(
 			`
 import sys
 from datetime import datetime
 from app.db import SessionLocal
 from app.models.worker_state import WorkerState
 db = SessionLocal()
-row = db.query(WorkerState).one()
-row.breaker_tripped_until = datetime.fromisoformat(sys.argv[1])
+db.query(WorkerState).one().breaker_tripped_until = datetime.fromisoformat(sys.argv[1])
 db.commit()
-db.refresh(row)
-print(row.breaker_tripped_until.isoformat())
 `,
 			[hold]
 		);
-		stageWorker({ hold: staged });
 		const release: Guarded = {
 			trigger: worker.getByRole('button', { name: 'release now', exact: true }),
 			title: 'Release the hold now?',
@@ -381,16 +382,19 @@ test('cancelling an incoming submission asks first', async ({ page, baseURL }, t
 	const id =
 		testInfo.project.name === 'mobile' ? SUBMISSION_TRACKS.mobile : SUBMISSION_TRACKS.desktop;
 	const url = spotifyTrackUrl(id);
-	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
-	let jobId: string | null = null;
 	// Stopping it kills whatever it's doing: never while it's busy with someone's work.
 	const busy = expandWorkerBusy();
 	test.skip(busy.length > 0, `worker-expand is busy (${busy.join(', ')}); not stopping it`);
+	// Never expanded or downloaded here, but only a ledger hit is safe if one ever were.
+	expect(ledgerMisses([id]), 'submission track is a ledger hit').toEqual([]);
+	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
+	let jobId: string | null = null;
 	stopExpandWorker();
 	try {
 		const created = await admin.post('/api/jobs', { data: { url } });
 		expect(created.status()).toBe(201);
 		jobId = ((await created.json()) as Job).id;
+		recordHeldSubmission(jobId);
 
 		await openDashboard(page);
 		const cancel: Guarded = {

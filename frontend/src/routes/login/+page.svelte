@@ -37,6 +37,7 @@
 			// v43 (F31): back to the field to fix, not left on CONNECT. The inputs were
 			// disabled while connecting, so wait for them to re-enable first.
 			await tick();
+			passwordInput?.focus();
 			passwordInput?.select();
 		}
 	}

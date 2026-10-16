@@ -33,7 +33,7 @@ const WORKER_STAGE_FILE = path.join(AUTH_DIR, 'worker-stage.json');
 export interface WorkerStage {
 	/** The spec paused the worker (it only does so from a running one). */
 	paused?: boolean;
-	/** The hold it staged, as the row's own isoformat: cleared only while still that value. */
+	/** The hold it stages (ISO, recorded before it's written): cleared only while still that. */
 	hold?: string;
 	/** The failure streak before a release it performs (a release zeroes it). */
 	failures?: number;
@@ -60,8 +60,10 @@ db = SessionLocal()
 row = db.query(WorkerState).one()
 if stage.get("paused"):
     row.paused = False
+from datetime import datetime
 hold = stage.get("hold")
-if hold and row.breaker_tripped_until is not None and row.breaker_tripped_until.isoformat() == hold:
+# Compared as instants: the row comes back in the session's time zone.
+if hold and row.breaker_tripped_until == datetime.fromisoformat(hold):
     row.breaker_tripped_until = None
 # Only over the zero the spec's own release left: a real failure since then is the
 # stack's, not the spec's, and is kept.
@@ -88,13 +90,36 @@ function compose(...args: string[]): string {
 }
 
 export function stopExpandWorker(): void {
-	writeFileSync(EXPAND_STOPPED_FILE, '');
+	writeFileSync(EXPAND_STOPPED_FILE, '[]');
 	compose('stop', 'worker-expand');
 }
 
-/** Starts `worker-expand` again if this suite stopped it, and waits until it's healthy. */
+/** Records a job submitted while `worker-expand` is stopped (its expansion is queued), so a
+ * restart cancels it first, even one after a killed run. */
+export function recordHeldSubmission(jobId: string): void {
+	const ids = JSON.parse(readFileSync(EXPAND_STOPPED_FILE, 'utf8') || '[]') as string[];
+	writeFileSync(EXPAND_STOPPED_FILE, JSON.stringify([...ids, jobId]));
+}
+
+/** Starts `worker-expand` again if this suite stopped it, and waits until it's healthy. Every
+ * job the suite submitted meanwhile is cancelled first: its queued expansion then finds it
+ * cancelled and stops, so it can never expand into a real download. */
 export async function restartExpandWorker(): Promise<void> {
 	if (!existsSync(EXPAND_STOPPED_FILE)) return;
+	const held = JSON.parse(readFileSync(EXPAND_STOPPED_FILE, 'utf8') || '[]') as string[];
+	if (held.length > 0) {
+		stackPython(
+			`
+import sys
+from sqlalchemy import text
+from app.db import SessionLocal
+db = SessionLocal()
+db.execute(text("update jobs set state = 'cancelled' where id = any(cast(:ids as uuid[])) and state = 'expanding'"), {"ids": sys.argv[1:]})
+db.commit()
+`,
+			held
+		);
+	}
 	compose('start', 'worker-expand');
 	rmSync(EXPAND_STOPPED_FILE);
 	const deadline = Date.now() + 90_000;

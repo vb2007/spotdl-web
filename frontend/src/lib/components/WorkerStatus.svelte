@@ -206,7 +206,7 @@
 						<span aria-hidden="true"
 							>· <Countdown
 								scheduledAt={holdUntil}
-								label="resumes in"
+								label={paused ? 'clears in' : 'resumes in'}
 								dueLive={false}
 								dueText="resuming…"
 							/></span

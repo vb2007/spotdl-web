@@ -132,26 +132,32 @@
 		});
 		// Kept or Esc: the cancel button may have gone meanwhile (the job finished).
 		if (!confirmed) return keepFocus(toggleButton);
-		// The row can leave while the question is open (archived by a sweep); its last props
-		// are then stale, so it does nothing, and focus goes to the list it left.
-		if (destroyed) {
-			await keepFocus(document.getElementById('queue-heading'));
-			return;
+		// Decide on the job as the server has it now. The question can stay open while the job
+		// finishes, and cancel_job would then relabel a finished job "cancelled" (the footgun
+		// the in-flight gate above exists for). The row's own status trails the server (its
+		// refresh is debounced), and the row itself may have been remounted meanwhile (a
+		// stream reconnect reloads the list), so neither is the thing to ask.
+		let lifecycle = job.status.lifecycle;
+		try {
+			lifecycle = (await api.getJob(job.id)).status.lifecycle;
+		} catch {
+			// Unreadable: the last known state decides, and the server still checks ownership.
 		}
-		// The question can stay open while the job finishes; cancel_job would then relabel a
-		// finished job "cancelled" (the footgun the in-flight gate above exists for).
-		if (!showInFlight) {
-			showNotice(`Not cancelled: it's ${badgeLabel} now.`);
-			await keepFocus(toggleButton);
+		// A remounted row's own notice and button are gone: focus goes to the list instead.
+		const landing = () => (destroyed ? document.getElementById('queue-heading') : toggleButton);
+		if (!IN_FLIGHT_LIFECYCLES.has(lifecycle)) {
+			if (!destroyed) showNotice('Not cancelled: nothing in it is still to come.');
+			await keepFocus(landing());
 			return;
 		}
 		try {
 			await queue.cancelJob(job.id);
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
+			if (!destroyed)
+				showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
 		}
 		// The cancel button is gone with the in-flight controls: land on the row itself.
-		await keepFocus(toggleButton);
+		await keepFocus(landing());
 	}
 
 	async function handleBump() {

@@ -95,7 +95,12 @@
 			cancelLabel: 'not now'
 		});
 		// A sweep started meanwhile (another tab): this one would only be refused.
-		if (!confirmed || running) return keepFocus(heading);
+		if (!confirmed) return keepFocus(heading);
+		// Started meanwhile (another tab): this one would only be refused. Say so.
+		if (running) {
+			error = 'A sweep is already running; its progress is below.';
+			return keepFocus(heading);
+		}
 		starting = true;
 		error = '';
 		try {

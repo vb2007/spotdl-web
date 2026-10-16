@@ -298,9 +298,11 @@
 		});
 		// Kept or Esc: "cancel track" may have gone meanwhile (the track settled).
 		if (!confirmed) return keepFocus(rowButton);
-		// A row gone while the question was open has stale props: do nothing, and put focus on
-		// the queue it left rather than <body>.
+		// A row remounted while the question was open (a stream reconnect reloads the list)
+		// has only its last known state: it still cancels from that (the backend leaves a
+		// finished track as it is), and focus goes to the list, since this row's are gone.
 		if (destroyed) {
+			if (canCancel) await queue.cancelTrack(track.id, jobId).catch(() => {});
 			await keepFocus(document.getElementById('queue-heading'));
 			return;
 		}
