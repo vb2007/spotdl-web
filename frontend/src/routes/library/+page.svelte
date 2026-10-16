@@ -155,9 +155,10 @@
 </svelte:head>
 
 <div class="stage">
-	<SubpageHeader title="Library sort & move" current="library" {isAdmin} />
+	<SubpageHeader current="library" {isAdmin} />
 
 	<main id="main" class="main">
+		<h1 class="page-title">Library sort &amp; move</h1>
 		{#if !isAdmin}
 			<AdminOnlyNotice what="The music library" />
 		{:else}

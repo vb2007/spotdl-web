@@ -87,9 +87,10 @@
 </svelte:head>
 
 <div class="stage">
-	<SubpageHeader title="Account" current="account" {isAdmin} />
+	<SubpageHeader current="account" {isAdmin} />
 
 	<main id="main" class="main">
+		<h1 class="page-title">Account</h1>
 		<section class="panel section" aria-labelledby="identity-heading">
 			<h2 id="identity-heading" class="label">Signed in</h2>
 			<div class="identity">

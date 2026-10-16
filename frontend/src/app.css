@@ -313,6 +313,14 @@ input {
 	}
 }
 
+/* v43: a secondary page's one h1, the first thing in its <main> (SubpageHeader is the
+   masthead above it). Sans: it names a document, it isn't an ident. */
+.page-title {
+	font-size: var(--fs-title);
+	font-weight: var(--fw-strong);
+	line-height: 1.25;
+}
+
 /* v43: the form vocabulary of the secondary surfaces (/settings, /account, /login).
    One field shape: a persistent .label, the control, then a hint or an error line. */
 .form-field {

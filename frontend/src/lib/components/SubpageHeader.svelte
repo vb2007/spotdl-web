@@ -2,14 +2,12 @@
 	import { resolve } from '$app/paths';
 
 	// v43: the masthead of /settings, /library and /account, in the same terms as `/`'s
-	// (the wordmark left, the page links right), then the page's own h1. The admin pages
+	// (the wordmark left, the page links right). The page's own h1 opens its <main>
+	// (`.page-title`, app.css), so every piece of content sits inside a landmark. The admin pages
 	// are linked for the admin only: a non-admin reaches them only by typing the path
 	// (owner's decision), and then gets AdminOnlyNotice.
-	let {
-		title,
-		current,
-		isAdmin
-	}: { title: string; current: 'settings' | 'library' | 'account'; isAdmin: boolean } = $props();
+	let { current, isAdmin }: { current: 'settings' | 'library' | 'account'; isAdmin: boolean } =
+		$props();
 </script>
 
 <header class="masthead">
@@ -35,7 +33,6 @@
 		>
 	</nav>
 </header>
-<h1 class="page-title">{title}</h1>
 
 <style>
 	.masthead {
@@ -79,13 +76,6 @@
 	.nav-link[aria-current='page'] {
 		color: var(--text-primary);
 		text-decoration: none;
-	}
-
-	.page-title {
-		font-size: var(--fs-title);
-		font-weight: var(--fw-strong);
-		line-height: 1.25;
-		margin-top: var(--space-2);
 	}
 
 	@media (pointer: coarse) {

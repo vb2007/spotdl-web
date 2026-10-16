@@ -456,9 +456,10 @@
 </svelte:head>
 
 <div class="stage">
-	<SubpageHeader title="Settings" current="settings" {isAdmin} />
+	<SubpageHeader current="settings" {isAdmin} />
 
-	<main id="main" class="main">
+	<main id="main" class="main" class:gated={!isAdmin}>
+		<h1 class="page-title">Settings</h1>
 		{#if !isAdmin}
 			<AdminOnlyNotice what="The worker, output, library, alert and proxy setup" />
 		{:else}
@@ -592,7 +593,7 @@
 							{/each}
 
 							<div class="form-field">
-								<span class="label" id="quarantine-label">A download the library already has</span>
+								<span class="label" id="quarantine-label">Duplicate downloads</span>
 								<div class="choice-group" role="group" aria-labelledby="quarantine-label">
 									<button
 										type="button"
@@ -612,8 +613,8 @@
 									</button>
 								</div>
 								<p class="field-hint">
-									The downloaded copy is moved aside or deleted; the library's own file is never
-									touched.
+									A download the library already has is quarantined (moved to the folder beside) or
+									deleted. The library's own file is never touched.
 								</p>
 							</div>
 
@@ -895,6 +896,16 @@
 		align-items: start;
 		gap: var(--space-5);
 		margin-top: var(--space-2);
+	}
+
+	.page-title {
+		grid-column: 1 / -1;
+	}
+
+	/* A non-admin's page is the title and the notice, one column. */
+	.main.gated {
+		display: flex;
+		flex-direction: column;
 	}
 
 	.index {
