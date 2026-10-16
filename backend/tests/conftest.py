@@ -36,6 +36,7 @@ from app.models import (
 )
 from app.routers import auth as auth_router
 from app.services.sessions import create_session
+from app.services.stats import epoch_bucket
 
 
 # SQLite (used for fast in-process tests, see v02/v03 gotchas) has no native JSONB type —
@@ -44,6 +45,16 @@ from app.services.sessions import create_session
 @compiles(JSONB, "sqlite")
 def _compile_jsonb_sqlite(element, compiler, **kw):
     return "JSON"
+
+
+# services/stats.py's UTC bucket index, for the same in-process SQLite engine. SQLite
+# stores these timestamps as naive UTC text, which strftime('%s') reads as UTC.
+@compiles(epoch_bucket, "sqlite")
+def _compile_epoch_bucket_sqlite(element, compiler, **kw):
+    return (
+        f"(CAST(strftime('%s', {compiler.process(element.clauses, **kw)}) AS INTEGER) "
+        f"/ {element.seconds})"
+    )
 
 
 @pytest.fixture()

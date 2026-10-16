@@ -253,3 +253,23 @@ def test_tracks_scope_counts_by_state_are_owner_scoped(client, db_session, make_
         assert admin_own["counts_by_state"] == {}
         admin_all = _as(client, admin_cookie).get(f"{url}{sep}all_users=true").json()
         assert admin_all["counts_by_state"] == {"waiting": 4, "completed": 1}
+
+
+def test_admin_stats_is_admin_only_and_hidden_from_everyone_else(
+    client, db_session, make_user, session_cookie
+):
+    """v44: the stats page aggregates every user's attempts, so only the admin may read
+    it, and a non-admin gets the same 404 an unknown route gives (not 403): its existence
+    isn't confirmed. Both identities live, against the same data."""
+    victim = make_user("victim@example.com")
+    _make_track(db_session, _make_job(db_session, victim))
+    stranger_cookie = session_cookie("stranger@example.com")
+    admin_cookie = session_cookie("admin@example.com", is_admin=True)
+
+    for window in ("24h", "7d", "30d"):
+        assert _as(client, stranger_cookie).get(f"/api/admin/stats?window={window}").status_code == 404
+        admitted = _as(client, admin_cookie).get(f"/api/admin/stats?window={window}")
+        assert admitted.status_code == 200
+        assert admitted.json()["queue"]["counts"]["waiting"] == 1
+        # Counts only: the victim's identity never appears, even to the admin.
+        assert "victim@example.com" not in admitted.text
