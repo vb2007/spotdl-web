@@ -390,6 +390,8 @@ test('start sweep asks first', async ({ page }) => {
 		alerts.configured,
 		'Matrix alerts are configured; a sweep would post to the room'
 	);
+	// The sweep runs on worker-expand: stopped, it would sit queued and run later, unasked.
+	skipUnlessStrict(!expandWorkerRunning(), 'worker-expand is stopped; a sweep would sit queued');
 	// A track that finishes downloading between the check below and the sweep would be moved.
 	await requireQuietWorker(page.request);
 	const unfiled = Number(

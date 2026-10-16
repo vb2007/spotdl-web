@@ -43,9 +43,6 @@
 	let reportError = $state('');
 	// The backend also records whole-sweep problems as "<post-move sync>" or "<sweep>" rows:
 	// those aren't files, so they get their own list.
-	// A run that crashed outside the per-file loop ends short of its count: its bar isn't a
-	// success, so it isn't settled mint.
-	const crashed = $derived(!running && errorRows.some((e) => e.file === '<sweep>'));
 	const fileRows = $derived(errorRows.filter((e) => !e.file.startsWith('<')));
 	const sweepRows = $derived(errorRows.filter((e) => e.file.startsWith('<')));
 	const errorCount = $derived(running || reportPending ? errorsSoFar : (run?.errors.length ?? 0));
@@ -110,7 +107,19 @@
 	}
 
 	// v43 (F08): a sweep moves real files and archives jobs for every user, so it asks.
+	// One question and its server re-read at a time: a second press meanwhile is ignored.
+	let onStartRunning = false;
 	async function onStart() {
+		if (onStartRunning) return;
+		onStartRunning = true;
+		try {
+			await onStartFlow();
+		} finally {
+			onStartRunning = false;
+		}
+	}
+
+	async function onStartFlow() {
 		const settings = librarySettings;
 		const duplicates =
 			settings === undefined
@@ -332,8 +341,8 @@
 						{#if run.total > 0}
 							<div
 								class="progress-bar"
-								class:done={!running && !crashed}
-								class:crashed
+								class:done={!running && errorCount === 0}
+								class:crashed={!running && errorCount > 0}
 								class:stale={running && linkDown}
 								role="progressbar"
 								aria-label="Sweep progress"
@@ -508,7 +517,8 @@
 		background: var(--settled-dim);
 	}
 
-	/* Over, but cut short by a crash: neither live (amber) nor a success (mint). */
+	/* Over, with errors (or cut short by a crash): neither live (amber) nor a clean success
+	   (mint). */
 	.progress-bar.crashed .progress-fill {
 		background: var(--line-bright);
 	}

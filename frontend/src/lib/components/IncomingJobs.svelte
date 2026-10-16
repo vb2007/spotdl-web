@@ -123,7 +123,19 @@
 
 	// v43 (F08): cancelling a submission still being read is a job cancel, so it asks first.
 	// Dismissing a failed row doesn't: that job is already over.
+	// One question and its server re-read per submission at a time.
+	const cancelAsking: Record<string, true> = {};
 	async function confirmCancelTuning(job: Job) {
+		if (cancelAsking[job.id]) return;
+		cancelAsking[job.id] = true;
+		try {
+			await confirmCancelTuningFlow(job);
+		} finally {
+			delete cancelAsking[job.id];
+		}
+	}
+
+	async function confirmCancelTuningFlow(job: Job) {
 		const session = queue.getResetCount();
 		const confirmed = await confirmAction({
 			title: 'Cancel this submission?',

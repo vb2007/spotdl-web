@@ -114,7 +114,19 @@
 	}
 
 	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
+	// One question and its server re-read at a time: a second press meanwhile is ignored.
+	let handleCancelRunning = false;
 	async function handleCancel() {
+		if (handleCancelRunning) return;
+		handleCancelRunning = true;
+		try {
+			await handleCancelFlow();
+		} finally {
+			handleCancelRunning = false;
+		}
+	}
+
+	async function handleCancelFlow() {
 		const session = queue.getResetCount();
 		const confirmed = await confirmAction({
 			title: 'Cancel this job?',
