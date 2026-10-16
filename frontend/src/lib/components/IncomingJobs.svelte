@@ -39,6 +39,7 @@
 
 	let incomingSection = $state<HTMLElement>();
 	let rowError = $state<Record<string, string>>({});
+	let lostNotice = $state('');
 	let busy = $state<Record<string, boolean>>({});
 	// Rows whose link was already submitted again: never offered twice, even if the dismiss
 	// that follows fails and leaves the row up.
@@ -55,13 +56,22 @@
 		try {
 			await queue.cancelJob(jobId);
 		} catch (err) {
-			setError(jobId, err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
+			const message = err instanceof api.ApiError ? err.message : 'Could not cancel this job.';
+			await tick();
+			if (!jobs.some((j) => j.id === jobId)) {
+				// The row left meanwhile (its expansion finished): its error has no row to sit
+				// on, and no other row's button is the right place for focus.
+				lostNotice = `${message} It has moved into your queue; cancel it from there.`;
+				keepFocus('submit');
+				return;
+			}
+			setError(jobId, message);
 			// The row stays; if its focused button went away meanwhile (a resubmit hides
 			// "try again"), its own dismiss is the place to land.
-			await tick();
 			keepFocus('next-dismiss', jobId);
 			return;
 		}
+		lostNotice = '';
 		await tick();
 		keepFocus(then, undefined, position);
 	}
@@ -203,6 +213,10 @@
 	</li>
 {/snippet}
 
+{#if lostNotice}
+	<p class="lost" role="alert">{lostNotice}</p>
+{/if}
+
 {#if jobs.length > 0}
 	<section
 		class="incoming panel"
@@ -258,6 +272,11 @@
 							class="action"
 							aria-expanded={showOlder}
 							data-act="older"
+							aria-label="{showOlder
+								? 'hide'
+								: 'show'} {olderFailed.length} older failed link{olderFailed.length === 1
+								? ''
+								: 's'}"
 							onclick={() => (showOlder = !showOlder)}>{showOlder ? 'hide' : 'show'}</button
 						>
 					</span>
@@ -405,6 +424,11 @@
 
 	.error {
 		color: var(--fail);
+	}
+
+	.lost {
+		color: var(--fail);
+		font-size: var(--fs-detail);
 	}
 
 	.action {
