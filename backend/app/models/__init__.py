@@ -1,4 +1,5 @@
 from app.models.app_settings import AppSettings
+from app.models.breaker_event import BreakerEvent, BreakerEventKind
 from app.models.downloaded_track import DownloadedTrack
 from app.models.job import Job, JobSourceType, JobState
 from app.models.library_sort_run import LibrarySortRun, LibrarySortState
@@ -12,6 +13,8 @@ from app.models.worker_state import WorkerState
 
 __all__ = [
     "AppSettings",
+    "BreakerEvent",
+    "BreakerEventKind",
     "DownloadedTrack",
     "Job",
     "JobSourceType",

@@ -22,6 +22,7 @@ from app.db import get_db
 from app.main import app
 from app.models import (
     AppSettings,
+    BreakerEvent,
     DownloadedTrack,
     Job,
     LibrarySortRun,
@@ -61,6 +62,7 @@ def db_session():
     TrackAttempt.__table__.create(engine)
     DownloadedTrack.__table__.create(engine)
     WorkerState.__table__.create(engine)
+    BreakerEvent.__table__.create(engine)
     AppSettings.__table__.create(engine)
     UserSettings.__table__.create(engine)
     LibrarySortRun.__table__.create(engine)
