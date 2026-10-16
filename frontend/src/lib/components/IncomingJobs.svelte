@@ -30,9 +30,18 @@
 	// appeared (a slow artist submitted before a quick bad link fails later, and must not
 	// fold away behind it). Rows already failed on load tie, and fall back to created_at.
 	const failedSeenAt = new SvelteMap<string, number>();
+	let seenInScope: boolean | null = null;
 	$effect(() => {
+		// A scope switch reloads the whole overlay: everything in it is "already failed on
+		// load" again, so stamps from the previous scope mustn't outrank it.
+		if (seenInScope !== allUsers) {
+			failedSeenAt.clear();
+			seenInScope = allUsers;
+		}
+		// One stamp per batch, so rows arriving together tie (and fall back to created_at).
+		const now = Date.now();
 		for (const j of jobs) {
-			if (j.state !== 'expanding' && !failedSeenAt.has(j.id)) failedSeenAt.set(j.id, Date.now());
+			if (j.state !== 'expanding' && !failedSeenAt.has(j.id)) failedSeenAt.set(j.id, now);
 		}
 	});
 	let failed = $derived(
