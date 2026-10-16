@@ -112,6 +112,47 @@
 		await handleCancel(job.id, 'submit');
 	}
 
+	// v42: a row can move between the tuning, newest and older groups (it fails, or a newer
+	// failure arrives) and is then re-created, which drops focus to the page. Remember the
+	// focused button and put focus back on the same row's control, or on the summary
+	// toggle if the row folded away. A row that was removed is keepFocus's job, not this.
+	let lastFocus: { act: string; job: string } | null = null;
+
+	function onFocusIn(event: FocusEvent) {
+		const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-job]');
+		lastFocus = button ? { act: button.dataset.act ?? '', job: button.dataset.job ?? '' } : null;
+	}
+
+	function onFocusOut(event: FocusEvent) {
+		const left = event.target as HTMLElement;
+		setTimeout(() => {
+			// Focus went somewhere real, or the user clicked away from a button that still
+			// exists: nothing to restore. A re-created row's button is no longer connected.
+			if (document.activeElement !== document.body || left.isConnected) lastFocus = null;
+		});
+	}
+
+	$effect(() => {
+		void jobs;
+		restoreFocus();
+	});
+
+	async function restoreFocus() {
+		await tick();
+		const remembered = lastFocus;
+		if (!remembered || document.activeElement !== document.body) return;
+		if (!jobs.some((j) => j.id === remembered.job) || !incomingSection?.isConnected) return;
+		const target =
+			incomingSection.querySelector<HTMLButtonElement>(
+				`button[data-act="${remembered.act}"][data-job="${remembered.job}"]`
+			) ??
+			incomingSection.querySelector<HTMLButtonElement>(
+				`button[data-act="dismiss"][data-job="${remembered.job}"]`
+			) ??
+			incomingSection.querySelector<HTMLButtonElement>('button[data-act="older"]');
+		target?.focus();
+	}
+
 	function isOwn(job: Job): boolean {
 		return !allUsers || job.owner_email === sessionEmail;
 	}
@@ -163,7 +204,13 @@
 {/snippet}
 
 {#if jobs.length > 0}
-	<section class="incoming panel" aria-labelledby="incoming-heading" bind:this={incomingSection}>
+	<section
+		class="incoming panel"
+		aria-labelledby="incoming-heading"
+		bind:this={incomingSection}
+		onfocusin={onFocusIn}
+		onfocusout={onFocusOut}
+	>
 		<h2 id="incoming-heading" class="sr-only">Incoming submissions</h2>
 		<ul class="rows" aria-label="Incoming submissions">
 			{#each tuning as job (job.id)}
@@ -182,6 +229,8 @@
 							type="button"
 							class="action danger"
 							aria-label="cancel {job.source_url}"
+							data-act="cancel"
+							data-job={job.id}
 							onclick={() => handleCancel(job.id, 'submit')}>cancel</button
 						>
 					</span>
@@ -208,6 +257,7 @@
 							type="button"
 							class="action"
 							aria-expanded={showOlder}
+							data-act="older"
 							onclick={() => (showOlder = !showOlder)}>{showOlder ? 'hide' : 'show'}</button
 						>
 					</span>

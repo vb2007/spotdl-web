@@ -41,8 +41,10 @@
 
 	// Admin-only (v17): mine/all-users scope. Off by default even for an admin --
 	// switching it clears the queue store (see queue.setAllUsers) and reconnects the
-	// SSE stream so both REST and live data agree on scope.
-	let allUsersView = $state(false);
+	// SSE stream so both REST and live data agree on scope. v42: it starts from the store's
+	// own scope, which outlives this page (a trip to /settings and back): starting at "mine"
+	// while the store still fetched all users mislabelled every foreign row as the admin's.
+	let allUsersView = $state(queue.getAllUsers());
 
 	let filtersActive = $derived(
 		$filters.q.trim() !== '' || $filters.status.length > 0 || $filters.state.length > 0
@@ -345,6 +347,12 @@
 					{:else if allUsersView}
 						<h3 class="state-title">Nobody has anything queued</h3>
 						<p class="state-text">Every user's queue is empty in this view.</p>
+					{:else if $incomingJobs.some((j) => j.state === 'expanding')}
+						<h3 class="state-title">Your link is being read</h3>
+						<p class="state-text">
+							Its tracks appear here once Spotify has listed them, and each one downloads in the
+							background.
+						</p>
 					{:else}
 						<h3 class="state-title">Your queue is empty</h3>
 						<p class="state-text">

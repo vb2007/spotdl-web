@@ -560,7 +560,8 @@ refine row (chips, sort), a divider, and the list or its state:
 - **Error:** "Couldn't load the queue", the server's own words, and **try again** (`queue.reload()`).
   A failed **load more** is not this state: the loaded rows stay, a "Couldn't load more" line
   appears above the button, and the button retries that page (`page.moreError`).
-- **Empty**, three cases: a search or filter miss ("No jobs match "…"" + **clear search and
+- **Empty**, four cases (the fourth: a user's first link still being read reads "Your link is being
+  read", not "empty"): a search or filter miss ("No jobs match "…"" + **clear search and
   filters**), the admin's all-users view ("Nobody has anything queued"), and a user's own empty
   queue ("Your queue is empty", what happens to a pasted link, where archived jobs went, and
   **paste a link**, which focuses the submit box).
