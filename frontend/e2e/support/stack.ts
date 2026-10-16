@@ -121,12 +121,13 @@ db.commit()
 		);
 	}
 	compose('start', 'worker-expand');
-	rmSync(EXPAND_STOPPED_FILE);
 	const deadline = Date.now() + 90_000;
 	while (compose('ps', 'worker-expand', '--format', '{{.Health}}') !== 'healthy') {
+		// The marker stays until it's healthy, so a later setup retries (a start is idempotent).
 		if (Date.now() > deadline) throw new Error('worker-expand did not come back healthy');
 		await new Promise((resolve) => setTimeout(resolve, 2000));
 	}
+	rmSync(EXPAND_STOPPED_FILE);
 }
 
 /** Whether `worker-expand` is up: one the developer stopped is theirs, never restarted here. */

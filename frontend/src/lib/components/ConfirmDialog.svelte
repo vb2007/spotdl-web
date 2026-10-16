@@ -4,8 +4,9 @@
 
 	// v43 (F08): the one confirmation for every destructive action, mounted once in the
 	// layout and driven by `confirmAction()`. A native modal <dialog>: the top layer makes
-	// the rest of the page inert and keeps Tab inside, Esc arrives as its `cancel` event,
-	// and focus starts on the safe button. Focus goes back to whatever opened it.
+	// the rest of the page inert (Tab reaches only the dialog and the browser's own chrome),
+	// Esc arrives as its `cancel` event, and focus starts on the safe button. Focus goes back
+	// to whatever opened it.
 
 	let dialog: HTMLDialogElement | undefined = $state();
 	let keepButton: HTMLButtonElement | undefined = $state();

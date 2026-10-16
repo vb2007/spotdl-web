@@ -746,7 +746,7 @@ One confirmation for every destructive or risky action, chosen with the owner ov
 two-step: a native modal `<dialog>` (`role="alertdialog"`, named by its title, described by its
 subject and body) mounted once in the layout and driven by `await confirmAction({...})`, which
 resolves `true` only on the destructive button. The top layer makes the page inert and keeps Tab
-inside; focus starts on the **safe** button; Esc, the safe button, a backdrop click and any
+off the page; focus starts on the **safe** button; Esc, the safe button, a backdrop click and any
 navigation answer `false`; focus returns to the trigger. It is the `.panel` faceplate over a dimmed
 (not blurred) page, entering with a 6px rise on `--dur-med` (none under reduced motion).
 

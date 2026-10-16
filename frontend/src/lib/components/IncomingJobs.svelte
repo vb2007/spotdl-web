@@ -141,8 +141,8 @@
 			title: 'Cancel this submission?',
 			subject: job.source_url,
 			body:
-				'Its link is still being read. Cancelling it means none of its tracks are ever queued. ' +
-				'This ' +
+				'Its link is still being read. Cancelling stops what it would queue, and cancels anything ' +
+				'it already has. This ' +
 				"can't be undone, but the link can be submitted again.",
 			confirmLabel: 'cancel submission',
 			cancelLabel: 'keep it'
