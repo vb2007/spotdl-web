@@ -2,6 +2,7 @@
 	import { SvelteMap } from 'svelte/reactivity';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
+	import { confirmAction } from '$lib/stores/confirm';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
 	import type { Job, JobLifecycle } from '$lib/api';
 
@@ -111,7 +112,18 @@
 		}, 4000);
 	}
 
+	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
 	async function handleCancel() {
+		const confirmed = await confirmAction({
+			title: 'Cancel this job?',
+			subject: job.title,
+			body:
+				"Its tracks that haven't downloaded yet are cancelled and won't be fetched. Files " +
+				"already downloaded stay. This can't be undone, but the link can be submitted again.",
+			confirmLabel: 'cancel job',
+			cancelLabel: 'keep job'
+		});
+		if (!confirmed) return;
 		try {
 			await queue.cancelJob(job.id);
 		} catch (err) {

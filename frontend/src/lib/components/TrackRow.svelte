@@ -4,6 +4,7 @@
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { worker } from '$lib/stores/worker';
+	import { confirmAction } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import {
 		attemptVia,
@@ -280,7 +281,21 @@
 		}, delay);
 	}
 
+	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
 	async function handleCancel() {
+		const artists = track.artists?.join(', ');
+		const confirmed = await confirmAction({
+			title: 'Cancel this track?',
+			subject: [track.title ?? 'Unknown title', artists].filter(Boolean).join(' — '),
+			body:
+				(track.state === 'downloading'
+					? 'The download in progress finishes, but its file is discarded. '
+					: "It won't be downloaded. ") +
+				"This can't be undone, but the link can be submitted again.",
+			confirmLabel: 'cancel track',
+			cancelLabel: 'keep track'
+		});
+		if (!confirmed) return;
 		const wasDownloading = track.state === 'downloading';
 		const seenAttempts = attempts.length;
 		try {

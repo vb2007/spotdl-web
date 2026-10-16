@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
+	import { confirmAction } from '$lib/stores/confirm';
 	import type { Scope } from '$lib/stores/queue';
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -193,7 +194,18 @@
 		queue.setFilters({ dir: $filters.dir === 'asc' ? 'desc' : 'asc' });
 	}
 
+	// v43 (F08): archives every settled job of yours in one go, so it asks first.
 	async function onClearLog() {
+		const confirmed = await confirmAction({
+			title: 'Clear the log?',
+			body:
+				'Every settled job of yours moves to the archive, whatever this view shows. ' +
+				'Archived jobs stay under “show archived” and can be restored one by one. ' +
+				'Jobs still downloading or waiting are kept.',
+			confirmLabel: 'clear log',
+			cancelLabel: 'keep log'
+		});
+		if (!confirmed) return;
 		await queue.archiveJobs({ allSettled: true });
 	}
 </script>
@@ -212,7 +224,7 @@
 		</button>
 		{#if $filters.scope === 'jobs'}
 			<!-- Archives every settled job of *yours*, whatever the search, filters or all-users
-			     view (archive.archive_jobs). Unchanged in v42; its confirmation is v43's. -->
+			     view (archive.archive_jobs), after a confirmation (v43). -->
 			<button type="button" class="chip danger" onclick={onClearLog}>clear log</button>
 		{/if}
 	</div>
