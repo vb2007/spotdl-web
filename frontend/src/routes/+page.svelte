@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -44,7 +44,8 @@
 	// SSE stream so both REST and live data agree on scope. v42: it starts from the store's
 	// own scope, which outlives this page (a trip to /settings and back): starting at "mine"
 	// while the store still fetched all users mislabelled every foreign row as the admin's.
-	let allUsersView = $state(queue.getAllUsers());
+	// Never for a non-admin, whatever an earlier admin session on this tab left in the store.
+	let allUsersView = $state(untrack(() => isAdmin) && queue.getAllUsers());
 
 	let filtersActive = $derived(
 		$filters.q.trim() !== '' || $filters.status.length > 0 || $filters.state.length > 0
@@ -69,10 +70,17 @@
 	}
 
 	// The last page removes this button while it has focus; keep focus on the queue.
+	// The last page removes this button while it has focus: continue at the first row it
+	// loaded (where the user was reading), else the queue's heading.
 	async function loadMorePage() {
+		const before = document.querySelectorAll('.job-list > li').length;
 		await queue.loadMore();
 		await tick();
-		if (document.activeElement === document.body) document.getElementById('queue-heading')?.focus();
+		if (document.activeElement !== document.body) return;
+		const first = document.querySelectorAll('.job-list > li')[before];
+		const target =
+			first?.querySelector<HTMLElement>('button') ?? document.getElementById('queue-heading');
+		target?.focus();
 	}
 
 	function retryQueue() {
@@ -218,6 +226,8 @@
 	}
 
 	onMount(() => {
+		// The store's scope outlives the page; a non-admin must never inherit an admin's.
+		if (!isAdmin && queue.getAllUsers()) queue.setAllUsers(false);
 		link.set('connecting');
 		queue.beginResync();
 		armResyncFallback();
@@ -351,15 +361,15 @@
 						<button type="button" class="state-action mono" onclick={clearSearchAndFilters}
 							>clear search and filters</button
 						>
-					{:else if allUsersView}
-						<h3 class="state-title">Nobody has anything queued</h3>
-						<p class="state-text">Every user's queue is empty in this view.</p>
 					{:else if $incomingJobs.some((j) => j.state === 'expanding')}
 						<h3 class="state-title">Your link is being read</h3>
 						<p class="state-text">
 							Its tracks appear here once Spotify has listed them, and each one downloads in the
 							background.
 						</p>
+					{:else if allUsersView}
+						<h3 class="state-title">Nobody has anything queued</h3>
+						<p class="state-text">Every user's queue is empty in this view.</p>
 					{:else}
 						<h3 class="state-title">Your queue is empty</h3>
 						<p class="state-text">
