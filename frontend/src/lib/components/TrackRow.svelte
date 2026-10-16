@@ -296,13 +296,24 @@
 			confirmLabel: 'cancel track',
 			cancelLabel: 'keep track'
 		});
-		// Kept or Esc: "cancel track" may have gone meanwhile (the track settled).
-		if (!confirmed) return keepFocus(rowButton);
-		// A row remounted while the question was open (a stream reconnect reloads the list)
-		// has only its last known state: it still cancels from that (the backend leaves a
-		// finished track as it is), and focus goes to the list, since this row's are gone.
+		// Kept or Esc: "cancel track" may have gone meanwhile (the track settled), or the whole
+		// row did (remounted by a list reload).
+		if (!confirmed)
+			return keepFocus(destroyed ? document.getElementById('queue-heading') : rowButton);
+		// A row remounted while the question was open (a stream reconnect reloads the list) has
+		// only its last known state, which may be stale: the backend would still cancel a track
+		// that turned lookup_failed meanwhile. So the server's current state decides, from one
+		// search of the job's tracks, and focus goes to the list, since this row's are gone.
 		if (destroyed) {
-			if (canCancel) await queue.cancelTrack(track.id, jobId).catch(() => {});
+			try {
+				const page = await api.listJobTracksPage(jobId, { q: track.title ?? undefined });
+				const current = page.items.find((t) => t.id === track.id);
+				if (current && CANCELLABLE_STATES.has(current.state)) {
+					await queue.cancelTrack(track.id, jobId);
+				}
+			} catch {
+				// Unreadable or refused: nothing is cancelled on a guess.
+			}
 			await keepFocus(document.getElementById('queue-heading'));
 			return;
 		}

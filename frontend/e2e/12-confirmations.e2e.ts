@@ -14,6 +14,7 @@ import {
 	expandWorkerBusy,
 	ledgerMisses,
 	recordHeldSubmission,
+	removeTestProxy,
 	restartExpandWorker,
 	restoreSweepReport,
 	snapshotSweepReport,
@@ -314,7 +315,10 @@ test('remove proxy asks first', async ({ page, baseURL }, testInfo) => {
 	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
 	// TEST-NET-3, switched off at once so no download could ever pick it.
 	const url = `http://203.0.113.${testInfo.project.name === 'mobile' ? 44 : 43}:8080`;
-	const created = (await (await admin.post('/api/proxies', { data: { url } })).json()) as Proxy;
+	await removeTestProxy(admin, url);
+	const response = await admin.post('/api/proxies', { data: { url } });
+	expect(response.status(), 'creating the test proxy').toBe(201);
+	const created = (await response.json()) as Proxy;
 	try {
 		expect(
 			(await admin.patch(`/api/proxies/${created.id}`, { data: { enabled: false } })).ok()

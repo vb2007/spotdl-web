@@ -15,6 +15,15 @@
 	let busy = $state(false);
 	let error = $state('');
 	let note = $state('');
+	// A note answers one press; it leaves after a while rather than outliving the state it
+	// described.
+	let noteTimer: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => {
+		if (!note) return;
+		clearTimeout(noteTimer);
+		noteTimer = setTimeout(() => (note = ''), 8000);
+		return () => clearTimeout(noteTimer);
+	});
 	// The pause/resume button. Its branch swaps on every toggle, and the hold row (with
 	// "release now") goes when the hold does, so focus is put back here afterwards.
 	let toggleButton: HTMLButtonElement | undefined = $state();

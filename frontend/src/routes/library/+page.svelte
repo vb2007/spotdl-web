@@ -212,8 +212,8 @@
 					<div class="head-text">
 						<h2 id="sweep-heading" class="label" tabindex="-1" bind:this={heading}>Sweep</h2>
 						<p class="hint">
-							Moves finished downloads into the music library, one folder per album. The folder, the
-							template and what happens to duplicates are set in
+							Moves finished downloads into the music library, into folders named by the folder
+							template. The folder, the template and what happens to duplicates are set in
 							<a href={resolve('/settings')}>settings</a>.
 						</p>
 					</div>
@@ -227,8 +227,16 @@
 					{#if loadError}
 						<p class="form-error">
 							Couldn't read the last sweep: {loadError}
-							<button type="button" class="btn small" onclick={() => loadStatus().catch(() => {})}
-								>try again</button
+							<button
+								type="button"
+								class="btn small"
+								onclick={() =>
+									loadStatus().catch((err) => {
+										loadError =
+											err instanceof api.ApiError
+												? `${err.message} (tried again at ${new Date().toLocaleTimeString()})`
+												: `Could not reach the server (tried again at ${new Date().toLocaleTimeString()}).`;
+									})}>try again</button
 							>
 						</p>
 					{:else}
@@ -271,7 +279,7 @@
 							</div>
 						{/if}
 
-						<dl class="counts" aria-label={running ? 'So far' : 'Last sweep'}>
+						<dl class="counts">
 							<div class="count">
 								<dt>moved</dt>
 								<dd class="mono">{run.moved.toLocaleString()}</dd>

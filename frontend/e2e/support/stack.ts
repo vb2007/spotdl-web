@@ -174,15 +174,33 @@ from app.models.library_sort_run import LibrarySortRun
 snap = json.loads(sys.argv[1])
 db = SessionLocal()
 row = db.get(LibrarySortRun, 1)
-if snap is not None and row is not None and row.state.value == "idle":
-    for key, value in snap.items():
-        if key in ("started_at", "finished_at") and value is not None:
-            value = datetime.fromisoformat(value)
-        setattr(row, key, value)
+if row is not None and row.state.value == "idle":
+    if snap is None:
+        # There was no report before: leave none ("No sweep has run yet").
+        db.delete(row)
+    else:
+        for key, value in snap.items():
+            if key in ("started_at", "finished_at") and value is not None:
+                value = datetime.fromisoformat(value)
+            setattr(row, key, value)
     db.commit()
 `,
 		[snapshot]
 	);
+}
+
+/** Removes a TEST-NET proxy a killed run may have left (else the next create answers 409),
+ * switching it off if it can't be deleted (a used proxy can't, v43's found-not-fixed). */
+export async function removeTestProxy(context: APIRequestContext, url: string): Promise<void> {
+	const proxies = (await (await context.get('/api/proxies')).json()) as {
+		id: string;
+		url: string;
+	}[];
+	for (const proxy of proxies.filter((p) => p.url === url)) {
+		const removed = await context.delete(`/api/proxies/${proxy.id}`);
+		if (!removed.ok())
+			await context.patch(`/api/proxies/${proxy.id}`, { data: { enabled: false } });
+	}
 }
 
 /** Tracks already in the dev ledger (`downloaded_tracks`, files under `./downloads`), so a job

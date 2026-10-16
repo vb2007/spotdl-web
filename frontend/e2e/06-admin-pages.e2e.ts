@@ -1,6 +1,6 @@
 import { expect, request, test } from '@playwright/test';
 import type { AlertSettings, LibrarySettings, OutputSettings, Proxy } from '../src/lib/api';
-import { ADMIN_STATE, USER_STATE } from './support/stack';
+import { ADMIN_STATE, USER_STATE, removeTestProxy } from './support/stack';
 
 /** The read-only admin endpoints behind `/settings` and `/library`. */
 const ADMIN_GETS = [
@@ -114,6 +114,9 @@ test.describe('admin', () => {
 
 			const px = page.getByRole('region', { name: 'Proxy pool' });
 			const proxyField = px.getByLabel('Add a proxy');
+			const url = `http://203.0.113.${test.info().project.name === 'mobile' ? 46 : 45}:8080`;
+			// A killed run's leftover would answer 409 to this add.
+			await removeTestProxy(admin, url);
 			await proxyField.fill('http://proxy.example.com:8080');
 			await px.getByRole('button', { name: 'add proxy', exact: true }).click();
 			await expect(proxyField).toHaveAttribute('aria-invalid', 'true');
@@ -121,10 +124,11 @@ test.describe('admin', () => {
 			const added = page.waitForResponse(
 				(r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/proxies'
 			);
-			const url = `http://203.0.113.${test.info().project.name === 'mobile' ? 46 : 45}:8080`;
 			await proxyField.fill(url);
 			await px.getByRole('button', { name: 'add proxy', exact: true }).click();
-			const proxy = (await (await added).json()) as Proxy;
+			const addResponse = await added;
+			expect(addResponse.status(), 'adding the test proxy').toBe(201);
+			const proxy = (await addResponse.json()) as Proxy;
 			addedId = proxy.id;
 			// Off at once: a TEST-NET address must never be offered to a download.
 			await px.getByRole('button', { name: `switch off ${proxy.url}`, exact: true }).click();

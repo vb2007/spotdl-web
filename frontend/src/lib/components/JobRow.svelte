@@ -130,8 +130,10 @@
 			confirmLabel: 'cancel job',
 			cancelLabel: 'keep job'
 		});
-		// Kept or Esc: the cancel button may have gone meanwhile (the job finished).
-		if (!confirmed) return keepFocus(toggleButton);
+		// Kept or Esc: the cancel button may have gone meanwhile (the job finished), or the whole
+		// row did (remounted by a list reload).
+		if (!confirmed)
+			return keepFocus(destroyed ? document.getElementById('queue-heading') : toggleButton);
 		// Decide on the job as the server has it now. The question can stay open while the job
 		// finishes, and cancel_job would then relabel a finished job "cancelled" (the footgun
 		// the in-flight gate above exists for). The row's own status trails the server (its

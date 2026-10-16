@@ -439,8 +439,9 @@
 		try {
 			await api.deleteProxy(proxy.id);
 			proxyList = proxyList.filter((p) => p.id !== proxy.id);
-			// The row (and the focused button) is gone: land on the list's own heading.
-			document.getElementById('proxies-heading')?.focus();
+			// The row (and the focused button) is gone: land on the list's own heading, unless
+			// the user already moved on while the delete was in flight.
+			await keepFocus(document.getElementById('proxies-heading'));
 		} catch (err) {
 			// A manual proxy that some attempt has used can't be hard-deleted: the attempt
 			// history still references it and the backend answers 500 (a known backend limit,
