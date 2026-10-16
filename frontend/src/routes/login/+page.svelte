@@ -31,7 +31,7 @@
 			// credential.
 			errorMessage =
 				err instanceof api.ApiError && err.status === 401
-					? "Couldn't sign in with that email and password. Check both and try again; if they're right, the account service may be down."
+					? "Couldn't sign in with that email and password. Check both and try again. If they're right, this account may not be invited, or the account service may be down."
 					: 'Could not reach the server. Check your connection and try again.';
 			submitting = false;
 			// v43 (F31): back to the field to fix, not left on CONNECT. The inputs were

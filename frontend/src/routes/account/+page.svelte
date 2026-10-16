@@ -77,9 +77,12 @@
 		try {
 			await api.logout();
 		} catch (err) {
-			logoutError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
-			loggingOut = false;
-			return;
+			// A 401 means the session is already gone: that's signed out, not a failure.
+			if (!(err instanceof api.ApiError && err.status === 401)) {
+				logoutError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+				loggingOut = false;
+				return;
+			}
 		}
 		// The module-level queue store outlives this navigation; clear it before leaving so
 		// the next identity on this tab never sees a flash of these rows.

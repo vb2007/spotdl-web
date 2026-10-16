@@ -1,5 +1,7 @@
+import { execFileSync } from 'node:child_process';
 import { expect, request, test, type Locator, type Page, type Request } from '@playwright/test';
 import type { Job, Proxy } from '../src/lib/api';
+import { REPO_ROOT } from './support/env';
 import { ADMIN_STATE, stackPython, spotifyTrackUrl, waitForJob } from './support/stack';
 import { jobRow, jobToggle, openDashboard, trackToggle } from './support/ui';
 
@@ -12,6 +14,21 @@ const CANCEL_TRACKS = {
 	desktop: { track: '0C80GCp0mMuBzLf3EAXqxv', job: '6Th6ND8RQPywiyelecP5Lf' },
 	mobile: { track: '6rAy2MsMUabbqu2VygrblP', job: '5XeMsYb1rWxQL1bUUaZajn' }
 } as const;
+
+/** Submitted while `worker-expand` is stopped, so the job stays "tuning in" (expanding) and is
+ * cancelled before it is ever read: no Spotify read, no track, no download. */
+const SUBMISSION_TRACKS = {
+	desktop: '08mG3Y1vljYA6bvDt4Wqkj',
+	mobile: '2SiXAy7TuUkycRVbbWDEpo'
+} as const;
+
+function compose(...args: string[]): string {
+	return execFileSync('docker', ['compose', ...args], {
+		cwd: REPO_ROOT,
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe']
+	}).trim();
+}
 
 interface Guarded {
 	/** The control that opens the question. */
@@ -278,4 +295,48 @@ test('start sweep asks first', async ({ page }) => {
 	// the page must land on the finished report even when the stream beat the POST's answer.
 	await expect(page.getByText(/^Last sweep finished/)).toBeVisible({ timeout: 30_000 });
 	await expect(start.trigger).toBeEnabled();
+});
+
+test('cancelling an incoming submission asks first', async ({ page, baseURL }, testInfo) => {
+	test.setTimeout(180_000);
+	const id =
+		testInfo.project.name === 'mobile' ? SUBMISSION_TRACKS.mobile : SUBMISSION_TRACKS.desktop;
+	const url = spotifyTrackUrl(id);
+	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
+	let jobId: string | null = null;
+	compose('stop', 'worker-expand');
+	try {
+		const created = await admin.post('/api/jobs', { data: { url } });
+		expect(created.status()).toBe(201);
+		jobId = ((await created.json()) as Job).id;
+
+		await openDashboard(page);
+		const cancel: Guarded = {
+			trigger: page
+				.getByRole('list', { name: 'Incoming submissions' })
+				.getByRole('button', { name: `cancel ${url}`, exact: true }),
+			title: 'Cancel this submission?',
+			keep: 'keep it',
+			confirm: 'cancel submission',
+			sends: call('DELETE', `/api/jobs/${jobId}`)
+		};
+		await expectCancelDoesNothing(page, cancel);
+		await confirmPerforms(page, cancel);
+		await waitForJob(admin, jobId, (j) => j.status.lifecycle === 'cancelled', 15_000);
+	} finally {
+		compose('start', 'worker-expand');
+		// The next specs (and the mobile run) expand real submissions: wait until it's back.
+		const deadline = Date.now() + 90_000;
+		const health = () => compose('ps', 'worker-expand', '--format', '{{.Health}}');
+		while (health() !== 'healthy' && Date.now() < deadline) {
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+		}
+		expect.soft(health(), 'worker-expand back and healthy').toBe('healthy');
+		if (jobId) {
+			const job = (await (await admin.get(`/api/jobs/${jobId}`)).json()) as Job;
+			if (job.status.lifecycle !== 'cancelled') await admin.delete(`/api/jobs/${jobId}`);
+			await admin.post('/api/jobs/archive', { data: { job_ids: [jobId] } });
+		}
+		await admin.dispose();
+	}
 });

@@ -73,6 +73,9 @@
 			cancelLabel: 'keep running'
 		});
 		if (!confirmed) return;
+		// The poll is up to 5s old: re-read before deciding.
+		// A failed re-read falls back to the last poll; the server still checks.
+		await worker.refresh().catch(() => {});
 		// Paused meanwhile (another tab): nothing left to do, and the button has swapped.
 		if (paused) {
 			note = 'Downloads were already paused.';
@@ -104,7 +107,10 @@
 		});
 		if (!confirmed) return;
 		// The question can outlive the hold. Releasing then would only reset the failure streak
-		// a fresh run of rate limits is building, delaying the next hold.
+		// a fresh run of rate limits is building, delaying the next hold. The poll is up to 5s
+		// old, so re-read first.
+		// A failed re-read falls back to the last poll; the server still checks.
+		await worker.refresh().catch(() => {});
 		now = Date.now();
 		if (!holdUntil || holdUntil !== until) {
 			// Ended, or ended and a new hold began: the question was about the old one.

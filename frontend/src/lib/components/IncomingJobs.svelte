@@ -136,8 +136,14 @@
 		if (!confirmed) return;
 		// The question can outlive the reading: once the job has moved into the queue, its
 		// cancel there asks about the job as it now is.
-		if (!jobs.some((j) => j.id === job.id && j.state === 'expanding')) {
-			lostNotice = 'It finished reading and moved into the queue below; cancel it there.';
+		const current = jobs.find((j) => j.id === job.id);
+		if (current?.state !== 'expanding') {
+			// Failed meanwhile (the row stays here as failed), or gone from this panel: it
+			// finished reading into the queue, or was cancelled elsewhere.
+			lostNotice =
+				current?.state === 'failed'
+					? "Reading its link failed meanwhile; there's nothing left to cancel."
+					: "It's no longer being read: it moved into the queue below, or was already cancelled.";
 			const shown = lostNotice;
 			setTimeout(() => {
 				if (lostNotice === shown) lostNotice = '';

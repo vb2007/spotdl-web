@@ -396,7 +396,9 @@
 		const confirmed = await confirmAction({
 			title: 'Remove this proxy?',
 			subject: proxy.url,
-			body: "It's deleted from the pool, and no download uses it again. You can add it back later.",
+			body:
+				"It's deleted from the pool, and no download uses it again. You can add it back later. " +
+				"One that downloads have already used can't be deleted yet; switch it off instead.",
 			confirmLabel: 'remove proxy',
 			cancelLabel: 'keep proxy'
 		});
@@ -414,7 +416,7 @@
 			// history still references it and the backend answers 500 (a known backend limit,
 			// not something to retry).
 			proxiesError =
-				err instanceof api.ApiError && err.status >= 500
+				err instanceof api.ApiError && err.status === 500
 					? `Couldn't remove ${proxy.url}. A proxy that downloads have used can't be deleted yet; switch it off instead.`
 					: errorText(err);
 		} finally {
