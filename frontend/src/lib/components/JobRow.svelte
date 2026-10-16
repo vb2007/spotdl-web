@@ -2,7 +2,7 @@
 	import { SvelteMap } from 'svelte/reactivity';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
-	import { confirmAction } from '$lib/stores/confirm';
+	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
 	import type { Job, JobLifecycle } from '$lib/api';
 
@@ -53,6 +53,7 @@
 		if ((c.waiting ?? 0) === 1) return statusToken === 'waiting';
 		return false;
 	});
+	let toggleButton: HTMLButtonElement | undefined = $state();
 	let showInFlight = $derived(IN_FLIGHT_LIFECYCLES.has(job.status.lifecycle));
 	let showArchive = $derived(
 		job.archived_at === null && ARCHIVABLE_LIFECYCLES.has(job.status.lifecycle)
@@ -124,11 +125,20 @@
 			cancelLabel: 'keep job'
 		});
 		if (!confirmed) return;
+		// The question can stay open while the job finishes; cancel_job would then relabel a
+		// finished job "cancelled" (the footgun the in-flight gate above exists for).
+		if (!showInFlight) {
+			showNotice(`Not cancelled: it's ${badgeLabel} now.`);
+			await keepFocus(toggleButton);
+			return;
+		}
 		try {
 			await queue.cancelJob(job.id);
 		} catch (err) {
 			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
 		}
+		// The cancel button is gone with the in-flight controls: land on the row itself.
+		await keepFocus(toggleButton);
 	}
 
 	async function handleBump() {
@@ -172,6 +182,7 @@
 		<!-- v41 (F16): no aria-label, so the button's name is what it shows (status, title,
 		     type, owner; WCAG 2.5.3), and aria-controls ties it to the track list (F29). -->
 		<button
+			bind:this={toggleButton}
 			type="button"
 			class="toggle"
 			aria-expanded={isOpen}

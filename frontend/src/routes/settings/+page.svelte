@@ -392,7 +392,8 @@
 			confirmLabel: 'remove proxy',
 			cancelLabel: 'keep proxy'
 		});
-		if (!confirmed) return;
+		// Gone meanwhile (removed in another tab): nothing to remove.
+		if (!confirmed || !proxyList.some((p) => p.id === proxy.id)) return;
 		proxyBusy = { ...proxyBusy, [proxy.id]: true };
 		proxiesError = '';
 		try {
@@ -770,8 +771,9 @@
 					<header class="section-head">
 						<h2 id="proxies-heading" class="label" tabindex="-1">Proxy pool</h2>
 						<p class="section-hint">
-							Proxies from <code>proxies.txt</code> and those added here are used equally, after a direct
-							attempt and its wait. Addresses are shown with their credentials hidden.
+							Proxies from <code>proxies.txt</code> and those added here are used equally, from a track's
+							third attempt: after a direct IPv4 and a direct IPv6 try, each with its wait. Addresses
+							are shown with their credentials hidden.
 						</p>
 					</header>
 

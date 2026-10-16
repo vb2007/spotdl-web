@@ -22,7 +22,7 @@
 			clearProgress();
 			await goto(resolve('/'));
 		} catch (err) {
-			// "Invalid credentials." is deliberately generic for a real 401 — matches
+			// The 401 copy is deliberately generic — it matches
 			// the backend's non-disclosure between an unknown/wrong-password upstream
 			// account and an allowlist rejection. Anything else (CORS misconfigured,
 			// the API unreachable, a 5xx) is a categorically different problem and
@@ -31,7 +31,7 @@
 			// credential.
 			errorMessage =
 				err instanceof api.ApiError && err.status === 401
-					? "That email and password don't match an invited account. Check both and try again."
+					? "Couldn't sign in with that email and password. Check both and try again; if they're right, the account service may be down."
 					: 'Could not reach the server. Check your connection and try again.';
 			submitting = false;
 			// v43 (F31): back to the field to fix, not left on CONNECT. The inputs were

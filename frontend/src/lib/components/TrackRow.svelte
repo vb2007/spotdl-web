@@ -4,7 +4,7 @@
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { worker } from '$lib/stores/worker';
-	import { confirmAction } from '$lib/stores/confirm';
+	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import {
 		attemptVia,
@@ -105,6 +105,7 @@
 	let canRetry = $derived(RETRYABLE_STATES.has(track.state));
 	let canDownload = $derived(DOWNLOADABLE_STATES.has(track.state));
 	let canCancel = $derived(CANCELLABLE_STATES.has(track.state));
+	let rowButton: HTMLButtonElement | undefined = $state();
 
 	// v41 (F04, the countdown half): beat dispatches nothing while the breaker holds, so a
 	// waiting track's real next try is the later of its own slot and the breaker's clear.
@@ -289,13 +290,20 @@
 			subject: [track.title ?? 'Unknown title', artists].filter(Boolean).join(' — '),
 			body:
 				(track.state === 'downloading'
-					? 'The download in progress finishes, but its file is discarded. '
+					? 'The download in progress finishes, but the track stays cancelled. '
 					: "It won't be downloaded. ") +
 				"This can't be undone, but the link can be submitted again.",
 			confirmLabel: 'cancel track',
 			cancelLabel: 'keep track'
 		});
 		if (!confirmed) return;
+		// The question can stay open while the track settles (or turns lookup_failed, which
+		// v41 deliberately offers no cancel for): ask the current state, not the old one.
+		if (!canCancel) {
+			showNotice(`Not cancelled: it's ${STATE_LABEL[track.state]} now.`);
+			await keepFocus(rowButton);
+			return;
+		}
 		const wasDownloading = track.state === 'downloading';
 		const seenAttempts = attempts.length;
 		try {
@@ -307,6 +315,8 @@
 		} catch (err) {
 			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this track.');
 		}
+		// "cancel track" leaves with the cancellable state: land on the row itself.
+		await keepFocus(rowButton);
 	}
 
 	async function handleRetry() {
@@ -376,6 +386,7 @@
 
 <li>
 	<button
+		bind:this={rowButton}
 		type="button"
 		class="row"
 		onclick={toggleExpanded}

@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
-	import { confirmAction } from '$lib/stores/confirm';
+	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 
@@ -27,14 +27,19 @@
 			? 0
 			: Math.max(0, run.processed - run.moved - run.skipped_present - run.quarantined)
 	);
-	// v43 (F20, F34a's display half): the backend can record one file's error twice; the
-	// report lists each (file, reason) once.
+	// v43 (F20): the backend can record one file's error twice (F34a, a v48 fix). The count
+	// stays the backend's own (it matches the sweep's Matrix alert); the list folds identical
+	// rows into one entry marked ×n rather than repeating them.
 	const errorRows = $derived(
-		(run?.errors ?? []).filter(
-			(e, i, all) => all.findIndex((o) => o.file === e.file && o.error === e.error) === i
-		)
+		(run?.errors ?? []).reduce<{ file: string; error: string; times: number }[]>((rows, e) => {
+			const same = rows.find((r) => r.file === e.file && r.error === e.error);
+			if (same) same.times += 1;
+			else rows.push({ ...e, times: 1 });
+			return rows;
+		}, [])
 	);
-	const errorCount = $derived(running ? errorsSoFar : errorRows.length);
+	const errorCount = $derived(running ? errorsSoFar : (run?.errors.length ?? 0));
+	let heading: HTMLElement | undefined = $state();
 
 	function formatWhen(iso: string): string {
 		return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
@@ -57,23 +62,30 @@
 
 	// v43 (F08): a sweep moves real files and archives jobs for every user, so it asks.
 	async function onStart() {
-		let target: string | undefined;
+		let settings: api.LibrarySettings | undefined;
 		try {
-			target = (await api.getLibrarySettings()).library_target_dir;
+			settings = await api.getLibrarySettings();
 		} catch {
 			// The question still stands without the folder in it.
 		}
+		const duplicates =
+			settings === undefined
+				? 'quarantined or deleted, as set in settings'
+				: settings.library_quarantine_enabled
+					? `moved to ${settings.library_quarantine_dir}`
+					: 'deleted';
 		const confirmed = await confirmAction({
 			title: 'Start a library sweep?',
-			subject: target,
+			subject: settings?.library_target_dir,
 			body:
-				'Every finished download not yet in the library moves there. Settled jobs whose ' +
-				'tracks move are archived, for every user. Nothing already in the library is changed ' +
-				'or deleted.',
+				'Every finished download not yet in the library moves there. A download the library ' +
+				`already has is ${duplicates}. Settled jobs whose tracks move are archived, for every ` +
+				'user. Nothing already in the library is deleted.',
 			confirmLabel: 'start sweep',
 			cancelLabel: 'not now'
 		});
-		if (!confirmed) return;
+		// A sweep started meanwhile (another tab): this one would only be refused.
+		if (!confirmed || running) return;
 		starting = true;
 		error = '';
 		try {
@@ -83,6 +95,8 @@
 		} finally {
 			starting = false;
 		}
+		// The button is disabled while the sweep runs, which drops its focus: land on the panel.
+		await keepFocus(heading);
 	}
 
 	let source: EventSource | undefined;
@@ -165,7 +179,7 @@
 			<section class="panel sweep" aria-labelledby="sweep-heading">
 				<header class="head">
 					<div class="head-text">
-						<h2 id="sweep-heading" class="label">Sweep</h2>
+						<h2 id="sweep-heading" class="label" tabindex="-1" bind:this={heading}>Sweep</h2>
 						<p class="hint">
 							Moves finished downloads into the music library, one folder per album. The folder, the
 							template and what happens to duplicates are set in
@@ -193,7 +207,7 @@
 					<p class="status">No sweep has run yet.</p>
 				{:else}
 					<div class="status-block">
-						<p class="status" class:live={running}>
+						<p class="status">
 							{#if running}
 								Sweeping · <span class="mono">{run.processed.toLocaleString()}</span> of
 								<span class="mono">{run.total.toLocaleString()}</span> files
@@ -214,6 +228,7 @@
 							<div
 								class="progress-bar"
 								class:done={!running}
+								class:stale={running && linkDown}
 								role="progressbar"
 								aria-label="Sweep progress"
 								aria-valuenow={percent}
@@ -250,16 +265,20 @@
 
 					{#if !running && errorRows.length > 0}
 						<div class="errors">
-							<h3 class="label">Not moved</h3>
+							<h3 class="label">Not filed</h3>
 							<p class="hint">
-								These files stayed where they were. Fix the cause and run the sweep again; nothing
-								in the library was changed for them.
+								The sweep couldn't file these. Fix the cause and run it again; nothing already in
+								the library was deleted.
 							</p>
 							<ul class="error-list">
 								{#each errorRows as e, i (i)}
 									<li>
 										<span class="file mono">{e.file}</span>
-										<span class="reason">{e.error}</span>
+										<span class="reason"
+											>{e.error}{#if e.times > 1}<span class="times mono">
+													×{e.times}</span
+												>{/if}</span
+										>
 									</li>
 								{/each}
 							</ul>
@@ -353,6 +372,16 @@
 
 	.progress-bar.done .progress-fill {
 		background: var(--settled-dim);
+	}
+
+	/* v42's rule for stale data: with the link down the fill can't be trusted as live, so it
+	   drops the amber. */
+	.progress-bar.stale .progress-fill {
+		background: var(--line-bright);
+	}
+
+	.times {
+		color: var(--text-muted);
 	}
 
 	/* The report reads as four labelled numbers in a row, the number first. */

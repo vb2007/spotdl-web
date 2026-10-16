@@ -45,6 +45,7 @@
 
 	async function onSubmit(event: SubmitEvent) {
 		event.preventDefault();
+		daysError = '';
 		if (!neverArchive) {
 			daysError =
 				typeof days !== 'number' || !Number.isInteger(days) || days < 1

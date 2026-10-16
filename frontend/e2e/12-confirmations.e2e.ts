@@ -75,6 +75,12 @@ async function confirmPerforms(page: Page, g: Guarded): Promise<void> {
 		.click();
 	expect((await response).ok(), `${g.title}: confirming performed it`).toBe(true);
 	await expect(page.getByRole('alertdialog')).toHaveCount(0);
+	// The action may remove or disable its own trigger; focus must land somewhere, not <body>.
+	await expect
+		.poll(() => page.evaluate(() => document.activeElement?.tagName ?? 'none'), {
+			message: `${g.title}: focus after confirming`
+		})
+		.not.toMatch(/^(BODY|none)$/);
 }
 
 test('clear log asks first', async ({ page, baseURL }) => {

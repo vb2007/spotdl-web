@@ -1,3 +1,4 @@
+import { tick } from 'svelte';
 import { writable } from 'svelte/store';
 
 /** v43 (F08): what a destructive action asks before it runs. Named action on both the
@@ -32,4 +33,14 @@ export function confirmAction(request: ConfirmRequest): Promise<boolean> {
 			return { ...request, resolve };
 		});
 	});
+}
+
+/** v43: after a confirmed action re-renders, put focus somewhere sensible when the action
+ * removed (or disabled) what had it: a cancelled job's cancel button, a swapped pause/resume
+ * button, a removed proxy row. Only when focus has actually fallen to `<body>`; focus the
+ * user moved elsewhere in the meantime is left alone. */
+export async function keepFocus(fallback: HTMLElement | null | undefined): Promise<void> {
+	await tick();
+	const active = document.activeElement;
+	if ((active === null || active === document.body) && fallback?.isConnected) fallback.focus();
 }

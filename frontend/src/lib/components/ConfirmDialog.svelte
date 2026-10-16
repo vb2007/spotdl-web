@@ -10,13 +10,26 @@
 	let dialog: HTMLDialogElement | undefined = $state();
 	let keepButton: HTMLButtonElement | undefined = $state();
 	let trigger: HTMLElement | null = null;
+	// Safari doesn't focus a button on click, so activeElement can't name a pointer trigger;
+	// the last pressed control (recorded in the capture phase, before its own handler asks)
+	// stands in for it.
+	let lastPressed: HTMLElement | null = null;
+	$effect(() => {
+		const record = (event: MouseEvent) => {
+			lastPressed =
+				event.target instanceof Element ? event.target.closest<HTMLElement>('button, a') : null;
+		};
+		document.addEventListener('click', record, true);
+		return () => document.removeEventListener('click', record, true);
+	});
 
 	const request = $derived($pendingConfirm);
 
 	$effect(() => {
 		if (!request || !dialog || !keepButton) return;
 		if (!dialog.open) {
-			trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+			const active = document.activeElement;
+			trigger = active instanceof HTMLElement && active !== document.body ? active : lastPressed;
 			dialog.showModal();
 		}
 		// Also on a request that replaced an open one: the safe choice is always first.

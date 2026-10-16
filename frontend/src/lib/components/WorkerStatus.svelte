@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import * as api from '$lib/api';
 	import { worker } from '$lib/stores/worker';
-	import { confirmAction } from '$lib/stores/confirm';
+	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
 
 	// The admin's worker controls on /settings (v25). Rendered for the admin only (v43,
@@ -14,6 +14,10 @@
 
 	let busy = $state(false);
 	let error = $state('');
+	let note = $state('');
+	// The pause/resume button. Its branch swaps on every toggle, and the hold row (with
+	// "release now") goes when the hold does, so focus is put back here afterwards.
+	let toggleButton: HTMLButtonElement | undefined = $state();
 	let now = $state(Date.now());
 
 	const POLL_MS = 5000;
@@ -47,6 +51,7 @@
 	async function run(action: () => Promise<void>) {
 		busy = true;
 		error = '';
+		note = '';
 		try {
 			await action();
 		} catch (err) {
@@ -54,6 +59,7 @@
 		} finally {
 			busy = false;
 		}
+		await keepFocus(toggleButton);
 	}
 
 	// v43 (A4): pausing stops every user's downloads until someone resumes, so it asks.
@@ -66,7 +72,8 @@
 			confirmLabel: 'pause downloads',
 			cancelLabel: 'keep running'
 		});
-		if (confirmed) await run(() => worker.pause());
+		// Paused meanwhile (another tab): nothing left to do.
+		if (confirmed && !paused) await run(() => worker.pause());
 	}
 
 	async function handleResume() {
@@ -80,13 +87,25 @@
 		const confirmed = await confirmAction({
 			title: 'Release the hold now?',
 			body:
-				'Downloads resume at once, while YouTube may still be rate-limiting this server, ' +
-				'which is what the hold protects against.' +
+				(paused
+					? 'The hold ends now. Downloads stay paused until you resume them, and then start ' +
+						'while YouTube may still be rate-limiting this server.'
+					: 'Downloads resume at once, while YouTube may still be rate-limiting this server, ' +
+						'which is what the hold protects against.') +
 				(until ? ` It clears on its own at ${clockTime(until)}.` : ''),
 			confirmLabel: 'release now',
 			cancelLabel: 'keep holding'
 		});
-		if (confirmed) await run(() => worker.release());
+		if (!confirmed) return;
+		// The question can outlive the hold. Releasing then would only reset the failure streak
+		// a fresh run of rate limits is building, delaying the next hold.
+		now = Date.now();
+		if (!holdUntil) {
+			note = 'The hold had already ended; nothing was released.';
+			await keepFocus(toggleButton);
+			return;
+		}
+		await run(() => worker.release());
 	}
 
 	onMount(() => {
@@ -120,12 +139,20 @@
 				{/if}
 			</div>
 			{#if paused}
-				<button type="button" class="btn" disabled={busy} onclick={handleResume}
-					>resume downloads</button
+				<button
+					bind:this={toggleButton}
+					type="button"
+					class="btn"
+					disabled={busy}
+					onclick={handleResume}>resume downloads</button
 				>
 			{:else}
-				<button type="button" class="btn" disabled={busy} onclick={handlePause}
-					>pause downloads</button
+				<button
+					bind:this={toggleButton}
+					type="button"
+					class="btn"
+					disabled={busy}
+					onclick={handlePause}>pause downloads</button
 				>
 			{/if}
 		</div>
@@ -155,6 +182,7 @@
 		{/if}
 	{/if}
 
+	<p class="note" role="status">{note}</p>
 	<p class="form-error" role="alert">{error}</p>
 </div>
 
