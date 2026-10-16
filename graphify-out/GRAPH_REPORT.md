@@ -1,16 +1,16 @@
 # Graph Report - spotdl-web  (2026-10-16)
 
 ## Corpus Check
-- 261 files · ~304,531 words
+- 262 files · ~312,374 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2653 nodes · 4370 edges · 251 communities (190 shown, 61 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 449 edges (avg confidence: 0.76)
+- 2694 nodes · 4463 edges · 248 communities (188 shown, 60 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 450 edges (avg confidence: 0.76)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `04c62e81`
+- Built from commit: `9af38911`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -232,12 +232,9 @@
 - [[_COMMUNITY_spotdl-web — Accumulated Gotchas (master v1, v01–v13)|spotdl-web — Accumulated Gotchas (master v1, v01–v13)]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_Proxy|Proxy]]
-- [[_COMMUNITY__event_stream|_event_stream]]
 - [[_COMMUNITY__ensure_spotify_client|_ensure_spotify_client]]
 - [[_COMMUNITY_Amendments|Amendments]]
-- [[_COMMUNITY__fetch_username|_fetch_username]]
 - [[_COMMUNITY_Architecture|Architecture]]
-- [[_COMMUNITY_06-admin-pages.e2e.ts|06-admin-pages.e2e.ts]]
 - [[_COMMUNITY_expand_job|expand_job]]
 - [[_COMMUNITY_spawn_watchdog|spawn_watchdog]]
 
@@ -247,8 +244,8 @@
 3. `User` - 64 edges
 4. `Job` - 58 edges
 5. `Version log` - 51 edges
-6. `_make_track()` - 43 edges
-7. `$lib/stores/queue` - 42 edges
+6. `$lib/stores/queue` - 46 edges
+7. `_make_track()` - 43 edges
 8. `_patch_common()` - 40 edges
 9. `request()` - 38 edges
 10. `DownloadedTrack` - 36 edges
@@ -272,15 +269,15 @@
 - **CI PR-checks pipeline (pytest, publish-report, compose-config, frontend)** — github_workflows_ci_pytest_job, github_workflows_ci_publish_report_job, github_workflows_ci_compose_config_job, github_workflows_ci_frontend_job [EXTRACTED 1.00]
 - **Docker Compose layered configuration (base/override/prod)** — docker_compose_doc, docker_compose_override_doc, docker_compose_prod_doc [EXTRACTED 1.00]
 
-## Communities (251 total, 61 thin omitted)
+## Communities (248 total, 60 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
 Cohesion: 0.05
 Nodes (112): One row per individual song discovered while expanding a job — the unit the retr, Track, Single-row table backing the global circuit breaker., WorkerState, _assert_proxy_transport_failure(), _attempts(), _aware(), _capture_events() (+104 more)
 
 ### Community 1 - "Config & Health Check"
-Cohesion: 0.07
-Nodes (72): Window, checkAttemptHistory(), search(), CANCEL_TRACKS, confirmPerforms(), expectCancelDoesNothing(), Guarded, clearSlate() (+64 more)
+Cohesion: 0.05
+Nodes (101): Window, checkAttemptHistory(), ADMIN_GETS, search(), CANCEL_TRACKS, confirmPerforms(), expectCancelDoesNothing(), Guarded (+93 more)
 
 ### Community 2 - "record_attempt"
 Cohesion: 0.08
@@ -299,8 +296,8 @@ Cohesion: 0.05
 Nodes (42): 1. World and thesis, 2. Palette, 3. Type system, 4. Spacing scale, 5. Motion, 6. Component patterns, 7. Accessibility (confirmed hard requirement, PRODUCT.md), 8. Known, accepted gaps (do not silently "fix" without re-reading this section first) (+34 more)
 
 ### Community 6 - "Frontend API Client"
-Cohesion: 0.05
-Nodes (69): $lib/api, API_BASE, archiveJobs(), buildQuery(), bumpJob(), cancelJob(), cancelTrack(), checkTrackFile() (+61 more)
+Cohesion: 0.04
+Nodes (70): $lib/api, API_BASE, ApiError, archiveJobs(), buildQuery(), bumpJob(), cancelJob(), cancelTrack() (+62 more)
 
 ### Community 7 - "_FakePubSub"
 Cohesion: 0.06
@@ -319,12 +316,12 @@ Cohesion: 0.09
 Nodes (31): active_count_expr(), aggregate_jobs(), derive_job_title(), derive_rollup(), job_title(), job_title_expr(), lifecycle_case(), matches_status_filter() (+23 more)
 
 ### Community 11 - "Dedup Ledger & Reconciliation"
-Cohesion: 0.14
-Nodes (23): apply_cursor(), cursor_for_row(), decode_cursor(), _decode_value(), encode_cursor(), _encode_value(), _non_nullable_where(), order_by_clauses() (+15 more)
+Cohesion: 0.22
+Nodes (16): _sort_key(), apply_cursor(), cursor_for_row(), decode_cursor(), _decode_value(), encode_cursor(), _encode_value(), InvalidCursor (+8 more)
 
 ### Community 13 - "Queue UI Components"
 Cohesion: 0.09
-Nodes (20): Track, TrackJobSummary, TrackState, $lib/components/JobRow.svelte, $lib/components/QueueControls.svelte, $lib/components/TrackRow.svelte, $lib/stores/queue, DEFAULT_FILTERS (+12 more)
+Nodes (26): Track, TrackJobSummary, TrackState, $lib/stores/progressCache, Cache, clearProgress(), Entry, forgetProgress() (+18 more)
 
 ### Community 14 - "Track Router Tests"
 Cohesion: 0.04
@@ -339,12 +336,12 @@ Cohesion: 0.08
 Nodes (39): _chained(), _FakeDownloader, _FakeProgressHandler, _FakeSettings, _FakeTracker, v40.1, production's exact failure: ytmusicapi couldn't reach music.youtube.com, A dead proxy says nothing about the video, even if some other text on the chain, Mirrors spotdl's real search_and_download: any exception inside it is handed to (+31 more)
 
 ### Community 19 - "TypeScript Config"
-Cohesion: 0.16
-Nodes (28): archive_jobs(), ArchiveJobsRequest, bump_job(), cancel_job(), _classify_source_type(), create_job(), CreateJobRequest, get_job() (+20 more)
+Cohesion: 0.15
+Nodes (27): archive_jobs(), ArchiveJobsRequest, bump_job(), cancel_job(), _classify_source_type(), create_job(), CreateJobRequest, get_job() (+19 more)
 
 ### Community 20 - "Alembic Env & JSON Logging"
-Cohesion: 0.21
-Nodes (24): _capture_progress(), _configure(), _make_ledger_row(), _NonClosingSession, _owner(), Same wrapper test_download_task.py uses -- db.close() inside the task must not, Two different spotify_track_ids whose folder+filename resolve identically in the, The plan's own Done-when checklist calls this out as its own scenario ('includin (+16 more)
+Cohesion: 0.09
+Nodes (33): _capture_progress(), _configure(), _make_ledger_row(), _NonClosingSession, _owner(), Same wrapper test_download_task.py uses -- db.close() inside the task must not, Two different spotify_track_ids whose folder+filename resolve identically in the, The plan's own Done-when checklist calls this out as its own scenario ('includin (+25 more)
 
 ### Community 22 - "Settings Router Tests"
 Cohesion: 0.17
@@ -415,12 +412,12 @@ Cohesion: 0.25
 Nodes (17): count_queries(), Counts SQL statements executed inside a `with` block, for asserting a query coun, _add_track(), _make_job(), v18's `GET /api/tracks` and `GET /api/jobs/{id}/tracks` -- composed filters, que, v20 needs a real display name for the job a matching track belongs to (the     T, v35 (g): one grouped aggregate over the same filtered set, before `state=`., test_job_status_filter_on_tracks_endpoint_matches_parent_job_rollup() (+9 more)
 
 ### Community 44 - "Proxy Selection & Coexistence"
-Cohesion: 0.18
-Nodes (12): $lib/components/AdminOnlyNotice.svelte, $lib/components/AmbientField.svelte, $lib/components/ConfirmDialog.svelte, $lib/components/SubpageHeader.svelte, $lib/stores/confirm, ConfirmRequest, Pending, pendingConfirm (+4 more)
+Cohesion: 0.16
+Nodes (13): $lib/components/AdminOnlyNotice.svelte, $lib/components/AmbientField.svelte, $lib/components/ConfirmDialog.svelte, $lib/components/SubpageHeader.svelte, $lib/stores/confirm, ConfirmRequest, dismissConfirm(), Pending (+5 more)
 
 ### Community 45 - "spawn_watchdog"
-Cohesion: 0.10
-Nodes (17): Row created on first successful login (v17). The `ALLOWED_EMAILS` env allowlist, User, get_output_options(), v36's plan: a non-admin gets 404 on the test-alert endpoint, so its existence is, Sends one message straight to the room and reports whether it arrived, bypassing, The real, live set of format/bitrate values the installed spotdl accepts --, _require_admin_hidden(), send_test_alert() (+9 more)
+Cohesion: 0.15
+Nodes (10): $lib/components/JobRow.svelte, badgeSaysTrack, showArchive, showInFlight, titleIsUrl, $lib/components/QueueControls.svelte, $lib/components/TrackRow.svelte, clearRowNotices() (+2 more)
 
 ### Community 46 - "Postgres Backup Script"
 Cohesion: 0.14
@@ -479,8 +476,8 @@ Cohesion: 0.14
 Nodes (13): (a) Attempt counting and numbering, (b) Attempt detail in the API, (c) Redelivery must not rewrite a completed track, (d) Warning vs failure on attempt messages, Deploy notes, Done when, (e) Streamed file download, (f) Image `.pyc` hygiene (+5 more)
 
 ### Community 64 - "+page.svelte"
-Cohesion: 0.08
-Nodes (23): $lib/components/Countdown.svelte, $lib/components/Waterfall.svelte, $lib/components/WorkerStatusPill.svelte, announcement, paused, $lib/stores/link, link, LinkState (+15 more)
+Cohesion: 0.07
+Nodes (24): workerStatus, $lib/components/Countdown.svelte, $lib/components/Waterfall.svelte, $lib/components/WorkerStatusPill.svelte, announcement, paused, $lib/stores/link, link (+16 more)
 
 ### Community 65 - "Deploy Hardening Version Doc"
 Cohesion: 0.37
@@ -543,8 +540,8 @@ Cohesion: 0.18
 Nodes (10): Done when, `jobs` (modified), Scope, `sessions` (modified), Tables, Tasks, `tracks` (unchanged), `user_settings` (new) (+2 more)
 
 ### Community 82 - "alerts.py"
-Cohesion: 0.20
-Nodes (10): workerStatus, $lib/components/WorkerStatus.svelte, announcement, clockTime(), handlePause(), handleRelease(), paused, confirmAction() (+2 more)
+Cohesion: 0.16
+Nodes (13): $lib/components/WorkerStatus.svelte, announcement, clockTime(), handlePause(), handleRelease(), paused, readError, stateChanged (+5 more)
 
 ### Community 83 - "alerts.py"
 Cohesion: 0.33
@@ -587,8 +584,8 @@ Cohesion: 0.42
 Nodes (8): _get_or_create_run(), LibrarySortRun, Session, Progress while running, the last finished sweep's report once it's IDLE again --, Admin-only, on-demand -- one sweep at a time (409 if one is already running)., _run_to_dict(), sort_status(), start_sort()
 
 ### Community 130 - "stream"
-Cohesion: 0.20
-Nodes (20): _alert_settings_to_dict(), get_alert_settings(), get_library_settings(), get_output_settings(), get_retention_settings(), _library_settings_to_dict(), _output_settings_to_dict(), Session (+12 more)
+Cohesion: 0.15
+Nodes (28): Row created on first successful login (v17). The `ALLOWED_EMAILS` env allowlist, User, _alert_settings_to_dict(), get_alert_settings(), get_library_settings(), get_output_options(), get_output_settings(), get_retention_settings() (+20 more)
 
 ### Community 131 - "Base"
 Cohesion: 0.36
@@ -615,8 +612,8 @@ Cohesion: 0.36
 Nodes (6): Per-user preferences, get-or-create on first read -- same singleton-row pattern, UserSettings, get_user_settings(), Session, Per-user retention setting (v19) -- get-or-create singleton row per user, the sa, update_retention()
 
 ### Community 137 - "_ensure_spotify_client"
-Cohesion: 0.36
-Nodes (7): InvalidListParams, list_jobs(), JobSourceType, Session, Paginated/filtered/sorted/searchable job listing (v18) -- `GET /api/jobs` (scope, _sort_key(), _sort_value()
+Cohesion: 0.15
+Nodes (15): InvalidListParams, list_jobs(), JobSourceType, Session, Paginated/filtered/sorted/searchable job listing (v18) -- `GET /api/jobs` (scope, _sort_value(), InvalidListParams, list_tracks() (+7 more)
 
 ### Community 139 - "test_rollup.py"
 Cohesion: 0.39
@@ -835,8 +832,8 @@ Cohesion: 0.25
 Nodes (8): 1. Install PostgreSQL (host-native — not a container), 2. Create the role and database, 3. Let Docker containers reach Postgres, 4. Install Docker + the Compose plugin, 5. Clone the repo, 6. Configure `.env`, 7. Bring up the stack, One-time host setup (already done on this host — kept for reference)
 
 ### Community 195 - "$lib/components/IncomingJobs.svelte"
-Cohesion: 0.17
-Nodes (12): $lib/components/IncomingJobs.svelte, dismissButtons(), failed, handleCancel(), handleRetry(), keepFocus(), lostNotice, newestFailed (+4 more)
+Cohesion: 0.16
+Nodes (14): $lib/components/IncomingJobs.svelte, confirmCancelTuning(), confirmCancelTuningFlow(), dismissButtons(), failed, handleCancel(), handleRetry(), keepFocus() (+6 more)
 
 ### Community 196 - "v41 — Dashboard Redesign"
 Cohesion: 0.40
@@ -882,6 +879,10 @@ Nodes (4): Design — nginx X-Accel-Redirect, Done when, Scope, v27 — Direct F
 Cohesion: 0.40
 Nodes (4): 3.1 `/`, group A: header, submit bar, IncomingJobs, Waterfall (`shots/01, 12, 14, 40, 41`), 3.2 `/`, group B: QueueControls, jobs list, tracks list (`shots/01, 08, 09, 40, 41`), 3.3 `/`, group C: expanded job and the five track-detail states, 3.4 `/`, group D: empty, loading, error, offline (`shots/09–14`)
 
+### Community 216 - "ApiError"
+Cohesion: 0.60
+Nodes (4): _event_stream(), Request, stream(), StreamingResponse
+
 ### Community 239 - "Upgrading an existing deployment (manual fallback)"
 Cohesion: 0.29
 Nodes (7): 1. Pull the merged code, 2. Update `.env`, 3. Migrate the downloads directory (one-time, before first boot with the new bind mount), 4. Bring up the stack with the production overlay, 5. Configure the Cloudflare Tunnel (Zero Trust dashboard), 6. Verify, Upgrading an existing deployment (manual fallback)
@@ -895,12 +896,8 @@ Cohesion: 0.29
 Nodes (6): Deploy notes, Done when, Out of scope, Scope, Tasks, v40.1 — Breaker Wedge Fix (hard failures end by themselves)
 
 ### Community 242 - "Proxy"
-Cohesion: 0.14
-Nodes (14): check_not_production_database(), get_settings(), get_settings() runs at import in every backend process (db.py, main.py,, Refuses a dev-marked process pointed at the production database. Fails closed: i, health(), Response, _event_stream(), Request (+6 more)
-
-### Community 243 - "_event_stream"
-Cohesion: 0.40
-Nodes (10): $lib/stores/progressCache, Cache, clearProgress(), Entry, forgetProgress(), read(), recallProgress(), rememberProgress() (+2 more)
+Cohesion: 0.12
+Nodes (15): check_not_production_database(), get_settings(), get_settings() runs at import in every backend process (db.py, main.py,, Refuses a dev-marked process pointed at the production database. Fails closed: i, health(), Response, _fetch_username(), login() (+7 more)
 
 ### Community 244 - "_ensure_spotify_client"
 Cohesion: 0.33
@@ -910,17 +907,9 @@ Nodes (6): _ensure_spotify_client(), expand(), Song, Thin wrapper around spotdl'
 Cohesion: 0.40
 Nodes (5): 2026-08-09 — CLAUDE.md split into rules vs. reference (folded into v14), 2026-08-09 — v15 complete; two v14 findings confirmed already scheduled, one new finding added, 2026-08-09 — v16 complete; NOT NULL applied literally, login/job creation left broken for v17, 2026-08-13 — v22 complete; the v13-precedent closing pass performed, master v2 done, Amendments
 
-### Community 246 - "_fetch_username"
-Cohesion: 0.40
-Nodes (5): _fetch_username(), login(), Response, Check credentials against vb2007.hu-api, and best-effort fetch the username via, `isAuthenticated`'s `GET /user` reads the `VB-AUTH` cookie itself -- extracted
-
 ### Community 247 - "Architecture"
 Cohesion: 0.50
 Nodes (4): Architecture, Invariants — break these and things fail silently, Master v2 invariants, Master v3 invariants
-
-### Community 248 - "06-admin-pages.e2e.ts"
-Cohesion: 0.33
-Nodes (5): ADMIN_GETS, AlertSettings, LibrarySettings, OutputSettings, Proxy
 
 ### Community 249 - "expand_job"
 Cohesion: 0.50
@@ -935,21 +924,21 @@ Nodes (3): Starts app/services/alert_watchdog.py as a child of the calling proce
   frontend/src/lib/assets/favicon.svg · relation: semantically_similar_to
 
 ## Knowledge Gaps
-- **716 isolated node(s):** `wait_for_stack_health.sh script`, `spotdl-web-backend`, `Window`, `ADMIN_GETS`, `CANCEL_TRACKS` (+711 more)
+- **731 isolated node(s):** `wait_for_stack_health.sh script`, `spotdl-web-backend`, `Window`, `ADMIN_GETS`, `CANCEL_TRACKS` (+726 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **61 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **60 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `favicon.svg (Svelte default logo)` and `Instrument-panel THESIS (Operate mode)`?**
   _Edge tagged AMBIGUOUS (relation: semantically_similar_to) - confidence is low._
-- **Why does `Track` connect `Session Auth Routes` to `track_song_meta`, `test_job_listing.py`, `Proxy Service Tests`, `SSE Event Publishing`, `Dedup Ledger & Reconciliation`, `TypeScript Config`, `Alembic Env & JSON Logging`, `test_pagination.py`, `proxies.py`, `Master Plan Decisions`, `Spotify Client Tests`, `Auth Router Tests`, `Queue Store Actions`, `Stream Router Tests`, `Upgrading an existing deployment (manual fallback)`, `JUnit Report Script`, `Downloader Version Doc`, `Deploy Hardening Version Doc`, `download_track`, `v08 — Live Progress (SSE)`, `library.py`, `archive_jobs`, `expand_job`, `test_app_settings.py`?**
-  _High betweenness centrality (0.105) - this node is a cross-community bridge._
+- **Why does `Track` connect `Session Auth Routes` to `track_song_meta`, `test_job_listing.py`, `_ensure_spotify_client`, `SSE Event Publishing`, `Proxy Service Tests`, `TypeScript Config`, `Alembic Env & JSON Logging`, `test_pagination.py`, `proxies.py`, `Master Plan Decisions`, `Spotify Client Tests`, `Auth Router Tests`, `Queue Store Actions`, `Stream Router Tests`, `Upgrading an existing deployment (manual fallback)`, `JUnit Report Script`, `Downloader Version Doc`, `Deploy Hardening Version Doc`, `download_track`, `v08 — Live Progress (SSE)`, `library.py`, `archive_jobs`, `expand_job`, `test_app_settings.py`?**
+  _High betweenness centrality (0.108) - this node is a cross-community bridge._
 - **Why does `../app.css` connect `Backend Package Init` to `Proxy Selection & Coexistence`?**
-  _High betweenness centrality (0.086) - this node is a cross-community bridge._
-- **Why does `$lib/api` connect `Frontend API Client` to `+page.svelte`, `Config & Health Check`, `$lib/components/IncomingJobs.svelte`, `Proxy Selection & Coexistence`, `Queue UI Components`, `_event_stream`, `alerts.py`, `06-admin-pages.e2e.ts`, `ApiError`?**
-  _High betweenness centrality (0.065) - this node is a cross-community bridge._
+  _High betweenness centrality (0.088) - this node is a cross-community bridge._
+- **Why does `$lib/api` connect `Frontend API Client` to `+page.svelte`, `Config & Health Check`, `$lib/components/IncomingJobs.svelte`, `Proxy Selection & Coexistence`, `Queue UI Components`, `spawn_watchdog`, `_event_stream`, `alerts.py`?**
+  _High betweenness centrality (0.075) - this node is a cross-community bridge._
 - **Are the 101 inferred relationships involving `Track` (e.g. with `Base` and `cancel_job()`) actually correct?**
   _`Track` has 101 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 6 inferred relationships involving `User` (e.g. with `Base` and `list_jobs()`) actually correct?**

@@ -242,12 +242,9 @@
   "240": "spotdl-web — Accumulated Gotchas (master v1, v01–v13)",
   "241": "Session",
   "242": "Proxy",
-  "243": "_event_stream",
   "244": "_ensure_spotify_client",
   "245": "Amendments",
-  "246": "_fetch_username",
   "247": "Architecture",
-  "248": "06-admin-pages.e2e.ts",
   "249": "expand_job",
   "250": "spawn_watchdog"
 }
