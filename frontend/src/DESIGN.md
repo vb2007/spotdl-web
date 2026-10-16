@@ -243,7 +243,9 @@ script-driven animation needs the same check. It must also stop when settled and
 ### `.panel` — the raised faceplate (v42; was "the recessed instrument housing")
 
 The one shared surface convention (`bg-1`, `1px solid var(--line)`, `border-radius: 6px`, plus a
-compound `box-shadow`: inset top shadow + inset bottom highlight hairline + outer drop shadow).
+compound `box-shadow`: inset top shadow + inset bottom highlight hairline + outer drop shadow). _(Corrected 2026-10-15, v42: the
+shadow is now an inset top bevel highlight, a 1px dark lower edge and an offset drop shadow; see the
+"Decided" note below.)_
 Every panel-like surface in the tree (login form, submit bar, waterfall, spectrum log) uses this
 class rather than a locally redeclared surface style.
 

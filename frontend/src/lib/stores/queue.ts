@@ -376,7 +376,7 @@ function createQueueStore() {
 	/** Shows the loading state until the stream's first `onopen` resync lands -- for a
 	 * fresh mount, which no longer fetches eagerly (see `reload`). */
 	function beginResync(): void {
-		page.update((p) => ({ ...p, loading: true, error: '' }));
+		page.update((p) => ({ ...p, loading: true, error: '', moreError: '' }));
 	}
 
 	/** v34: one bulk request per overlay, issued in parallel -- never a per-row loop. Both

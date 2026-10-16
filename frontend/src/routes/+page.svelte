@@ -73,11 +73,14 @@
 	// The last page removes this button while it has focus: continue at the first row it
 	// loaded (where the user was reading), else the queue's heading.
 	async function loadMorePage() {
-		const before = document.querySelectorAll('.job-list > li').length;
+		// A row is a job in jobs scope, a track in tracks scope (a new page's tracks can join
+		// an existing job group, so groups can't be counted).
+		const rowSelector = $filters.scope === 'jobs' ? '.job-list > li' : '.job-list .rows > li';
+		const before = document.querySelectorAll(rowSelector).length;
 		await queue.loadMore();
 		await tick();
 		if (document.activeElement !== document.body) return;
-		const first = document.querySelectorAll('.job-list > li')[before];
+		const first = document.querySelectorAll(rowSelector)[before];
 		const target =
 			first?.querySelector<HTMLElement>('button') ?? document.getElementById('queue-heading');
 		target?.focus();
@@ -361,7 +364,7 @@
 						<button type="button" class="state-action mono" onclick={clearSearchAndFilters}
 							>clear search and filters</button
 						>
-					{:else if $incomingJobs.some((j) => j.state === 'expanding')}
+					{:else if $incomingJobs.some((j) => j.state === 'expanding' && j.owner_email === data.session?.email)}
 						<h3 class="state-title">Your link is being read</h3>
 						<p class="state-text">
 							Its tracks appear here once Spotify has listed them, and each one downloads in the
