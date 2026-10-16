@@ -343,7 +343,11 @@
 		font-weight: 500;
 	}
 
+	/* The link's tail (the id) is what tells two untitled jobs apart: it wraps rather than
+	   ellipsizing behind a tooltip touch and keyboard can't reach. */
 	.title.address {
+		white-space: normal;
+		overflow-wrap: anywhere;
 		font-family: var(--font-mono);
 		font-size: var(--fs-meta);
 		font-weight: var(--fw-regular);

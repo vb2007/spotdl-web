@@ -69,21 +69,22 @@
 		controls?.clearSearchAndFilters();
 	}
 
-	// The last page removes this button while it has focus; keep focus on the queue.
 	// The last page removes this button while it has focus: continue at the first row it
-	// loaded (where the user was reading), else the queue's heading.
-	async function loadMorePage() {
-		// A row is a job in jobs scope, a track in tracks scope (a new page's tracks can join
-		// an existing job group, so groups can't be counted).
-		const rowSelector = $filters.scope === 'jobs' ? '.job-list > li' : '.job-list .rows > li';
-		const before = document.querySelectorAll(rowSelector).length;
+	// loaded (where the user was reading), else the queue's heading. Rows are found by item
+	// id, not DOM position: in tracks scope a new page's tracks can join an earlier group.
+	async function loadMorePage(event: MouseEvent) {
+		const hadFocus = document.activeElement === event.currentTarget;
+		const known = new Set($page.items.map((item) => item.id));
 		await queue.loadMore();
 		await tick();
-		if (document.activeElement !== document.body) return;
-		const first = document.querySelectorAll(rowSelector)[before];
-		const target =
-			first?.querySelector<HTMLElement>('button') ?? document.getElementById('queue-heading');
-		target?.focus();
+		if (!hadFocus || document.activeElement !== document.body) return;
+		const fresh = $page.items.find((item) => !known.has(item.id));
+		const row = !fresh
+			? null
+			: $filters.scope === 'jobs'
+				? document.getElementById(`job-title-${fresh.id}`)?.closest('li')?.querySelector('button')
+				: document.querySelector<HTMLElement>(`[aria-controls="track-detail-${fresh.id}"]`);
+		(row ?? document.getElementById('queue-heading'))?.focus();
 	}
 
 	function retryQueue() {

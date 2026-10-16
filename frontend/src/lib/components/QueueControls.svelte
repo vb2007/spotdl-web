@@ -52,7 +52,12 @@
 	function onSearchInput(value: string) {
 		searchInput = value;
 		clearTimeout(searchTimer);
-		searchTimer = setTimeout(() => queue.setFilters({ q: searchInput }), 300);
+		// Dropped if the store was reset meanwhile (a logout, or a session expiry that resets
+		// before this page unmounts): it belongs to the previous identity.
+		const session = queue.getResetCount();
+		searchTimer = setTimeout(() => {
+			if (queue.getResetCount() === session) queue.setFilters({ q: searchInput });
+		}, 300);
 	}
 
 	function setScope(scope: Scope) {

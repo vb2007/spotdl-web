@@ -638,6 +638,13 @@ function createQueueStore() {
 		page.set({ ...EMPTY_PAGE, loading: true });
 	}
 
+	/** v42: bumps on every reset() (logout or session expiry), so a caller's pending
+	 * deferred write (QueueControls' search debounce) can tell its session is gone. */
+	let resetCount = 0;
+	function getResetCount(): number {
+		return resetCount;
+	}
+
 	function getAllUsers(): boolean {
 		return allUsers;
 	}
@@ -651,6 +658,7 @@ function createQueueStore() {
 	 * mounted dashboard renders A's rows. Call this on logout, before the next identity's
 	 * session can start writing to these stores. */
 	function reset(): void {
+		resetCount++;
 		clearTimeout(trackCountsTimer);
 		pageFetchSeq++;
 		liveHydrateSeq++;
@@ -1364,6 +1372,7 @@ function createQueueStore() {
 		loadMore,
 		setAllUsers,
 		getAllUsers,
+		getResetCount,
 		reset,
 		toggleExpand,
 		isExpanded,
