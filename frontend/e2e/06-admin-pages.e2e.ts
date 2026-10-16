@@ -1,6 +1,12 @@
 import { expect, request, test } from '@playwright/test';
 import type { AlertSettings, LibrarySettings, OutputSettings, Proxy } from '../src/lib/api';
-import { ADMIN_STATE, USER_STATE, removeTestProxy } from './support/stack';
+import {
+	ADMIN_STATE,
+	USER_STATE,
+	removeTestProxy,
+	restoreSettings,
+	stageSettings
+} from './support/stack';
 
 /** The read-only admin endpoints behind `/settings` and `/library`. */
 const ADMIN_GETS = [
@@ -21,6 +27,7 @@ test.describe('admin', () => {
 		const original = (await (
 			await page.request.get('/api/settings/output')
 		).json()) as OutputSettings;
+		stageSettings({ default_bitrate: original.default_bitrate });
 
 		try {
 			await page.goto('/settings');
@@ -55,6 +62,7 @@ test.describe('admin', () => {
 				data: { default_bitrate: original.default_bitrate }
 			});
 			expect.soft(restored.status(), 'restoring the original bitrate').toBe(200);
+			restoreSettings();
 			await admin.dispose();
 		}
 
@@ -81,6 +89,10 @@ test.describe('admin', () => {
 		const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
 		const library = (await (await admin.get('/api/settings/library')).json()) as LibrarySettings;
 		const alerts = (await (await admin.get('/api/settings/alerts')).json()) as AlertSettings;
+		stageSettings({
+			library_folder_template: library.library_folder_template,
+			alert_cooldown_minutes: alerts.alert_cooldown_minutes
+		});
 		let addedId: string | null = null;
 		try {
 			await page.goto('/settings');
@@ -155,6 +167,7 @@ test.describe('admin', () => {
 				data: { alert_cooldown_minutes: alerts.alert_cooldown_minutes }
 			});
 			expect.soft(restoredAlerts.status(), 'restoring the alert cooldown').toBe(200);
+			restoreSettings();
 			if (addedId) {
 				const removed = await admin.delete(`/api/proxies/${addedId}`);
 				// Never leave a TEST-NET proxy enabled in the shared pool.

@@ -95,7 +95,9 @@
 		if (!confirmed) return keepFocus(toggleButton);
 		// The poll is up to 5s old: re-read before deciding. Pausing twice is harmless, so a
 		// failed re-read just falls back to the last poll.
+		busy = true;
 		await worker.refresh().catch(() => {});
+		busy = false;
 		// Paused meanwhile (another tab): nothing left to do, and the button has swapped.
 		if (paused) {
 			note = 'Downloads were already paused.';
@@ -131,13 +133,16 @@
 		// a fresh run of rate limits is building, delaying the next hold. The poll is up to 5s
 		// old, so re-read first. The release endpoint checks nothing itself, so without a
 		// fresh reading nothing is released.
+		busy = true;
 		try {
 			await worker.refresh();
 		} catch (err) {
+			busy = false;
 			error = `Couldn't check the hold first (${err instanceof api.ApiError ? err.message : 'no connection'}); nothing was released.`;
 			await keepFocus(toggleButton);
 			return;
 		}
+		busy = false;
 		now = Date.now();
 		if (!holdUntil || holdUntil !== until) {
 			// Ended, or ended and a new hold began: the question was about the old one.

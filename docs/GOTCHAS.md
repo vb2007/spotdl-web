@@ -5062,5 +5062,6 @@ independently-found production bug from the same conversation)
   heading after a removal.
 - **Native `<dialog>` and Esc.** The `cancel` event is prevented and answered by the same path as
   the safe button, so Esc, the safe button, a backdrop click and a navigation can't diverge on
-  the answer or the focus return. The closed dialog's `close` event (fired after `close()`) finds
-  no pending question and does nothing.
+  the answer or the focus return. The `close` event an answer's own `close()` fires arrives a
+  task later, so it is skipped by a `closingByAnswer` flag: otherwise it could answer "no" to a
+  question asked in between.

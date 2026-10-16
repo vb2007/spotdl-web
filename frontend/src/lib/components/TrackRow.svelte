@@ -281,6 +281,7 @@
 	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
 	async function handleCancel() {
 		const session = queue.getResetCount();
+		const askedState = track.state;
 		const artists = track.artists?.join(', ');
 		const confirmed = await confirmAction({
 			title: 'Cancel this track?',
@@ -327,6 +328,8 @@
 			return keepFocus(landing());
 		}
 		const wasDownloading = current === 'downloading';
+		// The question was worded from this row's state; the server's may have moved on.
+		const askedDownloading = askedState === 'downloading';
 		const seenAttempts = attempts.length;
 		try {
 			await queue.cancelTrack(track.id, jobId);
@@ -335,6 +338,9 @@
 			// newest attempt is that cancel.
 			if (wasDownloading && !destroyed) {
 				awaitCancelledAttempt(seenAttempts, [3000, 5000, 7000, 15000, 30000]);
+			}
+			if (wasDownloading && !askedDownloading) {
+				showNotice('Cancelled. It had started downloading; that finishes but stays cancelled.');
 			}
 		} catch (err) {
 			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this track.');

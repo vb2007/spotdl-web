@@ -52,9 +52,13 @@
 			? ''
 			: running
 				? 'Sweep running.'
-				: run.finished_at === null || reportPending
+				: run.finished_at === null
 					? ''
-					: `Sweep finished: ${run.moved} moved, ${run.errors.length} error${run.errors.length === 1 ? '' : 's'}.`
+					: reportPending
+						? reportError
+							? "Sweep finished; its error list couldn't be read."
+							: ''
+						: `Sweep finished: ${run.moved} moved, ${run.errors.length} error${run.errors.length === 1 ? '' : 's'}.`
 	);
 	// Spoken only once the state changes from what the page opened on: a visit doesn't
 	// announce an old sweep's result.
@@ -247,7 +251,8 @@
 						{running ? 'sweeping…' : starting ? 'starting…' : 'start sweep'}
 					</button>
 				</header>
-				<p class="form-error" role="alert">{error}</p>
+				<!-- One alert line for the page: a start that failed, or a report that couldn't be read. -->
+				<p class="form-error" role="alert">{error || reportError}</p>
 
 				{#if run === null}
 					{#if loadError}
@@ -329,9 +334,6 @@
 						{/if}
 					</div>
 
-					{#if reportError}
-						<p class="form-error">{reportError}</p>
-					{/if}
 					{#if !running && !reportPending && errorRows.length > 0}
 						<div class="errors">
 							<h3 class="label">Not filed</h3>

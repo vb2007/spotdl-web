@@ -60,7 +60,10 @@
 			if (daysError) {
 				// Nothing is sent, so focus the field: its error is read out from there.
 				await tick();
-				document.getElementById('retention-days')?.focus();
+				const field = document.getElementById('retention-days');
+				// Already focused: leave and come back so its new error is read.
+				if (field === document.activeElement) field?.blur();
+				field?.focus();
 				return;
 			}
 		}
@@ -186,7 +189,7 @@
 								/>
 								<span class="unit mono" id="retention-days-unit">days without activity</span>
 							</div>
-							<p id="retention-days-error" class="field-error" role="alert">{daysError}</p>
+							<p id="retention-days-error" class="field-error">{daysError}</p>
 						</div>
 
 						<div class="save-row wide">

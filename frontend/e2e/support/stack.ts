@@ -147,6 +147,37 @@ print("; ".join(busy))
 	return out ? [out] : [];
 }
 
+/** v43: the app settings spec 6 changes, at their values before it changed them (the first
+ * record of a key wins), so its finally and, after a killed run, the next setup put them back:
+ * a drifted folder template would file every later dev sweep into the wrong folders. */
+const SETTINGS_STAGE_FILE = path.join(AUTH_DIR, 'settings-stage.json');
+
+export function stageSettings(original: Record<string, string | number>): void {
+	const current = existsSync(SETTINGS_STAGE_FILE)
+		? (JSON.parse(readFileSync(SETTINGS_STAGE_FILE, 'utf8')) as Record<string, string | number>)
+		: {};
+	writeFileSync(SETTINGS_STAGE_FILE, JSON.stringify({ ...original, ...current }));
+}
+
+/** Writes the recorded originals back straight into `app_settings`, then forgets them. */
+export function restoreSettings(): void {
+	if (!existsSync(SETTINGS_STAGE_FILE)) return;
+	stackPython(
+		`
+import json, sys
+from app.db import SessionLocal
+from app.models.app_settings import AppSettings
+db = SessionLocal()
+row = db.query(AppSettings).one()
+for key, value in json.loads(sys.argv[1]).items():
+    setattr(row, key, value)
+db.commit()
+`,
+		[readFileSync(SETTINGS_STAGE_FILE, 'utf8')]
+	);
+	rmSync(SETTINGS_STAGE_FILE);
+}
+
 const SWEEP_REPORT_FILE = path.join(AUTH_DIR, 'sweep-report.json');
 
 /** Saves the one library-sweep report row (JSON, or 'null') to disk, so a spec that runs a

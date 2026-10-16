@@ -31,7 +31,11 @@
 	async function focusInvalid(id: string | undefined) {
 		if (id === undefined) return;
 		await tick();
-		document.getElementById(id)?.focus();
+		const field = document.getElementById(id);
+		// Already focused (Enter pressed in it): focus() alone announces nothing, so leave and
+		// come back, and the field is read again with its new error.
+		if (field === document.activeElement) field?.blur();
+		field?.focus();
 	}
 
 	// A save disables the control that had focus (its button, or the field Enter was pressed
@@ -451,7 +455,7 @@
 			// not something to retry).
 			proxiesError =
 				err instanceof api.ApiError && err.status === 500
-					? `Couldn't remove ${proxy.url}. A proxy that downloads have used can't be deleted yet; switch it off instead.`
+					? `Couldn't remove ${proxy.url}. If downloads have used it, it can't be deleted yet (switch it off instead); otherwise try again.`
 					: errorText(err);
 		} finally {
 			const { [proxy.id]: _unused, ...rest } = proxyBusy;
@@ -597,7 +601,7 @@
 								<p id="output-template-hint" class="field-hint">
 									spotdl fills each <code>{'{placeholder}'}</code> per track.
 								</p>
-								<p id="output-template-error" class="field-error" role="alert">
+								<p id="output-template-error" class="field-error">
 									{outputTemplateError}
 								</p>
 							</div>
@@ -645,7 +649,7 @@
 										aria-invalid={libraryFieldErrors[field.key] ? 'true' : undefined}
 										aria-describedby="{field.key}-error"
 									/>
-									<p id="{field.key}-error" class="field-error" role="alert">
+									<p id="{field.key}-error" class="field-error">
 										{libraryFieldErrors[field.key] ?? ''}
 									</p>
 								</div>
@@ -689,7 +693,7 @@
 									aria-invalid={libraryFieldErrors.library_quarantine_dir ? 'true' : undefined}
 									aria-describedby="library_quarantine_dir-error"
 								/>
-								<p id="library_quarantine_dir-error" class="field-error" role="alert">
+								<p id="library_quarantine_dir-error" class="field-error">
 									{libraryFieldErrors.library_quarantine_dir ?? ''}
 								</p>
 							</div>
@@ -791,7 +795,7 @@
 												/>
 												<span class="unit mono" id="{field.key}-unit">{field.unit}</span>
 											</div>
-											<p id="{field.key}-error" class="field-error" role="alert">
+											<p id="{field.key}-error" class="field-error">
 												{alertFieldErrors[field.key] ?? ''}
 											</p>
 										</div>

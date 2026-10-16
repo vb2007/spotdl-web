@@ -83,7 +83,7 @@
 				required
 				bind:value={email}
 				disabled={submitting}
-				aria-describedby="login-error"
+				aria-invalid={errorMessage ? 'true' : undefined}
 			/>
 		</label>
 
@@ -98,7 +98,7 @@
 				required
 				bind:value={password}
 				disabled={submitting}
-				aria-describedby="login-error"
+				aria-invalid={errorMessage ? 'true' : undefined}
 			/>
 		</label>
 

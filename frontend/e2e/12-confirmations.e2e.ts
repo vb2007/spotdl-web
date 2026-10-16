@@ -237,14 +237,18 @@ test('job cancel and cancel track ask first', async ({ page, baseURL }, testInfo
 			15_000
 		);
 	} finally {
-		// Cancel what's left *before* resuming, so no held track is dispatched after this test.
-		for (const job of created) {
-			const current = (await (await admin.get(`/api/jobs/${job.id}`)).json()) as Job;
-			if (!['settled', 'failed', 'cancelled'].includes(current.status.lifecycle)) {
-				await admin.delete(`/api/jobs/${job.id}`);
+		try {
+			// Cancel what's left *before* resuming, so no held track is dispatched after this test.
+			for (const job of created) {
+				const current = (await (await admin.get(`/api/jobs/${job.id}`)).json()) as Job;
+				if (!['settled', 'failed', 'cancelled'].includes(current.status.lifecycle)) {
+					await admin.delete(`/api/jobs/${job.id}`);
+				}
 			}
+		} finally {
+			// The worker comes back even if a cleanup request above failed.
+			restoreWorker();
 		}
-		restoreWorker();
 		// Out of the default list, so a later run's rows of the same title are the only ones.
 		if (created.length > 0) {
 			await admin.post('/api/jobs/archive', { data: { job_ids: created.map((j) => j.id) } });
