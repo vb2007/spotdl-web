@@ -128,8 +128,8 @@
 			title: 'Cancel this submission?',
 			subject: job.source_url,
 			body:
-				'Its link is still being read; cancelling stops it, and none of its tracks are ' +
-				"downloaded. This can't be undone, but the link can be submitted again.",
+				'Its link is still being read. Cancelling stops it and cancels its tracks. This ' +
+				"can't be undone, but the link can be submitted again.",
 			confirmLabel: 'cancel submission',
 			cancelLabel: 'keep it'
 		});

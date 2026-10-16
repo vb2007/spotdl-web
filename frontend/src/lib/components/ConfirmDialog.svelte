@@ -71,9 +71,18 @@
 		answer(false);
 	}
 
+	// A press that started inside the box (selecting the subject's text, say) and was
+	// released over the backdrop also clicks the dialog itself: only a press that began on
+	// the backdrop counts.
+	let pressedBackdrop = false;
+	function onPointerDown(event: PointerEvent) {
+		pressedBackdrop = event.target === dialog;
+	}
+
 	function onBackdrop(event: MouseEvent) {
 		// The inner box fills the dialog, so only a click on the backdrop lands here.
-		if (event.target === dialog) answer(false);
+		if (event.target === dialog && pressedBackdrop) answer(false);
+		pressedBackdrop = false;
 	}
 
 	// A navigation (including the layout's redirect when the session ends) never carries a
@@ -89,6 +98,7 @@
 	aria-describedby={request?.subject ? 'confirm-subject confirm-body' : 'confirm-body'}
 	oncancel={onCancel}
 	onclose={onClose}
+	onpointerdown={onPointerDown}
 	onclick={onBackdrop}
 >
 	{#if request}

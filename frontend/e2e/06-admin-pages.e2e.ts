@@ -100,6 +100,8 @@ test.describe('admin', () => {
 			page.on('request', onRequest);
 			await al.getByRole('button', { name: 'save', exact: true }).click();
 			await expect(cooldown).toHaveAttribute('aria-invalid', 'true');
+			// Nothing was sent, so focus moves to the field and its error is read from there.
+			await expect(cooldown).toBeFocused();
 			await expect(al.getByText('Use a whole number from 1 to 10,080.')).toBeVisible();
 			page.off('request', onRequest);
 			expect(sentPatch, 'an invalid number never reaches the API').toEqual([]);

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import { confirmAction } from '$lib/stores/confirm';
@@ -24,6 +24,14 @@
 
 	function errorText(err: unknown, fallback = 'Could not reach the server.'): string {
 		return err instanceof api.ApiError ? err.message : fallback;
+	}
+
+	// A failed check sends nothing, so nothing else would tell a screen reader: focus moves to
+	// the first invalid field, whose error its aria-describedby then reads out.
+	async function focusInvalid(id: string | undefined) {
+		if (id === undefined) return;
+		await tick();
+		document.getElementById(id)?.focus();
 	}
 
 	function clockTime(date: Date): string {
@@ -73,7 +81,7 @@
 		outputTemplateError = outputForm.output_template.trim()
 			? ''
 			: 'Enter a filename template, for example {artists} - {title}.{output-ext}.';
-		if (outputTemplateError) return;
+		if (outputTemplateError) return focusInvalid('output-template');
 		outputSaving = true;
 		outputError = '';
 		try {
@@ -126,7 +134,7 @@
 			if (!libraryForm[key].trim()) errors[key] = `${label} can't be empty.`;
 		}
 		libraryFieldErrors = errors;
-		if (Object.keys(errors).length > 0) return;
+		if (Object.keys(errors).length > 0) return focusInvalid(Object.keys(errors)[0]);
 		librarySaving = true;
 		libraryError = '';
 		try {
@@ -264,7 +272,7 @@
 			}
 		}
 		alertFieldErrors = errors;
-		if (Object.keys(errors).length > 0) return;
+		if (Object.keys(errors).length > 0) return focusInvalid(Object.keys(errors)[0]);
 		alertSaving = true;
 		alertError = '';
 		try {
@@ -402,7 +410,13 @@
 			// The row (and the focused button) is gone: land on the list's own heading.
 			document.getElementById('proxies-heading')?.focus();
 		} catch (err) {
-			proxiesError = errorText(err);
+			// A manual proxy that some attempt has used can't be hard-deleted: the attempt
+			// history still references it and the backend answers 500 (a known backend limit,
+			// not something to retry).
+			proxiesError =
+				err instanceof api.ApiError && err.status >= 500
+					? `Couldn't remove ${proxy.url}. A proxy that downloads have used can't be deleted yet; switch it off instead.`
+					: errorText(err);
 		} finally {
 			const { [proxy.id]: _unused, ...rest } = proxyBusy;
 			proxyBusy = rest;

@@ -129,9 +129,13 @@
 			confirmLabel: 'cancel job',
 			cancelLabel: 'keep job'
 		});
+		if (!confirmed) return;
 		// The row can leave while the question is open (archived by a sweep); its last props
-		// are then stale, so it does nothing.
-		if (!confirmed || destroyed) return;
+		// are then stale, so it does nothing, and focus goes to the list it left.
+		if (destroyed) {
+			await keepFocus(document.getElementById('queue-heading'));
+			return;
+		}
 		// The question can stay open while the job finishes; cancel_job would then relabel a
 		// finished job "cancelled" (the footgun the in-flight gate above exists for).
 		if (!showInFlight) {

@@ -274,6 +274,8 @@ test('start sweep asks first', async ({ page }) => {
 	await expect(start.trigger).toBeEnabled();
 	await expectCancelDoesNothing(page, start);
 	await confirmPerforms(page, start);
-	// The run reports back over the stream; with nothing new to move it finishes at once.
-	await expect(page.getByText(/Last sweep finished|Sweeping/)).toBeVisible({ timeout: 30_000 });
+	// The run reports back over the stream; with nothing new to move it finishes at once, and
+	// the page must land on the finished report even when the stream beat the POST's answer.
+	await expect(page.getByText(/^Last sweep finished/)).toBeVisible({ timeout: 30_000 });
+	await expect(start.trigger).toBeEnabled();
 });

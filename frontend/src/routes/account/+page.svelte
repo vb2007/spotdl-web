@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -51,7 +51,12 @@
 				typeof days !== 'number' || !Number.isInteger(days) || days < 1
 					? 'Enter a whole number of days, 1 or more.'
 					: '';
-			if (daysError) return;
+			if (daysError) {
+				// Nothing is sent, so focus the field: its error is read out from there.
+				await tick();
+				document.getElementById('retention-days')?.focus();
+				return;
+			}
 		}
 		saving = true;
 		error = '';
@@ -120,9 +125,9 @@
 			<div class="group" role="group" aria-labelledby="retention-heading">
 				<h3 id="retention-heading" class="group-title">Log retention</h3>
 				<p class="hint">
-					Settled jobs are archived once nothing has happened in them for this long. Archived jobs
-					are hidden, never deleted, and come back with “show archived”. A job still downloading or
-					waiting is never archived.
+					Finished jobs (done, failed or cancelled) are archived once nothing has happened in them
+					for this long. Archived jobs are hidden, never deleted, and come back with “show
+					archived”. A job still downloading or waiting is never archived.
 				</p>
 
 				{#if saved === null}
@@ -130,7 +135,7 @@
 				{:else}
 					<form class="retention-form" onsubmit={onSubmit} novalidate>
 						<div class="form-field">
-							<span class="label" id="retention-mode-label">Archive settled jobs</span>
+							<span class="label" id="retention-mode-label">Archive finished jobs</span>
 							<div class="choice-group" role="group" aria-labelledby="retention-mode-label">
 								<button
 									type="button"

@@ -38,7 +38,14 @@
 			return rows;
 		}, [])
 	);
-	const errorCount = $derived(running ? errorsSoFar : (run?.errors.length ?? 0));
+	// True from a progress event until the full report (with its error list) is read back.
+	let reportPending = $state(false);
+	let reportError = $state('');
+	const errorCount = $derived(running || reportPending ? errorsSoFar : (run?.errors.length ?? 0));
+	// The library settings the start question names (folder, duplicates rule), read once on
+	// load so asking makes no request of its own.
+	let librarySettings = $state<api.LibrarySettings | undefined>();
+	let progressEvents = 0;
 	let heading: HTMLElement | undefined = $state();
 
 	function formatWhen(iso: string): string {
@@ -58,24 +65,19 @@
 	async function loadStatus() {
 		run = await api.getLibrarySortStatus();
 		loadError = '';
+		reportPending = false;
+		reportError = '';
 	}
 
 	// v43 (F08): a sweep moves real files and archives jobs for every user, so it asks.
 	async function onStart() {
-		let settings: api.LibrarySettings | undefined;
-		try {
-			settings = await api.getLibrarySettings();
-		} catch {
-			// The question still stands without the folder in it.
-		}
+		const settings = librarySettings;
 		const duplicates =
 			settings === undefined
 				? 'quarantined or deleted, as set in settings'
 				: settings.library_quarantine_enabled
 					? `moved to ${settings.library_quarantine_dir}`
 					: 'deleted';
-		// Left the page during the settings read: the question belongs to a page that's gone.
-		if (unmounted) return;
 		const confirmed = await confirmAction({
 			title: 'Start a library sweep?',
 			subject: settings?.library_target_dir,
@@ -91,7 +93,11 @@
 		starting = true;
 		error = '';
 		try {
-			run = await api.startLibrarySort();
+			const seen = progressEvents;
+			const started = await api.startLibrarySort();
+			// A fast sweep can report (even finish) over the stream before this answer lands;
+			// the stream is then newer than the answer and must not be overwritten by it.
+			if (progressEvents === seen) run = started;
 		} catch (err) {
 			error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		} finally {
@@ -109,6 +115,8 @@
 	function onProgress(event: MessageEvent) {
 		const payload = JSON.parse(event.data) as api.StreamEvent;
 		if (payload.type !== 'library.progress') return;
+		progressEvents += 1;
+		reportPending = true;
 		// A sweep started elsewhere (another tab) arrives here first as an event: its start and
 		// errors are its own, not the previous run's.
 		const fresh = run?.state !== 'running';
@@ -128,8 +136,9 @@
 		// client-side from a stream that was designed as a light progress signal, not a log.
 		if (payload.done) {
 			loadStatus().catch(() => {
-				// A transient failure here isn't worth surfacing -- the counts already
-				// rendered from the event are still accurate.
+				// The four counts came with the event; only the error list is missing, so the
+				// error count stays the one derived from the event and the gap is said.
+				reportError = "Couldn't read the list of files that weren't filed; reload to see it.";
 			});
 		}
 	}
@@ -160,6 +169,12 @@
 		loadStatus().catch((err) => {
 			loadError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		});
+		api
+			.getLibrarySettings()
+			.then((settings) => (librarySettings = settings))
+			.catch(() => {
+				// The start question then names the rule generically, without the folder.
+			});
 		connect();
 		return () => {
 			unmounted = true;
@@ -268,7 +283,10 @@
 						{/if}
 					</div>
 
-					{#if !running && errorRows.length > 0}
+					{#if reportError}
+						<p class="form-error">{reportError}</p>
+					{/if}
+					{#if !running && !reportPending && errorRows.length > 0}
 						<div class="errors">
 							<h3 class="label">Not filed</h3>
 							<p class="hint">
@@ -438,8 +456,6 @@
 		list-style: none;
 		margin: 0;
 		padding: 0;
-		max-height: 20rem;
-		overflow-y: auto;
 	}
 
 	.error-list li {

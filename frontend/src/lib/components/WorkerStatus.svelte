@@ -106,8 +106,11 @@
 		// The question can outlive the hold. Releasing then would only reset the failure streak
 		// a fresh run of rate limits is building, delaying the next hold.
 		now = Date.now();
-		if (!holdUntil) {
-			note = 'The hold had already ended; nothing was released.';
+		if (!holdUntil || holdUntil !== until) {
+			// Ended, or ended and a new hold began: the question was about the old one.
+			note = holdUntil
+				? 'A new hold began while you were deciding; nothing was released.'
+				: 'The hold had already ended; nothing was released.';
 			await keepFocus(toggleButton);
 			return;
 		}

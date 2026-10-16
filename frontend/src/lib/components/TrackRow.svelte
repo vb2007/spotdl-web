@@ -296,8 +296,13 @@
 			confirmLabel: 'cancel track',
 			cancelLabel: 'keep track'
 		});
-		// A row gone while the question was open has stale props: do nothing.
-		if (!confirmed || destroyed) return;
+		if (!confirmed) return;
+		// A row gone while the question was open has stale props: do nothing, and put focus on
+		// the queue it left rather than <body>.
+		if (destroyed) {
+			await keepFocus(document.getElementById('queue-heading'));
+			return;
+		}
 		// The question can stay open while the track settles (or turns lookup_failed, which
 		// v41 deliberately offers no cancel for): ask the current state, not the old one.
 		if (!canCancel) {
