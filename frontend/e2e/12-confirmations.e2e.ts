@@ -14,6 +14,7 @@ import {
 	expandWorkerBusy,
 	expandWorkerRunning,
 	ledgerMisses,
+	markSweepRequested,
 	recordHeldSubmission,
 	recordSpecSweep,
 	removeTestProxy,
@@ -46,6 +47,15 @@ const SUBMISSION_TRACKS = {
 	mobile: '2SiXAy7TuUkycRVbbWDEpo'
 } as const;
 
+/** These tests step aside (skip) rather than disturb a busy dev stack. With E2E_STRICT=1 they
+ * fail instead, so a recorded run proves every guarded action really ran. */
+function skipUnlessStrict(condition: boolean, reason: string): void {
+	if (condition && process.env.E2E_STRICT === '1') {
+		throw new Error(`E2E_STRICT: would skip (${reason})`);
+	}
+	test.skip(condition, reason);
+}
+
 /** The suite shares the developer's stack: a worker they paused, or a real hold, is theirs.
  * A test that has to pause or hold the worker skips rather than override or release it. */
 async function requireQuietWorker(admin: APIRequestContext): Promise<void> {
@@ -53,7 +63,10 @@ async function requireQuietWorker(admin: APIRequestContext): Promise<void> {
 	const holding =
 		status.breaker_tripped_until !== null &&
 		new Date(status.breaker_tripped_until).getTime() > Date.now();
-	test.skip(status.paused || holding, 'the dev worker is paused or holding; not overriding it');
+	skipUnlessStrict(
+		status.paused || holding,
+		'the dev worker is paused or holding; not overriding it'
+	);
 	// A pause or a staged hold reschedules any track that comes up meanwhile (held to +15m or
 	// +1h): never with someone's real work about to run.
 	const due = Number(
@@ -66,7 +79,7 @@ print(SessionLocal().execute(text(
 )).scalar())
 `)
 	);
-	test.skip(due > 0, `${due} track(s) would run during this test; not holding them back`);
+	skipUnlessStrict(due > 0, `${due} track(s) would run during this test; not holding them back`);
 }
 
 interface Guarded {
@@ -373,7 +386,10 @@ test('start sweep asks first', async ({ page }) => {
 	const alerts = (await (await page.request.get('/api/settings/alerts')).json()) as {
 		configured: boolean;
 	};
-	test.skip(alerts.configured, 'Matrix alerts are configured; a sweep would post to the room');
+	skipUnlessStrict(
+		alerts.configured,
+		'Matrix alerts are configured; a sweep would post to the room'
+	);
 	// A track that finishes downloading between the check below and the sweep would be moved.
 	await requireQuietWorker(page.request);
 	const unfiled = Number(
@@ -387,7 +403,7 @@ print(
 )
 `)
 	);
-	test.skip(
+	skipUnlessStrict(
 		unfiled > 0,
 		`${unfiled} download(s) wait to be filed or are finishing; a sweep would move them`
 	);
@@ -405,6 +421,7 @@ print(
 		};
 		await expect(start.trigger).toBeEnabled();
 		await expectCancelDoesNothing(page, start);
+		markSweepRequested();
 		await confirmPerforms(page, start);
 		// From here the report row is this sweep's own: the restore may replace it.
 		recordSpecSweep();
@@ -424,9 +441,9 @@ test('cancelling an incoming submission asks first', async ({ page, baseURL }, t
 	const url = spotifyTrackUrl(id);
 	// The test stops worker-expand and starts it again: never one the developer stopped (it
 	// would come back running), and never while it's busy with someone's work.
-	test.skip(!expandWorkerRunning(), 'worker-expand is stopped; not starting it');
+	skipUnlessStrict(!expandWorkerRunning(), 'worker-expand is stopped; not starting it');
 	const busy = expandWorkerBusy();
-	test.skip(busy.length > 0, `worker-expand is busy (${busy.join(', ')}); not stopping it`);
+	skipUnlessStrict(busy.length > 0, `worker-expand is busy (${busy.join(', ')}); not stopping it`);
 	// Never expanded or downloaded here, but only a ledger hit is safe if one ever were.
 	expect(ledgerMisses([id]), 'submission track is a ledger hit').toEqual([]);
 	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });

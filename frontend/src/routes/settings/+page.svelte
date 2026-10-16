@@ -1179,7 +1179,8 @@
 	}
 
 	.source.manual {
-		color: var(--waiting);
+		/* Where it came from, not a state: never a .cond-* hue (waiting blue means scheduled). */
+		color: var(--text-muted);
 	}
 
 	.url {

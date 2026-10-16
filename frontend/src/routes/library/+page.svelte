@@ -43,6 +43,9 @@
 	let reportError = $state('');
 	// The backend also records whole-sweep problems as "<post-move sync>" or "<sweep>" rows:
 	// those aren't files, so they get their own list.
+	// A run that crashed outside the per-file loop ends short of its count: its bar isn't a
+	// success, so it isn't settled mint.
+	const crashed = $derived(!running && errorRows.some((e) => e.file === '<sweep>'));
 	const fileRows = $derived(errorRows.filter((e) => !e.file.startsWith('<')));
 	const sweepRows = $derived(errorRows.filter((e) => e.file.startsWith('<')));
 	const errorCount = $derived(running || reportPending ? errorsSoFar : (run?.errors.length ?? 0));
@@ -329,7 +332,7 @@
 						{#if run.total > 0}
 							<div
 								class="progress-bar"
-								class:done={!running}
+								class:done={!running && !crashed}
 								class:stale={running && linkDown}
 								role="progressbar"
 								aria-label="Sweep progress"

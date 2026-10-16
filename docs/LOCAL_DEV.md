@@ -226,6 +226,7 @@ the v39–v47 UI rework, so run it before calling any frontend change done.
 cd frontend
 npm run test:e2e            # the baseline specs, desktop (1280×800) and mobile (390×844)
 npm run test:e2e:network    # opt-in: the one @network spec, a real YouTube download
+E2E_STRICT=1 npm run test:e2e   # v43: fail, never skip, spec 12's tests that step aside on a busy stack
 ```
 
 `E2E_BASE_URL` overrides the origin (default `http://localhost:5173`), for example to aim at the

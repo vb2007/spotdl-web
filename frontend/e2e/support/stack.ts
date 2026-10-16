@@ -212,6 +212,17 @@ print(json.dumps(None if row is None else {
 	writeFileSync(SWEEP_REPORT_FILE, snapshot);
 }
 
+/** Records the moment just before the spec asks for its sweep, so a run killed between the
+ * POST and recordSpecSweep can still recognise its own run (one that started right after). */
+export function markSweepRequested(): void {
+	if (!existsSync(SWEEP_REPORT_FILE)) return;
+	const saved = JSON.parse(readFileSync(SWEEP_REPORT_FILE, 'utf8')) as unknown;
+	writeFileSync(
+		SWEEP_REPORT_FILE,
+		JSON.stringify({ snapshot: saved, requestedAt: new Date().toISOString() })
+	);
+}
+
 /** Records which run the spec's own sweep was (its start), once it has started: the restore
  * then replaces only that run's report, never a newer real one. */
 export function recordSpecSweep(): void {
@@ -222,8 +233,14 @@ from app.models.library_sort_run import LibrarySortRun
 row = SessionLocal().get(LibrarySortRun, 1)
 print(row.started_at.isoformat() if row is not None and row.started_at else "")
 `);
-	const saved = JSON.parse(readFileSync(SWEEP_REPORT_FILE, 'utf8')) as unknown;
-	writeFileSync(SWEEP_REPORT_FILE, JSON.stringify({ snapshot: saved, specStartedAt: startedAt }));
+	const saved = JSON.parse(readFileSync(SWEEP_REPORT_FILE, 'utf8')) as {
+		snapshot: unknown;
+		requestedAt?: string;
+	};
+	writeFileSync(
+		SWEEP_REPORT_FILE,
+		JSON.stringify({ snapshot: saved.snapshot, specStartedAt: startedAt })
+	);
 }
 
 /** Puts a saved snapshot back once the row is idle again (never over a running sweep), and
@@ -238,14 +255,21 @@ import json, sys
 from datetime import datetime
 from app.db import SessionLocal
 from app.models.library_sort_run import LibrarySortRun
+from datetime import timedelta
 saved = json.loads(sys.argv[1])
-if not isinstance(saved, dict) or "specStartedAt" not in saved or not saved["specStartedAt"]:
+if not isinstance(saved, dict) or not (saved.get("specStartedAt") or saved.get("requestedAt")):
     print("restored")  # nothing of the spec's to undo: forget the snapshot
     sys.exit(0)
 snap = saved["snapshot"]
 db = SessionLocal()
 row = db.get(LibrarySortRun, 1)
-mine = row is not None and row.started_at is not None and row.started_at == datetime.fromisoformat(saved["specStartedAt"])
+started = row.started_at if row is not None else None
+if saved.get("specStartedAt"):
+    mine = started is not None and started == datetime.fromisoformat(saved["specStartedAt"])
+else:
+    # Killed between the request and recordSpecSweep: its run is one that started right after.
+    asked = datetime.fromisoformat(saved["requestedAt"].replace("Z", "+00:00"))
+    mine = started is not None and asked <= started <= asked + timedelta(minutes=2)
 if row is not None and not mine:
     print("restored")  # a newer sweep's report: the developer's, left alone
 elif row is not None and row.state.value == "idle":
