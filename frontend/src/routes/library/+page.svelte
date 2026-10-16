@@ -50,6 +50,9 @@
 	// load so asking makes no request of its own.
 	let librarySettings = $state<api.LibrarySettings | undefined>();
 	let progressEvents = 0;
+	const linkNote = $derived(
+		running && linkDown ? 'Live updates lost. Reconnecting; the counts may be behind.' : ''
+	);
 
 	const stateSentence = $derived(
 		run === null
@@ -318,9 +321,8 @@
 								{/if}
 							{/if}
 						</p>
-						{#if running && linkDown}
-							<p class="link-lost">Live updates lost. Reconnecting; the counts may be behind.</p>
-						{/if}
+						<!-- Always present, so the loss is announced when its text appears. -->
+						<p class="link-lost" role="status">{linkNote}</p>
 
 						<!-- v28: transform-animated fill (never width). v43: amber-dim only while a sweep
 						     runs; a finished run's bar is settled (F10, F20). -->
@@ -385,8 +387,8 @@
 						<div class="errors">
 							<h3 class="label">Not filed</h3>
 							<p class="hint">
-								The sweep hit an error on these. A file it couldn't read or copy stays where it was:
-								fix the cause and run the sweep again. Nothing already in the library was deleted.
+								The sweep hit an error on each of these; the reason says what. Nothing already in
+								the library was deleted.
 							</p>
 							<ul class="error-list">
 								{#each fileRows as e, i (i)}
@@ -469,6 +471,16 @@
 	.link-lost {
 		font-size: var(--fs-detail);
 		color: var(--waiting);
+	}
+
+	/* Empty, it stays in the accessibility tree (so its text is announced when it appears)
+	   but takes no room in the column. */
+	.link-lost:empty {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 
 	.progress-bar {

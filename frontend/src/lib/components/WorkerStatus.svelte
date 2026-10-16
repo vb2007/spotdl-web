@@ -268,6 +268,9 @@
 		<p class="note">Couldn't refresh ({readError}); showing the last reading.</p>
 	{/if}
 	<p class="note" role="status">{note}</p>
+	<!-- A read failure is said to assistive technology too (the visible lines above are not
+	     live regions); fixed text, so a failing poll isn't re-announced every 5s. -->
+	<p class="sr-only" role="alert">{readError ? "Couldn't read the worker's status." : ''}</p>
 	<p class="form-error" role="alert">{error}</p>
 </div>
 

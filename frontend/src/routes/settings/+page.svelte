@@ -951,6 +951,9 @@
 						</ul>
 					{/if}
 					<p class="form-error" role="alert">{proxiesError}</p>
+					<p class="sr-only" role="alert">
+						{proxiesLoadError && proxyList.length === 0 ? "Couldn't read the proxy pool." : ''}
+					</p>
 				</section>
 			</div>
 		{/if}

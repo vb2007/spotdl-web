@@ -23,6 +23,10 @@
 	let savedAt = $state<Date | null>(null);
 	let error = $state('');
 	let daysError = $state('');
+	// A hundred years. The backend takes any positive number, but the hourly retention sweep
+	// computes now - days, which overflows past year 1 and stops it for every user (found,
+	// not fixed in the backend: v48).
+	const MAX_DAYS = 36_500;
 	let loggingOut = $state(false);
 	let logoutError = $state('');
 
@@ -54,8 +58,8 @@
 		daysError = '';
 		if (!neverArchive) {
 			daysError =
-				typeof days !== 'number' || !Number.isInteger(days) || days < 1
-					? 'Enter a whole number of days, 1 or more.'
+				typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_DAYS
+					? `Enter a whole number of days from 1 to ${MAX_DAYS.toLocaleString()}.`
 					: '';
 			if (daysError) {
 				// Nothing is sent, so focus the field: its error is read out from there.
@@ -181,6 +185,7 @@
 									type="number"
 									inputmode="numeric"
 									min="1"
+									max={MAX_DAYS}
 									step="1"
 									bind:value={days}
 									disabled={saving || neverArchive}

@@ -253,8 +253,8 @@
 		return new Date(value).toLocaleString();
 	}
 
-	// Per-row transient feedback (e.g. "held behind the global pause") -- SvelteMap so
-	// mutations are tracked without wholesale reassignment (see v09's reactivity gotcha).
+	// Per-row transient feedback (e.g. "held behind the global pause"), kept in the rowNotices
+	// store (v43) so it outlives a remount and is cleared by queue.reset().
 	function showNotice(text: string) {
 		showRowNotice(`track:${track.id}`, text);
 	}
