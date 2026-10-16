@@ -52,6 +52,19 @@ async function requireQuietWorker(admin: APIRequestContext): Promise<void> {
 		status.breaker_tripped_until !== null &&
 		new Date(status.breaker_tripped_until).getTime() > Date.now();
 	test.skip(status.paused || holding, 'the dev worker is paused or holding; not overriding it');
+	// A pause or a staged hold reschedules any track that comes up meanwhile (held to +15m or
+	// +1h): never with someone's real work about to run.
+	const due = Number(
+		stackPython(`
+from sqlalchemy import text
+from app.db import SessionLocal
+print(SessionLocal().execute(text(
+    "select count(*) from tracks where state in ('pending', 'queued', 'downloading') "
+    "or (state = 'waiting' and scheduled_at < now() + interval '2 hours')"
+)).scalar())
+`)
+	);
+	test.skip(due > 0, `${due} track(s) would run during this test; not holding them back`);
 }
 
 interface Guarded {

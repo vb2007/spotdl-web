@@ -124,6 +124,7 @@
 	// v43 (F08): cancelling a submission still being read is a job cancel, so it asks first.
 	// Dismissing a failed row doesn't: that job is already over.
 	async function confirmCancelTuning(job: Job) {
+		const session = queue.getResetCount();
 		const confirmed = await confirmAction({
 			title: 'Cancel this submission?',
 			subject: job.source_url,
@@ -139,6 +140,8 @@
 			keepFocus('submit');
 			return;
 		}
+		// Another identity took over meanwhile: this answer belongs to the previous session.
+		if (queue.getResetCount() !== session) return;
 		// The question can outlive the reading: once the job has moved into the queue, its
 		// cancel there asks about the job as it now is.
 		const current = jobs.find((j) => j.id === job.id);

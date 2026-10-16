@@ -46,6 +46,16 @@
 	// load so asking makes no request of its own.
 	let librarySettings = $state<api.LibrarySettings | undefined>();
 	let progressEvents = 0;
+
+	const announcement = $derived(
+		run === null
+			? ''
+			: running
+				? 'Sweep running.'
+				: run.finished_at === null || reportPending
+					? ''
+					: `Sweep finished: ${run.moved} moved, ${run.errors.length} error${run.errors.length === 1 ? '' : 's'}.`
+	);
 	let heading: HTMLElement | undefined = $state();
 
 	function formatWhen(iso: string): string {
@@ -128,12 +138,16 @@
 		if (payload.type !== 'library.progress') return;
 		progressEvents += 1;
 		reportPending = true;
+		// "Already running" (or a failed start) is about the moment it was said; the stream has
+		// moved on.
+		error = '';
 		// A sweep started elsewhere (another tab) arrives here first as an event: its start and
 		// errors are its own, not the previous run's.
 		const fresh = run?.state !== 'running';
 		run = {
 			state: payload.done ? 'idle' : 'running',
-			started_at: fresh ? payload.ts : (run?.started_at ?? null),
+			// Joined mid-run, its real start is unknown until the report is read ("took" waits).
+			started_at: fresh ? null : (run?.started_at ?? null),
 			finished_at: payload.done ? payload.ts : null,
 			total: payload.total,
 			processed: payload.processed,
@@ -208,6 +222,8 @@
 			<AdminOnlyNotice what="The music library" />
 		{:else}
 			<section class="panel sweep" aria-labelledby="sweep-heading">
+				<!-- One sentence per state, never per file: the counts tick, the announcement doesn't. -->
+				<p class="sr-only" role="status">{announcement}</p>
 				<header class="head">
 					<div class="head-text">
 						<h2 id="sweep-heading" class="label" tabindex="-1" bind:this={heading}>Sweep</h2>

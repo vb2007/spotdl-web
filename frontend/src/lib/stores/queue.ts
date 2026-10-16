@@ -1,4 +1,5 @@
 import { derived, get, writable } from 'svelte/store';
+import { dismissConfirm } from './confirm';
 import * as api from '$lib/api';
 import { clearProgress, forgetProgress, recallProgress, rememberProgress } from './progressCache';
 import type {
@@ -673,6 +674,8 @@ function createQueueStore() {
 		liveActive.set({});
 		clearLiveTouches();
 		clearProgress();
+		// v43: a question still open on screen was asked for the previous identity.
+		dismissConfirm();
 	}
 
 	function toggleExpand(jobId: string): void {

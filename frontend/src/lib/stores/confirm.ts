@@ -35,6 +35,15 @@ export function confirmAction(request: ConfirmRequest): Promise<boolean> {
 	});
 }
 
+/** Answers an open question "no" and closes it: on a session reset (another identity), where
+ * no navigation happens for ConfirmDialog's beforeNavigate to catch. */
+export function dismissConfirm(): void {
+	pendingConfirm.update((current) => {
+		current?.resolve(false);
+		return null;
+	});
+}
+
 /** v43: after a confirmed action re-renders, put focus somewhere sensible when the action
  * removed (or disabled) what had it: a cancelled job's cancel button, a swapped pause/resume
  * button, a removed proxy row. Only when focus has actually fallen to `<body>`; focus the

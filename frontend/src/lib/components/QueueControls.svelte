@@ -195,7 +195,10 @@
 	}
 
 	// v43 (F08): archives every settled job of yours in one go, so it asks first.
+	let clearError = $state('');
 	async function onClearLog() {
+		const session = queue.getResetCount();
+		clearError = '';
 		const confirmed = await confirmAction({
 			title: 'Clear the log?',
 			body:
@@ -208,7 +211,14 @@
 		});
 		// Kept or Esc: a switch to tracks scope meanwhile takes "clear log" away.
 		if (!confirmed) return keepFocus(document.getElementById('queue-heading'));
-		await queue.archiveJobs({ allSettled: true });
+		// Another identity took over meanwhile: this answer belongs to the previous session.
+		if (queue.getResetCount() !== session) return;
+		try {
+			await queue.archiveJobs({ allSettled: true });
+		} catch (err) {
+			if (queue.getResetCount() !== session) return;
+			clearError = `Couldn't clear the log: ${err instanceof api.ApiError ? err.message : 'could not reach the server'}.`;
+		}
 	}
 </script>
 
@@ -231,6 +241,7 @@
 		{/if}
 	</div>
 </div>
+<p class="clear-error" role="alert">{clearError}</p>
 
 <div class="controls" role="group" aria-label="Queue controls">
 	<div class="find">
@@ -346,6 +357,14 @@
 	.count {
 		color: var(--text-muted);
 		font-size: var(--fs-meta);
+	}
+
+	/* Outside the head's flex row, so it takes no space at rest (an empty <p> has no height)
+	   and stays a live region, never display:none. */
+	.clear-error {
+		padding: 0 var(--space-4);
+		font-size: var(--fs-meta);
+		color: var(--fail);
 	}
 
 	.log-tools {

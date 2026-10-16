@@ -1,3 +1,10 @@
+<script module lang="ts">
+	import { SvelteMap as NoticeMap } from 'svelte/reactivity';
+	// v43: module-level and keyed by id, so a row remounted while its confirmation was open
+	// (a stream reconnect reloads the list) still shows how that answer ended.
+	const notice = new NoticeMap<string, string>();
+</script>
+
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -252,12 +259,11 @@
 
 	// Per-row transient feedback (e.g. "held behind the global pause") -- SvelteMap so
 	// mutations are tracked without wholesale reassignment (see v09's reactivity gotcha).
-	const notice = new SvelteMap<string, string>();
-
 	function showNotice(text: string) {
-		notice.set(track.id, text);
+		const id = track.id;
+		notice.set(id, text);
 		setTimeout(() => {
-			if (notice.get(track.id) === text) notice.delete(track.id);
+			if (notice.get(id) === text) notice.delete(id);
 		}, 4000);
 	}
 
@@ -284,6 +290,7 @@
 
 	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
 	async function handleCancel() {
+		const session = queue.getResetCount();
 		const artists = track.artists?.join(', ');
 		const confirmed = await confirmAction({
 			title: 'Cancel this track?',
@@ -296,47 +303,51 @@
 			confirmLabel: 'cancel track',
 			cancelLabel: 'keep track'
 		});
-		// Kept or Esc: "cancel track" may have gone meanwhile (the track settled), or the whole
-		// row did (remounted by a list reload).
-		if (!confirmed)
-			return keepFocus(destroyed ? document.getElementById('queue-heading') : rowButton);
-		// A row remounted while the question was open (a stream reconnect reloads the list) has
-		// only its last known state, which may be stale: the backend would still cancel a track
-		// that turned lookup_failed meanwhile. So the server's current state decides, from one
-		// search of the job's tracks, and focus goes to the list, since this row's are gone.
-		if (destroyed) {
-			try {
-				const page = await api.listJobTracksPage(jobId, { q: track.title ?? undefined });
-				const current = page.items.find((t) => t.id === track.id);
-				if (current && CANCELLABLE_STATES.has(current.state)) {
-					await queue.cancelTrack(track.id, jobId);
-				}
-			} catch {
-				// Unreadable or refused: nothing is cancelled on a guess.
-			}
-			await keepFocus(document.getElementById('queue-heading'));
-			return;
+		// This row's own controls, or (remounted by a list reload meanwhile) the list's heading.
+		const landing = () => (destroyed ? document.getElementById('queue-heading') : rowButton);
+		// Kept or Esc: "cancel track" may have gone meanwhile (the track settled).
+		if (!confirmed) return keepFocus(landing());
+		// Another identity took over meanwhile: this answer belongs to the previous session.
+		if (queue.getResetCount() !== session) return;
+		// The server's current state decides, not this row's: the row may be stale (its stream
+		// down, or remounted with old props), and the backend would still cancel a track that
+		// turned lookup_failed meanwhile, which v41 deliberately offers no cancel for. One read
+		// of the job's cancellable tracks (no per-row loop).
+		let current: TrackState | null | undefined;
+		try {
+			const page = await api.listJobTracksPage(jobId, {
+				state: [...CANCELLABLE_STATES],
+				limit: 1000
+			});
+			current = page.items.find((t) => t.id === track.id)?.state ?? null;
+		} catch {
+			current = undefined;
 		}
-		// The question can stay open while the track settles (or turns lookup_failed, which
-		// v41 deliberately offers no cancel for): ask the current state, not the old one.
-		if (!canCancel) {
-			showNotice(`Not cancelled: it's ${STATE_LABEL[track.state]} now.`);
-			await keepFocus(rowButton);
-			return;
+		if (queue.getResetCount() !== session) return;
+		if (current === undefined || current === null) {
+			// The notice map outlives this row, so a remounted row shows it too.
+			showNotice(
+				current === undefined
+					? "Not cancelled: couldn't check the track first. Try again."
+					: "Not cancelled: it isn't waiting to download any more."
+			);
+			return keepFocus(landing());
 		}
-		const wasDownloading = track.state === 'downloading';
+		const wasDownloading = current === 'downloading';
 		const seenAttempts = attempts.length;
 		try {
 			await queue.cancelTrack(track.id, jobId);
 			// Same reason as above: the worker records the cancelled attempt only once its
 			// download call returns, seconds later. Re-read a few times, bounded, until the
 			// newest attempt is that cancel.
-			if (wasDownloading) awaitCancelledAttempt(seenAttempts, [3000, 5000, 7000, 15000, 30000]);
+			if (wasDownloading && !destroyed) {
+				awaitCancelledAttempt(seenAttempts, [3000, 5000, 7000, 15000, 30000]);
+			}
 		} catch (err) {
 			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this track.');
 		}
 		// "cancel track" leaves with the cancellable state: land on the row itself.
-		await keepFocus(rowButton);
+		await keepFocus(landing());
 	}
 
 	async function handleRetry() {

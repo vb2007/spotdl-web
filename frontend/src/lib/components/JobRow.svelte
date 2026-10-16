@@ -1,5 +1,11 @@
+<script module lang="ts">
+	import { SvelteMap as NoticeMap } from 'svelte/reactivity';
+	// v43: module-level and keyed by id, so a row remounted while its confirmation was open
+	// (a stream reconnect reloads the list) still shows how that answer ended.
+	const notice = new NoticeMap<string, string>();
+</script>
+
 <script lang="ts">
-	import { SvelteMap } from 'svelte/reactivity';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
@@ -109,16 +115,17 @@
 			.join(' · ')
 	);
 
-	const notice = new SvelteMap<string, string>();
 	function showNotice(text: string) {
-		notice.set(job.id, text);
+		const id = job.id;
+		notice.set(id, text);
 		setTimeout(() => {
-			if (notice.get(job.id) === text) notice.delete(job.id);
+			if (notice.get(id) === text) notice.delete(id);
 		}, 4000);
 	}
 
 	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
 	async function handleCancel() {
+		const session = queue.getResetCount();
 		const confirmed = await confirmAction({
 			title: 'Cancel this job?',
 			subject: job.title,
@@ -134,6 +141,8 @@
 		// row did (remounted by a list reload).
 		if (!confirmed)
 			return keepFocus(destroyed ? document.getElementById('queue-heading') : toggleButton);
+		// Another identity took over meanwhile: this answer belongs to the previous session.
+		if (queue.getResetCount() !== session) return;
 		// Decide on the job as the server has it now. The question can stay open while the job
 		// finishes, and cancel_job would then relabel a finished job "cancelled" (the footgun
 		// the in-flight gate above exists for). The row's own status trails the server (its
@@ -145,18 +154,19 @@
 		} catch {
 			// Unreadable: the last known state decides, and the server still checks ownership.
 		}
-		// A remounted row's own notice and button are gone: focus goes to the list instead.
+		if (queue.getResetCount() !== session) return;
+		// A remounted row's button is gone: focus goes to the list instead. Its notice is
+		// module-level, so the remounted row shows it.
 		const landing = () => (destroyed ? document.getElementById('queue-heading') : toggleButton);
 		if (!IN_FLIGHT_LIFECYCLES.has(lifecycle)) {
-			if (!destroyed) showNotice('Not cancelled: nothing in it is still to come.');
+			showNotice('Not cancelled: nothing in it is still to come.');
 			await keepFocus(landing());
 			return;
 		}
 		try {
 			await queue.cancelJob(job.id);
 		} catch (err) {
-			if (!destroyed)
-				showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
+			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
 		}
 		// The cancel button is gone with the in-flight controls: land on the row itself.
 		await keepFocus(landing());

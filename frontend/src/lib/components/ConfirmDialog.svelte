@@ -28,6 +28,13 @@
 	const request = $derived($pendingConfirm);
 
 	$effect(() => {
+		// Dismissed from outside (a session reset): close the now-empty dialog.
+		if (!request && dialog?.open) {
+			closingByAnswer = true;
+			dialog.close();
+			trigger = null;
+			return;
+		}
 		if (!request || !dialog || !keepButton) return;
 		if (!dialog.open) {
 			// The control just pressed (a click, or Enter/Space, which also click) is the opener;
