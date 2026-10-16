@@ -162,6 +162,9 @@
 	let streamRetryDelayMs = 1000;
 	// This page's own logout resets the store on purpose; outlived() must not reload then.
 	let loggingOut = false;
+	// The reset count this page mounted under; see connectStream's outlived(). Checked on
+	// every poll too, so a reset is caught within 5s even while the stream is quiet.
+	const mountedSession = queue.getResetCount();
 	let streamRetryTimer: ReturnType<typeof setTimeout> | undefined;
 	let source: EventSource | undefined;
 	// v34.2: the stream's `onopen` is the only resync (see queue.reload). Mount and every
@@ -197,15 +200,30 @@
 		// page's header and admin chrome describe someone else. Drop the event, stop the
 		// stream, and reload: the layout then runs for whoever the session is now (or sends
 		// the tab to /login), and nothing is left showing a dead link as "linked".
-		const session = queue.getResetCount();
+		// Against the count the page mounted under, not one captured here: a retry timer
+		// firing after a reset must not open a stream that counts as current.
 		const outlived = () => {
-			if (queue.getResetCount() === session) return false;
+			if (queue.getResetCount() === mountedSession) return false;
 			stream.close();
 			clearTimeout(streamRetryTimer);
 			if (!loggingOut) window.location.reload();
 			return true;
 		};
-		stream.onopen = () => {
+		stream.onopen = async () => {
+			if (outlived()) return;
+			// The cookie is shared across tabs: a reconnect sends whoever is signed in now.
+			// If that isn't this page's identity, reload rather than adopt it under this
+			// page's header and admin chrome (one request per (re)connect, not per row).
+			try {
+				const now = await api.me();
+				if (now.email !== data.session?.email) {
+					stream.close();
+					window.location.reload();
+					return;
+				}
+			} catch {
+				// Can't tell (a blip): carry on; the layout and next reconnect check again.
+			}
 			if (outlived()) return;
 			link.set('live');
 			awaitingResync = false;
@@ -256,10 +274,6 @@
 	// for every user (v42), since the Waterfall's status line and TrackRow's breaker-aware
 	// countdown read it and the pill itself is admin-only. A failed poll keeps the last value.
 	const WORKER_POLL_MS = 5000;
-
-	// The reset count this page mounted under; see connectStream's outlived(). Checked on
-	// every poll too, so a reset is caught within 5s even while the stream is quiet.
-	let mountedSession = queue.getResetCount();
 
 	function pollWorker() {
 		if (!loggingOut && queue.getResetCount() !== mountedSession) {

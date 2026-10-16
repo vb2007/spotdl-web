@@ -121,7 +121,12 @@
 		// fire no focusout when the focused button is removed), and let this focus() call's
 		// own focusin record the new button if it is one of ours.
 		lastFocus = null;
-		(next ?? document.getElementById('submit-url'))?.focus();
+		// The submit box is the next step for a keyboard user, but a programmatic focus on a
+		// text input opens a phone's on-screen keyboard: touch gets the queue heading instead.
+		const fallback = window.matchMedia('(pointer: coarse)').matches
+			? document.getElementById('queue-heading')
+			: document.getElementById('submit-url');
+		(next ?? fallback)?.focus();
 	}
 
 	/** Submits the same link again as a new job, then dismisses the failed one -- what a

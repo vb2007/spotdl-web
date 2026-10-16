@@ -123,14 +123,20 @@
 	// v42 (F11): a chip with nothing behind it is noise. It stays while pressed (so a filter
 	// can always be switched off again) and once touched (above).
 	let visibleChips = $derived(
-		chips.filter(
-			(c) =>
-				chipCount(c) > 0 ||
-				chipPressed(c) ||
-				focusedChip === c.key ||
-				pointerChips?.has(c.key) ||
-				(touchedScope === $filters.scope && touched.has(c.key))
-		)
+		chips
+			.filter(
+				(c) =>
+					// Frozen under the pointer: nothing appears or disappears mid-aim.
+					!pointerChips || pointerChips.has(c.key) || chipPressed(c) || focusedChip === c.key
+			)
+			.filter(
+				(c) =>
+					chipCount(c) > 0 ||
+					chipPressed(c) ||
+					focusedChip === c.key ||
+					pointerChips?.has(c.key) ||
+					(touchedScope === $filters.scope && touched.has(c.key))
+			)
 	);
 
 	function toggleChip(chip: Chip) {
