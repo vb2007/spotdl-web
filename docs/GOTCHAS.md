@@ -628,6 +628,12 @@ needed" claim — rather than silently deleted.
 - Following one field of a store with a writable `$derived` resets on *every* store emission; chain
   it through an intermediate derived of that field (`storeQ`), which only notifies on a new value
   → *v42*
+- `data-sveltekit-preload-data="hover"` re-runs the root layout `load` on every hover, with `/`
+  still mounted; anything that `load` does to the module store (a reset) happens under the live
+  page. Reset only on a real 401 or an identity change, never on a network blip → *v42*
+- The session cookie is shared across tabs: an identity switch in tab 2 reaches tab 1's next
+  request and stream reconnect. Guard late async writes with `queue.getResetCount()`, and check
+  `/api/auth/me` against the page's identity on every stream (re)connect → *v42*
 
 **Testing & verification technique**
 - The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
@@ -5011,3 +5017,15 @@ independently-found production bug from the same conversation)
   logged-in Playwright page and calling `impeccableDetectAsync()` works, but its page-level checks
   then scan the injected script's own text, so `gradient-text` and `marquee` on `body` are false
   positives. Its `gpt-thin-border-wide-shadow` fires at a 16px blur with two thin borders.
+- **Thirty-three review rounds, mostly about state that outlives its owner.** After the visual
+  work settled, every round found the same family: something async or module-level outliving the
+  session, page or row it belonged to. A pending search debounce or an in-flight submit landing
+  after a logout. An SSE stream opened under one identity still applying events after the layout
+  reset the store. A focused button removed by a live update (Chrome fires `focusout` on removal;
+  Firefox and WebKit don't). Each fix was small; the lesson is to ask, for every new timer, await
+  and focus target, "what if its owner is gone when this runs?"
+- **Focus on a removed element.** A row whose buttons unmount while focused (dismiss, a fold, a
+  live update moving it between keyed groups) drops focus to `<body>`. IncomingJobs keeps a
+  `{act, job}` memory from `focusin` and restores by data attributes after `tick()`; it clears the
+  memory when focus leaves the panel, and `keepFocus` clears it *before* calling `focus()`
+  (whose own `focusin` then records the new target).
