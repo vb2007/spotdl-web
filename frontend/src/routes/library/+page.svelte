@@ -122,7 +122,6 @@
 			confirmLabel: 'start sweep',
 			cancelLabel: 'not now'
 		});
-		// A sweep started meanwhile (another tab): this one would only be refused.
 		if (!confirmed) return keepFocus(heading);
 		// Started meanwhile (another tab): this one would only be refused. Say so.
 		if (running) {

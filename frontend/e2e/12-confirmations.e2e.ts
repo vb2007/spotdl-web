@@ -12,6 +12,7 @@ import type { Job, Proxy, WorkerStatus } from '../src/lib/api';
 import {
 	ADMIN_STATE,
 	expandWorkerBusy,
+	expandWorkerRunning,
 	ledgerMisses,
 	recordHeldSubmission,
 	removeTestProxy,
@@ -414,7 +415,9 @@ test('cancelling an incoming submission asks first', async ({ page, baseURL }, t
 	const id =
 		testInfo.project.name === 'mobile' ? SUBMISSION_TRACKS.mobile : SUBMISSION_TRACKS.desktop;
 	const url = spotifyTrackUrl(id);
-	// Stopping it kills whatever it's doing: never while it's busy with someone's work.
+	// The test stops worker-expand and starts it again: never one the developer stopped (it
+	// would come back running), and never while it's busy with someone's work.
+	test.skip(!expandWorkerRunning(), 'worker-expand is stopped; not starting it');
 	const busy = expandWorkerBusy();
 	test.skip(busy.length > 0, `worker-expand is busy (${busy.join(', ')}); not stopping it`);
 	// Never expanded or downloaded here, but only a ledger hit is safe if one ever were.

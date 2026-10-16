@@ -143,8 +143,16 @@
 		// Another identity took over meanwhile: this answer belongs to the previous session.
 		if (queue.getResetCount() !== session) return;
 		// The question can outlive the reading: once the job has moved into the queue, its
-		// cancel there asks about the job as it now is.
-		const current = jobs.find((j) => j.id === job.id);
+		// cancel there asks about the job as it now is. The server decides, as JobRow's does:
+		// this panel follows the stream, which may be down, and cancel_job would relabel a job
+		// that finished meanwhile "cancelled".
+		let current: Job | undefined = jobs.find((j) => j.id === job.id);
+		try {
+			current = await api.getJob(job.id);
+		} catch {
+			// Unreadable: the panel's own state decides.
+		}
+		if (queue.getResetCount() !== session) return;
 		if (current?.state !== 'expanding') {
 			// Failed meanwhile (the row stays here as failed), or gone from this panel: it
 			// finished reading into the queue, or was cancelled elsewhere.

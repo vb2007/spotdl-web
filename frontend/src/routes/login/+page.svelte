@@ -88,6 +88,7 @@
 				bind:value={email}
 				disabled={submitting}
 				aria-invalid={credentialsRejected ? 'true' : undefined}
+				aria-describedby="login-error"
 			/>
 		</label>
 

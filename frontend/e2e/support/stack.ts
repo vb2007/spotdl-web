@@ -129,6 +129,11 @@ db.commit()
 	}
 }
 
+/** Whether `worker-expand` is up: one the developer stopped is theirs, never restarted here. */
+export function expandWorkerRunning(): boolean {
+	return compose('ps', 'worker-expand', '--format', '{{.State}}') === 'running';
+}
+
 /** Anything `worker-expand` is busy with right now (any user's expansion, a library sweep):
  * stopping it would kill that mid-task. */
 export function expandWorkerBusy(): string[] {

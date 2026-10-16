@@ -343,7 +343,9 @@
 				showNotice('Cancelled. It had started downloading; that finishes but stays cancelled.');
 			}
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this track.');
+			// A session reset meanwhile: the answer belongs to the previous identity.
+			if (queue.getResetCount() === session)
+				showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this track.');
 		}
 		// "cancel track" leaves with the cancellable state: land on the row itself.
 		await keepFocus(landing());

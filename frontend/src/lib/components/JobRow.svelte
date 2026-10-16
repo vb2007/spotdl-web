@@ -157,7 +157,9 @@
 		try {
 			await queue.cancelJob(job.id);
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
+			// A session reset meanwhile: the answer belongs to the previous identity.
+			if (queue.getResetCount() === session)
+				showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
 		}
 		// The cancel button is gone with the in-flight controls: land on the row itself.
 		await keepFocus(landing());
