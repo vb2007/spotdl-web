@@ -107,6 +107,8 @@
 	let canDownload = $derived(DOWNLOADABLE_STATES.has(track.state));
 	let canCancel = $derived(CANCELLABLE_STATES.has(track.state));
 	let rowButton: HTMLButtonElement | undefined = $state();
+	// The collapsed row's notice line (see the markup): empty while the detail shows it.
+	const collapsedNotice = $derived(expanded ? '' : (rowNotices.get(`track:${track.id}`) ?? ''));
 
 	// v41 (F04, the countdown half): beat dispatches nothing while the breaker holds, so a
 	// waiting track's real next try is the later of its own slot and the breaker's clear.
@@ -319,7 +321,7 @@
 		}
 		if (queue.getResetCount() !== session) return;
 		if (current === undefined || current === null) {
-			// The notice map outlives this row, so a remounted row shows it too.
+			// The notice map outlives this row, so a remounted (collapsed) row shows it too.
 			showNotice(
 				current === undefined
 					? "Not cancelled: couldn't check the track first. Try again."
@@ -602,6 +604,10 @@
 			{/if}
 		</div>
 	{/if}
+	<!-- v43: a collapsed row's own notice (a remount after a list reload collapses it, and the
+	     cancel's outcome must still be seen and heard). Always present, so its text is announced;
+	     while expanded the notice lives in the detail instead. -->
+	<p class="notice collapsed" role="status">{collapsedNotice}</p>
 </li>
 
 <style>
@@ -798,6 +804,10 @@
 	.action.danger:focus-visible {
 		border-color: var(--fail);
 		color: var(--fail);
+	}
+
+	.notice.collapsed {
+		padding: 0 var(--row-pad-x) var(--space-2);
 	}
 
 	.notice {

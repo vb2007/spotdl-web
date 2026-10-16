@@ -27,7 +27,6 @@ test.describe('admin', () => {
 		const original = (await (
 			await page.request.get('/api/settings/output')
 		).json()) as OutputSettings;
-		stageSettings({ default_bitrate: original.default_bitrate });
 
 		try {
 			await page.goto('/settings');
@@ -38,6 +37,8 @@ test.describe('admin', () => {
 			const options = await bitrate.getByRole('option').allTextContents();
 			const next = options.find((o) => o !== original.default_bitrate);
 			expect(next, 'needs a second bitrate option to switch to').toBeDefined();
+			// Recorded before the save: a killed run is undone by the next setup.
+			stageSettings({ default_bitrate: { original: original.default_bitrate, set: next! } });
 			await bitrate.selectOption(next!);
 			await expect(output.getByRole('status')).toHaveText('Unsaved changes');
 			await output.getByRole('button', { name: 'save', exact: true }).click();
@@ -89,16 +90,19 @@ test.describe('admin', () => {
 		const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
 		const library = (await (await admin.get('/api/settings/library')).json()) as LibrarySettings;
 		const alerts = (await (await admin.get('/api/settings/alerts')).json()) as AlertSettings;
+		const template = `${library.library_folder_template} e2e`;
+		const nextCooldown = alerts.alert_cooldown_minutes === 61 ? 62 : 61;
+		// Recorded before the saves: a killed run is undone by the next setup, but only where
+		// the value is still the one set here.
 		stageSettings({
-			library_folder_template: library.library_folder_template,
-			alert_cooldown_minutes: alerts.alert_cooldown_minutes
+			library_folder_template: { original: library.library_folder_template, set: template },
+			alert_cooldown_minutes: { original: alerts.alert_cooldown_minutes, set: nextCooldown }
 		});
 		let addedId: string | null = null;
 		try {
 			await page.goto('/settings');
 
 			const lib = page.getByRole('region', { name: 'Library sort & move' });
-			const template = `${library.library_folder_template} e2e`;
 			await lib.getByLabel('Folder template').fill(template);
 			await lib.getByRole('button', { name: 'save', exact: true }).click();
 			await expect(lib.getByRole('status')).toHaveText(/^Saved at /);
@@ -119,7 +123,6 @@ test.describe('admin', () => {
 			await expect(al.getByText('Use a whole number from 1 to 10,080.')).toBeVisible();
 			page.off('request', onRequest);
 			expect(sentPatch, 'an invalid number never reaches the API').toEqual([]);
-			const nextCooldown = alerts.alert_cooldown_minutes === 61 ? 62 : 61;
 			await cooldown.fill(String(nextCooldown));
 			await al.getByRole('button', { name: 'save', exact: true }).click();
 			await expect(al.getByRole('status').first()).toHaveText(/^Saved at /);

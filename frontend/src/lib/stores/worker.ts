@@ -9,10 +9,13 @@ function createWorkerStore() {
 	// it) can't put the old state back on screen.
 	let seq = 0;
 
-	async function refresh(): Promise<void> {
+	/** Reads the status, and returns what it read even when a later read overtook it on
+	 * screen: a caller deciding on a fresh value decides on this one, never on the store. */
+	async function refresh(): Promise<WorkerStatus> {
 		const mine = ++seq;
 		const next = await api.workerStatus();
 		if (mine === seq) status.set(next);
+		return next;
 	}
 
 	async function act(call: () => Promise<WorkerStatus>): Promise<void> {

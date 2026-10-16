@@ -52,7 +52,9 @@
 			? ''
 			: [
 					paused ? 'Downloads paused.' : null,
-					holdUntil ? `Holding after repeated rate limits until ${clockTime(holdUntil)}.` : null,
+					holdUntil
+						? `Holding after repeated failed downloads until ${clockTime(holdUntil)}.`
+						: null,
 					!paused && !holdUntil ? 'Downloads running.' : null
 				]
 					.filter(Boolean)
@@ -96,10 +98,10 @@
 		// The poll is up to 5s old: re-read before deciding. Pausing twice is harmless, so a
 		// failed re-read just falls back to the last poll.
 		busy = true;
-		await worker.refresh().catch(() => {});
+		const fresh = await worker.refresh().catch(() => null);
 		busy = false;
 		// Paused meanwhile (another tab): nothing left to do, and the button has swapped.
-		if (paused) {
+		if (fresh?.paused ?? paused) {
 			note = 'Downloads were already paused.';
 			await keepFocus(toggleButton);
 			return;
@@ -130,12 +132,13 @@
 		// Kept or Esc: the hold row (and its button) may have gone meanwhile.
 		if (!confirmed) return keepFocus(toggleButton);
 		// The question can outlive the hold. Releasing then would only reset the failure streak
-		// a fresh run of rate limits is building, delaying the next hold. The poll is up to 5s
+		// a fresh run of failures is building, delaying the next hold. The poll is up to 5s
 		// old, so re-read first. The release endpoint checks nothing itself, so without a
 		// fresh reading nothing is released.
 		busy = true;
+		let fresh: api.WorkerStatus;
 		try {
-			await worker.refresh();
+			fresh = await worker.refresh();
 		} catch (err) {
 			busy = false;
 			error = `Couldn't check the hold first (${err instanceof api.ApiError ? err.message : 'no connection'}); nothing was released.`;
@@ -144,9 +147,15 @@
 		}
 		busy = false;
 		now = Date.now();
-		if (!holdUntil || holdUntil !== until) {
+		// Decided on what this read returned, not the store (a poll may have overtaken it).
+		const freshHold =
+			fresh.breaker_tripped_until !== null &&
+			new Date(fresh.breaker_tripped_until).getTime() > Date.now()
+				? fresh.breaker_tripped_until
+				: null;
+		if (!freshHold || freshHold !== until) {
 			// Ended, or ended and a new hold began: the question was about the old one.
-			note = holdUntil
+			note = freshHold
 				? 'A new hold began while you were deciding; nothing was released.'
 				: 'The hold had already ended; nothing was released.';
 			await keepFocus(toggleButton);
@@ -237,7 +246,8 @@
 						>
 					</p>
 					<p class="note">
-						A deliberate pause after repeated rate limits. Waiting tracks keep their place.
+						A deliberate pause after five failed downloads in a row, usually a rate limit. Waiting
+						tracks keep their place.
 					</p>
 				</div>
 				<button type="button" class="btn danger" disabled={busy} onclick={handleRelease}

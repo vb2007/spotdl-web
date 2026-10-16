@@ -157,14 +157,23 @@ print("; ".join(busy))
  * a drifted folder template would file every later dev sweep into the wrong folders. */
 const SETTINGS_STAGE_FILE = path.join(AUTH_DIR, 'settings-stage.json');
 
-export function stageSettings(original: Record<string, string | number>): void {
+type SettingStage = Record<string, { original: string | number; set: string | number }>;
+
+/** Records, per key, the value before the spec's change and the value it is about to set. */
+export function stageSettings(change: SettingStage): void {
 	const current = existsSync(SETTINGS_STAGE_FILE)
-		? (JSON.parse(readFileSync(SETTINGS_STAGE_FILE, 'utf8')) as Record<string, string | number>)
+		? (JSON.parse(readFileSync(SETTINGS_STAGE_FILE, 'utf8')) as SettingStage)
 		: {};
-	writeFileSync(SETTINGS_STAGE_FILE, JSON.stringify({ ...original, ...current }));
+	const merged: SettingStage = { ...change };
+	// The first record of a key keeps its original (a re-run after a killed one).
+	for (const [key, entry] of Object.entries(current)) {
+		merged[key] = { original: entry.original, set: change[key]?.set ?? entry.set };
+	}
+	writeFileSync(SETTINGS_STAGE_FILE, JSON.stringify(merged));
 }
 
-/** Writes the recorded originals back straight into `app_settings`, then forgets them. */
+/** Writes the recorded originals back straight into `app_settings`, only where the value is
+ * still the one the spec set (a later deliberate edit is the developer's), then forgets them. */
 export function restoreSettings(): void {
 	if (!existsSync(SETTINGS_STAGE_FILE)) return;
 	stackPython(
@@ -174,8 +183,9 @@ from app.db import SessionLocal
 from app.models.app_settings import AppSettings
 db = SessionLocal()
 row = db.query(AppSettings).one()
-for key, value in json.loads(sys.argv[1]).items():
-    setattr(row, key, value)
+for key, entry in json.loads(sys.argv[1]).items():
+    if getattr(row, key) == entry["set"]:
+        setattr(row, key, entry["original"])
 db.commit()
 `,
 		[readFileSync(SETTINGS_STAGE_FILE, 'utf8')]

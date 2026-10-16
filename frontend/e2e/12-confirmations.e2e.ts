@@ -147,9 +147,8 @@ test('clear log asks first', async ({ page, baseURL }) => {
 		confirm: 'clear log',
 		sends: call('POST', '/api/jobs/archive')
 	};
-	await expectCancelDoesNothing(page, g);
-
-	// Whatever clear log archives is put back, even if a check after it fails: the other specs
+	// Whatever clear log archives is put back, even if a check fails (or a regressing cancel
+	// archived on 'keep log'): the other specs
 	// (and the other project's run) look up the seed jobs.
 	const archived: Promise<string[]>[] = [];
 	const onResponse = (r: Response) => {
@@ -158,6 +157,7 @@ test('clear log asks first', async ({ page, baseURL }) => {
 	};
 	page.on('response', onResponse);
 	try {
+		await expectCancelDoesNothing(page, g);
 		await confirmPerforms(page, g);
 	} finally {
 		page.off('response', onResponse);
@@ -273,8 +273,10 @@ test('worker pause and breaker release ask first', async ({ page, baseURL }) => 
 			confirm: 'pause downloads',
 			sends: call('POST', '/api/worker/pause')
 		};
-		await expectCancelDoesNothing(page, pause);
+		// Staged before even the cancel path: a regression that pauses on "keep running" must
+		// still be undone, by this finally or the next setup.
 		stageWorker({ paused: true });
+		await expectCancelDoesNothing(page, pause);
 		await confirmPerforms(page, pause);
 		await expect(worker.getByText('Downloads paused', { exact: true })).toBeVisible();
 		// Resuming is safe and asks nothing.

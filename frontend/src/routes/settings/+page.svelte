@@ -198,7 +198,7 @@
 		{
 			key: 'alerts_breaker_enabled',
 			label: 'Breaker trip / release',
-			hint: 'Downloads hold after repeated rate limits, and resume.'
+			hint: 'Downloads hold after repeated failed downloads, and resume.'
 		},
 		{
 			key: 'alerts_spike_enabled',
@@ -462,6 +462,12 @@
 			const { [proxy.id]: _unused, ...rest } = proxyBusy;
 			proxyBusy = rest;
 		}
+		// A failed removal disabled the focused button for the request: put focus back on it,
+		// or on the list's heading.
+		await keepFocus(
+			document.querySelector<HTMLElement>(`#proxies button[aria-label="remove ${proxy.url}"]`) ??
+				document.getElementById('proxies-heading')
+		);
 	}
 
 	function formatTimestamp(value: string): string {
