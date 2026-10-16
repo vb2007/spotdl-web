@@ -2,34 +2,53 @@
 	import { onMount } from 'svelte';
 	import * as api from '$lib/api';
 	import { worker } from '$lib/stores/worker';
+	import { confirmAction } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
 
-	// Pause/resume and breaker-release are admin-only (v17) -- worker_status itself
-	// stays visible to everyone so a stalled queue is still explained. Cosmetic only,
-	// the server-side require_admin gate on those endpoints is the real enforcement.
-	let { isAdmin }: { isAdmin: boolean } = $props();
+	// The admin's worker controls on /settings (v25). Rendered for the admin only (v43,
+	// F17); the server-side require_admin gate on these endpoints is the real enforcement.
+	// v43 (F30): the state is said in words and each button names its action. No
+	// aria-pressed toggle, which read "resume, pressed" while paused.
 
 	const { status } = worker;
 
 	let busy = $state(false);
 	let error = $state('');
+	let now = $state(Date.now());
 
 	const POLL_MS = 5000;
 
-	let breakerActive = $derived(
+	const holdUntil = $derived(
 		$status?.breaker_tripped_until != null &&
-			new Date($status.breaker_tripped_until).getTime() > Date.now()
+			new Date($status.breaker_tripped_until).getTime() > now
+			? $status.breaker_tripped_until
+			: null
+	);
+	const paused = $derived($status?.paused ?? false);
+
+	function clockTime(iso: string): string {
+		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+	}
+
+	// One fixed sentence per state for assistive technology: the ticking countdown beside
+	// it is aria-hidden, so the live region never re-announces every second (F07's lesson).
+	const announcement = $derived(
+		$status === null
+			? ''
+			: [
+					paused ? 'Downloads paused.' : null,
+					holdUntil ? `Holding after repeated rate limits until ${clockTime(holdUntil)}.` : null,
+					!paused && !holdUntil ? 'Downloads running.' : null
+				]
+					.filter(Boolean)
+					.join(' ')
 	);
 
-	async function handleToggle() {
+	async function run(action: () => Promise<void>) {
 		busy = true;
 		error = '';
 		try {
-			if ($status?.paused) {
-				await worker.resume();
-			} else {
-				await worker.pause();
-			}
+			await action();
 		} catch (err) {
 			error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		} finally {
@@ -37,16 +56,37 @@
 		}
 	}
 
+	// v43 (A4): pausing stops every user's downloads until someone resumes, so it asks.
+	async function handlePause() {
+		const confirmed = await confirmAction({
+			title: 'Pause all downloads?',
+			body:
+				'Nothing new starts, for any user, until you resume. A download already running ' +
+				'finishes, and waiting tracks keep their place.',
+			confirmLabel: 'pause downloads',
+			cancelLabel: 'keep running'
+		});
+		if (confirmed) await run(() => worker.pause());
+	}
+
+	async function handleResume() {
+		await run(() => worker.resume());
+	}
+
+	// v43 (A4): releasing early sends downloads straight back into an active rate limit,
+	// the one exposure this app exists to avoid.
 	async function handleRelease() {
-		busy = true;
-		error = '';
-		try {
-			await worker.release();
-		} catch (err) {
-			error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
-		} finally {
-			busy = false;
-		}
+		const until = holdUntil;
+		const confirmed = await confirmAction({
+			title: 'Release the hold now?',
+			body:
+				'Downloads resume at once, while YouTube may still be rate-limiting this server, ' +
+				'which is what the hold protects against.' +
+				(until ? ` It clears on its own at ${clockTime(until)}.` : ''),
+			confirmLabel: 'release now',
+			cancelLabel: 'keep holding'
+		});
+		if (confirmed) await run(() => worker.release());
 	}
 
 	onMount(() => {
@@ -55,120 +95,104 @@
 		// poll is the simplest way for a naturally-tripping breaker (5 consecutive
 		// AudioProviderErrors, no user action involved) to still surface here without
 		// the user having to reload.
-		const id = setInterval(() => worker.refresh(), POLL_MS);
+		const id = setInterval(() => {
+			now = Date.now();
+			worker.refresh();
+		}, POLL_MS);
 		return () => clearInterval(id);
 	});
 </script>
 
-<section class="panel worker" aria-label="Worker controls">
-	{#if isAdmin}
+<div class="worker">
+	<p class="sr-only" role="status">{announcement}</p>
+
+	{#if $status === null}
+		<p class="state cond-idle">Reading the worker…</p>
+	{:else}
 		<div class="row">
-			<span class="label">Receiver power</span>
-			<button
-				type="button"
-				class="toggle"
-				aria-pressed={$status?.paused ?? false}
-				disabled={busy || $status === null}
-				onclick={handleToggle}
-			>
-				{$status?.paused ? 'resume' : 'pause'}
-			</button>
-		</div>
-	{/if}
-
-	{#if breakerActive}
-		<div class="row breaker">
-			<span class="cond-fail mono">breaker tripped — backing off</span>
-			{#if $status?.breaker_tripped_until}
-				<Countdown scheduledAt={$status.breaker_tripped_until} label="clears in" />
-			{/if}
-			{#if isAdmin}
-				<button type="button" class="release" disabled={busy} onclick={handleRelease}>
-					release now
-				</button>
+			<div class="state-text">
+				{#if paused}
+					<p class="state cond-fail">Downloads paused</p>
+					<p class="note">Nothing new starts, for anyone, until you resume.</p>
+				{:else if !holdUntil}
+					<p class="state cond-idle">Downloads running</p>
+					<p class="note">Tracks start as they come due, one at a time.</p>
+				{/if}
+			</div>
+			{#if paused}
+				<button type="button" class="btn" disabled={busy} onclick={handleResume}
+					>resume downloads</button
+				>
+			{:else}
+				<button type="button" class="btn" disabled={busy} onclick={handlePause}
+					>pause downloads</button
+				>
 			{/if}
 		</div>
+
+		{#if holdUntil}
+			<div class="row hold">
+				<div class="state-text">
+					<p class="state cond-waiting">
+						Holding until {clockTime(holdUntil)}
+						<span aria-hidden="true"
+							>· <Countdown
+								scheduledAt={holdUntil}
+								label="resumes in"
+								dueLive={false}
+								dueText="resuming…"
+							/></span
+						>
+					</p>
+					<p class="note">
+						A deliberate pause after repeated rate limits. Waiting tracks keep their place.
+					</p>
+				</div>
+				<button type="button" class="btn danger" disabled={busy} onclick={handleRelease}
+					>release now</button
+				>
+			</div>
+		{/if}
 	{/if}
 
-	<p class="status-error mono" role="alert">{error}</p>
-</section>
+	<p class="form-error" role="alert">{error}</p>
+</div>
 
 <style>
 	.worker {
-		padding: var(--space-3) var(--space-4);
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2);
+		gap: var(--space-3);
 	}
 
 	.row {
 		display: flex;
 		align-items: center;
+		justify-content: space-between;
 		flex-wrap: wrap;
-		gap: var(--space-3);
+		gap: var(--space-3) var(--space-4);
 	}
 
-	.toggle {
-		background: var(--bg-2);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-1) var(--space-3);
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		letter-spacing: 0.04em;
-		color: var(--text-muted);
-		cursor: pointer;
-	}
-
-	.toggle:hover:not(:disabled),
-	.toggle:focus-visible {
-		border-color: var(--waiting);
-		color: var(--text-primary);
-	}
-
-	/* aria-pressed=true means the worker is paused -- a stopped receiver, not a live
-	   signal, so this stays off the reserved --signal amber (see DESIGN.md §2). */
-	.toggle[aria-pressed='true'] {
-		border-color: var(--fail-dim);
-		color: var(--fail);
-	}
-
-	.toggle:disabled {
-		opacity: 0.6;
-		cursor: default;
-	}
-
-	.breaker {
-		padding-top: var(--space-2);
+	.hold {
+		padding-top: var(--space-3);
 		border-top: 1px solid var(--line);
 	}
 
-	.release {
-		background: transparent;
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-1) var(--space-2);
+	.state-text {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		min-width: 0;
+	}
+
+	.state {
 		font-family: var(--font-mono);
-		font-size: 0.6875rem;
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+	}
+
+	.note {
+		font-size: var(--fs-detail);
 		color: var(--text-muted);
-		cursor: pointer;
-	}
-
-	.release:hover:not(:disabled),
-	.release:focus-visible {
-		border-color: var(--fail);
-		color: var(--fail);
-	}
-
-	.release:disabled {
-		opacity: 0.6;
-		cursor: default;
-	}
-
-	.status-error {
-		min-height: 1rem;
-		margin: 0;
-		color: var(--fail);
-		font-size: 0.8125rem;
 	}
 </style>
