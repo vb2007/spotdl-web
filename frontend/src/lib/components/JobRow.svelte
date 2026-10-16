@@ -1,14 +1,8 @@
-<script module lang="ts">
-	import { SvelteMap as NoticeMap } from 'svelte/reactivity';
-	// v43: module-level and keyed by id, so a row remounted while its confirmation was open
-	// (a stream reconnect reloads the list) still shows how that answer ended.
-	const notice = new NoticeMap<string, string>();
-</script>
-
 <script lang="ts">
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
+	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
 	import type { Job, JobLifecycle } from '$lib/api';
 
@@ -116,11 +110,7 @@
 	);
 
 	function showNotice(text: string) {
-		const id = job.id;
-		notice.set(id, text);
-		setTimeout(() => {
-			if (notice.get(id) === text) notice.delete(id);
-		}, 4000);
+		showRowNotice(`job:${job.id}`, text);
 	}
 
 	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
@@ -145,7 +135,8 @@
 		if (queue.getResetCount() !== session) return;
 		// Decide on the job as the server has it now. The question can stay open while the job
 		// finishes, and cancel_job would then relabel a finished job "cancelled" (the footgun
-		// the in-flight gate above exists for). The row's own status trails the server (its
+		// the in-flight gate above exists for). This narrows that to one round trip; closing it
+		// needs a conditional cancel in the backend (found, not fixed in v43). The row's own status trails the server (its
 		// refresh is debounced), and the row itself may have been remounted meanwhile (a
 		// stream reconnect reloads the list), so neither is the thing to ask.
 		let lifecycle = job.status.lifecycle;
@@ -298,7 +289,7 @@
 		</div>
 	</div>
 
-	<p class="notice mono" role="status">{notice.get(job.id) ?? ''}</p>
+	<p class="notice mono" role="status">{rowNotices.get(`job:${job.id}`) ?? ''}</p>
 
 	{#if isOpen}
 		<JobTrackList jobId={job.id} {isAdmin} total={totalTracks} />

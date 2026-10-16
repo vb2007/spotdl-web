@@ -1,10 +1,3 @@
-<script module lang="ts">
-	import { SvelteMap as NoticeMap } from 'svelte/reactivity';
-	// v43: module-level and keyed by id, so a row remounted while its confirmation was open
-	// (a stream reconnect reloads the list) still shows how that answer ended.
-	const notice = new NoticeMap<string, string>();
-</script>
-
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -12,6 +5,7 @@
 	import { queue } from '$lib/stores/queue';
 	import { worker } from '$lib/stores/worker';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
+	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import {
 		attemptVia,
@@ -260,11 +254,7 @@
 	// Per-row transient feedback (e.g. "held behind the global pause") -- SvelteMap so
 	// mutations are tracked without wholesale reassignment (see v09's reactivity gotcha).
 	function showNotice(text: string) {
-		const id = track.id;
-		notice.set(id, text);
-		setTimeout(() => {
-			if (notice.get(id) === text) notice.delete(id);
-		}, 4000);
+		showRowNotice(`track:${track.id}`, text);
 	}
 
 	// The pending re-read, cleared when the row is destroyed (a collapsed job, a scope
@@ -319,7 +309,10 @@
 				state: [...CANCELLABLE_STATES],
 				limit: 1000
 			});
-			current = page.items.find((t) => t.id === track.id)?.state ?? null;
+			const found = page.items.find((t) => t.id === track.id)?.state;
+			// Past the read's 1000-row cap (a big discography), absence proves nothing: the row's
+			// last known state decides there, as before v43.
+			current = found ?? (page.next_cursor !== null && canCancel ? track.state : null);
 		} catch {
 			current = undefined;
 		}
@@ -500,7 +493,7 @@
 					{/if}
 				</div>
 			{/if}
-			<p class="notice" role="status">{notice.get(track.id) ?? ''}</p>
+			<p class="notice" role="status">{rowNotices.get(`track:${track.id}`) ?? ''}</p>
 
 			{#if isAdmin}
 				<div class="history">

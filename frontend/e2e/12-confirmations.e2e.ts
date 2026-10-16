@@ -326,7 +326,8 @@ db.commit()
 
 test('remove proxy asks first', async ({ page, baseURL }, testInfo) => {
 	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
-	// TEST-NET-3, switched off at once so no download could ever pick it.
+	// TEST-NET-3, switched off right after it's created: a proxy-rung attempt in that moment
+	// would only probe it, fail and cool it down (no attempt row, so it still deletes).
 	const url = `http://203.0.113.${testInfo.project.name === 'mobile' ? 44 : 43}:8080`;
 	await removeTestProxy(admin, url);
 	const response = await admin.post('/api/proxies', { data: { url } });
@@ -367,10 +368,17 @@ test('start sweep asks first', async ({ page }) => {
 		stackPython(`
 from sqlalchemy import text
 from app.db import SessionLocal
-print(SessionLocal().execute(text("select count(*) from downloaded_tracks where not in_library")).scalar())
+db = SessionLocal()
+print(
+    db.execute(text("select count(*) from downloaded_tracks where not in_library")).scalar()
+    + db.execute(text("select count(*) from tracks where state = 'downloading'")).scalar()
+)
 `)
 	);
-	test.skip(unfiled > 0, `${unfiled} downloads wait to be filed; a sweep would move them`);
+	test.skip(
+		unfiled > 0,
+		`${unfiled} download(s) wait to be filed or are finishing; a sweep would move them`
+	);
 	// The run replaces the one report row: the developer's last report is put back afterwards.
 	const report = snapshotSweepReport();
 	try {

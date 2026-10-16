@@ -130,7 +130,8 @@ test.describe('admin', () => {
 			expect(addResponse.status(), 'adding the test proxy').toBe(201);
 			const proxy = (await addResponse.json()) as Proxy;
 			addedId = proxy.id;
-			// Off at once: a TEST-NET address must never be offered to a download.
+			// Off right away: a proxy-rung attempt in that moment would only probe it, fail and cool
+			// it down (no attempt row, so it still deletes).
 			await px.getByRole('button', { name: `switch off ${proxy.url}`, exact: true }).click();
 			await expect(
 				px.getByRole('button', { name: `switch on ${proxy.url}`, exact: true })
