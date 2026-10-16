@@ -44,6 +44,7 @@
 			trigger =
 				pressed ?? (active instanceof HTMLElement && active !== document.body ? active : null);
 			dialog.showModal();
+			openedAt = performance.now();
 		}
 		// Also on a request that replaced an open one: the safe choice is always first.
 		keepButton.focus();
@@ -90,8 +91,11 @@
 	// released over the backdrop also clicks the dialog itself: only a press that began on
 	// the backdrop counts.
 	let pressedBackdrop = false;
+	// The second click of a double-click on the trigger lands on the just-opened backdrop:
+	// presses in the first moments after opening don't count as "keep".
+	let openedAt = 0;
 	function onPointerDown(event: PointerEvent) {
-		pressedBackdrop = event.target === dialog;
+		pressedBackdrop = event.target === dialog && performance.now() - openedAt > 500;
 	}
 
 	function onBackdrop(event: MouseEvent) {

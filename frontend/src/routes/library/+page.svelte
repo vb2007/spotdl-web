@@ -41,6 +41,10 @@
 	// True from a progress event until the full report (with its error list) is read back.
 	let reportPending = $state(false);
 	let reportError = $state('');
+	// The backend also records whole-sweep problems as "<post-move sync>" or "<sweep>" rows:
+	// those aren't files, so they get their own list.
+	const fileRows = $derived(errorRows.filter((e) => !e.file.startsWith('<')));
+	const sweepRows = $derived(errorRows.filter((e) => e.file.startsWith('<')));
 	const errorCount = $derived(running || reportPending ? errorsSoFar : (run?.errors.length ?? 0));
 	// The library settings the start question names (folder, duplicates rule), read once on
 	// load so asking makes no request of its own.
@@ -191,7 +195,11 @@
 			retryDelay = 2000;
 			if (linkDown) {
 				linkDown = false;
-				loadStatus().catch(() => {});
+				loadStatus().catch(() => {
+					// Back online but the status read failed: a sweep that ended meanwhile may
+					// still read as running. Say so rather than freeze silently.
+					reportError = "Reconnected, but couldn't re-read the sweep; reload to be sure.";
+				});
 			}
 		};
 		source.onerror = () => {
@@ -334,7 +342,24 @@
 						{/if}
 					</div>
 
-					{#if !running && !reportPending && errorRows.length > 0}
+					{#if !running && !reportPending && sweepRows.length > 0}
+						<div class="errors">
+							<h3 class="label">Sweep problems</h3>
+							<p class="hint">
+								Not about one file: the sweep itself hit these (bookkeeping after the moves, or a
+								crash). Files it already filed stay filed.
+							</p>
+							<ul class="error-list">
+								{#each sweepRows as e, i (i)}
+									<li>
+										<span class="file mono">{e.file}</span>
+										<span class="reason">{e.error}</span>
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+					{#if !running && !reportPending && fileRows.length > 0}
 						<div class="errors">
 							<h3 class="label">Not filed</h3>
 							<p class="hint">
@@ -342,7 +367,7 @@
 								the library was deleted.
 							</p>
 							<ul class="error-list">
-								{#each errorRows as e, i (i)}
+								{#each fileRows as e, i (i)}
 									<li>
 										<span class="file mono">{e.file}</span>
 										<span class="reason"

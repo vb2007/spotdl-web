@@ -9,12 +9,15 @@
 	let password = $state('');
 	let submitting = $state(false);
 	let errorMessage = $state('');
+	// Only a 401 says the credentials are wrong; an unreachable server says nothing about them.
+	let credentialsRejected = $state(false);
 	let passwordInput: HTMLInputElement | undefined = $state();
 
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
 		submitting = true;
 		errorMessage = '';
+		credentialsRejected = false;
 		try {
 			await api.login(email, password);
 			// v34.2: a fresh identity never inherits another's cached progress ids -- the
@@ -29,6 +32,7 @@
 			// must not be reported as "wrong password" — that reads as a lie to
 			// whoever's actually blocked by a config/network issue, not a bad
 			// credential.
+			credentialsRejected = err instanceof api.ApiError && err.status === 401;
 			errorMessage =
 				err instanceof api.ApiError && err.status === 401
 					? "Couldn't sign in with that email and password. Check both and try again. If they're right, this account may not be invited, or the account service may be down."
@@ -83,7 +87,7 @@
 				required
 				bind:value={email}
 				disabled={submitting}
-				aria-invalid={errorMessage ? 'true' : undefined}
+				aria-invalid={credentialsRejected ? 'true' : undefined}
 			/>
 		</label>
 
@@ -98,7 +102,8 @@
 				required
 				bind:value={password}
 				disabled={submitting}
-				aria-invalid={errorMessage ? 'true' : undefined}
+				aria-invalid={credentialsRejected ? 'true' : undefined}
+				aria-describedby="login-error"
 			/>
 		</label>
 

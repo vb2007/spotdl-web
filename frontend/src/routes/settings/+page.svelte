@@ -290,6 +290,7 @@
 		const from = focused();
 		alertSaving = true;
 		alertError = '';
+		alertTestResult = '';
 		try {
 			alertSettings = await api.updateAlertSettings(alertForm);
 			syncAlertForm(alertSettings);
