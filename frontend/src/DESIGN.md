@@ -529,6 +529,10 @@ live/active condition, so none of them use `--signal`, consistent with §2's exc
 Jobs/Tracks toggle is a distinct control from the admin-only mine/all-users toggle; both can be
 visible at once and don't interact.
 
+> **v42 (2026-10-15):** the page starts from the queue store's own mine/all-users scope, which
+> outlives the page. Returning from `/settings` therefore keeps "all users", instead of showing
+> "mine" over all-users data (which put foreign rows under the admin's name).
+
 ### Filter tabs
 
 `role="group"` of toggle buttons using `aria-pressed` (not a radio input), each showing a live
