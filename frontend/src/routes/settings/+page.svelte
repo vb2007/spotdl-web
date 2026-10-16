@@ -319,6 +319,8 @@
 	let proxyList = $state<api.Proxy[]>([]);
 	let proxiesLoading = $state(true);
 	let proxiesError = $state('');
+	// The initial read's failure, apart from an action's: a later successful poll clears it.
+	let proxiesLoadError = $state('');
 	let newProxyUrl = $state('');
 	let addingProxy = $state(false);
 	let addProxyError = $state('');
@@ -333,11 +335,11 @@
 
 	async function loadProxies() {
 		proxiesLoading = true;
-		proxiesError = '';
+		proxiesLoadError = '';
 		try {
 			proxyList = await api.listProxies();
 		} catch (err) {
-			proxiesError = errorText(err);
+			proxiesLoadError = errorText(err);
 		} finally {
 			proxiesLoading = false;
 		}
@@ -362,6 +364,7 @@
 		try {
 			const list = await api.listProxies();
 			if (proxyMutations === before) proxyList = list;
+			proxiesLoadError = '';
 		} catch {
 			// A transient poll failure isn't worth surfacing as a page-level error --
 			// loadProxies()'s own error path already covers the initial-load case.
@@ -594,7 +597,9 @@
 								<p id="output-template-hint" class="field-hint">
 									spotdl fills each <code>{'{placeholder}'}</code> per track.
 								</p>
-								<p id="output-template-error" class="field-error">{outputTemplateError}</p>
+								<p id="output-template-error" class="field-error" role="alert">
+									{outputTemplateError}
+								</p>
 							</div>
 
 							<div class="save-row wide">
@@ -640,7 +645,7 @@
 										aria-invalid={libraryFieldErrors[field.key] ? 'true' : undefined}
 										aria-describedby="{field.key}-error"
 									/>
-									<p id="{field.key}-error" class="field-error">
+									<p id="{field.key}-error" class="field-error" role="alert">
 										{libraryFieldErrors[field.key] ?? ''}
 									</p>
 								</div>
@@ -684,7 +689,7 @@
 									aria-invalid={libraryFieldErrors.library_quarantine_dir ? 'true' : undefined}
 									aria-describedby="library_quarantine_dir-error"
 								/>
-								<p id="library_quarantine_dir-error" class="field-error">
+								<p id="library_quarantine_dir-error" class="field-error" role="alert">
 									{libraryFieldErrors.library_quarantine_dir ?? ''}
 								</p>
 							</div>
@@ -786,7 +791,7 @@
 												/>
 												<span class="unit mono" id="{field.key}-unit">{field.unit}</span>
 											</div>
-											<p id="{field.key}-error" class="field-error">
+											<p id="{field.key}-error" class="field-error" role="alert">
 												{alertFieldErrors[field.key] ?? ''}
 											</p>
 										</div>
@@ -859,10 +864,10 @@
 
 					{#if proxiesLoading}
 						<p class="section-hint">Loading proxies…</p>
-					{:else if proxiesError && proxyList.length === 0}
+					{:else if proxiesLoadError && proxyList.length === 0}
 						<!-- Nothing read: never claim "no proxies" over a failed load. -->
 						<p class="section-hint">
-							Couldn't read the proxy pool.
+							Couldn't read the proxy pool ({proxiesLoadError}).
 							<button type="button" class="btn small" onclick={loadProxies}>try again</button>
 						</p>
 					{:else if proxyList.length === 0}
@@ -899,7 +904,7 @@
 									</span>
 									<span class="controls">
 										<span class="state mono" class:on={proxy.enabled}
-											>{proxy.enabled ? 'in use' : 'switched off'}</span
+											>{proxy.enabled ? 'switched on' : 'switched off'}</span
 										>
 										<button
 											type="button"

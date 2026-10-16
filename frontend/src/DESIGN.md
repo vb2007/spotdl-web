@@ -71,7 +71,7 @@ light theme exists or is planned.
 > stays a fill and segment tone. `/settings`' and `WorkerStatus`' state toggles still edge in
 > `--fail-dim`/`--settled-dim` with full-strength state text; they are v43's (F30).
 >
-> **v43 (2026-10-16, F30):** those toggles are gone. A proxy's state is a word ("in use" in
+> **v43 (2026-10-16, F30):** those toggles are gone. A proxy's state is a word ("switched on" in
 > `--settled`, "switched off" in `--text-muted`) beside a plain `.btn` naming the action, and a
 > switched-off row is no longer faded with `opacity: 0.6` (v42's 20-node remainder): its address
 > drops to `--text-muted`. The worker's state is a sentence beside "pause/resume downloads".

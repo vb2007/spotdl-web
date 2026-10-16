@@ -45,7 +45,9 @@
 
 	// One fixed sentence per state for assistive technology: the ticking countdown beside
 	// it is aria-hidden, so the live region never re-announces every second (F07's lesson).
-	const announcement = $derived(
+	// The live region speaks only once the state changes from what the page opened on, so a
+	// visit doesn't announce "Downloads running." every time.
+	const stateSentence = $derived(
 		$status === null
 			? ''
 			: [
@@ -56,6 +58,14 @@
 					.filter(Boolean)
 					.join(' ')
 	);
+	let firstSentence: string | null = null;
+	let stateChanged = $state(false);
+	$effect(() => {
+		if (!stateSentence) return;
+		if (firstSentence === null) firstSentence = stateSentence;
+		else if (stateSentence !== firstSentence) stateChanged = true;
+	});
+	const announcement = $derived(stateChanged ? stateSentence : '');
 
 	async function run(action: () => Promise<void>) {
 		busy = true;

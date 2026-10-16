@@ -147,10 +147,12 @@ print("; ".join(busy))
 	return out ? [out] : [];
 }
 
-/** The one library-sweep report row, as JSON (or 'null'), so a spec that runs a sweep can put
- * the developer's last report back afterwards. */
-export function snapshotSweepReport(): string {
-	return stackPython(`
+const SWEEP_REPORT_FILE = path.join(AUTH_DIR, 'sweep-report.json');
+
+/** Saves the one library-sweep report row (JSON, or 'null') to disk, so a spec that runs a
+ * sweep can put the developer's last report back afterwards, even after a killed run. */
+export function snapshotSweepReport(): void {
+	const snapshot = stackPython(`
 import json
 from app.db import SessionLocal
 from app.models.library_sort_run import LibrarySortRun
@@ -161,11 +163,14 @@ print(json.dumps(None if row is None else {
     for f in fields
 }))
 `);
+	writeFileSync(SWEEP_REPORT_FILE, snapshot);
 }
 
-/** Puts a snapshot back, only once the row is idle again (never over a running sweep). */
-export function restoreSweepReport(snapshot: string): void {
-	stackPython(
+/** Puts a saved snapshot back once the row is idle again (never over a running sweep); the
+ * file stays until it's applied, so the next global setup retries a skipped restore. */
+export function restoreSweepReport(): void {
+	if (!existsSync(SWEEP_REPORT_FILE)) return;
+	const out = stackPython(
 		`
 import json, sys
 from datetime import datetime
@@ -184,9 +189,13 @@ if row is not None and row.state.value == "idle":
                 value = datetime.fromisoformat(value)
             setattr(row, key, value)
     db.commit()
+    print("restored")
+elif row is None:
+    print("restored")
 `,
-		[snapshot]
+		[readFileSync(SWEEP_REPORT_FILE, 'utf8')]
 	);
+	if (out === 'restored') rmSync(SWEEP_REPORT_FILE);
 }
 
 /** Removes a TEST-NET proxy a killed run may have left (else the next create answers 409),

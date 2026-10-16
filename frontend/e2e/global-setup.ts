@@ -14,6 +14,7 @@ import {
 	isSettled,
 	ledgerMisses,
 	restartExpandWorker,
+	restoreSweepReport,
 	restoreWorker,
 	spotifyTrackUrl,
 	stackPython,
@@ -125,6 +126,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 
 	// Likewise a run killed inside spec 12's worker tests: put back what it recorded.
 	restoreWorker();
+	restoreSweepReport();
 
 	// Every job a default run creates must resolve from the ledger. Refuse to start rather than
 	// let one become a real download.

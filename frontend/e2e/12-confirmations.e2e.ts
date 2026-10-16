@@ -276,6 +276,8 @@ test('worker pause and breaker release ask first', async ({ page, baseURL }) => 
 		const resumed = page.waitForResponse((r) => call('POST', '/api/worker/resume')(r.request()));
 		await worker.getByRole('button', { name: 'resume downloads', exact: true }).click();
 		expect((await resumed).ok()).toBe(true);
+		// Resumed by the test itself: a pause the developer makes from here on is theirs.
+		stageWorker({ paused: false });
 		await expect(page.getByRole('alertdialog')).toHaveCount(0);
 
 		// A real trip needs five failed downloads in a row (GOTCHAS v42); the hold itself is
@@ -379,8 +381,9 @@ print(
 		unfiled > 0,
 		`${unfiled} download(s) wait to be filed or are finishing; a sweep would move them`
 	);
-	// The run replaces the one report row: the developer's last report is put back afterwards.
-	const report = snapshotSweepReport();
+	// The run replaces the one report row: the developer's last report is put back afterwards
+	// (saved to disk first, so a run killed mid-sweep has it put back by the next setup).
+	snapshotSweepReport();
 	try {
 		await page.goto('/library');
 		const start: Guarded = {
@@ -398,7 +401,7 @@ print(
 		await expect(page.getByText(/^Last sweep finished/)).toBeVisible({ timeout: 30_000 });
 		await expect(start.trigger).toBeEnabled();
 	} finally {
-		restoreSweepReport(report);
+		restoreSweepReport();
 	}
 });
 

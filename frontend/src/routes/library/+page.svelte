@@ -47,7 +47,7 @@
 	let librarySettings = $state<api.LibrarySettings | undefined>();
 	let progressEvents = 0;
 
-	const announcement = $derived(
+	const stateSentence = $derived(
 		run === null
 			? ''
 			: running
@@ -56,6 +56,16 @@
 					? ''
 					: `Sweep finished: ${run.moved} moved, ${run.errors.length} error${run.errors.length === 1 ? '' : 's'}.`
 	);
+	// Spoken only once the state changes from what the page opened on: a visit doesn't
+	// announce an old sweep's result.
+	let firstSentence: string | null = null;
+	let stateChanged = $state(false);
+	$effect(() => {
+		if (!stateSentence) return;
+		if (firstSentence === null) firstSentence = stateSentence;
+		else if (stateSentence !== firstSentence) stateChanged = true;
+	});
+	const announcement = $derived(stateChanged ? stateSentence : '');
 	let heading: HTMLElement | undefined = $state();
 
 	function formatWhen(iso: string): string {

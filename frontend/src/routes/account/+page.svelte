@@ -186,7 +186,7 @@
 								/>
 								<span class="unit mono" id="retention-days-unit">days without activity</span>
 							</div>
-							<p id="retention-days-error" class="field-error">{daysError}</p>
+							<p id="retention-days-error" class="field-error" role="alert">{daysError}</p>
 						</div>
 
 						<div class="save-row wide">
