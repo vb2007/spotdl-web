@@ -107,13 +107,20 @@
 	// pile stays one key); after a cancel or a resubmit, the submit box. Never a different
 	// job's cancel or retry, where a repeated Enter would act on the wrong submission.
 	function keepFocus(then: 'next-dismiss' | 'submit', ownJobId?: string, position = 0) {
-		if (document.activeElement && document.activeElement !== document.body) return;
+		if (document.activeElement && document.activeElement !== document.body) {
+			lastFocus = null;
+			return;
+		}
 		const buttons = dismissButtons();
 		// The row that moved into the removed one's place, else the one above it.
 		const atPosition = buttons[Math.max(position, 0)] ?? buttons[buttons.length - 1];
 		const next =
 			(ownJobId && buttons.find((b) => b.dataset.job === ownJobId)) ||
 			(then === 'next-dismiss' ? atPosition : undefined);
+		// Focus is being placed deliberately: drop the old memory first (Firefox and WebKit
+		// fire no focusout when the focused button is removed), and let this focus() call's
+		// own focusin record the new button if it is one of ours.
+		lastFocus = null;
 		(next ?? document.getElementById('submit-url'))?.focus();
 	}
 

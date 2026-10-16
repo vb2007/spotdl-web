@@ -115,6 +115,9 @@
 	// whichever chip has focus while a live count refresh drops it to zero.
 	const touched = new SvelteSet<string>();
 	let focusedChip = $state<string | null>(null);
+	// While the pointer is over the chips, the set on screen holds still: a live count
+	// refresh hiding a zero chip would shift its neighbours under a click in progress.
+	let pointerChips = $state<Set<string> | null>(null);
 	let touchedScope = $state<Scope>('jobs');
 
 	// v42 (F11): a chip with nothing behind it is noise. It stays while pressed (so a filter
@@ -125,6 +128,7 @@
 				chipCount(c) > 0 ||
 				chipPressed(c) ||
 				focusedChip === c.key ||
+				pointerChips?.has(c.key) ||
 				(touchedScope === $filters.scope && touched.has(c.key))
 		)
 	);
@@ -244,6 +248,8 @@
 			     read against a row's "8 waiting" (tracks). -->
 			<div
 				class="filters"
+				onpointerenter={() => (pointerChips = new Set(visibleChips.map((c) => c.key)))}
+				onpointerleave={() => (pointerChips = null)}
 				role="group"
 				aria-label={$filters.scope === 'jobs' ? 'Filter by status' : 'Filter by track state'}
 			>
