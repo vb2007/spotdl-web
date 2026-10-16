@@ -199,7 +199,8 @@
 		const confirmed = await confirmAction({
 			title: 'Clear the log?',
 			body:
-				'Every settled job of yours moves to the archive, whatever this view shows. ' +
+				'Every finished job of yours (done, failed or cancelled) moves to the archive, whatever ' +
+				'this view shows. ' +
 				'Archived jobs stay under “show archived” and can be restored one by one. ' +
 				'Jobs still downloading or waiting are kept.',
 			confirmLabel: 'clear log',
