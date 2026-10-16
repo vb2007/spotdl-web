@@ -20,7 +20,11 @@ function createWorkerStore() {
 
 	async function act(call: () => Promise<WorkerStatus>): Promise<void> {
 		++seq;
-		status.set(await call());
+		const next = await call();
+		// Also invalidates a read sent while the action was in flight: it may have been served
+		// before the action committed.
+		++seq;
+		status.set(next);
 	}
 
 	const pause = () => act(api.pauseWorker);

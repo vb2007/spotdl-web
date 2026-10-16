@@ -212,8 +212,24 @@ print(json.dumps(None if row is None else {
 	writeFileSync(SWEEP_REPORT_FILE, snapshot);
 }
 
-/** Puts a saved snapshot back once the row is idle again (never over a running sweep); the
- * file stays until it's applied, so the next global setup retries a skipped restore. */
+/** Records which run the spec's own sweep was (its start), once it has started: the restore
+ * then replaces only that run's report, never a newer real one. */
+export function recordSpecSweep(): void {
+	if (!existsSync(SWEEP_REPORT_FILE)) return;
+	const startedAt = stackPython(`
+from app.db import SessionLocal
+from app.models.library_sort_run import LibrarySortRun
+row = SessionLocal().get(LibrarySortRun, 1)
+print(row.started_at.isoformat() if row is not None and row.started_at else "")
+`);
+	const saved = JSON.parse(readFileSync(SWEEP_REPORT_FILE, 'utf8')) as unknown;
+	writeFileSync(SWEEP_REPORT_FILE, JSON.stringify({ snapshot: saved, specStartedAt: startedAt }));
+}
+
+/** Puts a saved snapshot back once the row is idle again (never over a running sweep), and
+ * only over the spec's own sweep (`recordSpecSweep`); the file stays until it's applied, so
+ * the next global setup retries a skipped restore. A run killed before the sweep was
+ * recorded leaves the report as it is. */
 export function restoreSweepReport(): void {
 	if (!existsSync(SWEEP_REPORT_FILE)) return;
 	const out = stackPython(
@@ -222,10 +238,17 @@ import json, sys
 from datetime import datetime
 from app.db import SessionLocal
 from app.models.library_sort_run import LibrarySortRun
-snap = json.loads(sys.argv[1])
+saved = json.loads(sys.argv[1])
+if not isinstance(saved, dict) or "specStartedAt" not in saved or not saved["specStartedAt"]:
+    print("restored")  # nothing of the spec's to undo: forget the snapshot
+    sys.exit(0)
+snap = saved["snapshot"]
 db = SessionLocal()
 row = db.get(LibrarySortRun, 1)
-if row is not None and row.state.value == "idle":
+mine = row is not None and row.started_at is not None and row.started_at == datetime.fromisoformat(saved["specStartedAt"])
+if row is not None and not mine:
+    print("restored")  # a newer sweep's report: the developer's, left alone
+elif row is not None and row.state.value == "idle":
     if snap is None:
         # There was no report before: leave none ("No sweep has run yet").
         db.delete(row)

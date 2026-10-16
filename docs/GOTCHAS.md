@@ -5068,8 +5068,10 @@ independently-found production bug from the same conversation)
 - **Spec 12 / spec 6 change the shared dev stack, and record each change on disk first**
   (`frontend/e2e/.auth/*-stage.json`, `expand-stopped`, `sweep-report.json`), so their own
   `finally` and, after a killed run, the next global setup can undo it. The settings restore is
-  conditional (only while the value is still the one the spec set). The worker pause, the sweep
-  report and the worker-expand restart are not: after a *killed* run, setup can't tell the spec's
-  leftover from a change the developer made since, and undoes it. Each test also skips rather than
+  conditional (only while the value is still the one the spec set), and so is the sweep report
+  (only over the spec's own run, by its start time). The worker pause, the restored failure
+  streak (only over a zero, which a deliberate release also leaves) and the worker-expand restart
+  are not: after a *killed* run, setup can't tell the spec's leftover from a change the developer
+  made since, and undoes it. Each test also skips rather than
   override a worker that is paused, holding, or about to run real tracks, a stopped worker-expand,
   configured Matrix, or anything waiting to be filed.

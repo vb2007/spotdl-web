@@ -736,7 +736,7 @@
 							<p class="section-hint">
 								Matrix alerts are off. Set <code>MATRIX_HOMESERVER_URL</code>,
 								<code>MATRIX_ACCESS_TOKEN</code> and <code>MATRIX_ROOM_ID</code> in
-								<code>.env</code> to turn them on.
+								<code>.env</code>, then restart the stack, to turn them on.
 							</p>
 						{/if}
 					</header>

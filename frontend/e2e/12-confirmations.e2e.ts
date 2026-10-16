@@ -15,6 +15,7 @@ import {
 	expandWorkerRunning,
 	ledgerMisses,
 	recordHeldSubmission,
+	recordSpecSweep,
 	removeTestProxy,
 	restartExpandWorker,
 	restoreSweepReport,
@@ -403,6 +404,8 @@ print(
 		await expect(start.trigger).toBeEnabled();
 		await expectCancelDoesNothing(page, start);
 		await confirmPerforms(page, start);
+		// From here the report row is this sweep's own: the restore may replace it.
+		recordSpecSweep();
 		// The run reports back over the stream; with nothing new to move it finishes at once, and
 		// the page must land on the finished report even when the stream beat the POST's answer.
 		await expect(page.getByText(/^Last sweep finished/)).toBeVisible({ timeout: 30_000 });
