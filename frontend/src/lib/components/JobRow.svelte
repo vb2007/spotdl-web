@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { SvelteMap } from 'svelte/reactivity';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
+	import { confirmAction, keepFocus } from '$lib/stores/confirm';
+	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
 	import type { Job, JobLifecycle } from '$lib/api';
 
@@ -51,6 +52,11 @@
 			return statusToken === 'active';
 		if ((c.waiting ?? 0) === 1) return statusToken === 'waiting';
 		return false;
+	});
+	let toggleButton: HTMLButtonElement | undefined = $state();
+	let destroyed = false;
+	$effect(() => () => {
+		destroyed = true;
 	});
 	let showInFlight = $derived(IN_FLIGHT_LIFECYCLES.has(job.status.lifecycle));
 	let showArchive = $derived(
@@ -103,20 +109,72 @@
 			.join(' · ')
 	);
 
-	const notice = new SvelteMap<string, string>();
 	function showNotice(text: string) {
-		notice.set(job.id, text);
-		setTimeout(() => {
-			if (notice.get(job.id) === text) notice.delete(job.id);
-		}, 4000);
+		showRowNotice(`job:${job.id}`, text);
 	}
 
+	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
+	// One question and its server re-read at a time: a second press meanwhile is ignored.
+	let handleCancelRunning = false;
 	async function handleCancel() {
+		if (handleCancelRunning) return;
+		handleCancelRunning = true;
+		try {
+			await handleCancelFlow();
+		} finally {
+			handleCancelRunning = false;
+		}
+	}
+
+	async function handleCancelFlow() {
+		const session = queue.getResetCount();
+		const confirmed = await confirmAction({
+			title: 'Cancel this job?',
+			subject: job.title,
+			body:
+				"Its tracks that haven't downloaded yet (any not found included) are cancelled; one " +
+				'downloading right now ' +
+				"finishes but stays cancelled. Files already downloaded stay. This can't be undone, " +
+				'but the link can be submitted again.',
+			confirmLabel: 'cancel job',
+			cancelLabel: 'keep job'
+		});
+		// Kept or Esc: the cancel button may have gone meanwhile (the job finished), or the whole
+		// row did (remounted by a list reload).
+		if (!confirmed)
+			return keepFocus(destroyed ? document.getElementById('queue-heading') : toggleButton);
+		// Another identity took over meanwhile: this answer belongs to the previous session.
+		if (queue.getResetCount() !== session) return;
+		// Decide on the job as the server has it now. The question can stay open while the job
+		// finishes, and cancel_job would then relabel a finished job "cancelled" (the footgun
+		// the in-flight gate above exists for). This narrows that to one round trip; closing it
+		// needs a conditional cancel in the backend (found, not fixed in v43). The row's own status trails the server (its
+		// refresh is debounced), and the row itself may have been remounted meanwhile (a
+		// stream reconnect reloads the list), so neither is the thing to ask.
+		let lifecycle = job.status.lifecycle;
+		try {
+			lifecycle = (await api.getJob(job.id)).status.lifecycle;
+		} catch {
+			// Unreadable: the last known state decides, and the server still checks ownership.
+		}
+		if (queue.getResetCount() !== session) return;
+		// A remounted row's button is gone: focus goes to the list instead. Its notice is
+		// module-level, so the remounted row shows it.
+		const landing = () => (destroyed ? document.getElementById('queue-heading') : toggleButton);
+		if (!IN_FLIGHT_LIFECYCLES.has(lifecycle)) {
+			showNotice('Not cancelled: nothing in it is still to come.');
+			await keepFocus(landing());
+			return;
+		}
 		try {
 			await queue.cancelJob(job.id);
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
+			// A session reset meanwhile: the answer belongs to the previous identity.
+			if (queue.getResetCount() === session)
+				showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
 		}
+		// The cancel button is gone with the in-flight controls: land on the row itself.
+		await keepFocus(landing());
 	}
 
 	async function handleBump() {
@@ -160,6 +218,7 @@
 		<!-- v41 (F16): no aria-label, so the button's name is what it shows (status, title,
 		     type, owner; WCAG 2.5.3), and aria-controls ties it to the track list (F29). -->
 		<button
+			bind:this={toggleButton}
 			type="button"
 			class="toggle"
 			aria-expanded={isOpen}
@@ -244,7 +303,7 @@
 		</div>
 	</div>
 
-	<p class="notice mono" role="status">{notice.get(job.id) ?? ''}</p>
+	<p class="notice mono" role="status">{rowNotices.get(`job:${job.id}`) ?? ''}</p>
 
 	{#if isOpen}
 		<JobTrackList jobId={job.id} {isAdmin} total={totalTracks} />
@@ -327,7 +386,7 @@
 		padding: 0.125rem var(--space-2);
 		border: 1px solid var(--line);
 		border-radius: 3px;
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		letter-spacing: 0.04em;
 	}
 
@@ -364,7 +423,7 @@
 	.source-type {
 		flex-shrink: 0;
 		color: var(--text-muted);
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		text-transform: uppercase;
 	}
 
@@ -374,7 +433,7 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		color: var(--text-muted);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	.progress {
@@ -413,7 +472,7 @@
 
 	.breakdown {
 		color: var(--text-muted);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	.row-actions {
@@ -430,7 +489,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-1);
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		color: var(--text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -444,7 +503,7 @@
 		padding: var(--space-1) var(--space-2);
 		color: var(--text-primary);
 		font-family: var(--font-mono);
-		font-size: 0.8125rem;
+		font-size: var(--fs-detail);
 	}
 
 	.action {
@@ -453,7 +512,7 @@
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
 		cursor: pointer;
 		white-space: nowrap;
@@ -479,7 +538,7 @@
 	}
 
 	.archived-tag {
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		color: var(--text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -489,7 +548,7 @@
 		margin: 0;
 		padding: 0 var(--row-pad-x) var(--space-2) calc(var(--row-pad-x) + var(--row-nest));
 		color: var(--waiting);
-		font-size: 0.8125rem;
+		font-size: var(--fs-detail);
 	}
 
 	/* Empty, it stays in the accessibility tree (a status region inserted together with

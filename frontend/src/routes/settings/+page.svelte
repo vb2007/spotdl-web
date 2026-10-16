@@ -1,12 +1,61 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
+	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import WorkerStatus from '$lib/components/WorkerStatus.svelte';
+	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
+	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
+
+	// v43 (F19): one page, five sections, and an in-page index (anchors, no sub-routes, so
+	// no nginx change). Each section saves on its own: they are separate endpoints.
+	const SECTIONS = [
+		{ id: 'worker', label: 'Worker' },
+		{ id: 'output', label: 'Output' },
+		{ id: 'library', label: 'Library' },
+		{ id: 'alerts', label: 'Alerts' },
+		{ id: 'proxies', label: 'Proxies' }
+	] as const;
+	let activeSection = $state<string>('worker');
+
+	function errorText(err: unknown, fallback = 'Could not reach the server.'): string {
+		return err instanceof api.ApiError ? err.message : fallback;
+	}
+
+	// A failed check sends nothing, so nothing else would tell a screen reader: focus moves to
+	// the first invalid field, whose error its aria-describedby then reads out.
+	async function focusInvalid(id: string | undefined) {
+		if (id === undefined) return;
+		await tick();
+		const field = document.getElementById(id);
+		// Already focused (Enter pressed in it): focus() alone announces nothing, so leave and
+		// come back, and the field is read again with its new error.
+		if (field === document.activeElement) field?.blur();
+		field?.focus();
+	}
+
+	// A save disables the control that had focus (its button, or the field Enter was pressed
+	// in), which drops focus to <body>; it goes back there once the save is done.
+	function focused(): HTMLElement | null {
+		return document.activeElement instanceof HTMLElement ? document.activeElement : null;
+	}
+
+	// The add-proxy error is its own alert, so a field that already has focus needs nothing
+	// more; a press of "add proxy" moves focus back to the field to fix.
+	function focusUnlessFocused(id: string) {
+		const field = document.getElementById(id);
+		if (field && field !== document.activeElement) field.focus();
+	}
+
+	function clockTime(date: Date): string {
+		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+	}
+
+	// --- Output defaults ---------------------------------------------------------------
 
 	let outputSettings = $state<api.OutputSettings | null>(null);
 	let outputOptions = $state<api.OutputOptions | null>(null);
@@ -16,58 +65,16 @@
 		output_template: ''
 	});
 	let outputSaving = $state(false);
-	let outputSaved = $state(false);
+	let outputSavedAt = $state<Date | null>(null);
 	let outputError = $state('');
+	let outputTemplateError = $state('');
 
-	let librarySettings = $state<api.LibrarySettings | null>(null);
-	let libraryForm = $state<api.EditableLibrarySettings>({
-		library_target_dir: '',
-		library_folder_template: '',
-		library_quarantine_enabled: true,
-		library_quarantine_dir: ''
-	});
-	let librarySaving = $state(false);
-
-	let alertSettings = $state<api.AlertSettings | null>(null);
-	let alertForm = $state<api.EditableAlertSettings>({
-		alerts_breaker_enabled: true,
-		alerts_spike_enabled: true,
-		alerts_beat_stale_enabled: true,
-		alerts_library_enabled: true,
-		alert_spike_threshold: 5,
-		alert_spike_window_minutes: 60,
-		alert_beat_stale_seconds: 180,
-		alert_cooldown_minutes: 60
-	});
-	let alertSaving = $state(false);
-	let alertSaved = $state(false);
-	let alertError = $state('');
-	let alertTesting = $state(false);
-	let alertTestResult = $state('');
-
-	const ALERT_TOGGLES: { key: keyof api.EditableAlertSettings; label: string }[] = [
-		{ key: 'alerts_breaker_enabled', label: 'Breaker trip / release' },
-		{ key: 'alerts_spike_enabled', label: 'Failure spike' },
-		{ key: 'alerts_beat_stale_enabled', label: 'Beat stale' },
-		{ key: 'alerts_library_enabled', label: 'Library sweep' }
-	];
-	let librarySaved = $state(false);
-	let libraryError = $state('');
-
-	let proxyList = $state<api.Proxy[]>([]);
-	let proxiesLoading = $state(true);
-	let proxiesError = $state('');
-	let newProxyUrl = $state('');
-	let addingProxy = $state(false);
-	let addProxyError = $state('');
-	let proxyBusy = $state<Record<string, boolean>>({});
-
-	// Mirrors the backend's real gate (app.services.proxies.PROXY_URL_RE, verified
-	// against the installed spotdl's own Downloader source) -- this copy is purely for
-	// immediate form feedback; the backend enforces the actual rule and is the one that
-	// matters if the two ever drift.
-	const PROXY_URL_RE =
-		/^(http|https):\/\/(?:(\w+)(?::(\w+))?@)?(\d{1,3}(?:\.\d{1,3}){3})(?::(\d{1,5}))?$/;
+	const outputDirty = $derived(
+		outputSettings !== null &&
+			(outputForm.default_format !== outputSettings.default_format ||
+				outputForm.default_bitrate !== outputSettings.default_bitrate ||
+				outputForm.output_template !== outputSettings.output_template)
+	);
 
 	function syncOutputForm(settings: api.OutputSettings) {
 		outputForm = {
@@ -85,9 +92,183 @@
 		syncOutputForm(outputSettings);
 	}
 
-	function syncLibraryForm(settings: api.LibrarySettings) {
-		libraryForm = { ...settings };
+	async function onOutputSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		// The backend accepts a blank template; spotdl would then write files with no name.
+		outputTemplateError = outputForm.output_template.trim()
+			? ''
+			: 'Enter a filename template, for example {artists} - {title}.{output-ext}.';
+		if (outputTemplateError) return focusInvalid('output-template');
+		const from = focused();
+		outputSaving = true;
+		outputError = '';
+		try {
+			outputSettings = await api.updateOutputSettings(outputForm);
+			syncOutputForm(outputSettings);
+			outputSavedAt = new Date();
+		} catch (err) {
+			outputError = errorText(err);
+		} finally {
+			outputSaving = false;
+		}
+		await keepFocus(from);
 	}
+
+	// --- Library sort & move -----------------------------------------------------------
+
+	let librarySettings = $state<api.LibrarySettings | null>(null);
+	let libraryForm = $state<api.EditableLibrarySettings>({
+		library_target_dir: '',
+		library_folder_template: '',
+		library_quarantine_enabled: true,
+		library_quarantine_dir: ''
+	});
+	let librarySaving = $state(false);
+	let librarySavedAt = $state<Date | null>(null);
+	let libraryError = $state('');
+	let libraryFieldErrors = $state<Record<string, string>>({});
+
+	const LIBRARY_TEXT_FIELDS = [
+		{ key: 'library_target_dir', label: 'Library folder' },
+		{ key: 'library_folder_template', label: 'Folder template' },
+		{ key: 'library_quarantine_dir', label: 'Quarantine folder' }
+	] as const;
+
+	const libraryDirty = $derived(
+		librarySettings !== null &&
+			(Object.keys(libraryForm) as (keyof api.EditableLibrarySettings)[]).some(
+				(key) => libraryForm[key] !== librarySettings?.[key]
+			)
+	);
+
+	async function loadLibrarySettings() {
+		librarySettings = await api.getLibrarySettings();
+		libraryForm = { ...librarySettings };
+	}
+
+	async function onLibrarySubmit(event: SubmitEvent) {
+		event.preventDefault();
+		const errors: Record<string, string> = {};
+		for (const { key, label } of LIBRARY_TEXT_FIELDS) {
+			if (!libraryForm[key].trim()) errors[key] = `${label} can't be empty.`;
+		}
+		libraryFieldErrors = errors;
+		if (Object.keys(errors).length > 0) return focusInvalid(Object.keys(errors)[0]);
+		const from = focused();
+		librarySaving = true;
+		libraryError = '';
+		try {
+			librarySettings = await api.updateLibrarySettings(libraryForm);
+			libraryForm = { ...librarySettings };
+			librarySavedAt = new Date();
+		} catch (err) {
+			libraryError = errorText(err);
+		} finally {
+			librarySaving = false;
+		}
+		await keepFocus(from);
+	}
+
+	// --- Alerts ------------------------------------------------------------------------
+
+	let alertSettings = $state<api.AlertSettings | null>(null);
+	let alertForm = $state<api.EditableAlertSettings>({
+		alerts_breaker_enabled: true,
+		alerts_spike_enabled: true,
+		alerts_beat_stale_enabled: true,
+		alerts_library_enabled: true,
+		alert_spike_threshold: 5,
+		alert_spike_window_minutes: 60,
+		alert_beat_stale_seconds: 180,
+		alert_cooldown_minutes: 60
+	});
+	let alertSaving = $state(false);
+	let alertSavedAt = $state<Date | null>(null);
+	let alertError = $state('');
+	let alertFieldErrors = $state<Record<string, string>>({});
+	let alertTesting = $state(false);
+	let alertTestResult = $state('');
+
+	type AlertToggleKey =
+		| 'alerts_breaker_enabled'
+		| 'alerts_spike_enabled'
+		| 'alerts_beat_stale_enabled'
+		| 'alerts_library_enabled';
+	type AlertNumberKey =
+		| 'alert_spike_threshold'
+		| 'alert_spike_window_minutes'
+		| 'alert_beat_stale_seconds'
+		| 'alert_cooldown_minutes';
+
+	// v43 (F19): what each category reports, so fourteen controls read as two short groups.
+	const ALERT_TOGGLES: { key: AlertToggleKey; label: string; hint: string }[] = [
+		{
+			key: 'alerts_breaker_enabled',
+			label: 'Breaker trip / release',
+			hint: 'Downloads hold after repeated failed downloads, and resume.'
+		},
+		{
+			key: 'alerts_spike_enabled',
+			label: 'Failure spike',
+			hint: 'The latest attempts all failed the same way, within the window below.'
+		},
+		{
+			key: 'alerts_beat_stale_enabled',
+			label: 'Beat stale',
+			hint: "The scheduler hasn't ticked for longer than the limit below."
+		},
+		{
+			key: 'alerts_library_enabled',
+			label: 'Library sweep',
+			hint: 'A sweep finished or crashed.'
+		}
+	];
+
+	// Mirrors the backend's _ALERT_BOUNDS (routers/settings.py), for an inline answer before
+	// the request; the backend stays the real check.
+	const ALERT_NUMBERS: {
+		key: AlertNumberKey;
+		label: string;
+		unit: string;
+		min: number;
+		max: number;
+	}[] = [
+		{
+			key: 'alert_spike_threshold',
+			label: 'Spike: failures in a row',
+			unit: 'attempts',
+			min: 2,
+			max: 1000
+		},
+		{
+			key: 'alert_spike_window_minutes',
+			label: 'Spike window',
+			unit: 'minutes',
+			min: 1,
+			max: 7 * 24 * 60
+		},
+		{
+			key: 'alert_beat_stale_seconds',
+			label: 'Beat stale after',
+			unit: 'seconds',
+			min: 90,
+			max: 7 * 24 * 3600
+		},
+		{
+			key: 'alert_cooldown_minutes',
+			label: 'Repeat an alert at most every',
+			unit: 'minutes',
+			min: 1,
+			max: 7 * 24 * 60
+		}
+	];
+
+	const alertDirty = $derived(
+		alertSettings !== null &&
+			(Object.keys(alertForm) as (keyof api.EditableAlertSettings)[]).some(
+				(key) => alertForm[key] !== alertSettings?.[key]
+			)
+	);
 
 	function syncAlertForm(settings: api.AlertSettings) {
 		const { configured: _configured, ...editable } = settings;
@@ -101,59 +282,76 @@
 
 	async function onAlertSubmit(event: SubmitEvent) {
 		event.preventDefault();
-		// A cleared number input binds to null, which the API reads as "unchanged" -- say
-		// so instead of reporting "Saved." over the old value.
-		const numbers = [
-			alertForm.alert_spike_threshold,
-			alertForm.alert_spike_window_minutes,
-			alertForm.alert_beat_stale_seconds,
-			alertForm.alert_cooldown_minutes
-		];
-		if (numbers.some((value) => typeof value !== 'number' || Number.isNaN(value))) {
-			alertSaved = false;
-			alertError = 'Every number needs a value.';
-			return;
+		// A cleared number input binds to null, which the API reads as "unchanged".
+		const errors: Record<string, string> = {};
+		for (const { key, min, max } of ALERT_NUMBERS) {
+			const value = alertForm[key];
+			if (typeof value !== 'number' || Number.isNaN(value)) {
+				errors[key] = 'Enter a number.';
+			} else if (!Number.isInteger(value) || value < min || value > max) {
+				errors[key] = `Use a whole number from ${min.toLocaleString()} to ${max.toLocaleString()}.`;
+			}
 		}
+		alertFieldErrors = errors;
+		if (Object.keys(errors).length > 0) return focusInvalid(Object.keys(errors)[0]);
+		const from = focused();
 		alertSaving = true;
-		alertSaved = false;
 		alertError = '';
+		alertTestResult = '';
 		try {
 			alertSettings = await api.updateAlertSettings(alertForm);
 			syncAlertForm(alertSettings);
-			alertSaved = true;
+			alertSavedAt = new Date();
 		} catch (err) {
-			alertError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			alertError = errorText(err);
 		} finally {
 			alertSaving = false;
 		}
+		await keepFocus(from);
 	}
 
 	async function onTestAlert() {
+		const from = focused();
 		alertTesting = true;
 		alertTestResult = '';
 		alertError = '';
 		try {
 			await api.sendTestAlert();
-			alertTestResult = 'Test alert sent — check the Matrix room.';
+			alertTestResult = 'Test alert sent. Check the Matrix room.';
 		} catch (err) {
-			alertError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			alertError = errorText(err);
 		} finally {
 			alertTesting = false;
 		}
+		await keepFocus(from);
 	}
 
-	async function loadLibrarySettings() {
-		librarySettings = await api.getLibrarySettings();
-		syncLibraryForm(librarySettings);
-	}
+	// --- Proxy pool --------------------------------------------------------------------
+
+	let proxyList = $state<api.Proxy[]>([]);
+	let proxiesLoading = $state(true);
+	let proxiesError = $state('');
+	// The initial read's failure, apart from an action's: a later successful poll clears it.
+	let proxiesLoadError = $state('');
+	let newProxyUrl = $state('');
+	let addingProxy = $state(false);
+	let addProxyError = $state('');
+	let proxyBusy = $state<Record<string, boolean>>({});
+
+	// Mirrors the backend's real gate (app.services.proxies.PROXY_URL_RE, verified
+	// against the installed spotdl's own Downloader source) -- this copy is purely for
+	// immediate form feedback; the backend enforces the actual rule and is the one that
+	// matters if the two ever drift.
+	const PROXY_URL_RE =
+		/^(http|https):\/\/(?:(\w+)(?::(\w+))?@)?(\d{1,3}(?:\.\d{1,3}){3})(?::(\d{1,5}))?$/;
 
 	async function loadProxies() {
 		proxiesLoading = true;
-		proxiesError = '';
+		proxiesLoadError = '';
 		try {
 			proxyList = await api.listProxies();
 		} catch (err) {
-			proxiesError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			proxiesLoadError = errorText(err);
 		} finally {
 			proxiesLoading = false;
 		}
@@ -167,63 +365,21 @@
 	// check, but a silent variant: reusing loadProxies() verbatim would flip
 	// proxiesLoading on every tick and re-flash "Loading..." over a page the user is
 	// actively looking at.
+	let proxyMutations = 0;
 	async function refreshProxiesSilently() {
 		// Skip a tick while a toggle/remove/add is in flight -- a poll landing mid-request
 		// must not visually clobber that row before the user's own action resolves.
 		if (addingProxy || Object.keys(proxyBusy).length > 0) return;
+		// ...nor may a poll that *started* before one land after it (a removed proxy would come
+		// back for a tick).
+		const before = proxyMutations;
 		try {
-			proxyList = await api.listProxies();
+			const list = await api.listProxies();
+			if (proxyMutations === before) proxyList = list;
+			proxiesLoadError = '';
 		} catch {
 			// A transient poll failure isn't worth surfacing as a page-level error --
 			// loadProxies()'s own error path already covers the initial-load case.
-		}
-	}
-
-	onMount(() => {
-		loadOutputSettings().catch((err) => {
-			outputError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
-		});
-		loadLibrarySettings().catch((err) => {
-			libraryError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
-		});
-		loadAlertSettings().catch((err) => {
-			alertError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
-		});
-		loadProxies();
-
-		const id = setInterval(refreshProxiesSilently, PROXY_POLL_MS);
-		return () => clearInterval(id);
-	});
-
-	async function onOutputSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		outputSaving = true;
-		outputSaved = false;
-		outputError = '';
-		try {
-			outputSettings = await api.updateOutputSettings(outputForm);
-			syncOutputForm(outputSettings);
-			outputSaved = true;
-		} catch (err) {
-			outputError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
-		} finally {
-			outputSaving = false;
-		}
-	}
-
-	async function onLibrarySubmit(event: SubmitEvent) {
-		event.preventDefault();
-		librarySaving = true;
-		librarySaved = false;
-		libraryError = '';
-		try {
-			librarySettings = await api.updateLibrarySettings(libraryForm);
-			syncLibraryForm(librarySettings);
-			librarySaved = true;
-		} catch (err) {
-			libraryError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
-		} finally {
-			librarySaving = false;
 		}
 	}
 
@@ -231,371 +387,578 @@
 		event.preventDefault();
 		const url = newProxyUrl.trim();
 		if (!url) {
-			addProxyError = 'Paste a proxy URL first.';
-			return;
+			addProxyError = 'Paste a proxy address first.';
+			return focusUnlessFocused('new-proxy');
 		}
 		if (!PROXY_URL_RE.test(url)) {
 			addProxyError =
-				'Must look like http(s)://[user:pass@]<ipv4>[:port] -- a literal IPv4 address, not a hostname.';
-			return;
+				"That address won't work. It needs exactly http(s)://[user:pass@]ipv4[:port]: a literal IPv4 address, letters, digits or _ in the credentials, and no path.";
+			return focusUnlessFocused('new-proxy');
 		}
+		const from = focused();
 		addingProxy = true;
+		proxyMutations += 1;
 		addProxyError = '';
 		try {
 			const proxy = await api.createProxy(url);
 			proxyList = [...proxyList, proxy];
 			newProxyUrl = '';
 		} catch (err) {
-			addProxyError = err instanceof api.ApiError ? err.message : 'Could not add this proxy.';
+			addProxyError = errorText(err, 'Could not add this proxy.');
 		} finally {
 			addingProxy = false;
 		}
+		await keepFocus(from);
 	}
 
 	async function toggleProxy(proxy: api.Proxy) {
+		const from = focused();
 		proxyBusy = { ...proxyBusy, [proxy.id]: true };
+		proxyMutations += 1;
+		proxiesError = '';
 		try {
 			const updated = await api.setProxyEnabled(proxy.id, !proxy.enabled);
 			proxyList = proxyList.map((p) => (p.id === updated.id ? updated : p));
 		} catch (err) {
-			proxiesError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			proxiesError = errorText(err);
 		} finally {
 			const { [proxy.id]: _unused, ...rest } = proxyBusy;
 			proxyBusy = rest;
 		}
+		await keepFocus(from);
 	}
 
 	async function removeProxy(proxy: api.Proxy) {
 		// Only ever called for source=manual -- the "remove" control isn't rendered for
 		// source=file rows at all (see markup below). A real, permanent delete: the row
 		// disappears from the list rather than being merged back in updated.
+		// v43 (F08): permanent, so it asks first.
+		const confirmed = await confirmAction({
+			title: 'Remove this proxy?',
+			subject: proxy.url,
+			body:
+				"It's deleted from the pool, and no download uses it again. You can add it back later. " +
+				"One that downloads have already used can't be deleted yet; switch it off instead.",
+			confirmLabel: 'remove proxy',
+			cancelLabel: 'keep proxy'
+		});
+		// Gone meanwhile (removed in another tab): nothing to remove.
+		// Kept, Esc, or gone meanwhile (removed elsewhere): its row may have left, so focus
+		// falls back to the list's heading.
+		if (!confirmed || !proxyList.some((p) => p.id === proxy.id)) {
+			return keepFocus(document.getElementById('proxies-heading'));
+		}
 		proxyBusy = { ...proxyBusy, [proxy.id]: true };
+		proxyMutations += 1;
+		proxiesError = '';
 		try {
 			await api.deleteProxy(proxy.id);
 			proxyList = proxyList.filter((p) => p.id !== proxy.id);
+			// The row (and the focused button) is gone: land on the list's own heading, unless
+			// the user already moved on while the delete was in flight.
+			await keepFocus(document.getElementById('proxies-heading'));
 		} catch (err) {
-			proxiesError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			// A manual proxy that some attempt has used can't be hard-deleted: the attempt
+			// history still references it and the backend answers 500 (a known backend limit,
+			// not something to retry).
+			proxiesError =
+				err instanceof api.ApiError && err.status === 500
+					? `Couldn't remove ${proxy.url}. If downloads have used it, it can't be deleted yet (switch it off instead); otherwise try again.`
+					: errorText(err);
 		} finally {
 			const { [proxy.id]: _unused, ...rest } = proxyBusy;
 			proxyBusy = rest;
 		}
+		// A failed removal disabled the focused button for the request: put focus back on it,
+		// or on the list's heading.
+		await keepFocus(
+			document.querySelector<HTMLElement>(`#proxies button[data-remove="${proxy.id}"]`) ??
+				document.getElementById('proxies-heading')
+		);
 	}
 
-	function formatTimestamp(value: string | null): string {
-		if (!value) return '—';
-		return new Date(value).toLocaleString();
+	function formatTimestamp(value: string): string {
+		return new Date(value).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
 	}
 
 	function isFuture(value: string | null): boolean {
 		return value != null && new Date(value).getTime() > Date.now();
 	}
+
+	onMount(() => {
+		// A non-admin gets the notice and nothing else: no admin request is ever made (F17).
+		if (!isAdmin) return;
+		loadOutputSettings().catch((err) => (outputError = errorText(err)));
+		loadLibrarySettings().catch((err) => (libraryError = errorText(err)));
+		loadAlertSettings().catch((err) => (alertError = errorText(err)));
+		loadProxies();
+		const poll = setInterval(refreshProxiesSilently, PROXY_POLL_MS);
+
+		// The index marks the section being read: the last one whose top has passed a line a
+		// third of the way down the viewport, or the last section once the page can't scroll
+		// further (a short final section never reaches the line). One read per frame at most.
+		let frame = 0;
+		const mark = () => {
+			frame = 0;
+			const line = window.innerHeight / 3;
+			const atEnd =
+				window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+			let current: string = SECTIONS[0].id;
+			for (const { id } of SECTIONS) {
+				const el = document.getElementById(id);
+				if (el && el.getBoundingClientRect().top <= line) current = id;
+			}
+			activeSection = atEnd && window.scrollY > 0 ? SECTIONS[SECTIONS.length - 1].id : current;
+		};
+		const onScroll = () => {
+			if (!frame) frame = requestAnimationFrame(mark);
+		};
+		window.addEventListener('scroll', onScroll, { passive: true });
+		window.addEventListener('resize', onScroll, { passive: true });
+		mark();
+
+		return () => {
+			clearInterval(poll);
+			cancelAnimationFrame(frame);
+			window.removeEventListener('scroll', onScroll);
+			window.removeEventListener('resize', onScroll);
+		};
+	});
 </script>
 
 <svelte:head>
 	<title>spotdl-web — settings</title>
 </svelte:head>
 
-<main class="stage">
-	<header>
-		<div class="ident">
-			<span class="label">SPOTDL // WEB</span>
-			<span class="label dim">SETTINGS</span>
-		</div>
-		<a class="back mono" href={resolve('/')}>‹ back to queue</a>
-	</header>
+<div class="stage">
+	<SubpageHeader current="settings" {isAdmin} />
 
-	<div class="worker-section">
-		<h2 class="label">Worker control</h2>
-		<WorkerStatus {isAdmin} />
-	</div>
-
-	<section class="panel output-settings" aria-labelledby="output-heading">
-		<h2 class="label" id="output-heading">Output defaults</h2>
-		<p class="hint mono">Applies to the next download — no restart needed.</p>
-
-		{#if outputOptions === null}
-			<p class="hint mono">Loading options…</p>
+	<main id="main" class="main" class:gated={!isAdmin}>
+		<h1 class="page-title">Settings</h1>
+		{#if !isAdmin}
+			<AdminOnlyNotice what="The worker, output, library, alert and proxy setup" />
 		{:else}
-			<form class="output-form" onsubmit={onOutputSubmit}>
-				<div class="field">
-					<span class="label" id="format-label">Format</span>
-					<div class="option-group" role="group" aria-labelledby="format-label">
-						{#each outputOptions.formats as fmt (fmt)}
-							<button
-								type="button"
-								aria-pressed={outputForm.default_format === fmt}
-								disabled={outputSaving}
-								onclick={() => (outputForm.default_format = fmt)}
+			<nav class="index" aria-label="Settings sections">
+				<ul>
+					{#each SECTIONS as section (section.id)}
+						<li>
+							<a
+								href="#{section.id}"
+								aria-current={activeSection === section.id ? 'location' : undefined}
+								>{section.label}</a
 							>
-								{fmt}
-							</button>
-						{/each}
-					</div>
-				</div>
+						</li>
+					{/each}
+				</ul>
+			</nav>
 
-				<label class="field">
-					<span class="label">Bitrate</span>
-					<select bind:value={outputForm.default_bitrate} disabled={outputSaving}>
-						{#each outputOptions.bitrates as rate (rate)}
-							<option value={rate}>{rate}</option>
-						{/each}
-					</select>
-				</label>
+			<div class="sections">
+				<section id="worker" class="panel section" aria-labelledby="worker-heading">
+					<header class="section-head">
+						<h2 id="worker-heading" class="label">Worker control</h2>
+						<p class="section-hint">One worker downloads for everyone, one track at a time.</p>
+					</header>
+					<WorkerStatus />
+				</section>
 
-				<label class="field wide">
-					<span class="label">Filename template</span>
-					<input type="text" bind:value={outputForm.output_template} disabled={outputSaving} />
-				</label>
+				<section id="output" class="panel section" aria-labelledby="output-heading">
+					<header class="section-head">
+						<h2 id="output-heading" class="label">Output defaults</h2>
+						<p class="section-hint">Used from the next download on. No restart needed.</p>
+					</header>
 
-				<button type="submit" class="save" disabled={outputSaving || outputSettings === null}>
-					{outputSaving ? 'SAVING…' : 'SAVE'}
-				</button>
-			</form>
-		{/if}
+					{#if outputOptions === null}
+						{#if !outputError}<p class="section-hint">Loading output options…</p>{/if}
+					{:else}
+						<form class="grid" onsubmit={onOutputSubmit} novalidate>
+							<div class="form-field">
+								<span class="label" id="format-label">Format</span>
+								<div class="choice-group" role="group" aria-labelledby="format-label">
+									{#each outputOptions.formats as fmt (fmt)}
+										<button
+											type="button"
+											aria-pressed={outputForm.default_format === fmt}
+											disabled={outputSaving}
+											onclick={() => (outputForm.default_format = fmt)}
+										>
+											{fmt}
+										</button>
+									{/each}
+								</div>
+							</div>
 
-		{#if outputSaved && !outputSaving}
-			<p class="saved mono" role="status">Saved.</p>
-		{/if}
-		<p class="form-error mono" role="alert">{outputError}</p>
-	</section>
+							<label class="form-field">
+								<span class="label">Bitrate</span>
+								<select
+									class="well"
+									bind:value={outputForm.default_bitrate}
+									disabled={outputSaving}
+								>
+									{#each outputOptions.bitrates as rate (rate)}
+										<option value={rate}>{rate}</option>
+									{/each}
+								</select>
+							</label>
 
-	<section class="panel library-settings">
-		<h2 class="label">Library sort &amp; move</h2>
-		<p class="hint mono">
-			Where the sweep sorts downloaded files into the real music library —
-			<a class="inline-link" href={resolve('/library')}>trigger a sweep from its own page</a>.
-		</p>
+							<div class="form-field wide">
+								<label class="label" for="output-template">Filename template</label>
+								<input
+									id="output-template"
+									class="well"
+									type="text"
+									spellcheck="false"
+									bind:value={outputForm.output_template}
+									disabled={outputSaving}
+									aria-invalid={outputTemplateError ? 'true' : undefined}
+									aria-describedby="output-template-hint output-template-error"
+								/>
+								<p id="output-template-hint" class="field-hint">
+									spotdl fills each <code>{'{placeholder}'}</code> per track.
+								</p>
+								<p id="output-template-error" class="field-error">
+									{outputTemplateError}
+								</p>
+							</div>
 
-		{#if librarySettings === null}
-			<p class="hint mono">Loading…</p>
-		{:else}
-			<form class="output-form" onsubmit={onLibrarySubmit}>
-				<label class="field wide">
-					<span class="label">Target directory</span>
-					<input type="text" bind:value={libraryForm.library_target_dir} disabled={librarySaving} />
-				</label>
+							<div class="save-row wide">
+								<button type="submit" class="btn" disabled={outputSaving || outputSettings === null}
+									>{outputSaving ? 'saving…' : 'save'}</button
+								>
+								<p class="save-state" class:saved={!outputDirty && outputSavedAt} role="status">
+									{outputDirty
+										? 'Unsaved changes'
+										: outputSavedAt
+											? `Saved at ${clockTime(outputSavedAt)}`
+											: ''}
+								</p>
+							</div>
+						</form>
+					{/if}
+					<p class="form-error" role="alert">{outputError}</p>
+				</section>
 
-				<label class="field wide">
-					<span class="label">Folder template</span>
-					<input
-						type="text"
-						bind:value={libraryForm.library_folder_template}
-						disabled={librarySaving}
-					/>
-				</label>
+				<section id="library" class="panel section" aria-labelledby="library-heading">
+					<header class="section-head">
+						<h2 id="library-heading" class="label">Library sort &amp; move</h2>
+						<p class="section-hint">
+							Where a sweep files finished downloads. Run one from the
+							<a href={resolve('/library')}>library page</a>.
+						</p>
+					</header>
 
-				<div class="field">
-					<span class="label" id="quarantine-label">Quarantine conflicts</span>
-					<div class="option-group" role="group" aria-labelledby="quarantine-label">
-						<button
-							type="button"
-							aria-pressed={libraryForm.library_quarantine_enabled}
-							disabled={librarySaving}
-							onclick={() => (libraryForm.library_quarantine_enabled = true)}
-						>
-							on
-						</button>
-						<button
-							type="button"
-							aria-pressed={!libraryForm.library_quarantine_enabled}
-							disabled={librarySaving}
-							onclick={() => (libraryForm.library_quarantine_enabled = false)}
-						>
-							off
-						</button>
-					</div>
-				</div>
+					{#if librarySettings === null}
+						{#if !libraryError}<p class="section-hint">Loading library settings…</p>{/if}
+					{:else}
+						<form class="grid" onsubmit={onLibrarySubmit} novalidate>
+							{#each LIBRARY_TEXT_FIELDS.slice(0, 2) as field (field.key)}
+								<div class="form-field wide">
+									<label class="label" for={field.key}>{field.label}</label>
+									<input
+										id={field.key}
+										class="well"
+										type="text"
+										spellcheck="false"
+										bind:value={libraryForm[field.key]}
+										disabled={librarySaving}
+										aria-invalid={libraryFieldErrors[field.key] ? 'true' : undefined}
+										aria-describedby="{field.key}-error"
+									/>
+									<p id="{field.key}-error" class="field-error">
+										{libraryFieldErrors[field.key] ?? ''}
+									</p>
+								</div>
+							{/each}
 
-				<label class="field wide">
-					<span class="label">Quarantine directory</span>
-					<input
-						type="text"
-						bind:value={libraryForm.library_quarantine_dir}
-						disabled={librarySaving}
-					/>
-				</label>
+							<div class="form-field">
+								<span class="label" id="quarantine-label">Duplicate downloads</span>
+								<div class="choice-group" role="group" aria-labelledby="quarantine-label">
+									<button
+										type="button"
+										aria-pressed={libraryForm.library_quarantine_enabled}
+										disabled={librarySaving}
+										onclick={() => (libraryForm.library_quarantine_enabled = true)}
+									>
+										quarantine
+									</button>
+									<button
+										type="button"
+										aria-pressed={!libraryForm.library_quarantine_enabled}
+										disabled={librarySaving}
+										onclick={() => (libraryForm.library_quarantine_enabled = false)}
+									>
+										delete
+									</button>
+								</div>
+								<p class="field-hint">
+									A download the library already has is quarantined (moved to the folder beside) or
+									deleted. The library's own file is never touched.
+								</p>
+							</div>
 
-				<button type="submit" class="save" disabled={librarySaving}>
-					{librarySaving ? 'SAVING…' : 'SAVE'}
-				</button>
-			</form>
-		{/if}
+							<div class="form-field">
+								<label class="label" for="library_quarantine_dir">Quarantine folder</label>
+								<input
+									id="library_quarantine_dir"
+									class="well"
+									type="text"
+									spellcheck="false"
+									bind:value={libraryForm.library_quarantine_dir}
+									disabled={librarySaving}
+									aria-invalid={libraryFieldErrors.library_quarantine_dir ? 'true' : undefined}
+									aria-describedby="library_quarantine_dir-error"
+								/>
+								<p id="library_quarantine_dir-error" class="field-error">
+									{libraryFieldErrors.library_quarantine_dir ?? ''}
+								</p>
+							</div>
 
-		{#if librarySaved && !librarySaving}
-			<p class="saved mono" role="status">Saved.</p>
-		{/if}
-		<p class="form-error mono" role="alert">{libraryError}</p>
-	</section>
+							<div class="save-row wide">
+								<button type="submit" class="btn" disabled={librarySaving}
+									>{librarySaving ? 'saving…' : 'save'}</button
+								>
+								<p class="save-state" class:saved={!libraryDirty && librarySavedAt} role="status">
+									{libraryDirty
+										? 'Unsaved changes'
+										: librarySavedAt
+											? `Saved at ${clockTime(librarySavedAt)}`
+											: ''}
+								</p>
+							</div>
+						</form>
+					{/if}
+					<p class="form-error" role="alert">{libraryError}</p>
+				</section>
 
-	<section class="panel alert-settings">
-		<h2 class="label">Alerts</h2>
-		{#if alertSettings === null}
-			<p class="hint mono">Loading…</p>
-		{:else}
-			<p class="hint mono">
-				{#if alertSettings.configured}
-					Matrix alerts are on. Each category can be switched off; an identical alert repeats at
-					most once per cooldown.
-				{:else}
-					Matrix alerts are off — set <code>MATRIX_HOMESERVER_URL</code>,
-					<code>MATRIX_ACCESS_TOKEN</code> and <code>MATRIX_ROOM_ID</code> in <code>.env</code> to turn
-					them on.
-				{/if}
-			</p>
-			<form class="output-form" onsubmit={onAlertSubmit}>
-				{#each ALERT_TOGGLES as toggle (toggle.key)}
-					<div class="field">
-						<span class="label" id="{toggle.key}-label">{toggle.label}</span>
-						<div class="option-group" role="group" aria-labelledby="{toggle.key}-label">
-							<button
-								type="button"
-								aria-pressed={alertForm[toggle.key] === true}
-								disabled={alertSaving}
-								onclick={() => (alertForm = { ...alertForm, [toggle.key]: true })}
-							>
-								on
-							</button>
-							<button
-								type="button"
-								aria-pressed={alertForm[toggle.key] === false}
-								disabled={alertSaving}
-								onclick={() => (alertForm = { ...alertForm, [toggle.key]: false })}
-							>
-								off
-							</button>
+				<section id="alerts" class="panel section" aria-labelledby="alerts-heading">
+					<header class="section-head">
+						<h2 id="alerts-heading" class="label">Alerts</h2>
+						{#if alertSettings === null}
+							{#if !alertError}<p class="section-hint">Loading alert settings…</p>{/if}
+						{:else if alertSettings.configured}
+							<p class="section-hint">
+								Matrix alerts are on. Switch off any category you don't want; the same alert repeats
+								at most once per the interval below.
+							</p>
+						{:else}
+							<p class="section-hint">
+								Matrix alerts are off. Set <code>MATRIX_HOMESERVER_URL</code>,
+								<code>MATRIX_ACCESS_TOKEN</code> and <code>MATRIX_ROOM_ID</code> in
+								<code>.env</code>, then restart the stack, to turn them on.
+							</p>
+						{/if}
+					</header>
+
+					{#if alertSettings !== null}
+						<form class="alert-form" onsubmit={onAlertSubmit} novalidate>
+							<fieldset class="group">
+								<legend class="label">Send an alert when</legend>
+								<ul class="toggle-list">
+									{#each ALERT_TOGGLES as toggle (toggle.key)}
+										<li class="toggle-row">
+											<div class="toggle-text">
+												<span class="toggle-name" id="{toggle.key}-label">{toggle.label}</span>
+												<span class="field-hint" id="{toggle.key}-hint">{toggle.hint}</span>
+											</div>
+											<div
+												class="choice-group"
+												role="group"
+												aria-labelledby="{toggle.key}-label"
+												aria-describedby="{toggle.key}-hint"
+											>
+												<button
+													type="button"
+													aria-pressed={alertForm[toggle.key] === true}
+													disabled={alertSaving}
+													onclick={() => (alertForm = { ...alertForm, [toggle.key]: true })}
+												>
+													on
+												</button>
+												<button
+													type="button"
+													aria-pressed={alertForm[toggle.key] === false}
+													disabled={alertSaving}
+													onclick={() => (alertForm = { ...alertForm, [toggle.key]: false })}
+												>
+													off
+												</button>
+											</div>
+										</li>
+									{/each}
+								</ul>
+							</fieldset>
+
+							<fieldset class="group">
+								<legend class="label">Thresholds</legend>
+								<div class="grid">
+									{#each ALERT_NUMBERS as field (field.key)}
+										<div class="form-field">
+											<label class="label" for={field.key}>{field.label}</label>
+											<div class="with-unit">
+												<input
+													id={field.key}
+													class="well"
+													type="number"
+													inputmode="numeric"
+													min={field.min}
+													max={field.max}
+													step="1"
+													bind:value={alertForm[field.key]}
+													disabled={alertSaving}
+													aria-invalid={alertFieldErrors[field.key] ? 'true' : undefined}
+													aria-describedby="{field.key}-unit {field.key}-error"
+												/>
+												<span class="unit mono" id="{field.key}-unit">{field.unit}</span>
+											</div>
+											<p id="{field.key}-error" class="field-error">
+												{alertFieldErrors[field.key] ?? ''}
+											</p>
+										</div>
+									{/each}
+								</div>
+							</fieldset>
+
+							<div class="save-row">
+								<button type="submit" class="btn" disabled={alertSaving}
+									>{alertSaving ? 'saving…' : 'save'}</button
+								>
+								<button
+									type="button"
+									class="btn"
+									disabled={alertTesting || !alertSettings.configured}
+									onclick={onTestAlert}
+								>
+									{alertTesting ? 'sending…' : 'send test alert'}
+								</button>
+								<p class="save-state" class:saved={!alertDirty && alertSavedAt} role="status">
+									{alertDirty
+										? 'Unsaved changes'
+										: alertSavedAt
+											? `Saved at ${clockTime(alertSavedAt)}`
+											: ''}
+								</p>
+							</div>
+							<p class="save-state saved" role="status">{alertTestResult}</p>
+						</form>
+					{/if}
+					<p class="form-error" role="alert">{alertError}</p>
+				</section>
+
+				<section id="proxies" class="panel section" aria-labelledby="proxies-heading">
+					<header class="section-head">
+						<h2 id="proxies-heading" class="label" tabindex="-1">Proxy pool</h2>
+						<p class="section-hint">
+							Proxies from <code>proxies.txt</code> and those added here are used equally, from a track's
+							third attempt: after a direct IPv4 and a direct IPv6 try, each with its wait. Addresses
+							are shown with their credentials hidden.
+						</p>
+					</header>
+
+					<form class="add-proxy" onsubmit={onAddProxy} novalidate>
+						<div class="form-field">
+							<label class="label" for="new-proxy">Add a proxy</label>
+							<div class="add-row">
+								<input
+									id="new-proxy"
+									class="well"
+									type="text"
+									spellcheck="false"
+									autocomplete="off"
+									placeholder="http://user:pass@203.0.113.7:8080"
+									bind:value={newProxyUrl}
+									disabled={addingProxy}
+									aria-invalid={addProxyError ? 'true' : undefined}
+									aria-describedby="new-proxy-hint new-proxy-error"
+								/>
+								<button type="submit" class="btn" disabled={addingProxy}
+									>{addingProxy ? 'adding…' : 'add proxy'}</button
+								>
+							</div>
+							<p id="new-proxy-hint" class="field-hint">
+								<code>http(s)://[user:pass@]ipv4[:port]</code>, with a literal IPv4 address.
+							</p>
+							<p id="new-proxy-error" class="field-error" role="alert">{addProxyError}</p>
 						</div>
-					</div>
-				{/each}
+					</form>
 
-				<label class="field">
-					<span class="label">Spike: failures in a row</span>
-					<input
-						type="number"
-						min="2"
-						bind:value={alertForm.alert_spike_threshold}
-						disabled={alertSaving}
-					/>
-				</label>
-
-				<label class="field">
-					<span class="label">Spike window (min)</span>
-					<input
-						type="number"
-						min="1"
-						bind:value={alertForm.alert_spike_window_minutes}
-						disabled={alertSaving}
-					/>
-				</label>
-
-				<label class="field">
-					<span class="label">Beat stale after (s)</span>
-					<input
-						type="number"
-						min="90"
-						bind:value={alertForm.alert_beat_stale_seconds}
-						disabled={alertSaving}
-					/>
-				</label>
-
-				<label class="field">
-					<span class="label">Cooldown (min)</span>
-					<input
-						type="number"
-						min="1"
-						bind:value={alertForm.alert_cooldown_minutes}
-						disabled={alertSaving}
-					/>
-				</label>
-
-				<button type="submit" class="save" disabled={alertSaving}>
-					{alertSaving ? 'SAVING…' : 'SAVE'}
-				</button>
-				<button
-					type="button"
-					class="save"
-					disabled={alertTesting || !alertSettings.configured}
-					onclick={onTestAlert}
-				>
-					{alertTesting ? 'SENDING…' : 'SEND TEST ALERT'}
-				</button>
-			</form>
+					{#if proxiesLoading}
+						<p class="section-hint">Loading proxies…</p>
+					{:else if proxiesLoadError && proxyList.length === 0}
+						<!-- Nothing read: never claim "no proxies" over a failed load. -->
+						<p class="section-hint">
+							Couldn't read the proxy pool ({proxiesLoadError}).
+							<button type="button" class="btn small" onclick={loadProxies}>try again</button>
+						</p>
+					{:else if proxyList.length === 0}
+						<p class="section-hint">No proxies yet. Every attempt goes out directly.</p>
+					{:else}
+						<ul class="proxy-list" aria-label="Proxies">
+							{#each proxyList as proxy (proxy.id)}
+								<li class="proxy-row" class:off={!proxy.enabled}>
+									<span class="url mono">{proxy.url}</span>
+									<span class="health">
+										<span class="source mono" class:manual={proxy.source === 'manual'}
+											>{proxy.source === 'manual' ? 'added here' : 'proxies.txt'}</span
+										>
+										<span class="fact mono">
+											{proxy.consecutive_failures === 0
+												? 'no recent failures'
+												: `${proxy.consecutive_failures} failed in a row`}
+										</span>
+										<span class="fact mono">
+											{proxy.last_success_at
+												? `last worked ${formatTimestamp(proxy.last_success_at)}`
+												: 'never worked yet'}
+										</span>
+										{#if isFuture(proxy.cooldown_until)}
+											<span class="fact"
+												><Countdown
+													scheduledAt={proxy.cooldown_until ?? ''}
+													label="resting"
+													dueLive={false}
+													dueText="rested"
+												/></span
+											>
+										{/if}
+									</span>
+									<span class="controls">
+										<span class="state mono" class:on={proxy.enabled}
+											>{proxy.enabled ? 'switched on' : 'switched off'}</span
+										>
+										<button
+											type="button"
+											class="btn small"
+											disabled={proxyBusy[proxy.id]}
+											aria-label="{proxy.enabled ? 'switch off' : 'switch on'} {proxy.url}"
+											onclick={() => toggleProxy(proxy)}
+										>
+											{proxy.enabled ? 'switch off' : 'switch on'}
+										</button>
+										{#if proxy.source === 'manual'}
+											<button
+												type="button"
+												class="btn small danger"
+												disabled={proxyBusy[proxy.id]}
+												aria-label="remove {proxy.url}"
+												data-remove={proxy.id}
+												onclick={() => removeProxy(proxy)}
+											>
+												remove
+											</button>
+										{/if}
+									</span>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+					<p class="form-error" role="alert">{proxiesError}</p>
+					<p class="sr-only" role="alert">
+						{proxiesLoadError && proxyList.length === 0 ? "Couldn't read the proxy pool." : ''}
+					</p>
+				</section>
+			</div>
 		{/if}
-
-		{#if alertSaved && !alertSaving}
-			<p class="saved mono" role="status">Saved.</p>
-		{/if}
-		{#if alertTestResult}
-			<p class="saved mono" role="status">{alertTestResult}</p>
-		{/if}
-		<p class="form-error mono" role="alert">{alertError}</p>
-	</section>
-
-	<section class="panel proxy-settings">
-		<h2 class="label">Proxy pool</h2>
-		<p class="hint mono">
-			File-managed (<code>proxies.txt</code>) and UI-managed proxies are both drawn from equally.
-			URLs are shown with credentials redacted. Expected format:
-			<code>http(s)://[user:pass@]&lt;ipv4&gt;[:port]</code> — a literal IPv4 address, not a hostname.
-		</p>
-
-		<form class="add-proxy" onsubmit={onAddProxy}>
-			<input
-				type="text"
-				placeholder="Proxy URL"
-				bind:value={newProxyUrl}
-				disabled={addingProxy}
-				aria-label="New proxy URL, e.g. http(s)://[user:pass@]<ipv4>[:port]"
-				aria-describedby="add-proxy-error"
-			/>
-			<button type="submit" disabled={addingProxy}>{addingProxy ? 'ADDING…' : 'ADD'}</button>
-		</form>
-		<p id="add-proxy-error" class="form-error mono" role="alert">{addProxyError}</p>
-
-		{#if proxiesLoading}
-			<p class="hint mono">Loading…</p>
-		{:else if proxyList.length === 0}
-			<p class="hint mono">No proxies configured — every attempt goes out direct.</p>
-		{:else}
-			<ul class="proxy-list">
-				{#each proxyList as proxy (proxy.id)}
-					<li class="proxy-row" class:disabled={!proxy.enabled}>
-						<span class="source-badge mono" class:manual={proxy.source === 'manual'}
-							>{proxy.source}</span
-						>
-						<span class="url mono">{proxy.url}</span>
-						<span class="stat mono">
-							{proxy.consecutive_failures} fail{proxy.consecutive_failures === 1 ? '' : 's'}
-						</span>
-						<span class="stat mono">last ok: {formatTimestamp(proxy.last_success_at)}</span>
-						{#if isFuture(proxy.cooldown_until)}
-							<Countdown scheduledAt={proxy.cooldown_until ?? ''} label="cooldown" />
-						{/if}
-						<button
-							type="button"
-							class="toggle"
-							aria-pressed={proxy.enabled}
-							disabled={proxyBusy[proxy.id]}
-							onclick={() => toggleProxy(proxy)}
-						>
-							{proxy.enabled ? 'enabled' : 'disabled'}
-						</button>
-						{#if proxy.source === 'manual'}
-							<button
-								type="button"
-								class="remove"
-								disabled={proxyBusy[proxy.id]}
-								onclick={() => removeProxy(proxy)}
-							>
-								remove
-							</button>
-						{/if}
-					</li>
-				{/each}
-			</ul>
-		{/if}
-		<p class="form-error mono" role="alert">{proxiesError}</p>
-	</section>
-</main>
+	</main>
+</div>
 
 <style>
 	.stage {
@@ -604,320 +967,334 @@
 		padding: var(--space-5);
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-5);
-	}
-
-	header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
 		gap: var(--space-4);
-		flex-wrap: wrap;
 	}
 
-	.ident {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-	}
-
-	.ident .dim {
-		color: var(--text-dim);
-	}
-
-	.back {
-		color: var(--text-muted);
-		font-size: 0.8125rem;
-		text-decoration: none;
-	}
-
-	/* v42 (A2/F09): --signal-dim is never text (3.09:1); hover is --text-primary (v40's F10 verdict). */
-	.back:hover,
-	.back:focus-visible {
-		color: var(--text-primary);
-	}
-
-	.worker-section {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	/* v42 (A2/F09): the global link treatment (underline, --text-primary), never --signal-dim text. */
-	.inline-link {
-		color: var(--text-primary);
-	}
-
-	.inline-link:hover,
-	.inline-link:focus-visible {
-		color: var(--signal);
-	}
-
-	.output-settings,
-	.library-settings,
-	.proxy-settings {
-		padding: var(--space-4);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-	}
-
-	.hint {
-		margin: 0;
-		color: var(--text-dim);
-		font-size: 0.75rem;
-	}
-
-	.output-form {
+	/* Desktop: the index is a sticky column beside the sections. Below 1024px it is a
+	   wrapping row of links above them (no sticky bar eating a phone's height). */
+	.main {
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: var(--space-3);
+		grid-template-columns: 9rem minmax(0, 1fr);
+		align-items: start;
+		gap: var(--space-5);
+		margin-top: var(--space-2);
 	}
 
-	.field {
+	.page-title {
+		grid-column: 1 / -1;
+	}
+
+	/* A non-admin's page is the title and the notice, one column. */
+	.main.gated {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-2);
 	}
 
-	.field.wide {
-		grid-column: 1 / -1;
+	.index {
+		position: sticky;
+		top: var(--space-5);
 	}
 
-	/* Same ≤640px breakpoint QueueTable.svelte's mobile stacked layout already
-	   established (DESIGN.md §6) -- below it, a 2-column grid squeezed format's 6
-	   toggle buttons and the bitrate select into two narrow lanes with nothing left
-	   over, confirmed by an actual mobile screenshot before this fix, not assumed. */
-	@media (max-width: 640px) {
-		.output-form {
-			grid-template-columns: 1fr;
-		}
-
-		.add-proxy {
-			flex-direction: column;
-			align-items: stretch;
-		}
-
-		/* The filename template's default value (34 chars) is real content, not
-		   placeholder text, so it can't just be shortened -- confirmed by an actual
-		   mobile screenshot that it clipped its final character at the base size. */
-		input[type='text'] {
-			font-size: 0.8125rem;
-		}
-	}
-
-	/* Same "1-at-a-time active" toggle-group convention as QueueTable.svelte's filter
-	   tabs (DESIGN.md §6) -- reused here rather than inventing a second pattern for the
-	   same interaction. */
-	.option-group {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
-	}
-
-	.option-group button {
-		background: var(--bg-2);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-1) var(--space-3);
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		color: var(--text-muted);
-		cursor: pointer;
-	}
-
-	.option-group button[aria-pressed='true'] {
-		border-color: var(--signal);
-		color: var(--text-primary);
-	}
-
-	.option-group button:hover:not(:disabled),
-	.option-group button:focus-visible {
-		border-color: var(--signal-dim);
-	}
-
-	.option-group button:disabled {
-		opacity: 0.6;
-		cursor: default;
-	}
-
-	input[type='text'],
-	select {
-		background: var(--bg-0);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-3);
-		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-		font-family: var(--font-mono);
-		color: var(--text-primary);
-	}
-
-	input[type='text']:focus-visible,
-	select:focus-visible {
-		border-color: var(--signal-dim);
-	}
-
-	.save {
-		grid-column: 1 / -1;
-		justify-self: start;
-		background: var(--bg-2);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-3) var(--space-4);
-		font-family: var(--font-mono);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		cursor: pointer;
-	}
-
-	.save:hover:not(:disabled),
-	.save:focus-visible {
-		border-color: var(--signal);
-		background: var(--bg-3);
-	}
-
-	.save:disabled {
-		opacity: 0.6;
-		cursor: default;
-	}
-
-	.saved {
-		margin: 0;
-		color: var(--settled);
-		font-size: 0.8125rem;
-	}
-
-	.form-error {
-		min-height: 1rem;
-		margin: 0;
-		color: var(--fail);
-		font-size: 0.8125rem;
-	}
-
-	.add-proxy {
-		display: flex;
-		gap: var(--space-3);
-	}
-
-	.add-proxy input {
-		flex: 1;
-		min-width: 0;
-		background: var(--bg-0);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-3);
-		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-		font-family: var(--font-mono);
-	}
-
-	.add-proxy input:focus-visible {
-		border-color: var(--signal-dim);
-	}
-
-	.add-proxy button {
-		background: var(--bg-2);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-3) var(--space-4);
-		font-family: var(--font-mono);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		cursor: pointer;
-		white-space: nowrap;
-	}
-
-	.add-proxy button:hover:not(:disabled),
-	.add-proxy button:focus-visible {
-		border-color: var(--signal);
-		background: var(--bg-3);
-	}
-
-	.proxy-list {
+	.index ul {
 		list-style: none;
 		margin: 0;
 		padding: 0;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
+		border-left: 1px solid var(--line);
 	}
 
-	.proxy-row {
+	.index a {
+		display: block;
+		padding: var(--space-1) var(--space-3);
+		margin-left: -1px;
+		border-left: 2px solid transparent;
+		font-family: var(--font-mono);
+		font-size: var(--fs-detail);
+		color: var(--text-muted);
+		text-decoration: none;
+	}
+
+	.index a:hover {
+		color: var(--text-primary);
+	}
+
+	/* Where you are: a mark in shape (the rail), not only in tone. Never amber. */
+	.index a[aria-current='location'] {
+		color: var(--text-primary);
+		border-left-color: var(--text-muted);
+	}
+
+	.sections {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-5);
+		min-width: 0;
+	}
+
+	.section {
+		padding: var(--space-5);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-4);
+		scroll-margin-top: var(--space-5);
+	}
+
+	.section-head {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
+	.section-hint {
+		font-size: var(--fs-detail);
+		color: var(--text-muted);
+		max-width: 68ch;
+	}
+
+	code {
+		font-family: var(--font-mono);
+		font-size: inherit;
+		color: var(--text-primary);
+		overflow-wrap: anywhere;
+	}
+
+	.grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-3) var(--space-4);
+		align-items: start;
+	}
+
+	.wide {
+		grid-column: 1 / -1;
+	}
+
+	/* Alerts: two plain groups, what to send and when. */
+	.alert-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-5);
+	}
+
+	.group {
+		margin: 0;
+		padding: 0;
+		border: none;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+
+	.group legend {
+		padding: 0;
+		margin-bottom: var(--space-3);
+	}
+
+	.toggle-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.toggle-row {
 		display: flex;
 		align-items: center;
-		flex-wrap: wrap;
-		gap: var(--space-3);
-		padding: var(--space-2) var(--space-3);
-		background: var(--bg-1);
-		border: 1px solid var(--line);
-		border-radius: 4px;
-		font-size: 0.8125rem;
+		justify-content: space-between;
+		gap: var(--space-2) var(--space-4);
+		padding: var(--space-3) 0;
+		border-top: 1px solid var(--line);
 	}
 
-	.proxy-row.disabled {
-		opacity: 0.6;
+	.toggle-row:last-child {
+		border-bottom: 1px solid var(--line);
 	}
 
-	.source-badge {
+	.toggle-text {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		min-width: 0;
+	}
+
+	.toggle-name {
+		font-size: var(--fs-body);
+	}
+
+	.toggle-row .choice-group {
 		flex-shrink: 0;
-		padding: 0.125rem var(--space-2);
-		border: 1px solid var(--line);
-		border-radius: 3px;
-		font-size: 0.6875rem;
-		letter-spacing: 0.06em;
+	}
+
+	.with-unit {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.with-unit input {
+		flex: 1 1 auto;
+	}
+
+	.unit {
+		font-size: var(--fs-meta);
+		color: var(--text-muted);
+	}
+
+	/* Proxies */
+	.add-row {
+		display: flex;
+		gap: var(--space-2);
+	}
+
+	.add-row input {
+		flex: 1 1 auto;
+	}
+
+	.proxy-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		border-top: 1px solid var(--line);
+	}
+
+	/* Two lines: the address, then where it came from and how it's doing; the controls
+	   at the right (under both on a phone). */
+	.proxy-row {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-areas:
+			'url controls'
+			'health controls';
+		align-items: center;
+		gap: var(--space-1) var(--space-3);
+		padding: var(--space-3) 0;
+		border-bottom: 1px solid var(--line);
+	}
+
+	.source {
+		font-size: var(--fs-meta);
 		color: var(--text-dim);
 	}
 
-	.source-badge.manual {
-		color: var(--waiting);
-		border-color: var(--waiting-dim);
+	.source.manual {
+		/* Where it came from, not a state: never a .cond-* hue (waiting blue means scheduled). */
+		color: var(--text-muted);
 	}
 
 	.url {
-		min-width: 12rem;
-		flex: 1;
+		grid-area: url;
+		font-size: var(--fs-detail);
 		color: var(--text-primary);
+		overflow-wrap: anywhere;
 	}
 
-	.stat {
+	.health {
+		grid-area: health;
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1) var(--space-3);
+	}
+
+	.fact {
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
-		font-size: 0.75rem;
-		white-space: nowrap;
 	}
 
-	.toggle,
-	.remove {
-		flex-shrink: 0;
-		background: transparent;
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-1) var(--space-2);
-		font-size: 0.6875rem;
-		font-family: var(--font-mono);
+	.controls {
+		grid-area: controls;
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: var(--space-2);
+	}
+
+	.state {
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
-		cursor: pointer;
 	}
 
-	.toggle[aria-pressed='true'] {
-		border-color: var(--settled-dim);
+	.state.on {
 		color: var(--settled);
 	}
 
-	.toggle[aria-pressed='false'] {
-		border-color: var(--fail-dim);
-		color: var(--fail);
+	/* v42's remainder: a switched-off row is said in words and drops its address to muted
+	   text, never faded with opacity (which put 20 nodes under 4.5:1). */
+	.proxy-row.off .url {
+		color: var(--text-muted);
 	}
 
-	.toggle:hover:not(:disabled),
-	.toggle:focus-visible,
-	.remove:hover:not(:disabled),
-	.remove:focus-visible {
-		border-color: var(--signal-dim);
-		color: var(--text-primary);
+	@media (max-width: 1023px) {
+		.main {
+			grid-template-columns: minmax(0, 1fr);
+			gap: var(--space-4);
+		}
+
+		.index {
+			position: static;
+		}
+
+		.index ul {
+			flex-direction: row;
+			flex-wrap: wrap;
+			gap: var(--space-1) var(--space-2);
+			border-left: none;
+		}
+
+		.index a {
+			margin-left: 0;
+			padding: var(--space-1) var(--space-2);
+			border-left: none;
+			border-bottom: 2px solid transparent;
+		}
+
+		.index a[aria-current='location'] {
+			border-bottom-color: var(--text-muted);
+		}
 	}
 
-	.toggle:disabled,
-	.remove:disabled {
-		opacity: 0.6;
-		cursor: default;
+	@media (max-width: 640px) {
+		.stage {
+			padding: var(--space-4);
+		}
+
+		.section {
+			padding: var(--space-4);
+			gap: var(--space-3);
+		}
+
+		.sections {
+			gap: var(--space-4);
+		}
+
+		.alert-form {
+			gap: var(--space-4);
+		}
+
+		.grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.add-row {
+			flex-direction: column;
+		}
+
+		.proxy-row {
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-areas: 'url' 'health' 'controls';
+		}
+
+		.controls {
+			justify-content: flex-start;
+		}
+	}
+
+	@media (pointer: coarse) {
+		.index a {
+			display: inline-flex;
+			align-items: center;
+			min-height: 2.75rem;
+		}
 	}
 </style>

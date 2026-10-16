@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, request, type APIRequestContext } from '@playwright/test';
 import type { Job, TrackAttempt } from '../../src/lib/api';
@@ -24,6 +24,286 @@ export function adminIdentity(): Identity {
 
 export function userIdentity(): Identity {
 	return { email: requireEnv('E2E_USER_EMAIL'), password: requireEnv('E2E_USER_PASSWORD') };
+}
+
+/** v43: what spec 12 changed on the shared worker, written *before* it changes it, so the
+ * spec's own `finally` and, after a killed run, the next global setup can put it back. */
+const WORKER_STAGE_FILE = path.join(AUTH_DIR, 'worker-stage.json');
+
+export interface WorkerStage {
+	/** The spec paused the worker (it only does so from a running one). */
+	paused?: boolean;
+	/** The hold it stages (ISO, recorded before it's written): cleared only while still that. */
+	hold?: string;
+	/** The failure streak before a release it performs (a release zeroes it). */
+	failures?: number;
+}
+
+export function stageWorker(change: WorkerStage): void {
+	const current = existsSync(WORKER_STAGE_FILE)
+		? (JSON.parse(readFileSync(WORKER_STAGE_FILE, 'utf8')) as WorkerStage)
+		: {};
+	writeFileSync(WORKER_STAGE_FILE, JSON.stringify({ ...current, ...change }));
+}
+
+/** Undoes a recorded stage straight in `worker_state` (no API release, which would zero the
+ * streak again), then forgets it. A no-op when nothing is recorded. */
+export function restoreWorker(): void {
+	if (!existsSync(WORKER_STAGE_FILE)) return;
+	stackPython(
+		`
+import json, sys
+from app.db import SessionLocal
+from app.models.worker_state import WorkerState
+stage = json.loads(sys.argv[1])
+db = SessionLocal()
+row = db.query(WorkerState).one()
+if stage.get("paused"):
+    row.paused = False
+from datetime import datetime
+hold = stage.get("hold")
+# Compared as instants: the row comes back in the session's time zone.
+if hold and row.breaker_tripped_until == datetime.fromisoformat(hold):
+    row.breaker_tripped_until = None
+# Only over the zero the spec's own release left: a real failure since then is the
+# stack's, not the spec's, and is kept.
+if "failures" in stage and row.consecutive_failures == 0:
+    row.consecutive_failures = stage["failures"]
+db.commit()
+`,
+		[readFileSync(WORKER_STAGE_FILE, 'utf8')]
+	);
+	rmSync(WORKER_STAGE_FILE);
+}
+
+/** v43: written just before spec 12 stops `worker-expand`, removed once it is started again,
+ * so only a run killed in between makes the next global setup start it (a worker-expand the
+ * developer stopped on purpose is left alone). */
+const EXPAND_STOPPED_FILE = path.join(AUTH_DIR, 'expand-stopped');
+
+function compose(...args: string[]): string {
+	return execFileSync('docker', ['compose', ...args], {
+		cwd: REPO_ROOT,
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe']
+	}).trim();
+}
+
+export function stopExpandWorker(): void {
+	writeFileSync(EXPAND_STOPPED_FILE, '[]');
+	compose('stop', 'worker-expand');
+}
+
+/** Records a job submitted while `worker-expand` is stopped (its expansion is queued), so a
+ * restart cancels it first, even one after a killed run. */
+export function recordHeldSubmission(jobId: string): void {
+	const ids = JSON.parse(readFileSync(EXPAND_STOPPED_FILE, 'utf8') || '[]') as string[];
+	writeFileSync(EXPAND_STOPPED_FILE, JSON.stringify([...ids, jobId]));
+}
+
+/** Starts `worker-expand` again if this suite stopped it, and waits until it's healthy. Every
+ * job the suite submitted meanwhile is cancelled first: its queued expansion then finds it
+ * cancelled and stops, so it can never expand into a real download. */
+export async function restartExpandWorker(): Promise<void> {
+	if (!existsSync(EXPAND_STOPPED_FILE)) return;
+	const held = JSON.parse(readFileSync(EXPAND_STOPPED_FILE, 'utf8') || '[]') as string[];
+	if (held.length > 0) {
+		stackPython(
+			`
+import sys
+from sqlalchemy import text
+from app.db import SessionLocal
+db = SessionLocal()
+db.execute(text("update jobs set state = 'cancelled' where id = any(cast(:ids as uuid[])) and state = 'expanding'"), {"ids": sys.argv[1:]})
+db.commit()
+`,
+			held
+		);
+	}
+	compose('start', 'worker-expand');
+	const deadline = Date.now() + 90_000;
+	while (compose('ps', 'worker-expand', '--format', '{{.Health}}') !== 'healthy') {
+		// The marker stays until it's healthy, so a later setup retries (a start is idempotent).
+		if (Date.now() > deadline) throw new Error('worker-expand did not come back healthy');
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+	}
+	rmSync(EXPAND_STOPPED_FILE);
+}
+
+/** Whether `worker-expand` is up: one the developer stopped is theirs, never restarted here. */
+export function expandWorkerRunning(): boolean {
+	return compose('ps', 'worker-expand', '--format', '{{.State}}') === 'running';
+}
+
+/** Anything `worker-expand` is busy with right now (any user's expansion, a library sweep):
+ * stopping it would kill that mid-task. */
+export function expandWorkerBusy(): string[] {
+	const out = stackPython(`
+from sqlalchemy import text
+from app.db import SessionLocal
+db = SessionLocal()
+busy = []
+n = db.execute(text("select count(*) from jobs where state = 'expanding'")).scalar()
+if n:
+    busy.append(f"{n} expanding job(s)")
+if db.execute(text("select count(*) from library_sort_runs where state = 'running'")).scalar():
+    busy.append("a library sweep")
+print("; ".join(busy))
+`);
+	return out ? [out] : [];
+}
+
+/** v43: the app settings spec 6 changes, at their values before it changed them (the first
+ * record of a key wins), so its finally and, after a killed run, the next setup put them back:
+ * a drifted folder template would file every later dev sweep into the wrong folders. */
+const SETTINGS_STAGE_FILE = path.join(AUTH_DIR, 'settings-stage.json');
+
+type SettingStage = Record<string, { original: string | number; set: string | number }>;
+
+/** Records, per key, the value before the spec's change and the value it is about to set. */
+export function stageSettings(change: SettingStage): void {
+	const current = existsSync(SETTINGS_STAGE_FILE)
+		? (JSON.parse(readFileSync(SETTINGS_STAGE_FILE, 'utf8')) as SettingStage)
+		: {};
+	const merged: SettingStage = { ...change };
+	// The first record of a key keeps its original (a re-run after a killed one).
+	for (const [key, entry] of Object.entries(current)) {
+		merged[key] = { original: entry.original, set: change[key]?.set ?? entry.set };
+	}
+	writeFileSync(SETTINGS_STAGE_FILE, JSON.stringify(merged));
+}
+
+/** Writes the recorded originals back straight into `app_settings`, only where the value is
+ * still the one the spec set (a later deliberate edit is the developer's), then forgets them. */
+export function restoreSettings(): void {
+	if (!existsSync(SETTINGS_STAGE_FILE)) return;
+	stackPython(
+		`
+import json, sys
+from app.db import SessionLocal
+from app.models.app_settings import AppSettings
+db = SessionLocal()
+row = db.query(AppSettings).one()
+for key, entry in json.loads(sys.argv[1]).items():
+    if getattr(row, key) == entry["set"]:
+        setattr(row, key, entry["original"])
+db.commit()
+`,
+		[readFileSync(SETTINGS_STAGE_FILE, 'utf8')]
+	);
+	rmSync(SETTINGS_STAGE_FILE);
+}
+
+const SWEEP_REPORT_FILE = path.join(AUTH_DIR, 'sweep-report.json');
+
+/** Saves the one library-sweep report row (JSON, or 'null') to disk, so a spec that runs a
+ * sweep can put the developer's last report back afterwards, even after a killed run. */
+export function snapshotSweepReport(): void {
+	const snapshot = stackPython(`
+import json
+from app.db import SessionLocal
+from app.models.library_sort_run import LibrarySortRun
+row = SessionLocal().get(LibrarySortRun, 1)
+fields = ("started_at", "finished_at", "total", "processed", "moved", "skipped_present", "quarantined", "errors")
+print(json.dumps(None if row is None else {
+    f: (getattr(row, f).isoformat() if hasattr(getattr(row, f), "isoformat") else getattr(row, f))
+    for f in fields
+}))
+`);
+	writeFileSync(SWEEP_REPORT_FILE, snapshot);
+}
+
+/** Records the moment just before the spec asks for its sweep, so a run killed between the
+ * POST and recordSpecSweep can still recognise its own run (one that started right after). */
+export function markSweepRequested(): void {
+	if (!existsSync(SWEEP_REPORT_FILE)) return;
+	const saved = JSON.parse(readFileSync(SWEEP_REPORT_FILE, 'utf8')) as unknown;
+	writeFileSync(
+		SWEEP_REPORT_FILE,
+		JSON.stringify({ snapshot: saved, requestedAt: new Date().toISOString() })
+	);
+}
+
+/** Records which run the spec's own sweep was (its start), once it has started: the restore
+ * then replaces only that run's report, never a newer real one. */
+export function recordSpecSweep(): void {
+	if (!existsSync(SWEEP_REPORT_FILE)) return;
+	const startedAt = stackPython(`
+from app.db import SessionLocal
+from app.models.library_sort_run import LibrarySortRun
+row = SessionLocal().get(LibrarySortRun, 1)
+print(row.started_at.isoformat() if row is not None and row.started_at else "")
+`);
+	const saved = JSON.parse(readFileSync(SWEEP_REPORT_FILE, 'utf8')) as {
+		snapshot: unknown;
+		requestedAt?: string;
+	};
+	writeFileSync(
+		SWEEP_REPORT_FILE,
+		JSON.stringify({ snapshot: saved.snapshot, specStartedAt: startedAt })
+	);
+}
+
+/** Puts a saved snapshot back once the row is idle again (never over a running sweep), and
+ * only over the spec's own sweep (`recordSpecSweep`); the file stays until it's applied, so
+ * the next global setup retries a skipped restore. A run killed before the sweep was
+ * recorded leaves the report as it is. */
+export function restoreSweepReport(): void {
+	if (!existsSync(SWEEP_REPORT_FILE)) return;
+	const out = stackPython(
+		`
+import json, sys
+from datetime import datetime
+from app.db import SessionLocal
+from app.models.library_sort_run import LibrarySortRun
+from datetime import timedelta
+saved = json.loads(sys.argv[1])
+if not isinstance(saved, dict) or not (saved.get("specStartedAt") or saved.get("requestedAt")):
+    print("restored")  # nothing of the spec's to undo: forget the snapshot
+    sys.exit(0)
+snap = saved["snapshot"]
+db = SessionLocal()
+row = db.get(LibrarySortRun, 1)
+started = row.started_at if row is not None else None
+if saved.get("specStartedAt"):
+    mine = started is not None and started == datetime.fromisoformat(saved["specStartedAt"])
+else:
+    # Killed between the request and recordSpecSweep: its run is one that started right after.
+    asked = datetime.fromisoformat(saved["requestedAt"].replace("Z", "+00:00"))
+    mine = started is not None and asked <= started <= asked + timedelta(minutes=2)
+if row is not None and not mine:
+    print("restored")  # a newer sweep's report: the developer's, left alone
+elif row is not None and row.state.value == "idle":
+    if snap is None:
+        # There was no report before: leave none ("No sweep has run yet").
+        db.delete(row)
+    else:
+        for key, value in snap.items():
+            if key in ("started_at", "finished_at") and value is not None:
+                value = datetime.fromisoformat(value)
+            setattr(row, key, value)
+    db.commit()
+    print("restored")
+elif row is None:
+    print("restored")
+`,
+		[readFileSync(SWEEP_REPORT_FILE, 'utf8')]
+	);
+	if (out === 'restored') rmSync(SWEEP_REPORT_FILE);
+}
+
+/** Removes a TEST-NET proxy a killed run may have left (else the next create answers 409),
+ * switching it off if it can't be deleted (a used proxy can't, v43's found-not-fixed). */
+export async function removeTestProxy(context: APIRequestContext, url: string): Promise<void> {
+	const proxies = (await (await context.get('/api/proxies')).json()) as {
+		id: string;
+		url: string;
+	}[];
+	for (const proxy of proxies.filter((p) => p.url === url)) {
+		const removed = await context.delete(`/api/proxies/${proxy.id}`);
+		if (!removed.ok())
+			await context.patch(`/api/proxies/${proxy.id}`, { data: { enabled: false } });
+	}
 }
 
 /** Tracks already in the dev ledger (`downloaded_tracks`, files under `./downloads`), so a job

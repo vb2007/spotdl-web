@@ -4,6 +4,8 @@
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { worker } from '$lib/stores/worker';
+	import { confirmAction, keepFocus } from '$lib/stores/confirm';
+	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import {
 		attemptVia,
@@ -104,6 +106,9 @@
 	let canRetry = $derived(RETRYABLE_STATES.has(track.state));
 	let canDownload = $derived(DOWNLOADABLE_STATES.has(track.state));
 	let canCancel = $derived(CANCELLABLE_STATES.has(track.state));
+	let rowButton: HTMLButtonElement | undefined = $state();
+	// The collapsed row's notice line (see the markup): empty while the detail shows it.
+	const collapsedNotice = $derived(expanded ? '' : (rowNotices.get(`track:${track.id}`) ?? ''));
 
 	// v41 (F04, the countdown half): beat dispatches nothing while the breaker holds, so a
 	// waiting track's real next try is the later of its own slot and the breaker's clear.
@@ -248,15 +253,10 @@
 		return new Date(value).toLocaleString();
 	}
 
-	// Per-row transient feedback (e.g. "held behind the global pause") -- SvelteMap so
-	// mutations are tracked without wholesale reassignment (see v09's reactivity gotcha).
-	const notice = new SvelteMap<string, string>();
-
+	// Per-row transient feedback (e.g. "held behind the global pause"), kept in the rowNotices
+	// store (v43) so it outlives a remount and is cleared by queue.reset().
 	function showNotice(text: string) {
-		notice.set(track.id, text);
-		setTimeout(() => {
-			if (notice.get(track.id) === text) notice.delete(track.id);
-		}, 4000);
+		showRowNotice(`track:${track.id}`, text);
 	}
 
 	// The pending re-read, cleared when the row is destroyed (a collapsed job, a scope
@@ -280,18 +280,89 @@
 		}, delay);
 	}
 
+	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
+	// One question and its server re-read at a time: a second press meanwhile is ignored.
+	let handleCancelRunning = false;
 	async function handleCancel() {
-		const wasDownloading = track.state === 'downloading';
+		if (handleCancelRunning) return;
+		handleCancelRunning = true;
+		try {
+			await handleCancelFlow();
+		} finally {
+			handleCancelRunning = false;
+		}
+	}
+
+	async function handleCancelFlow() {
+		const session = queue.getResetCount();
+		const askedState = track.state;
+		const artists = track.artists?.join(', ');
+		const confirmed = await confirmAction({
+			title: 'Cancel this track?',
+			subject: [track.title ?? 'Unknown title', artists].filter(Boolean).join(' — '),
+			body:
+				(track.state === 'downloading'
+					? 'The download in progress finishes, but the track stays cancelled. '
+					: "It won't be downloaded. ") +
+				"This can't be undone, but the link can be submitted again.",
+			confirmLabel: 'cancel track',
+			cancelLabel: 'keep track'
+		});
+		// This row's own controls, or (remounted by a list reload meanwhile) the list's heading.
+		const landing = () => (destroyed ? document.getElementById('queue-heading') : rowButton);
+		// Kept or Esc: "cancel track" may have gone meanwhile (the track settled).
+		if (!confirmed) return keepFocus(landing());
+		// Another identity took over meanwhile: this answer belongs to the previous session.
+		if (queue.getResetCount() !== session) return;
+		// The server's current state decides, not this row's: the row may be stale (its stream
+		// down, or remounted with old props), and the backend would still cancel a track that
+		// turned lookup_failed meanwhile, which v41 deliberately offers no cancel for. One read
+		// of the job's cancellable tracks (no per-row loop).
+		let current: TrackState | null | undefined;
+		try {
+			const page = await api.listJobTracksPage(jobId, {
+				state: [...CANCELLABLE_STATES],
+				limit: 1000
+			});
+			const found = page.items.find((t) => t.id === track.id)?.state;
+			// Past the read's 1000-row cap (a big discography), absence proves nothing: the row's
+			// last known state decides there, as before v43.
+			current = found ?? (page.next_cursor !== null && canCancel ? track.state : null);
+		} catch {
+			current = undefined;
+		}
+		if (queue.getResetCount() !== session) return;
+		if (current === undefined || current === null) {
+			// The notice map outlives this row, so a remounted (collapsed) row shows it too.
+			showNotice(
+				current === undefined
+					? "Not cancelled: couldn't check the track first. Try again."
+					: "Not cancelled: it isn't waiting to download any more."
+			);
+			return keepFocus(landing());
+		}
+		const wasDownloading = current === 'downloading';
+		// The question was worded from this row's state; the server's may have moved on.
+		const askedDownloading = askedState === 'downloading';
 		const seenAttempts = attempts.length;
 		try {
 			await queue.cancelTrack(track.id, jobId);
 			// Same reason as above: the worker records the cancelled attempt only once its
 			// download call returns, seconds later. Re-read a few times, bounded, until the
 			// newest attempt is that cancel.
-			if (wasDownloading) awaitCancelledAttempt(seenAttempts, [3000, 5000, 7000, 15000, 30000]);
+			if (wasDownloading && !destroyed) {
+				awaitCancelledAttempt(seenAttempts, [3000, 5000, 7000, 15000, 30000]);
+			}
+			if (wasDownloading && !askedDownloading && queue.getResetCount() === session) {
+				showNotice('Cancelled. It had started downloading; that finishes but stays cancelled.');
+			}
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this track.');
+			// A session reset meanwhile: the answer belongs to the previous identity.
+			if (queue.getResetCount() === session)
+				showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this track.');
 		}
+		// "cancel track" leaves with the cancellable state: land on the row itself.
+		await keepFocus(landing());
 	}
 
 	async function handleRetry() {
@@ -361,6 +432,7 @@
 
 <li>
 	<button
+		bind:this={rowButton}
 		type="button"
 		class="row"
 		onclick={toggleExpanded}
@@ -443,7 +515,7 @@
 					{/if}
 				</div>
 			{/if}
-			<p class="notice" role="status">{notice.get(track.id) ?? ''}</p>
+			<p class="notice" role="status">{rowNotices.get(`track:${track.id}`) ?? ''}</p>
 
 			{#if isAdmin}
 				<div class="history">
@@ -544,6 +616,10 @@
 			{/if}
 		</div>
 	{/if}
+	<!-- v43: a collapsed row's own notice (a remount after a list reload collapses it, and the
+	     cancel's outcome must still be seen and heard). Always present, so its text is announced;
+	     while expanded the notice lives in the detail instead. -->
+	<p class="notice collapsed" role="status">{collapsedNotice}</p>
 </li>
 
 <style>
@@ -604,14 +680,14 @@
 
 	.cell.state {
 		padding-left: var(--cell-inset);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		letter-spacing: 0.04em;
 	}
 
 	.cell.artist,
 	.cell.album {
 		color: var(--text-muted);
-		font-size: 0.875rem;
+		font-size: var(--fs-detail);
 	}
 
 	.chevron {
@@ -637,7 +713,7 @@
 		column-gap: var(--row-gap);
 		row-gap: var(--space-3);
 		padding: var(--space-1) var(--row-pad-x) var(--space-4) 0;
-		font-size: 0.8125rem;
+		font-size: var(--fs-detail);
 		color: var(--text-muted);
 	}
 
@@ -668,7 +744,7 @@
 	/* Value in primary text, its key in muted: both at full opacity (AA on every panel). */
 	.fact {
 		min-width: 0;
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-primary);
 		overflow-wrap: anywhere;
 	}
@@ -712,7 +788,7 @@
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
 		cursor: pointer;
 	}
@@ -742,10 +818,14 @@
 		color: var(--fail);
 	}
 
+	.notice.collapsed {
+		padding: 0 var(--row-pad-x) var(--space-2);
+	}
+
 	.notice {
 		color: var(--waiting);
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	/* Empty, it stays in the accessibility tree (a status region inserted together with
@@ -775,14 +855,14 @@
 	}
 
 	.history-heading {
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--text-muted);
 	}
 
 	.history-status {
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	.history-error {
@@ -828,7 +908,7 @@
 		background: none;
 		border: none;
 		padding: 0;
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
 		white-space: nowrap;
 		cursor: pointer;
@@ -920,7 +1000,7 @@
 		flex-wrap: wrap;
 		align-items: baseline;
 		column-gap: var(--space-3);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	.times {
@@ -951,7 +1031,7 @@
 	.message {
 		margin: 0;
 		max-width: 80ch;
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		line-height: 1.5;
 		color: var(--text-muted);
 		white-space: pre-wrap;
@@ -974,7 +1054,7 @@
 		border: none;
 		padding: 0;
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-primary);
 		text-decoration: underline;
 		text-underline-offset: 2px;
@@ -996,14 +1076,14 @@
 		padding: 0 var(--space-1);
 		border: 1px solid var(--line-bright);
 		border-radius: 3px;
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		color: var(--text-primary);
 	}
 
 	.note-text {
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
 		overflow-wrap: anywhere;
 	}
@@ -1022,12 +1102,12 @@
 		display: flex;
 		flex-wrap: wrap;
 		column-gap: var(--space-3);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		border: none;
 	}
 
 	.last-error {
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		overflow-wrap: anywhere;
 	}
 
@@ -1062,7 +1142,7 @@
 			overflow: hidden;
 			text-overflow: ellipsis;
 			color: var(--text-muted);
-			font-size: 0.8125rem;
+			font-size: var(--fs-detail);
 		}
 
 		.row[aria-expanded='true'] .meta {

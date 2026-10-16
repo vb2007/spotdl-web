@@ -634,6 +634,11 @@ needed" claim — rather than silently deleted.
 - The session cookie is shared across tabs: an identity switch in tab 2 reaches tab 1's next
   request and stream reconnect. Guard late async writes with `queue.getResetCount()`, and check
   `/api/auth/me` against the page's identity on every stream (re)connect → *v42*
+- One confirmation for every destructive action: a native modal `<dialog>` driven by
+  `confirmAction()`. Focus goes back to the trigger *before* the caller's action resumes, and a
+  navigation answers "no", so a question never survives onto the next page → *v43*
+- An `h1` placed between a page's `<header>` and its `<main>` is outside every landmark (axe
+  `region`); a secondary page's `h1` opens its `main` → *v43*
 
 **Testing & verification technique**
 - The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
@@ -839,6 +844,14 @@ needed" claim — rather than silently deleted.
 - impeccable's URL detector can't log in. Inject `detector/detect-antipatterns-browser.js` into an
   authenticated Playwright page and call `impeccableDetectAsync()`; its page-level rules then match
   the injected script's own source (`gradient-text`, `marquee`): false positives → *v42*
+- Staging a library re-sweep: the destination keeps the source's *file name*, so a renamed copy
+  is filed as a new file next to the original. Copy with the original name to exercise the
+  "already there" (quarantine) branch → *v43*
+- A ledger track submitted while the worker is paused is dispatched on expansion, and
+  `download_track`'s pause gate holds it as `waiting` (a `held` attempt), so wait for `active` *or*
+  `waiting`, not `pending`. No network either way → *v43*
+- axe reads a dialog's colours mid entry-fade as a contrast failure; read it after the animation
+  → *v43*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -5029,3 +5042,39 @@ independently-found production bug from the same conversation)
   `{act, job}` memory from `focusin` and restores by data attributes after `tick()`; it clears the
   memory when focus leaves the panel, and `keepFocus` clears it *before* calling `focus()`
   (whose own `focusin` then records the new target).
+
+### v43 secondary-surfaces gotchas
+
+- **Re-sweep staging filed 79 duplicates.** To capture a second mid-sweep, files were copied from
+  the dev test library back into `/downloads` under a `v43-resweep-` prefix and their ledger rows
+  pointed at the copies. `library.destination_path()` keeps the source's file name, so the sweep
+  saw no existing destination and *moved* every prefixed copy into the album folder beside its
+  original (79 moved, plus one "source file missing" where two ledger rows shared a file). It was
+  undone by repointing the ledger and `tracks.output_path` at the originals and deleting only the
+  prefixed copies. Copying under the original name (as done next) takes the conflict branch:
+  60 quarantined, the library never written, the ledger repointed back by the sweep itself.
+- **Pause holds, it doesn't freeze.** With the worker paused, a newly expanded track is still
+  dispatched once; `download_track`'s gate records a `held` attempt and sets it `waiting` with a
+  `scheduled_at`. A spec that waits for `lifecycle === 'active'` times out on a `waiting` job.
+- **Focus return in the confirmation.** The dialog focuses the trigger *before* resolving the
+  promise; an action that then removes or disables its own trigger (remove proxy, a job's cancel,
+  pause/resume swapping its button, start sweep) puts focus somewhere sensible itself with
+  `keepFocus()` once its state settles: the proxy list's heading, the row, the new button, the
+  sweep panel.
+- **Native `<dialog>` and Esc.** The `cancel` event is prevented and answered by the same path as
+  the safe button, so Esc, the safe button, a backdrop click and a navigation can't diverge on
+  the answer or the focus return. The `close` event an answer's own `close()` fires arrives a
+  task later, so it is skipped by a `closingByAnswer` flag: otherwise it could answer "no" to a
+  question asked in between.
+- **Spec 12 / spec 6 change the shared dev stack, and record each change on disk first**
+  (`frontend/e2e/.auth/*-stage.json`, `expand-stopped`, `sweep-report.json`), so their own
+  `finally` and, after a killed run, the next global setup can undo it. The settings restore is
+  conditional (only while the value is still the one the spec set), and so is the sweep report
+  (only over the spec's own run, by its start time). The worker pause, the restored failure
+  streak (only over a zero, which a deliberate release also leaves) and the worker-expand restart
+  are not: after a *killed* run, setup can't tell the spec's leftover from a change the developer
+  made since, and undoes it. Each test also skips rather than
+  override a worker that is paused, holding, or about to run real tracks, a stopped worker-expand,
+  configured Matrix, or anything waiting to be filed. Clear log's archive is the one change not
+  staged on disk: global setup's `clearSlate` archives every settled admin job at the start of each
+  run anyway, so a killed run's leftover is the state the next run starts from.

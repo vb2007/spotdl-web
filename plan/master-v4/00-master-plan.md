@@ -396,3 +396,13 @@ here rather than edited into it, so the original record stays readable.
   surface, so it moves to v43 with the rest of `/settings`. Likewise the `/settings` and
   `WorkerStatus` state toggles' `--fail-dim`/`--settled-dim` edges (F30's controls) stay v43's;
   v42 gave `/`'s destructive outlines a new ≥3:1 `--fail-edge`.
+- **2026-10-16, v43: one v39 item deferred, four backend gaps found.** F20's "no cancel" for a
+  running library sweep needs a backend cancel endpoint (the sweep is one Celery task with no
+  stop signal), so it is deferred, not built in a UI slice. Found while hardening v43's
+  confirmations, none fixed there (backend, outside the slice; candidates for v48's close):
+  `cancel_job` sets CANCELLED unconditionally, so a job that finished between the UI's re-read
+  and the DELETE is relabelled; there is no single-track GET (the UI re-reads a job's cancellable
+  tracks, capped at 1000); a manual proxy any attempt used can't be deleted (the
+  `track_attempts.proxy_id` / `tracks.used_proxy_id` foreign keys have no ON DELETE, so it's a
+  500); and `retention_days` has no upper bound (a huge value overflows the hourly retention
+  sweep for every user; `/account` now caps it at 36,500 days client-side).

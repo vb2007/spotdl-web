@@ -4,6 +4,7 @@
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { link } from '$lib/stores/link';
+	import { confirmAction } from '$lib/stores/confirm';
 	import type { Job } from '$lib/api';
 
 	/** `allUsers`: the admin's all-users scope, where rows can be someone else's -- they
@@ -118,6 +119,67 @@
 		await tick();
 		acting = false;
 		keepFocus(then, undefined, position);
+	}
+
+	// v43 (F08): cancelling a submission still being read is a job cancel, so it asks first.
+	// Dismissing a failed row doesn't: that job is already over.
+	// One question and its server re-read per submission at a time.
+	const cancelAsking: Record<string, true> = {};
+	async function confirmCancelTuning(job: Job) {
+		if (cancelAsking[job.id]) return;
+		cancelAsking[job.id] = true;
+		try {
+			await confirmCancelTuningFlow(job);
+		} finally {
+			delete cancelAsking[job.id];
+		}
+	}
+
+	async function confirmCancelTuningFlow(job: Job) {
+		const session = queue.getResetCount();
+		const confirmed = await confirmAction({
+			title: 'Cancel this submission?',
+			subject: job.source_url,
+			body:
+				'Its link is still being read. Cancelling stops what it would queue, and cancels anything ' +
+				'it already has. This ' +
+				"can't be undone, but the link can be submitted again.",
+			confirmLabel: 'cancel submission',
+			cancelLabel: 'keep it'
+		});
+		if (!confirmed) {
+			// Kept or Esc: the row may have left meanwhile (it finished reading or failed).
+			keepFocus('submit');
+			return;
+		}
+		// Another identity took over meanwhile: this answer belongs to the previous session.
+		if (queue.getResetCount() !== session) return;
+		// The question can outlive the reading: once the job has moved into the queue, its
+		// cancel there asks about the job as it now is. The server decides, as JobRow's does:
+		// this panel follows the stream, which may be down, and cancel_job would relabel a job
+		// that finished meanwhile "cancelled".
+		let current: Job | undefined = jobs.find((j) => j.id === job.id);
+		try {
+			current = await api.getJob(job.id);
+		} catch {
+			// Unreadable: the panel's own state decides.
+		}
+		if (queue.getResetCount() !== session) return;
+		if (current?.state !== 'expanding') {
+			// Failed meanwhile (the row stays here as failed), or gone from this panel: it
+			// finished reading into the queue, or was cancelled elsewhere.
+			lostNotice =
+				current?.state === 'failed'
+					? "Reading its link failed meanwhile; there's nothing left to cancel."
+					: "It's no longer being read: it moved into the queue below, or was already cancelled.";
+			const shown = lostNotice;
+			setTimeout(() => {
+				if (lostNotice === shown) lostNotice = '';
+			}, 10_000);
+			keepFocus('submit');
+			return;
+		}
+		await handleCancel(job.id, 'submit');
 	}
 
 	function dismissButtons(): HTMLButtonElement[] {
@@ -329,7 +391,7 @@
 							aria-label="cancel {job.source_url}"
 							data-act="cancel"
 							data-job={job.id}
-							onclick={() => handleCancel(job.id, 'submit')}>cancel</button
+							onclick={() => confirmCancelTuning(job)}>cancel</button
 						>
 					</span>
 					{#if errorFor(job)}

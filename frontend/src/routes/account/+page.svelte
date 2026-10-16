@@ -1,22 +1,45 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
+	import { queue } from '$lib/stores/queue';
+	import { keepFocus } from '$lib/stores/confirm';
+	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 
 	let { data } = $props();
+	const isAdmin = $derived(data.session?.is_admin ?? false);
+	const email = $derived(data.session?.email ?? '');
+	const username = $derived(data.session?.username ?? null);
 
 	// v19: per-user retention, open to every user (unlike /settings, which stays
 	// admin-only) -- this route exists specifically so a non-admin has somewhere to
 	// reach it (v17's require_admin gate on /settings is the real enforcement either
 	// way; this route just gives every user a page of their own).
-	let loaded = $state(false);
+	let saved = $state<api.RetentionSettings | null>(null);
 	let neverArchive = $state(true);
-	let days = $state(30);
+	let days = $state<number | null>(30);
 	let saving = $state(false);
-	let saved = $state(false);
+	let savedAt = $state<Date | null>(null);
 	let error = $state('');
+	let daysError = $state('');
+	// A hundred years. The backend takes any positive number, but the hourly retention sweep
+	// computes now - days, which overflows past year 1 and stops it for every user (found,
+	// not fixed in the backend: v48).
+	const MAX_DAYS = 36_500;
+	let loggingOut = $state(false);
+	let logoutError = $state('');
+
+	// The mode and the number both count: switching to "automatically" with the days field
+	// cleared is a change even though no number is there yet.
+	const dirty = $derived(
+		saved !== null &&
+			(neverArchive !== (saved.retention_days === null) ||
+				(!neverArchive && days !== saved.retention_days))
+	);
 
 	function syncForm(settings: api.RetentionSettings) {
+		saved = settings;
 		neverArchive = settings.retention_days === null;
 		if (settings.retention_days !== null) days = settings.retention_days;
 	}
@@ -24,10 +47,7 @@
 	onMount(() => {
 		api
 			.getRetentionSettings()
-			.then((r) => {
-				syncForm(r);
-				loaded = true;
-			})
+			.then(syncForm)
 			.catch((err) => {
 				error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 			});
@@ -35,18 +55,55 @@
 
 	async function onSubmit(event: SubmitEvent) {
 		event.preventDefault();
+		daysError = '';
+		if (!neverArchive) {
+			daysError =
+				typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_DAYS
+					? `Enter a whole number of days from 1 to ${MAX_DAYS.toLocaleString()}.`
+					: '';
+			if (daysError) {
+				// Nothing is sent, so focus the field: its error is read out from there.
+				await tick();
+				const field = document.getElementById('retention-days');
+				// Already focused: leave and come back so its new error is read.
+				if (field === document.activeElement) field?.blur();
+				field?.focus();
+				return;
+			}
+		}
+		// Saving disables the field or button that had focus: give it back afterwards.
+		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		saving = true;
-		saved = false;
 		error = '';
 		try {
-			const result = await api.updateRetentionSettings(neverArchive ? null : days);
-			syncForm(result);
-			saved = true;
+			syncForm(await api.updateRetentionSettings(neverArchive ? null : days));
+			savedAt = new Date();
 		} catch (err) {
 			error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		} finally {
 			saving = false;
 		}
+		await keepFocus(from);
+	}
+
+	// v43 (F31): the account page could not sign out; it now does, the way `/` does.
+	async function onLogout() {
+		loggingOut = true;
+		logoutError = '';
+		try {
+			await api.logout();
+		} catch (err) {
+			// A 401 means the session is already gone: that's signed out, not a failure.
+			if (!(err instanceof api.ApiError && err.status === 401)) {
+				logoutError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+				loggingOut = false;
+				return;
+			}
+		}
+		// The module-level queue store outlives this navigation; clear it before leaving so
+		// the next identity on this tab never sees a flash of these rows.
+		queue.reset();
+		await goto(resolve('/login'));
 	}
 </script>
 
@@ -54,79 +111,111 @@
 	<title>spotdl-web — account</title>
 </svelte:head>
 
-<main class="stage">
-	<header>
-		<div class="ident">
-			<span class="label">SPOTDL // WEB</span>
-			<span class="label dim">ACCOUNT</span>
-		</div>
-		<a class="back mono" href={resolve('/')}>‹ back to queue</a>
-	</header>
+<div class="stage">
+	<SubpageHeader current="account" {isAdmin} />
 
-	<section class="panel identity">
-		<h2 class="label">Signed in as</h2>
-		<p class="mono" title={data.session?.email}>
-			{api.displayName(data.session?.username ?? null, data.session?.email ?? '')}
-		</p>
-	</section>
-
-	<section class="panel retention">
-		<h2 class="label">Log retention</h2>
-		<p class="hint mono">
-			Settled jobs older than this are soft-archived automatically (hourly sweep) -- never deleted,
-			and never while a track is still active or waiting on the retry ladder. Archived jobs stay
-			reachable with the "show archived" toggle and can always be restored.
-		</p>
-
-		{#if !loaded && !error}
-			<p class="hint mono">Loading…</p>
-		{:else}
-			<form class="retention-form" onsubmit={onSubmit}>
-				<div class="field">
-					<span class="label" id="retention-mode-label">Mode</span>
-					<div class="option-group" role="group" aria-labelledby="retention-mode-label">
-						<button
-							type="button"
-							aria-pressed={!neverArchive}
-							disabled={saving}
-							onclick={() => (neverArchive = false)}
-						>
-							auto-archive
-						</button>
-						<button
-							type="button"
-							aria-pressed={neverArchive}
-							disabled={saving}
-							onclick={() => (neverArchive = true)}
-						>
-							never
-						</button>
-					</div>
+	<main id="main" class="main">
+		<h1 class="page-title">Account</h1>
+		<section class="panel section" aria-labelledby="identity-heading">
+			<h2 id="identity-heading" class="label">Signed in</h2>
+			<div class="identity">
+				<div class="who">
+					<!-- F31: the email is on the page, not only in a tooltip. -->
+					<p class="name">{api.displayName(username, email)}</p>
+					{#if username !== null}
+						<p class="email mono">{email}</p>
+					{/if}
+					{#if isAdmin}
+						<p class="role">Admin of this server</p>
+					{/if}
 				</div>
-
-				<label class="field">
-					<span class="label">After (days)</span>
-					<input
-						type="number"
-						min="1"
-						bind:value={days}
-						disabled={saving || neverArchive}
-						aria-label="Archive after this many days of inactivity"
-					/>
-				</label>
-
-				<button type="submit" class="save" disabled={saving}>
-					{saving ? 'SAVING…' : 'SAVE'}
+				<button type="button" class="btn" disabled={loggingOut} onclick={onLogout}>
+					{loggingOut ? 'disconnecting…' : 'disconnect'}
 				</button>
-			</form>
-		{/if}
+			</div>
+			<p class="form-error" role="alert">{logoutError}</p>
+		</section>
 
-		{#if saved && !saving}
-			<p class="saved mono" role="status">Saved.</p>
-		{/if}
-		<p class="form-error mono" role="alert">{error}</p>
-	</section>
-</main>
+		<!-- Preferences: one group per setting. v45 adds the keyboard-shortcut switch and v46
+		     the language switch here, as further groups after this one. -->
+		<section class="panel section" aria-labelledby="preferences-heading">
+			<h2 id="preferences-heading" class="label">Preferences</h2>
+
+			<div class="group" role="group" aria-labelledby="retention-heading">
+				<h3 id="retention-heading" class="group-title">Log retention</h3>
+				<p class="hint">
+					Finished jobs (done, failed or cancelled) are archived once nothing has happened in them
+					for this long. Archived jobs are hidden, never deleted, and come back with “show
+					archived”. A job still downloading or waiting is never archived.
+				</p>
+
+				{#if saved === null}
+					{#if !error}<p class="hint">Loading your retention setting…</p>{/if}
+				{:else}
+					<form class="retention-form" onsubmit={onSubmit} novalidate>
+						<div class="form-field">
+							<span class="label" id="retention-mode-label">Archive finished jobs</span>
+							<div class="choice-group" role="group" aria-labelledby="retention-mode-label">
+								<button
+									type="button"
+									aria-pressed={!neverArchive}
+									disabled={saving}
+									onclick={() => (neverArchive = false)}
+								>
+									automatically
+								</button>
+								<button
+									type="button"
+									aria-pressed={neverArchive}
+									disabled={saving}
+									onclick={() => (neverArchive = true)}
+								>
+									never
+								</button>
+							</div>
+						</div>
+
+						<div class="form-field">
+							<!-- F30: the accessible name is the visible label (WCAG 2.5.3). -->
+							<label class="label" for="retention-days">After</label>
+							<div class="with-unit">
+								<input
+									id="retention-days"
+									class="well"
+									type="number"
+									inputmode="numeric"
+									min="1"
+									max={MAX_DAYS}
+									step="1"
+									bind:value={days}
+									disabled={saving || neverArchive}
+									aria-invalid={daysError ? 'true' : undefined}
+									aria-describedby="retention-days-unit retention-days-error"
+								/>
+								<span class="unit mono" id="retention-days-unit">days without activity</span>
+							</div>
+							<p id="retention-days-error" class="field-error">{daysError}</p>
+						</div>
+
+						<div class="save-row wide">
+							<button type="submit" class="btn" disabled={saving}>
+								{saving ? 'saving…' : 'save'}
+							</button>
+							<p class="save-state" class:saved={!dirty && savedAt} role="status">
+								{dirty
+									? 'Unsaved changes'
+									: savedAt
+										? `Saved at ${savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+										: ''}
+							</p>
+						</div>
+					</form>
+				{/if}
+				<p class="form-error" role="alert">{error}</p>
+			</div>
+		</section>
+	</main>
+</div>
 
 <style>
 	.stage {
@@ -135,160 +224,110 @@
 		padding: var(--space-5);
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-5);
-	}
-
-	header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
 		gap: var(--space-4);
-		flex-wrap: wrap;
 	}
 
-	.ident {
+	.main {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-1);
+		gap: var(--space-5);
+		margin-top: var(--space-2);
+		max-width: 44rem;
 	}
 
-	.ident .dim {
-		color: var(--text-dim);
-	}
-
-	.back {
-		color: var(--text-muted);
-		font-size: 0.8125rem;
-		text-decoration: none;
-	}
-
-	/* v42 (A2/F09): --signal-dim is never text (3.09:1); hover is --text-primary (v40's F10 verdict). */
-	.back:hover,
-	.back:focus-visible {
-		color: var(--text-primary);
-	}
-
-	.identity,
-	.retention {
-		padding: var(--space-4);
+	.section {
+		padding: var(--space-5);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
 	}
 
-	.identity p {
-		color: var(--text-primary);
+	.identity {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: var(--space-3) var(--space-5);
+	}
+
+	.who {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		min-width: 0;
+	}
+
+	.name {
+		font-size: var(--fs-lead);
+		font-weight: var(--fw-medium);
+		overflow-wrap: anywhere;
+	}
+
+	.email {
+		font-size: var(--fs-detail);
+		color: var(--text-muted);
+		overflow-wrap: anywhere;
+	}
+
+	.role {
+		font-size: var(--fs-detail);
+		color: var(--text-muted);
+	}
+
+	.group {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+	}
+
+	.group-title {
+		font-size: var(--fs-body);
+		font-weight: var(--fw-medium);
 	}
 
 	.hint {
-		margin: 0;
-		color: var(--text-dim);
-		font-size: 0.75rem;
+		font-size: var(--fs-detail);
+		color: var(--text-muted);
+		max-width: 68ch;
 	}
 
 	.retention-form {
 		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: var(--space-3);
-		align-items: end;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--space-3) var(--space-4);
+		align-items: start;
+	}
+
+	.wide {
+		grid-column: 1 / -1;
+	}
+
+	.with-unit {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.with-unit input {
+		flex: 0 1 7rem;
+	}
+
+	.unit {
+		font-size: var(--fs-meta);
+		color: var(--text-muted);
 	}
 
 	@media (max-width: 640px) {
-		.retention-form {
-			grid-template-columns: 1fr;
+		.stage {
+			padding: var(--space-4);
 		}
-	}
 
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
+		.section {
+			padding: var(--space-4);
+		}
 
-	.option-group {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-2);
-	}
-
-	.option-group button {
-		background: var(--bg-2);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-1) var(--space-3);
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		color: var(--text-muted);
-		cursor: pointer;
-	}
-
-	.option-group button[aria-pressed='true'] {
-		border-color: var(--signal);
-		color: var(--text-primary);
-	}
-
-	.option-group button:hover:not(:disabled),
-	.option-group button:focus-visible {
-		border-color: var(--signal-dim);
-	}
-
-	.option-group button:disabled {
-		opacity: 0.6;
-		cursor: default;
-	}
-
-	input[type='number'] {
-		background: var(--bg-0);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-3);
-		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-		font-family: var(--font-mono);
-		color: var(--text-primary);
-	}
-
-	input[type='number']:focus-visible {
-		border-color: var(--signal-dim);
-	}
-
-	input[type='number']:disabled {
-		opacity: 0.6;
-	}
-
-	.save {
-		grid-column: 1 / -1;
-		justify-self: start;
-		background: var(--bg-2);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
-		padding: var(--space-3) var(--space-4);
-		font-family: var(--font-mono);
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		cursor: pointer;
-	}
-
-	.save:hover:not(:disabled),
-	.save:focus-visible {
-		border-color: var(--signal);
-		background: var(--bg-3);
-	}
-
-	.save:disabled {
-		opacity: 0.6;
-		cursor: default;
-	}
-
-	.saved {
-		margin: 0;
-		color: var(--settled);
-		font-size: 0.8125rem;
-	}
-
-	.form-error {
-		min-height: 1rem;
-		margin: 0;
-		color: var(--fail);
-		font-size: 0.8125rem;
+		.retention-form {
+			grid-template-columns: minmax(0, 1fr);
+		}
 	}
 </style>

@@ -13,6 +13,10 @@ import {
 	e2eDownloadsInFlight,
 	isSettled,
 	ledgerMisses,
+	restartExpandWorker,
+	restoreSettings,
+	restoreSweepReport,
+	restoreWorker,
 	spotifyTrackUrl,
 	stackPython,
 	tracksWithNetworkPath,
@@ -115,6 +119,16 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 	// Teardown runs even when setup throws: neither file may still describe an earlier run.
 	rmSync(RUN_FILE, { force: true });
 	rmSync(SEED_FILE, { force: true });
+
+	// Spec 12 stops worker-expand for one test; a run killed inside it would leave it stopped,
+	// and every submission after that would sit at "tuning in". Only a stop the suite recorded
+	// is undone: one the developer made on purpose is left alone.
+	await restartExpandWorker();
+
+	// Likewise a run killed inside spec 12's worker tests: put back what it recorded.
+	restoreWorker();
+	restoreSweepReport();
+	restoreSettings();
 
 	// Every job a default run creates must resolve from the ledger. Refuse to start rather than
 	// let one become a real download.

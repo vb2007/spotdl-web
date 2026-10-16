@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
+	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import type { Scope } from '$lib/stores/queue';
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -193,8 +194,36 @@
 		queue.setFilters({ dir: $filters.dir === 'asc' ? 'desc' : 'asc' });
 	}
 
+	// v43 (F08): archives every settled job of yours in one go, so it asks first.
+	let clearError = $state('');
 	async function onClearLog() {
-		await queue.archiveJobs({ allSettled: true });
+		const session = queue.getResetCount();
+		clearError = '';
+		const confirmed = await confirmAction({
+			title: 'Clear the log?',
+			body:
+				'Every finished job of yours (done, failed or cancelled) moves to the archive, whatever ' +
+				'this view shows. ' +
+				'Archived jobs stay under “show archived” and can be restored one by one. ' +
+				'Jobs still downloading or waiting are kept.',
+			confirmLabel: 'clear log',
+			cancelLabel: 'keep log'
+		});
+		// Kept or Esc: a switch to tracks scope meanwhile takes "clear log" away.
+		if (!confirmed) return keepFocus(document.getElementById('queue-heading'));
+		// Another identity took over meanwhile: this answer belongs to the previous session.
+		if (queue.getResetCount() !== session) return;
+		try {
+			await queue.archiveJobs({ allSettled: true });
+		} catch (err) {
+			if (queue.getResetCount() !== session) return;
+			clearError = `Couldn't clear the log: ${err instanceof api.ApiError ? err.message : 'could not reach the server'}.`;
+			// It answers one press; it doesn't stay under the heading for the rest of the visit.
+			const shown = clearError;
+			setTimeout(() => {
+				if (clearError === shown) clearError = '';
+			}, 10_000);
+		}
 	}
 </script>
 
@@ -212,11 +241,12 @@
 		</button>
 		{#if $filters.scope === 'jobs'}
 			<!-- Archives every settled job of *yours*, whatever the search, filters or all-users
-			     view (archive.archive_jobs). Unchanged in v42; its confirmation is v43's. -->
+			     view (archive.archive_jobs), after a confirmation (v43). -->
 			<button type="button" class="chip danger" onclick={onClearLog}>clear log</button>
 		{/if}
 	</div>
 </div>
+<p class="clear-error" role="alert">{clearError}</p>
 
 <div class="controls" role="group" aria-label="Queue controls">
 	<div class="find">
@@ -332,6 +362,14 @@
 	.count {
 		color: var(--text-muted);
 		font-size: var(--fs-meta);
+	}
+
+	/* Outside the head's flex row, so it takes no space at rest (an empty <p> has no height)
+	   and stays a live region, never display:none. */
+	.clear-error {
+		padding: 0 var(--space-4);
+		font-size: var(--fs-meta);
+		color: var(--fail);
 	}
 
 	.log-tools {
