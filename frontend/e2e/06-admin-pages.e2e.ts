@@ -36,6 +36,8 @@ test.describe('admin', () => {
 			await output.getByRole('button', { name: 'save', exact: true }).click();
 			// v43: the save state says when, and clears on the next edit (F31).
 			await expect(output.getByRole('status')).toHaveText(/^Saved at /);
+			// Disabled while saving, the button got focus back afterwards (not <body>).
+			await expect(output.getByRole('button', { name: 'save', exact: true })).toBeFocused();
 
 			await page.reload();
 			await expect(
@@ -148,7 +150,13 @@ test.describe('admin', () => {
 				data: { alert_cooldown_minutes: alerts.alert_cooldown_minutes }
 			});
 			expect.soft(restoredAlerts.status(), 'restoring the alert cooldown').toBe(200);
-			if (addedId) await admin.delete(`/api/proxies/${addedId}`);
+			if (addedId) {
+				const removed = await admin.delete(`/api/proxies/${addedId}`);
+				// Never leave a TEST-NET proxy enabled in the shared pool.
+				if (!removed.ok())
+					await admin.patch(`/api/proxies/${addedId}`, { data: { enabled: false } });
+				expect.soft(removed.status(), 'removing the test proxy').toBe(204);
+			}
 			await admin.dispose();
 		}
 	});

@@ -2,7 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
-	import { confirmAction } from '$lib/stores/confirm';
+	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import WorkerStatus from '$lib/components/WorkerStatus.svelte';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
@@ -32,6 +32,12 @@
 		if (id === undefined) return;
 		await tick();
 		document.getElementById(id)?.focus();
+	}
+
+	// A save disables the control that had focus (its button, or the field Enter was pressed
+	// in), which drops focus to <body>; it goes back there once the save is done.
+	function focused(): HTMLElement | null {
+		return document.activeElement instanceof HTMLElement ? document.activeElement : null;
 	}
 
 	function clockTime(date: Date): string {
@@ -82,6 +88,7 @@
 			? ''
 			: 'Enter a filename template, for example {artists} - {title}.{output-ext}.';
 		if (outputTemplateError) return focusInvalid('output-template');
+		const from = focused();
 		outputSaving = true;
 		outputError = '';
 		try {
@@ -93,6 +100,7 @@
 		} finally {
 			outputSaving = false;
 		}
+		await keepFocus(from);
 	}
 
 	// --- Library sort & move -----------------------------------------------------------
@@ -135,6 +143,7 @@
 		}
 		libraryFieldErrors = errors;
 		if (Object.keys(errors).length > 0) return focusInvalid(Object.keys(errors)[0]);
+		const from = focused();
 		librarySaving = true;
 		libraryError = '';
 		try {
@@ -146,6 +155,7 @@
 		} finally {
 			librarySaving = false;
 		}
+		await keepFocus(from);
 	}
 
 	// --- Alerts ------------------------------------------------------------------------
@@ -273,6 +283,7 @@
 		}
 		alertFieldErrors = errors;
 		if (Object.keys(errors).length > 0) return focusInvalid(Object.keys(errors)[0]);
+		const from = focused();
 		alertSaving = true;
 		alertError = '';
 		try {
@@ -284,9 +295,11 @@
 		} finally {
 			alertSaving = false;
 		}
+		await keepFocus(from);
 	}
 
 	async function onTestAlert() {
+		const from = focused();
 		alertTesting = true;
 		alertTestResult = '';
 		alertError = '';
@@ -298,6 +311,7 @@
 		} finally {
 			alertTesting = false;
 		}
+		await keepFocus(from);
 	}
 
 	// --- Proxy pool --------------------------------------------------------------------
@@ -337,12 +351,17 @@
 	// check, but a silent variant: reusing loadProxies() verbatim would flip
 	// proxiesLoading on every tick and re-flash "Loading..." over a page the user is
 	// actively looking at.
+	let proxyMutations = 0;
 	async function refreshProxiesSilently() {
 		// Skip a tick while a toggle/remove/add is in flight -- a poll landing mid-request
 		// must not visually clobber that row before the user's own action resolves.
 		if (addingProxy || Object.keys(proxyBusy).length > 0) return;
+		// ...nor may a poll that *started* before one land after it (a removed proxy would come
+		// back for a tick).
+		const before = proxyMutations;
 		try {
-			proxyList = await api.listProxies();
+			const list = await api.listProxies();
+			if (proxyMutations === before) proxyList = list;
 		} catch {
 			// A transient poll failure isn't worth surfacing as a page-level error --
 			// loadProxies()'s own error path already covers the initial-load case.
@@ -361,7 +380,9 @@
 				"That address won't work: it needs a literal IPv4 address, not a hostname, like http://203.0.113.7:8080.";
 			return;
 		}
+		const from = focused();
 		addingProxy = true;
+		proxyMutations += 1;
 		addProxyError = '';
 		try {
 			const proxy = await api.createProxy(url);
@@ -372,10 +393,13 @@
 		} finally {
 			addingProxy = false;
 		}
+		await keepFocus(from);
 	}
 
 	async function toggleProxy(proxy: api.Proxy) {
+		const from = focused();
 		proxyBusy = { ...proxyBusy, [proxy.id]: true };
+		proxyMutations += 1;
 		proxiesError = '';
 		try {
 			const updated = await api.setProxyEnabled(proxy.id, !proxy.enabled);
@@ -386,6 +410,7 @@
 			const { [proxy.id]: _unused, ...rest } = proxyBusy;
 			proxyBusy = rest;
 		}
+		await keepFocus(from);
 	}
 
 	async function removeProxy(proxy: api.Proxy) {
@@ -405,6 +430,7 @@
 		// Gone meanwhile (removed in another tab): nothing to remove.
 		if (!confirmed || !proxyList.some((p) => p.id === proxy.id)) return;
 		proxyBusy = { ...proxyBusy, [proxy.id]: true };
+		proxyMutations += 1;
 		proxiesError = '';
 		try {
 			await api.deleteProxy(proxy.id);

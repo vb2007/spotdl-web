@@ -1,6 +1,15 @@
 import { execFileSync } from 'node:child_process';
-import { expect, request, test, type Locator, type Page, type Request } from '@playwright/test';
-import type { Job, Proxy } from '../src/lib/api';
+import {
+	expect,
+	request,
+	test,
+	type APIRequestContext,
+	type Locator,
+	type Page,
+	type Request,
+	type Response
+} from '@playwright/test';
+import type { Job, Proxy, WorkerStatus } from '../src/lib/api';
 import { REPO_ROOT } from './support/env';
 import { ADMIN_STATE, stackPython, spotifyTrackUrl, waitForJob } from './support/stack';
 import { jobRow, jobToggle, openDashboard, trackToggle } from './support/ui';
@@ -28,6 +37,28 @@ function compose(...args: string[]): string {
 		encoding: 'utf8',
 		stdio: ['ignore', 'pipe', 'pipe']
 	}).trim();
+}
+
+/** The suite shares the developer's stack: a worker they paused, or a real hold, is theirs.
+ * A test that has to pause or hold the worker skips rather than override or release it. */
+async function requireQuietWorker(admin: APIRequestContext): Promise<void> {
+	const status = (await (await admin.get('/api/worker/status')).json()) as WorkerStatus;
+	const holding =
+		status.breaker_tripped_until !== null &&
+		new Date(status.breaker_tripped_until).getTime() > Date.now();
+	test.skip(status.paused || holding, 'the dev worker is paused or holding; not overriding it');
+}
+
+/** Clears a hold this spec set itself, straight in the row, so the failure streak a real
+ * release would zero is left as it was. */
+function clearStagedHold(): void {
+	stackPython(`
+from app.db import SessionLocal
+from app.models.worker_state import WorkerState
+db = SessionLocal()
+db.query(WorkerState).one().breaker_tripped_until = None
+db.commit()
+`);
 }
 
 interface Guarded {
@@ -111,15 +142,25 @@ test('clear log asks first', async ({ page, baseURL }) => {
 	};
 	await expectCancelDoesNothing(page, g);
 
-	const archived = page.waitForResponse((r) => g.sends(r.request()));
-	await confirmPerforms(page, g);
-	const { archived_ids } = (await (await archived).json()) as { archived_ids: string[] };
-	// Put the log back: the other specs (and the other project's run) look up the seed jobs.
-	if (archived_ids.length > 0) {
-		const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
-		const restored = await admin.post('/api/jobs/unarchive', { data: { job_ids: archived_ids } });
-		expect.soft(restored.status(), 'unarchiving what clear log archived').toBe(200);
-		await admin.dispose();
+	// Whatever clear log archives is put back, even if a check after it fails: the other specs
+	// (and the other project's run) look up the seed jobs.
+	const archived: Promise<string[]>[] = [];
+	const onResponse = (r: Response) => {
+		if (!g.sends(r.request()) || !r.ok()) return;
+		archived.push(r.json().then((body: { archived_ids: string[] }) => body.archived_ids));
+	};
+	page.on('response', onResponse);
+	try {
+		await confirmPerforms(page, g);
+	} finally {
+		page.off('response', onResponse);
+		const archivedIds = (await Promise.all(archived)).flat();
+		if (archivedIds.length > 0) {
+			const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
+			const restored = await admin.post('/api/jobs/unarchive', { data: { job_ids: archivedIds } });
+			expect.soft(restored.status(), 'unarchiving what clear log archived').toBe(200);
+			await admin.dispose();
+		}
 	}
 });
 
@@ -128,6 +169,7 @@ test('job cancel and cancel track ask first', async ({ page, baseURL }, testInfo
 	const ids = testInfo.project.name === 'mobile' ? CANCEL_TRACKS.mobile : CANCEL_TRACKS.desktop;
 	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
 	const created: Job[] = [];
+	await requireQuietWorker(admin);
 	expect((await admin.post('/api/worker/pause')).ok()).toBe(true);
 	try {
 		for (const id of [ids.track, ids.job]) {
@@ -202,6 +244,7 @@ test('job cancel and cancel track ask first', async ({ page, baseURL }, testInfo
 
 test('worker pause and breaker release ask first', async ({ page, baseURL }) => {
 	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
+	await requireQuietWorker(admin);
 	try {
 		await page.goto('/settings');
 		const worker = page.getByRole('region', { name: 'Worker control' });
@@ -245,8 +288,9 @@ db.commit()
 		await confirmPerforms(page, release);
 		await expect(release.trigger).toHaveCount(0);
 	} finally {
+		// Back to the quiet worker this test started from (requireQuietWorker).
 		await admin.post('/api/worker/resume');
-		await admin.post('/api/worker/breaker/release');
+		clearStagedHold();
 		await admin.dispose();
 	}
 });
@@ -280,6 +324,16 @@ test('remove proxy asks first', async ({ page, baseURL }, testInfo) => {
 });
 
 test('start sweep asks first', async ({ page }) => {
+	// A real sweep: only with nothing waiting to be filed, so it moves no file and archives no
+	// one's jobs on the shared dev stack.
+	const unfiled = Number(
+		stackPython(`
+from sqlalchemy import text
+from app.db import SessionLocal
+print(SessionLocal().execute(text("select count(*) from downloaded_tracks where not in_library")).scalar())
+`)
+	);
+	test.skip(unfiled > 0, `${unfiled} downloads wait to be filed; a sweep would move them`);
 	await page.goto('/library');
 	const start: Guarded = {
 		trigger: page.getByRole('button', { name: 'start sweep', exact: true }),
@@ -324,7 +378,11 @@ test('cancelling an incoming submission asks first', async ({ page, baseURL }, t
 		await confirmPerforms(page, cancel);
 		await waitForJob(admin, jobId, (j) => j.status.lifecycle === 'cancelled', 15_000);
 	} finally {
-		compose('start', 'worker-expand');
+		try {
+			compose('start', 'worker-expand');
+		} catch (err) {
+			expect.soft(String(err), 'starting worker-expand again').toBe('');
+		}
 		// The next specs (and the mobile run) expand real submissions: wait until it's back.
 		const deadline = Date.now() + 90_000;
 		const health = () => compose('ps', 'worker-expand', '--format', '{{.Health}}');

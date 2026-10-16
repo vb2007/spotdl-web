@@ -4,6 +4,7 @@
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
+	import { keepFocus } from '$lib/stores/confirm';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 
 	let { data } = $props();
@@ -25,8 +26,13 @@
 	let loggingOut = $state(false);
 	let logoutError = $state('');
 
-	const formValue = $derived(neverArchive ? null : days);
-	const dirty = $derived(saved !== null && formValue !== saved.retention_days);
+	// The mode and the number both count: switching to "automatically" with the days field
+	// cleared is a change even though no number is there yet.
+	const dirty = $derived(
+		saved !== null &&
+			(neverArchive !== (saved.retention_days === null) ||
+				(!neverArchive && days !== saved.retention_days))
+	);
 
 	function syncForm(settings: api.RetentionSettings) {
 		saved = settings;
@@ -58,6 +64,8 @@
 				return;
 			}
 		}
+		// Saving disables the field or button that had focus: give it back afterwards.
+		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		saving = true;
 		error = '';
 		try {
@@ -68,6 +76,7 @@
 		} finally {
 			saving = false;
 		}
+		await keepFocus(from);
 	}
 
 	// v43 (F31): the account page could not sign out; it now does, the way `/` does.

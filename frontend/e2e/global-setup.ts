@@ -1,7 +1,8 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { request, type APIRequestContext, type FullConfig } from '@playwright/test';
 import type { Job, JobTracksPage } from '../src/lib/api';
-import { loadE2eEnv } from './support/env';
+import { REPO_ROOT, loadE2eEnv } from './support/env';
 import {
 	ADMIN_STATE,
 	AUTH_DIR,
@@ -115,6 +116,14 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 	// Teardown runs even when setup throws: neither file may still describe an earlier run.
 	rmSync(RUN_FILE, { force: true });
 	rmSync(SEED_FILE, { force: true });
+
+	// Spec 12 stops worker-expand for one test; a run killed inside it would leave it stopped,
+	// and every submission after that would sit at "tuning in". Starting a running service is a
+	// no-op.
+	execFileSync('docker', ['compose', 'start', 'worker-expand'], {
+		cwd: REPO_ROOT,
+		stdio: ['ignore', 'pipe', 'pipe']
+	});
 
 	// Every job a default run creates must resolve from the ledger. Refuse to start rather than
 	// let one become a real download.

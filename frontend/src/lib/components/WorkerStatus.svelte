@@ -123,15 +123,27 @@
 		await run(() => worker.release());
 	}
 
+	// A failed read is said, never a silent "Reading…" forever (F17's lesson, admin side). The
+	// poll keeps trying; the last good reading stays on screen meanwhile.
+	let readError = $state('');
+	async function poll() {
+		try {
+			await worker.refresh();
+			readError = '';
+		} catch (err) {
+			readError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+		}
+	}
+
 	onMount(() => {
-		worker.refresh();
+		poll();
 		// No dedicated SSE event exists for worker/breaker state (v10 plan) -- a plain
 		// poll is the simplest way for a naturally-tripping breaker (5 consecutive
 		// AudioProviderErrors, no user action involved) to still surface here without
 		// the user having to reload.
 		const id = setInterval(() => {
 			now = Date.now();
-			worker.refresh();
+			poll();
 		}, POLL_MS);
 		return () => clearInterval(id);
 	});
@@ -141,7 +153,13 @@
 	<p class="sr-only" role="status">{announcement}</p>
 
 	{#if $status === null}
-		<p class="state cond-idle">Reading the worker…</p>
+		{#if readError}
+			<p class="form-error">
+				Couldn't read the worker: {readError}. Trying again every few seconds.
+			</p>
+		{:else}
+			<p class="state cond-idle">Reading the worker…</p>
+		{/if}
 	{:else}
 		<div class="row">
 			<div class="state-text">
@@ -197,6 +215,9 @@
 		{/if}
 	{/if}
 
+	{#if $status !== null && readError}
+		<p class="note">Couldn't refresh ({readError}); showing the last reading.</p>
+	{/if}
 	<p class="note" role="status">{note}</p>
 	<p class="form-error" role="alert">{error}</p>
 </div>
