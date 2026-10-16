@@ -4,6 +4,7 @@
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { link } from '$lib/stores/link';
+	import { confirmAction } from '$lib/stores/confirm';
 	import type { Job } from '$lib/api';
 
 	/** `allUsers`: the admin's all-users scope, where rows can be someone else's -- they
@@ -118,6 +119,33 @@
 		await tick();
 		acting = false;
 		keepFocus(then, undefined, position);
+	}
+
+	// v43 (F08): cancelling a submission still being read is a job cancel, so it asks first.
+	// Dismissing a failed row doesn't: that job is already over.
+	async function confirmCancelTuning(job: Job) {
+		const confirmed = await confirmAction({
+			title: 'Cancel this submission?',
+			subject: job.source_url,
+			body:
+				'Its link is still being read; cancelling stops it, and none of its tracks are ' +
+				"downloaded. This can't be undone, but the link can be submitted again.",
+			confirmLabel: 'cancel submission',
+			cancelLabel: 'keep it'
+		});
+		if (!confirmed) return;
+		// The question can outlive the reading: once the job has moved into the queue, its
+		// cancel there asks about the job as it now is.
+		if (!jobs.some((j) => j.id === job.id && j.state === 'expanding')) {
+			lostNotice = 'It finished reading and moved into the queue below; cancel it there.';
+			const shown = lostNotice;
+			setTimeout(() => {
+				if (lostNotice === shown) lostNotice = '';
+			}, 10_000);
+			keepFocus('submit');
+			return;
+		}
+		await handleCancel(job.id, 'submit');
 	}
 
 	function dismissButtons(): HTMLButtonElement[] {
@@ -329,7 +357,7 @@
 							aria-label="cancel {job.source_url}"
 							data-act="cancel"
 							data-job={job.id}
-							onclick={() => handleCancel(job.id, 'submit')}>cancel</button
+							onclick={() => confirmCancelTuning(job)}>cancel</button
 						>
 					</span>
 					{#if errorFor(job)}

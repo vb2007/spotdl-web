@@ -68,12 +68,18 @@
 			title: 'Pause all downloads?',
 			body:
 				'Nothing new starts, for any user, until you resume. A download already running ' +
-				'finishes, and waiting tracks keep their place.',
+				'finishes; tracks that come due meanwhile are held and tried again later.',
 			confirmLabel: 'pause downloads',
 			cancelLabel: 'keep running'
 		});
-		// Paused meanwhile (another tab): nothing left to do.
-		if (confirmed && !paused) await run(() => worker.pause());
+		if (!confirmed) return;
+		// Paused meanwhile (another tab): nothing left to do, and the button has swapped.
+		if (paused) {
+			note = 'Downloads were already paused.';
+			await keepFocus(toggleButton);
+			return;
+		}
+		await run(() => worker.pause());
 	}
 
 	async function handleResume() {
@@ -90,8 +96,8 @@
 				(paused
 					? 'The hold ends now. Downloads stay paused until you resume them, and then start ' +
 						'while YouTube may still be rate-limiting this server.'
-					: 'Downloads resume at once, while YouTube may still be rate-limiting this server, ' +
-						'which is what the hold protects against.') +
+					: 'Tracks that are due start again on the next pass, while YouTube may still be ' +
+						'rate-limiting this server, which is what the hold protects against.') +
 				(until ? ` It clears on its own at ${clockTime(until)}.` : ''),
 			confirmLabel: 'release now',
 			cancelLabel: 'keep holding'

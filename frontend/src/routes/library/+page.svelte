@@ -74,6 +74,8 @@
 				: settings.library_quarantine_enabled
 					? `moved to ${settings.library_quarantine_dir}`
 					: 'deleted';
+		// Left the page during the settings read: the question belongs to a page that's gone.
+		if (unmounted) return;
 		const confirmed = await confirmAction({
 			title: 'Start a library sweep?',
 			subject: settings?.library_target_dir,
@@ -107,16 +109,19 @@
 	function onProgress(event: MessageEvent) {
 		const payload = JSON.parse(event.data) as api.StreamEvent;
 		if (payload.type !== 'library.progress') return;
+		// A sweep started elsewhere (another tab) arrives here first as an event: its start and
+		// errors are its own, not the previous run's.
+		const fresh = run?.state !== 'running';
 		run = {
 			state: payload.done ? 'idle' : 'running',
-			started_at: run?.started_at ?? null,
+			started_at: fresh ? payload.ts : (run?.started_at ?? null),
 			finished_at: payload.done ? payload.ts : null,
 			total: payload.total,
 			processed: payload.processed,
 			moved: payload.moved,
 			skipped_present: payload.skipped_present,
 			quarantined: payload.quarantined,
-			errors: run?.errors ?? []
+			errors: fresh ? [] : (run?.errors ?? [])
 		};
 		// The SSE payload doesn't carry the final error list -- re-fetch the full report
 		// once the sweep reports done, rather than trying to accumulate per-file errors

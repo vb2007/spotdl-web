@@ -754,8 +754,9 @@ subject is the object as data (a job title, a proxy address, the library folder;
 the body says what happens and whether it can be undone, and both buttons name their action
 ("keep job" / "cancel job"), never OK/Yes. The destructive button is `.btn.danger`.
 
-Guarded: clear log, a job's cancel, cancel track, remove proxy, start sweep, breaker "release now"
-and worker pause (A4). Resume, archive and unarchive don't ask: they are undoable or safe. A new
+Guarded: clear log, a job's cancel (in the list, and an incoming submission's while it is still
+being read), cancel track, remove proxy, start sweep, breaker "release now" and worker pause
+(A4). A failed submission's dismiss doesn't ask: that job is already over. Resume, archive and unarchive don't ask: they are undoable or safe. A new
 destructive action uses this, never `window.confirm`.
 
 ### Secondary pages (v43)

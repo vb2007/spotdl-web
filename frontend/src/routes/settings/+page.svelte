@@ -426,28 +426,34 @@
 		loadProxies();
 		const poll = setInterval(refreshProxiesSilently, PROXY_POLL_MS);
 
-		// The index marks the section being read: the last one whose top has passed a line
-		// a third of the way down the viewport.
-		const observer = new IntersectionObserver(
-			() => {
-				const line = window.innerHeight / 3;
-				let current: string = SECTIONS[0].id;
-				for (const { id } of SECTIONS) {
-					const el = document.getElementById(id);
-					if (el && el.getBoundingClientRect().top <= line) current = id;
-				}
-				activeSection = current;
-			},
-			{ threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: '0px 0px -60% 0px' }
-		);
-		for (const { id } of SECTIONS) {
-			const el = document.getElementById(id);
-			if (el) observer.observe(el);
-		}
+		// The index marks the section being read: the last one whose top has passed a line a
+		// third of the way down the viewport, or the last section once the page can't scroll
+		// further (a short final section never reaches the line). One read per frame at most.
+		let frame = 0;
+		const mark = () => {
+			frame = 0;
+			const line = window.innerHeight / 3;
+			const atEnd =
+				window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+			let current: string = SECTIONS[0].id;
+			for (const { id } of SECTIONS) {
+				const el = document.getElementById(id);
+				if (el && el.getBoundingClientRect().top <= line) current = id;
+			}
+			activeSection = atEnd && window.scrollY > 0 ? SECTIONS[SECTIONS.length - 1].id : current;
+		};
+		const onScroll = () => {
+			if (!frame) frame = requestAnimationFrame(mark);
+		};
+		window.addEventListener('scroll', onScroll, { passive: true });
+		window.addEventListener('resize', onScroll, { passive: true });
+		mark();
 
 		return () => {
 			clearInterval(poll);
-			observer.disconnect();
+			cancelAnimationFrame(frame);
+			window.removeEventListener('scroll', onScroll);
+			window.removeEventListener('resize', onScroll);
 		};
 	});
 </script>

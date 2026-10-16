@@ -350,7 +350,7 @@ input {
 	color: var(--text-dim);
 }
 
-/* F18: no browser-grey number fields; the spinner stays (it is the keyboard's stepper). */
+/* F18: no browser-grey number fields. The arrow keys still step the value. */
 .form-field input[type='number'] {
 	appearance: textfield;
 }

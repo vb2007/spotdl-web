@@ -40,13 +40,29 @@
 		const current = $pendingConfirm;
 		if (!current) return;
 		pendingConfirm.set(null);
-		if (dialog?.open) dialog.close();
+		// The `close` event this fires arrives a task later; it must not answer a question
+		// asked in between.
+		if (dialog?.open) {
+			closingByAnswer = true;
+			dialog.close();
+		}
 		const opener = trigger;
 		trigger = null;
 		// Before the caller's action runs (it resumes on a later microtask), so an action
 		// that removes its own trigger still leaves focus somewhere it can be seen leaving.
 		if (opener?.isConnected) opener.focus();
 		current.resolve(confirmed);
+	}
+
+	// Only a close nobody answered for (none today) answers "no"; the close an answer itself
+	// caused is skipped.
+	let closingByAnswer = false;
+	function onClose() {
+		if (closingByAnswer) {
+			closingByAnswer = false;
+			return;
+		}
+		answer(false);
 	}
 
 	function onCancel(event: Event) {
@@ -72,7 +88,7 @@
 	aria-labelledby="confirm-title"
 	aria-describedby={request?.subject ? 'confirm-subject confirm-body' : 'confirm-body'}
 	oncancel={onCancel}
-	onclose={() => answer(false)}
+	onclose={onClose}
 	onclick={onBackdrop}
 >
 	{#if request}

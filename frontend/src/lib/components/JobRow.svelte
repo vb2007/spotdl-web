@@ -54,6 +54,10 @@
 		return false;
 	});
 	let toggleButton: HTMLButtonElement | undefined = $state();
+	let destroyed = false;
+	$effect(() => () => {
+		destroyed = true;
+	});
 	let showInFlight = $derived(IN_FLIGHT_LIFECYCLES.has(job.status.lifecycle));
 	let showArchive = $derived(
 		job.archived_at === null && ARCHIVABLE_LIFECYCLES.has(job.status.lifecycle)
@@ -119,12 +123,15 @@
 			title: 'Cancel this job?',
 			subject: job.title,
 			body:
-				"Its tracks that haven't downloaded yet are cancelled and won't be fetched. Files " +
-				"already downloaded stay. This can't be undone, but the link can be submitted again.",
+				"Its tracks that haven't downloaded yet are cancelled; one downloading right now " +
+				"finishes but stays cancelled. Files already downloaded stay. This can't be undone, " +
+				'but the link can be submitted again.',
 			confirmLabel: 'cancel job',
 			cancelLabel: 'keep job'
 		});
-		if (!confirmed) return;
+		// The row can leave while the question is open (archived by a sweep); its last props
+		// are then stale, so it does nothing.
+		if (!confirmed || destroyed) return;
 		// The question can stay open while the job finishes; cancel_job would then relabel a
 		// finished job "cancelled" (the footgun the in-flight gate above exists for).
 		if (!showInFlight) {
