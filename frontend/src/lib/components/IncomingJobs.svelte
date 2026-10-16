@@ -164,7 +164,7 @@
 	let acting = false;
 
 	function onFocusIn(event: FocusEvent) {
-		const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-job]');
+		const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-act]');
 		lastFocus = button ? { act: button.dataset.act ?? '', job: button.dataset.job ?? '' } : null;
 	}
 
@@ -191,6 +191,13 @@
 		await tick();
 		const remembered = lastFocus;
 		if (!remembered || acting || document.activeElement !== document.body) return;
+		if (remembered.act === 'older') {
+			// The summary row went away (the older pile emptied): the newest row's dismiss,
+			// else the submit box.
+			lastFocus = null;
+			keepFocus('next-dismiss');
+			return;
+		}
 		if (!jobs.some((j) => j.id === remembered.job)) {
 			// A live update removed the focused row (its expansion finished, or another tab
 			// dismissed it): the next dismiss if it was one, else the submit box.

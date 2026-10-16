@@ -131,6 +131,7 @@
 	}
 
 	async function onLogout() {
+		loggingOut = true;
 		controls?.cancelPendingSearch();
 		await api.logout();
 		// `queue` is a module-level singleton that survives this SPA navigation -- clear it
@@ -153,6 +154,8 @@
 	// the same reason. Reconnect manually with capped exponential backoff whenever the
 	// browser has actually given up.
 	let streamRetryDelayMs = 1000;
+	// This page's own logout resets the store on purpose; outlived() must not reload then.
+	let loggingOut = false;
 	let streamRetryTimer: ReturnType<typeof setTimeout> | undefined;
 	let source: EventSource | undefined;
 	// v34.2: the stream's `onopen` is the only resync (see queue.reload). Mount and every
@@ -182,13 +185,18 @@
 		const stream = api.createEventSource(allUsersView);
 		source = stream;
 		// v42: the stream belongs to the session it was opened under. If the store is reset
-		// meanwhile (an identity change in another tab, caught by the layout), its events
-		// would refill the next identity's overlays: drop them and stop the stream for good.
+		// meanwhile without this page logging out (an identity change in another tab, or a
+		// session gone stale, caught by the layout -- possibly on a hover preload, with this
+		// page still mounted), its events would refill the next identity's overlays and this
+		// page's header and admin chrome describe someone else. Drop the event, stop the
+		// stream, and reload: the layout then runs for whoever the session is now (or sends
+		// the tab to /login), and nothing is left showing a dead link as "linked".
 		const session = queue.getResetCount();
 		const outlived = () => {
 			if (queue.getResetCount() === session) return false;
 			stream.close();
 			clearTimeout(streamRetryTimer);
+			if (!loggingOut) window.location.reload();
 			return true;
 		};
 		stream.onopen = () => {
@@ -243,7 +251,15 @@
 	// countdown read it and the pill itself is admin-only. A failed poll keeps the last value.
 	const WORKER_POLL_MS = 5000;
 
+	// The reset count this page mounted under; see connectStream's outlived(). Checked on
+	// every poll too, so a reset is caught within 5s even while the stream is quiet.
+	let mountedSession = queue.getResetCount();
+
 	function pollWorker() {
+		if (!loggingOut && queue.getResetCount() !== mountedSession) {
+			window.location.reload();
+			return;
+		}
 		worker.refresh().catch(() => {});
 	}
 
