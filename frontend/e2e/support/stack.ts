@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, request, type APIRequestContext } from '@playwright/test';
 import type { Job, TrackAttempt } from '../../src/lib/api';
@@ -24,6 +24,52 @@ export function adminIdentity(): Identity {
 
 export function userIdentity(): Identity {
 	return { email: requireEnv('E2E_USER_EMAIL'), password: requireEnv('E2E_USER_PASSWORD') };
+}
+
+/** v43: what spec 12 changed on the shared worker, written *before* it changes it, so the
+ * spec's own `finally` and, after a killed run, the next global setup can put it back. */
+const WORKER_STAGE_FILE = path.join(AUTH_DIR, 'worker-stage.json');
+
+export interface WorkerStage {
+	/** The spec paused the worker (it only does so from a running one). */
+	paused?: boolean;
+	/** The hold it staged, as the row's own isoformat: cleared only while still that value. */
+	hold?: string;
+	/** The failure streak before a release it performs (a release zeroes it). */
+	failures?: number;
+}
+
+export function stageWorker(change: WorkerStage): void {
+	const current = existsSync(WORKER_STAGE_FILE)
+		? (JSON.parse(readFileSync(WORKER_STAGE_FILE, 'utf8')) as WorkerStage)
+		: {};
+	writeFileSync(WORKER_STAGE_FILE, JSON.stringify({ ...current, ...change }));
+}
+
+/** Undoes a recorded stage straight in `worker_state` (no API release, which would zero the
+ * streak again), then forgets it. A no-op when nothing is recorded. */
+export function restoreWorker(): void {
+	if (!existsSync(WORKER_STAGE_FILE)) return;
+	stackPython(
+		`
+import json, sys
+from app.db import SessionLocal
+from app.models.worker_state import WorkerState
+stage = json.loads(sys.argv[1])
+db = SessionLocal()
+row = db.query(WorkerState).one()
+if stage.get("paused"):
+    row.paused = False
+hold = stage.get("hold")
+if hold and row.breaker_tripped_until is not None and row.breaker_tripped_until.isoformat() == hold:
+    row.breaker_tripped_until = None
+if "failures" in stage:
+    row.consecutive_failures = stage["failures"]
+db.commit()
+`,
+		[readFileSync(WORKER_STAGE_FILE, 'utf8')]
+	);
+	rmSync(WORKER_STAGE_FILE);
 }
 
 /** Tracks already in the dev ledger (`downloaded_tracks`, files under `./downloads`), so a job

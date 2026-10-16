@@ -14,6 +14,7 @@ import {
 	e2eDownloadsInFlight,
 	isSettled,
 	ledgerMisses,
+	restoreWorker,
 	spotifyTrackUrl,
 	stackPython,
 	tracksWithNetworkPath,
@@ -124,6 +125,9 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 		cwd: REPO_ROOT,
 		stdio: ['ignore', 'pipe', 'pipe']
 	});
+
+	// Likewise a run killed inside spec 12's worker tests: put back what it recorded.
+	restoreWorker();
 
 	// Every job a default run creates must resolve from the ledger. Refuse to start rather than
 	// let one become a real download.

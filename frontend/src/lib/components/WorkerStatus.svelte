@@ -73,8 +73,8 @@
 			cancelLabel: 'keep running'
 		});
 		if (!confirmed) return;
-		// The poll is up to 5s old: re-read before deciding.
-		// A failed re-read falls back to the last poll; the server still checks.
+		// The poll is up to 5s old: re-read before deciding. Pausing twice is harmless, so a
+		// failed re-read just falls back to the last poll.
 		await worker.refresh().catch(() => {});
 		// Paused meanwhile (another tab): nothing left to do, and the button has swapped.
 		if (paused) {
@@ -108,9 +108,15 @@
 		if (!confirmed) return;
 		// The question can outlive the hold. Releasing then would only reset the failure streak
 		// a fresh run of rate limits is building, delaying the next hold. The poll is up to 5s
-		// old, so re-read first.
-		// A failed re-read falls back to the last poll; the server still checks.
-		await worker.refresh().catch(() => {});
+		// old, so re-read first. The release endpoint checks nothing itself, so without a
+		// fresh reading nothing is released.
+		try {
+			await worker.refresh();
+		} catch (err) {
+			error = `Couldn't check the hold first (${err instanceof api.ApiError ? err.message : 'no connection'}); nothing was released.`;
+			await keepFocus(toggleButton);
+			return;
+		}
 		now = Date.now();
 		if (!holdUntil || holdUntil !== until) {
 			// Ended, or ended and a new hold began: the question was about the old one.

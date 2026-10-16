@@ -11,7 +11,15 @@ import {
 } from '@playwright/test';
 import type { Job, Proxy, WorkerStatus } from '../src/lib/api';
 import { REPO_ROOT } from './support/env';
-import { ADMIN_STATE, stackPython, spotifyTrackUrl, waitForJob } from './support/stack';
+import {
+	ADMIN_STATE,
+	ledgerMisses,
+	restoreWorker,
+	stackPython,
+	stageWorker,
+	spotifyTrackUrl,
+	waitForJob
+} from './support/stack';
 import { jobRow, jobToggle, openDashboard, trackToggle } from './support/ui';
 
 test.use({ storageState: ADMIN_STATE });
@@ -47,18 +55,6 @@ async function requireQuietWorker(admin: APIRequestContext): Promise<void> {
 		status.breaker_tripped_until !== null &&
 		new Date(status.breaker_tripped_until).getTime() > Date.now();
 	test.skip(status.paused || holding, 'the dev worker is paused or holding; not overriding it');
-}
-
-/** Clears a hold this spec set itself, straight in the row, so the failure streak a real
- * release would zero is left as it was. */
-function clearStagedHold(): void {
-	stackPython(`
-from app.db import SessionLocal
-from app.models.worker_state import WorkerState
-db = SessionLocal()
-db.query(WorkerState).one().breaker_tripped_until = None
-db.commit()
-`);
 }
 
 interface Guarded {
@@ -170,6 +166,10 @@ test('job cancel and cancel track ask first', async ({ page, baseURL }, testInfo
 	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
 	const created: Job[] = [];
 	await requireQuietWorker(admin);
+	// Held by a paused worker they never download, but only a ledger hit is safe if something
+	// went wrong and one did run.
+	expect(ledgerMisses([ids.track, ids.job]), 'cancel tracks are ledger hits').toEqual([]);
+	stageWorker({ paused: true });
 	expect((await admin.post('/api/worker/pause')).ok()).toBe(true);
 	try {
 		for (const id of [ids.track, ids.job]) {
@@ -226,14 +226,14 @@ test('job cancel and cancel track ask first', async ({ page, baseURL }, testInfo
 			15_000
 		);
 	} finally {
-		const resumed = await admin.post('/api/worker/resume');
-		expect.soft(resumed.ok(), 'resuming the worker').toBe(true);
+		// Cancel what's left *before* resuming, so no held track is dispatched after this test.
 		for (const job of created) {
 			const current = (await (await admin.get(`/api/jobs/${job.id}`)).json()) as Job;
 			if (!['settled', 'failed', 'cancelled'].includes(current.status.lifecycle)) {
 				await admin.delete(`/api/jobs/${job.id}`);
 			}
 		}
+		restoreWorker();
 		// Out of the default list, so a later run's rows of the same title are the only ones.
 		if (created.length > 0) {
 			await admin.post('/api/jobs/archive', { data: { job_ids: created.map((j) => j.id) } });
@@ -257,6 +257,7 @@ test('worker pause and breaker release ask first', async ({ page, baseURL }) => 
 			sends: call('POST', '/api/worker/pause')
 		};
 		await expectCancelDoesNothing(page, pause);
+		stageWorker({ paused: true });
 		await confirmPerforms(page, pause);
 		await expect(worker.getByText('Downloads paused', { exact: true })).toBeVisible();
 		// Resuming is safe and asks nothing.
@@ -266,16 +267,33 @@ test('worker pause and breaker release ask first', async ({ page, baseURL }) => 
 		await expect(page.getByRole('alertdialog')).toHaveCount(0);
 
 		// A real trip needs five failed downloads in a row (GOTCHAS v42); the hold itself is
-		// one column, so it is set directly and released through the page.
-		stackPython(`
-from datetime import datetime, timedelta, timezone
+		// one column, so it is set directly and released through the page. The release zeroes
+		// the failure streak, so the streak is recorded first and put back afterwards.
+		const hold = new Date(Date.now() + 3_600_000).toISOString();
+		const failures = Number(
+			stackPython(`
+from app.db import SessionLocal
+from app.models.worker_state import WorkerState
+print(SessionLocal().query(WorkerState).one().consecutive_failures)
+`)
+		);
+		stageWorker({ failures });
+		const staged = stackPython(
+			`
+import sys
+from datetime import datetime
 from app.db import SessionLocal
 from app.models.worker_state import WorkerState
 db = SessionLocal()
-state = db.query(WorkerState).one()
-state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(hours=1)
+row = db.query(WorkerState).one()
+row.breaker_tripped_until = datetime.fromisoformat(sys.argv[1])
 db.commit()
-`);
+db.refresh(row)
+print(row.breaker_tripped_until.isoformat())
+`,
+			[hold]
+		);
+		stageWorker({ hold: staged });
 		const release: Guarded = {
 			trigger: worker.getByRole('button', { name: 'release now', exact: true }),
 			title: 'Release the hold now?',
@@ -288,9 +306,10 @@ db.commit()
 		await confirmPerforms(page, release);
 		await expect(release.trigger).toHaveCount(0);
 	} finally {
-		// Back to the quiet worker this test started from (requireQuietWorker).
-		await admin.post('/api/worker/resume');
-		clearStagedHold();
+		// Back to the quiet worker this test started from (requireQuietWorker): unpaused, the
+		// staged hold gone (only if it's still the staged one, never a real trip), the streak
+		// as it was.
+		restoreWorker();
 		await admin.dispose();
 	}
 });

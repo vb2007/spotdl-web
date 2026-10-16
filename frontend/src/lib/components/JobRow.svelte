@@ -123,7 +123,8 @@
 			title: 'Cancel this job?',
 			subject: job.title,
 			body:
-				"Its tracks that haven't downloaded yet are cancelled; one downloading right now " +
+				"Its tracks that haven't downloaded yet (any not found included) are cancelled; one " +
+				'downloading right now ' +
 				"finishes but stays cancelled. Files already downloaded stay. This can't be undone, " +
 				'but the link can be submitted again.',
 			confirmLabel: 'cancel job',

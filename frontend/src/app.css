@@ -373,6 +373,9 @@ input {
 	color: var(--fail);
 }
 
+/* Unlike the page-level error lines, a field's error reserves nothing at rest: it appears
+   only after a submit, which also moves focus to the field, and reserving a line under every
+   field cost about 200px on a phone /settings (v43, DESIGN.md §6). */
 .field-error:empty {
 	min-height: 0;
 }

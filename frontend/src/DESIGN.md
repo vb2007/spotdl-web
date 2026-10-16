@@ -775,7 +775,10 @@ The form vocabulary lives in `app.css` so the routes can't drift:
   dims the text (never opacity). `.btn.danger` is outlined in `--fail-edge` with `--fail` text and
   stays transparent on hover. `.btn.small` is the row-level size.
 - `.form-field` is a persistent `.label`, the control (a `.well`), then a `.field-hint` and a
-  `.field-error` (reserved, `aria-invalid` on the input, `aria-describedby` to both).
+  `.field-error` (`aria-invalid` on the input, `aria-describedby` to both). A deliberate exception
+  to §6's reserved-height rule: a field error reserves nothing at rest. It appears only after a
+  submit, which moves focus to the first invalid field, and a reserved line under every field
+  cost about 200px on a phone `/settings`.
 - `.choice-group` is the segmented few-values choice (`aria-pressed` buttons).
 - `.save-row` is a section's save button followed by its `role="status"` state: "Unsaved changes"
   once the form differs from what was loaded, then "Saved at 14:03" (F31: the old "Saved." never

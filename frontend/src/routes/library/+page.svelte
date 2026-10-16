@@ -63,7 +63,12 @@
 	}
 
 	async function loadStatus() {
-		run = await api.getLibrarySortStatus();
+		const seen = progressEvents;
+		const status = await api.getLibrarySortStatus();
+		// A read issued before a progress event can land after it (a mount or reconnect read
+		// racing a sweep's end): an older "running" snapshot must not undo a newer report.
+		if (progressEvents !== seen && status.state === 'running' && run?.state !== 'running') return;
+		run = status;
 		loadError = '';
 		reportPending = false;
 		reportError = '';
@@ -83,7 +88,7 @@
 			subject: settings?.library_target_dir,
 			body:
 				'Every finished download not yet in the library moves there. A download the library ' +
-				`already has is ${duplicates}. Settled jobs whose tracks move are archived, for every ` +
+				`already has is ${duplicates}. Finished jobs whose tracks get filed are archived, for every ` +
 				'user. Nothing already in the library is deleted.',
 			confirmLabel: 'start sweep',
 			cancelLabel: 'not now'
