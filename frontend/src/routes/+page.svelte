@@ -127,7 +127,9 @@
 		}
 		// The disabled input lost focus while sending; give it back for the next link.
 		await tick();
-		if (document.activeElement === document.body) document.getElementById('submit-url')?.focus();
+		// Not on touch: refocusing the input would reopen the keyboard over what was just sent.
+		if (document.activeElement === document.body && !window.matchMedia('(pointer: coarse)').matches)
+			document.getElementById('submit-url')?.focus();
 	}
 
 	async function onLogout() {
@@ -209,7 +211,13 @@
 			if (!loggingOut) window.location.reload();
 			return true;
 		};
+		// Events are applied only once this stream's identity check passed; anything dropped
+		// before that is covered by the resync that follows it.
+		let verified = false;
+		const current = () => source === stream && stream.readyState === EventSource.OPEN;
 		stream.onopen = async () => {
+			// The browser can re-open this same EventSource: every opening is checked anew.
+			verified = false;
 			if (outlived()) return;
 			// The cookie is shared across tabs: a reconnect sends whoever is signed in now.
 			// If that isn't this page's identity, reload rather than adopt it under this
@@ -224,7 +232,9 @@
 			} catch {
 				// Can't tell (a blip): carry on; the layout and next reconnect check again.
 			}
-			if (outlived()) return;
+			// The stream may have dropped, or been replaced by a scope switch, meanwhile.
+			if (outlived() || !current()) return;
+			verified = true;
 			link.set('live');
 			awaitingResync = false;
 			clearTimeout(resyncFallbackTimer);
@@ -234,7 +244,7 @@
 			queue.reload();
 		};
 		stream.onmessage = (event) => {
-			if (outlived()) return;
+			if (outlived() || !verified) return;
 			queue.applyEvent(JSON.parse(event.data));
 		};
 		stream.onerror = () => {

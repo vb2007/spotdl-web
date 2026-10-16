@@ -38,7 +38,13 @@
 		clearTimeout(searchTimer);
 		searchInput = '';
 		queue.setFilters({ q: '', status: [], state: [] });
-		document.getElementById('queue-search')?.focus();
+		// On touch, a programmatic focus on the search box would pop the keyboard up over
+		// the list just unfiltered: the queue heading instead.
+		document
+			.getElementById(
+				window.matchMedia('(pointer: coarse)').matches ? 'queue-heading' : 'queue-search'
+			)
+			?.focus();
 	}
 
 	// A search still waiting must never land in the module-level store after queue.reset()
@@ -118,6 +124,14 @@
 	// While the pointer is over the chips, the set on screen holds still: a live count
 	// refresh hiding a zero chip would shift its neighbours under a click in progress.
 	let pointerChips = $state<Set<string> | null>(null);
+	// A scope switch swaps the whole chip set (and may unmount the row, which then never
+	// sees pointerleave): the freeze must not outlive the scope it was taken in.
+	let scopeForFreeze = $derived($filters.scope);
+	$effect(() => {
+		void scopeForFreeze;
+		pointerChips = null;
+		focusedChip = null;
+	});
 	let touchedScope = $state<Scope>('jobs');
 
 	// v42 (F11): a chip with nothing behind it is noise. It stays while pressed (so a filter
