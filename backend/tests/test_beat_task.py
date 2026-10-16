@@ -115,6 +115,42 @@ def test_dispatch_due_tracks_skips_entirely_while_breaker_tripped(db_session, mo
     assert db_session.get(Track, due.id).state == TrackState.WAITING
 
 
+def test_dispatch_due_tracks_records_an_expired_breaker_pause_as_released_once(db_session, monkeypatch):
+    """v44: the first tick after a trip's pause runs out records its release at the pause's
+    own end time; later ticks record nothing more."""
+    from app.models import BreakerEvent, BreakerEventKind, WorkerState
+
+    _patch_session(monkeypatch, db_session)
+    monkeypatch.setattr(beat_task.download_track, "delay", lambda track_id: None)
+    ended = datetime.now(timezone.utc) - timedelta(seconds=20)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_trip_count = 1
+    worker_state.breaker_tripped_until = ended
+    db_session.commit()
+
+    beat_task.dispatch_due_tracks()
+    beat_task.dispatch_due_tracks()
+
+    events = db_session.query(BreakerEvent).all()
+    assert [(e.kind, e.manual) for e in events] == [(BreakerEventKind.RELEASED, False)]
+    assert events[0].occurred_at.replace(tzinfo=timezone.utc) == ended
+    # Escalation is kept until a success, exactly as before.
+    assert db_session.get(WorkerState, 1).breaker_trip_count == 1
+
+
+def test_dispatch_due_tracks_records_nothing_while_the_pause_runs(db_session, monkeypatch):
+    from app.models import BreakerEvent
+
+    _patch_session(monkeypatch, db_session)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(minutes=5)
+    db_session.commit()
+
+    beat_task.dispatch_due_tracks()
+
+    assert db_session.query(BreakerEvent).count() == 0
+
+
 def _make_job(db_session, owner, *, job_state=JobState.EXPANDED, track_states=()) -> Job:
     job = Job(
         source_url="https://open.spotify.com/album/x",

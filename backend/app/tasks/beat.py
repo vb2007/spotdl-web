@@ -136,6 +136,13 @@ def dispatch_due_tracks() -> None:
 
         now = datetime.now(timezone.utc)
         worker_state = retry.get_worker_state(db)
+        # v44: a trip's pause that has run out is recorded as released (breaker_events),
+        # by the first tick to see it. Checked unlocked first: the locked re-read inside
+        # only happens once per trip, never on an ordinary tick.
+        if worker_state.breaker_tripped_until is not None and not retry.breaker_tripped(
+            worker_state, now
+        ):
+            retry.record_breaker_release(db, now, end_running=False)
         db.commit()
         if retry.breaker_active(worker_state, now):
             # No query at all while tripped/paused — avoids a thundering herd of tracks

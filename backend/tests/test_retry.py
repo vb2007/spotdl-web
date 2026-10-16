@@ -316,3 +316,114 @@ def test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt(
     )
     # yt-dlp's HTTP errors (an answer, e.g. 429) aren't part of its transport family.
     assert not issubclass(YtDlpHTTPError, TransportError)
+
+
+def _breaker_events(db_session):
+    from app.models import BreakerEvent
+
+    return db_session.query(BreakerEvent).order_by(BreakerEvent.occurred_at).all()
+
+
+def test_trip_and_escalation_each_write_a_breaker_event(db_session):
+    """v44: the stats page's breaker history is written at the trip point itself, in the
+    trip's own transaction, with the same tripped/escalated split as v36's alert."""
+    from app.models import BreakerEventKind
+
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = retry.BREAKER_TRIP_THRESHOLD
+    db_session.commit()
+    retry.maybe_trip_breaker(db_session)
+    db_session.commit()
+
+    worker_state.consecutive_failures = retry.BREAKER_TRIP_THRESHOLD
+    db_session.commit()
+    retry.maybe_trip_breaker(db_session)
+    db_session.commit()
+
+    events = _breaker_events(db_session)
+    assert [e.kind for e in events] == [BreakerEventKind.TRIPPED, BreakerEventKind.ESCALATED]
+    assert [e.step_seconds for e in events] == [30 * 60, 2 * 3600]
+    assert [e.trip_count for e in events] == [1, 2]
+    assert _aware(events[1].paused_until) == _aware(db_session.get(WorkerState, 1).breaker_tripped_until)
+    assert all(e.manual is False for e in events)
+
+
+def test_a_rolled_back_trip_leaves_no_breaker_event(db_session):
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = retry.BREAKER_TRIP_THRESHOLD
+    db_session.commit()
+    retry.maybe_trip_breaker(db_session)
+    db_session.rollback()
+
+    assert _breaker_events(db_session) == []
+
+
+def test_no_breaker_event_below_the_threshold(db_session):
+    track = _make_track(db_session)
+    for _ in range(retry.BREAKER_TRIP_THRESHOLD - 1):
+        retry.record_failure(db_session, track, TrackErrorType.AUDIO_PROVIDER, "rate limited")
+        db_session.commit()
+
+    assert _breaker_events(db_session) == []
+
+
+def test_release_of_an_expired_pause_is_recorded_once_at_its_own_end_time(db_session):
+    from app.models import BreakerEventKind
+
+    now = datetime.now(timezone.utc)
+    ended = now - timedelta(minutes=3)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = ended
+    db_session.commit()
+
+    assert retry.record_breaker_release(db_session, now, end_running=False) is True
+    db_session.commit()
+    # A second caller (the next tick, a success, the admin's button) finds nothing to release.
+    assert retry.record_breaker_release(db_session, now, end_running=True, manual=True) is False
+    db_session.commit()
+
+    events = _breaker_events(db_session)
+    assert [e.kind for e in events] == [BreakerEventKind.RELEASED]
+    assert _aware(events[0].occurred_at) == ended
+    assert events[0].manual is False
+    assert db_session.get(WorkerState, 1).breaker_tripped_until is None
+
+
+def test_a_running_pause_is_not_released_by_a_tick(db_session):
+    now = datetime.now(timezone.utc)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = now + timedelta(minutes=10)
+    db_session.commit()
+
+    assert retry.record_breaker_release(db_session, now, end_running=False) is False
+    db_session.commit()
+
+    assert _breaker_events(db_session) == []
+    assert db_session.get(WorkerState, 1).breaker_tripped_until is not None
+
+
+def test_record_success_records_the_release_it_causes(db_session):
+    """A success clears the breaker; if it is the first to do so, that release is
+    recorded (not a manual one)."""
+    from app.models import BreakerEventKind
+
+    track = _make_track(db_session)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_trip_count = 1
+    worker_state.breaker_tripped_until = datetime.now(timezone.utc) - timedelta(seconds=5)
+    db_session.commit()
+
+    retry.record_success(db_session, track)
+    db_session.commit()
+
+    events = _breaker_events(db_session)
+    assert [(e.kind, e.manual) for e in events] == [(BreakerEventKind.RELEASED, False)]
+    assert db_session.get(WorkerState, 1).breaker_trip_count == 0
+
+
+def test_record_success_without_a_trip_writes_no_breaker_event(db_session):
+    track = _make_track(db_session)
+    retry.record_success(db_session, track)
+    db_session.commit()
+
+    assert _breaker_events(db_session) == []

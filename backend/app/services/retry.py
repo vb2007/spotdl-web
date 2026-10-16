@@ -16,7 +16,7 @@ from yt_dlp.networking.exceptions import ProxyError as YtDlpProxyError
 from yt_dlp.networking.exceptions import TransportError as YtDlpTransportError
 
 from app.config import get_settings
-from app.models import Track, TrackErrorType, TrackState, WorkerState
+from app.models import BreakerEvent, BreakerEventKind, Track, TrackErrorType, TrackState, WorkerState
 from app.services import alerts
 
 BREAKER_TRIP_THRESHOLD = 5
@@ -131,13 +131,17 @@ def get_worker_state(db: Session) -> WorkerState:
     return worker_state
 
 
-def breaker_active(worker_state: WorkerState, now: datetime) -> bool:
+def breaker_tripped(worker_state: WorkerState, now: datetime) -> bool:
     tripped_until = worker_state.breaker_tripped_until
     # SQLite (used for fast in-process tests, see v02/v03 gotchas) returns a naive
     # datetime even for this timestamptz column; a no-op against real Postgres/psycopg.
     if tripped_until is not None and tripped_until.tzinfo is None:
         tripped_until = tripped_until.replace(tzinfo=timezone.utc)
-    return bool(worker_state.paused) or (tripped_until is not None and tripped_until > now)
+    return tripped_until is not None and tripped_until > now
+
+
+def breaker_active(worker_state: WorkerState, now: datetime) -> bool:
+    return bool(worker_state.paused) or breaker_tripped(worker_state, now)
 
 
 def maybe_trip_breaker(db: Session, error_type: TrackErrorType | None = None) -> None:
@@ -145,8 +149,24 @@ def maybe_trip_breaker(db: Session, error_type: TrackErrorType | None = None) ->
     if worker_state.consecutive_failures >= BREAKER_TRIP_THRESHOLD:
         worker_state.breaker_trip_count += 1
         delay = BREAKER_TRIP_DELAYS[min(worker_state.breaker_trip_count - 1, len(BREAKER_TRIP_DELAYS) - 1)]
-        worker_state.breaker_tripped_until = datetime.now(timezone.utc) + delay
+        now = datetime.now(timezone.utc)
+        worker_state.breaker_tripped_until = now + delay
         tripped_on = worker_state.consecutive_failures
+        # v44: the stats page's breaker history, in the same transaction as the trip itself
+        # (and the alert below), so a rolled-back trip leaves no row either.
+        db.add(
+            BreakerEvent(
+                kind=(
+                    BreakerEventKind.TRIPPED
+                    if worker_state.breaker_trip_count == 1
+                    else BreakerEventKind.ESCALATED
+                ),
+                occurred_at=now,
+                step_seconds=int(delay.total_seconds()),
+                trip_count=worker_state.breaker_trip_count,
+                paused_until=worker_state.breaker_tripped_until,
+            )
+        )
         # v40.1: every trip starts a fresh streak, so re-tripping after a release takes
         # another BREAKER_TRIP_THRESHOLD consecutive failures, not one. Before this the
         # counter only reset on a success: once the queue held nothing but tracks that
@@ -216,7 +236,46 @@ def record_transport_failure(db: Session, track: Track, message: str) -> None:
     track.scheduled_at = datetime.now(timezone.utc) + next_delay(0)
 
 
+def record_breaker_release(db: Session, now: datetime, *, end_running: bool, manual: bool = False) -> bool:
+    """Ends the current trip's pause and records its `released` breaker event (v44), at
+    most once per trip. Returns whether it recorded one.
+
+    A pause that has already run out is released as of its own end time, whoever notices
+    it first: beat's dispatch tick, a manual release, or a success. One still running ends
+    only when `end_running` (a manual release, or a success, which clears the breaker), as
+    of `now`; `manual` marks the admin's release. Clearing `breaker_tripped_until` is what
+    makes this once-only: an expired value and NULL mean the same thing to every reader
+    (breaker_active, alerts.breaker_released, the UI's `> now` checks). The row is locked
+    so two of those callers can't both record it."""
+    worker_state = get_worker_state(db)
+    # Anything this session changed on the row goes to the database before the refresh
+    # below reloads it.
+    db.flush()
+    db.refresh(worker_state, with_for_update=True)
+    tripped_until = worker_state.breaker_tripped_until
+    if tripped_until is None:
+        return False
+    # SQLite (fast in-process tests) returns a naive datetime; see breaker_tripped.
+    if tripped_until.tzinfo is None:
+        tripped_until = tripped_until.replace(tzinfo=timezone.utc)
+    expired = tripped_until <= now
+    if not expired and not end_running:
+        return False
+    worker_state.breaker_tripped_until = None
+    db.add(
+        BreakerEvent(
+            kind=BreakerEventKind.RELEASED,
+            occurred_at=tripped_until if expired else now,
+            manual=manual and not expired,
+        )
+    )
+    return True
+
+
 def record_success(db: Session, track: Track) -> None:
+    # v44: a success can be the first thing to notice an expired pause (a message that was
+    # already queued runs before beat's next tick); record that release before it's cleared.
+    record_breaker_release(db, datetime.now(timezone.utc), end_running=True)
     worker_state = get_worker_state(db)
     worker_state.consecutive_failures = 0
     worker_state.breaker_tripped_until = None

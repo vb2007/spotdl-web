@@ -92,3 +92,59 @@ def test_admin_breaker_release_starts_a_fresh_streak_but_keeps_escalation(admin_
     assert worker_state.consecutive_failures == 0
     assert worker_state.breaker_trip_count == 6
     assert worker_state.breaker_tripped_until is None
+
+
+def test_admin_breaker_release_records_a_manual_release_event(admin_client, db_session):
+    """v44: the admin's button ends a running pause and records it as a manual release."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import BreakerEvent, BreakerEventKind
+    from app.services import retry
+
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_trip_count = 1
+    worker_state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(minutes=30)
+    db_session.commit()
+
+    assert admin_client.post("/api/worker/breaker/release").status_code == 200
+    # Nothing left to release: a second click records nothing.
+    assert admin_client.post("/api/worker/breaker/release").status_code == 200
+
+    db_session.expire_all()
+    events = db_session.query(BreakerEvent).all()
+    assert [(e.kind, e.manual) for e in events] == [(BreakerEventKind.RELEASED, True)]
+
+
+def test_admin_breaker_release_of_an_expired_pause_records_it_as_ended_on_its_own(
+    admin_client, db_session
+):
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import BreakerEvent, BreakerEventKind
+    from app.services import retry
+
+    ended = datetime.now(timezone.utc) - timedelta(minutes=1)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = ended
+    db_session.commit()
+
+    assert admin_client.post("/api/worker/breaker/release").status_code == 200
+
+    db_session.expire_all()
+    events = db_session.query(BreakerEvent).all()
+    assert [(e.kind, e.manual) for e in events] == [(BreakerEventKind.RELEASED, False)]
+    assert events[0].occurred_at.replace(tzinfo=timezone.utc) == ended
+
+
+def test_non_admin_release_writes_no_breaker_event(authenticated_client, db_session):
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import BreakerEvent
+    from app.services import retry
+
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(minutes=30)
+    db_session.commit()
+
+    assert authenticated_client.post("/api/worker/breaker/release").status_code == 403
+    assert db_session.query(BreakerEvent).count() == 0
