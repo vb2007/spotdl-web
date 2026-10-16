@@ -57,8 +57,8 @@
 			: $page.error
 				? ''
 				: $filters.scope === 'jobs'
-					? `${$page.items.length} of ${$page.totalEstimate >= 1000 ? '1000+' : $page.totalEstimate} jobs`
-					: `${$page.items.length}${$page.nextCursor ? '+' : ''} tracks`
+					? `${$page.items.length} of ${$page.totalEstimate >= 1000 ? '1000+' : $page.totalEstimate} ${$page.totalEstimate === 1 ? 'job' : 'jobs'}`
+					: `${$page.items.length}${$page.nextCursor ? '+' : ''} ${$page.items.length === 1 && !$page.nextCursor ? 'track' : 'tracks'}`
 	);
 
 	// v42: both state buttons swap their own block out (loading replaces it), so focus is
@@ -133,7 +133,13 @@
 	async function onLogout() {
 		loggingOut = true;
 		controls?.cancelPendingSearch();
-		await api.logout();
+		try {
+			await api.logout();
+		} catch (err) {
+			// Still here and still signed in: the reload guard must work again.
+			loggingOut = false;
+			throw err;
+		}
 		// `queue` is a module-level singleton that survives this SPA navigation -- clear it
 		// before leaving, so a different identity logging in on the same tab next can never
 		// render a flash of this session's rows while its own reload() is still in flight.

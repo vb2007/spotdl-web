@@ -20,10 +20,17 @@ export const load: LayoutLoad = async ({ url }) => {
 	const onLoginPage = url.pathname === '/login';
 
 	let session: api.SessionInfo | null;
+	// v42: only a 401 says the session is gone. A network error or a 5xx (api restarting)
+	// says nothing about it, and this load also runs on a hover preload while `/` stays
+	// mounted, so it must not wipe the store (which `/` now answers with a reload) over a
+	// blip. A real navigation still goes to /login as before; if someone else then signs
+	// in on this tab, the identity-change reset below clears the store.
+	let sessionGone = false;
 	try {
 		session = await api.me();
-	} catch {
+	} catch (err) {
 		session = null;
+		sessionGone = err instanceof api.ApiError && err.status === 401;
 	}
 
 	if (session === null && !onLoginPage) {
@@ -32,7 +39,7 @@ export const load: LayoutLoad = async ({ url }) => {
 		// invalid for other reasons (expiry, revocation) and surface through this exact
 		// `load()` re-running on the next in-app navigation, so this is the one chokepoint
 		// that must clear it regardless of *why* the session is gone.
-		queue.reset();
+		if (sessionGone) queue.reset();
 		redirect(302, '/login');
 	}
 	if (session !== null) {
