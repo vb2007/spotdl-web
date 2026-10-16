@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/state';
 	import AmbientField from '$lib/components/AmbientField.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import { queue } from '$lib/stores/queue';
 	import { link as streamLink } from '$lib/stores/link';
 
@@ -25,3 +26,6 @@
 <AmbientField {live} />
 
 {@render children()}
+
+<!-- v43 (F08): the one confirmation every destructive action asks through. -->
+<ConfirmDialog />
