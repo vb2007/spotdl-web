@@ -1,59 +1,74 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { worker } from '$lib/stores/worker';
 	import Countdown from '$lib/components/Countdown.svelte';
 
 	// v25: the dashboard-visible half of what used to be the full WorkerStatus panel --
-	// read-only (pause/resume and breaker-release moved to /settings, admin-only), but
-	// still visible to every user so a stalled queue is still explained (the original
-	// reason this was ever shown to non-admins, v17). Same 5s poll as before; no SSE
-	// event exists for worker/breaker state.
+	// read-only (pause/resume and breaker-release live on /settings, admin-only).
+	// v42 (v39 outcome 3): operator detail, so the page renders it for the admin only; a
+	// non-admin learns about a hold from the Waterfall's own plain status line instead.
+	// The 5s poll moved to the page, which every user needs (the Waterfall and TrackRow's
+	// breaker-aware countdown read the same store).
 	const { status } = worker;
 
-	const POLL_MS = 5000;
-
-	let breakerActive = $derived(
+	let breakerUntil = $derived(
 		$status?.breaker_tripped_until != null &&
 			new Date($status.breaker_tripped_until).getTime() > Date.now()
+			? $status.breaker_tripped_until
+			: null
 	);
 	let paused = $derived($status?.paused ?? false);
 
-	onMount(() => {
-		worker.refresh();
-		const id = setInterval(() => worker.refresh(), POLL_MS);
-		return () => clearInterval(id);
-	});
+	function clockTime(iso: string): string {
+		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+	}
+
+	// v42 (F07): the live region holds one fixed sentence per state, so it speaks when the
+	// state changes, never on the countdown's per-second tick.
+	// A pause outranks a hold, as on the Waterfall: nothing dispatches until a human
+	// resumes, even after the breaker clears, so it is the binding explanation.
+	let announcement = $derived(
+		paused
+			? 'Worker: paused'
+			: breakerUntil
+				? `Worker: breaker holding until ${clockTime(breakerUntil)}`
+				: 'Worker: ready'
+	);
 </script>
 
-<div class="pill mono" role="status">
-	{#if breakerActive}
-		<span class="cond-fail">breaker tripped</span>
-		{#if $status?.breaker_tripped_until}
-			<Countdown scheduledAt={$status.breaker_tripped_until} label="clears in" />
+<!-- Nothing until the first poll lands: "worker ready" on no data would be a guess. -->
+{#if $status}
+	<div class="pill mono">
+		<span class="sr-only" role="status">{announcement}</span>
+		<!-- v42 (F06): a tripped breaker is expected and self-healing, so it reads in the
+	     waiting blue, never the terminal red. A pause stays red: it holds until a human
+	     resumes it. -->
+		{#if paused}
+			<span class="cond-fail" aria-hidden="true">receiver paused</span>
+		{:else if breakerUntil}
+			<span class="cond-waiting" aria-hidden="true">breaker holding</span>
+			<span aria-hidden="true"
+				><Countdown
+					scheduledAt={breakerUntil}
+					label="clears in"
+					dueLive={false}
+					dueText="clearing…"
+				/></span
+			>
+		{:else}
+			<span class="cond-idle" aria-hidden="true">worker ready</span>
 		{/if}
-	{:else if paused}
-		<span class="cond-fail">receiver paused</span>
-	{:else}
-		<span class="cond-idle">receiving</span>
-	{/if}
-</div>
+	</div>
+{/if}
 
 <style>
 	/* Quiet by default (--text-muted via .cond-idle) -- amber is reserved for something
 	   genuinely live right now (DESIGN.md §2), and "not paused, breaker clear" is not
-	   that. Paused/tripped reuse --fail, the same token the old toggle's aria-pressed
-	   state and breaker banner already used, so the color still means the same thing. */
+	   that. */
 	.pill {
 		display: flex;
-		align-items: center;
+		align-items: baseline;
 		flex-wrap: wrap;
 		gap: var(--space-2);
-		font-size: 0.75rem;
-	}
-
-	@media (max-width: 640px) {
-		.pill {
-			flex-basis: 100%;
-		}
+		font-size: var(--fs-meta);
 	}
 </style>

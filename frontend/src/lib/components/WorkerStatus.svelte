@@ -110,7 +110,7 @@
 
 	.toggle {
 		background: var(--bg-2);
-		border: 1px solid var(--line-bright);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);
@@ -145,7 +145,7 @@
 
 	.release {
 		background: transparent;
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-2);
 		font-family: var(--font-mono);

@@ -575,8 +575,12 @@
 		color: inherit;
 	}
 
-	.row:hover {
-		background: var(--bg-2);
+	/* v42: on the raised faceplate (--bg-1) a --bg-2 fill is only 1.045:1, and any brighter
+	   fill would drop the row's dim and fail text under 4.5:1, so hover underlines the title. */
+	.row:hover .cell.title {
+		text-decoration: underline;
+		text-decoration-color: var(--text-muted);
+		text-underline-offset: 0.2em;
 	}
 
 	/* Artist and album are grid cells of the row on desktop; the wrapper only exists so
@@ -704,7 +708,7 @@
 
 	.action {
 		background: var(--bg-2);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);
@@ -723,7 +727,7 @@
 	   at rest; full fail red only on hover/focus, the moment it's about to be used. */
 	.action.danger {
 		background: transparent;
-		border-color: var(--fail-dim);
+		border-color: var(--fail-edge);
 	}
 
 	/* Set apart only when it follows a neutral action, so the action area always starts
@@ -1076,6 +1080,14 @@
 
 	/* Phone: state and chevron share the first line, then the title, then artist · album.
 	   The detail drops the gutter column; each attempt's time leads its own reading. */
+	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
+	@media (pointer: coarse) {
+		.row,
+		.action {
+			min-height: 2.75rem;
+		}
+	}
+
 	@media (max-width: 640px) {
 		.row {
 			grid-template-columns: minmax(0, 1fr) var(--col-lead);

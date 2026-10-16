@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -8,6 +8,7 @@
 	import type { LiveTrackWithJob } from '$lib/stores/queue';
 	import { worker } from '$lib/stores/worker';
 	import Waterfall from '$lib/components/Waterfall.svelte';
+	import { link } from '$lib/stores/link';
 	import IncomingJobs from '$lib/components/IncomingJobs.svelte';
 	import WorkerStatusPill from '$lib/components/WorkerStatusPill.svelte';
 	import QueueControls from '$lib/components/QueueControls.svelte';
@@ -25,11 +26,76 @@
 	const isAdmin = $derived(data.session?.is_admin ?? false);
 
 	let workerBusy = $derived($workerStatus?.busy ?? false);
+	let workerPaused = $derived($workerStatus?.paused ?? false);
+	// Only while it is still in the future (the backend's own `breaker_active` test); the
+	// 5s poll below re-derives it, so a cleared hold drops out within one poll.
+	let breakerUntil = $derived(
+		$workerStatus?.breaker_tripped_until != null &&
+			Date.parse($workerStatus.breaker_tripped_until) > Date.now()
+			? $workerStatus.breaker_tripped_until
+			: null
+	);
+
+	// v42 (F05): this page's own SSE link (`$link`), shown in the header and the Waterfall,
+	// so a dropped stream never looks like a connected one; the layout reads it too.
 
 	// Admin-only (v17): mine/all-users scope. Off by default even for an admin --
 	// switching it clears the queue store (see queue.setAllUsers) and reconnects the
-	// SSE stream so both REST and live data agree on scope.
-	let allUsersView = $state(false);
+	// SSE stream so both REST and live data agree on scope. v42: it starts from the store's
+	// own scope, which outlives this page (a trip to /settings and back): starting at "mine"
+	// while the store still fetched all users mislabelled every foreign row as the admin's.
+	// Never for a non-admin, whatever an earlier admin session on this tab left in the store.
+	let allUsersView = $state(untrack(() => isAdmin) && queue.getAllUsers());
+
+	let filtersActive = $derived(
+		$filters.q.trim() !== '' || $filters.status.length > 0 || $filters.state.length > 0
+	);
+	let scopeNoun = $derived($filters.scope === 'jobs' ? 'jobs' : 'tracks');
+	let countText = $derived(
+		$page.loading
+			? 'Loading…'
+			: $page.error
+				? ''
+				: $filters.scope === 'jobs'
+					? `${$page.items.length} of ${$page.totalEstimate >= 1000 ? '1000+' : $page.totalEstimate} ${$page.totalEstimate === 1 ? 'job' : 'jobs'}`
+					: `${$page.items.length}${$page.nextCursor ? '+' : ''} ${$page.items.length === 1 && !$page.nextCursor ? 'track' : 'tracks'}`
+	);
+
+	// v42: both state buttons swap their own block out (loading replaces it), so focus is
+	// handed to a target that stays: the search box, or the queue's heading.
+	let controls: ReturnType<typeof QueueControls> | undefined = $state();
+
+	function clearSearchAndFilters() {
+		controls?.clearSearchAndFilters();
+	}
+
+	// The last page removes this button while it has focus: continue at the first row it
+	// loaded (where the user was reading), else the queue's heading. Rows are found by item
+	// id, not DOM position: in tracks scope a new page's tracks can join an earlier group.
+	async function loadMorePage(event: MouseEvent) {
+		if ($page.loading) return;
+		const hadFocus = document.activeElement === event.currentTarget;
+		const known = new Set($page.items.map((item) => item.id));
+		await queue.loadMore();
+		await tick();
+		if (!hadFocus || document.activeElement !== document.body) return;
+		const fresh = $page.items.find((item) => !known.has(item.id));
+		const row = !fresh
+			? null
+			: $filters.scope === 'jobs'
+				? document.getElementById(`job-title-${fresh.id}`)?.closest('li')?.querySelector('button')
+				: document.querySelector<HTMLElement>(`[aria-controls="track-detail-${fresh.id}"]`);
+		(row ?? document.getElementById('queue-heading'))?.focus();
+	}
+
+	function retryQueue() {
+		queue.reload();
+		document.getElementById('queue-heading')?.focus();
+	}
+
+	function focusSubmit() {
+		document.getElementById('submit-url')?.focus();
+	}
 
 	let trackGroups = $derived(
 		$filters.scope === 'tracks' ? groupTracksByJob($page.items as LiveTrackWithJob[]) : []
@@ -47,8 +113,12 @@
 		}
 		submitting = true;
 		submitError = '';
+		// A logout while the POST is in flight resets the store; the created job then belongs
+		// to the previous identity and must not land in the next one's overlay (v42 sweep).
+		const session = queue.getResetCount();
 		try {
 			const job = await api.createJob(url.trim());
+			if (queue.getResetCount() !== session) return;
 			queue.addJob(job);
 			url = '';
 		} catch (err) {
@@ -56,10 +126,22 @@
 		} finally {
 			submitting = false;
 		}
+		// The disabled input lost focus while sending; give it back for the next link.
+		await tick();
+		// Not on touch: refocusing the input would reopen the keyboard over what was just sent.
+		if (document.activeElement === document.body && !window.matchMedia('(pointer: coarse)').matches)
+			document.getElementById('submit-url')?.focus();
 	}
 
 	async function onLogout() {
-		await api.logout();
+		loggingOut = true;
+		try {
+			await api.logout();
+		} catch (err) {
+			// Still here and still signed in: the reload guard must work again.
+			loggingOut = false;
+			throw err;
+		}
 		// `queue` is a module-level singleton that survives this SPA navigation -- clear it
 		// before leaving, so a different identity logging in on the same tab next can never
 		// render a flash of this session's rows while its own reload() is still in flight.
@@ -80,6 +162,11 @@
 	// the same reason. Reconnect manually with capped exponential backoff whenever the
 	// browser has actually given up.
 	let streamRetryDelayMs = 1000;
+	// This page's own logout resets the store on purpose; outlived() must not reload then.
+	let loggingOut = false;
+	// The reset count this page mounted under; see connectStream's outlived(). Checked on
+	// every poll too, so a reset is caught within 5s even while the stream is quiet.
+	const mountedSession = queue.getResetCount();
 	let streamRetryTimer: ReturnType<typeof setTimeout> | undefined;
 	let source: EventSource | undefined;
 	// v34.2: the stream's `onopen` is the only resync (see queue.reload). Mount and every
@@ -106,8 +193,49 @@
 	}
 
 	function connectStream() {
-		source = api.createEventSource(allUsersView);
-		source.onopen = () => {
+		const stream = api.createEventSource(allUsersView);
+		source = stream;
+		// v42: the stream belongs to the session it was opened under. If the store is reset
+		// meanwhile without this page logging out (an identity change in another tab, or a
+		// session gone stale, caught by the layout -- possibly on a hover preload, with this
+		// page still mounted), its events would refill the next identity's overlays and this
+		// page's header and admin chrome describe someone else. Drop the event, stop the
+		// stream, and reload: the layout then runs for whoever the session is now (or sends
+		// the tab to /login), and nothing is left showing a dead link as "linked".
+		// Against the count the page mounted under, not one captured here: a retry timer
+		// firing after a reset must not open a stream that counts as current.
+		const outlived = () => {
+			if (queue.getResetCount() === mountedSession) return false;
+			stream.close();
+			clearTimeout(streamRetryTimer);
+			if (!loggingOut) window.location.reload();
+			return true;
+		};
+		// Events are applied only once this stream's identity check passed; anything dropped
+		// before that is covered by the resync that follows it.
+		let verified = false;
+		const current = () => source === stream && stream.readyState === EventSource.OPEN;
+		stream.onopen = async () => {
+			// The browser can re-open this same EventSource: every opening is checked anew.
+			verified = false;
+			if (outlived()) return;
+			// The cookie is shared across tabs: a reconnect sends whoever is signed in now.
+			// If that isn't this page's identity, reload rather than adopt it under this
+			// page's header and admin chrome (one request per (re)connect, not per row).
+			try {
+				const now = await api.me();
+				if (now.email !== data.session?.email) {
+					stream.close();
+					window.location.reload();
+					return;
+				}
+			} catch {
+				// Can't tell (a blip): carry on; the layout and next reconnect check again.
+			}
+			// The stream may have dropped, or been replaced by a scope switch, meanwhile.
+			if (outlived() || !current()) return;
+			verified = true;
+			link.set('live');
 			awaitingResync = false;
 			clearTimeout(resyncFallbackTimer);
 			streamRetryDelayMs = 1000;
@@ -115,15 +243,20 @@
 			// rather than trying to replay whatever happened while disconnected.
 			queue.reload();
 		};
-		source.onmessage = (event) => {
+		stream.onmessage = (event) => {
+			if (outlived() || !verified) return;
 			queue.applyEvent(JSON.parse(event.data));
 		};
-		source.onerror = () => {
-			if (source?.readyState !== EventSource.CLOSED) {
+		stream.onerror = () => {
+			if (outlived()) return;
+			// Either way the stream is down right now: the browser retrying on its own
+			// (CONNECTING) or given up until the retry below (CLOSED).
+			link.set('reconnecting');
+			if (stream.readyState !== EventSource.CLOSED) {
 				// Browser is already retrying on its own (readyState === CONNECTING).
 				return;
 			}
-			source.close();
+			stream.close();
 			resyncFallback();
 			streamRetryTimer = setTimeout(connectStream, streamRetryDelayMs);
 			streamRetryDelayMs = Math.min(streamRetryDelayMs * 2, 30_000);
@@ -138,6 +271,7 @@
 	async function onAllUsersChange(next: boolean) {
 		if (next === allUsersView) return;
 		allUsersView = next;
+		link.set('connecting');
 		clearTimeout(streamRetryTimer);
 		streamRetryDelayMs = 1000;
 		source?.close();
@@ -146,12 +280,31 @@
 		connectStream();
 	}
 
+	// Worker/breaker state has no SSE event: the same 5s poll the v25 pill ran, now here
+	// for every user (v42), since the Waterfall's status line and TrackRow's breaker-aware
+	// countdown read it and the pill itself is admin-only. A failed poll keeps the last value.
+	const WORKER_POLL_MS = 5000;
+
+	function pollWorker() {
+		if (!loggingOut && queue.getResetCount() !== mountedSession) {
+			window.location.reload();
+			return;
+		}
+		worker.refresh().catch(() => {});
+	}
+
 	onMount(() => {
+		// The store's scope outlives the page; a non-admin must never inherit an admin's.
+		if (!isAdmin && queue.getAllUsers()) queue.setAllUsers(false);
+		link.set('connecting');
 		queue.beginResync();
 		armResyncFallback();
 		connectStream();
+		pollWorker();
+		const workerPoll = setInterval(pollWorker, WORKER_POLL_MS);
 
 		return () => {
+			clearInterval(workerPoll);
 			clearTimeout(streamRetryTimer);
 			clearTimeout(resyncFallbackTimer);
 			source?.close();
@@ -163,108 +316,198 @@
 	<title>spotdl-web — queue</title>
 </svelte:head>
 
-<main class="stage">
-	<header>
+<div class="stage">
+	<header class="masthead">
 		<div class="ident">
-			<span class="label">SPOTDL // WEB</span>
-			<span class="label dim">SIGNAL RECEIVER</span>
+			<h1 class="wordmark">
+				<span aria-hidden="true">SPOTDL // WEB</span><span class="sr-only">spotdl-web</span>
+			</h1>
+			<span class="label">signal receiver</span>
 		</div>
-		<div class="session">
-			<WorkerStatusPill />
+		<div class="status">
+			<span class="link mono" class:down={$link !== 'live'} role="status">
+				<span class="link-dot" aria-hidden="true"></span>
+				{$link === 'live'
+					? 'linked'
+					: $link === 'connecting'
+						? 'linking…'
+						: 'link lost — reconnecting'}
+			</span>
 			{#if isAdmin}
-				<a class="settings-link mono" href={resolve('/library')}>library</a>
-				<a class="settings-link mono" href={resolve('/settings')}>settings</a>
+				<WorkerStatusPill />
 			{/if}
-			<a class="settings-link mono" href={resolve('/account')}>account</a>
-			<span class="mono" title={data.session?.email}
+		</div>
+		<nav class="session" aria-label="Account">
+			{#if isAdmin}
+				<a class="nav-link mono" href={resolve('/library')}>library</a>
+				<a class="nav-link mono" href={resolve('/settings')}>settings</a>
+			{/if}
+			<a class="nav-link mono" href={resolve('/account')}>account</a>
+			<span class="who mono" title={data.session?.email}
 				>{api.displayName(data.session?.username ?? null, data.session?.email ?? '')}</span
 			>
-			<button type="button" class="logout" onclick={onLogout}>disconnect</button>
-		</div>
+			<button type="button" class="logout mono" onclick={onLogout}>disconnect</button>
+		</nav>
 	</header>
 
-	<form class="panel submit" {onsubmit}>
-		<span class="prompt mono" aria-hidden="true">&gt;</span>
-		<input
-			type="url"
-			placeholder="paste a Spotify track / album / playlist / artist URL"
-			bind:value={url}
-			disabled={submitting}
-			aria-label="Spotify URL to submit"
-			aria-describedby="submit-error"
+	<!-- v42 (F29): the one main landmark; v45's skip link targets #main. No tabindex here:
+	     a tabindex="-1" container takes focus on any click inside it and resets Tab order. -->
+	<main id="main" class="main">
+		<div class="submit-area">
+			<form class="panel submit" {onsubmit} aria-label="Submit a link">
+				<span class="prompt mono" class:sending={submitting} aria-hidden="true">&gt;</span>
+				<input
+					id="submit-url"
+					class="well"
+					type="url"
+					placeholder="paste a Spotify link — track, album, playlist or artist"
+					bind:value={url}
+					disabled={submitting}
+					aria-label="Spotify URL to submit"
+					aria-describedby="submit-error"
+				/>
+				<button type="submit" class="mono" disabled={submitting}
+					>{submitting ? 'SENDING…' : 'SUBMIT'}</button
+				>
+			</form>
+			<p id="submit-error" class="submit-error" role="alert">{submitError}</p>
+		</div>
+
+		<IncomingJobs
+			jobs={$incomingJobs}
+			allUsers={allUsersView}
+			sessionEmail={data.session?.email ?? ''}
+			{isAdmin}
 		/>
-		<button type="submit" disabled={submitting}>{submitting ? 'SENDING…' : 'SUBMIT'}</button>
-	</form>
-	<p id="submit-error" class="submit-error mono" role="alert">{submitError}</p>
 
-	<IncomingJobs jobs={$incomingJobs} />
+		<Waterfall
+			tracks={$activeTracks}
+			busy={workerBusy}
+			link={$link}
+			{breakerUntil}
+			paused={workerPaused}
+			{isAdmin}
+		/>
 
-	<Waterfall tracks={$activeTracks} busy={workerBusy} />
+		<section class="panel queue" aria-labelledby="queue-heading">
+			<QueueControls
+				bind:this={controls}
+				{isAdmin}
+				allUsers={allUsersView}
+				{onAllUsersChange}
+				countsByStatus={$page.countsByStatus}
+				countsByState={$page.countsByState}
+				{countText}
+			/>
 
-	<QueueControls
-		{isAdmin}
-		allUsers={allUsersView}
-		{onAllUsersChange}
-		countsByStatus={$page.countsByStatus}
-		countsByState={$page.countsByState}
-	/>
-
-	{#if $filters.scope === 'jobs' && $page.totalEstimate > 0}
-		<p class="count-hint mono dim">
-			{$page.items.length} of {$page.totalEstimate >= 1000 ? '1000+' : $page.totalEstimate}
-		</p>
-	{/if}
-
-	{#if $page.loading}
-		<p class="hint mono">Loading…</p>
-	{:else if $page.error}
-		<p class="hint fail mono" role="alert">{$page.error}</p>
-	{:else if $page.items.length === 0}
-		<p class="hint mono">Nothing here.</p>
-	{:else if $filters.scope === 'jobs'}
-		<ul class="job-list panel" aria-label="Jobs">
-			{#each $page.items as item (item.id)}
-				<JobRow job={item as Job} allUsers={allUsersView} {isAdmin} />
-			{/each}
-		</ul>
-	{:else}
-		<ul class="job-list panel" aria-label="Tracks">
-			{#each trackGroups as group (group.job.id)}
-				<li class="track-group" aria-labelledby="group-title-{group.job.id}">
-					<!-- v41: the job row's grid, minus the chevron -- its type sits in the badge
-					     column and its title over the track titles below (F02). -->
-					<div class="group-header">
-						<span class="source-type mono">{group.job.source_type}</span>
-						<span class="title" id="group-title-{group.job.id}" title={group.job.title}
-							>{group.job.title}</span
+			{#if $page.loading}
+				<!-- Placeholder rows in the list's own rhythm; the head's "Loading…" says why. -->
+				<ul class="skeleton" aria-hidden="true">
+					{#each [0, 1, 2] as i (i)}
+						<li><span class="bone badge"></span><span class="bone line"></span></li>
+					{/each}
+				</ul>
+			{:else if $page.error}
+				<div class="state" role="alert">
+					<h3 class="state-title">Couldn't load the queue</h3>
+					<p class="state-text">
+						<span class="mono">{$page.error}</span>
+					</p>
+					<button type="button" class="state-action mono" onclick={retryQueue}>try again</button>
+				</div>
+			{:else if $page.items.length === 0}
+				<div class="state">
+					{#if filtersActive}
+						<h3 class="state-title">
+							No {scopeNoun} match {$filters.q.trim() ? `“${$filters.q.trim()}”` : 'these filters'}
+						</h3>
+						<p class="state-text">
+							{$filters.includeArchived
+								? 'Archived ones are included.'
+								: 'Archived ones are hidden; show archived searches them too.'}
+						</p>
+						<button type="button" class="state-action mono" onclick={clearSearchAndFilters}
+							>clear search and filters</button
 						>
-						{#if allUsersView}
-							<span class="owner mono" title={group.job.owner_email}
-								>{api.displayName(group.job.owner_username, group.job.owner_email)}</span
-							>
-						{/if}
-					</div>
-					<ul class="rows">
-						{#each group.tracks as track (track.id)}
-							<TrackRow {track} jobId={group.job.id} {isAdmin} />
-						{/each}
-					</ul>
-				</li>
-			{/each}
-		</ul>
-	{/if}
+					{:else if $incomingJobs.some((j) => j.state === 'expanding' && (allUsersView || j.owner_email === data.session?.email))}
+						<h3 class="state-title">
+							{allUsersView ? 'A link is being read' : 'Your link is being read'}
+						</h3>
+						<p class="state-text">
+							Its tracks appear here once Spotify has listed them, and each one downloads in the
+							background.
+						</p>
+					{:else if allUsersView}
+						<h3 class="state-title">Nobody has anything queued</h3>
+						<p class="state-text">Every user's queue is empty in this view.</p>
+					{:else}
+						<h3 class="state-title">Your queue is empty</h3>
+						<p class="state-text">
+							Paste a Spotify link above. Each track downloads in the background, and a rate limit
+							only means it waits its turn{$filters.includeArchived
+								? '.'
+								: '. Archived jobs stay under show archived.'}
+						</p>
+						<button type="button" class="state-action mono" onclick={focusSubmit}
+							>paste a link</button
+						>
+					{/if}
+				</div>
+			{:else if $filters.scope === 'jobs'}
+				<ul class="job-list" aria-label="Jobs">
+					{#each $page.items as item (item.id)}
+						<JobRow job={item as Job} allUsers={allUsersView} {isAdmin} />
+					{/each}
+				</ul>
+			{:else}
+				<ul class="job-list" aria-label="Tracks">
+					{#each trackGroups as group (group.job.id)}
+						<li class="track-group" aria-labelledby="group-title-{group.job.id}">
+							<!-- v41: the job row's grid, minus the chevron -- its type sits in the badge
+							     column and its title over the track titles below (F02). -->
+							<div class="group-header">
+								<span class="source-type mono">{group.job.source_type}</span>
+								<span class="title" id="group-title-{group.job.id}" title={group.job.title}
+									>{group.job.title}</span
+								>
+								{#if allUsersView}
+									<span class="owner mono" title={group.job.owner_email}
+										>{api.displayName(group.job.owner_username, group.job.owner_email)}</span
+									>
+								{/if}
+							</div>
+							<ul class="rows">
+								{#each group.tracks as track (track.id)}
+									<TrackRow {track} jobId={group.job.id} {isAdmin} />
+								{/each}
+							</ul>
+						</li>
+					{/each}
+				</ul>
+			{/if}
 
-	{#if $page.nextCursor}
-		<button
-			type="button"
-			class="load-more panel"
-			disabled={$page.loadingMore}
-			onclick={() => queue.loadMore()}
-		>
-			{$page.loadingMore ? 'loading…' : 'load more'}
-		</button>
-	{/if}
-</main>
+			<!-- A failed "load more" keeps the loaded rows (moreError, not error); this button
+			     retries just that page. -->
+			{#if $page.moreError}
+				<p class="more-error" role="alert">
+					Couldn't load more. <span class="mono">{$page.moreError}</span>
+				</p>
+			{/if}
+			<!-- Stays mounted (aria-disabled) through a background reload (a reconnect's resync),
+			     so a keyboard user's focus on it isn't dropped to the page. -->
+			{#if $page.nextCursor && !$page.error}
+				<button
+					type="button"
+					class="load-more mono"
+					aria-disabled={$page.loadingMore || $page.loading}
+					onclick={loadMorePage}
+				>
+					{$page.loadingMore ? 'loading…' : `load more ${scopeNoun}`}
+				</button>
+			{/if}
+		</section>
+	</main>
+</div>
 
 <style>
 	.stage {
@@ -276,59 +519,127 @@
 		gap: var(--space-5);
 	}
 
-	header {
-		display: flex;
-		justify-content: space-between;
-		align-items: flex-start;
-		gap: var(--space-4);
-		flex-wrap: wrap;
+	/* Masthead: ident left, the account nav right, the receiver's own status (link tell,
+	   and the admin's worker pill) between them, pushed against the nav. */
+	.masthead {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		grid-template-areas: 'ident status nav';
+		align-items: center;
+		gap: var(--space-2) var(--space-5);
 	}
 
 	.ident {
+		grid-area: ident;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
 	}
 
-	.ident .dim {
-		color: var(--text-dim);
+	.wordmark {
+		font-family: var(--font-mono);
+		font-size: var(--fs-lead);
+		font-weight: var(--fw-strong);
+		letter-spacing: 0.14em;
+		line-height: 1.2;
+		color: var(--text-primary);
 	}
 
-	.session {
+	.status {
+		grid-area: status;
 		display: flex;
-		align-items: center;
+		align-items: baseline;
+		justify-content: flex-end;
 		flex-wrap: wrap;
-		gap: var(--space-3);
-		font-size: 0.8125rem;
+		gap: var(--space-2) var(--space-4);
+	}
+
+	/* F05: the link tell. Linked is quiet (a filled dot, muted); down is the waiting blue
+	   with a hollow ring, so it differs in shape as well as hue. Never amber: a link is
+	   not a download. */
+	.link {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
 	}
 
-	/* Same one-cell-per-line mobile rule as JobRow/TrackRow (DESIGN.md §6) -- the pill
-	   is new real content in this row, not just a style tweak, so re-confirmed against a
-	   real 390px screenshot rather than assumed safe because flex-wrap already reflows. */
-	@media (max-width: 640px) {
-		.session {
-			flex-direction: column;
-			align-items: stretch;
+	.link-dot {
+		width: 0.4375rem;
+		height: 0.4375rem;
+		border-radius: 50%;
+		background: var(--text-muted);
+	}
+
+	.link.down {
+		color: var(--waiting);
+	}
+
+	.link.down .link-dot {
+		background: transparent;
+		border: 1.5px solid var(--waiting);
+		animation: link-pulse 2.4s ease-in-out infinite;
+	}
+
+	@keyframes link-pulse {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.35;
 		}
 	}
 
-	.settings-link {
-		color: var(--text-muted);
-		text-decoration: none;
+	@media (prefers-reduced-motion: reduce) {
+		.link.down .link-dot {
+			animation: none;
+		}
 	}
 
-	.settings-link:hover,
-	.settings-link:focus-visible {
-		color: var(--signal-dim);
+	.session {
+		grid-area: nav;
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: var(--space-1) var(--space-4);
+		font-size: var(--fs-detail);
+		color: var(--text-muted);
+	}
+
+	/* F10 (v40 verdict): a link is marked by its underline, never by amber. Hover only
+	   brings the text up to primary. */
+	.nav-link {
+		color: var(--text-muted);
+		text-decoration: underline;
+		text-decoration-color: var(--line-control);
+		text-underline-offset: 0.3em;
+	}
+
+	.nav-link:hover,
+	.nav-link:focus-visible {
+		color: var(--text-primary);
+		text-decoration-color: currentColor;
+	}
+
+	/* Wraps rather than truncating (the tooltip holding the full name is unreachable by
+	   keyboard and touch), within a cap, so a long email-as-name can't squeeze the
+	   masthead's status column off the desktop row. */
+	.who {
+		max-width: 20rem;
+		color: var(--text-primary);
+		overflow-wrap: anywhere;
 	}
 
 	.logout {
 		background: transparent;
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		color: var(--text-muted);
+		font-size: var(--fs-meta);
 		cursor: pointer;
 	}
 
@@ -338,6 +649,18 @@
 		color: var(--fail);
 	}
 
+	.main {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-5);
+	}
+
+	.submit-area {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
 	.submit {
 		display: flex;
 		align-items: center;
@@ -345,72 +668,172 @@
 		padding: var(--space-3) var(--space-4);
 	}
 
+	/* F10 (v40 verdict): muted at rest; amber only while a link is actually being sent. */
 	.prompt {
+		color: var(--text-muted);
+		font-weight: var(--fw-strong);
+	}
+
+	.prompt.sending {
 		color: var(--signal);
-		font-weight: 600;
 	}
 
 	.submit input {
 		flex: 1;
 		min-width: 0;
-		background: var(--bg-0);
-		border: 1px solid var(--line);
-		border-radius: 4px;
 		padding: var(--space-3);
-		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-	}
-
-	.submit input:focus-visible {
-		border-color: var(--signal-dim);
 	}
 
 	.submit button {
 		background: var(--bg-2);
-		border: 1px solid var(--line-bright);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-3) var(--space-4);
-		font-family: var(--font-mono);
-		font-weight: 600;
+		font-weight: var(--fw-strong);
 		letter-spacing: 0.06em;
 		cursor: pointer;
 		white-space: nowrap;
 	}
 
-	.submit button:hover:not(:disabled),
-	.submit button:focus-visible {
-		border-color: var(--signal);
+	/* F10: no amber and no halo; focus is the global ring alone. */
+	.submit button:hover:not(:disabled) {
 		background: var(--bg-3);
-		box-shadow: 0 0 12px -2px var(--signal-glow);
+		border-color: var(--text-muted);
 	}
 
 	.submit-error {
-		min-height: 1rem;
-		margin-top: calc(var(--space-4) * -1);
+		min-height: 1.25rem;
+		padding: 0 var(--space-4);
 		color: var(--fail);
-		font-size: 0.8125rem;
+		font-size: var(--fs-detail);
 	}
 
-	.count-hint {
-		margin: calc(var(--space-3) * -1) 0 0;
-		color: var(--text-dim);
-		font-size: 0.75rem;
+	.submit-error:empty {
+		min-height: 0;
 	}
 
-	.hint {
-		margin: 0;
-		padding: var(--space-5) 0;
-		text-align: center;
-		color: var(--text-dim);
-	}
-
-	.hint.fail {
-		color: var(--fail);
+	.queue {
+		display: flex;
+		flex-direction: column;
 	}
 
 	.job-list {
 		list-style: none;
 		margin: 0;
 		padding: 0;
+	}
+
+	/* Loading: three still placeholder rows on the row grid -- no shimmer, the list is
+	   seconds away and motion would only add noise. */
+	.skeleton {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.skeleton li {
+		display: grid;
+		grid-template-columns: var(--col-state) minmax(0, 1fr);
+		gap: var(--row-gap);
+		align-items: center;
+		padding: var(--space-4) var(--row-pad-x) var(--space-4) calc(var(--row-pad-x) + var(--row-nest));
+		border-bottom: 1px solid var(--line);
+	}
+
+	.skeleton li:last-child {
+		border-bottom: none;
+	}
+
+	.bone {
+		display: block;
+		height: 0.75rem;
+		border-radius: 3px;
+		background: var(--bg-3);
+	}
+
+	.bone.badge {
+		width: 5rem;
+	}
+
+	.bone.line {
+		width: 60%;
+	}
+
+	.skeleton li:nth-child(2) .bone.line {
+		width: 45%;
+	}
+
+	.skeleton li:nth-child(3) .bone.line {
+		width: 70%;
+	}
+
+	/* F26: empty and error states that say which case this is and what to do next. */
+	.state {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-2);
+		padding: var(--space-6) var(--space-5);
+	}
+
+	/* A searched link or URI is one unbreakable run; it must wrap, not scroll the page. */
+	.state-title,
+	.state-text {
+		overflow-wrap: anywhere;
+	}
+
+	.state-title {
+		font-size: var(--fs-title);
+		font-weight: var(--fw-medium);
+		line-height: 1.3;
+	}
+
+	.state-text {
+		max-width: 60ch;
+		color: var(--text-muted);
+	}
+
+	.state[role='alert'] .state-title {
+		color: var(--fail);
+	}
+
+	.state-action,
+	.load-more {
+		background: var(--bg-2);
+		border: 1px solid var(--line-control);
+		border-radius: 4px;
+		padding: var(--space-2) var(--space-4);
+		font-size: var(--fs-meta);
+		color: var(--text-primary);
+		cursor: pointer;
+	}
+
+	.state-action {
+		margin-top: var(--space-2);
+	}
+
+	.state-action:hover,
+	.load-more:hover:not([aria-disabled='true']) {
+		background: var(--bg-3);
+		border-color: var(--text-muted);
+	}
+
+	.load-more {
+		margin: var(--space-3) var(--space-4);
+		color: var(--text-muted);
+	}
+
+	.more-error {
+		margin: var(--space-3) var(--space-4) 0;
+		color: var(--fail);
+		font-size: var(--fs-detail);
+	}
+
+	/* aria-disabled, not disabled: disabling the focused button would drop focus to the
+	   page, and this button is also how a failed page is retried (v41's JobTrackList fix). */
+	.load-more[aria-disabled='true'] {
+		opacity: 0.6;
+		cursor: default;
 	}
 
 	.track-group {
@@ -434,13 +857,13 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		font-weight: 500;
+		font-weight: var(--fw-medium);
 	}
 
 	.group-header .source-type {
 		padding-left: var(--cell-inset);
 		color: var(--text-muted);
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 	}
@@ -453,7 +876,7 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		color: var(--text-muted);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	/* The same nesting as an open job's tracks (JobTrackList.svelte): one lead column in,
@@ -475,7 +898,100 @@
 		background: var(--line-bright);
 	}
 
+	/* F32: finger-sized targets on touch screens, whatever the width. */
+	@media (pointer: coarse) {
+		.logout,
+		.state-action,
+		.load-more,
+		.submit button,
+		.submit input {
+			min-height: 2.75rem;
+		}
+
+		.nav-link {
+			display: inline-flex;
+			align-items: center;
+			min-height: 2.75rem;
+		}
+	}
+
+	/* Tablet (F37): the masthead keeps ident and nav on one line and drops the status to
+	   its own line under them, left-aligned under the ident, instead of squeezing three columns. */
+	@media (max-width: 1023px) {
+		.masthead {
+			grid-template-columns: auto minmax(0, 1fr);
+			grid-template-areas:
+				'ident nav'
+				'status status';
+		}
+
+		.status {
+			justify-content: flex-start;
+		}
+	}
+
+	/* Phone (F15): about a screen of chrome before the first job came down to the header
+	   on two lines (ident + link tell, then the nav in one row), tighter page gutters, and
+	   the controls' own trimmed rows. */
 	@media (max-width: 640px) {
+		.stage {
+			padding: var(--space-4);
+			gap: var(--space-4);
+		}
+
+		.main {
+			gap: var(--space-4);
+		}
+
+		.masthead {
+			grid-template-columns: auto minmax(0, 1fr);
+			grid-template-areas:
+				'ident status'
+				'nav nav';
+			align-items: start;
+		}
+
+		.wordmark {
+			white-space: nowrap;
+		}
+
+		.ident .label {
+			display: none;
+		}
+
+		.status {
+			flex-direction: column;
+			align-items: flex-end;
+			gap: var(--space-1);
+			text-align: right;
+		}
+
+		.session {
+			justify-content: flex-start;
+			gap: var(--space-1) var(--space-3);
+		}
+
+		.logout {
+			margin-left: auto;
+		}
+
+		.submit {
+			padding: var(--space-2) var(--space-3);
+			gap: var(--space-2);
+		}
+
+		.submit input {
+			padding: var(--space-2) var(--space-3);
+		}
+
+		.submit button {
+			padding: var(--space-2) var(--space-3);
+		}
+
+		.state {
+			padding: var(--space-5) var(--space-4);
+		}
+
 		/* Type and owner on the first line, the whole title on the second, as JobRow's
 		   phone stack does; a long owner never takes the title's width. */
 		.group-header {
@@ -497,27 +1013,5 @@
 			grid-column: 1 / -1;
 			grid-row: 2;
 		}
-	}
-
-	.load-more {
-		background: var(--bg-1);
-		border: 1px solid var(--line);
-		padding: var(--space-3);
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		color: var(--text-muted);
-		cursor: pointer;
-		text-align: center;
-	}
-
-	.load-more:hover:not(:disabled),
-	.load-more:focus-visible {
-		border-color: var(--signal-dim);
-		color: var(--text-primary);
-	}
-
-	.load-more:disabled {
-		opacity: 0.6;
-		cursor: default;
 	}
 </style>

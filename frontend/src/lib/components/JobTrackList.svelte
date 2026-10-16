@@ -105,9 +105,11 @@
 		color: var(--text-muted);
 	}
 
+	/* v42: a --bg-2 fill no longer reads on the faceplate; hover underlines instead. */
 	.load-more:hover:not([aria-disabled='true']),
 	.load-more:focus-visible {
-		background: var(--bg-2);
+		text-decoration: underline;
+		text-underline-offset: 0.2em;
 	}
 
 	.load-more[aria-disabled='true'] {
@@ -116,6 +118,13 @@
 	}
 
 	/* A phone's track rows drop the state inset (TrackRow.svelte), so the hints follow. */
+	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
+	@media (pointer: coarse) {
+		.load-more {
+			min-height: 2.75rem;
+		}
+	}
+
 	@media (max-width: 640px) {
 		.hint,
 		.load-more {

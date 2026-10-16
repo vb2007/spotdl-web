@@ -81,11 +81,12 @@ test("a user never sees another identity's job titles", async ({ page, request, 
 	await page.getByRole('button', { name: 'show archived' }).click();
 	for (const scope of ['jobs', 'tracks'] as const) {
 		await search(page, scope, admin.title);
-		await expect(page.getByText('Nothing here.')).toBeVisible();
+		// v42 (F26): a search miss names itself ("No jobs match …") instead of "Nothing here.".
+		await expect(page.getByRole('heading', { name: /^No (jobs|tracks) match/ })).toBeVisible();
 		await expectNoForeignText();
 		// The same search does find the user's own title, so the filter isn't hiding everything.
 		await search(page, scope, user.title);
-		await expect(page.getByText('Nothing here.')).toHaveCount(0);
+		await expect(page.getByRole('heading', { name: /^No (jobs|tracks) match/ })).toHaveCount(0);
 		await expect(page.getByText(literal(user.title)).first()).toBeVisible();
 		await expectNoForeignText();
 	}

@@ -388,3 +388,11 @@ here rather than edited into it, so the original record stays readable.
   up to a minute (v23's grace window), and the state chips still counted it "active" until a hard
   reload (a refreshed row never moved its chip count). Frontend only. Branch
   `dev-live-desync-fix`, `4.40.2`, between v40.1 and v41. Detail in `v40.2-live-desync-fix.md`.
+- **2026-10-15, v42: A2's tree-wide contrast claim, one remainder moved to v43.** v42's token
+  change clears every token-caused `color-contrast` node on every route (axe-core 4.10.2: `/` in
+  all its states, `/login`, `/account`, `/library` and a non-admin `/settings` report none). One
+  route keeps 20 nodes that no token causes: the admin `/settings` proxy list dims a disabled
+  proxy row with `opacity: 0.6`. Fixing it means designing that row's disabled state on a v43
+  surface, so it moves to v43 with the rest of `/settings`. Likewise the `/settings` and
+  `WorkerStatus` state toggles' `--fail-dim`/`--settled-dim` edges (F30's controls) stay v43's;
+  v42 gave `/`'s destructive outlines a new ≥3:1 `--fail-edge`.

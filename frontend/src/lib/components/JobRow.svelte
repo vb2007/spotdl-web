@@ -30,7 +30,28 @@
 
 	let statusToken = $derived(api.statusKey(job.status));
 	let badgeLabel = $derived(api.STATUS_LABEL[statusToken] ?? statusToken);
-	let cond = $derived(JOB_STATUS_COND[statusToken] ?? 'cond-idle');
+	// v42 (F28): red is for a real gap. A job that is partial only because its owner
+	// cancelled tracks has nothing missing they didn't choose, so it reads muted.
+	let cond = $derived(
+		statusToken === 'settled:partial' && !(job.track_counts.lookup_failed ?? 0)
+			? 'cond-idle'
+			: (JOB_STATUS_COND[statusToken] ?? 'cond-idle')
+	);
+	// v42 (F28): with no tracks read yet the backend falls back to the link itself; show it
+	// as the address it is, not as a bold title.
+	let titleIsUrl = $derived(job.title === job.source_url);
+	// v42 (F28): a one-track job's count line only repeats its badge when the badge names
+	// the track's own bucket. Where they differ (a partial job, a job cancelled after its
+	// track completed, a stale row), the line stays: colour alone mustn't say it (1.4.1).
+	let badgeSaysTrack = $derived.by(() => {
+		const c = job.track_counts;
+		if ((c.completed ?? 0) + (c.skipped_duplicate ?? 0) === 1)
+			return statusToken === 'settled:complete';
+		if ((c.pending ?? 0) + (c.queued ?? 0) + (c.downloading ?? 0) === 1)
+			return statusToken === 'active';
+		if ((c.waiting ?? 0) === 1) return statusToken === 'waiting';
+		return false;
+	});
 	let showInFlight = $derived(IN_FLIGHT_LIFECYCLES.has(job.status.lifecycle));
 	let showArchive = $derived(
 		job.archived_at === null && ARCHIVABLE_LIFECYCLES.has(job.status.lifecycle)
@@ -147,7 +168,9 @@
 		>
 			<span class="chevron" aria-hidden="true"></span>
 			<span class="badge-cell"><span class="badge {cond} mono">{badgeLabel}</span></span>
-			<span class="title" id="job-title-{job.id}" title={job.title}>{job.title}</span>
+			<span class="title" class:address={titleIsUrl} id="job-title-{job.id}" title={job.title}
+				>{job.title}</span
+			>
 			<span class="tags">
 				<span class="source-type mono">{job.source_type}</span>
 				{#if allUsers}
@@ -170,7 +193,10 @@
 					{/each}
 				</div>
 			{/if}
-			<span class="breakdown mono">{breakdownVisible}</span>
+			<!-- v42 (F28): see badgeSaysTrack. -->
+			{#if totalTracks !== 1 || !badgeSaysTrack}
+				<span class="breakdown mono">{breakdownVisible}</span>
+			{/if}
 		</div>
 
 		<div class="row-actions">
@@ -265,6 +291,13 @@
 		cursor: pointer;
 		color: inherit;
 	}
+	/* v42: on the raised faceplate a fill doesn't read, so hover underlines the title, as
+	   a track row does. */
+	.toggle:hover .title {
+		text-decoration: underline;
+		text-decoration-color: var(--text-muted);
+		text-underline-offset: 0.2em;
+	}
 
 	.chevron {
 		justify-self: center;
@@ -315,6 +348,17 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		font-weight: 500;
+	}
+
+	/* The link's tail (the id) is what tells two untitled jobs apart: it wraps rather than
+	   ellipsizing behind a tooltip touch and keyboard can't reach. */
+	.title.address {
+		white-space: normal;
+		overflow-wrap: anywhere;
+		font-family: var(--font-mono);
+		font-size: var(--fs-meta);
+		font-weight: var(--fw-regular);
+		color: var(--text-muted);
 	}
 
 	.source-type {
@@ -395,7 +439,7 @@
 	.priority-input {
 		width: 3.5rem;
 		background: var(--bg-0);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-2);
 		color: var(--text-primary);
@@ -403,13 +447,9 @@
 		font-size: 0.8125rem;
 	}
 
-	.priority-input:focus-visible {
-		border-color: var(--signal-dim);
-	}
-
 	.action {
 		background: var(--bg-2);
-		border: 1px solid var(--line);
+		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);
@@ -429,7 +469,7 @@
 	   -- the same treatment as TrackRow's "cancel track". */
 	.action.danger {
 		background: transparent;
-		border-color: var(--fail-dim);
+		border-color: var(--fail-edge);
 	}
 
 	.action.danger:hover,
@@ -488,6 +528,15 @@
 	   the bar with its breakdown, then the actions, all hanging off the same second
 	   column the nested tracks indent to. No flex-basis sizes a height here any more:
 	   the stack is grid rows, each as tall as its content. */
+	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
+	@media (pointer: coarse) {
+		.toggle,
+		.action,
+		.priority-input {
+			min-height: 2.75rem;
+		}
+	}
+
 	@media (max-width: 640px) {
 		.row {
 			grid-template-columns: var(--col-lead) minmax(0, 1fr);

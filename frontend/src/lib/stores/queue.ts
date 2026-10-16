@@ -73,6 +73,9 @@ interface PageState {
 	loading: boolean;
 	loadingMore: boolean;
 	error: string;
+	/** v42: a failed "load more" -- kept apart from `error` (the page itself failing), so
+	 * the rows already loaded stay on screen and the button retries just that page. */
+	moreError: string;
 }
 
 const EMPTY_PAGE: PageState = {
@@ -83,7 +86,8 @@ const EMPTY_PAGE: PageState = {
 	countsByState: {},
 	loading: false,
 	loadingMore: false,
-	error: ''
+	error: '',
+	moreError: ''
 };
 
 export interface ExpandedJob {
@@ -349,7 +353,9 @@ function createQueueStore() {
 	function currentQueryParams() {
 		const f = get(filters);
 		return {
-			q: f.q || undefined,
+			// v42: trimmed here, not in the box (which must keep a trailing space while
+			// typing): a search of only spaces is no search.
+			q: f.q.trim() || undefined,
 			includeArchived: f.includeArchived,
 			sort: f.sort,
 			dir: f.dir,
@@ -370,7 +376,7 @@ function createQueueStore() {
 	/** Shows the loading state until the stream's first `onopen` resync lands -- for a
 	 * fresh mount, which no longer fetches eagerly (see `reload`). */
 	function beginResync(): void {
-		page.update((p) => ({ ...p, loading: true, error: '' }));
+		page.update((p) => ({ ...p, loading: true, error: '', moreError: '' }));
 	}
 
 	/** v34: one bulk request per overlay, issued in parallel -- never a per-row loop. Both
@@ -480,7 +486,7 @@ function createQueueStore() {
 	async function reloadPage(): Promise<void> {
 		const f = get(filters);
 		const seq = ++pageFetchSeq;
-		page.update((p) => ({ ...p, loading: true, error: '' }));
+		page.update((p) => ({ ...p, loading: true, error: '', moreError: '' }));
 		try {
 			if (f.scope === 'jobs') {
 				const result: JobsPage = await api.listJobsPage({
@@ -496,7 +502,8 @@ function createQueueStore() {
 					countsByState: {},
 					loading: false,
 					loadingMore: false,
-					error: ''
+					error: '',
+					moreError: ''
 				});
 			} else {
 				const countsSeqAtStart = trackCountsSeq;
@@ -514,7 +521,8 @@ function createQueueStore() {
 					countsByState: result.counts_by_state,
 					loading: false,
 					loadingMore: false,
-					error: ''
+					error: '',
+					moreError: ''
 				});
 				// A counts refresh that started during this reload may have read a newer
 				// snapshot than these counts (or failed): one more re-read converges on
@@ -523,9 +531,12 @@ function createQueueStore() {
 			}
 		} catch (err) {
 			if (seq !== pageFetchSeq) return;
+			// v42: the old cursor belongs to the previous query; with it kept, "load more"
+			// would page the new filter from the old one's position.
 			page.update((p) => ({
 				...p,
 				loading: false,
+				nextCursor: null,
 				error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
 			}));
 		}
@@ -536,7 +547,7 @@ function createQueueStore() {
 		if (current.nextCursor === null || current.loadingMore) return;
 		const f = get(filters);
 		const seq = pageFetchSeq;
-		page.update((p) => ({ ...p, loadingMore: true }));
+		page.update((p) => ({ ...p, loadingMore: true, moreError: '' }));
 		try {
 			if (f.scope === 'jobs') {
 				const result: JobsPage = await api.listJobsPage({
@@ -551,7 +562,9 @@ function createQueueStore() {
 					nextCursor: result.next_cursor,
 					totalEstimate: result.total_estimate,
 					countsByStatus: result.counts_by_status,
-					loadingMore: false
+					loadingMore: false,
+					// v42: "load more" is how a failed load-more is retried, so a success clears it.
+					moreError: ''
 				}));
 			} else {
 				const result = await api.listTracksPage({
@@ -568,7 +581,8 @@ function createQueueStore() {
 					// countsByState deliberately not taken from a later page: it's the same
 					// set's counts, and this (older) read could land after a fresher
 					// refreshTrackCounts.
-					loadingMore: false
+					loadingMore: false,
+					moreError: ''
 				}));
 			}
 		} catch (err) {
@@ -576,7 +590,7 @@ function createQueueStore() {
 			page.update((p) => ({
 				...p,
 				loadingMore: false,
-				error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
+				moreError: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
 			}));
 		}
 	}
@@ -624,6 +638,13 @@ function createQueueStore() {
 		page.set({ ...EMPTY_PAGE, loading: true });
 	}
 
+	/** v42: bumps on every reset() (logout or session expiry), so a caller's pending
+	 * deferred write (QueueControls' search debounce) can tell its session is gone. */
+	let resetCount = 0;
+	function getResetCount(): number {
+		return resetCount;
+	}
+
 	function getAllUsers(): boolean {
 		return allUsers;
 	}
@@ -637,6 +658,7 @@ function createQueueStore() {
 	 * mounted dashboard renders A's rows. Call this on logout, before the next identity's
 	 * session can start writing to these stores. */
 	function reset(): void {
+		resetCount++;
 		clearTimeout(trackCountsTimer);
 		pageFetchSeq++;
 		liveHydrateSeq++;
@@ -1350,6 +1372,7 @@ function createQueueStore() {
 		loadMore,
 		setAllUsers,
 		getAllUsers,
+		getResetCount,
 		reset,
 		toggleExpand,
 		isExpanded,
