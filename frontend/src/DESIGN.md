@@ -761,7 +761,7 @@ destructive action uses this, never `window.confirm`.
 
 `/settings`, `/library` and `/account` share `SubpageHeader.svelte`: the wordmark and the page
 links (queue, then library and settings for the admin only, then account; the current one is
-`aria-current="page"`, primary text, no underline), then the page's one `h1` in Sans at
+`aria-current="page"`, primary text, no underline). `main` then opens with the page's one `h1` (`.page-title`) in Sans at
 `--fs-title`. There is no eyebrow above the `h1`: the wordmark is the masthead, not a kicker.
 A non-admin is never linked to an admin page. Typing the path gets `AdminOnlyNotice.svelte`, which
 makes no admin request (F17).
