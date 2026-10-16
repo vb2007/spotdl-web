@@ -61,7 +61,11 @@
 			if (!jobs.some((j) => j.id === jobId)) {
 				// The row left meanwhile (its expansion finished): its error has no row to sit
 				// on, and no other row's button is the right place for focus.
-				lostNotice = `${message} It has moved into your queue; cancel it from there.`;
+				lostNotice = `${message} It has moved into the queue below; cancel it there.`;
+				const shown = lostNotice;
+				setTimeout(() => {
+					if (lostNotice === shown) lostNotice = '';
+				}, 10_000);
 				keepFocus('submit');
 				return;
 			}

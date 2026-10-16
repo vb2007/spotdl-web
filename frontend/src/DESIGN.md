@@ -119,7 +119,7 @@ not chrome, and keeps its color.
 > **v42 (2026-10-15):** every `/` row above is applied (✓), plus the unlisted `/` sites:
 > `.load-more`, the queue controls and JobRow's priority-input focus border. On `/`, `--signal` now
 > appears only on genuinely live things: a receiving lane, an expanding job's dot, the prompt while
-> sending, a due countdown, the live bar segment, `::selection`, and an active or expanding job's
+> sending, the live bar segment, `::selection`, and an active or expanding job's
 > badge (v20's `cond-live` mapping, v41's row; unchanged here). On the other routes v42 changed only what A2 required (no `--signal-dim` text, so `.inline-link` rests at `--text-primary` and `.back` hovers to it); `.inline-link`'s amber hover and the remaining rows stay v43's.
 
 ### Focus
@@ -453,8 +453,9 @@ never "failed" or "partial" alone, so a glance at either surface reads the same 
 > they didn't choose, so it reads `cond-idle`. A job whose title is still its link (nothing read yet)
 > shows the link as an address (mono, muted, regular weight), not a bold title. A one-track job
 > shows no separate count line, since the badge and bar already say it (the bar's accessible name
-> still carries the count). A one-track **partial** job keeps it: "done — partial" doesn't say
-> whether the track was not found or cancelled, and colour alone mustn't (WCAG 1.4.1).
+> still carries the count). A one-track job keeps it whenever the badge doesn't name its track's
+> own bucket (a partial job, one cancelled after its track completed, a stale row): colour alone
+> mustn't say it (WCAG 1.4.1).
 
 ### Segmented job progress bar (`JobRow.svelte`, v20)
 

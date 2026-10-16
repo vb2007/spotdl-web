@@ -68,6 +68,13 @@
 		controls?.clearSearchAndFilters();
 	}
 
+	// The last page removes this button while it has focus; keep focus on the queue.
+	async function loadMorePage() {
+		await queue.loadMore();
+		await tick();
+		if (document.activeElement === document.body) document.getElementById('queue-heading')?.focus();
+	}
+
 	function retryQueue() {
 		queue.reload();
 		document.getElementById('queue-heading')?.focus();
@@ -411,7 +418,7 @@
 					type="button"
 					class="load-more mono"
 					aria-disabled={$page.loadingMore}
-					onclick={() => queue.loadMore()}
+					onclick={loadMorePage}
 				>
 					{$page.loadingMore ? 'loading…' : `load more ${scopeNoun}`}
 				</button>

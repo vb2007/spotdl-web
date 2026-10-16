@@ -40,6 +40,18 @@
 	// v42 (F28): with no tracks read yet the backend falls back to the link itself; show it
 	// as the address it is, not as a bold title.
 	let titleIsUrl = $derived(job.title === job.source_url);
+	// v42 (F28): a one-track job's count line only repeats its badge when the badge names
+	// the track's own bucket. Where they differ (a partial job, a job cancelled after its
+	// track completed, a stale row), the line stays: colour alone mustn't say it (1.4.1).
+	let badgeSaysTrack = $derived.by(() => {
+		const c = job.track_counts;
+		if ((c.completed ?? 0) + (c.skipped_duplicate ?? 0) === 1)
+			return statusToken === 'settled:complete';
+		if ((c.pending ?? 0) + (c.queued ?? 0) + (c.downloading ?? 0) === 1)
+			return statusToken === 'active';
+		if ((c.waiting ?? 0) === 1) return statusToken === 'waiting';
+		return false;
+	});
 	let showInFlight = $derived(IN_FLIGHT_LIFECYCLES.has(job.status.lifecycle));
 	let showArchive = $derived(
 		job.archived_at === null && ARCHIVABLE_LIFECYCLES.has(job.status.lifecycle)
@@ -181,10 +193,8 @@
 					{/each}
 				</div>
 			{/if}
-			<!-- v42 (F28): one track's count only repeats its badge and bar; the bar's name keeps
-			     it. Not for a partial job: "done — partial" doesn't say whether the track was not
-			     found or cancelled, and the bar's colour alone mustn't carry that (WCAG 1.4.1). -->
-			{#if totalTracks !== 1 || statusToken === 'settled:partial'}
+			<!-- v42 (F28): see badgeSaysTrack. -->
+			{#if totalTracks !== 1 || !badgeSaysTrack}
 				<span class="breakdown mono">{breakdownVisible}</span>
 			{/if}
 		</div>
