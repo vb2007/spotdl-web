@@ -38,15 +38,24 @@
 	let olderFailed = $derived(failed.slice(1));
 
 	let incomingSection = $state<HTMLElement>();
-	let rowError = $state<Record<string, string>>({});
+	let rowError = $state<Record<string, { state: string; message: string }>>({});
 	let lostNotice = $state('');
 	let busy = $state<Record<string, boolean>>({});
 	// Rows whose link was already submitted again: never offered twice, even if the dismiss
 	// that follows fails and leaves the row up.
 	let resubmitted = $state<Record<string, boolean>>({});
 
+	// Keyed by the row's state too: an error belongs to the action it came from, so a row
+	// that changes group (a tuning row whose expansion then fails) doesn't carry a stale
+	// "could not cancel" under its new, different actions.
 	function setError(jobId: string, message: string) {
-		rowError = { ...rowError, [jobId]: message };
+		const state = jobs.find((j) => j.id === jobId)?.state ?? '';
+		rowError = { ...rowError, [jobId]: { state, message } };
+	}
+
+	function errorFor(job: Job): string {
+		const e = rowError[job.id];
+		return e && e.state === job.state ? e.message : '';
 	}
 
 	/** `then`: where focus goes once the row (and its focused button) is gone. */
@@ -233,8 +242,8 @@
 				onclick={() => handleCancel(job.id, 'next-dismiss')}>dismiss</button
 			>
 		</span>
-		{#if rowError[job.id]}
-			<span class="error" role="alert">{rowError[job.id]}</span>
+		{#if errorFor(job)}
+			<span class="error" role="alert">{errorFor(job)}</span>
 		{/if}
 	</li>
 {/snippet}
@@ -274,8 +283,8 @@
 							onclick={() => handleCancel(job.id, 'submit')}>cancel</button
 						>
 					</span>
-					{#if rowError[job.id]}
-						<span class="error" role="alert">{rowError[job.id]}</span>
+					{#if errorFor(job)}
+						<span class="error" role="alert">{errorFor(job)}</span>
 					{/if}
 				</li>
 			{/each}

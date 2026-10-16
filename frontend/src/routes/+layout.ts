@@ -10,6 +10,12 @@ import type { LayoutLoad } from './$types';
 export const ssr = false;
 export const prerender = true;
 
+// v42: whose session the module-level `queue` store last served. A tab's identity can
+// change without a logout in *this* tab (A logs out and C logs in in another tab, then
+// this tab navigates), and the store would otherwise carry A's rows and filters into C's
+// dashboard. `null` until the first session is seen.
+let lastSessionEmail: string | null = null;
+
 export const load: LayoutLoad = async ({ url }) => {
 	const onLoginPage = url.pathname === '/login';
 
@@ -28,6 +34,10 @@ export const load: LayoutLoad = async ({ url }) => {
 		// that must clear it regardless of *why* the session is gone.
 		queue.reset();
 		redirect(302, '/login');
+	}
+	if (session !== null) {
+		if (lastSessionEmail !== null && lastSessionEmail !== session.email) queue.reset();
+		lastSessionEmail = session.email;
 	}
 	if (session !== null && onLoginPage) {
 		redirect(302, '/');
