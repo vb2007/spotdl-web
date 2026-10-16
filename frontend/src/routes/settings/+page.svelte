@@ -962,7 +962,7 @@
 
 	code {
 		font-family: var(--font-mono);
-		font-size: 0.95em;
+		font-size: inherit;
 		color: var(--text-primary);
 		overflow-wrap: anywhere;
 	}

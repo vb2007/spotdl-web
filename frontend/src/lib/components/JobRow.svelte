@@ -339,7 +339,7 @@
 		padding: 0.125rem var(--space-2);
 		border: 1px solid var(--line);
 		border-radius: 3px;
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		letter-spacing: 0.04em;
 	}
 
@@ -376,7 +376,7 @@
 	.source-type {
 		flex-shrink: 0;
 		color: var(--text-muted);
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		text-transform: uppercase;
 	}
 
@@ -386,7 +386,7 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 		color: var(--text-muted);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	.progress {
@@ -425,7 +425,7 @@
 
 	.breakdown {
 		color: var(--text-muted);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	.row-actions {
@@ -442,7 +442,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: var(--space-1);
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		color: var(--text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -456,7 +456,7 @@
 		padding: var(--space-1) var(--space-2);
 		color: var(--text-primary);
 		font-family: var(--font-mono);
-		font-size: 0.8125rem;
+		font-size: var(--fs-detail);
 	}
 
 	.action {
@@ -465,7 +465,7 @@
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
 		cursor: pointer;
 		white-space: nowrap;
@@ -491,7 +491,7 @@
 	}
 
 	.archived-tag {
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		color: var(--text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -501,7 +501,7 @@
 		margin: 0;
 		padding: 0 var(--row-pad-x) var(--space-2) calc(var(--row-pad-x) + var(--row-nest));
 		color: var(--waiting);
-		font-size: 0.8125rem;
+		font-size: var(--fs-detail);
 	}
 
 	/* Empty, it stays in the accessibility tree (a status region inserted together with

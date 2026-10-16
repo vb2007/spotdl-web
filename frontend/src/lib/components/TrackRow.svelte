@@ -619,14 +619,14 @@
 
 	.cell.state {
 		padding-left: var(--cell-inset);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		letter-spacing: 0.04em;
 	}
 
 	.cell.artist,
 	.cell.album {
 		color: var(--text-muted);
-		font-size: 0.875rem;
+		font-size: var(--fs-detail);
 	}
 
 	.chevron {
@@ -652,7 +652,7 @@
 		column-gap: var(--row-gap);
 		row-gap: var(--space-3);
 		padding: var(--space-1) var(--row-pad-x) var(--space-4) 0;
-		font-size: 0.8125rem;
+		font-size: var(--fs-detail);
 		color: var(--text-muted);
 	}
 
@@ -683,7 +683,7 @@
 	/* Value in primary text, its key in muted: both at full opacity (AA on every panel). */
 	.fact {
 		min-width: 0;
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-primary);
 		overflow-wrap: anywhere;
 	}
@@ -727,7 +727,7 @@
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
 		cursor: pointer;
 	}
@@ -760,7 +760,7 @@
 	.notice {
 		color: var(--waiting);
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	/* Empty, it stays in the accessibility tree (a status region inserted together with
@@ -790,14 +790,14 @@
 	}
 
 	.history-heading {
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		color: var(--text-muted);
 	}
 
 	.history-status {
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	.history-error {
@@ -843,7 +843,7 @@
 		background: none;
 		border: none;
 		padding: 0;
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
 		white-space: nowrap;
 		cursor: pointer;
@@ -935,7 +935,7 @@
 		flex-wrap: wrap;
 		align-items: baseline;
 		column-gap: var(--space-3);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 	}
 
 	.times {
@@ -966,7 +966,7 @@
 	.message {
 		margin: 0;
 		max-width: 80ch;
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		line-height: 1.5;
 		color: var(--text-muted);
 		white-space: pre-wrap;
@@ -989,7 +989,7 @@
 		border: none;
 		padding: 0;
 		font-family: var(--font-mono);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-primary);
 		text-decoration: underline;
 		text-underline-offset: 2px;
@@ -1011,14 +1011,14 @@
 		padding: 0 var(--space-1);
 		border: 1px solid var(--line-bright);
 		border-radius: 3px;
-		font-size: 0.6875rem;
+		font-size: var(--fs-label);
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
 		color: var(--text-primary);
 	}
 
 	.note-text {
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		color: var(--text-muted);
 		overflow-wrap: anywhere;
 	}
@@ -1037,12 +1037,12 @@
 		display: flex;
 		flex-wrap: wrap;
 		column-gap: var(--space-3);
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		border: none;
 	}
 
 	.last-error {
-		font-size: 0.75rem;
+		font-size: var(--fs-meta);
 		overflow-wrap: anywhere;
 	}
 
@@ -1077,7 +1077,7 @@
 			overflow: hidden;
 			text-overflow: ellipsis;
 			color: var(--text-muted);
-			font-size: 0.8125rem;
+			font-size: var(--fs-detail);
 		}
 
 		.row[aria-expanded='true'] .meta {
