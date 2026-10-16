@@ -73,6 +73,7 @@
 	// loaded (where the user was reading), else the queue's heading. Rows are found by item
 	// id, not DOM position: in tracks scope a new page's tracks can join an earlier group.
 	async function loadMorePage(event: MouseEvent) {
+		if ($page.loading) return;
 		const hadFocus = document.activeElement === event.currentTarget;
 		const known = new Set($page.items.map((item) => item.id));
 		await queue.loadMore();
@@ -493,11 +494,13 @@
 					Couldn't load more. <span class="mono">{$page.moreError}</span>
 				</p>
 			{/if}
-			{#if $page.nextCursor && !$page.loading && !$page.error}
+			<!-- Stays mounted (aria-disabled) through a background reload (a reconnect's resync),
+			     so a keyboard user's focus on it isn't dropped to the page. -->
+			{#if $page.nextCursor && !$page.error}
 				<button
 					type="button"
 					class="load-more mono"
-					aria-disabled={$page.loadingMore}
+					aria-disabled={$page.loadingMore || $page.loading}
 					onclick={loadMorePage}
 				>
 					{$page.loadingMore ? 'loading…' : `load more ${scopeNoun}`}
