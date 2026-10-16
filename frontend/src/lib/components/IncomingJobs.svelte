@@ -108,7 +108,9 @@
 	// job's cancel or retry, where a repeated Enter would act on the wrong submission.
 	function keepFocus(then: 'next-dismiss' | 'submit', ownJobId?: string, position = 0) {
 		if (document.activeElement && document.activeElement !== document.body) {
-			lastFocus = null;
+			// Focus is still somewhere real. Forget the remembered button only if focus has
+			// left the panel; a button that kept focus (a failed cancel) stays remembered.
+			if (!incomingSection?.contains(document.activeElement)) lastFocus = null;
 			return;
 		}
 		const buttons = dismissButtons();

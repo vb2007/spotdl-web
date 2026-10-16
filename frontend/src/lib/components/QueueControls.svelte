@@ -281,7 +281,11 @@
 						class="chip"
 						aria-pressed={chipPressed(chip)}
 						onfocus={() => (focusedChip = chip.key)}
-						onblur={() => (focusedChip = null)}
+						onblur={(e) => {
+							// Switching tab or window blurs the chip but leaves it the active
+							// element; it must keep its place for when the user comes back.
+							if (document.activeElement !== e.currentTarget) focusedChip = null;
+						}}
 						onclick={() => toggleChip(chip)}
 					>
 						{chip.label}&nbsp;<span class="n mono">{chipCount(chip)}</span>
