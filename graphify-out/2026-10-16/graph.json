@@ -1394,7 +1394,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_trackattempt",
-      "community": 4,
+      "community": 162,
       "norm_label": "trackattempt"
     },
     {
@@ -1414,7 +1414,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_rationale_36",
-      "community": 4,
+      "community": 162,
       "norm_label": "one row per `download_track` invocation (v24) -- what it tried (direct vs. which"
     },
     {
@@ -1434,7 +1434,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_user_user",
-      "community": 42,
+      "community": 130,
       "norm_label": "user"
     },
     {
@@ -1444,7 +1444,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_user_rationale_11",
-      "community": 42,
+      "community": 130,
       "norm_label": "row created on first successful login (v17). the `allowed_emails` env allowlist"
     },
     {
@@ -2274,7 +2274,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "backend_app_routers_settings_get_output_options",
-      "community": 42,
+      "community": 130,
       "norm_label": "get_output_options()"
     },
     {
@@ -2364,7 +2364,7 @@
       "source_location": "L181",
       "_origin": "ast",
       "id": "backend_app_routers_settings_require_admin_hidden",
-      "community": 42,
+      "community": 130,
       "norm_label": "_require_admin_hidden()"
     },
     {
@@ -2374,7 +2374,7 @@
       "source_location": "L190",
       "_origin": "ast",
       "id": "backend_app_routers_settings_send_test_alert",
-      "community": 42,
+      "community": 130,
       "norm_label": "send_test_alert()"
     },
     {
@@ -2414,7 +2414,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_57",
-      "community": 42,
+      "community": 130,
       "norm_label": "the real, live set of format/bitrate values the installed spotdl accepts --"
     },
     {
@@ -2434,7 +2434,7 @@
       "source_location": "L182",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_182",
-      "community": 42,
+      "community": 130,
       "norm_label": "v36's plan: a non-admin gets 404 on the test-alert endpoint, so its existence is"
     },
     {
@@ -2444,7 +2444,7 @@
       "source_location": "L191",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_191",
-      "community": 42,
+      "community": 130,
       "norm_label": "sends one message straight to the room and reports whether it arrived, bypassing"
     },
     {
@@ -2904,7 +2904,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_alerts",
-      "community": 82,
+      "community": 31,
       "norm_label": "alerts.py"
     },
     {
@@ -2914,7 +2914,7 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "backend_app_services_alerts_matrixconfig",
-      "community": 82,
+      "community": 31,
       "norm_label": "matrixconfig"
     },
     {
@@ -2924,7 +2924,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "namedtuple",
-      "community": 4,
+      "community": 31,
       "norm_label": "namedtuple"
     },
     {
@@ -2934,7 +2934,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "backend_app_services_alerts_alertsnotconfigured",
-      "community": 36,
+      "community": 31,
       "norm_label": "alertsnotconfigured"
     },
     {
@@ -2954,7 +2954,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "backend_app_services_alerts_alertsenderror",
-      "community": 36,
+      "community": 31,
       "norm_label": "alertsenderror"
     },
     {
@@ -2964,7 +2964,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "backend_app_services_alerts_config_values",
-      "community": 82,
+      "community": 31,
       "norm_label": "_config_values()"
     },
     {
@@ -2974,7 +2974,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "backend_app_services_alerts_matrix_config",
-      "community": 82,
+      "community": 31,
       "norm_label": "matrix_config()"
     },
     {
@@ -2984,7 +2984,7 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "backend_app_services_alerts_is_configured",
-      "community": 82,
+      "community": 31,
       "norm_label": "is_configured()"
     },
     {
@@ -2994,7 +2994,7 @@
       "source_location": "L134",
       "_origin": "ast",
       "id": "backend_app_services_alerts_missing_config_vars",
-      "community": 82,
+      "community": 31,
       "norm_label": "missing_config_vars()"
     },
     {
@@ -3004,7 +3004,7 @@
       "source_location": "L138",
       "_origin": "ast",
       "id": "backend_app_services_alerts_log_startup_state",
-      "community": 82,
+      "community": 31,
       "norm_label": "log_startup_state()"
     },
     {
@@ -3024,7 +3024,7 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "backend_app_services_alerts_send_now",
-      "community": 36,
+      "community": 31,
       "norm_label": "send_now()"
     },
     {
@@ -3074,7 +3074,7 @@
       "source_location": "L260",
       "_origin": "ast",
       "id": "backend_app_services_alerts_enqueue",
-      "community": 82,
+      "community": 31,
       "norm_label": "enqueue()"
     },
     {
@@ -3084,7 +3084,7 @@
       "source_location": "L284",
       "_origin": "ast",
       "id": "backend_app_services_alerts_enqueue_after_commit",
-      "community": 83,
+      "community": 31,
       "norm_label": "enqueue_after_commit()"
     },
     {
@@ -3094,7 +3094,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_session",
-      "community": 83,
+      "community": 31,
       "norm_label": "session"
     },
     {
@@ -3104,7 +3104,7 @@
       "source_location": "L292",
       "_origin": "ast",
       "id": "backend_app_services_alerts_enqueue_pending",
-      "community": 82,
+      "community": 31,
       "norm_label": "_enqueue_pending()"
     },
     {
@@ -3114,7 +3114,7 @@
       "source_location": "L298",
       "_origin": "ast",
       "id": "backend_app_services_alerts_drop_pending",
-      "community": 83,
+      "community": 31,
       "norm_label": "_drop_pending()"
     },
     {
@@ -3124,7 +3124,7 @@
       "source_location": "L302",
       "_origin": "ast",
       "id": "backend_app_services_alerts_format_duration",
-      "community": 83,
+      "community": 31,
       "norm_label": "format_duration()"
     },
     {
@@ -3134,7 +3134,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_timedelta",
-      "community": 83,
+      "community": 31,
       "norm_label": "timedelta"
     },
     {
@@ -3164,7 +3164,7 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "backend_app_services_alerts_failure_spike",
-      "community": 83,
+      "community": 31,
       "norm_label": "failure_spike()"
     },
     {
@@ -3174,7 +3174,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_datetime",
-      "community": 83,
+      "community": 31,
       "norm_label": "datetime"
     },
     {
@@ -3184,7 +3184,7 @@
       "source_location": "L382",
       "_origin": "ast",
       "id": "backend_app_services_alerts_breaker_released",
-      "community": 83,
+      "community": 31,
       "norm_label": "breaker_released()"
     },
     {
@@ -3224,7 +3224,7 @@
       "source_location": "L424",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog",
-      "community": 246,
+      "community": 31,
       "norm_label": "watchdog"
     },
     {
@@ -3234,7 +3234,7 @@
       "source_location": "L439",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_init",
-      "community": 246,
+      "community": 31,
       "norm_label": ".__init__()"
     },
     {
@@ -3254,7 +3254,7 @@
       "source_location": "L505",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_run",
-      "community": 246,
+      "community": 31,
       "norm_label": ".run()"
     },
     {
@@ -3264,7 +3264,7 @@
       "source_location": "L514",
       "_origin": "ast",
       "id": "backend_app_services_alerts_spawn_watchdog",
-      "community": 45,
+      "community": 31,
       "norm_label": "spawn_watchdog()"
     },
     {
@@ -3274,7 +3274,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "popen",
-      "community": 45,
+      "community": 31,
       "norm_label": "popen"
     },
     {
@@ -3284,7 +3284,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_1",
-      "community": 82,
+      "community": 31,
       "norm_label": "matrix alerts (v36) -- conditions that need a human, pushed into the same matrix"
     },
     {
@@ -3294,7 +3294,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_110",
-      "community": 36,
+      "community": 31,
       "norm_label": "carries only a redacted, token-free description of what went wrong."
     },
     {
@@ -3314,7 +3314,7 @@
       "source_location": "L164",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_164",
-      "community": 36,
+      "community": 31,
       "norm_label": "one put to the room. raises alertsnotconfigured or alertsenderror; never retries"
     },
     {
@@ -3334,7 +3334,7 @@
       "source_location": "L261",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_261",
-      "community": 82,
+      "community": 31,
       "norm_label": "fire and forget onto worker-meta. a no-op when alerts are off; never raises, and"
     },
     {
@@ -3344,7 +3344,7 @@
       "source_location": "L285",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_285",
-      "community": 83,
+      "community": 31,
       "norm_label": "queues an alert on `db` that is enqueued only once its transaction commits, and"
     },
     {
@@ -3364,7 +3364,7 @@
       "source_location": "L331",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_331",
-      "community": 83,
+      "community": 31,
       "norm_label": "(fingerprint, text, newest finished_at) when the newest `threshold` real attempt"
     },
     {
@@ -3374,7 +3374,7 @@
       "source_location": "L383",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_383",
-      "community": 83,
+      "community": 31,
       "norm_label": "the trip's pause is over and nothing else holds downloads: a manual pause still"
     },
     {
@@ -3394,7 +3394,7 @@
       "source_location": "L425",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_425",
-      "community": 246,
+      "community": 31,
       "norm_label": "runs as its own small process (alert_watchdog.py, started and supervised by"
     },
     {
@@ -3404,7 +3404,7 @@
       "source_location": "L515",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_515",
-      "community": 45,
+      "community": 31,
       "norm_label": "starts app/services/alert_watchdog.py as a child of the calling process (worker-"
     },
     {
@@ -3614,7 +3614,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_attempts",
-      "community": 4,
+      "community": 30,
       "norm_label": "attempts.py"
     },
     {
@@ -3624,7 +3624,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "backend_app_services_attempts_previous_was_transport_failure",
-      "community": 4,
+      "community": 30,
       "norm_label": "previous_was_transport_failure()"
     },
     {
@@ -3634,7 +3634,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_session",
-      "community": 4,
+      "community": 30,
       "norm_label": "session"
     },
     {
@@ -3644,7 +3644,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_uuid",
-      "community": 4,
+      "community": 30,
       "norm_label": "uuid"
     },
     {
@@ -3654,7 +3654,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_app_services_attempts_recordedattempt",
-      "community": 4,
+      "community": 30,
       "norm_label": "recordedattempt"
     },
     {
@@ -3664,7 +3664,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "backend_app_services_attempts_record_attempt",
-      "community": 4,
+      "community": 30,
       "norm_label": "record_attempt()"
     },
     {
@@ -3674,7 +3674,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_datetime",
-      "community": 4,
+      "community": 30,
       "norm_label": "datetime"
     },
     {
@@ -3684,7 +3684,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "trackattemptoutcome",
-      "community": 4,
+      "community": 30,
       "norm_label": "trackattemptoutcome"
     },
     {
@@ -3694,7 +3694,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_trackerrortype",
-      "community": 4,
+      "community": 30,
       "norm_label": "trackerrortype"
     },
     {
@@ -3704,7 +3704,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_attempts_py_networkpath",
-      "community": 4,
+      "community": 30,
       "norm_label": "networkpath"
     },
     {
@@ -3714,7 +3714,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_1",
-      "community": 4,
+      "community": 30,
       "norm_label": "per-attempt download history (v24) -- see app/models/track_attempt.py's docstrin"
     },
     {
@@ -3724,7 +3724,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_35",
-      "community": 4,
+      "community": 30,
       "norm_label": "whether this track's latest real attempt was itself a proxy transport failure. h"
     },
     {
@@ -3734,7 +3734,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "backend_app_services_attempts_rationale_70",
-      "community": 4,
+      "community": 30,
       "norm_label": "adds one `track_attempts` row and returns its attempt_number together with the"
     },
     {
@@ -4224,7 +4224,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_expansion",
-      "community": 204,
+      "community": 62,
       "norm_label": "expansion.py"
     },
     {
@@ -4234,7 +4234,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_services_expansion_ensure_spotify_client",
-      "community": 204,
+      "community": 62,
       "norm_label": "_ensure_spotify_client()"
     },
     {
@@ -4244,7 +4244,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_app_services_expansion_expand",
-      "community": 204,
+      "community": 62,
       "norm_label": "expand()"
     },
     {
@@ -4254,7 +4254,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_expansion_py_song",
-      "community": 204,
+      "community": 62,
       "norm_label": "song"
     },
     {
@@ -4264,7 +4264,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_expansion_rationale_1",
-      "community": 204,
+      "community": 62,
       "norm_label": "thin wrapper around spotdl's url-expansion logic.  never import spotdl.utils.sea"
     },
     {
@@ -4274,7 +4274,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_app_services_expansion_rationale_24",
-      "community": 204,
+      "community": 62,
       "norm_label": "spotifyclient is a process-wide singleton that raises if .init() runs twice, so"
     },
     {
@@ -4284,7 +4284,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "backend_app_services_expansion_rationale_48",
-      "community": 204,
+      "community": 62,
       "norm_label": "turn a spotify url (track/album/playlist/artist) or a search term into songs."
     },
     {
@@ -4314,7 +4314,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "valueerror",
-      "community": 11,
+      "community": 45,
       "norm_label": "valueerror"
     },
     {
@@ -5764,7 +5764,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_song_meta",
-      "community": 107,
+      "community": 23,
       "norm_label": "track_song_meta()"
     },
     {
@@ -5864,7 +5864,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_78",
-      "community": 107,
+      "community": 23,
       "norm_label": "title/artists/album straight from a track's `song_json` -- the single field"
     },
     {
@@ -6064,7 +6064,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_track_listing",
-      "community": 11,
+      "community": 45,
       "norm_label": "track_listing.py"
     },
     {
@@ -6074,7 +6074,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_invalidlistparams",
-      "community": 11,
+      "community": 45,
       "norm_label": "invalidlistparams"
     },
     {
@@ -6084,7 +6084,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_list_tracks",
-      "community": 11,
+      "community": 45,
       "norm_label": "list_tracks()"
     },
     {
@@ -6094,7 +6094,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_session",
-      "community": 11,
+      "community": 45,
       "norm_label": "session"
     },
     {
@@ -6104,7 +6104,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_jobsourcetype",
-      "community": 11,
+      "community": 45,
       "norm_label": "jobsourcetype"
     },
     {
@@ -6114,7 +6114,7 @@
       "source_location": "L144",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_key",
-      "community": 11,
+      "community": 45,
       "norm_label": "_sort_key()"
     },
     {
@@ -6124,7 +6124,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_value",
-      "community": 11,
+      "community": 45,
       "norm_label": "_sort_value()"
     },
     {
@@ -6134,7 +6134,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_track",
-      "community": 11,
+      "community": 45,
       "norm_label": "track"
     },
     {
@@ -6144,7 +6144,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_rationale_1",
-      "community": 11,
+      "community": 45,
       "norm_label": "paginated/filtered/sorted/searchable track listing shared by `get /api/tracks` a"
     },
     {
@@ -6364,7 +6364,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_beat",
-      "community": 107,
+      "community": 23,
       "norm_label": "beat.py"
     },
     {
@@ -6374,7 +6374,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_stale_track_after",
-      "community": 107,
+      "community": 23,
       "norm_label": "stale_track_after()"
     },
     {
@@ -6384,7 +6384,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_py_timedelta",
-      "community": 107,
+      "community": 23,
       "norm_label": "timedelta"
     },
     {
@@ -6394,7 +6394,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_reclaim_stale_tracks",
-      "community": 107,
+      "community": 23,
       "norm_label": "_reclaim_stale_tracks()"
     },
     {
@@ -6404,7 +6404,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_dispatch_due_tracks",
-      "community": 107,
+      "community": 23,
       "norm_label": "dispatch_due_tracks()"
     },
     {
@@ -6414,7 +6414,7 @@
       "source_location": "L174",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_archive_due_jobs",
-      "community": 107,
+      "community": 23,
       "norm_label": "archive_due_jobs()"
     },
     {
@@ -6424,7 +6424,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_18",
-      "community": 107,
+      "community": 23,
       "norm_label": "a track stuck in downloading/queued past this long means whatever was supposed t"
     },
     {
@@ -6434,7 +6434,7 @@
       "source_location": "L175",
       "_origin": "ast",
       "id": "backend_app_tasks_beat_rationale_175",
-      "community": 107,
+      "community": 23,
       "norm_label": "hourly (not every 30s like dispatch_due_tracks -- this is housekeeping, and it"
     },
     {
@@ -6554,7 +6554,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_download",
-      "community": 132,
+      "community": 23,
       "norm_label": "download.py"
     },
     {
@@ -6564,7 +6564,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "backend_app_tasks_download_pacing_delay",
-      "community": 132,
+      "community": 23,
       "norm_label": "pacing_delay()"
     },
     {
@@ -6574,7 +6574,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_app_tasks_download_hold",
-      "community": 132,
+      "community": 23,
       "norm_label": "_hold()"
     },
     {
@@ -6584,7 +6584,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_download_py_session",
-      "community": 132,
+      "community": 23,
       "norm_label": "session"
     },
     {
@@ -6594,7 +6594,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_download_py_track",
-      "community": 132,
+      "community": 23,
       "norm_label": "track"
     },
     {
@@ -6604,7 +6604,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_download_py_uuid",
-      "community": 132,
+      "community": 23,
       "norm_label": "uuid"
     },
     {
@@ -6614,7 +6614,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_download_py_datetime",
-      "community": 132,
+      "community": 23,
       "norm_label": "datetime"
     },
     {
@@ -6624,7 +6624,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "backend_app_tasks_download_download_track",
-      "community": 132,
+      "community": 23,
       "norm_label": "download_track()"
     },
     {
@@ -6634,7 +6634,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_app_tasks_download_rationale_30",
-      "community": 132,
+      "community": 23,
       "norm_label": "seconds to wait before this track's download attempt -- a uniform sample from"
     },
     {
@@ -6644,7 +6644,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_app_tasks_download_rationale_55",
-      "community": 132,
+      "community": 23,
       "norm_label": "puts a track back to `waiting` until `scheduled_at` without attempting it."
     },
     {
@@ -6654,7 +6654,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 244,
+      "community": 23,
       "norm_label": "expand.py"
     },
     {
@@ -6664,7 +6664,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_enqueue_pending_tracks",
-      "community": 244,
+      "community": 23,
       "norm_label": "_enqueue_pending_tracks()"
     },
     {
@@ -6674,7 +6674,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_py_job",
-      "community": 244,
+      "community": 23,
       "norm_label": "job"
     },
     {
@@ -6684,7 +6684,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 244,
+      "community": 23,
       "norm_label": "expand_job()"
     },
     {
@@ -6694,7 +6694,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_rationale_17",
-      "community": 244,
+      "community": 23,
       "norm_label": "enqueues `job`'s tracks still `pending`. for a job whose expanded commit landed"
     },
     {
@@ -16198,7 +16198,7 @@
       "source_location": "L349",
       "_origin": "ast",
       "id": "frontend_src_lib_api_jobspage",
-      "community": 175,
+      "community": 1,
       "norm_label": "jobspage"
     },
     {
@@ -16208,7 +16208,7 @@
       "source_location": "L359",
       "_origin": "ast",
       "id": "frontend_src_lib_api_trackspage",
-      "community": 175,
+      "community": 1,
       "norm_label": "trackspage"
     },
     {
@@ -16810,7 +16810,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_ambientfield",
-      "community": 44,
+      "community": 50,
       "norm_label": "$lib/components/ambientfield.svelte"
     },
     {
@@ -16849,71 +16849,171 @@
       "label": "failed",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L24",
+      "source_location": "L47",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_failed",
       "community": 195,
       "norm_label": "failed"
     },
     {
-      "label": "showFailed",
+      "label": "showOlder",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L28",
+      "source_location": "L59",
       "_origin": "ast",
-      "id": "frontend_src_lib_components_incomingjobs_showfailed",
+      "id": "frontend_src_lib_components_incomingjobs_showolder",
       "community": 195,
-      "norm_label": "showfailed"
+      "norm_label": "showolder"
     },
     {
-      "label": "failedOpen",
+      "label": "newestFailed",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L29",
+      "source_location": "L60",
       "_origin": "ast",
-      "id": "frontend_src_lib_components_incomingjobs_failedopen",
+      "id": "frontend_src_lib_components_incomingjobs_newestfailed",
       "community": 195,
-      "norm_label": "failedopen"
+      "norm_label": "newestfailed"
+    },
+    {
+      "label": "olderFailed",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L61",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_incomingjobs_olderfailed",
+      "community": 195,
+      "norm_label": "olderfailed"
+    },
+    {
+      "label": "lostNotice",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L65",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_incomingjobs_lostnotice",
+      "community": 195,
+      "norm_label": "lostnotice"
     },
     {
       "label": "setError()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L34",
+      "source_location": "L74",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_seterror",
       "community": 195,
       "norm_label": "seterror()"
     },
     {
+      "label": "errorFor()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L79",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_incomingjobs_errorfor",
+      "community": 195,
+      "norm_label": "errorfor()"
+    },
+    {
       "label": "handleCancel()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L38",
+      "source_location": "L85",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_handlecancel",
       "community": 195,
       "norm_label": "handlecancel()"
     },
     {
+      "label": "dismissButtons()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L123",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_incomingjobs_dismissbuttons",
+      "community": 195,
+      "norm_label": "dismissbuttons()"
+    },
+    {
+      "label": "keepFocus()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L132",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_incomingjobs_keepfocus",
+      "community": 195,
+      "norm_label": "keepfocus()"
+    },
+    {
       "label": "handleRetry()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L48",
+      "source_location": "L159",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_handleretry",
       "community": 195,
       "norm_label": "handleretry()"
     },
     {
+      "label": "onFocusIn()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L196",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_incomingjobs_onfocusin",
+      "community": 195,
+      "norm_label": "onfocusin()"
+    },
+    {
+      "label": "onFocusOut()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L201",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_incomingjobs_onfocusout",
+      "community": 195,
+      "norm_label": "onfocusout()"
+    },
+    {
+      "label": "restoreFocus()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L220",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_incomingjobs_restorefocus",
+      "community": 195,
+      "norm_label": "restorefocus()"
+    },
+    {
       "label": "isOwn()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L61",
+      "source_location": "L250",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_isown",
       "community": 195,
       "norm_label": "isown()"
+    },
+    {
+      "label": "failedRow()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L344",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_incomingjobs_failedrow",
+      "community": 195,
+      "norm_label": "failedrow()"
+    },
+    {
+      "label": "svelte/reactivity",
+      "file_type": "code",
+      "source_file": "svelte/reactivity",
+      "confidence": "EXTRACTED",
+      "_origin": "ast",
+      "id": "reactivity",
+      "community": 82,
+      "norm_label": "svelte/reactivity"
     },
     {
       "label": "$lib/stores/queue",
@@ -16927,6 +17027,17 @@
       "norm_label": "$lib/stores/queue"
     },
     {
+      "label": "$lib/stores/link",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/link.ts",
+      "confidence": "EXTRACTED",
+      "_origin": "ast",
+      "source_location": "L1",
+      "id": "frontend_src_lib_stores_link",
+      "community": 64,
+      "norm_label": "$lib/stores/link"
+    },
+    {
       "label": "$lib/components/JobRow.svelte",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/JobRow.svelte",
@@ -16934,7 +17045,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_jobrow",
-      "community": 13,
+      "community": 82,
       "norm_label": "$lib/components/jobrow.svelte"
     },
     {
@@ -16944,38 +17055,38 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "frontend_src_lib_components_jobrow_titleisurl",
-      "community": 13,
+      "community": 82,
       "norm_label": "titleisurl"
+    },
+    {
+      "label": "badgeSaysTrack",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/components/JobRow.svelte",
+      "source_location": "L46",
+      "_origin": "ast",
+      "id": "frontend_src_lib_components_jobrow_badgesaystrack",
+      "community": 82,
+      "norm_label": "badgesaystrack"
     },
     {
       "label": "showInFlight",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/JobRow.svelte",
-      "source_location": "L43",
+      "source_location": "L55",
       "_origin": "ast",
       "id": "frontend_src_lib_components_jobrow_showinflight",
-      "community": 13,
+      "community": 82,
       "norm_label": "showinflight"
     },
     {
       "label": "showArchive",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/JobRow.svelte",
-      "source_location": "L44",
+      "source_location": "L56",
       "_origin": "ast",
       "id": "frontend_src_lib_components_jobrow_showarchive",
-      "community": 13,
+      "community": 82,
       "norm_label": "showarchive"
-    },
-    {
-      "label": "svelte/reactivity",
-      "file_type": "code",
-      "source_file": "svelte/reactivity",
-      "confidence": "EXTRACTED",
-      "_origin": "ast",
-      "id": "reactivity",
-      "community": 13,
-      "norm_label": "svelte/reactivity"
     },
     {
       "label": "JobTrackList.svelte",
@@ -16985,7 +17096,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_components_jobtracklist",
-      "community": 13,
+      "community": 82,
       "norm_label": "jobtracklist.svelte"
     },
     {
@@ -16996,7 +17107,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_components_trackrow",
-      "community": 13,
+      "community": 82,
       "norm_label": "$lib/components/trackrow.svelte"
     },
     {
@@ -17007,7 +17118,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_queuecontrols",
-      "community": 64,
+      "community": 82,
       "norm_label": "$lib/components/queuecontrols.svelte"
     },
     {
@@ -17017,7 +17128,7 @@
       "source_location": "L465",
       "_origin": "ast",
       "id": "frontend_src_lib_components_trackrow_group",
-      "community": 13,
+      "community": 82,
       "norm_label": "group()"
     },
     {
@@ -17039,38 +17150,8 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_waterfall",
-      "community": 44,
+      "community": 64,
       "norm_label": "$lib/components/waterfall.svelte"
-    },
-    {
-      "label": "noiseBars",
-      "file_type": "code",
-      "source_file": "frontend/src/lib/components/Waterfall.svelte",
-      "source_location": "L40",
-      "_origin": "ast",
-      "id": "frontend_src_lib_components_waterfall_noisebars",
-      "community": 44,
-      "norm_label": "noisebars"
-    },
-    {
-      "label": "still",
-      "file_type": "code",
-      "source_file": "frontend/src/lib/components/Waterfall.svelte",
-      "source_location": "L65",
-      "_origin": "ast",
-      "id": "frontend_src_lib_components_waterfall_still",
-      "community": 44,
-      "norm_label": "still"
-    },
-    {
-      "label": "clockTime()",
-      "file_type": "code",
-      "source_file": "frontend/src/lib/components/Waterfall.svelte",
-      "source_location": "L67",
-      "_origin": "ast",
-      "id": "frontend_src_lib_components_waterfall_clocktime",
-      "community": 44,
-      "norm_label": "clocktime()"
     },
     {
       "label": "$lib/components/WorkerStatus.svelte",
@@ -17128,7 +17209,7 @@
       "label": "announcement",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/WorkerStatusPill.svelte",
-      "source_location": "L27",
+      "source_location": "L29",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatuspill_announcement",
       "community": 44,
@@ -17145,6 +17226,26 @@
       "norm_label": "index.ts"
     },
     {
+      "label": "LinkState",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/link.ts",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_link_linkstate",
+      "community": 64,
+      "norm_label": "linkstate"
+    },
+    {
+      "label": "link",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/stores/link.ts",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "frontend_src_lib_stores_link_link",
+      "community": 64,
+      "norm_label": "link"
+    },
+    {
       "label": "$lib/stores/progressCache",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/progressCache.ts",
@@ -17152,7 +17253,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_stores_progresscache",
-      "community": 30,
+      "community": 13,
       "norm_label": "$lib/stores/progresscache"
     },
     {
@@ -17162,7 +17263,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_entry",
-      "community": 30,
+      "community": 13,
       "norm_label": "entry"
     },
     {
@@ -17172,7 +17273,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_cache",
-      "community": 30,
+      "community": 13,
       "norm_label": "cache"
     },
     {
@@ -17182,7 +17283,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_storage",
-      "community": 30,
+      "community": 13,
       "norm_label": "storage()"
     },
     {
@@ -17192,7 +17293,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_read",
-      "community": 30,
+      "community": 13,
       "norm_label": "read()"
     },
     {
@@ -17202,7 +17303,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_write",
-      "community": 30,
+      "community": 13,
       "norm_label": "write()"
     },
     {
@@ -17212,7 +17313,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_rememberprogress",
-      "community": 30,
+      "community": 13,
       "norm_label": "rememberprogress()"
     },
     {
@@ -17222,7 +17323,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_forgetprogress",
-      "community": 30,
+      "community": 13,
       "norm_label": "forgetprogress()"
     },
     {
@@ -17232,7 +17333,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_recallprogress",
-      "community": 30,
+      "community": 13,
       "norm_label": "recallprogress()"
     },
     {
@@ -17242,7 +17343,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_clearprogress",
-      "community": 30,
+      "community": 13,
       "norm_label": "clearprogress()"
     },
     {
@@ -17529,7 +17630,7 @@
       "label": "EMPTY_PAGE",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L78",
+      "source_location": "L81",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_empty_page",
       "community": 13,
@@ -17539,7 +17640,7 @@
       "label": "ExpandedJob",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L89",
+      "source_location": "L93",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_expandedjob",
       "community": 13,
@@ -17549,7 +17650,7 @@
       "label": "newExpandedJob()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L98",
+      "source_location": "L102",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_newexpandedjob",
       "community": 13,
@@ -17559,7 +17660,7 @@
       "label": "groupTracksByJob()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L113",
+      "source_location": "L117",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_grouptracksbyjob",
       "community": 13,
@@ -17569,7 +17670,7 @@
       "label": "createQueueStore()",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L128",
+      "source_location": "L132",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_createqueuestore",
       "community": 6,
@@ -17579,7 +17680,7 @@
       "label": "queue",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1369",
+      "source_location": "L1392",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_queue",
       "community": 13,
@@ -17612,7 +17713,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "community": 44,
+      "community": 50,
       "norm_label": "+layout.svelte"
     },
     {
@@ -17632,7 +17733,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_lib_assets_favicon_svg",
-      "community": 44,
+      "community": 50,
       "norm_label": "$lib/assets/favicon.svg"
     },
     {
@@ -17642,7 +17743,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "state",
-      "community": 44,
+      "community": 50,
       "norm_label": "$app/state"
     },
     {
@@ -17659,7 +17760,7 @@
       "label": "load()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+layout.ts",
-      "source_location": "L13",
+      "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_src_routes_layout_load",
       "community": 13,
@@ -17679,7 +17780,7 @@
       "label": "allUsersView",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L46",
+      "source_location": "L48",
       "_origin": "ast",
       "id": "frontend_src_routes_page_allusersview",
       "community": 64,
@@ -17689,7 +17790,7 @@
       "label": "filtersActive",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L48",
+      "source_location": "L50",
       "_origin": "ast",
       "id": "frontend_src_routes_page_filtersactive",
       "community": 64,
@@ -17699,7 +17800,7 @@
       "label": "scopeNoun",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L51",
+      "source_location": "L53",
       "_origin": "ast",
       "id": "frontend_src_routes_page_scopenoun",
       "community": 64,
@@ -17709,7 +17810,7 @@
       "label": "countText",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L52",
+      "source_location": "L54",
       "_origin": "ast",
       "id": "frontend_src_routes_page_counttext",
       "community": 64,
@@ -17719,17 +17820,37 @@
       "label": "clearSearchAndFilters()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L62",
+      "source_location": "L68",
       "_origin": "ast",
       "id": "frontend_src_routes_page_clearsearchandfilters",
       "community": 64,
       "norm_label": "clearsearchandfilters()"
     },
     {
+      "label": "loadMorePage()",
+      "file_type": "code",
+      "source_file": "frontend/src/routes/+page.svelte",
+      "source_location": "L75",
+      "_origin": "ast",
+      "id": "frontend_src_routes_page_loadmorepage",
+      "community": 64,
+      "norm_label": "loadmorepage()"
+    },
+    {
+      "label": "retryQueue()",
+      "file_type": "code",
+      "source_file": "frontend/src/routes/+page.svelte",
+      "source_location": "L91",
+      "_origin": "ast",
+      "id": "frontend_src_routes_page_retryqueue",
+      "community": 64,
+      "norm_label": "retryqueue()"
+    },
+    {
       "label": "focusSubmit()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L66",
+      "source_location": "L96",
       "_origin": "ast",
       "id": "frontend_src_routes_page_focussubmit",
       "community": 64,
@@ -17739,7 +17860,7 @@
       "label": "trackGroups",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L70",
+      "source_location": "L100",
       "_origin": "ast",
       "id": "frontend_src_routes_page_trackgroups",
       "community": 64,
@@ -17749,7 +17870,7 @@
       "label": "url",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L74",
+      "source_location": "L104",
       "_origin": "ast",
       "id": "frontend_src_routes_page_url",
       "community": 64,
@@ -17759,7 +17880,7 @@
       "label": "submitting",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L75",
+      "source_location": "L105",
       "_origin": "ast",
       "id": "frontend_src_routes_page_submitting",
       "community": 64,
@@ -17769,7 +17890,7 @@
       "label": "submitError",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L76",
+      "source_location": "L106",
       "_origin": "ast",
       "id": "frontend_src_routes_page_submiterror",
       "community": 64,
@@ -17779,7 +17900,7 @@
       "label": "onsubmit()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L78",
+      "source_location": "L108",
       "_origin": "ast",
       "id": "frontend_src_routes_page_onsubmit",
       "community": 64,
@@ -17789,17 +17910,27 @@
       "label": "onLogout()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L97",
+      "source_location": "L136",
       "_origin": "ast",
       "id": "frontend_src_routes_page_onlogout",
       "community": 64,
       "norm_label": "onlogout()"
     },
     {
+      "label": "mountedSession",
+      "file_type": "code",
+      "source_file": "frontend/src/routes/+page.svelte",
+      "source_location": "L169",
+      "_origin": "ast",
+      "id": "frontend_src_routes_page_mountedsession",
+      "community": 64,
+      "norm_label": "mountedsession"
+    },
+    {
       "label": "armResyncFallback()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L131",
+      "source_location": "L182",
       "_origin": "ast",
       "id": "frontend_src_routes_page_armresyncfallback",
       "community": 64,
@@ -17809,7 +17940,7 @@
       "label": "resyncFallback()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L137",
+      "source_location": "L188",
       "_origin": "ast",
       "id": "frontend_src_routes_page_resyncfallback",
       "community": 64,
@@ -17819,7 +17950,7 @@
       "label": "connectStream()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L144",
+      "source_location": "L195",
       "_origin": "ast",
       "id": "frontend_src_routes_page_connectstream",
       "community": 64,
@@ -17829,7 +17960,7 @@
       "label": "onAllUsersChange()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L178",
+      "source_location": "L271",
       "_origin": "ast",
       "id": "frontend_src_routes_page_onalluserschange",
       "community": 64,
@@ -17839,7 +17970,7 @@
       "label": "pollWorker()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L195",
+      "source_location": "L288",
       "_origin": "ast",
       "id": "frontend_src_routes_page_pollworker",
       "community": 64,
@@ -17849,7 +17980,7 @@
       "label": "resolve()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L245",
+      "source_location": "L345",
       "_origin": "ast",
       "id": "frontend_src_routes_page_resolve",
       "community": 64,
@@ -17862,7 +17993,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "navigation",
-      "community": 30,
+      "community": 44,
       "norm_label": "$app/navigation"
     },
     {
@@ -17922,7 +18053,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_routes_login_page",
-      "community": 30,
+      "community": 44,
       "norm_label": "+page.svelte"
     },
     {
@@ -20229,7 +20360,7 @@
       "label": "Signal-condition colors \u2014 the semantic core of the system",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L69",
+      "source_location": "L74",
       "_origin": "ast",
       "id": "frontend_src_design_signal_condition_colors_the_semantic_core_of_the_system",
       "community": 5,
@@ -20239,7 +20370,7 @@
       "label": "Amber on chrome: the v40 decision (v39 F10, amendment A5)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L90",
+      "source_location": "L95",
       "_origin": "ast",
       "id": "frontend_src_design_amber_on_chrome_the_v40_decision_v39_f10_amendment_a5",
       "community": 5,
@@ -20249,7 +20380,7 @@
       "label": "Focus",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L119",
+      "source_location": "L127",
       "_origin": "ast",
       "id": "frontend_src_design_focus",
       "community": 5,
@@ -20259,7 +20390,7 @@
       "label": "3. Type system",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L128",
+      "source_location": "L136",
       "_origin": "ast",
       "id": "frontend_src_design_3_type_system",
       "community": 5,
@@ -20269,7 +20400,7 @@
       "label": "Type scale (v42, F12)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L151",
+      "source_location": "L160",
       "_origin": "ast",
       "id": "frontend_src_design_type_scale_v42_f12",
       "community": 5,
@@ -20279,7 +20410,7 @@
       "label": "4. Spacing scale",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L181",
+      "source_location": "L190",
       "_origin": "ast",
       "id": "frontend_src_design_4_spacing_scale",
       "community": 5,
@@ -20289,7 +20420,7 @@
       "label": "Row grid (v41)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L200",
+      "source_location": "L209",
       "_origin": "ast",
       "id": "frontend_src_design_row_grid_v41",
       "community": 5,
@@ -20299,7 +20430,7 @@
       "label": "5. Motion",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L210",
+      "source_location": "L219",
       "_origin": "ast",
       "id": "frontend_src_design_5_motion",
       "community": 5,
@@ -20309,7 +20440,7 @@
       "label": "6. Component patterns",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L234",
+      "source_location": "L243",
       "_origin": "ast",
       "id": "frontend_src_design_6_component_patterns",
       "community": 5,
@@ -20319,7 +20450,7 @@
       "label": "`.panel` \u2014 the raised faceplate (v42; was \"the recessed instrument housing\")",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L236",
+      "source_location": "L245",
       "_origin": "ast",
       "id": "frontend_src_design_panel_the_raised_faceplate_v42_was_the_recessed_instrument_housing",
       "community": 5,
@@ -20329,7 +20460,7 @@
       "label": "Hero-marking border (the \"is anything live\" tell)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L265",
+      "source_location": "L277",
       "_origin": "ast",
       "id": "frontend_src_design_hero_marking_border_the_is_anything_live_tell",
       "community": 5,
@@ -20339,7 +20470,7 @@
       "label": "Waterfall idle status and the link tell (v42, F04/F05)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L278",
+      "source_location": "L291",
       "_origin": "ast",
       "id": "frontend_src_design_waterfall_idle_status_and_the_link_tell_v42_f04_f05",
       "community": 5,
@@ -20349,7 +20480,7 @@
       "label": "Ambient field (`AmbientField.svelte`, v40)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L305",
+      "source_location": "L324",
       "_origin": "ast",
       "id": "frontend_src_design_ambient_field_ambientfield_svelte_v40",
       "community": 5,
@@ -20359,7 +20490,7 @@
       "label": "Worker status pill + settings-page worker controls (`WorkerStatusPill.svelte`, `WorkerStatus.svelte`, `stores/worker.ts`, v25)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L359",
+      "source_location": "L378",
       "_origin": "ast",
       "id": "frontend_src_design_worker_status_pill_settings_page_worker_controls_workerstatuspill_svelte_workerstatus_svelte_stores_worker_ts_v25",
       "community": 5,
@@ -20369,7 +20500,7 @@
       "label": "State \u2192 color/label mapping (`TrackRow.svelte`, v20; formerly `QueueTable.svelte`)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L399",
+      "source_location": "L418",
       "_origin": "ast",
       "id": "frontend_src_design_state_color_label_mapping_trackrow_svelte_v20_formerly_queuetable_svelte",
       "community": 5,
@@ -20379,7 +20510,7 @@
       "label": "Job status \u2192 color/label mapping (`JobRow.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L417",
+      "source_location": "L440",
       "_origin": "ast",
       "id": "frontend_src_design_job_status_color_label_mapping_jobrow_svelte_v20",
       "community": 5,
@@ -20389,7 +20520,7 @@
       "label": "Segmented job progress bar (`JobRow.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L440",
+      "source_location": "L464",
       "_origin": "ast",
       "id": "frontend_src_design_segmented_job_progress_bar_jobrow_svelte_v20",
       "community": 5,
@@ -20399,7 +20530,7 @@
       "label": "Library sweep page (`routes/library/+page.svelte`, v28)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L451",
+      "source_location": "L475",
       "_origin": "ast",
       "id": "frontend_src_design_library_sweep_page_routes_library_page_svelte_v28",
       "community": 5,
@@ -20409,7 +20540,7 @@
       "label": "Sort headers (`QueueControls.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L478",
+      "source_location": "L502",
       "_origin": "ast",
       "id": "frontend_src_design_sort_headers_queuecontrols_svelte_v20",
       "community": 5,
@@ -20419,7 +20550,7 @@
       "label": "Search box (`QueueControls.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L496",
+      "source_location": "L520",
       "_origin": "ast",
       "id": "frontend_src_design_search_box_queuecontrols_svelte_v20",
       "community": 5,
@@ -20429,7 +20560,7 @@
       "label": "Jobs/Tracks scope toggle and archived/all-users toggles (`QueueControls.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L505",
+      "source_location": "L529",
       "_origin": "ast",
       "id": "frontend_src_design_jobs_tracks_scope_toggle_and_archived_all_users_toggles_queuecontrols_svelte_v20",
       "community": 5,
@@ -20439,7 +20570,7 @@
       "label": "Filter tabs",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L513",
+      "source_location": "L541",
       "_origin": "ast",
       "id": "frontend_src_design_filter_tabs",
       "community": 5,
@@ -20449,7 +20580,7 @@
       "label": "Queue panel (v42)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L529",
+      "source_location": "L559",
       "_origin": "ast",
       "id": "frontend_src_design_queue_panel_v42",
       "community": 5,
@@ -20459,7 +20590,7 @@
       "label": "Scope toggle (mine / all users, admin-only, v17)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L545",
+      "source_location": "L578",
       "_origin": "ast",
       "id": "frontend_src_design_scope_toggle_mine_all_users_admin_only_v17",
       "community": 5,
@@ -20469,7 +20600,7 @@
       "label": "Attempt-history fan-out (expand/collapse row detail) (`TrackRow.svelte`)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L554",
+      "source_location": "L587",
       "_origin": "ast",
       "id": "frontend_src_design_attempt_history_fan_out_expand_collapse_row_detail_trackrow_svelte",
       "community": 5,
@@ -20479,7 +20610,7 @@
       "label": "File-download action (`TrackRow.svelte`, v27)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L575",
+      "source_location": "L608",
       "_origin": "ast",
       "id": "frontend_src_design_file_download_action_trackrow_svelte_v27",
       "community": 5,
@@ -20489,7 +20620,7 @@
       "label": "Job-row expansion (`JobRow.svelte`, v20)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L597",
+      "source_location": "L630",
       "_origin": "ast",
       "id": "frontend_src_design_job_row_expansion_jobrow_svelte_v20",
       "community": 5,
@@ -20499,7 +20630,7 @@
       "label": "Page breakpoints (v42, F15/F37)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L616",
+      "source_location": "L649",
       "_origin": "ast",
       "id": "frontend_src_design_page_breakpoints_v42_f15_f37",
       "community": 5,
@@ -20509,7 +20640,7 @@
       "label": "Mobile stacked layout (`TrackRow.svelte`, `JobRow.svelte`, \u2264640px)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L626",
+      "source_location": "L661",
       "_origin": "ast",
       "id": "frontend_src_design_mobile_stacked_layout_trackrow_svelte_jobrow_svelte_640px",
       "community": 5,
@@ -20519,7 +20650,7 @@
       "label": "Command-line submit bar",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L663",
+      "source_location": "L698",
       "_origin": "ast",
       "id": "frontend_src_design_command_line_submit_bar",
       "community": 5,
@@ -20529,7 +20660,7 @@
       "label": "Login \"tuning in\" instrument",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L670",
+      "source_location": "L705",
       "_origin": "ast",
       "id": "frontend_src_design_login_tuning_in_instrument",
       "community": 5,
@@ -20539,7 +20670,7 @@
       "label": "Error / status text",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L678",
+      "source_location": "L713",
       "_origin": "ast",
       "id": "frontend_src_design_error_status_text",
       "community": 5,
@@ -20549,7 +20680,7 @@
       "label": "7. Accessibility (confirmed hard requirement, PRODUCT.md)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L685",
+      "source_location": "L720",
       "_origin": "ast",
       "id": "frontend_src_design_7_accessibility_confirmed_hard_requirement_product_md",
       "community": 5,
@@ -20559,7 +20690,7 @@
       "label": "8. Known, accepted gaps (do not silently \"fix\" without re-reading this section first)",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L702",
+      "source_location": "L737",
       "_origin": "ast",
       "id": "frontend_src_design_8_known_accepted_gaps_do_not_silently_fix_without_re_reading_this_section_first",
       "community": 5,
@@ -20569,7 +20700,7 @@
       "label": "9. Sidecar",
       "file_type": "document",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L713",
+      "source_location": "L748",
       "_origin": "ast",
       "id": "frontend_src_design_9_sidecar",
       "community": 5,
@@ -62182,7 +62313,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1359",
+      "source_location": "L1382",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_canceljob"
@@ -62193,7 +62324,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1363",
+      "source_location": "L1386",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_setjobpriority"
@@ -62204,7 +62335,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1362",
+      "source_location": "L1385",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_bumpjob"
@@ -62215,7 +62346,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1364",
+      "source_location": "L1387",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_archivejobs"
@@ -62226,7 +62357,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1365",
+      "source_location": "L1388",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_unarchivejobs"
@@ -62237,7 +62368,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1360",
+      "source_location": "L1383",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_canceltrack"
@@ -62248,7 +62379,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1361",
+      "source_location": "L1384",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_retrytrack"
@@ -62499,6 +62630,14 @@
     {
       "relation": "imports_from",
       "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "svelte",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
       "source": "frontend_src_lib_components_trackrow",
       "target": "svelte",
@@ -62554,11 +62693,8 @@
     },
     {
       "relation": "imports_from",
-      "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/Waterfall.svelte",
-      "source_location": "L8",
-      "weight": 1.0,
       "source": "frontend_src_lib_components_waterfall",
       "target": "frontend_src_lib_components_countdown",
       "confidence_score": 1.0
@@ -62591,7 +62727,27 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L24",
+      "source_location": "L123",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_components_incomingjobs_dismissbuttons",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L79",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_components_incomingjobs_errorfor",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L47",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs",
       "target": "frontend_src_lib_components_incomingjobs_failed",
@@ -62601,17 +62757,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L29",
+      "source_location": "L370",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs",
-      "target": "frontend_src_lib_components_incomingjobs_failedopen",
+      "target": "frontend_src_lib_components_incomingjobs_failedrow",
       "confidence_score": 1.0
     },
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L38",
+      "source_location": "L85",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs",
       "target": "frontend_src_lib_components_incomingjobs_handlecancel",
@@ -62621,7 +62777,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L48",
+      "source_location": "L159",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs",
       "target": "frontend_src_lib_components_incomingjobs_handleretry",
@@ -62631,7 +62787,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L61",
+      "source_location": "L250",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs",
       "target": "frontend_src_lib_components_incomingjobs_isown",
@@ -62641,7 +62797,79 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L34",
+      "source_location": "L132",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_components_incomingjobs_keepfocus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L65",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_components_incomingjobs_lostnotice",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L60",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_components_incomingjobs_newestfailed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L61",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_components_incomingjobs_olderfailed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "indirect_call",
+      "confidence": "INFERRED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L309",
+      "weight": 1.0,
+      "context": "collection",
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_components_incomingjobs_onfocusin",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "indirect_call",
+      "confidence": "INFERRED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L310",
+      "weight": 1.0,
+      "context": "collection",
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_components_incomingjobs_onfocusout",
+      "confidence_score": 0.5
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L220",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_components_incomingjobs_restorefocus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L74",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs",
       "target": "frontend_src_lib_components_incomingjobs_seterror",
@@ -62651,10 +62879,18 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L28",
+      "source_location": "L59",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs",
-      "target": "frontend_src_lib_components_incomingjobs_showfailed",
+      "target": "frontend_src_lib_components_incomingjobs_showolder",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "frontend_src_lib_stores_link",
       "confidence_score": 1.0
     },
     {
@@ -62663,6 +62899,14 @@
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
       "source": "frontend_src_lib_components_incomingjobs",
       "target": "frontend_src_lib_stores_queue",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source": "frontend_src_lib_components_incomingjobs",
+      "target": "reactivity",
       "confidence_score": 1.0
     },
     {
@@ -62678,7 +62922,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L42",
+      "source_location": "L111",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs_handlecancel",
       "target": "frontend_src_lib_components_incomingjobs_seterror",
@@ -62689,7 +62933,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L53",
+      "source_location": "L170",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs_handleretry",
       "target": "frontend_src_lib_components_incomingjobs_seterror",
@@ -62700,10 +62944,78 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L57",
+      "source_location": "L87",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs_handlecancel",
+      "target": "frontend_src_lib_components_incomingjobs_dismissbuttons",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L108",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs_handlecancel",
+      "target": "frontend_src_lib_components_incomingjobs_keepfocus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L185",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs_handleretry",
       "target": "frontend_src_lib_components_incomingjobs_handlecancel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L139",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs_keepfocus",
+      "target": "frontend_src_lib_components_incomingjobs_dismissbuttons",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
+      "source_location": "L228",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_incomingjobs_restorefocus",
+      "target": "frontend_src_lib_components_incomingjobs_keepfocus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/JobRow.svelte",
+      "source": "frontend_src_lib_components_jobrow",
+      "target": "reactivity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/QueueControls.svelte",
+      "source": "frontend_src_lib_components_queuecontrols",
+      "target": "reactivity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/TrackRow.svelte",
+      "source": "frontend_src_lib_components_trackrow",
+      "target": "reactivity",
       "confidence_score": 1.0
     },
     {
@@ -62805,7 +63117,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L128",
+      "source_location": "L132",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_createqueuestore",
@@ -62825,7 +63137,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L78",
+      "source_location": "L81",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_empty_page",
@@ -62835,7 +63147,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L89",
+      "source_location": "L93",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_expandedjob",
@@ -62855,7 +63167,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L113",
+      "source_location": "L117",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_grouptracksbyjob",
@@ -62905,7 +63217,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L98",
+      "source_location": "L102",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_newexpandedjob",
@@ -62935,7 +63247,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1369",
+      "source_location": "L1392",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_queue",
@@ -63000,10 +63312,64 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/Waterfall.svelte",
+      "source": "frontend_src_lib_components_waterfall",
+      "target": "frontend_src_lib_stores_link",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/link.ts",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_link",
+      "target": "frontend_src_lib_stores_link_link",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/link.ts",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_link",
+      "target": "frontend_src_lib_stores_link_linkstate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/+layout.svelte",
+      "source": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
+      "target": "frontend_src_lib_stores_link",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/+page.svelte",
+      "source": "frontend_src_routes_page",
+      "target": "frontend_src_lib_stores_link",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/JobRow.svelte",
-      "source_location": "L44",
+      "source_location": "L46",
+      "weight": 1.0,
+      "source": "frontend_src_lib_components_jobrow",
+      "target": "frontend_src_lib_components_jobrow_badgesaystrack",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/JobRow.svelte",
+      "source_location": "L56",
       "weight": 1.0,
       "source": "frontend_src_lib_components_jobrow",
       "target": "frontend_src_lib_components_jobrow_showarchive",
@@ -63013,7 +63379,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/JobRow.svelte",
-      "source_location": "L43",
+      "source_location": "L55",
       "weight": 1.0,
       "source": "frontend_src_lib_components_jobrow",
       "target": "frontend_src_lib_components_jobrow_showinflight",
@@ -63040,25 +63406,9 @@
     {
       "relation": "imports_from",
       "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/components/JobRow.svelte",
-      "source": "frontend_src_lib_components_jobrow",
-      "target": "reactivity",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
       "source": "frontend_src_routes_page",
       "target": "frontend_src_lib_components_jobrow",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source": "frontend_src_lib_components_trackrow",
-      "target": "reactivity",
       "confidence_score": 1.0
     },
     {
@@ -63148,36 +63498,6 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/components/Waterfall.svelte",
-      "source_location": "L67",
-      "weight": 1.0,
-      "source": "frontend_src_lib_components_waterfall",
-      "target": "frontend_src_lib_components_waterfall_clocktime",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/components/Waterfall.svelte",
-      "source_location": "L40",
-      "weight": 1.0,
-      "source": "frontend_src_lib_components_waterfall",
-      "target": "frontend_src_lib_components_waterfall_noisebars",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/components/Waterfall.svelte",
-      "source_location": "L65",
-      "weight": 1.0,
-      "source": "frontend_src_lib_components_waterfall",
-      "target": "frontend_src_lib_components_waterfall_still",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "imports_from",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
@@ -63207,7 +63527,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/WorkerStatusPill.svelte",
-      "source_location": "L27",
+      "source_location": "L29",
       "weight": 1.0,
       "source": "frontend_src_lib_components_workerstatuspill",
       "target": "frontend_src_lib_components_workerstatuspill_announcement",
@@ -63443,7 +63763,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1227",
+      "source_location": "L1249",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_stores_progresscache_rememberprogress",
@@ -63454,7 +63774,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1158",
+      "source_location": "L1180",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_stores_progresscache_forgetprogress",
@@ -63465,7 +63785,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L473",
+      "source_location": "L479",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_stores_progresscache_recallprogress",
@@ -63476,7 +63796,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L653",
+      "source_location": "L675",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_stores_progresscache_clearprogress",
@@ -63757,7 +64077,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+layout.ts",
-      "source_location": "L13",
+      "source_location": "L19",
       "weight": 1.0,
       "source": "frontend_src_routes_layout_ts_frontend_src_routes_layout",
       "target": "frontend_src_routes_layout_load",
@@ -63767,7 +64087,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L46",
+      "source_location": "L48",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_allusersview",
@@ -63777,7 +64097,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L131",
+      "source_location": "L182",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_armresyncfallback",
@@ -63787,7 +64107,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L62",
+      "source_location": "L68",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_clearsearchandfilters",
@@ -63797,7 +64117,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L144",
+      "source_location": "L195",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_connectstream",
@@ -63807,7 +64127,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L52",
+      "source_location": "L54",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_counttext",
@@ -63817,7 +64137,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L48",
+      "source_location": "L50",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_filtersactive",
@@ -63827,7 +64147,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L66",
+      "source_location": "L96",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_focussubmit",
@@ -63837,7 +64157,27 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L178",
+      "source_location": "L75",
+      "weight": 1.0,
+      "source": "frontend_src_routes_page",
+      "target": "frontend_src_routes_page_loadmorepage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/+page.svelte",
+      "source_location": "L169",
+      "weight": 1.0,
+      "source": "frontend_src_routes_page",
+      "target": "frontend_src_routes_page_mountedsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/+page.svelte",
+      "source_location": "L271",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_onalluserschange",
@@ -63847,7 +64187,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L97",
+      "source_location": "L136",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_onlogout",
@@ -63857,7 +64197,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L78",
+      "source_location": "L108",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_onsubmit",
@@ -63867,7 +64207,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L195",
+      "source_location": "L288",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_pollworker",
@@ -63877,7 +64217,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L245",
+      "source_location": "L345",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_resolve",
@@ -63887,7 +64227,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L137",
+      "source_location": "L188",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_resyncfallback",
@@ -63897,7 +64237,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L51",
+      "source_location": "L91",
+      "weight": 1.0,
+      "source": "frontend_src_routes_page",
+      "target": "frontend_src_routes_page_retryqueue",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/+page.svelte",
+      "source_location": "L53",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_scopenoun",
@@ -63907,7 +64257,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L76",
+      "source_location": "L106",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_submiterror",
@@ -63917,7 +64267,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L75",
+      "source_location": "L105",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_submitting",
@@ -63927,7 +64277,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L70",
+      "source_location": "L100",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_trackgroups",
@@ -63937,7 +64287,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L74",
+      "source_location": "L104",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_url",
@@ -63964,7 +64314,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L104",
+      "source_location": "L150",
       "weight": 1.0,
       "source": "frontend_src_routes_page_onlogout",
       "target": "frontend_src_routes_page_resolve",
@@ -63975,7 +64325,7 @@
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L134",
+      "source_location": "L185",
       "weight": 1.0,
       "source": "frontend_src_routes_page_armresyncfallback",
       "target": "frontend_src_routes_page_resyncfallback",
@@ -63986,7 +64336,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L186",
+      "source_location": "L279",
       "weight": 1.0,
       "source": "frontend_src_routes_page_onalluserschange",
       "target": "frontend_src_routes_page_armresyncfallback",
@@ -63997,7 +64347,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L167",
+      "source_location": "L260",
       "weight": 1.0,
       "source": "frontend_src_routes_page_connectstream",
       "target": "frontend_src_routes_page_resyncfallback",
@@ -64008,7 +64358,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L187",
+      "source_location": "L280",
       "weight": 1.0,
       "source": "frontend_src_routes_page_onalluserschange",
       "target": "frontend_src_routes_page_connectstream",
@@ -66138,7 +66488,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L128",
+      "source_location": "L136",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_3_type_system",
@@ -66148,7 +66498,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L181",
+      "source_location": "L190",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_4_spacing_scale",
@@ -66158,7 +66508,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L210",
+      "source_location": "L219",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_5_motion",
@@ -66168,7 +66518,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L234",
+      "source_location": "L243",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_6_component_patterns",
@@ -66178,7 +66528,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L685",
+      "source_location": "L720",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_7_accessibility_confirmed_hard_requirement_product_md",
@@ -66188,7 +66538,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L702",
+      "source_location": "L737",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_8_known_accepted_gaps_do_not_silently_fix_without_re_reading_this_section_first",
@@ -66198,7 +66548,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L713",
+      "source_location": "L748",
       "weight": 1.0,
       "source": "frontend_src_design_design_md_spotdl_web_frontend",
       "target": "frontend_src_design_9_sidecar",
@@ -66208,7 +66558,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L90",
+      "source_location": "L95",
       "weight": 1.0,
       "source": "frontend_src_design_2_palette",
       "target": "frontend_src_design_amber_on_chrome_the_v40_decision_v39_f10_amendment_a5",
@@ -66228,7 +66578,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L119",
+      "source_location": "L127",
       "weight": 1.0,
       "source": "frontend_src_design_2_palette",
       "target": "frontend_src_design_focus",
@@ -66238,7 +66588,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L69",
+      "source_location": "L74",
       "weight": 1.0,
       "source": "frontend_src_design_2_palette",
       "target": "frontend_src_design_signal_condition_colors_the_semantic_core_of_the_system",
@@ -66258,7 +66608,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L151",
+      "source_location": "L160",
       "weight": 1.0,
       "source": "frontend_src_design_3_type_system",
       "target": "frontend_src_design_type_scale_v42_f12",
@@ -66268,7 +66618,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L200",
+      "source_location": "L209",
       "weight": 1.0,
       "source": "frontend_src_design_4_spacing_scale",
       "target": "frontend_src_design_row_grid_v41",
@@ -66278,7 +66628,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L305",
+      "source_location": "L324",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_ambient_field_ambientfield_svelte_v40",
@@ -66288,7 +66638,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L554",
+      "source_location": "L587",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_attempt_history_fan_out_expand_collapse_row_detail_trackrow_svelte",
@@ -66298,7 +66648,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L663",
+      "source_location": "L698",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_command_line_submit_bar",
@@ -66308,7 +66658,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L678",
+      "source_location": "L713",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_error_status_text",
@@ -66318,7 +66668,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L575",
+      "source_location": "L608",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_file_download_action_trackrow_svelte_v27",
@@ -66328,7 +66678,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L513",
+      "source_location": "L541",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_filter_tabs",
@@ -66338,7 +66688,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L265",
+      "source_location": "L277",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_hero_marking_border_the_is_anything_live_tell",
@@ -66348,7 +66698,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L597",
+      "source_location": "L630",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_job_row_expansion_jobrow_svelte_v20",
@@ -66358,7 +66708,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L417",
+      "source_location": "L440",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_job_status_color_label_mapping_jobrow_svelte_v20",
@@ -66368,7 +66718,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L505",
+      "source_location": "L529",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_jobs_tracks_scope_toggle_and_archived_all_users_toggles_queuecontrols_svelte_v20",
@@ -66378,7 +66728,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L451",
+      "source_location": "L475",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_library_sweep_page_routes_library_page_svelte_v28",
@@ -66388,7 +66738,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L670",
+      "source_location": "L705",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_login_tuning_in_instrument",
@@ -66398,7 +66748,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L626",
+      "source_location": "L661",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_mobile_stacked_layout_trackrow_svelte_jobrow_svelte_640px",
@@ -66408,7 +66758,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L616",
+      "source_location": "L649",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_page_breakpoints_v42_f15_f37",
@@ -66418,7 +66768,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L236",
+      "source_location": "L245",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_panel_the_raised_faceplate_v42_was_the_recessed_instrument_housing",
@@ -66428,7 +66778,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L529",
+      "source_location": "L559",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_queue_panel_v42",
@@ -66438,7 +66788,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L545",
+      "source_location": "L578",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_scope_toggle_mine_all_users_admin_only_v17",
@@ -66448,7 +66798,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L496",
+      "source_location": "L520",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_search_box_queuecontrols_svelte_v20",
@@ -66458,7 +66808,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L440",
+      "source_location": "L464",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_segmented_job_progress_bar_jobrow_svelte_v20",
@@ -66468,7 +66818,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L478",
+      "source_location": "L502",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_sort_headers_queuecontrols_svelte_v20",
@@ -66478,7 +66828,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L399",
+      "source_location": "L418",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_state_color_label_mapping_trackrow_svelte_v20_formerly_queuetable_svelte",
@@ -66488,7 +66838,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L278",
+      "source_location": "L291",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_waterfall_idle_status_and_the_link_tell_v42_f04_f05",
@@ -66498,7 +66848,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/DESIGN.md",
-      "source_location": "L359",
+      "source_location": "L378",
       "weight": 1.0,
       "source": "frontend_src_design_6_component_patterns",
       "target": "frontend_src_design_worker_status_pill_settings_page_worker_controls_workerstatuspill_svelte_workerstatus_svelte_stores_worker_ts_v25",
@@ -71324,5 +71674,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "f605eec0ee64d36ae65f270c3f06e0ebe43f7df4"
+  "built_at_commit": "7cb75ea20aa0e127a202c2415b736abc8d917909"
 }
