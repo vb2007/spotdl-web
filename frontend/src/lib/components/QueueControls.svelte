@@ -41,8 +41,12 @@
 		document.getElementById('queue-search')?.focus();
 	}
 
-	// A search still waiting when the page goes away (a logout) must not land in the
-	// module-level store after queue.reset() and filter the next identity's queue.
+	// A search still waiting must never land in the module-level store after queue.reset()
+	// and filter the next identity's queue: the page cancels it before a logout's reset,
+	// and unmounting (any other way off the page) cancels it too.
+	export function cancelPendingSearch() {
+		clearTimeout(searchTimer);
+	}
 	$effect(() => () => clearTimeout(searchTimer));
 
 	function onSearchInput(value: string) {

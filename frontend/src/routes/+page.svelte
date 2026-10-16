@@ -106,6 +106,7 @@
 	}
 
 	async function onLogout() {
+		controls?.cancelPendingSearch();
 		await api.logout();
 		// `queue` is a module-level singleton that survives this SPA navigation -- clear it
 		// before leaving, so a different identity logging in on the same tab next can never
@@ -526,12 +527,11 @@
 		text-decoration-color: currentColor;
 	}
 
+	/* Wraps rather than truncating: the tooltip holding the full name is unreachable by
+	   keyboard and touch. */
 	.who {
 		color: var(--text-primary);
-		max-width: 14rem;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
 	}
 
 	.logout {
@@ -868,12 +868,6 @@
 
 		.logout {
 			margin-left: auto;
-		}
-
-		.who {
-			max-width: none;
-			white-space: normal;
-			overflow-wrap: anywhere;
 		}
 
 		.submit {
