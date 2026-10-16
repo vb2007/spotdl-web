@@ -70,6 +70,11 @@ light theme exists or is planned.
 > `--fail-edge` (`#b05154`: 3.87 / 3.32 / 3.17 on `--bg-0/1/2`), not `--fail-dim` (1.5:1). `--fail-dim`
 > stays a fill and segment tone. `/settings`' and `WorkerStatus`' state toggles still edge in
 > `--fail-dim`/`--settled-dim` with full-strength state text; they are v43's (F30).
+>
+> **v43 (2026-10-16, F30):** those toggles are gone. A proxy's state is a word ("in use" in
+> `--settled`, "switched off" in `--text-muted`) beside a plain `.btn` naming the action, and a
+> switched-off row is no longer faded with `opacity: 0.6` (v42's 20-node remainder): its address
+> drops to `--text-muted`. The worker's state is a sentence beside "pause/resume downloads".
 
 ### Signal-condition colors — the semantic core of the system
 
@@ -99,17 +104,17 @@ receiving _right now_, and nothing else. The v39 audit (F10) found it leaking on
 permanent chrome sites. Each now has a verdict. v40 applies only the first row. v42 (`/`) and v43
 (the other routes) apply the rest without re-deciding them.
 
-| Site (F10)                                                                                                                                         | Verdict                                                                                                                                                                                                           | Applied in                                                                                            |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Body glow (`app.css` `body` background)                                                                                                            | **No amber at rest.** Replaced by `AmbientField.svelte`: slate (`--text-muted`) at rest, crossfading to amber (`--signal`) only while `/` shows ≥1 receiving track. Always slate on every other route (see §6)    | **v40**                                                                                               |
-| Global `a` color (`app.css` `a { color: var(--signal) }`)                                                                                          | No amber. Links are `--text-primary` with an underline: the affordance is the underline, not the hue                                                                                                              | v42 ✓                                                                                                 |
-| The `>` prompt (`+page.svelte` `.prompt`)                                                                                                          | `--text-muted` at rest. It may take `--signal` only while a submission is in flight (SENDING…), which is a real transmission                                                                                      | v42 ✓                                                                                                 |
-| Submit / connect / save / add hover-focus glow (`+page.svelte`, `login/+page.svelte`, `/settings` SAVE and ADD, `/account` SAVE, `/library` START) | No amber, and no zero-offset halo. Hover is `--bg-3` with a `--line-bright` → `--text-muted` border; focus is the global `--focus-ring` outline alone (v42: the rest edge is `--line-control`, A2)                | v42 ✓ (`/`) / v43                                                                                     |
-| Pressed option chips (`/settings`, `/account` `.option-group`)                                                                                     | `--line-bright` border with `--text-primary` text: the scope-toggle idiom already in §6, since a pressed setting is a selection, not a signal                                                                     | v43                                                                                                   |
-| Input focus borders (submit, login, settings, account)                                                                                             | No amber border. The global `--focus-ring` outline already marks focus; the border stays `--line` (or `--line-bright`) (v42: `--line-control`, A2)                                                                | v42 ✓ (`/`) / v43                                                                                     |
-| Links at rest and on hover (`.settings-link`/`.back` hover at `--signal-dim`; `.inline-link` `--signal-dim` at rest, `--signal` on hover)          | `.inline-link` at rest follows the global `a` row (`--text-primary` + underline). Every link's hover/focus is `--text-primary`. `--signal-dim` as text is 3.09:1 on the page, so this is a contrast fix too (F09) | v42 (rest colour on every route with A2; hover on `/` and every `.back`) / v43 (`.inline-link` hover) |
-| Idle `/login` needle                                                                                                                               | `--text-muted`, no glow, at rest. Amber with its glow only while sweeping (`submitting`), the one moment the dial is actually tuning                                                                              | v43                                                                                                   |
-| Idle `/library` progress bar                                                                                                                       | `--signal-dim` only while a sweep is running (the existing "happening, but not this session's track" carve-out in §6). A finished run's bar is `--settled-dim`                                                    | v43                                                                                                   |
+| Site (F10)                                                                                                                                         | Verdict                                                                                                                                                                                                           | Applied in                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Body glow (`app.css` `body` background)                                                                                                            | **No amber at rest.** Replaced by `AmbientField.svelte`: slate (`--text-muted`) at rest, crossfading to amber (`--signal`) only while `/` shows ≥1 receiving track. Always slate on every other route (see §6)    | **v40**                                                                                                 |
+| Global `a` color (`app.css` `a { color: var(--signal) }`)                                                                                          | No amber. Links are `--text-primary` with an underline: the affordance is the underline, not the hue                                                                                                              | v42 ✓                                                                                                   |
+| The `>` prompt (`+page.svelte` `.prompt`)                                                                                                          | `--text-muted` at rest. It may take `--signal` only while a submission is in flight (SENDING…), which is a real transmission                                                                                      | v42 ✓                                                                                                   |
+| Submit / connect / save / add hover-focus glow (`+page.svelte`, `login/+page.svelte`, `/settings` SAVE and ADD, `/account` SAVE, `/library` START) | No amber, and no zero-offset halo. Hover is `--bg-3` with a `--line-bright` → `--text-muted` border; focus is the global `--focus-ring` outline alone (v42: the rest edge is `--line-control`, A2)                | v42 ✓ (`/`) / v43 ✓                                                                                     |
+| Pressed option chips (`/settings`, `/account` `.option-group`)                                                                                     | `--line-bright` border with `--text-primary` text: the scope-toggle idiom already in §6, since a pressed setting is a selection, not a signal                                                                     | v43 ✓                                                                                                   |
+| Input focus borders (submit, login, settings, account)                                                                                             | No amber border. The global `--focus-ring` outline already marks focus; the border stays `--line` (or `--line-bright`) (v42: `--line-control`, A2)                                                                | v42 ✓ (`/`) / v43 ✓                                                                                     |
+| Links at rest and on hover (`.settings-link`/`.back` hover at `--signal-dim`; `.inline-link` `--signal-dim` at rest, `--signal` on hover)          | `.inline-link` at rest follows the global `a` row (`--text-primary` + underline). Every link's hover/focus is `--text-primary`. `--signal-dim` as text is 3.09:1 on the page, so this is a contrast fix too (F09) | v42 (rest colour on every route with A2; hover on `/` and every `.back`) / v43 ✓ (`.inline-link` hover) |
+| Idle `/login` needle                                                                                                                               | `--text-muted`, no glow, at rest. Amber with its glow only while sweeping (`submitting`), the one moment the dial is actually tuning                                                                              | v43 ✓                                                                                                   |
+| Idle `/library` progress bar                                                                                                                       | `--signal-dim` only while a sweep is running (the existing "happening, but not this session's track" carve-out in §6). A finished run's bar is `--settled-dim`                                                    | v43 ✓                                                                                                   |
 
 The same test covers sites F10 didn't list (for example `.load-more`'s and QueueControls' hover
 borders at `--signal-dim`): a hover, focus, pressed or selected state is never "receiving", so it
@@ -123,6 +128,13 @@ not chrome, and keeps its color.
 > badge (v20's `cond-live` mapping, v41's row; unchanged here). v41's job and track rows keep their amber (a downloading
 > state, the live bar segment) while the link is down; only the v42 surfaces (Waterfall lanes, the
 > incoming dot, the ambient field) drop it. Aligning the rows is v47's. On the other routes v42 changed only what A2 required (no `--signal-dim` text, so `.inline-link` rests at `--text-primary` and `.back` hovers to it); `.inline-link`'s amber hover and the remaining rows stay v43's.
+
+> **v43 (2026-10-16):** every remaining row is applied (✓) on `/settings`, `/library`, `/account`
+> and `/login`. The `.inline-link` class is gone: in-text links use the global `a`. A pressed option
+> takes `/`'s v42 chip idiom (`--bg-3`, full text, a 2px `--text-muted` floor line) rather than the
+> table's `--line-bright` border, so a pressed option reads the same on every route. On those four
+> routes `--signal` appears only on the login needle while connecting and the `/library` bar while a
+> sweep runs (`--signal-dim`), plus `::selection`.
 
 ### Focus
 
@@ -178,6 +190,12 @@ Weights: `--fw-regular` 400, `--fw-medium` 500, `--fw-strong` 600. Every `font-s
 `app.css`) is one of these. v41's rows and the v43 routes still carry literals from the old ramp
 (most map onto the scale; the off-scale ones are the login dial's 9px ticks and one 14px `0.875rem` in `TrackRow`) and
 migrate in v43/v47. Don't add a size between the steps.
+
+> **v43 (2026-10-16):** migrated in every file v43 touches: the four secondary routes,
+> `WorkerStatus`, the new components and v41's `JobRow`/`TrackRow` (touched for their
+> confirmations). The values were already on the scale except two: the login dial's 9px ticks are
+> now `--fs-label` (11px) and `TrackRow`'s 14px artist/album line is `--fs-detail` (13px), the role
+> this table gives artists.
 
 `.mono` utility class adds `font-variant-numeric: tabular-nums` and `letter-spacing: 0.01em` —
 **any new numeric/timestamp display should use `.mono`, not a bare font-family override**, to get
@@ -377,6 +395,14 @@ because the only cure that stays inside the budget (dithering) costs more than i
 
 ### Worker status pill + settings-page worker controls (`WorkerStatusPill.svelte`, `WorkerStatus.svelte`, `stores/worker.ts`, v25)
 
+> **v43 (2026-10-16, F17/F30/A4):** `WorkerStatus` renders for the admin only (no `isAdmin` prop;
+> `/settings` shows a non-admin the notice instead). The state is a sentence: **Downloads
+> running** (muted), **Downloads paused** (`--fail`, it needs a human) and, beside either,
+> **Holding until 23:20 · resumes in …** (waiting blue, the countdown `aria-hidden`; one `sr-only`
+> status sentence per state). The buttons name their action: pause/resume downloads and, while
+> holding, **release now** (`.btn.danger`). Pause and release ask first; resume doesn't. "Receiver
+> power" and the `aria-pressed` toggle are gone.
+
 The "worker busy elsewhere" indicator above used to live inside one full `WorkerStatus` panel
 rendered on the dashboard for every user, with the pause/resume toggle and breaker-release button
 sitting right alongside it, gated only by `isAdmin` at render time (the server-side `require_admin`
@@ -474,6 +500,16 @@ unannounced to a screen reader.
 
 ### Library sweep page (`routes/library/+page.svelte`, v28)
 
+> **v43 (2026-10-16, F20):** the page now has three states. _No sweep yet_ says so. _Running_ reads
+> "Sweeping · 8 of 136 files" over the `--signal-dim` bar, with the four counts updating live
+> (errors so far are the processed files not filed any of the three ways, since the progress event
+> carries no error count) and a waiting-blue "Live updates lost" line while the stream reconnects.
+> _Finished_ reads "Last sweep finished <date> · took <n>s"; its bar is `--settled-dim`, not amber.
+> The report is four labelled numbers (number first, `--fs-title`), errors in `--fail` only when
+> non-zero; failed files are listed once each under "Not moved" with recovery copy. The fill stays
+> `transform: scaleX()` on `--dur-med`, and the bar is named "Sweep progress". The text below
+> describes v28.
+
 The admin-only sort-and-move sweep gets its own route rather than a modal or an inline panel on
 `/settings` — reachable from the dashboard header's `library` link (`+page.svelte` L147, admin-only
 alongside `settings`) and cross-linked both ways with `/settings`'s "Library sort & move" section,
@@ -561,8 +597,8 @@ or unlabeled icon toggle.
 The controls and the list are one faceplate (`section.queue`, headed by an `h2` "Queue" and the
 list's size, e.g. "7 of 7 jobs" or "Loading…"). The log's own tools sit at the head's right, apart
 from the view controls: **show archived** (a toggle chip) and **clear log**, outlined in
-`--fail-edge` at rest like v41's destructive row actions, so it never reads as one more toggle (its
-confirmation is v43's). Then the find row (scope switch, search, the admin's mine/all users), the
+`--fail-edge` at rest like v41's destructive row actions, so it never reads as one more toggle (it
+asks first since v43; see Confirmation). Then the find row (scope switch, search, the admin's mine/all users), the
 refine row (chips, sort), a divider, and the list or its state:
 
 - **Loading:** three still placeholder rows on the row grid (no shimmer); the head says "Loading…".
@@ -702,6 +738,60 @@ glyph (v42: `--text-muted` at rest, `--signal` only while sending, per §2's F10
 labeled form field with a floating label or a card-style "New Job" affordance. This is the FIRST
 VIEWPORT commitment from the direction contract, shipped as literally described.
 
+### Confirmation (`ConfirmDialog.svelte`, `stores/confirm.ts`, v43, F08)
+
+One confirmation for every destructive or risky action, chosen with the owner over an inline
+two-step: a native modal `<dialog>` (`role="alertdialog"`, named by its title, described by its
+subject and body) mounted once in the layout and driven by `await confirmAction({...})`, which
+resolves `true` only on the destructive button. The top layer makes the page inert and keeps Tab
+inside; focus starts on the **safe** button; Esc, the safe button, a backdrop click and any
+navigation answer `false`; focus returns to the trigger. It is the `.panel` faceplate over a dimmed
+(not blurred) page, entering with a 6px rise on `--dur-med` (none under reduced motion).
+
+Copy follows `clarify`: the title is a question naming the action ("Cancel this job?"), the
+subject is the object as data (a job title, a proxy address, the library folder; mono, wrapping),
+the body says what happens and whether it can be undone, and both buttons name their action
+("keep job" / "cancel job"), never OK/Yes. The destructive button is `.btn.danger`.
+
+Guarded: clear log, a job's cancel, cancel track, remove proxy, start sweep, breaker "release now"
+and worker pause (A4). Resume, archive and unarchive don't ask: they are undoable or safe. A new
+destructive action uses this, never `window.confirm`.
+
+### Secondary pages (v43)
+
+`/settings`, `/library` and `/account` share `SubpageHeader.svelte`: the wordmark and the page
+links (queue, then library and settings for the admin only, then account; the current one is
+`aria-current="page"`, primary text, no underline), then the page's one `h1` in Sans at
+`--fs-title`. There is no eyebrow above the `h1`: the wordmark is the masthead, not a kicker.
+A non-admin is never linked to an admin page. Typing the path gets `AdminOnlyNotice.svelte`, which
+makes no admin request (F17).
+
+The form vocabulary lives in `app.css` so the routes can't drift:
+
+- `.btn` is the one button: `--bg-2`, a `--line-control` edge, mono `--fs-meta`, lowercase verb
+  labels ("save", "add proxy", "start sweep"). Hover is `--bg-3` with a `--text-muted` edge; disabled
+  dims the text (never opacity). `.btn.danger` is outlined in `--fail-edge` with `--fail` text and
+  stays transparent on hover. `.btn.small` is the row-level size.
+- `.form-field` is a persistent `.label`, the control (a `.well`), then a `.field-hint` and a
+  `.field-error` (reserved, `aria-invalid` on the input, `aria-describedby` to both).
+- `.choice-group` is the segmented few-values choice (`aria-pressed` buttons).
+- `.save-row` is a section's save button followed by its `role="status"` state: "Unsaved changes"
+  once the form differs from what was loaded, then "Saved at 14:03" (F31: the old "Saved." never
+  cleared).
+- Validation mirrors the backend's rules (alert bounds, the proxy pattern, non-blank paths and
+  templates) and answers inline before any request; the backend stays the real check.
+- On a coarse pointer every `.btn`, `.choice-group` option, input and nav link is 44px (F32).
+
+`/settings` is one page of five `.panel` sections (worker, output, library, alerts, proxies) with
+an anchor index: a sticky column at ≥1024px that marks the section being read (a `--text-muted`
+rail, never amber), a wrapping row of links below. No sub-routes, so no nginx change (F19). Alerts
+are two groups, "Send an alert when" (each category with a one-line description) and
+"Thresholds" (numbers with their units).
+
+`/account` holds "Signed in" (name, email on the page, the admin's role, **disconnect**) and
+"Preferences", whose first group is log retention. v45's shortcut switch and v46's language
+switch are further groups in Preferences.
+
 ### Login "tuning in" instrument
 
 `login/+page.svelte`'s dial (21 tick marks, every 5th labeled with a fake FM frequency, a sweeping
@@ -709,6 +799,12 @@ needle animated only while `submitting`) is a one-off flourish scoped to the log
 not a reusable component and has no shared token beyond the ones in §2/§3/§4. Do not generalize it
 into a shared "Dial" component unless a second real use case appears; it exists to make "signing
 in" itself read as tuning in a receiver, matching the THESIS.
+
+> **v43 (2026-10-16, F10/F31):** the dial stays. At rest the needle is `--text-muted` with no glow;
+> it takes `--signal` and its glow only while connecting. Under TUNE IN one line says which account
+> to use ("Sign in with your vb2007.hu account. Access is by invitation."). A failed sign-in puts
+> focus back on the password (selected), with one `role="alert"` line. v46's language switch goes
+> beside the ident, outside the dial panel.
 
 ### Error / status text
 
@@ -729,6 +825,9 @@ validation message.
   that looks interactive but lacks the matching ARIA role/state.
 - All decorative-only motion (noise floor, dial ticks, the v40 ambient field) is
   `aria-hidden="true"`.
+- **Secondary pages (v43):** the masthead's `nav[aria-label=Pages]`, then `main#main` holding the
+  page's one `h1` and `h2` sections, each `section` labelled by its heading. `/settings` adds
+  `nav[aria-label="Settings sections"]` (`aria-current="location"` on the section being read).
 - **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →
   `main#main` (the id v45's skip link will target; no `tabindex` on it, since a `tabindex="-1"` container takes focus on any click inside and resets Tab order). One `h1` (the wordmark; its
   name is "spotdl-web"), then `h2`s for Incoming submissions (visually hidden), Active signal and
