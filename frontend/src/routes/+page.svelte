@@ -179,8 +179,20 @@
 	}
 
 	function connectStream() {
-		source = api.createEventSource(allUsersView);
-		source.onopen = () => {
+		const stream = api.createEventSource(allUsersView);
+		source = stream;
+		// v42: the stream belongs to the session it was opened under. If the store is reset
+		// meanwhile (an identity change in another tab, caught by the layout), its events
+		// would refill the next identity's overlays: drop them and stop the stream for good.
+		const session = queue.getResetCount();
+		const outlived = () => {
+			if (queue.getResetCount() === session) return false;
+			stream.close();
+			clearTimeout(streamRetryTimer);
+			return true;
+		};
+		stream.onopen = () => {
+			if (outlived()) return;
 			link.set('live');
 			awaitingResync = false;
 			clearTimeout(resyncFallbackTimer);
@@ -189,18 +201,20 @@
 			// rather than trying to replay whatever happened while disconnected.
 			queue.reload();
 		};
-		source.onmessage = (event) => {
+		stream.onmessage = (event) => {
+			if (outlived()) return;
 			queue.applyEvent(JSON.parse(event.data));
 		};
-		source.onerror = () => {
+		stream.onerror = () => {
+			if (outlived()) return;
 			// Either way the stream is down right now: the browser retrying on its own
 			// (CONNECTING) or given up until the retry below (CLOSED).
 			link.set('reconnecting');
-			if (source?.readyState !== EventSource.CLOSED) {
+			if (stream.readyState !== EventSource.CLOSED) {
 				// Browser is already retrying on its own (readyState === CONNECTING).
 				return;
 			}
-			source.close();
+			stream.close();
 			resyncFallback();
 			streamRetryTimer = setTimeout(connectStream, streamRetryDelayMs);
 			streamRetryDelayMs = Math.min(streamRetryDelayMs * 2, 30_000);

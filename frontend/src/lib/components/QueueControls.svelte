@@ -251,7 +251,7 @@
 				onpointerenter={() => (pointerChips = new Set(visibleChips.map((c) => c.key)))}
 				onpointerleave={() => (pointerChips = null)}
 				role="group"
-				aria-label={$filters.scope === 'jobs' ? 'Filter by status' : 'Filter by track state'}
+				aria-label={$filters.scope === 'jobs' ? 'Filter jobs by status' : 'Filter tracks by state'}
 			>
 				<span class="label" aria-hidden="true">{$filters.scope === 'jobs' ? 'jobs' : 'tracks'}</span
 				>

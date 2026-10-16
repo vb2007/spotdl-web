@@ -291,6 +291,13 @@
 		cursor: pointer;
 		color: inherit;
 	}
+	/* v42: on the raised faceplate a fill doesn't read, so hover underlines the title, as
+	   a track row does. */
+	.toggle:hover .title {
+		text-decoration: underline;
+		text-decoration-color: var(--text-muted);
+		text-underline-offset: 0.2em;
+	}
 
 	.chevron {
 		justify-self: center;

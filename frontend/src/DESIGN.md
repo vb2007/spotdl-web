@@ -35,15 +35,15 @@ light theme exists or is planned.
 
 ### Chassis / ground
 
-| Token            | Hex       | Use                                                                                                                                     |
-| ---------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `--bg-0`         | `#0a0c0e` | Page background, recessed input wells                                                                                                   |
-| `--bg-1`         | `#191e23` | `.panel` surface: the raised faceplate (v42; was `#14181c`)                                                                             |
-| `--bg-2`         | `#1c2227` | A control's fill (buttons, chips). v42: on the `--bg-1` faceplate it is only 1.045:1, so a row's hover is a title underline, not a fill |
-| `--bg-3`         | `#262e34` | Hover/active surface one step brighter than `--bg-2`                                                                                    |
-| `--line`         | `#2b3339` | Default hairline border                                                                                                                 |
-| `--line-bright`  | `#3a444c` | Emphasized border (buttons, major dial ticks, idle waterfall top edge)                                                                  |
-| `--line-control` | `#6a757e` | v42: the border of every neutral control (input, select, button, chip): ≥3:1                                                            |
+| Token            | Hex       | Use                                                                                                                                                  |
+| ---------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--bg-0`         | `#0a0c0e` | Page background, recessed input wells                                                                                                                |
+| `--bg-1`         | `#191e23` | `.panel` surface: the raised faceplate (v42; was `#14181c`)                                                                                          |
+| `--bg-2`         | `#1c2227` | A control's fill (buttons, chips). v42: on the `--bg-1` faceplate it is only 1.045:1, so a job or track row's hover is a title underline, not a fill |
+| `--bg-3`         | `#262e34` | Hover/active surface one step brighter than `--bg-2`                                                                                                 |
+| `--line`         | `#2b3339` | Default hairline border                                                                                                                              |
+| `--line-bright`  | `#3a444c` | Emphasized border (buttons, major dial ticks, idle waterfall top edge)                                                                               |
+| `--line-control` | `#6a757e` | v42: the border of every neutral control (input, select, button, chip): ≥3:1                                                                         |
 
 > **v42 (2026-10-15, F09/A2, owner's choice):** `--line` stays the quiet divider between rows and
 > around panels (1.31:1 on `--bg-1`). A control's edge is `--line-control` instead, which reaches
