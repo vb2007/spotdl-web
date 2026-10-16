@@ -66,8 +66,9 @@
 		const seen = progressEvents;
 		const status = await api.getLibrarySortStatus();
 		// A read issued before a progress event can land after it (a mount or reconnect read
-		// racing a sweep's end): an older "running" snapshot must not undo a newer report.
-		if (progressEvents !== seen && status.state === 'running' && run?.state !== 'running') return;
+		// racing a sweep): it's older than what the stream already said, so it's dropped. The
+		// done event's own re-read is issued after the last event, so it always applies.
+		if (progressEvents !== seen) return;
 		run = status;
 		loadError = '';
 		reportPending = false;
@@ -94,7 +95,7 @@
 			cancelLabel: 'not now'
 		});
 		// A sweep started meanwhile (another tab): this one would only be refused.
-		if (!confirmed || running) return;
+		if (!confirmed || running) return keepFocus(heading);
 		starting = true;
 		error = '';
 		try {
@@ -271,11 +272,11 @@
 								<dd class="mono">{run.moved.toLocaleString()}</dd>
 							</div>
 							<div class="count">
-								<dt>already in library</dt>
+								<dt>duplicates deleted</dt>
 								<dd class="mono">{run.skipped_present.toLocaleString()}</dd>
 							</div>
 							<div class="count">
-								<dt>quarantined</dt>
+								<dt>duplicates quarantined</dt>
 								<dd class="mono">{run.quarantined.toLocaleString()}</dd>
 							</div>
 							<div class="count" class:fail={errorCount > 0}>
@@ -283,7 +284,8 @@
 								<dd class="mono">{errorCount.toLocaleString()}</dd>
 							</div>
 						</dl>
-						{#if !running && run.total === 0}
+						<!-- A crash before the count (errors > 0, total 0) is not "nothing to move". -->
+						{#if !running && run.total === 0 && errorCount === 0}
 							<p class="hint">Nothing to move: no download was waiting to go into the library.</p>
 						{/if}
 					</div>

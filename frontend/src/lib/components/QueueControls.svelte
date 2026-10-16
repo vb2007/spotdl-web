@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
-	import { confirmAction } from '$lib/stores/confirm';
+	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import type { Scope } from '$lib/stores/queue';
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -206,7 +206,8 @@
 			confirmLabel: 'clear log',
 			cancelLabel: 'keep log'
 		});
-		if (!confirmed) return;
+		// Kept or Esc: a switch to tracks scope meanwhile takes "clear log" away.
+		if (!confirmed) return keepFocus(document.getElementById('queue-heading'));
 		await queue.archiveJobs({ allSettled: true });
 	}
 </script>

@@ -377,7 +377,7 @@
 		}
 		if (!PROXY_URL_RE.test(url)) {
 			addProxyError =
-				"That address won't work: it needs a literal IPv4 address, not a hostname, like http://203.0.113.7:8080.";
+				"That address won't work. It needs exactly http(s)://[user:pass@]ipv4[:port]: a literal IPv4 address, letters, digits or _ in the credentials, and no path.";
 			return;
 		}
 		const from = focused();
@@ -428,7 +428,11 @@
 			cancelLabel: 'keep proxy'
 		});
 		// Gone meanwhile (removed in another tab): nothing to remove.
-		if (!confirmed || !proxyList.some((p) => p.id === proxy.id)) return;
+		// Kept, Esc, or gone meanwhile (removed elsewhere): its row may have left, so focus
+		// falls back to the list's heading.
+		if (!confirmed || !proxyList.some((p) => p.id === proxy.id)) {
+			return keepFocus(document.getElementById('proxies-heading'));
+		}
 		proxyBusy = { ...proxyBusy, [proxy.id]: true };
 		proxyMutations += 1;
 		proxiesError = '';

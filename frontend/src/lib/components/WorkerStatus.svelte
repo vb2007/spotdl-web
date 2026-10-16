@@ -72,7 +72,8 @@
 			confirmLabel: 'pause downloads',
 			cancelLabel: 'keep running'
 		});
-		if (!confirmed) return;
+		// Kept or Esc: the trigger may have swapped meanwhile (another tab paused).
+		if (!confirmed) return keepFocus(toggleButton);
 		// The poll is up to 5s old: re-read before deciding. Pausing twice is harmless, so a
 		// failed re-read just falls back to the last poll.
 		await worker.refresh().catch(() => {});
@@ -105,7 +106,8 @@
 			confirmLabel: 'release now',
 			cancelLabel: 'keep holding'
 		});
-		if (!confirmed) return;
+		// Kept or Esc: the hold row (and its button) may have gone meanwhile.
+		if (!confirmed) return keepFocus(toggleButton);
 		// The question can outlive the hold. Releasing then would only reset the failure streak
 		// a fresh run of rate limits is building, delaying the next hold. The poll is up to 5s
 		// old, so re-read first. The release endpoint checks nothing itself, so without a

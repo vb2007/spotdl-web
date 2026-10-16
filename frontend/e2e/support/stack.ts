@@ -63,13 +63,101 @@ if stage.get("paused"):
 hold = stage.get("hold")
 if hold and row.breaker_tripped_until is not None and row.breaker_tripped_until.isoformat() == hold:
     row.breaker_tripped_until = None
-if "failures" in stage:
+# Only over the zero the spec's own release left: a real failure since then is the
+# stack's, not the spec's, and is kept.
+if "failures" in stage and row.consecutive_failures == 0:
     row.consecutive_failures = stage["failures"]
 db.commit()
 `,
 		[readFileSync(WORKER_STAGE_FILE, 'utf8')]
 	);
 	rmSync(WORKER_STAGE_FILE);
+}
+
+/** v43: written just before spec 12 stops `worker-expand`, removed once it is started again,
+ * so only a run killed in between makes the next global setup start it (a worker-expand the
+ * developer stopped on purpose is left alone). */
+const EXPAND_STOPPED_FILE = path.join(AUTH_DIR, 'expand-stopped');
+
+function compose(...args: string[]): string {
+	return execFileSync('docker', ['compose', ...args], {
+		cwd: REPO_ROOT,
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe']
+	}).trim();
+}
+
+export function stopExpandWorker(): void {
+	writeFileSync(EXPAND_STOPPED_FILE, '');
+	compose('stop', 'worker-expand');
+}
+
+/** Starts `worker-expand` again if this suite stopped it, and waits until it's healthy. */
+export async function restartExpandWorker(): Promise<void> {
+	if (!existsSync(EXPAND_STOPPED_FILE)) return;
+	compose('start', 'worker-expand');
+	rmSync(EXPAND_STOPPED_FILE);
+	const deadline = Date.now() + 90_000;
+	while (compose('ps', 'worker-expand', '--format', '{{.Health}}') !== 'healthy') {
+		if (Date.now() > deadline) throw new Error('worker-expand did not come back healthy');
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+	}
+}
+
+/** Anything `worker-expand` is busy with right now (any user's expansion, a library sweep):
+ * stopping it would kill that mid-task. */
+export function expandWorkerBusy(): string[] {
+	const out = stackPython(`
+from sqlalchemy import text
+from app.db import SessionLocal
+db = SessionLocal()
+busy = []
+n = db.execute(text("select count(*) from jobs where state = 'expanding'")).scalar()
+if n:
+    busy.append(f"{n} expanding job(s)")
+if db.execute(text("select count(*) from library_sort_runs where state = 'running'")).scalar():
+    busy.append("a library sweep")
+print("; ".join(busy))
+`);
+	return out ? [out] : [];
+}
+
+/** The one library-sweep report row, as JSON (or 'null'), so a spec that runs a sweep can put
+ * the developer's last report back afterwards. */
+export function snapshotSweepReport(): string {
+	return stackPython(`
+import json
+from app.db import SessionLocal
+from app.models.library_sort_run import LibrarySortRun
+row = SessionLocal().get(LibrarySortRun, 1)
+fields = ("started_at", "finished_at", "total", "processed", "moved", "skipped_present", "quarantined", "errors")
+print(json.dumps(None if row is None else {
+    f: (getattr(row, f).isoformat() if hasattr(getattr(row, f), "isoformat") else getattr(row, f))
+    for f in fields
+}))
+`);
+}
+
+/** Puts a snapshot back, only once the row is idle again (never over a running sweep). */
+export function restoreSweepReport(snapshot: string): void {
+	stackPython(
+		`
+import json, sys
+from datetime import datetime
+from app.db import SessionLocal
+from app.models.library_sort_run import LibrarySortRun
+snap = json.loads(sys.argv[1])
+db = SessionLocal()
+row = db.get(LibrarySortRun, 1)
+if snap is not None and row is not None and row.state.value == "idle":
+    for key, value in snap.items():
+        if key in ("started_at", "finished_at") and value is not None:
+            value = datetime.fromisoformat(value)
+        setattr(row, key, value)
+    db.commit()
+`,
+		[snapshot]
+	);
 }
 
 /** Tracks already in the dev ledger (`downloaded_tracks`, files under `./downloads`), so a job

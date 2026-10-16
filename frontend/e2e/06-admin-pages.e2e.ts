@@ -117,7 +117,7 @@ test.describe('admin', () => {
 			await proxyField.fill('http://proxy.example.com:8080');
 			await px.getByRole('button', { name: 'add proxy', exact: true }).click();
 			await expect(proxyField).toHaveAttribute('aria-invalid', 'true');
-			await expect(px.getByText(/needs a literal IPv4 address/)).toBeVisible();
+			await expect(px.getByText(/^That address won't work/)).toBeVisible();
 			const added = page.waitForResponse(
 				(r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/proxies'
 			);

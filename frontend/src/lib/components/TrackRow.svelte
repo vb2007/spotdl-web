@@ -296,7 +296,8 @@
 			confirmLabel: 'cancel track',
 			cancelLabel: 'keep track'
 		});
-		if (!confirmed) return;
+		// Kept or Esc: "cancel track" may have gone meanwhile (the track settled).
+		if (!confirmed) return keepFocus(rowButton);
 		// A row gone while the question was open has stale props: do nothing, and put focus on
 		// the queue it left rather than <body>.
 		if (destroyed) {

@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import {
 	expect,
 	request,
@@ -10,10 +9,14 @@ import {
 	type Response
 } from '@playwright/test';
 import type { Job, Proxy, WorkerStatus } from '../src/lib/api';
-import { REPO_ROOT } from './support/env';
 import {
 	ADMIN_STATE,
+	expandWorkerBusy,
 	ledgerMisses,
+	restartExpandWorker,
+	restoreSweepReport,
+	snapshotSweepReport,
+	stopExpandWorker,
 	restoreWorker,
 	stackPython,
 	stageWorker,
@@ -38,14 +41,6 @@ const SUBMISSION_TRACKS = {
 	desktop: '08mG3Y1vljYA6bvDt4Wqkj',
 	mobile: '2SiXAy7TuUkycRVbbWDEpo'
 } as const;
-
-function compose(...args: string[]): string {
-	return execFileSync('docker', ['compose', ...args], {
-		cwd: REPO_ROOT,
-		encoding: 'utf8',
-		stdio: ['ignore', 'pipe', 'pipe']
-	}).trim();
-}
 
 /** The suite shares the developer's stack: a worker they paused, or a real hold, is theirs.
  * A test that has to pause or hold the worker skips rather than override or release it. */
@@ -344,7 +339,12 @@ test('remove proxy asks first', async ({ page, baseURL }, testInfo) => {
 
 test('start sweep asks first', async ({ page }) => {
 	// A real sweep: only with nothing waiting to be filed, so it moves no file and archives no
-	// one's jobs on the shared dev stack.
+	// one's jobs on the shared dev stack; never when Matrix is configured, where its "sweep
+	// finished" alert would reach a real room.
+	const alerts = (await (await page.request.get('/api/settings/alerts')).json()) as {
+		configured: boolean;
+	};
+	test.skip(alerts.configured, 'Matrix alerts are configured; a sweep would post to the room');
 	const unfiled = Number(
 		stackPython(`
 from sqlalchemy import text
@@ -353,21 +353,27 @@ print(SessionLocal().execute(text("select count(*) from downloaded_tracks where 
 `)
 	);
 	test.skip(unfiled > 0, `${unfiled} downloads wait to be filed; a sweep would move them`);
-	await page.goto('/library');
-	const start: Guarded = {
-		trigger: page.getByRole('button', { name: 'start sweep', exact: true }),
-		title: 'Start a library sweep?',
-		keep: 'not now',
-		confirm: 'start sweep',
-		sends: call('POST', '/api/library/sort')
-	};
-	await expect(start.trigger).toBeEnabled();
-	await expectCancelDoesNothing(page, start);
-	await confirmPerforms(page, start);
-	// The run reports back over the stream; with nothing new to move it finishes at once, and
-	// the page must land on the finished report even when the stream beat the POST's answer.
-	await expect(page.getByText(/^Last sweep finished/)).toBeVisible({ timeout: 30_000 });
-	await expect(start.trigger).toBeEnabled();
+	// The run replaces the one report row: the developer's last report is put back afterwards.
+	const report = snapshotSweepReport();
+	try {
+		await page.goto('/library');
+		const start: Guarded = {
+			trigger: page.getByRole('button', { name: 'start sweep', exact: true }),
+			title: 'Start a library sweep?',
+			keep: 'not now',
+			confirm: 'start sweep',
+			sends: call('POST', '/api/library/sort')
+		};
+		await expect(start.trigger).toBeEnabled();
+		await expectCancelDoesNothing(page, start);
+		await confirmPerforms(page, start);
+		// The run reports back over the stream; with nothing new to move it finishes at once, and
+		// the page must land on the finished report even when the stream beat the POST's answer.
+		await expect(page.getByText(/^Last sweep finished/)).toBeVisible({ timeout: 30_000 });
+		await expect(start.trigger).toBeEnabled();
+	} finally {
+		restoreSweepReport(report);
+	}
 });
 
 test('cancelling an incoming submission asks first', async ({ page, baseURL }, testInfo) => {
@@ -377,7 +383,10 @@ test('cancelling an incoming submission asks first', async ({ page, baseURL }, t
 	const url = spotifyTrackUrl(id);
 	const admin = await request.newContext({ baseURL, storageState: ADMIN_STATE });
 	let jobId: string | null = null;
-	compose('stop', 'worker-expand');
+	// Stopping it kills whatever it's doing: never while it's busy with someone's work.
+	const busy = expandWorkerBusy();
+	test.skip(busy.length > 0, `worker-expand is busy (${busy.join(', ')}); not stopping it`);
+	stopExpandWorker();
 	try {
 		const created = await admin.post('/api/jobs', { data: { url } });
 		expect(created.status()).toBe(201);
@@ -398,17 +407,10 @@ test('cancelling an incoming submission asks first', async ({ page, baseURL }, t
 		await waitForJob(admin, jobId, (j) => j.status.lifecycle === 'cancelled', 15_000);
 	} finally {
 		try {
-			compose('start', 'worker-expand');
+			await restartExpandWorker();
 		} catch (err) {
 			expect.soft(String(err), 'starting worker-expand again').toBe('');
 		}
-		// The next specs (and the mobile run) expand real submissions: wait until it's back.
-		const deadline = Date.now() + 90_000;
-		const health = () => compose('ps', 'worker-expand', '--format', '{{.Health}}');
-		while (health() !== 'healthy' && Date.now() < deadline) {
-			await new Promise((resolve) => setTimeout(resolve, 2000));
-		}
-		expect.soft(health(), 'worker-expand back and healthy').toBe('healthy');
 		if (jobId) {
 			const job = (await (await admin.get(`/api/jobs/${jobId}`)).json()) as Job;
 			if (job.status.lifecycle !== 'cancelled') await admin.delete(`/api/jobs/${jobId}`);

@@ -505,7 +505,8 @@ unannounced to a screen reader.
 > (errors so far are the processed files not filed any of the three ways, since the progress event
 > carries no error count) and a waiting-blue "Live updates lost" line while the stream reconnects.
 > _Finished_ reads "Last sweep finished <date> · took <n>s"; its bar is `--settled-dim`, not amber.
-> The report is four labelled numbers (number first, `--fs-title`), errors in `--fail` only when
+> The report is four labelled numbers (moved, duplicates deleted, duplicates quarantined, errors: the
+> backend counts a duplicate as one or the other, by the quarantine setting) (number first, `--fs-title`), errors in `--fail` only when
 > non-zero; failed files are listed under "Not filed" with recovery copy, identical rows folded into one
 > entry marked ×n (the count stays the backend's, matching the sweep's alert). The fill stays
 > `transform: scaleX()` on `--dur-med`, and the bar is named "Sweep progress". The text below

@@ -128,12 +128,17 @@
 			title: 'Cancel this submission?',
 			subject: job.source_url,
 			body:
-				'Its link is still being read. Cancelling stops it and cancels its tracks. This ' +
+				'Its link is still being read. Cancelling stops that, and cancels anything it has ' +
+				'already queued. This ' +
 				"can't be undone, but the link can be submitted again.",
 			confirmLabel: 'cancel submission',
 			cancelLabel: 'keep it'
 		});
-		if (!confirmed) return;
+		if (!confirmed) {
+			// Kept or Esc: the row may have left meanwhile (it finished reading or failed).
+			keepFocus('submit');
+			return;
+		}
 		// The question can outlive the reading: once the job has moved into the queue, its
 		// cancel there asks about the job as it now is.
 		const current = jobs.find((j) => j.id === job.id);

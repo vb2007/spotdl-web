@@ -130,7 +130,8 @@
 			confirmLabel: 'cancel job',
 			cancelLabel: 'keep job'
 		});
-		if (!confirmed) return;
+		// Kept or Esc: the cancel button may have gone meanwhile (the job finished).
+		if (!confirmed) return keepFocus(toggleButton);
 		// The row can leave while the question is open (archived by a sweep); its last props
 		// are then stale, so it does nothing, and focus goes to the list it left.
 		if (destroyed) {

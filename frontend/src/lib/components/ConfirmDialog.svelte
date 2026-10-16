@@ -13,11 +13,13 @@
 	// Safari doesn't focus a button on click, so activeElement can't name a pointer trigger;
 	// the last pressed control (recorded in the capture phase, before its own handler asks)
 	// stands in for it.
-	let lastPressed: HTMLElement | null = null;
+	let lastPressed: { el: HTMLElement | null; at: number } = { el: null, at: 0 };
 	$effect(() => {
 		const record = (event: MouseEvent) => {
-			lastPressed =
-				event.target instanceof Element ? event.target.closest<HTMLElement>('button, a') : null;
+			lastPressed = {
+				el: event.target instanceof Element ? event.target.closest<HTMLElement>('button, a') : null,
+				at: performance.now()
+			};
 		};
 		document.addEventListener('click', record, true);
 		return () => document.removeEventListener('click', record, true);
@@ -28,8 +30,12 @@
 	$effect(() => {
 		if (!request || !dialog || !keepButton) return;
 		if (!dialog.open) {
+			// The control just pressed (a click, or Enter/Space, which also click) is the opener;
+			// in Safari focus may still sit elsewhere (an input), so it wins when it's fresh.
 			const active = document.activeElement;
-			trigger = active instanceof HTMLElement && active !== document.body ? active : lastPressed;
+			const pressed = performance.now() - lastPressed.at < 1000 ? lastPressed.el : null;
+			trigger =
+				pressed ?? (active instanceof HTMLElement && active !== document.body ? active : null);
 			dialog.showModal();
 		}
 		// Also on a request that replaced an open one: the safe choice is always first.
@@ -50,7 +56,9 @@
 		trigger = null;
 		// Before the caller's action runs (it resumes on a later microtask), so an action
 		// that removes its own trigger still leaves focus somewhere it can be seen leaving.
-		if (opener?.isConnected) opener.focus();
+		// A trigger that left or was disabled meanwhile can't take focus; each caller then
+		// places it (keepFocus) once its own state settles.
+		if (opener?.isConnected && !(opener as HTMLButtonElement).disabled) opener.focus();
 		current.resolve(confirmed);
 	}
 
