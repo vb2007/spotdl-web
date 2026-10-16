@@ -50,6 +50,8 @@
 
 	/** `then`: where focus goes once the row (and its focused button) is gone. */
 	async function handleCancel(jobId: string, then: 'next-dismiss' | 'submit') {
+		// Where this row's dismiss sits among them, so focus can stay at that place.
+		const position = dismissButtons().findIndex((b) => b.dataset.job === jobId);
 		try {
 			await queue.cancelJob(jobId);
 		} catch (err) {
@@ -61,23 +63,26 @@
 			return;
 		}
 		await tick();
-		keepFocus(then);
+		keepFocus(then, undefined, position);
+	}
+
+	function dismissButtons(): HTMLButtonElement[] {
+		return incomingSection?.isConnected
+			? [...incomingSection.querySelectorAll<HTMLButtonElement>('button[data-act="dismiss"]')]
+			: [];
 	}
 
 	// After a dismiss, the next failed row's own "dismiss" (the same action, so clearing a
 	// pile stays one key); after a cancel or a resubmit, the submit box. Never a different
 	// job's cancel or retry, where a repeated Enter would act on the wrong submission.
-	function keepFocus(then: 'next-dismiss' | 'submit', ownJobId?: string) {
+	function keepFocus(then: 'next-dismiss' | 'submit', ownJobId?: string, position = 0) {
 		if (document.activeElement && document.activeElement !== document.body) return;
-		const scope = incomingSection?.isConnected ? incomingSection : null;
+		const buttons = dismissButtons();
+		// The row that moved into the removed one's place, else the one above it.
+		const atPosition = buttons[Math.max(position, 0)] ?? buttons[buttons.length - 1];
 		const next =
-			(ownJobId &&
-				scope?.querySelector<HTMLButtonElement>(
-					`button[data-act="dismiss"][data-job="${ownJobId}"]`
-				)) ||
-			(then === 'next-dismiss'
-				? scope?.querySelector<HTMLButtonElement>('button[data-act="dismiss"]')
-				: null);
+			(ownJobId && buttons.find((b) => b.dataset.job === ownJobId)) ||
+			(then === 'next-dismiss' ? atPosition : undefined);
 		(next ?? document.getElementById('submit-url'))?.focus();
 	}
 
@@ -300,20 +305,19 @@
 		color: var(--fail);
 	}
 
+	/* The link and owner wrap rather than truncate at every width: the link's tail (the
+	   id) is what tells two failed links apart, and a tooltip is out of reach for keyboard
+	   and touch. */
 	.url {
 		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
 		color: var(--text-dim);
 		font-size: var(--fs-meta);
 	}
 
 	.owner {
 		max-width: 12rem;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
 		color: var(--text-muted);
 		font-size: var(--fs-meta);
 	}
@@ -415,13 +419,8 @@
 			grid-column: 2 / -1;
 		}
 
-		/* With the full width to themselves they wrap: the link's tail is what tells two
-		   failed links apart, and a phone can't open the tooltip. */
-		.row .url,
 		.row .owner {
 			max-width: none;
-			white-space: normal;
-			overflow-wrap: anywhere;
 		}
 
 		.row:not(.summary) .actions,

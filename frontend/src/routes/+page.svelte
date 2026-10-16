@@ -527,9 +527,11 @@
 		text-decoration-color: currentColor;
 	}
 
-	/* Wraps rather than truncating: the tooltip holding the full name is unreachable by
-	   keyboard and touch. */
+	/* Wraps rather than truncating (the tooltip holding the full name is unreachable by
+	   keyboard and touch), within a cap, so a long email-as-name can't squeeze the
+	   masthead's status column off the desktop row. */
 	.who {
+		max-width: 20rem;
 		color: var(--text-primary);
 		overflow-wrap: anywhere;
 	}
@@ -675,6 +677,12 @@
 		align-items: flex-start;
 		gap: var(--space-2);
 		padding: var(--space-6) var(--space-5);
+	}
+
+	/* A searched link or URI is one unbreakable run; it must wrap, not scroll the page. */
+	.state-title,
+	.state-text {
+		overflow-wrap: anywhere;
 	}
 
 	.state-title {
