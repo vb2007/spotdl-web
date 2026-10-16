@@ -369,8 +369,10 @@
 						<button type="button" class="state-action mono" onclick={clearSearchAndFilters}
 							>clear search and filters</button
 						>
-					{:else if $incomingJobs.some((j) => j.state === 'expanding' && j.owner_email === data.session?.email)}
-						<h3 class="state-title">Your link is being read</h3>
+					{:else if $incomingJobs.some((j) => j.state === 'expanding' && (allUsersView || j.owner_email === data.session?.email))}
+						<h3 class="state-title">
+							{allUsersView ? 'A link is being read' : 'Your link is being read'}
+						</h3>
 						<p class="state-text">
 							Its tracks appear here once Spotify has listed them, and each one downloads in the
 							background.

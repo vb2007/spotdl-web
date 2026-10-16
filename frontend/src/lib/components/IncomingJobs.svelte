@@ -166,7 +166,12 @@
 		setTimeout(() => {
 			// Focus went somewhere real, or the user clicked away from a button that still
 			// exists: nothing to restore. A re-created row's button is no longer connected.
-			if (document.activeElement !== document.body || left.isConnected) lastFocus = null;
+			// (Focus moving to another button in this section keeps the memory: its own
+			// focusin has already recorded the new button.)
+			const now = document.activeElement;
+			const inside = now !== null && incomingSection?.contains(now);
+			if ((now !== document.body && !inside) || (now === document.body && left.isConnected))
+				lastFocus = null;
 		});
 	}
 

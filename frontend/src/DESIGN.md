@@ -120,7 +120,9 @@ not chrome, and keeps its color.
 > `.load-more`, the queue controls and JobRow's priority-input focus border. On `/`, `--signal` now
 > appears only on genuinely live things: a receiving lane, an expanding job's dot, the prompt while
 > sending, the live bar segment, `::selection`, and an active or expanding job's
-> badge (v20's `cond-live` mapping, v41's row; unchanged here). On the other routes v42 changed only what A2 required (no `--signal-dim` text, so `.inline-link` rests at `--text-primary` and `.back` hovers to it); `.inline-link`'s amber hover and the remaining rows stay v43's.
+> badge (v20's `cond-live` mapping, v41's row; unchanged here). v41's job and track rows keep their amber (a downloading
+> state, the live bar segment) while the link is down; only the v42 surfaces (Waterfall lanes, the
+> incoming dot, the ambient field) drop it. Aligning the rows is v47's. On the other routes v42 changed only what A2 required (no `--signal-dim` text, so `.inline-link` rests at `--text-primary` and `.back` hovers to it); `.inline-link`'s amber hover and the remaining rows stay v43's.
 
 ### Focus
 
@@ -567,8 +569,8 @@ refine row (chips, sort), a divider, and the list or its state:
 - **Error:** "Couldn't load the queue", the server's own words, and **try again** (`queue.reload()`).
   A failed **load more** is not this state: the loaded rows stay, a "Couldn't load more" line
   appears above the button, and the button retries that page (`page.moreError`).
-- **Empty**, four cases (the fourth: a user's first link still being read reads "Your link is being
-  read", not "empty"): a search or filter miss ("No jobs match "…"" + **clear search and
+- **Empty**, four cases (the fourth: a link still being read reads "Your link is being read", or "A link is
+  being read" in all-users view, not "empty"): a search or filter miss ("No jobs match "…"" + **clear search and
   filters**), the admin's all-users view ("Nobody has anything queued"), and a user's own empty
   queue ("Your queue is empty", what happens to a pasted link, where archived jobs went, and
   **paste a link**, which focuses the submit box).
