@@ -125,7 +125,9 @@
 		if (!confirmed) return keepFocus(heading);
 		// The question named the settings as this page read them on load; if they changed in the
 		// meantime (another tab), it named the wrong consequence: start nothing, say so.
-		const asked = librarySettings;
+		// Left the page while deciding (beforeNavigate answers "no", but not a session reset).
+		if (unmounted) return;
+		const asked = settings;
 		if (asked) {
 			try {
 				const now = await api.getLibrarySettings();
@@ -142,6 +144,7 @@
 			} catch {
 				// Unreadable: the sweep reads the settings itself; go ahead as asked.
 			}
+			if (unmounted) return;
 		}
 		// Started meanwhile (another tab): this one would only be refused. Say so.
 		if (running) {

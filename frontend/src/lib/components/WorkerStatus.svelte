@@ -27,6 +27,11 @@
 	// The pause/resume button. Its branch swaps on every toggle, and the hold row (with
 	// "release now") goes when the hold does, so focus is put back here afterwards.
 	let toggleButton: HTMLButtonElement | undefined = $state();
+	// Left the page during a pre-action re-read: that answer no longer has a page to act for.
+	let gone = false;
+	$effect(() => () => {
+		gone = true;
+	});
 	let now = $state(Date.now());
 
 	const POLL_MS = 5000;
@@ -100,6 +105,7 @@
 		busy = true;
 		const fresh = await worker.refresh().catch(() => null);
 		busy = false;
+		if (gone) return;
 		// Paused meanwhile (another tab): nothing left to do, and the button has swapped.
 		if (fresh?.paused ?? paused) {
 			note = 'Downloads were already paused.';
@@ -146,6 +152,7 @@
 			return;
 		}
 		busy = false;
+		if (gone) return;
 		now = Date.now();
 		// Decided on what this read returned, not the store (a poll may have overtaken it).
 		const freshHold =

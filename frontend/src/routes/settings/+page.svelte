@@ -44,6 +44,13 @@
 		return document.activeElement instanceof HTMLElement ? document.activeElement : null;
 	}
 
+	// The add-proxy error is its own alert, so a field that already has focus needs nothing
+	// more; a press of "add proxy" moves focus back to the field to fix.
+	function focusUnlessFocused(id: string) {
+		const field = document.getElementById(id);
+		if (field && field !== document.activeElement) field.focus();
+	}
+
 	function clockTime(date: Date): string {
 		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
@@ -381,12 +388,12 @@
 		const url = newProxyUrl.trim();
 		if (!url) {
 			addProxyError = 'Paste a proxy address first.';
-			return;
+			return focusUnlessFocused('new-proxy');
 		}
 		if (!PROXY_URL_RE.test(url)) {
 			addProxyError =
 				"That address won't work. It needs exactly http(s)://[user:pass@]ipv4[:port]: a literal IPv4 address, letters, digits or _ in the credentials, and no path.";
-			return;
+			return focusUnlessFocused('new-proxy');
 		}
 		const from = focused();
 		addingProxy = true;

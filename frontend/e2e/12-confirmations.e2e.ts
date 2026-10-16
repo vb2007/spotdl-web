@@ -182,9 +182,9 @@ test('job cancel and cancel track ask first', async ({ page, baseURL }, testInfo
 	// Held by a paused worker they never download, but only a ledger hit is safe if something
 	// went wrong and one did run.
 	expect(ledgerMisses([ids.track, ids.job]), 'cancel tracks are ledger hits').toEqual([]);
-	stageWorker({ paused: true });
-	expect((await admin.post('/api/worker/pause')).ok()).toBe(true);
 	try {
+		stageWorker({ paused: true });
+		expect((await admin.post('/api/worker/pause')).ok()).toBe(true);
 		for (const id of [ids.track, ids.job]) {
 			const response = await admin.post('/api/jobs', { data: { url: spotifyTrackUrl(id) } });
 			expect(response.status()).toBe(201);

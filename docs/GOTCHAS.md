@@ -5057,9 +5057,10 @@ independently-found production bug from the same conversation)
   dispatched once; `download_track`'s gate records a `held` attempt and sets it `waiting` with a
   `scheduled_at`. A spec that waits for `lifecycle === 'active'` times out on a `waiting` job.
 - **Focus return in the confirmation.** The dialog focuses the trigger *before* resolving the
-  promise, so an action that then removes its own trigger (remove proxy, clear log) loses focus
-  visibly rather than leaving it in the closed dialog. `/settings` moves focus to the proxy list's
-  heading after a removal.
+  promise; an action that then removes or disables its own trigger (remove proxy, a job's cancel,
+  pause/resume swapping its button, start sweep) puts focus somewhere sensible itself with
+  `keepFocus()` once its state settles: the proxy list's heading, the row, the new button, the
+  sweep panel.
 - **Native `<dialog>` and Esc.** The `cancel` event is prevented and answered by the same path as
   the safe button, so Esc, the safe button, a backdrop click and a navigation can't diverge on
   the answer or the focus return. The `close` event an answer's own `close()` fires arrives a
@@ -5074,4 +5075,6 @@ independently-found production bug from the same conversation)
   are not: after a *killed* run, setup can't tell the spec's leftover from a change the developer
   made since, and undoes it. Each test also skips rather than
   override a worker that is paused, holding, or about to run real tracks, a stopped worker-expand,
-  configured Matrix, or anything waiting to be filed.
+  configured Matrix, or anything waiting to be filed. Clear log's archive is the one change not
+  staged on disk: global setup's `clearSlate` archives every settled admin job at the start of each
+  run anyway, so a killed run's leftover is the state the next run starts from.

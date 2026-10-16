@@ -12,6 +12,7 @@
 	// Only a 401 says the credentials are wrong; an unreachable server says nothing about them.
 	let credentialsRejected = $state(false);
 	let passwordInput: HTMLInputElement | undefined = $state();
+	let connectButton: HTMLButtonElement | undefined = $state();
 
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -38,11 +39,16 @@
 					? "Couldn't sign in with that email and password. Check both and try again. If they're right, this account may not be invited, or the account service may be down."
 					: 'Could not reach the server. Check your connection and try again.';
 			submitting = false;
-			// v43 (F31): back to the field to fix, not left on CONNECT. The inputs were
-			// disabled while connecting, so wait for them to re-enable first.
+			// v43 (F31): after rejected credentials, back to the field to fix; after a server
+			// that couldn't be reached, back on CONNECT to try again (nothing to fix). The
+			// controls were disabled while connecting, so wait for them to re-enable first.
 			await tick();
-			passwordInput?.focus();
-			passwordInput?.select();
+			if (credentialsRejected) {
+				passwordInput?.focus();
+				passwordInput?.select();
+			} else {
+				connectButton?.focus();
+			}
 		}
 	}
 </script>
@@ -108,7 +114,7 @@
 			/>
 		</label>
 
-		<button type="submit" class="connect" disabled={submitting}>
+		<button type="submit" class="connect" disabled={submitting} bind:this={connectButton}>
 			{submitting ? 'CONNECTING…' : 'CONNECT'}
 		</button>
 
