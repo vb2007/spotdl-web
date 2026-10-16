@@ -112,8 +112,12 @@
 		}
 		submitting = true;
 		submitError = '';
+		// A logout while the POST is in flight resets the store; the created job then belongs
+		// to the previous identity and must not land in the next one's overlay (v42 sweep).
+		const session = queue.getResetCount();
 		try {
 			const job = await api.createJob(url.trim());
+			if (queue.getResetCount() !== session) return;
 			queue.addJob(job);
 			url = '';
 		} catch (err) {

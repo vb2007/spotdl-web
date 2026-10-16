@@ -53,19 +53,26 @@
 	async function handleCancel(jobId: string, then: 'next-dismiss' | 'submit') {
 		// Where this row's dismiss sits among them, so focus can stay at that place.
 		const position = dismissButtons().findIndex((b) => b.dataset.job === jobId);
+		const wasTuning = jobs.some((j) => j.id === jobId && j.state === 'expanding');
+		acting = true;
 		try {
 			await queue.cancelJob(jobId);
 		} catch (err) {
 			const message = err instanceof api.ApiError ? err.message : 'Could not cancel this job.';
 			await tick();
+			acting = false;
 			if (!jobs.some((j) => j.id === jobId)) {
-				// The row left meanwhile (its expansion finished): its error has no row to sit
-				// on, and no other row's button is the right place for focus.
-				lostNotice = `${message} It has moved into the queue below; cancel it there.`;
-				const shown = lostNotice;
-				setTimeout(() => {
-					if (lostNotice === shown) lostNotice = '';
-				}, 10_000);
+				// The row left meanwhile, so its error has no row to sit on, and no other row's
+				// button is the right place for focus. Only a tuning row leaves by moving into
+				// the queue (its expansion finished); a failed row that left was dismissed or
+				// archived elsewhere, so there is nothing left to say about it.
+				if (wasTuning) {
+					lostNotice = `${message} It has moved into the queue below; cancel it there.`;
+					const shown = lostNotice;
+					setTimeout(() => {
+						if (lostNotice === shown) lostNotice = '';
+					}, 10_000);
+				}
 				keepFocus('submit');
 				return;
 			}
@@ -77,6 +84,7 @@
 		}
 		lostNotice = '';
 		await tick();
+		acting = false;
 		keepFocus(then, undefined, position);
 	}
 
@@ -104,8 +112,13 @@
 	 * user would do by pasting it again, in one step. */
 	async function handleRetry(job: Job) {
 		busy = { ...busy, [job.id]: true };
+		// A logout while the POST is in flight resets the store; the new job then belongs to
+		// the previous identity and must not land in the next one's overlay.
+		const session = queue.getResetCount();
 		try {
-			queue.addJob(await api.createJob(job.source_url));
+			const created = await api.createJob(job.source_url);
+			if (queue.getResetCount() !== session) return;
+			queue.addJob(created);
 			resubmitted = { ...resubmitted, [job.id]: true };
 		} catch (err) {
 			setError(job.id, err instanceof api.ApiError ? err.message : 'Could not submit it again.');
@@ -131,6 +144,8 @@
 	// focused button and put focus back on the same row's control, or on the summary
 	// toggle if the row folded away. A row that was removed is keepFocus's job, not this.
 	let lastFocus: { act: string; job: string } | null = null;
+	// True while the user's own cancel/dismiss is in flight: keepFocus places focus then.
+	let acting = false;
 
 	function onFocusIn(event: FocusEvent) {
 		const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-job]');
@@ -154,8 +169,15 @@
 	async function restoreFocus() {
 		await tick();
 		const remembered = lastFocus;
-		if (!remembered || document.activeElement !== document.body) return;
-		if (!jobs.some((j) => j.id === remembered.job) || !incomingSection?.isConnected) return;
+		if (!remembered || acting || document.activeElement !== document.body) return;
+		if (!jobs.some((j) => j.id === remembered.job)) {
+			// A live update removed the focused row (its expansion finished, or another tab
+			// dismissed it): the next dismiss if it was one, else the submit box.
+			lastFocus = null;
+			keepFocus(remembered.act === 'dismiss' ? 'next-dismiss' : 'submit');
+			return;
+		}
+		if (!incomingSection?.isConnected) return;
 		const target =
 			incomingSection.querySelector<HTMLButtonElement>(
 				`button[data-act="${remembered.act}"][data-job="${remembered.job}"]`
