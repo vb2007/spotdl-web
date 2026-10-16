@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { link } from '$lib/stores/link';
@@ -24,11 +25,24 @@
 	};
 
 	let tuning = $derived(jobs.filter((j) => j.state === 'expanding'));
-	// Newest first: the one just submitted is the one the user is looking for.
+	// Newest *failure* first: the one that just failed is the one the user is looking at.
+	// A job has no failure timestamp, so this page records when each failed row first
+	// appeared (a slow artist submitted before a quick bad link fails later, and must not
+	// fold away behind it). Rows already failed on load tie, and fall back to created_at.
+	const failedSeenAt = new SvelteMap<string, number>();
+	$effect(() => {
+		for (const j of jobs) {
+			if (j.state !== 'expanding' && !failedSeenAt.has(j.id)) failedSeenAt.set(j.id, Date.now());
+		}
+	});
 	let failed = $derived(
 		jobs
 			.filter((j) => j.state !== 'expanding')
-			.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+			.sort(
+				(a, b) =>
+					(failedSeenAt.get(b.id) ?? 0) - (failedSeenAt.get(a.id) ?? 0) ||
+					Date.parse(b.created_at) - Date.parse(a.created_at)
+			)
 	);
 
 	// v42 (F27): failed reads pile up (they stay until dismissed), and in the all-users

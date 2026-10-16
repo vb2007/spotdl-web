@@ -42,7 +42,7 @@ light theme exists or is planned.
 | `--bg-2`         | `#1c2227` | A control's fill (buttons, chips). v42: on the `--bg-1` faceplate it is only 1.045:1, so a job or track row's hover is a title underline, not a fill |
 | `--bg-3`         | `#262e34` | Hover/active surface one step brighter than `--bg-2`                                                                                                 |
 | `--line`         | `#2b3339` | Default hairline border                                                                                                                              |
-| `--line-bright`  | `#3a444c` | Emphasized border (buttons, major dial ticks, idle waterfall top edge)                                                                               |
+| `--line-bright`  | `#3a444c` | Emphasized border (major dial ticks, the idle waterfall top edge; v42: no longer a control edge, see `--line-control`)                               |
 | `--line-control` | `#6a757e` | v42: the border of every neutral control (input, select, button, chip): ≥3:1                                                                         |
 
 > **v42 (2026-10-15, F09/A2, owner's choice):** `--line` stays the quiet divider between rows and
@@ -277,7 +277,7 @@ changelog entry without new evidence.
 ### Hero-marking border (the "is anything live" tell)
 
 `Waterfall.svelte`'s top border is neutral (`--line-bright`) by default and switches to
-`--signal-dim` only when `tracks.length > 0` (`.waterfall.live`). This is the concrete embodiment
+`--signal-dim` only when `tracks.length > 0` (`.waterfall.live`; v42: and the link is live). This is the concrete embodiment
 of the amber-exclusivity rule in §2 — the panel itself is the primary visual proof that "live" is
 reserved, not just a color-token comment. **Any future panel that wants to signal "something in me
 is currently active" should use this same neutral→signal-dim border-color swap pattern, not a
@@ -318,7 +318,7 @@ someone else's download, not a stall. The temptation is to reuse `--signal` for 
 there, is alive," but that would spend the one committed live-signal color on a condition that
 isn't live _for this viewer_; the border stays neutral (`.waterfall` without `.live`) and only the
 idle-state text swaps to `"no signal here — worker busy elsewhere"`, still `--text-muted` via
-`.label.dim`, never amber. `--signal` is reserved for _this session's own_ active track, full
+`.label.dim`, never amber. _(v42: that line is now the Waterfall's `.status` word in `--text-dim`, still never amber.)_ `--signal` is reserved for _this session's own_ active track, full
 stop, not "the global worker."
 
 ### Ambient field (`AmbientField.svelte`, v40)

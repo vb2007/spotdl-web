@@ -135,7 +135,6 @@
 
 	async function onLogout() {
 		loggingOut = true;
-		controls?.cancelPendingSearch();
 		try {
 			await api.logout();
 		} catch (err) {

@@ -48,11 +48,8 @@
 	}
 
 	// A search still waiting must never land in the module-level store after queue.reset()
-	// and filter the next identity's queue: the page cancels it before a logout's reset,
-	// and unmounting (any other way off the page) cancels it too.
-	export function cancelPendingSearch() {
-		clearTimeout(searchTimer);
-	}
+	// and filter the next identity's queue: the debounce checks the reset count when it
+	// fires (below), and unmounting cancels it too.
 	$effect(() => () => clearTimeout(searchTimer));
 
 	function onSearchInput(value: string) {
