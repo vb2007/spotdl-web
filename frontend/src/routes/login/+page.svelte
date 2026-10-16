@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { clearProgress } from '$lib/stores/progressCache';
 	import { resolve } from '$app/paths';
@@ -8,6 +9,7 @@
 	let password = $state('');
 	let submitting = $state(false);
 	let errorMessage = $state('');
+	let passwordInput: HTMLInputElement | undefined = $state();
 
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -29,9 +31,13 @@
 			// credential.
 			errorMessage =
 				err instanceof api.ApiError && err.status === 401
-					? 'Invalid credentials.'
+					? "That email and password don't match an invited account. Check both and try again."
 					: 'Could not reach the server. Check your connection and try again.';
 			submitting = false;
+			// v43 (F31): back to the field to fix, not left on CONNECT. The inputs were
+			// disabled while connecting, so wait for them to re-enable first.
+			await tick();
+			passwordInput?.select();
 		}
 	}
 </script>
@@ -40,6 +46,8 @@
 	<title>spotdl-web — sign in</title>
 </svelte:head>
 
+<!-- v46 adds a compact language switch to this page; it goes beside the ident, top right
+     of the stage, outside the dial panel. -->
 <main class="stage">
 	<div class="ident">
 		<span class="label">SPOTDL // WEB</span>
@@ -58,23 +66,31 @@
 			<span class="needle" class:sweeping={submitting}></span>
 		</div>
 
-		<h1 class="mono">TUNE IN</h1>
+		<div class="heading">
+			<h1 class="mono">TUNE IN</h1>
+			<!-- v43 (F31): which account this wants. -->
+			<p class="hint">Sign in with your vb2007.hu account. Access is by invitation.</p>
+		</div>
 
-		<label class="field">
+		<label class="form-field">
 			<span class="label">Email</span>
 			<input
+				class="well"
 				type="email"
 				name="email"
 				autocomplete="email"
 				required
 				bind:value={email}
 				disabled={submitting}
+				aria-describedby="login-error"
 			/>
 		</label>
 
-		<label class="field">
+		<label class="form-field">
 			<span class="label">Password</span>
 			<input
+				bind:this={passwordInput}
+				class="well"
 				type="password"
 				name="password"
 				autocomplete="current-password"
@@ -89,7 +105,8 @@
 			{submitting ? 'CONNECTING…' : 'CONNECT'}
 		</button>
 
-		<p id="login-error" class="error mono" role="alert" aria-live="polite">
+		<!-- One live region: role="alert" alone (it was also aria-live="polite", F31). -->
+		<p id="login-error" class="error" role="alert">
 			{errorMessage}
 		</p>
 	</form>
@@ -149,7 +166,7 @@
 		left: 50%;
 		transform: translateX(-50%);
 		margin-top: 3px;
-		font-size: 0.5625rem;
+		font-size: var(--fs-label);
 		color: var(--text-dim);
 		white-space: nowrap;
 	}
@@ -159,18 +176,21 @@
 		border-left-color: var(--text-dim);
 	}
 
+	/* F10 (the v40 verdict): at rest the needle is muted chrome with no glow. It takes the
+	   amber and its glow only while sweeping, the one moment the dial is really tuning. */
 	.needle {
 		position: absolute;
 		bottom: -1px;
 		left: 0;
 		width: 2px;
 		height: 1.5rem;
-		background: var(--signal);
-		box-shadow: 0 0 6px 1px var(--signal-glow);
+		background: var(--text-muted);
 		transform: translateX(0);
 	}
 
 	.needle.sweeping {
+		background: var(--signal);
+		box-shadow: 0 0 6px 1px var(--signal-glow);
 		animation: sweep 1.4s var(--ease-signal) infinite;
 	}
 
@@ -193,28 +213,27 @@
 		}
 	}
 
+	.heading {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+	}
+
 	h1 {
-		font-size: 0.8125rem;
+		font-size: var(--fs-lead);
+		font-weight: var(--fw-strong);
 		letter-spacing: 0.16em;
+		color: var(--text-primary);
+	}
+
+	.hint {
+		font-size: var(--fs-detail);
 		color: var(--text-muted);
 	}
 
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	input {
-		background: var(--bg-0);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
+	/* The login's inputs are a touch taller than the settings forms': two fields, one task. */
+	.form-field input {
 		padding: var(--space-3);
-		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
-	}
-
-	input:focus-visible {
-		border-color: var(--signal-dim);
 	}
 
 	.connect {
@@ -230,11 +249,10 @@
 		transition: background var(--dur-fast) var(--ease-signal);
 	}
 
-	.connect:hover:not(:disabled),
-	.connect:focus-visible {
+	/* F10: no amber and no halo; focus is the global ring alone. */
+	.connect:hover:not(:disabled) {
 		background: var(--bg-3);
-		border-color: var(--signal);
-		box-shadow: 0 0 12px -2px var(--signal-glow);
+		border-color: var(--text-muted);
 	}
 
 	.connect:disabled {
@@ -245,7 +263,7 @@
 	.error {
 		min-height: 1.25rem;
 		color: var(--fail);
-		font-size: 0.8125rem;
+		font-size: var(--fs-detail);
 		text-align: center;
 	}
 </style>
