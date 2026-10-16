@@ -341,7 +341,7 @@
 			if (wasDownloading && !destroyed) {
 				awaitCancelledAttempt(seenAttempts, [3000, 5000, 7000, 15000, 30000]);
 			}
-			if (wasDownloading && !askedDownloading) {
+			if (wasDownloading && !askedDownloading && queue.getResetCount() === session) {
 				showNotice('Cancelled. It had started downloading; that finishes but stays cancelled.');
 			}
 		} catch (err) {

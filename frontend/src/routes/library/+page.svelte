@@ -123,6 +123,26 @@
 			cancelLabel: 'not now'
 		});
 		if (!confirmed) return keepFocus(heading);
+		// The question named the settings as this page read them on load; if they changed in the
+		// meantime (another tab), it named the wrong consequence: start nothing, say so.
+		const asked = librarySettings;
+		if (asked) {
+			try {
+				const now = await api.getLibrarySettings();
+				librarySettings = now;
+				if (
+					now.library_target_dir !== asked.library_target_dir ||
+					now.library_quarantine_enabled !== asked.library_quarantine_enabled ||
+					now.library_quarantine_dir !== asked.library_quarantine_dir
+				) {
+					error =
+						'The library settings changed while you were deciding. Check them and start again.';
+					return keepFocus(heading);
+				}
+			} catch {
+				// Unreadable: the sweep reads the settings itself; go ahead as asked.
+			}
+		}
 		// Started meanwhile (another tab): this one would only be refused. Say so.
 		if (running) {
 			error = 'A sweep is already running; its progress is below.';
@@ -362,8 +382,8 @@
 						<div class="errors">
 							<h3 class="label">Not filed</h3>
 							<p class="hint">
-								The sweep couldn't file these. Fix the cause and run it again; nothing already in
-								the library was deleted.
+								The sweep hit an error on these. A file it couldn't read or copy stays where it was:
+								fix the cause and run the sweep again. Nothing already in the library was deleted.
 							</p>
 							<ul class="error-list">
 								{#each fileRows as e, i (i)}

@@ -465,7 +465,7 @@
 		// A failed removal disabled the focused button for the request: put focus back on it,
 		// or on the list's heading.
 		await keepFocus(
-			document.querySelector<HTMLElement>(`#proxies button[aria-label="remove ${proxy.url}"]`) ??
+			document.querySelector<HTMLElement>(`#proxies button[data-remove="${proxy.id}"]`) ??
 				document.getElementById('proxies-heading')
 		);
 	}
@@ -932,6 +932,7 @@
 												class="btn small danger"
 												disabled={proxyBusy[proxy.id]}
 												aria-label="remove {proxy.url}"
+												data-remove={proxy.id}
 												onclick={() => removeProxy(proxy)}
 											>
 												remove

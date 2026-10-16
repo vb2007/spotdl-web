@@ -374,6 +374,8 @@ test('start sweep asks first', async ({ page }) => {
 		configured: boolean;
 	};
 	test.skip(alerts.configured, 'Matrix alerts are configured; a sweep would post to the room');
+	// A track that finishes downloading between the check below and the sweep would be moved.
+	await requireQuietWorker(page.request);
 	const unfiled = Number(
 		stackPython(`
 from sqlalchemy import text
