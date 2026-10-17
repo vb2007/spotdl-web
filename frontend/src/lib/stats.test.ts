@@ -3,6 +3,7 @@ import type { AdminStats, BreakerEvent } from '$lib/api';
 import {
 	axisPosition,
 	bucketHeld,
+	bucketLabel,
 	errorTypeCondition,
 	errorTypeLabel,
 	failurePeak,
@@ -106,6 +107,28 @@ describe('holdSpans', () => {
 		const spans = holdSpans(stats([trip(2, 1), trip(10, 2), release(11, true)]));
 		expect(spans.map((s) => s.manual)).toEqual([false, true]);
 		expect(spans[0].to).toBeCloseTo(3 / 24);
+	});
+});
+
+describe('a hold over before the window', () => {
+	it('is not drawn, even when its scheduled end reaches into the window', () => {
+		// Tripped 1h before the window for 6h, released 30m before it.
+		expect(holdSpans(stats([trip(-1, 6), release(-0.5, true)]))).toEqual([]);
+	});
+});
+
+describe('bucketLabel', () => {
+	it("labels on the response's own clock, whatever the browser's zone", () => {
+		// Budapest in summer (+120): the day bucket for Oct 16 starts at 22:00Z on Oct 15.
+		const s = stats([], {
+			window: '7d',
+			bucket_seconds: 86400,
+			utc_offset_minutes: 120,
+			failures: { buckets: ['2026-10-15T22:00:00Z'], series: [] }
+		});
+		expect(bucketLabel(s, '2026-10-15T22:00:00Z', true)).toMatch(/16/);
+		const hourly = stats([], { utc_offset_minutes: 120 });
+		expect(bucketLabel(hourly, '2026-10-16T10:00:00Z', true)).toMatch(/^12:00/);
 	});
 });
 

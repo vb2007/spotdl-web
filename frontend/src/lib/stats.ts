@@ -99,6 +99,9 @@ export function holdSpans(stats: AdminStats): HoldSpan[] {
 			endedAt = release.occurred_at;
 			manual = release.manual;
 		}
+		// Over before the window began (e.g. released early, before it): nothing to draw, and
+		// the one-bucket minimum width would otherwise paint it into the first bucket.
+		if (Date.parse(endedAt) <= Date.parse(stats.window_start)) return;
 		const ongoing = !manual && Date.parse(endedAt) > generated;
 		spans.push({
 			from: axisPosition(stats, event.occurred_at),
@@ -123,24 +126,28 @@ export function bucketHeld(stats: AdminStats, spans: HoldSpan[], index: number):
 	return spans.some((span) => span.from < to && span.to > from);
 }
 
-/** Axis tick labels: every bucket gets a full label (tooltip, table); the axis shows only
- * every `step`th, so a 30-day or 24-hour row never crowds. */
+/** A bucket's label, read on the clock the buckets were cut on (the offset the page sent),
+ * not the browser's own zone: across a DST change that zone's offset differs for the older
+ * buckets, and a day bucket would be labelled with the day before (review round 1). The
+ * axis shows only every `axisTickEvery`th label; the tooltip and the table show each one. */
 export function bucketLabel(stats: AdminStats, iso: string, long = false): string {
-	const date = new Date(iso);
+	const shift = stats.utc_offset_minutes * 60_000;
+	const date = new Date(Date.parse(iso) + shift);
+	const utc = { timeZone: 'UTC' } as const;
 	if (stats.bucket_seconds < 86400) {
 		// The axis says "6 AM" / "06"; the tooltip and table give the full range.
-		if (!long) return date.toLocaleTimeString([], { hour: 'numeric' });
-		const hour = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		if (!long) return date.toLocaleTimeString([], { ...utc, hour: 'numeric' });
+		const hour = date.toLocaleTimeString([], { ...utc, hour: '2-digit', minute: '2-digit' });
 		const next = new Date(date.getTime() + stats.bucket_seconds * 1000);
-		return `${hour}–${next.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+		return `${hour}–${next.toLocaleTimeString([], { ...utc, hour: '2-digit', minute: '2-digit' })}`;
 	}
 	return date.toLocaleDateString(
 		[],
 		long
-			? { weekday: 'short', month: 'short', day: 'numeric' }
+			? { ...utc, weekday: 'short', month: 'short', day: 'numeric' }
 			: stats.failures.buckets.length <= 7
-				? { weekday: 'short', day: 'numeric' }
-				: { month: 'short', day: 'numeric' }
+				? { ...utc, weekday: 'short', day: 'numeric' }
+				: { ...utc, month: 'short', day: 'numeric' }
 	);
 }
 

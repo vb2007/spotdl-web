@@ -33,6 +33,7 @@ from app.models import (
     TrackState,
     WorkerState,
 )
+from app.services.retry import BREAKER_TRIP_DELAYS
 from app.services.serializers import _proxy_label
 
 # window -> (bucket length, bucket count)
@@ -246,14 +247,20 @@ def admin_stats(
     }
 
     # --- breaker history -------------------------------------------------------------
-    # The window's events, plus a trip from before it whose pause reaches into it, so a
-    # pause running across the window's start still draws.
+    # The window's events, plus a trip from before it whose pause reaches into it (so a
+    # pause running across the window's start still draws), plus the releases that could
+    # have ended such a trip early: one can't be older than the longest step before `start`.
     trip_kinds = (BreakerEventKind.TRIPPED, BreakerEventKind.ESCALATED)
+    longest_step = max(BREAKER_TRIP_DELAYS)
     event_rows = db.execute(
         select(BreakerEvent)
         .where(
             (BreakerEvent.occurred_at >= start)
             | (BreakerEvent.kind.in_(trip_kinds) & (BreakerEvent.paused_until > start))
+            | (
+                (BreakerEvent.kind == BreakerEventKind.RELEASED)
+                & (BreakerEvent.occurred_at >= start - longest_step)
+            )
         )
         .order_by(BreakerEvent.occurred_at)
     ).scalars().all()

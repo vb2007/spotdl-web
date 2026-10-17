@@ -284,6 +284,25 @@ def test_breaker_history_includes_a_pause_reaching_into_the_window(db_session, s
     assert breaker["trips"] == 1
 
 
+def test_a_straddling_trip_released_before_the_window_comes_with_its_release(db_session, now):
+    """Review round 1: a trip from before the window whose scheduled pause reaches into it,
+    but which the admin released before the window began, must arrive with that release,
+    or the page draws hours of hold that never happened."""
+    start = now.replace(minute=0) - timedelta(hours=23)
+    db_session.add_all([
+        BreakerEvent(kind=BreakerEventKind.TRIPPED, occurred_at=start - timedelta(hours=1),
+                     step_seconds=6 * 3600, trip_count=3, paused_until=start + timedelta(hours=5)),
+        BreakerEvent(kind=BreakerEventKind.RELEASED, occurred_at=start - timedelta(minutes=30),
+                     manual=True),
+        # Older than any step could reach: never needed, never sent.
+        BreakerEvent(kind=BreakerEventKind.RELEASED, occurred_at=start - timedelta(hours=7)),
+    ])
+    db_session.commit()
+
+    events = stats.admin_stats(db_session, "24h", now)["breaker"]["events"]
+    assert [(e["kind"], e["manual"]) for e in events] == [("tripped", False), ("released", True)]
+
+
 def test_current_breaker_state(db_session, now):
     from app.models import WorkerState
 
