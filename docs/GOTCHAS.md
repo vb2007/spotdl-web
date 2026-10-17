@@ -652,6 +652,12 @@ needed" claim — rather than silently deleted.
   route leaves root-owned `.svelte-kit/types` (chown it in the container) → *v44*
 - `/stats` windows are whole buckets ending with the current partial one: "Last 7 days" at 00:05
   is 6 days and 5 minutes, not 168 hours → *v44*
+- Enter/Space on a button also fire `click` (`detail` 0): a "last clicked control" heuristic must
+  ignore them, or a fast keyboard user's next dialog returns focus to the wrong control → *v45*
+- An `{@attach}` on a list can run before its `{#each}` rows exist; anything it does to the rows
+  (focus restore) must retry on the next mutation → *v45*
+- The queue store patches a row that stops matching the filter in place, never drops it; only
+  archive (archived hidden) removes a row from the list → *v45*
 
 **Testing & verification technique**
 - GitGuardian flags a plausible-looking `scheme://user:pass@host` literal in a test and rescans
@@ -867,6 +873,11 @@ needed" claim — rather than silently deleted.
   `waiting`, not `pending`. No network either way → *v43*
 - axe reads a dialog's colours mid entry-fade as a contrast failure; read it after the animation
   → *v43*
+
+- Playwright's keyboard is US-only: emulate Hungarian keys over CDP (`huPress`); a real layout
+  pass is Xvfb + `setxkbmap hu` + XTest via `uv run --with python-xlib` → *v45*
+- Keyboard e2e races: wait for an open job's tracks before `→`, for a reload before `j`, and for
+  the URL before reading `h1` after a navigation → *v45*
 
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
@@ -5158,3 +5169,32 @@ independently-found production bug from the same conversation)
   `frontend/.svelte-kit/types/src/routes/<route>/`**, and `npm run check` fails with `EACCES`.
   `docker compose exec -T web chown -R 1000:1000 .svelte-kit` fixes it (the v28 entry's `rm`
   needs the parent writable).
+
+### v45 keyboard-navigation gotchas
+
+- **A keyboard Enter or Space on a button also fires `click`,** with `event.detail === 0`. v43's
+  `ConfirmDialog` guessed its opener from "the control clicked in the last second" (Safari doesn't
+  focus a clicked button), so a fast keyboard user who confirmed one question and opened another
+  within a second got focus handed back to the first dialog's button. Only a pointer click
+  (`detail > 0`) counts now, and any `keydown` forgets it.
+- **A Svelte `{@attach}` on a list can run before its `{#each}` rows exist.** The roving list's
+  "take focus back after a remount" ran once at attach time, found no rows, and gave up; a reload
+  (which swaps the list for its skeleton) then dropped focus to `<body>`. The claim now waits for
+  the rows (the `MutationObserver`'s next settle and a microtask).
+- **The queue store never drops a row that stops matching the filter.** `patchPageJob` (and the
+  tracks-scope patch) only update an in-page row in place; a cancelled job stays under a "waiting"
+  chip until the next reload. So of the plan's "row removed by cancel, archive or an SSE update",
+  only archive (with archived hidden) removes a row today; `lists.ts` handles any removal.
+- **Playwright's keyboard always maps through a US layout.** Emulate Hungarian keys with trusted
+  CDP `Input.dispatchKeyEvent` (`e2e/support/keyboard.ts`'s `huPress`); Ctrl+Alt there (Windows'
+  AltGr) types no text on Linux, so emulation proves "fires nothing", not "types `@`". The real
+  layout pass needs an X server with `setxkbmap hu` and physical keycodes through XTest; there's no
+  `xdotool` on this machine, but `uv run --with python-xlib` does it (XKB key names → keycodes from
+  `xkbcomp -xkb $DISPLAY -`).
+- **A keyboard e2e step races the page in three places:** `→` on a job whose tracks are still
+  "Loading tracks…" does nothing (wait for the nested rows); `j` while a filter or sort change is
+  reloading the list finds no list; and `page.locator('h1')` resolves the *old* page's `h1` until a
+  navigation lands (wait for the URL or the heading text first).
+- **The dev stack's e2e admin has one unarchived job after global setup** (`clearSlate` archives
+  the rest), so a spec needing a neighbour row or several filter chips must create a row (a ledger
+  track) or show archived first.
