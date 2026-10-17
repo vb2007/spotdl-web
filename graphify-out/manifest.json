@@ -315,13 +315,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/proxies.py": {
-    "mtime": 1791984800.0387044,
-    "ast_hash": "d3a4082e355b491db6932ca23ecbd27f",
+    "mtime": 1792260065.941719,
+    "ast_hash": "9747cc6c42a34a041359cf3b5f65172f",
     "semantic_hash": ""
   },
   "backend/tests/test_proxies.py": {
-    "mtime": 1791984800.0389717,
-    "ast_hash": "3cb154fc609e94d740d5ac44dc887d46",
+    "mtime": 1792260065.9418743,
+    "ast_hash": "4f714567f9ca921964064a9fa4a64b67",
     "semantic_hash": ""
   },
   "backend/app/routers/stream.py": {
@@ -470,8 +470,8 @@
     "semantic_hash": ""
   },
   "backend/app/routers/proxies.py": {
-    "mtime": 1786403605.3159857,
-    "ast_hash": "0bf0ad28b75bf302dc3f5654a684e3f8",
+    "mtime": 1792259609.8341289,
+    "ast_hash": "4c2f26a494f2f2de4194becb40c2d3af",
     "semantic_hash": ""
   },
   "backend/app/routers/settings.py": {
@@ -490,8 +490,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_proxies_router.py": {
-    "mtime": 1786403605.3159857,
-    "ast_hash": "3201ad29ae5ca7b4868654088ace678b",
+    "mtime": 1792259649.6801455,
+    "ast_hash": "1078703174252e8cb5af1dfc6993fdd7",
     "semantic_hash": ""
   },
   "backend/tests/test_settings_router.py": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792235644.236025,
-    "ast_hash": "181c09f74c931e62f0e5b48c5e18b810",
+    "mtime": 1792260065.9430125,
+    "ast_hash": "dacd29cb9b1c620fc488d2ca508412ea",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -980,8 +980,8 @@
     "semantic_hash": ""
   },
   "plan/master-v4/00-master-plan.md": {
-    "mtime": 1792235652.998106,
-    "ast_hash": "bc5a7a44bac977af4144024324356ce6",
+    "mtime": 1792259845.6947842,
+    "ast_hash": "c4c6f25a7f1532265e8acd6bb48288ae",
     "semantic_hash": ""
   },
   "plan/master-v4/IMPLEMENTATION_PROMPT.md": {
