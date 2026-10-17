@@ -85,56 +85,56 @@
 	onpointerdown={onPointerDown}
 	onclick={onBackdrop}
 >
-	{#if $helpOpen}
-		<div class="box">
-			<header class="head">
-				<h2 id="help-title" class="title">Keyboard shortcuts</h2>
-				<button
-					type="button"
-					class="btn small"
-					bind:this={closeButton}
-					onclick={() => helpOpen.set(false)}>close</button
-				>
-			</header>
-			<p id="help-layout" class="note">
-				Keys as they sit on a Hungarian keyboard. A symbol shows the keys that type it there; on a
-				US keyboard <kbd>?</kbd> and <kbd>/</kbd> are where you expect them.
+	<!-- Always rendered (a closed dialog shows nothing), so "close" exists to take focus the
+	     moment it opens. -->
+	<div class="box">
+		<header class="head">
+			<h2 id="help-title" class="title">Keyboard shortcuts</h2>
+			<button
+				type="button"
+				class="btn small"
+				bind:this={closeButton}
+				onclick={() => helpOpen.set(false)}>close</button
+			>
+		</header>
+		<p id="help-layout" class="note">
+			Keys as they sit on a Hungarian keyboard. A symbol shows the keys that type it there; on a US
+			keyboard <kbd>?</kbd> and <kbd>/</kbd> are where you expect them.
+		</p>
+		{#if !$shortcutsEnabled && signedIn}
+			<p class="note off" role="status">
+				Single-key shortcuts are off. Tab, the arrows, Enter, Space and Esc still work. Turn them
+				back on in <a href={resolve('/account')}>account</a>.
 			</p>
-			{#if !$shortcutsEnabled && signedIn}
-				<p class="note off" role="status">
-					Single-key shortcuts are off. Tab, the arrows, Enter, Space and Esc still work. Turn them
-					back on in <a href={resolve('/account')}>account</a>.
-				</p>
-			{/if}
+		{/if}
 
-			<div class="groups">
-				{#each groups as { group, bindings } (group)}
-					<section class="group" aria-labelledby="help-group-{group}">
-						<h3 id="help-group-{group}" class="label">{GROUP_TITLE[group]}</h3>
-						<dl class="list">
-							{#each bindings as binding (binding.id)}
-								<div class="entry" data-binding={binding.id}>
-									<dt class="keys">
-										{#if binding.prefix}
-											<kbd>{binding.prefix}</kbd><span class="then">then</span>
+		<div class="groups">
+			{#each groups as { group, bindings } (group)}
+				<section class="group" aria-labelledby="help-group-{group}">
+					<h3 id="help-group-{group}" class="label">{GROUP_TITLE[group]}</h3>
+					<dl class="list">
+						{#each bindings as binding (binding.id)}
+							<div class="entry" data-binding={binding.id}>
+								<dt class="keys">
+									{#if binding.prefix}
+										<kbd>{binding.prefix}</kbd><span class="then">then</span>
+									{/if}
+									{#each binding.keys as chord, i (i)}
+										{#if i > 0}<span class="or">or</span>{/if}
+										<kbd>{chordLabel(chord)}</kbd>
+										{#if hint(binding, i)}
+											<span class="hu mono">({hint(binding, i)})</span>
 										{/if}
-										{#each binding.keys as chord, i (i)}
-											{#if i > 0}<span class="or">or</span>{/if}
-											<kbd>{chordLabel(chord)}</kbd>
-											{#if hint(binding, i)}
-												<span class="hu mono">({hint(binding, i)})</span>
-											{/if}
-										{/each}
-									</dt>
-									<dd class="what">{binding.label}</dd>
-								</div>
-							{/each}
-						</dl>
-					</section>
-				{/each}
-			</div>
+									{/each}
+								</dt>
+								<dd class="what">{binding.label}</dd>
+							</div>
+						{/each}
+					</dl>
+				</section>
+			{/each}
 		</div>
-	{/if}
+	</div>
 </dialog>
 
 <style>

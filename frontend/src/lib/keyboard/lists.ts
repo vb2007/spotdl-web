@@ -192,8 +192,11 @@ function focusLost(): boolean {
 }
 
 /** Attachment for a list element. `name` keys its memory: `jobs`, `tracks`,
- * `job-tracks:<id>`, `chips:<scope>`. */
-export function kbList(name: string) {
+ * `job-tracks:<id>`, `chips`. `fallback` is where focus goes when the list goes away with
+ * focus inside and doesn't come back (its last row removed, so an empty state replaced it);
+ * it returns null while a reload is still under way, since the list then remounts and takes
+ * focus back itself. */
+export function kbList(name: string, opts: { fallback?: () => HTMLElement | null } = {}) {
 	return (list: HTMLElement) => {
 		list.dataset.kbList = name;
 		const m = mem(name);
@@ -231,13 +234,16 @@ export function kbList(name: string) {
 			attributes: true,
 			attributeFilter: ['aria-expanded']
 		});
-		settle(list);
-		// Remounted after a reload that unmounted it with focus inside: take it back.
-		if (focusLost() && performance.now() < m.restoreUntil) {
-			m.focusWithin = true;
-			focusRow(rowsOf(list).find((r) => rowId(r) === m.active) ?? rowsOf(list)[0]);
-		}
+		// Remounted after a reload that unmounted it with focus inside: it takes focus back
+		// (`settle` focuses the remembered row, or its neighbour, while focus is on <body>).
+		// The rows may not exist yet when this runs, so the observer's next settle and a
+		// microtask both try again; focus anywhere else meanwhile ends the claim.
+		if (focusLost() && performance.now() < m.restoreUntil) m.focusWithin = true;
 		m.restoreUntil = 0;
+		settle(list);
+		queueMicrotask(() => {
+			if (list.isConnected) settle(list);
+		});
 
 		return () => {
 			observer.disconnect();
@@ -251,14 +257,33 @@ export function kbList(name: string) {
 				m.focusWithin = false;
 			};
 			if (m.restoreUntil) {
+				const until = m.restoreUntil;
 				document.addEventListener('focusin', cancel, { once: true, capture: true });
-				setTimeout(
-					() => document.removeEventListener('focusin', cancel, { capture: true }),
-					RESTORE_WINDOW_MS
-				);
+				setTimeout(() => {
+					document.removeEventListener('focusin', cancel, { capture: true });
+					// Never remounted in time: this claim lapses with its window (a later
+					// unmount's own claim is left alone).
+					if (m.restoreUntil === until) cancel();
+				}, RESTORE_WINDOW_MS);
+				if (opts.fallback) awaitFallback(m, opts.fallback);
 			}
 		};
 	};
+}
+
+/** While an unmounted list's claim on focus lasts: once nothing remounted it and the page
+ * names a fallback (no reload under way), focus goes there rather than staying on <body>. */
+function awaitFallback(m: ListMemory, fallback: () => HTMLElement | null): void {
+	const timer = setInterval(() => {
+		if (!m.restoreUntil || performance.now() > m.restoreUntil || !focusLost()) {
+			clearInterval(timer);
+			return;
+		}
+		const target = fallback();
+		if (!target) return;
+		clearInterval(timer);
+		target.focus();
+	}, 150);
 }
 
 /** Moves focus within `row`'s list: by `delta` rows, or to `'first'`/`'last'`. Returns
@@ -353,9 +378,12 @@ export function listHandlers(opts: {
 	};
 	const step = (delta: number) => (event: KeyboardEvent) => {
 		const row = focusedRow();
-		if (!row) {
+		const letter = event.key.length === 1;
+		// The chips roam with ←/→ only: there j/k mean the rows, as they do anywhere outside a
+		// list, and ↑/↓ keep scrolling the page.
+		if (!row || horizontal(row)) {
 			// j/k start the list from anywhere on the page; the arrows keep scrolling it.
-			return event.key.length === 1 ? focusList(opts.mainList()) : false;
+			return letter ? focusList(opts.mainList()) : false;
 		}
 		move(row, delta);
 		return true;

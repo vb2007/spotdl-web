@@ -129,6 +129,12 @@
 		})
 	);
 
+	// v45: where focus goes when the focused list empties out (its last row cancelled or
+	// archived away): the queue's heading, once no reload is still bringing the list back.
+	function listFallback(): HTMLElement | null {
+		return $page.loading ? null : document.getElementById('queue-heading');
+	}
+
 	function focusField(id: string): boolean {
 		const field = document.getElementById(id) as HTMLInputElement | null;
 		if (!field || field.disabled) return false;
@@ -504,13 +510,17 @@
 				</div>
 			{:else if $filters.scope === 'jobs'}
 				<!-- v45: each list is one Tab stop (roving tabindex, lib/keyboard/lists.ts). -->
-				<ul class="job-list" aria-label="Jobs" {@attach kbList('jobs')}>
+				<ul class="job-list" aria-label="Jobs" {@attach kbList('jobs', { fallback: listFallback })}>
 					{#each $page.items as item (item.id)}
 						<JobRow job={item as Job} allUsers={allUsersView} {isAdmin} />
 					{/each}
 				</ul>
 			{:else}
-				<ul class="job-list" aria-label="Tracks" {@attach kbList('tracks')}>
+				<ul
+					class="job-list"
+					aria-label="Tracks"
+					{@attach kbList('tracks', { fallback: listFallback })}
+				>
 					{#each trackGroups as group (group.job.id)}
 						<li class="track-group" aria-labelledby="group-title-{group.job.id}">
 							<!-- v41: the job row's grid, minus the chevron -- its type sits in the badge
