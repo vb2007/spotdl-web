@@ -70,6 +70,8 @@ export interface HoldSpan {
 	escalated: boolean;
 	/** Ended early by the admin's release. */
 	manual: boolean;
+	/** Ended before its own scheduled end (a release, or a later trip taking over). */
+	early: boolean;
 	/** Still holding when the stats were read. */
 	ongoing: boolean;
 }
@@ -83,21 +85,16 @@ export function holdSpans(stats: AdminStats): HoldSpan[] {
 	events.forEach((event: BreakerEvent, index: number) => {
 		if (event.kind === 'released' || event.paused_until === null) return;
 		const pauseEnd = Date.parse(event.paused_until);
-		const release = events
-			.slice(index + 1)
-			.find(
-				(later) =>
-					later.kind === 'released' || later.kind === 'escalated' || later.kind === 'tripped'
-			);
+		// Whatever comes next ends this hold if it comes before the scheduled end: a release
+		// (the admin's, or a success's), or a later trip taking over.
+		const next = events[index + 1];
 		let endedAt = event.paused_until;
 		let manual = false;
-		if (
-			release !== undefined &&
-			release.kind === 'released' &&
-			Date.parse(release.occurred_at) < pauseEnd
-		) {
-			endedAt = release.occurred_at;
-			manual = release.manual;
+		let early = false;
+		if (next !== undefined && Date.parse(next.occurred_at) < pauseEnd) {
+			endedAt = next.occurred_at;
+			manual = next.kind === 'released' && next.manual;
+			early = true;
 		}
 		// Over before the window began (e.g. released early, before it): nothing to draw, and
 		// the one-bucket minimum width would otherwise paint it into the first bucket.
@@ -112,6 +109,7 @@ export function holdSpans(stats: AdminStats): HoldSpan[] {
 			stepSeconds: event.step_seconds,
 			escalated: event.kind === 'escalated',
 			manual,
+			early,
 			ongoing
 		});
 	});
@@ -124,6 +122,17 @@ export function bucketHeld(stats: AdminStats, spans: HoldSpan[], index: number):
 	const from = index / n;
 	const to = (index + 1) / n;
 	return spans.some((span) => span.from < to && span.to > from);
+}
+
+/** An instant (a hold's start or end) as date and time, on the same clock as the buckets. */
+export function instantLabel(stats: AdminStats, iso: string): string {
+	return new Date(Date.parse(iso) + stats.utc_offset_minutes * 60_000).toLocaleString([], {
+		timeZone: 'UTC',
+		month: 'short',
+		day: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit'
+	});
 }
 
 /** A bucket's label, read on the clock the buckets were cut on (the offset the page sent),

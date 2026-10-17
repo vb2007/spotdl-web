@@ -8,7 +8,8 @@
 		errorTypeLabel,
 		failurePeak,
 		formatSpan,
-		holdSpans
+		holdSpans,
+		instantLabel
 	} from '$lib/stats';
 
 	// v44: a multi-channel chart recorder. One channel per failure class that occurred, all on
@@ -86,8 +87,14 @@
 	function holdLabel(span: (typeof spans)[number]): string {
 		const step = span.stepSeconds !== null ? formatSpan(span.stepSeconds) : '';
 		const verb = span.escalated ? 'escalated' : 'tripped';
-		const end = span.ongoing ? 'still holding' : span.manual ? 'released by the admin' : 'ran out';
-		return `${verb} (${step}) ${bucketLabel(stats, span.startedAt, true).split('–')[0]}, ${end}`;
+		const end = span.ongoing
+			? 'still holding'
+			: span.manual
+				? 'released by the admin'
+				: span.early
+					? 'ended early'
+					: 'ran out';
+		return `${verb} (${step}) ${instantLabel(stats, span.startedAt)}, ${end}`;
 	}
 </script>
 
@@ -214,7 +221,7 @@
 						{#each spans as span (span.startedAt)}
 							<tr>
 								<td>{holdLabel(span)}</td>
-								<td class="mono">{bucketLabel(stats, span.endedAt, true).split('–')[0]}</td>
+								<td class="mono">{instantLabel(stats, span.endedAt)}</td>
 							</tr>
 						{/each}
 					</tbody>

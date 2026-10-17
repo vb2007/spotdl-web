@@ -280,8 +280,11 @@ def record_breaker_release(db: Session, now: datetime, *, end_running: bool, man
 def record_success(db: Session, track: Track) -> None:
     # v44: a success can be the first thing to notice an expired pause (a message that was
     # already queued runs before beat's next tick); record that release before it's cleared.
-    record_breaker_release(db, datetime.now(timezone.utc), end_running=True)
+    # Checked unlocked first, like beat: the ordinary success (no pause on record) never
+    # takes the row lock; the locked re-read inside still decides.
     worker_state = get_worker_state(db)
+    if worker_state.breaker_tripped_until is not None:
+        record_breaker_release(db, datetime.now(timezone.utc), end_running=True)
     worker_state.consecutive_failures = 0
     worker_state.breaker_tripped_until = None
     worker_state.breaker_trip_count = 0

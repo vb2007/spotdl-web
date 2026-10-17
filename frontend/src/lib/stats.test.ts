@@ -9,7 +9,8 @@ import {
 	failurePeak,
 	formatRate,
 	formatSpan,
-	holdSpans
+	holdSpans,
+	instantLabel
 } from '$lib/stats';
 
 const HOUR = 3600 * 1000;
@@ -129,6 +130,27 @@ describe('bucketLabel', () => {
 		expect(bucketLabel(s, '2026-10-15T22:00:00Z', true)).toMatch(/16/);
 		const hourly = stats([], { utc_offset_minutes: 120 });
 		expect(bucketLabel(hourly, '2026-10-16T10:00:00Z', true)).toMatch(/^12:00/);
+	});
+});
+
+describe('holds ended early', () => {
+	it('ends a hold at a later trip that takes over before its scheduled end', () => {
+		const spans = holdSpans(stats([trip(2, 6), trip(4, 2, 'escalated'), release(6, false)]));
+		expect(spans[0].to).toBeCloseTo(4 / 24);
+		expect(spans[0].early).toBe(true);
+		expect(spans[0].manual).toBe(false);
+		expect(spans[1].early).toBe(false);
+	});
+
+	it('marks a non-manual release before the scheduled end as early, not "ran out"', () => {
+		const [span] = holdSpans(stats([trip(6, 6), release(7, false)]));
+		expect(span.early).toBe(true);
+		expect(span.manual).toBe(false);
+	});
+
+	it('labels a hold instant with its time of day, on the response clock', () => {
+		const s = stats([], { utc_offset_minutes: 120 });
+		expect(instantLabel(s, '2026-10-16T10:05:00Z')).toMatch(/12:05/);
 	});
 });
 

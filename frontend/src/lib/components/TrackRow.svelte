@@ -115,8 +115,9 @@
 	let nextTry = $derived.by((): { at: string; heldByBreaker: boolean } | null => {
 		if (track.state !== 'waiting' || !track.scheduled_at) return null;
 		const breakerUntil = $workerStatus?.breaker_tripped_until ?? null;
-		// An expired trip keeps its timestamp until the next success or release, so it only
-		// counts while it's still in the future (the backend's own `breaker_active` test).
+		// An expired trip can keep its timestamp until beat's next tick, a success or a release
+		// clears it (v44), so it only counts while it's still in the future (the backend's own
+		// `breaker_active` test).
 		if (
 			breakerUntil &&
 			Date.parse(breakerUntil) > Date.now() &&
