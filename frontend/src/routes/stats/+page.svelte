@@ -49,6 +49,8 @@
 		} catch (err) {
 			if (mine !== sequence) return;
 			error = err instanceof Error ? err.message : String(err);
+			// The switch didn't happen: the pressed window is the one still shown.
+			if (stats !== null) selected = stats.window;
 		} finally {
 			if (mine === sequence) loading = false;
 		}

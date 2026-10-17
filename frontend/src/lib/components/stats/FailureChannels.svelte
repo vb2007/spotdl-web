@@ -46,7 +46,7 @@
 	const breakerLine = $derived(
 		spans.length === 0
 			? 'The breaker didn’t hold in this window.'
-			: `Held ${formatSpan(heldSeconds)} in total, ${stats.breaker.trips} trip${stats.breaker.trips === 1 ? '' : 's'} started in this window.`
+			: `The breaker held ${formatSpan(heldSeconds)} in total, ${stats.breaker.trips} trip${stats.breaker.trips === 1 ? '' : 's'} started in this window.`
 	);
 
 	const summary = $derived.by(() => {
@@ -82,6 +82,14 @@
 		if (count === 0 || peak === 0) return '0';
 		// A single failure stays visible next to a tall column.
 		return `max(2px, ${(count / peak) * 100}%)`;
+	}
+
+	// A hold narrower than a bucket is drawn as that whole bucket (the minimum width), so it
+	// starts at its bucket's start: the block then covers exactly the bucket the table and
+	// crosshair call held. Never past the strip's end.
+	function holdLeft(span: (typeof spans)[number]): number {
+		const left = span.to - span.from < 1 / n ? Math.floor(span.from * n) / n : span.from;
+		return Math.min(left, 1 - 1 / n);
 	}
 
 	function holdLabel(span: (typeof spans)[number]): string {
@@ -143,7 +151,7 @@
 					class="hold"
 					class:ongoing={span.ongoing}
 					class:manual={span.manual}
-					style:left="{Math.min(span.from, 1 - 1 / n) * 100}%"
+					style:left="{holdLeft(span) * 100}%"
 					style:width="{Math.max(0, span.to - span.from) * 100}%"
 				></span>
 			{/each}
@@ -187,7 +195,14 @@
 
 	<details class="as-table">
 		<summary class="mono">show as a table</summary>
-		<div class="table-wrap">
+		<!-- Focusable, so a keyboard can scroll it (axe: scrollable-region-focusable). -->
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+		<div
+			class="table-wrap"
+			tabindex="0"
+			role="region"
+			aria-label="Failures and breaker holds as tables"
+		>
 			<table>
 				<caption class="sr-only">Failures by type per {unit}, and whether the breaker held</caption>
 				<thead>
