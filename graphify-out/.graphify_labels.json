@@ -242,9 +242,12 @@
   "240": "spotdl-web — Accumulated Gotchas (master v1, v01–v13)",
   "241": "Session",
   "242": "Proxy",
+  "243": "Watchdog",
   "244": "_ensure_spotify_client",
   "245": "Amendments",
+  "246": "alerts.py",
   "247": "Architecture",
+  "248": "test_pacing_delay_is_zero_when_unconfigured",
   "249": "expand_job",
   "250": "spawn_watchdog"
 }
