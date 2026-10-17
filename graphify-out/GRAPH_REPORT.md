@@ -1,7 +1,7 @@
 # Graph Report - spotdl-web  (2026-10-17)
 
 ## Corpus Check
-- 274 files · ~327,165 words
+- 274 files · ~327,185 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ade1608e`
+- Built from commit: `cfbba81a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -288,7 +288,7 @@ Nodes (55): DownloadedTrack, Dedup ledger, independent of `tracks` so it survive
 
 ### Community 3 - "Track Model & Beat Tests"
 Cohesion: 0.06
-Nodes (36): _aware(), _fake_youtube_music_provider(), _FakeDownloaderForProxy, _FakeSettings, _NonClosingSession, datetime, Wraps db_session so sync_from_file's db.close() doesn't detach objects the test, v13 shipped MANUAL-source (UI-added) proxies alongside FILE-source ones, both me (+28 more)
+Nodes (36): _aware(), _fake_youtube_music_provider(), _FakeDownloaderForProxy, _FakeSettings, _NonClosingSession, datetime, v13 shipped MANUAL-source (UI-added) proxies alongside FILE-source ones, both me, Wraps db_session so sync_from_file's db.close() doesn't detach objects the test (+28 more)
 
 ### Community 4 - "test_job_listing.py"
 Cohesion: 0.06

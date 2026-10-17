@@ -320,8 +320,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_proxies.py": {
-    "mtime": 1792260380.3066113,
-    "ast_hash": "f0b17452dd5dd04c663ce2d69f3f4083",
+    "mtime": 1792260599.3262665,
+    "ast_hash": "b771463ce0d07c50ad16ffe143822458",
     "semantic_hash": ""
   },
   "backend/app/routers/stream.py": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792260400.1267178,
-    "ast_hash": "b656a2e0304da80aa54e7c6ac2729be1",
+    "mtime": 1792260593.2092426,
+    "ast_hash": "3dd3f07e724bece4e8119d9c76754c55",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
