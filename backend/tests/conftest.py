@@ -52,8 +52,8 @@ def _compile_jsonb_sqlite(element, compiler, **kw):
 @compiles(epoch_bucket, "sqlite")
 def _compile_epoch_bucket_sqlite(element, compiler, **kw):
     return (
-        f"(CAST(strftime('%s', {compiler.process(element.clauses, **kw)}) AS INTEGER) "
-        f"/ {element.seconds})"
+        f"((CAST(strftime('%s', {compiler.process(element.clauses, **kw)}) AS INTEGER) "
+        f"+ {element.offset}) / {element.seconds})"
     )
 
 

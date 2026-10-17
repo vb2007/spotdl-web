@@ -154,7 +154,8 @@ def test_network_paths_count_real_attempts_only(db_session, seeded, now):
     ]
     assert paths["direct-ipv4"] == {
         "path": "direct-ipv4", "attempts": 5, "completed": 3, "failed": 1, "not_found": 1,
-        "success_rate": 3 / 5,
+        # The owner's definition: "not found" is about the track, not the route.
+        "success_rate": 3 / 4,
     }
     assert paths["direct-ipv6"]["attempts"] == 1 and paths["direct-ipv6"]["success_rate"] == 0
     assert paths["proxy"]["attempts"] == 3 and paths["proxy"]["completed"] == 1
@@ -177,6 +178,35 @@ def test_wider_window_includes_older_attempts(db_session, seeded, now):
     assert len(result["failures"]["buckets"]) == 7
     assert result["failures"]["buckets"][-1] == "2026-10-16T00:00:00+00:00"
     assert len(stats.admin_stats(db_session, "30d", now)["failures"]["buckets"]) == 30
+
+
+def test_bucket_length_is_not_reused_across_windows(db_session, seeded, now):
+    """The bucket expression's length/offset are inlined literals: a compiled 24h statement
+    must never be served from SQLAlchemy's cache for a 7d one."""
+    stats.admin_stats(db_session, "24h", now)
+    series = {s["error_type"]: s["counts"] for s in stats.admin_stats(db_session, "7d", now)["failures"]["series"]}
+    # Today: 1 audio_provider (an hour ago), 1 lookup, 2 other, 1 no_output, 1 unknown;
+    # three days ago: 1 audio_provider.
+    assert series["audio_provider"] == [0, 0, 0, 1, 0, 0, 1]
+    assert series["other"][-1] == 2 and series["lookup"][-1] == 1
+
+
+def test_day_buckets_follow_the_viewers_clock(db_session, make_user, now):
+    """Owner's choice: a day bucket is the viewer's own day. 23:30 UTC on the 15th is
+    01:30 on the 16th in Budapest (UTC+2), so it lands in the 16th's bucket there."""
+    track = _track(db_session, _job(db_session, make_user("tz@example.com")))
+    _attempt(db_session, track, datetime(2026, 10, 15, 23, 30, tzinfo=timezone.utc),
+             TrackAttemptOutcome.FAILED, path=NetworkPath.DIRECT_IPV4,
+             error_type=TrackErrorType.AUDIO_PROVIDER)
+    db_session.commit()
+
+    utc = stats.admin_stats(db_session, "7d", now)["failures"]
+    local = stats.admin_stats(db_session, "7d", now, utc_offset_minutes=120)["failures"]
+
+    assert utc["series"][0]["counts"][-2:] == [1, 0]
+    assert local["series"][0]["counts"][-2:] == [0, 1]
+    # Local midnight of the 16th, as an instant.
+    assert local["buckets"][-1] == "2026-10-15T22:00:00+00:00"
 
 
 def test_proxies_by_redacted_label_with_current_cooldown_only(db_session, seeded, now):
@@ -266,8 +296,12 @@ def test_endpoint_returns_counts_only(admin_client, db_session, seeded):
 
 
 def test_endpoint_defaults_to_24h_and_rejects_an_unknown_window(admin_client):
-    assert admin_client.get("/api/admin/stats").json()["window"] == "24h"
+    body = admin_client.get("/api/admin/stats").json()
+    assert body["window"] == "24h" and body["utc_offset_minutes"] == 0
     assert admin_client.get("/api/admin/stats?window=1y").status_code == 422
+    assert admin_client.get("/api/admin/stats?utc_offset_minutes=120").json()["utc_offset_minutes"] == 120
+    for bad in ("841", "-721", "abc"):
+        assert admin_client.get(f"/api/admin/stats?utc_offset_minutes={bad}").status_code == 422
 
 
 def test_non_admin_gets_404_not_403(authenticated_client):

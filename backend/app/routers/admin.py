@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db import begin_snapshot, get_db
@@ -23,6 +23,9 @@ def require_admin_hidden(user: User = Depends(require_session)) -> User:
 @router.get("/stats")
 def admin_stats(
     window: Literal["24h", "7d", "30d"] = "24h",
+    # The viewer's clock, minutes east of UTC (Budapest: 60 or 120), so a day bucket is
+    # their own day. Real offsets run from -12:00 to +14:00.
+    utc_offset_minutes: int = Query(0, ge=-720, le=840),
     db: Session = Depends(get_db),
     _: User = Depends(require_admin_hidden),
 ) -> dict:
@@ -31,6 +34,6 @@ def admin_stats(
     title, no proxy URL (services/stats.py)."""
     # Several statements, one consistent snapshot (begin_snapshot's docstring).
     begin_snapshot(db)
-    result = stats.admin_stats(db, window)
+    result = stats.admin_stats(db, window, utc_offset_minutes=utc_offset_minutes)
     db.commit()
     return result

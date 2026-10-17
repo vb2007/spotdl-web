@@ -7,8 +7,11 @@ may read it. Nothing here returns an identity, a job or track title, or a proxy 
 only counts, timestamps, error-type names and `proxies.redact()` labels.
 
 Every metric is one SQL aggregate over its window (GROUP BY, never a per-proxy, per-path
-or per-bucket query loop, per CLAUDE.md's bulk invariant). Buckets are UTC-aligned: hourly
-for 24h, daily (UTC days) for 7d/30d, the last one being the current, partial bucket.
+or per-bucket query loop, per CLAUDE.md's bulk invariant). Buckets are hourly for 24h and
+daily for 7d/30d, aligned to the viewer's local clock by the UTC offset the page sends (the
+owner's choice: a "day" is the admin's own day), the last one being the current, partial
+bucket. One offset covers the whole window, so across a DST change the older buckets are an
+hour off; accepted, rather than a per-bucket time zone lookup.
 """
 
 from datetime import datetime, timedelta, timezone
@@ -47,26 +50,28 @@ QUEUE_STATES = (TrackState.PENDING, TrackState.QUEUED, TrackState.DOWNLOADING, T
 
 
 class epoch_bucket(FunctionElement):
-    """`floor(epoch seconds of <timestamp> / <seconds>)`: the index of the UTC-aligned
-    bucket a timestamp falls in. Rendered per dialect; the bucket length is our own
-    integer and is inlined, so the SELECT and GROUP BY expressions compile identically
-    (two bound parameters would make Postgres reject the GROUP BY). The SQLite rendering
-    for the in-process tests lives in tests/conftest.py, next to the JSONB shim."""
+    """`floor((epoch seconds of <timestamp> + <offset>) / <seconds>)`: the index of the
+    bucket a timestamp falls in, on a clock `offset` seconds east of UTC. Rendered per
+    dialect; the bucket length and offset are our own integers and are inlined, so the
+    SELECT and GROUP BY expressions compile identically (bound parameters would make
+    Postgres reject the GROUP BY). The SQLite rendering for the in-process tests lives in
+    tests/conftest.py, next to the JSONB shim."""
 
     type = BigInteger()
-    inherit_cache = True
+    inherit_cache = False
     name = "epoch_bucket"
 
-    def __init__(self, column, seconds: int):
+    def __init__(self, column, seconds: int, offset: int = 0):
         self.seconds = int(seconds)
+        self.offset = int(offset)
         super().__init__(column)
 
 
 @compiles(epoch_bucket, "postgresql")
 def _epoch_bucket_postgresql(element, compiler, **kw):
     return (
-        f"CAST(FLOOR(EXTRACT(EPOCH FROM {compiler.process(element.clauses, **kw)}) "
-        f"/ {element.seconds}) AS BIGINT)"
+        f"CAST(FLOOR((EXTRACT(EPOCH FROM {compiler.process(element.clauses, **kw)}) "
+        f"+ {element.offset}) / {element.seconds}) AS BIGINT)"
     )
 
 
@@ -82,18 +87,25 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value is not None else None
 
 
-def _rate(completed: int, attempts: int) -> float | None:
-    return completed / attempts if attempts else None
+def _rate(completed: int, failed: int) -> float | None:
+    """The owner's definition: completed / (completed + failed). A "not found" verdict is
+    about the track (no match on YouTube Music), not the route, so it's counted apart and
+    left out of the rate."""
+    return completed / (completed + failed) if completed + failed else None
 
 
-def window_bounds(window: str, now: datetime) -> tuple[datetime, int, int]:
-    """(window start, bucket seconds, first bucket index): the window covers whole
-    UTC-aligned buckets, ending with the one `now` is in."""
+def _bucket_start(index: int, seconds: int, offset: int) -> datetime:
+    return datetime.fromtimestamp(index * seconds - offset, tz=timezone.utc)
+
+
+def window_bounds(window: str, now: datetime, offset: int = 0) -> tuple[datetime, int, int]:
+    """(window start, bucket seconds, first bucket index): the window covers whole buckets
+    of the clock `offset` seconds east of UTC, ending with the one `now` is in."""
     bucket, count = WINDOWS[window]
     seconds = int(bucket.total_seconds())
-    current = int(now.timestamp()) // seconds
+    current = (int(now.timestamp()) + offset) // seconds
     first = current - count + 1
-    return datetime.fromtimestamp(first * seconds, tz=timezone.utc), seconds, first
+    return _bucket_start(first, seconds, offset), seconds, first
 
 
 def _outcome_counts():
@@ -115,18 +127,22 @@ def _outcome_counts():
 def _counts_dict(attempts: int, completed: int | None, not_found: int | None) -> dict:
     completed = int(completed or 0)
     not_found = int(not_found or 0)
+    failed = attempts - completed - not_found
     return {
         "attempts": attempts,
         "completed": completed,
-        "failed": attempts - completed - not_found,
+        "failed": failed,
         "not_found": not_found,
-        "success_rate": _rate(completed, attempts),
+        "success_rate": _rate(completed, failed),
     }
 
 
-def admin_stats(db: Session, window: str, now: datetime | None = None) -> dict:
+def admin_stats(
+    db: Session, window: str, now: datetime | None = None, utc_offset_minutes: int = 0
+) -> dict:
     now = now or datetime.now(timezone.utc)
-    start, bucket_seconds, first_bucket = window_bounds(window, now)
+    offset = utc_offset_minutes * 60
+    start, bucket_seconds, first_bucket = window_bounds(window, now, offset)
     bucket_count = WINDOWS[window][1]
     in_window = (TrackAttempt.finished_at >= start) & TrackAttempt.outcome.in_(_NETWORK_OUTCOMES)
 
@@ -192,7 +208,7 @@ def admin_stats(db: Session, window: str, now: datetime | None = None) -> dict:
         )
 
     # --- failures by error_type over time --------------------------------------------
-    bucket = epoch_bucket(TrackAttempt.finished_at, bucket_seconds).label("bucket")
+    bucket = epoch_bucket(TrackAttempt.finished_at, bucket_seconds, offset).label("bucket")
     error_type = TrackAttempt.error_type
     failure_rows = db.execute(
         select(bucket, error_type, func.count().label("failures"))
@@ -209,7 +225,7 @@ def admin_stats(db: Session, window: str, now: datetime | None = None) -> dict:
     order = [t.value for t in TrackErrorType] + [UNKNOWN]
     failures = {
         "buckets": [
-            datetime.fromtimestamp((first_bucket + i) * bucket_seconds, tz=timezone.utc).isoformat()
+            _bucket_start(first_bucket + i, bucket_seconds, offset).isoformat()
             for i in range(bucket_count)
         ],
         "series": [
@@ -264,6 +280,7 @@ def admin_stats(db: Session, window: str, now: datetime | None = None) -> dict:
         "window": window,
         "generated_at": now.isoformat(),
         "window_start": start.isoformat(),
+        "utc_offset_minutes": utc_offset_minutes,
         "bucket_seconds": bucket_seconds,
         "network_paths": network_paths,
         "proxies": proxies,
