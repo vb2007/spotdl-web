@@ -5,6 +5,7 @@ just swapped for another rather than nursed back with the full 24h track ladder.
 """
 
 import contextlib
+import hashlib
 import logging
 import re
 import socket
@@ -68,14 +69,15 @@ _DEFAULT_PORTS = {"http": 80, "https": 443}
 def connection_target(url: str) -> str:
     """The host:port a proxy URL dials, whatever its scheme or credentials (v44, the
     owner's rule: one connection target, one credential). A missing port is the scheme's
-    default, as urllib3 dials it. An unparseable URL is only its own target."""
+    default, as urllib3 dials it. An unparseable URL is only its own target, named by a
+    hash: the raw line can carry a credential, and a target may be logged."""
     try:
         parsed = urlsplit(url)
         port = parsed.port
     except ValueError:
-        return url
-    if not parsed.hostname:
-        return url
+        parsed = None
+    if parsed is None or not parsed.hostname:
+        return "unparseable:" + hashlib.sha256(url.encode()).hexdigest()[:12]
     if port is None:
         port = _DEFAULT_PORTS.get(parsed.scheme.lower())
     return f"{parsed.hostname.lower()}:{port}"
@@ -183,6 +185,12 @@ def _probe_reachable(url: str, timeout: float = 2.0) -> bool:
         return False
 
 
+def _newest_first(at: datetime | None) -> float:
+    if at is None:
+        return float("inf")
+    return -(at if at.tzinfo is not None else at.replace(tzinfo=timezone.utc)).timestamp()
+
+
 def sync_from_file() -> None:
     """Run once on worker-meta boot (see celery_app.py). Upserts proxies.txt's URLs as
     source=file rows and soft-disables (never deletes) source=file rows whose URL fell out
@@ -220,8 +228,13 @@ def sync_from_file() -> None:
         listed = set(urls_in_file)
         # File rows the file no longer names, by target: each can take its target's
         # rotated credential.
+        # Of two such rows for one target (from before v44), the enabled one, then the one
+        # that last worked, keeps its history.
         dropped: dict[str, Proxy] = {}
-        for url, row in existing.items():
+        for url, row in sorted(
+            existing.items(),
+            key=lambda item: (not item[1].enabled, _newest_first(item[1].last_success_at)),
+        ):
             if url not in listed:
                 dropped.setdefault(connection_target(url), row)
 
@@ -244,7 +257,11 @@ def sync_from_file() -> None:
             claimed.add(target)
             row = existing.get(url)
             if row is None and (row := dropped.pop(target, None)) is not None:
+                # A credential is usually changed because the old one failed: the new one
+                # starts with a clean cooldown, while last_used/last_success stay.
                 row.url = url
+                row.consecutive_failures = 0
+                row.cooldown_until = None
                 rotated += 1
             if row is None:
                 row = Proxy(url=url, source=ProxySource.FILE, enabled=True)

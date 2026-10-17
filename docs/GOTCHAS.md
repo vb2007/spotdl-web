@@ -5124,10 +5124,15 @@ independently-found production bug from the same conversation)
   `sync_from_file()` keeps the first line per target in file order, skips later ones (and a line
   whose target a manual proxy holds) with a warning that logs only the target, and disables a
   skipped line's existing row like a removed line. A new credential for a target whose old line
-  left the file is a **rotation**: the old row takes the new URL and keeps its history, so a
-  credential change never mints a second row. Rows that predate the rule are not rewritten; a
-  disabled duplicate can stay, but can't be enabled beside its live twin. A byte-identical
-  repeated line was always collapsed and is not a clash (dev's `proxies.txt` has one).
+  left the file is a **rotation**: the old row takes the new URL, its cooldown and failure streak
+  reset (`last_used_at`/`last_success_at` kept), so a credential change never mints a second row.
+  Rows that predate the rule are not rewritten: two enabled *manual* rows for one target both stay
+  enabled until deleted; a disabled duplicate can't be enabled beside its live twin. Two
+  consequences of "file rows are never deleted": a target that was ever in `proxies.txt` can't be
+  added in the UI afterwards (the 409 says to use `proxies.txt`), and a disabled manual proxy still
+  holds its target, so a `proxies.txt` line for it is skipped (only a `worker-meta` warning says
+  so) until the manual one is deleted. A byte-identical repeated line was always collapsed and is
+  not a clash (dev's `proxies.txt` has one).
 - **"Last 7 days" is the last 7 calendar days *including today so far*,** not the last 168
   hours. `stats.window_bounds` covers whole buckets of the viewer's clock ending with the one
   `now` is in, so at 00:05 local the 7d window is 6 days and 5 minutes long, and the 24h window

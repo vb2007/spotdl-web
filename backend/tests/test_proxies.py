@@ -366,7 +366,12 @@ def test_connection_target_ignores_scheme_credentials_and_default_ports():
     assert target("https://203.0.113.5:8080") == "203.0.113.5:8080"
     assert target("http://203.0.113.5") == target("http://203.0.113.5:80") == "203.0.113.5:80"
     assert target("https://203.0.113.5") == "203.0.113.5:443"
-    assert target("http://203.0.113.5:notaport") == "http://203.0.113.5:notaport"
+    # Unparseable: its own target, never the raw line (a credential could be logged).
+    bad = target("http://user:secretpw@203.0.113.5:99999")
+    assert bad.startswith("unparseable:") and "secretpw" not in bad
+    assert bad == target("http://user:secretpw@203.0.113.5:99999")
+    assert bad != target("http://other:pw@203.0.113.5:99999")
+    assert "secretpw" not in target("user:secretpw@203.0.113.5:8080")
 
 
 def test_sync_from_file_keeps_one_proxy_per_target(db_session, monkeypatch, tmp_path):
@@ -429,8 +434,34 @@ def test_sync_from_file_rotates_a_credential_in_place(db_session, monkeypatch, t
     assert [row.id for row in rows] == [old.id]
     assert rows[0].url == "http://new:pw@203.0.113.5:8080"
     assert rows[0].enabled is True
-    assert rows[0].consecutive_failures == 4
+    # The new credential starts clean; when the proxy last worked is kept.
+    assert rows[0].consecutive_failures == 0
+    assert rows[0].cooldown_until is None
     assert rows[0].last_success_at is not None
+
+
+def test_sync_from_file_rotation_keeps_the_live_row_of_two_old_duplicates(db_session, monkeypatch, tmp_path):
+    monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: True)
+    parked = Proxy(url="http://a:1@203.0.113.5:8080", source=ProxySource.FILE, enabled=False)
+    live = Proxy(
+        url="http://b:2@203.0.113.5:8080",
+        source=ProxySource.FILE,
+        enabled=True,
+        last_success_at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    )
+    db_session.add_all([parked, live])
+    db_session.commit()
+
+    proxy_file = tmp_path / "proxies.txt"
+    proxy_file.write_text("http://c:3@203.0.113.5:8080\n")
+    monkeypatch.setattr(proxies, "get_settings", lambda: _FakeSettings(proxy_file))
+
+    proxies.sync_from_file()
+
+    assert db_session.get(Proxy, live.id).url == "http://c:3@203.0.113.5:8080"
+    assert db_session.get(Proxy, live.id).enabled is True
+    assert db_session.get(Proxy, parked.id).enabled is False
 
 
 def test_sync_from_file_never_logs_a_skipped_lines_credential(db_session, monkeypatch, tmp_path, caplog):
