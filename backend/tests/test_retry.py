@@ -427,3 +427,24 @@ def test_record_success_without_a_trip_writes_no_breaker_event(db_session):
     db_session.commit()
 
     assert _breaker_events(db_session) == []
+
+
+def test_a_retrip_over_an_unrecorded_expired_pause_records_its_release_first(db_session):
+    """v44, review round 2: beat hadn't ticked since the last pause ran out (or is down),
+    and queued messages fail into a new trip. The old trip still gets its release."""
+    from app.models import BreakerEventKind
+
+    ended = datetime.now(timezone.utc) - timedelta(minutes=2)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_trip_count = 1
+    worker_state.breaker_tripped_until = ended
+    worker_state.consecutive_failures = retry.BREAKER_TRIP_THRESHOLD
+    db_session.commit()
+
+    retry.maybe_trip_breaker(db_session)
+    db_session.commit()
+
+    events = _breaker_events(db_session)
+    assert [e.kind for e in events] == [BreakerEventKind.RELEASED, BreakerEventKind.ESCALATED]
+    assert _aware(events[0].occurred_at) == ended
+    assert db_session.get(WorkerState, 1).breaker_trip_count == 2

@@ -147,9 +147,14 @@ def breaker_active(worker_state: WorkerState, now: datetime) -> bool:
 def maybe_trip_breaker(db: Session, error_type: TrackErrorType | None = None) -> None:
     worker_state = get_worker_state(db)
     if worker_state.consecutive_failures >= BREAKER_TRIP_THRESHOLD:
+        now = datetime.now(timezone.utc)
+        # v44 (review round 2): a pause that ran out before any tick, release or success
+        # recorded it is about to be overwritten; record its release first, so the history
+        # never has a trip without its end.
+        if worker_state.breaker_tripped_until is not None and not breaker_tripped(worker_state, now):
+            record_breaker_release(db, now, end_running=False)
         worker_state.breaker_trip_count += 1
         delay = BREAKER_TRIP_DELAYS[min(worker_state.breaker_trip_count - 1, len(BREAKER_TRIP_DELAYS) - 1)]
-        now = datetime.now(timezone.utc)
         worker_state.breaker_tripped_until = now + delay
         tripped_on = worker_state.consecutive_failures
         # v44: the stats page's breaker history, in the same transaction as the trip itself

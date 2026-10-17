@@ -73,6 +73,10 @@
 		hovered = Math.min(n - 1, Math.floor((x / rect.width) * n));
 	}
 
+	// The pointer may still rest past the end of a shorter window after a keyboard switch
+	// (no pointer event fires): the readout only ever shows a bucket this window has.
+	const shown = $derived(hovered !== null && hovered < n ? hovered : null);
+
 	function height(count: number): string {
 		if (count === 0 || peak === 0) return '0';
 		// A single failure stays visible next to a tall column.
@@ -112,7 +116,7 @@
 			</span>
 			<span class="strip" style:grid-row={row + 1}>
 				{#each series.counts as count, i (i)}
-					<span class="cell" class:hover={hovered === i}>
+					<span class="cell" class:hover={shown === i}>
 						<span
 							class="column {errorTypeCondition(series.error_type)}"
 							style:height={height(count)}
@@ -150,25 +154,21 @@
 
 		<!-- The plot area: the crosshair and its readout, over every channel's strip. -->
 		<span class="plot" style:grid-row="1 / span {breakerRow}" bind:this={plot}>
-			{#if hovered !== null}
-				<span class="crosshair" style:left="{((hovered + 0.5) / n) * 100}%"></span>
-				<span
-					class="readout"
-					class:flip={hovered > n / 2}
-					style:left="{((hovered + 0.5) / n) * 100}%"
-				>
-					<span class="when mono">{bucketLabel(stats, stats.failures.buckets[hovered], true)}</span>
+			{#if shown !== null}
+				<span class="crosshair" style:left="{((shown + 0.5) / n) * 100}%"></span>
+				<span class="readout" class:flip={shown > n / 2} style:left="{((shown + 0.5) / n) * 100}%">
+					<span class="when mono">{bucketLabel(stats, stats.failures.buckets[shown], true)}</span>
 					{#each stats.failures.series as series (series.error_type)}
 						<span class="row">
 							<span class="line-key {errorTypeCondition(series.error_type)}"></span>
-							<strong class="mono">{series.counts[hovered]}</strong>
+							<strong class="mono">{series.counts[shown]}</strong>
 							<span class="series">{errorTypeLabel(series.error_type)}</span>
 						</span>
 					{/each}
 					<span class="row">
 						<span class="line-key key-hold"></span>
 						<span class="series">
-							{bucketHeld(stats, spans, hovered) ? 'breaker held' : 'breaker clear'}
+							{bucketHeld(stats, spans, shown) ? 'breaker held' : 'breaker clear'}
 						</span>
 					</span>
 				</span>
