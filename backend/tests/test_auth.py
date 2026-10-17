@@ -23,7 +23,12 @@ def test_login_success_sets_cookie_and_me_returns_email(client, monkeypatch):
 
     me_response = client.get("/api/auth/me")
     assert me_response.status_code == 200
-    assert me_response.json() == {"email": "allowed@example.com", "username": None, "is_admin": False}
+    assert me_response.json() == {
+        "email": "allowed@example.com",
+        "username": None,
+        "is_admin": False,
+        "keyboard_shortcuts": True,
+    }
 
 
 def test_login_stores_and_returns_username_from_upstream(client, monkeypatch):

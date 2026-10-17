@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import get_db
 from app.models import User, UserSession
-from app.services import upstream_auth
+from app.services import upstream_auth, user_settings
 from app.services.sessions import SESSION_IDLE_TIMEOUT, create_session, delete_session, get_valid_session
 from app.services.users import get_or_create_user
 
@@ -136,5 +136,12 @@ def logout(
 
 
 @router.get("/me")
-def me(user: User = Depends(require_session)) -> dict:
-    return {"email": user.email, "username": user.username, "is_admin": user.is_admin}
+def me(user: User = Depends(require_session), db: Session = Depends(get_db)) -> dict:
+    # v45: the keyboard-shortcut preference rides along, so the app shell knows it on every
+    # route load without a second request.
+    return {
+        "email": user.email,
+        "username": user.username,
+        "is_admin": user.is_admin,
+        "keyboard_shortcuts": user_settings.keyboard_shortcuts_enabled(db, user.id),
+    }

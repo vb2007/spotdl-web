@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer, func
+from sqlalchemy import Boolean, ForeignKey, Integer, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -17,6 +17,10 @@ class UserSettings(Base):
 
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), primary_key=True)
     retention_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # v45: single-character keyboard shortcuts (WCAG 2.1.4's off switch). On by default.
+    keyboard_shortcuts: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=true()
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now(), nullable=False
