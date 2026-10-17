@@ -162,6 +162,18 @@ def test_network_paths_count_real_attempts_only(db_session, seeded, now):
     assert paths["unknown"]["attempts"] == 1 and paths["unknown"]["failed"] == 1
 
 
+def test_a_row_stamped_past_the_window_is_in_no_count(db_session, make_user, now):
+    """A worker clock running ahead: the route counts and the chart agree (both skip it)."""
+    track = _track(db_session, _job(db_session, make_user("skew@example.com")))
+    _attempt(db_session, track, now + timedelta(hours=2), TrackAttemptOutcome.FAILED,
+             path=NetworkPath.DIRECT_IPV4, error_type=TrackErrorType.AUDIO_PROVIDER)
+    db_session.commit()
+
+    result = stats.admin_stats(db_session, "24h", now)
+    assert result["network_paths"][0]["attempts"] == 0
+    assert result["failures"]["series"] == []
+
+
 def test_unused_paths_read_as_zero_not_missing(db_session, now):
     result = stats.admin_stats(db_session, "24h", now)
 

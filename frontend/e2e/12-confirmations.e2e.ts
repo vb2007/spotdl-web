@@ -306,7 +306,9 @@ test('worker pause and breaker release ask first', async ({ page, baseURL }) => 
 		// the failure streak, so the streak is recorded first and put back afterwards.
 		const hold = new Date(Date.now() + 3_600_000).toISOString();
 		// Recorded before it's written, so even a run killed right after leaves it undoable.
-		stageWorker({ hold });
+		// v44: and when, so restoring also removes the `released` breaker event the page's
+		// release writes for this staged hold (it never tripped for real).
+		stageWorker({ hold, holdStagedAt: new Date().toISOString() });
 		const failures = Number(
 			stackPython(`
 from app.db import SessionLocal

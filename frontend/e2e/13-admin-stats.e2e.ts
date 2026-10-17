@@ -53,8 +53,9 @@ test.describe('admin', () => {
 			'aria-pressed',
 			'true'
 		);
-		await page.getByText('show as a table').click();
+		// The table view stays open across the switch and re-reads per day.
 		await expect(page.getByRole('columnheader', { name: 'Day' })).toBeVisible();
+		await expect(page.getByRole('columnheader', { name: 'Hour' })).toHaveCount(0);
 		expect(calls.map((q) => q.get('window'))).toEqual(['24h', '7d']);
 
 		// A hard navigation is served too (dev here; the nginx image's own block is checked

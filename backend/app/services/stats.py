@@ -154,7 +154,11 @@ def admin_stats(
     offset = utc_offset_minutes * 60
     start, bucket_seconds, first_bucket = window_bounds(window, now, offset)
     bucket_count = WINDOWS[window][1]
-    in_window = (TrackAttempt.finished_at >= start) & TrackAttempt.outcome.in_(_NETWORK_OUTCOMES)
+    # Bounded on both sides by the same buckets the chart draws: a row stamped past the
+    # current bucket (a worker clock running ahead) is in no count rather than in some.
+    end = start + timedelta(seconds=bucket_seconds * bucket_count)
+    in_period = (TrackAttempt.finished_at >= start) & (TrackAttempt.finished_at < end)
+    in_window = in_period & TrackAttempt.outcome.in_(_NETWORK_OUTCOMES)
 
     # --- per network path -----------------------------------------------------------
     attempts, completed, not_found = _outcome_counts()
@@ -223,7 +227,7 @@ def admin_stats(
     error_type = TrackAttempt.error_type
     failure_rows = db.execute(
         select(bucket, error_type, func.count().label("failures"))
-        .where(TrackAttempt.finished_at >= start, TrackAttempt.outcome == TrackAttemptOutcome.FAILED)
+        .where(in_period, TrackAttempt.outcome == TrackAttemptOutcome.FAILED)
         .group_by(bucket, error_type)
     ).all()
     series: dict[str, list[int]] = {}
