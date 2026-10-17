@@ -360,6 +360,95 @@ def test_sync_from_file_marks_unreachable_new_proxy_with_cooldown(db_session, mo
     assert row.cooldown_until is not None
 
 
+def test_connection_target_ignores_scheme_credentials_and_default_ports():
+    target = proxies.connection_target
+    assert target("http://u:p@203.0.113.5:8080") == "203.0.113.5:8080"
+    assert target("https://203.0.113.5:8080") == "203.0.113.5:8080"
+    assert target("http://203.0.113.5") == target("http://203.0.113.5:80") == "203.0.113.5:80"
+    assert target("https://203.0.113.5") == "203.0.113.5:443"
+    assert target("http://203.0.113.5:notaport") == "http://203.0.113.5:notaport"
+
+
+def test_sync_from_file_keeps_one_proxy_per_target(db_session, monkeypatch, tmp_path):
+    """v44: the first line for a host:port wins; a later one is skipped, and a row it
+    already had is disabled like a removed line. A manual proxy holds its target too."""
+    monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: True)
+    db_session.add_all(
+        [
+            Proxy(url="http://b:2@203.0.113.5:8080", source=ProxySource.FILE, enabled=True),
+            Proxy(url="http://198.51.100.9:3128", source=ProxySource.MANUAL, enabled=False),
+        ]
+    )
+    db_session.commit()
+
+    proxy_file = tmp_path / "proxies.txt"
+    proxy_file.write_text(
+        "http://a:1@203.0.113.5:8080\nhttp://b:2@203.0.113.5:8080\n"
+        "http://c:3@198.51.100.9:3128\nhttp://192.0.2.7:8080\nhttp://192.0.2.7:8080\n"
+    )
+    monkeypatch.setattr(proxies, "get_settings", lambda: _FakeSettings(proxy_file))
+
+    proxies.sync_from_file()
+
+    rows = {p.url: p for p in db_session.query(Proxy).all()}
+    assert set(rows) == {
+        "http://a:1@203.0.113.5:8080",
+        "http://b:2@203.0.113.5:8080",
+        "http://198.51.100.9:3128",
+        "http://192.0.2.7:8080",
+    }
+    assert rows["http://a:1@203.0.113.5:8080"].enabled is True
+    assert rows["http://b:2@203.0.113.5:8080"].enabled is False
+    assert rows["http://198.51.100.9:3128"].source == ProxySource.MANUAL
+    assert rows["http://192.0.2.7:8080"].enabled is True
+
+
+def test_sync_from_file_rotates_a_credential_in_place(db_session, monkeypatch, tmp_path):
+    """A new credential for a target whose old line left the file is the same proxy:
+    one row, its history kept, never a second row for the target."""
+    monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: True)
+    old = Proxy(
+        url="http://old:pw@203.0.113.5:8080",
+        source=ProxySource.FILE,
+        enabled=False,
+        consecutive_failures=4,
+        last_success_at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    )
+    db_session.add(old)
+    db_session.commit()
+
+    proxy_file = tmp_path / "proxies.txt"
+    proxy_file.write_text("http://new:pw@203.0.113.5:8080\n")
+    monkeypatch.setattr(proxies, "get_settings", lambda: _FakeSettings(proxy_file))
+
+    proxies.sync_from_file()
+
+    rows = db_session.query(Proxy).all()
+    assert [row.id for row in rows] == [old.id]
+    assert rows[0].url == "http://new:pw@203.0.113.5:8080"
+    assert rows[0].enabled is True
+    assert rows[0].consecutive_failures == 4
+    assert rows[0].last_success_at is not None
+
+
+def test_sync_from_file_never_logs_a_skipped_lines_credential(db_session, monkeypatch, tmp_path, caplog):
+    monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: True)
+    proxy_file = tmp_path / "proxies.txt"
+    proxy_file.write_text("http://firstuser:hunter2@203.0.113.5:8080\nhttp://seconduser:swordfish@203.0.113.5:8080\n")
+    monkeypatch.setattr(proxies, "get_settings", lambda: _FakeSettings(proxy_file))
+
+    with caplog.at_level("INFO", logger=proxies.logger.name):
+        proxies.sync_from_file()
+
+    assert "203.0.113.5:8080" in caplog.text
+    assert "1 skipped" in caplog.text
+    for secret in ("firstuser", "hunter2", "seconduser", "swordfish"):
+        assert secret not in caplog.text
+
+
 class _FakeDownloaderForProxy:
     """Stands in for spotdl's Downloader -- force_proxy only ever touches
     .audio_providers, so that's all this needs."""

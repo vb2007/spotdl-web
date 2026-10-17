@@ -11,5 +11,10 @@
 # once on worker-meta boot, adding new entries and disabling (not deleting) ones that were
 # removed from the file so their health history survives a later re-add.
 #
+# One connection target, one credential (v44): a second line for a host:port already
+# listed (or already added in the UI) is skipped with a warning, scheme and credentials
+# aside. To change a proxy's credential, edit its line: the same row takes the new URL
+# and keeps its history.
+#
 # UI management of this list is deferred to v13 — this plain file is the only interface
 # for now.

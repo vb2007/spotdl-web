@@ -62,6 +62,25 @@ def redact(url: str) -> str:
     return f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
 
 
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def connection_target(url: str) -> str:
+    """The host:port a proxy URL dials, whatever its scheme or credentials (v44, the
+    owner's rule: one connection target, one credential). A missing port is the scheme's
+    default, as urllib3 dials it. An unparseable URL is only its own target."""
+    try:
+        parsed = urlsplit(url)
+        port = parsed.port
+    except ValueError:
+        return url
+    if not parsed.hostname:
+        return url
+    if port is None:
+        port = _DEFAULT_PORTS.get(parsed.scheme.lower())
+    return f"{parsed.hostname.lower()}:{port}"
+
+
 _force_proxy_lock = threading.Lock()
 _force_proxy_active = False
 
@@ -167,17 +186,24 @@ def _probe_reachable(url: str, timeout: float = 2.0) -> bool:
 def sync_from_file() -> None:
     """Run once on worker-meta boot (see celery_app.py). Upserts proxies.txt's URLs as
     source=file rows and soft-disables (never deletes) source=file rows whose URL fell out
-    of the file, preserving health history for a later re-add."""
+    of the file, preserving health history for a later re-add.
+
+    One connection target, one credential (v44): a line whose host:port an earlier line
+    or a manual proxy already holds is skipped, and its row, if it has one, is disabled
+    like a removed line. A new credential for a target whose old line left the file is
+    a rotation: the old row takes the new URL and keeps its history."""
     settings = get_settings()
     path = Path(settings.proxy_file)
 
-    urls_in_file: set[str] = set()
     if path.is_file():
+        lines = []
         for line in path.read_text().splitlines():
             stripped = line.strip()
             if not stripped or stripped.startswith("#"):
                 continue
-            urls_in_file.add(stripped)
+            lines.append(stripped)
+        # File order decides which of two lines for one target wins.
+        urls_in_file = list(dict.fromkeys(lines))
     else:
         # is_file() (rather than exists()) also covers a bind-mount source that doesn't
         # exist on the host yet — Docker silently creates an empty directory in that case
@@ -188,34 +214,64 @@ def sync_from_file() -> None:
 
     db = SessionLocal()
     try:
-        existing = {p.url: p for p in db.query(Proxy).filter(Proxy.source == ProxySource.FILE).all()}
+        rows = db.query(Proxy).all()
+        existing = {p.url: p for p in rows if p.source == ProxySource.FILE}
+        manual_targets = {connection_target(p.url) for p in rows if p.source == ProxySource.MANUAL}
+        listed = set(urls_in_file)
+        # File rows the file no longer names, by target: each can take its target's
+        # rotated credential.
+        dropped: dict[str, Proxy] = {}
+        for url, row in existing.items():
+            if url not in listed:
+                dropped.setdefault(connection_target(url), row)
 
+        claimed: set[str] = set()
+        kept: set[Proxy] = set()
         added = 0
         re_enabled = 0
+        rotated = 0
+        skipped = 0
         for url in urls_in_file:
+            target = connection_target(url)
+            if target in claimed or target in manual_targets:
+                skipped += 1
+                logger.warning(
+                    "sync_from_file: skipping a second proxy for %s "
+                    "(one connection target, one credential)",
+                    redact_text(target),
+                )
+                continue
+            claimed.add(target)
             row = existing.get(url)
+            if row is None and (row := dropped.pop(target, None)) is not None:
+                row.url = url
+                rotated += 1
             if row is None:
-                proxy = Proxy(url=url, source=ProxySource.FILE, enabled=True)
+                row = Proxy(url=url, source=ProxySource.FILE, enabled=True)
                 if not _probe_reachable(url):
-                    proxy.cooldown_until = datetime.now(timezone.utc) + PROXY_COOLDOWN_LADDER[0]
-                db.add(proxy)
+                    row.cooldown_until = datetime.now(timezone.utc) + PROXY_COOLDOWN_LADDER[0]
+                db.add(row)
                 added += 1
             elif not row.enabled:
                 row.enabled = True
                 re_enabled += 1
+            kept.add(row)
 
         disabled = 0
-        for url, row in existing.items():
-            if url not in urls_in_file and row.enabled:
+        for row in existing.values():
+            if row not in kept and row.enabled:
                 row.enabled = False
                 disabled += 1
 
         db.commit()
         logger.info(
-            "sync_from_file: %d in file, %d added, %d re-enabled, %d disabled",
+            "sync_from_file: %d in file, %d added, %d re-enabled, %d rotated, %d skipped, "
+            "%d disabled",
             len(urls_in_file),
             added,
             re_enabled,
+            rotated,
+            skipped,
             disabled,
         )
     finally:
