@@ -424,3 +424,20 @@ here rather than edited into it, so the original record stays readable.
     since it closes the identical-labels question `/stats` raised). The window covering whole
     buckets up to the current partial one ("Last 7 days" at 00:05 is 6 days and 5 minutes) stays,
     recorded in `docs/GOTCHAS.md`.
+- **2026-10-18, v45: owner decisions, and one plan sentence the code doesn't bear out.**
+  - **Row controls are in the Tab order only on the current, open row** (owner's choice). A
+    collapsed list is exactly one Tab stop; Enter opens a job and Tab then walks its priority,
+    bump, cancel or archive, its track list (one more stop) and "load more tracks", the same
+    model the plan gives a track's detail actions.
+  - **`e` toggles the repeats** (owner's choice). An admin's open track keeps showing its history
+    as v41 designed; `e` opens a closed track, then shows every collapsed repeat, or hides them all.
+    It is admin-only, since non-admins have no history. The owner also asked for a findable
+    shortcut map: the plan's `h` overlay is that map, and `/account`'s new switch has a "show
+    shortcuts" button next to it.
+  - **"A row removed by cancel or an SSE filter update" doesn't happen in the current store.**
+    `patchPageJob` and the tracks-scope patch update a row that stops matching the filter in place
+    and never drop it (a cancelled job stays under a "waiting" chip until the next reload). Only
+    archive, with archived jobs hidden, removes a row. `lists.ts` handles any removal, and spec 14
+    evidences it with archive (next row, and the previous row when the last one goes). Cancel is
+    evidenced as "focus stays on the cancelled row". Making the store drop non-matching rows is a
+    store behavior change outside v45, and is left for the owner to decide.
