@@ -391,8 +391,9 @@
 		color: var(--text-dim);
 	}
 
-	.form-error:empty {
-		display: none;
+	/* Reserved at rest (DESIGN.md "Error / status text"): a failed refresh doesn't move the plates. */
+	.form-error {
+		min-height: 1.5em;
 	}
 
 	/* Desktop: a narrow "now" plate beside the window plate; below 1024 they stack, now first. */
