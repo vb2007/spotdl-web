@@ -406,3 +406,15 @@ here rather than edited into it, so the original record stays readable.
   `track_attempts.proxy_id` / `tracks.used_proxy_id` foreign keys have no ON DELETE, so it's a
   500); and `retention_days` has no upper bound (a huge value overflows the hourly retention
   sweep for every user; `/account` now caps it at 36,500 days client-side).
+- **2026-10-17, v44: owner decisions and one deliberate exception to v37's 403.**
+  - `GET /api/admin/stats` answers a non-admin **404**, as v44's plan says ("non-admin gets 404
+    (not 403)"), through its own dependency (`routers/admin.py`'s `require_admin_hidden`,
+    indistinguishable from an unknown route). Every other admin endpoint keeps `require_admin`'s
+    403 (the v37 amendment). Unauthenticated stays 401.
+  - Owner's choices in the impeccable direction probe: the page is a **"now | over window"**
+    split; **success rate = completed ÷ (completed + failed)**, "not found" counted apart; day
+    buckets follow the **viewer's local day** (the page sends `utc_offset_minutes`; one offset per
+    request, so across a DST change older buckets are an hour off).
+  - The stats payload carries the current breaker state (`breaker.current`), so the page needs no
+    second request. Releases are recorded by beat's tick on an expired pause, which now clears
+    `breaker_tripped_until` (NULL and expired already read the same everywhere).

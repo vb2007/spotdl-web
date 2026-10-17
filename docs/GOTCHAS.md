@@ -74,6 +74,8 @@ needed" claim — rather than silently deleted.
   an explicit `.create(op.get_bind(), checkfirst=True)` first, or `ALTER TABLE ... ADD COLUMN` fails
   against real Postgres with "type does not exist" — every prior enum here was created as a
   `create_table` side effect, never standalone → *v29*
+- A custom SQLAlchemy `FunctionElement` with constructor attributes (inlined literals) needs
+  `inherit_cache = False`, or one compiled statement serves another's values → *v44*
 
 **Docker Compose & deployment**
 - Override files **merge** list keys (`ports`, `volumes`) and **replace** mapping keys
@@ -396,6 +398,8 @@ needed" claim — rather than silently deleted.
 - `uvicorn --reload`'s supervisor never imports the app, so when its child dies on a config error
   the container stays up instead of exiting. The dev `api` command pre-validates settings before
   `exec uvicorn` → *v32*
+- Every writer of `breaker_tripped_until` goes through `retry.record_breaker_release`; a direct
+  write loses `breaker_events` history rows → *v44*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -515,6 +519,8 @@ needed" claim — rather than silently deleted.
   applies → *v40.1*
 - A terminal verdict reached through a proxy (no match, age gate) proves the proxy carried the
   request, so it's the proxy's success, not a failure to cool it down for → *v40.1*
+- `proxies.redact()` of a credential-less proxy is its full URL; the stats labels are `host:port`
+  → *v44*
 
 **File serving & HTTP headers**
 - A FastAPI `@router.get` does **not** answer `HEAD` (405); the file endpoint lists both. nginx
@@ -639,6 +645,8 @@ needed" claim — rather than silently deleted.
   navigation answers "no", so a question never survives onto the next page → *v43*
 - An `h1` placed between a page's `<header>` and its `<main>` is outside every landmark (axe
   `region`); a secondary page's `h1` opens its `main` → *v43*
+- A long-running Vite dev server stopped opening the confirmation dialog (restart `web`); a new
+  route leaves root-owned `.svelte-kit/types` (chown it in the container) → *v44*
 
 **Testing & verification technique**
 - The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
@@ -5078,3 +5086,34 @@ independently-found production bug from the same conversation)
   configured Matrix, or anything waiting to be filed. Clear log's archive is the one change not
   staged on disk: global setup's `clearSlate` archives every settled admin job at the start of each
   run anyway, so a killed run's leftover is the state the next run starts from.
+
+### v44 admin-stats gotchas
+
+- **A custom SQLAlchemy `FunctionElement` with constructor attributes must not inherit the
+  statement cache.** `stats.epoch_bucket(col, seconds, offset)` renders its bucket length and
+  offset as inlined integers (bound parameters in both the SELECT and the GROUP BY make Postgres
+  reject the GROUP BY, since the two placeholders differ). With `inherit_cache = True` those
+  attributes weren't in the cache key, so a 24h query compiled first served its `/ 3600` to the
+  next 7d query in the same process. `inherit_cache = False` fixes it; a test runs 24h then 7d and
+  asserts the 7d series (it fails with the cache on). The SQLite rendering lives in `conftest.py`
+  next to the JSONB shim.
+- **Every writer of `worker_state.breaker_tripped_until` goes through
+  `retry.record_breaker_release`** (beat's tick on an expired pause, the admin's release,
+  `record_success`, and `maybe_trip_breaker` before overwriting an expired pause), which flushes,
+  re-reads the row `FOR UPDATE` and clears the value: that clear is what makes each `released`
+  `breaker_events` row once-only. Since v44 an expired pause is NULL within ~30s (beat), where
+  it used to keep its old timestamp until a success or release; every reader already treated
+  NULL and expired alike. A new writer that sets or clears it directly loses history rows.
+- **`proxies.redact()` of a proxy without credentials is its full URL**
+  (`http://172.18.0.9:3128`), so "redacted" is not "not a URL". The stats payload carries no
+  proxy URLs, so its labels are `host:port`; found only by grepping the real response against
+  every raw `proxies.url` on dev. Two proxies on one gateway share a label (rows are keyed by
+  position on `/stats`).
+- **A long-running Vite dev server can stop opening the v43 confirmation dialog.** After ~39h and
+  many HMR updates on dev, clicking "release now" on `/settings` set nothing in `pendingConfirm`
+  (the `<dialog>` stayed empty, no console error), while the built nginx image and a restarted
+  `web` container both worked. Restart `web` before blaming the code.
+- **Adding a route while the dev `web` container runs leaves root-owned
+  `frontend/.svelte-kit/types/src/routes/<route>/`**, and `npm run check` fails with `EACCES`.
+  `docker compose exec -T web chown -R 1000:1000 .svelte-kit` fixes it (the v28 entry's `rm`
+  needs the parent writable).
