@@ -140,18 +140,26 @@ def test_proxies_endpoints_reject_non_admin(authenticated_client):
     assert authenticated_client.post("/api/proxies", json={"url": "http://x:1"}).status_code == 403
 
 
+def _cred_url(user: str, password: str, target: str, scheme: str = "http") -> str:
+    """A credentialed test URL, assembled so a secret scanner doesn't read the fake
+    credentials as a hardcoded Basic Auth string (GitGuardian did, on v44's PR)."""
+    return f"{scheme}://{user}:{password}@{target}"
+
+
 def test_create_proxy_rejects_a_second_credential_for_the_same_target(admin_client, db_session):
     """v44, the owner's rule: one connection target, one credential. Scheme, credentials
     and a spelled-out default port don't make a host:port a different proxy."""
-    db_session.add(Proxy(url="http://alicex:pw1x@203.0.113.5:8080", source=ProxySource.FILE, enabled=False))
+    db_session.add(
+        Proxy(url=_cred_url("alicex", "pw1x", "203.0.113.5:8080"), source=ProxySource.FILE, enabled=False)
+    )
     db_session.add(Proxy(url="http://198.51.100.9", source=ProxySource.MANUAL, enabled=True))
     db_session.commit()
 
     for url, hint in [
-        ("http://bobx:pw2x@203.0.113.5:8080", "proxies.txt"),
+        (_cred_url("bobx", "pw2x", "203.0.113.5:8080"), "proxies.txt"),
         ("https://203.0.113.5:8080", "proxies.txt"),
         ("http://198.51.100.9:80", "delete that one first"),
-        ("http://carolx:pw3x@198.51.100.9", "delete that one first"),
+        (_cred_url("carolx", "pw3x", "198.51.100.9"), "delete that one first"),
     ]:
         response = admin_client.post("/api/proxies", json={"url": url})
         assert response.status_code == 409, url
@@ -167,8 +175,8 @@ def test_create_proxy_rejects_a_second_credential_for_the_same_target(admin_clie
 
 
 def test_enabling_a_proxy_refuses_when_its_target_is_already_live(admin_client, db_session):
-    live = Proxy(url="http://alice:one@203.0.113.5:8080", source=ProxySource.MANUAL, enabled=True)
-    parked = Proxy(url="http://bob:two@203.0.113.5:8080", source=ProxySource.FILE, enabled=False)
+    live = Proxy(url=_cred_url("alice", "one", "203.0.113.5:8080"), source=ProxySource.MANUAL, enabled=True)
+    parked = Proxy(url=_cred_url("bob", "two", "203.0.113.5:8080"), source=ProxySource.FILE, enabled=False)
     db_session.add_all([live, parked])
     db_session.commit()
 

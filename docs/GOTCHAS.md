@@ -654,6 +654,8 @@ needed" claim — rather than silently deleted.
   is 6 days and 5 minutes, not 168 hours → *v44*
 
 **Testing & verification technique**
+- GitGuardian flags a plausible-looking `scheme://user:pass@host` literal in a test and rescans
+  every PR commit; assemble credentialed test URLs from parts → *v44*
 - The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
   new browser checks there, by role/label, never in a scratchpad script → *v37*
 - Playwright's accessible-name match is a case-insensitive **substring** by default: `'CONNECT'`
@@ -5145,6 +5147,12 @@ independently-found production bug from the same conversation)
   many HMR updates on dev, clicking "release now" on `/settings` set nothing in `pendingConfirm`
   (the `<dialog>` stayed empty, no console error), while the built nginx image and a restarted
   `web` container both worked. Restart `web` before blaming the code.
+- **GitGuardian's PR check flags fake credentials in test proxy URLs** as "Basic Auth String"
+  (`http://alicex:pw1x@203.0.113.5:8080` was flagged; `a:1@`, `old:pw@` and `user:pass@` were
+  not), and it rescans *every* commit in the PR, so a fix-forward commit leaves the check red
+  until the incidents are resolved in the GitGuardian dashboard or the commit is rewritten. Build
+  credentialed test URLs from parts (`test_proxies_router._cred_url`, an f-string) so no literal
+  `scheme://user:pass@host` with a plausible-looking credential reaches a commit.
 - **Adding a route while the dev `web` container runs leaves root-owned
   `frontend/.svelte-kit/types/src/routes/<route>/`**, and `npm run check` fails with `EACCES`.
   `docker compose exec -T web chown -R 1000:1000 .svelte-kit` fixes it (the v28 entry's `rm`

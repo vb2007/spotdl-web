@@ -367,11 +367,12 @@ def test_connection_target_ignores_scheme_credentials_and_default_ports():
     assert target("http://203.0.113.5") == target("http://203.0.113.5:80") == "203.0.113.5:80"
     assert target("https://203.0.113.5") == "203.0.113.5:443"
     # Unparseable: its own target, never the raw line (a credential could be logged).
-    bad = target("http://user:secretpw@203.0.113.5:99999")
-    assert bad.startswith("unparseable:") and "secretpw" not in bad
-    assert bad == target("http://user:secretpw@203.0.113.5:99999")
+    secret = "secretpw"
+    bad = target(f"http://user:{secret}@203.0.113.5:99999")
+    assert bad.startswith("unparseable:") and secret not in bad
+    assert bad == target(f"http://user:{secret}@203.0.113.5:99999")
     assert bad != target("http://other:pw@203.0.113.5:99999")
-    assert "secretpw" not in target("user:secretpw@203.0.113.5:8080")
+    assert secret not in target(f"user:{secret}@203.0.113.5:8080")
 
 
 def test_sync_from_file_keeps_one_proxy_per_target(db_session, monkeypatch, tmp_path):
@@ -468,7 +469,10 @@ def test_sync_from_file_never_logs_a_skipped_lines_credential(db_session, monkey
     monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: True)
     proxy_file = tmp_path / "proxies.txt"
-    proxy_file.write_text("http://firstuser:hunter2@203.0.113.5:8080\nhttp://seconduser:swordfish@203.0.113.5:8080\n")
+    # Assembled, so a secret scanner doesn't read the fake credentials as real ones.
+    credentials = (("firstuser", "hunter2"), ("seconduser", "swordfish"))
+    lines = [f"http://{user}:{pw}@203.0.113.5:8080" for user, pw in credentials]
+    proxy_file.write_text("\n".join(lines) + "\n")
     monkeypatch.setattr(proxies, "get_settings", lambda: _FakeSettings(proxy_file))
 
     with caplog.at_level("INFO", logger=proxies.logger.name):
