@@ -196,7 +196,8 @@ def admin_stats(
             per_proxy.c.not_found,
         )
         .outerjoin(per_proxy, per_proxy.c.proxy_id == Proxy.id)
-        .order_by(func.coalesce(per_proxy.c.attempts, 0).desc(), Proxy.url)
+        # Usable ones first: a switched-off proxy only ever matters as history.
+        .order_by(Proxy.enabled.desc(), func.coalesce(per_proxy.c.attempts, 0).desc(), Proxy.url)
     ).all()
     proxies = []
     for row in proxy_rows:

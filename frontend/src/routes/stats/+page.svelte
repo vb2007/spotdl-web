@@ -114,6 +114,7 @@
 		stats?.proxies.filter((p) => p.enabled && p.cooldown_until !== null).length ?? 0
 	);
 	const anyAttempts = $derived(stats?.network_paths.some((p) => p.attempts > 0) ?? false);
+	const anyProxyAttempts = $derived(stats?.proxies.some((p) => p.attempts > 0) ?? false);
 </script>
 
 <svelte:head>
@@ -208,26 +209,30 @@
 						<section class="block" aria-labelledby="routes-heading">
 							<div class="block-head">
 								<h3 id="routes-heading" class="block-title">Routes</h3>
-								<p class="legend" aria-hidden="true">
-									<span class="swatch completed"></span>completed
-									<span class="swatch failed"></span>failed, retried
-									<span class="swatch not-found"></span>not found
-								</p>
+								{#if anyAttempts}
+									<p class="legend" aria-hidden="true">
+										<span class="swatch completed"></span>completed
+										<span class="swatch failed"></span>failed, retried
+										<span class="swatch not-found"></span>not found
+									</p>
+								{/if}
 							</div>
-							{#if !anyAttempts}
+							{#if anyAttempts}
+								<!-- 2: the rate's definition, visible (a title attribute reaches no keyboard or touch). -->
+								<p id="rate-definition" class="quiet">
+									Success is completed ÷ (completed + failed). Not found is a verdict on the track,
+									not the route, so it's counted apart.
+								</p>
+							{:else}
 								<p class="quiet">No download attempts in this window.</p>
 							{/if}
-							<table class="rates">
+							<table class="rates" aria-describedby={anyAttempts ? 'rate-definition' : undefined}>
 								<thead>
 									<tr>
 										<th scope="col">Route</th>
 										<th scope="col" class="num">Attempts</th>
 										<th scope="col">Outcome</th>
-										<th scope="col" class="num">
-											<abbr title="completed ÷ (completed + failed); not found is left out"
-												>Success</abbr
-											>
-										</th>
+										<th scope="col" class="num">Success</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -235,7 +240,8 @@
 										<tr class:empty={path.attempts === 0}>
 											<th scope="row" class="mono route">{PATH_LABEL[path.path]}</th>
 											<td class="num mono"
-												>{path.attempts.toLocaleString()}<span class="unit">&nbsp;attempts</span
+												>{path.attempts.toLocaleString()}<span class="unit"
+													>&nbsp;{path.attempts === 1 ? 'attempt' : 'attempts'}</span
 												></td
 											>
 											<td class="outcome">
@@ -278,7 +284,10 @@
 									No proxies configured. Downloads go out directly; proxies are added in settings.
 								</p>
 							{:else}
-								<table class="rates proxies">
+								<table
+									class="rates proxies"
+									aria-describedby={anyProxyAttempts ? 'rate-definition' : undefined}
+								>
 									<thead>
 										<tr>
 											<th scope="col">Proxy</th>
@@ -290,6 +299,8 @@
 										</tr>
 									</thead>
 									<tbody>
+										<!-- Keyed by position: labels are host:port only (the plan's "redacted label only"),
+										     and two proxies on one gateway share one. -->
 										{#each stats.proxies as proxy, i (i)}
 											<tr class:empty={proxy.attempts === 0}>
 												<th scope="row" class="mono route">{proxy.label}</th>
@@ -305,14 +316,20 @@
 													{/if}
 												</td>
 												<td class="num mono"
-													>{proxy.attempts.toLocaleString()}<span class="unit">&nbsp;attempts</span
+													>{proxy.attempts.toLocaleString()}<span class="unit"
+														>&nbsp;{proxy.attempts === 1 ? 'attempt' : 'attempts'}</span
 													></td
 												>
 												<td class="outcome">
 													{#if proxy.attempts > 0}
 														<OutcomeBar counts={proxy} />
 														<span class="counts mono">
-															{proxy.completed} · {proxy.failed} · {proxy.not_found}
+															{proxy.completed}<span class="sr-only"> completed</span> · {proxy.failed}<span
+																class="sr-only"
+															>
+																failed</span
+															>
+															· {proxy.not_found}<span class="sr-only"> not found</span>
 														</span>
 													{:else}
 														<span class="quiet">not used</span>
@@ -556,12 +573,7 @@
 		text-transform: uppercase;
 		color: var(--text-dim);
 		padding-top: 0;
-	}
-
-	.rates abbr {
-		text-decoration: underline dotted;
-		text-underline-offset: 0.25em;
-		cursor: help;
+		white-space: nowrap;
 	}
 
 	.rates .num {
@@ -609,6 +621,11 @@
 
 	.proxies .outcome {
 		width: 28%;
+	}
+
+	/* 6: one size across the state words ("switched off" is .quiet, whose size would win). */
+	.state-cell .quiet {
+		font-size: inherit;
 	}
 
 	.state-cell,

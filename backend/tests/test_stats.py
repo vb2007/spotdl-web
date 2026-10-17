@@ -229,6 +229,27 @@ def test_proxies_by_redacted_label_with_current_cooldown_only(db_session, seeded
     ]
 
 
+def test_switched_on_proxies_come_first(db_session, seeded, now):
+    """A busy switched-off proxy still sorts after an idle switched-on one."""
+    db_session.add(Proxy(url="http://9.9.9.9:9999", source=ProxySource.FILE, enabled=True))
+    seeded["proxy"].enabled = False
+    db_session.commit()
+
+    labels = [p["label"] for p in stats.admin_stats(db_session, "24h", now)["proxies"]]
+    assert labels == ["9.9.9.9:9999", "10.1.2.3:3128", "5.6.7.8:8080"]
+
+
+def test_two_proxies_on_one_gateway_share_a_label_but_stay_two_rows(db_session, now):
+    db_session.add_all([
+        Proxy(url="http://alice:pw1@7.7.7.7:8000", source=ProxySource.MANUAL, enabled=True),
+        Proxy(url="http://bob:pw2@7.7.7.7:8000", source=ProxySource.MANUAL, enabled=True),
+    ])
+    db_session.commit()
+
+    rows = stats.admin_stats(db_session, "24h", now)["proxies"]
+    assert [p["label"] for p in rows] == ["7.7.7.7:8000", "7.7.7.7:8000"]
+
+
 def test_failures_by_error_type_land_in_their_hour(db_session, seeded, now):
     failures = stats.admin_stats(db_session, "24h", now)["failures"]
 

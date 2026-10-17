@@ -26,11 +26,6 @@
 	const spans = $derived(holdSpans(stats));
 	const tickEvery = $derived(axisTickEvery(stats));
 	const unit = $derived(stats.bucket_seconds < 86400 ? 'hour' : 'day');
-	const tripEvents = $derived(
-		stats.breaker.events.filter(
-			(e) => e.kind !== 'released' && Date.parse(e.occurred_at) >= Date.parse(stats.window_start)
-		)
-	);
 	const heldSeconds = $derived(
 		spans.reduce(
 			(sum, span) =>
@@ -137,12 +132,13 @@
 					class="hold"
 					class:ongoing={span.ongoing}
 					class:manual={span.manual}
-					style:left="{span.from * 100}%"
+					style:left="{Math.min(span.from, 1 - 1 / n) * 100}%"
 					style:width="{Math.max(0, span.to - span.from) * 100}%"
 				></span>
 			{/each}
 		</span>
-		<span class="total mono" style:grid-row={breakerRow}>{tripEvents.length}</span>
+		<!-- 4: no bare number here (every other total counts failures); the line below counts trips. -->
+		<span class="total" style:grid-row={breakerRow}></span>
 
 		<span class="axis" style:grid-row={breakerRow + 1}>
 			{#each stats.failures.buckets as bucket, i (bucket)}
@@ -330,14 +326,21 @@
 		height: 1.25rem;
 	}
 
+	/* 3: a hold fills at least the column it falls in, so a short one never reads as a tick
+	   (its left edge is held back from the end so that minimum never overruns the strip). */
 	.hold {
 		position: absolute;
 		top: 0;
 		bottom: 0;
-		min-width: 2px;
+		min-width: calc(100% / var(--n));
 		background: var(--waiting-dim);
 		border-top: 2px solid var(--waiting);
 		border-radius: 2px 2px 0 0;
+	}
+
+	/* Still holding at the reading: its leading edge is drawn, it hasn't ended. */
+	.hold.ongoing {
+		border-right: 2px solid var(--waiting);
 	}
 
 	.hold.manual {
