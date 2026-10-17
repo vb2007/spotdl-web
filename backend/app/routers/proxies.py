@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Proxy, ProxySource, User
 from app.routers.auth import require_admin
-from app.services.proxies import PROXY_URL_RE, redact
+from app.services.proxies import PROXY_URL_RE, connection_target, redact
 
 router = APIRouter(prefix="/api/proxies", tags=["proxies"])
 
@@ -36,6 +36,26 @@ def _proxy_to_dict(proxy: Proxy) -> dict:
             proxy.last_success_at.isoformat() if proxy.last_success_at is not None else None
         ),
     }
+
+
+def _target_clash(
+    db: Session, url: str, *, exclude: Proxy | None = None, enabled_only: bool = False
+) -> HTTPException | None:
+    """One connection target, one credential (v44, the owner's rule): two rows for one
+    host:port would be the same proxy twice, told apart on /stats only by a credential
+    that must never be shown. The detail names the target only, never a credential."""
+    target = connection_target(url)
+    for other in db.query(Proxy).all():
+        if other is exclude or (enabled_only and not other.enabled):
+            continue
+        if connection_target(other.url) != target:
+            continue
+        where = "change it in proxies.txt" if other.source == ProxySource.FILE else "delete that one first"
+        return HTTPException(
+            status_code=409,
+            detail=f"There is already a proxy for {target}. One address takes one credential: {where}.",
+        )
+    return None
 
 
 def _get_proxy_or_404(db: Session, proxy_id: uuid.UUID) -> Proxy:
@@ -77,6 +97,9 @@ def create_proxy(
     existing = db.query(Proxy).filter(Proxy.url == url).one_or_none()
     if existing is not None:
         raise HTTPException(status_code=409, detail="A proxy with this URL already exists")
+    clash = _target_clash(db, url)
+    if clash is not None:
+        raise clash
 
     proxy = Proxy(url=url, source=ProxySource.MANUAL, enabled=True)
     db.add(proxy)
@@ -93,6 +116,12 @@ def update_proxy(
     _: User = Depends(require_admin),
 ) -> dict:
     proxy = _get_proxy_or_404(db, proxy_id)
+    # A disabled row can share a target with a live one (a row from before v44, or a
+    # proxies.txt line sync skipped): turning it on would run both.
+    if payload.enabled and not proxy.enabled:
+        clash = _target_clash(db, proxy.url, exclude=proxy, enabled_only=True)
+        if clash is not None:
+            raise clash
     proxy.enabled = payload.enabled
     db.commit()
     return _proxy_to_dict(proxy)

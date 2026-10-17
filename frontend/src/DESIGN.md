@@ -689,7 +689,7 @@ than resetting every time the underlying page reloads.
 Three bands: phone `≤640px`, tablet `641–1023px`, desktop `≥1024px` (the stage stays a 64rem
 column). Desktop: the masthead is one row (ident · receiver status · account nav). Tablet: ident and
 nav share the first row and the status drops under them. Phone: the masthead is two lines (wordmark
-with the link tell, then the nav, **disconnect** pushed right; an admin's five items wrap it to a second row), the page gutter is
+with the link tell, then the nav, **disconnect** pushed right; an admin's five items wrap it to a second row; v44: six, with **stats**), the page gutter is
 16px, the Waterfall's lanes put the title line above meter + percentage, and the incoming rows put
 their actions under the link (phone and tablet, ≤1023px). Coarse pointers get 44px targets whatever the width (`@media
 (pointer: coarse)`) on the controls that carry the task: v41's job and track row toggles and actions included (F32). The
@@ -762,8 +762,8 @@ destructive action uses this, never `window.confirm`.
 
 ### Secondary pages (v43)
 
-`/settings`, `/library` and `/account` share `SubpageHeader.svelte`: the wordmark and the page
-links (queue, then library and settings for the admin only, then account; the current one is
+`/settings`, `/library` and `/account` share `SubpageHeader.svelte` (v44: `/stats` too): the wordmark and the page
+links (queue, then library and settings for the admin only (v44: then stats), then account; the current one is
 `aria-current="page"`, primary text, no underline). `main` then opens with the page's one `h1` (`.page-title`) in Sans at
 `--fs-title`. There is no eyebrow above the `h1`: the wordmark is the masthead, not a kicker.
 A non-admin is never linked to an admin page. Typing the path gets `AdminOnlyNotice.svelte`, which
@@ -797,6 +797,45 @@ are two groups, "Send an alert when" (each category with a one-line description)
 `/account` holds "Signed in" (name, email on the page, the admin's role, **disconnect**) and
 "Preferences", whose first group is log retention. v45's shortcut switch and v46's language
 switch are further groups in Preferences.
+
+### Admin stats page (`routes/stats/+page.svelte`, v44)
+
+A flight recorder, not a KPI wall: no big-number tiles and no per-chart filters. Owner-approved
+"now | over window" split. At ≥1024px a ~15rem **Right now** plate (queue counts as a ruled `dl`
+readout, oldest waiting age, the breaker's state, proxies switched on / cooling) sits beside the
+**window** plate. Below 1024 the plates stack with now first, and at tablet the readout runs across
+as a wrapping row. The 24h/7d/30d `.choice-group` lives in the window plate's own head and scopes
+only that plate. Refresh (`.btn.small`) and a `role="status"` "read at 14:03" sit in the title row.
+One request per load and per window change, newest-wins by a sequence number. A refetch keeps the
+frame and dims the old reading (`opacity: 0.55`, `aria-busy`) instead of showing a skeleton.
+
+Colour by meaning only, on §2's five conditions: completed = settled, a failure the ladder retries =
+waiting, not found = fail, an unrecorded cause = idle. Breaker holding ("holding until 14:30") =
+waiting, downloads paused = fail, clear = primary text. A cooling proxy = waiting. **Never amber**:
+nothing on this page is this session's live track. Validated on `--bg-1`: settled/waiting/fail are
+ΔE 12.3 apart under deuteranopia (15.7 normal vision) and all ≥3:1. The validator's band and chroma
+checks are for categorical palettes and don't apply to status colours.
+
+- **`OutcomeBar.svelte`**: a route's or proxy's attempts as a part-to-whole bar, normalized to the
+  row's own attempts (how often it works, not how busy it is). It sits in a `.well` with the quiet
+  `--line` edge, has 2px surface gaps between segments, and is `aria-hidden`: every number is in the
+  row's text.
+- **Success rate** = completed ÷ (completed + failed). Not found is a verdict on the track and is
+  counted apart. The definition is a visible line (`#rate-definition`) that both the routes and the
+  proxies tables reference via `aria-describedby`, never a `title`. `formatRate` never rounds a
+  partial up to 100% or down to 0% (`>99%`, `<1%`).
+- **Proxy labels are host:port**, never a URL (rows keyed by position, since two can share one).
+- **`FailureChannels.svelte`**, the recorder: one channel per failure class that occurred, on one
+  shared y-scale (stated in a line above it) and one time axis. Breaker holds are the bottom channel:
+  `--waiting-dim` fill with a 2px `--waiting` top edge, at least one bucket wide. An ongoing hold
+  has its leading edge drawn and a manual release has its end edged in `--text-primary`. One
+  crosshair readout reads every channel at once. The drawing is `role="img"` with a summary label,
+  plus a "show as a table" `<details>` (per bucket, and the holds). Phones hide every other axis
+  tick. Under `forced-colors` the marks are `CanvasText`.
+- On a phone each table row becomes a stacked reading (route + rate, then the bar, units spelled out).
+- A non-admin gets `AdminOnlyNotice` with its v44 `reason` prop ("count every user's downloads
+  together") and the page makes no request. `SubpageHeader` and `/`'s nav link it after settings,
+  admin only.
 
 ### Login "tuning in" instrument
 
@@ -834,6 +873,10 @@ validation message.
 - **Secondary pages (v43):** the masthead's `nav[aria-label=Pages]`, then `main#main` holding the
   page's one `h1` and `h2` sections, each `section` labelled by its heading. `/settings` adds
   `nav[aria-label="Settings sections"]` (`aria-current="location"` on the section being read).
+- **`/stats` (v44):** `main#main` → one `h1`, `h2` per plate, `h3` per block, each labelled by its
+  heading. The window switch is `role="group"` + `aria-pressed`. The crosshair is pointer-only, so
+  the recorder's `role="img"` label and its "show as a table" view are the keyboard and
+  screen-reader path to the same numbers.
 - **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →
   `main#main` (the id v45's skip link will target; no `tabindex` on it, since a `tabindex="-1"` container takes focus on any click inside and resets Tab order). One `h1` (the wordmark; its
   name is "spotdl-web"), then `h2`s for Incoming submissions (visually hidden), Active signal and

@@ -37,6 +37,9 @@ export interface WorkerStage {
 	hold?: string;
 	/** The failure streak before a release it performs (a release zeroes it). */
 	failures?: number;
+	/** v44: when the hold was staged. Its release writes a manual `released` breaker event,
+	 * which restoring removes (only if no real trip happened since). */
+	holdStagedAt?: string;
 }
 
 export function stageWorker(change: WorkerStage): void {
@@ -69,6 +72,15 @@ if hold and row.breaker_tripped_until == datetime.fromisoformat(hold):
 # stack's, not the spec's, and is kept.
 if "failures" in stage and row.consecutive_failures == 0:
     row.consecutive_failures = stage["failures"]
+# v44: the staged hold never tripped, so its release event is fake history on the dev
+# stack's breaker chart. Removed unless a real trip happened since (then nothing is touched).
+staged_at = stage.get("holdStagedAt")
+if staged_at:
+    from app.models import BreakerEvent, BreakerEventKind
+    since = datetime.fromisoformat(staged_at)
+    later = db.query(BreakerEvent).filter(BreakerEvent.occurred_at >= since)
+    if not later.filter(BreakerEvent.kind != BreakerEventKind.RELEASED).count():
+        later.filter(BreakerEvent.kind == BreakerEventKind.RELEASED, BreakerEvent.manual.is_(True)).delete()
 db.commit()
 `,
 		[readFileSync(WORKER_STAGE_FILE, 'utf8')]

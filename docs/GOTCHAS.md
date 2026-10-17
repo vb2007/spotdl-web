@@ -74,6 +74,8 @@ needed" claim — rather than silently deleted.
   an explicit `.create(op.get_bind(), checkfirst=True)` first, or `ALTER TABLE ... ADD COLUMN` fails
   against real Postgres with "type does not exist" — every prior enum here was created as a
   `create_table` side effect, never standalone → *v29*
+- A custom SQLAlchemy `FunctionElement` with constructor attributes (inlined literals) needs
+  `inherit_cache = False`, or one compiled statement serves another's values → *v44*
 
 **Docker Compose & deployment**
 - Override files **merge** list keys (`ports`, `volumes`) and **replace** mapping keys
@@ -396,6 +398,8 @@ needed" claim — rather than silently deleted.
 - `uvicorn --reload`'s supervisor never imports the app, so when its child dies on a config error
   the container stays up instead of exiting. The dev `api` command pre-validates settings before
   `exec uvicorn` → *v32*
+- Every writer of `breaker_tripped_until` goes through `retry.record_breaker_release`; a direct
+  write loses `breaker_events` history rows → *v44*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -515,6 +519,11 @@ needed" claim — rather than silently deleted.
   applies → *v40.1*
 - A terminal verdict reached through a proxy (no match, age gate) proves the proxy carried the
   request, so it's the proxy's success, not a failure to cool it down for → *v40.1*
+- `proxies.redact()` of a credential-less proxy is its full URL; the stats labels are `host:port`
+  → *v44*
+- One connection target, one credential: a second row for a `host:port` is refused (409) by the
+  API and skipped by `sync_from_file()`; a changed credential in `proxies.txt` rotates the row in
+  place → *v44*
 
 **File serving & HTTP headers**
 - A FastAPI `@router.get` does **not** answer `HEAD` (405); the file endpoint lists both. nginx
@@ -639,8 +648,14 @@ needed" claim — rather than silently deleted.
   navigation answers "no", so a question never survives onto the next page → *v43*
 - An `h1` placed between a page's `<header>` and its `<main>` is outside every landmark (axe
   `region`); a secondary page's `h1` opens its `main` → *v43*
+- A long-running Vite dev server stopped opening the confirmation dialog (restart `web`); a new
+  route leaves root-owned `.svelte-kit/types` (chown it in the container) → *v44*
+- `/stats` windows are whole buckets ending with the current partial one: "Last 7 days" at 00:05
+  is 6 days and 5 minutes, not 168 hours → *v44*
 
 **Testing & verification technique**
+- GitGuardian flags a plausible-looking `scheme://user:pass@host` literal in a test and rescans
+  every PR commit; assemble credentialed test URLs from parts → *v44*
 - The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
   new browser checks there, by role/label, never in a scratchpad script → *v37*
 - Playwright's accessible-name match is a case-insensitive **substring** by default: `'CONNECT'`
@@ -5078,3 +5093,68 @@ independently-found production bug from the same conversation)
   configured Matrix, or anything waiting to be filed. Clear log's archive is the one change not
   staged on disk: global setup's `clearSlate` archives every settled admin job at the start of each
   run anyway, so a killed run's leftover is the state the next run starts from.
+
+### v44 admin-stats gotchas
+
+- **A custom SQLAlchemy `FunctionElement` with constructor attributes must not inherit the
+  statement cache.** `stats.epoch_bucket(col, seconds, offset)` renders its bucket length and
+  offset as inlined integers (bound parameters in both the SELECT and the GROUP BY make Postgres
+  reject the GROUP BY, since the two placeholders differ). With `inherit_cache = True` those
+  attributes weren't in the cache key, so a 24h query compiled first served its `/ 3600` to the
+  next 7d query in the same process. `inherit_cache = False` fixes it; a test runs 24h then 7d and
+  asserts the 7d series (it fails with the cache on). The SQLite rendering lives in `conftest.py`
+  next to the JSONB shim.
+- **Every writer of `worker_state.breaker_tripped_until` goes through
+  `retry.record_breaker_release`** (beat's tick on an expired pause, the admin's release,
+  `record_success`, and `maybe_trip_breaker` before overwriting an expired pause), which flushes,
+  re-reads the row `FOR UPDATE` and clears the value: that clear is what makes each `released`
+  `breaker_events` row once-only. Since v44 an expired pause is NULL within ~30s (beat), where
+  it used to keep its old timestamp until a success or release; every reader already treated
+  NULL and expired alike. A new writer that sets or clears it directly loses history rows.
+- **`proxies.redact()` of a proxy without credentials is its full URL**
+  (`http://172.18.0.9:3128`), so "redacted" is not "not a URL". The stats payload carries no
+  proxy URLs, so its labels are `host:port`; found only by grepping the real response against
+  every raw `proxies.url` on dev. Two proxies on one gateway share a label (rows are keyed by
+  position on `/stats`). *(2026-10-17: the owner ruled that out — see the next entry.)*
+- **One connection target, one credential** (the owner's rule, decided on v44's PR). Two proxy
+  rows for one `host:port` are the same proxy twice, and `/stats` could only tell them apart by
+  the credential it must never show. `proxies.connection_target(url)` is the key: hostname and
+  port, scheme and credentials aside, a missing port read as the scheme's default (`http` 80,
+  `https` 443) the way urllib3 dials it. `POST /api/proxies` answers 409 on any row with the same
+  target, enabled or not (the detail names the target and says where to fix it, never a
+  credential); `PATCH` refuses to *enable* a row while another enabled row holds its target.
+  `sync_from_file()` keeps the first line per target in file order, skips later ones (and a line
+  whose target a manual proxy holds) with a warning that logs only the target, and disables a
+  skipped line's existing row like a removed line. A new credential for a target whose old line
+  left the file is a **rotation**: the old row takes the new URL, its cooldown and failure streak
+  reset (`last_used_at`/`last_success_at` kept), so a credential change never mints a second row.
+  Rows that predate the rule are not rewritten: two enabled *manual* rows for one target both stay
+  enabled until deleted; a disabled duplicate can't be enabled beside its live twin. Two
+  consequences of "file rows are never deleted": a target that was ever in `proxies.txt` can't be
+  added in the UI afterwards (the 409 says to use `proxies.txt`), and a disabled manual proxy still
+  holds its target, so a `proxies.txt` line for it is skipped (only a `worker-meta` warning says
+  so) until the manual one is deleted. A byte-identical repeated line was always collapsed and is
+  not a clash (dev's `proxies.txt` has one).
+- **"Last 7 days" is the last 7 calendar days *including today so far*,** not the last 168
+  hours. `stats.window_bounds` covers whole buckets of the viewer's clock ending with the one
+  `now` is in, so at 00:05 local the 7d window is 6 days and 5 minutes long, and the 24h window
+  at 14:05 starts at 15:00 yesterday. That keeps every bucket a whole hour or day, which the
+  chart and its table need. The owner accepted it as-is (2026-10-17); a change that compares
+  windows, or alerts on a window's totals, must not read it as a fixed duration. The offset is
+  the browser's *current* one, so a 30d window spanning a DST change draws the days before it an
+  hour off their local midnight.
+- **A long-running Vite dev server can stop opening the v43 confirmation dialog.** After ~39h and
+  many HMR updates on dev, clicking "release now" on `/settings` set nothing in `pendingConfirm`
+  (the `<dialog>` stayed empty, no console error), while the built nginx image and a restarted
+  `web` container both worked. Restart `web` before blaming the code.
+- **GitGuardian's PR check flags fake credentials in test proxy URLs** ("Basic Auth String" for a
+  literal URL with a six-letter user and a four-character password; single-letter or `user:pass`
+  ones were not flagged), and a `(user, password)`-shaped tuple of string literals as an
+  "Authentication Tuple". It rescans *every* commit in the PR, so a fix-forward commit leaves the
+  check red until the incidents are resolved in the GitGuardian dashboard or the commit is
+  rewritten, and quoting the flagged string in a doc is a new hit. Build credentialed test URLs
+  from parts (`test_proxies_router._cred_url`) or generate the values (`uuid4().hex`).
+- **Adding a route while the dev `web` container runs leaves root-owned
+  `frontend/.svelte-kit/types/src/routes/<route>/`**, and `npm run check` fails with `EACCES`.
+  `docker compose exec -T web chown -R 1000:1000 .svelte-kit` fixes it (the v28 entry's `rm`
+  needs the parent writable).

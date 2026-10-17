@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import exists
 from sqlalchemy.orm import Session
@@ -76,8 +78,10 @@ def release_breaker(
     does (v40.1), but keeps `breaker_trip_count`: a manual release is not an earned
     recovery, so if a new streak re-trips it, that trip is the *next* escalation step,
     not back at 30m."""
+    # v44: records the `released` breaker event (a pause that had already run out is
+    # recorded as having ended on its own, at its own end time).
+    retry.record_breaker_release(db, datetime.now(timezone.utc), end_running=True, manual=True)
     worker_state = retry.get_worker_state(db)
-    worker_state.breaker_tripped_until = None
     worker_state.consecutive_failures = 0
     db.commit()
     return _status_dict(worker_state, _is_busy(db))

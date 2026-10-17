@@ -234,6 +234,69 @@ export interface WorkerStatus {
 	busy: boolean;
 }
 
+/** v44: GET /api/admin/stats. Global (every user's attempts together), admin-only; counts,
+ * timestamps and redacted proxy labels only. */
+export type StatsWindow = '24h' | '7d' | '30d';
+
+export interface OutcomeCounts {
+	/** Real network attempts (completed + failed + not_found). */
+	attempts: number;
+	completed: number;
+	/** Failed with anything but "not found": the ladder retries these. */
+	failed: number;
+	/** Terminal "no match": about the track, not the route. */
+	not_found: number;
+	/** completed / (completed + failed); null with nothing to rate. */
+	success_rate: number | null;
+}
+
+export interface PathStats extends OutcomeCounts {
+	path: 'direct-ipv4' | 'direct-ipv6' | 'proxy' | 'unknown';
+}
+
+export interface ProxyStats extends OutcomeCounts {
+	/** `host:port` (proxies.redact() minus its scheme): never credentials, never a URL. */
+	label: string;
+	enabled: boolean;
+	last_success_at: string | null;
+	/** Only a cooldown still running. */
+	cooldown_until: string | null;
+}
+
+export interface BreakerEvent {
+	kind: 'tripped' | 'escalated' | 'released';
+	occurred_at: string;
+	step_seconds: number | null;
+	trip_count: number | null;
+	paused_until: string | null;
+	manual: boolean;
+}
+
+export interface AdminStats {
+	window: StatsWindow;
+	generated_at: string;
+	window_start: string;
+	utc_offset_minutes: number;
+	bucket_seconds: number;
+	network_paths: PathStats[];
+	proxies: ProxyStats[];
+	failures: {
+		/** Each bucket's start; the last one is the current, partial bucket. */
+		buckets: string[];
+		series: { error_type: string; counts: number[]; total: number }[];
+	};
+	breaker: {
+		current: { paused: boolean; holding_until: string | null; trip_count: number };
+		events: BreakerEvent[];
+		trips: number;
+	};
+	queue: {
+		counts: { pending: number; queued: number; downloading: number; waiting: number };
+		oldest_waiting_since: string | null;
+		oldest_waiting_age_seconds: number | null;
+	};
+}
+
 export type ProxySource = 'file' | 'manual';
 
 export interface Proxy {
@@ -633,6 +696,12 @@ export function resumeWorker(): Promise<WorkerStatus> {
 
 export function releaseBreaker(): Promise<WorkerStatus> {
 	return request('/api/worker/breaker/release', { method: 'POST' });
+}
+
+export function getAdminStats(window: StatsWindow): Promise<AdminStats> {
+	// The viewer's own clock, so a day bucket is their day (owner's choice, v44).
+	const offset = -new Date().getTimezoneOffset();
+	return request<AdminStats>(`/api/admin/stats?window=${window}&utc_offset_minutes=${offset}`);
 }
 
 export function listProxies(): Promise<Proxy[]> {
