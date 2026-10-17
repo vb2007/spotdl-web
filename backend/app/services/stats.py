@@ -4,7 +4,7 @@ tracks table.
 
 Global by design: every user's rows are counted together, which is why only the admin
 may read it. Nothing here returns an identity, a job or track title, or a proxy URL --
-only counts, timestamps, error-type names and `proxies.redact()` labels.
+only counts, timestamps, error-type names and `host:port` proxy labels.
 
 Every metric is one SQL aggregate over its window (GROUP BY, never a per-proxy, per-path
 or per-bucket query loop, per CLAUDE.md's bulk invariant). Buckets are hourly for 24h and
@@ -86,6 +86,14 @@ def _aware(value: datetime | None) -> datetime | None:
 def _iso(value: datetime | None) -> str | None:
     value = _aware(value)
     return value.isoformat() if value is not None else None
+
+
+def _proxy_stats_label(url: str) -> str:
+    """`host:port`: proxies.redact()'s output (no credentials) without its scheme, so the
+    label is never a URL. A proxy configured without credentials would otherwise read back
+    as its own full URL, and this page's payload carries no proxy URLs at all (v44's plan).
+    Every proxy is http(s) (PROXY_URL_RE), so the scheme said nothing anyway."""
+    return _proxy_label(url).split("://", 1)[-1]
 
 
 def _rate(completed: int, failed: int) -> float | None:
@@ -195,7 +203,7 @@ def admin_stats(
         cooldown_until = _aware(row.cooldown_until)
         proxies.append(
             {
-                "label": _proxy_label(row.url),
+                "label": _proxy_stats_label(row.url),
                 "enabled": row.enabled,
                 **_counts_dict(row.attempts, row.completed, row.not_found),
                 "last_success_at": _iso(row.last_success_at),

@@ -255,7 +255,7 @@ export interface PathStats extends OutcomeCounts {
 }
 
 export interface ProxyStats extends OutcomeCounts {
-	/** proxies.redact(): scheme://host:port, never credentials. */
+	/** `host:port` (proxies.redact() minus its scheme): never credentials, never a URL. */
 	label: string;
 	enabled: boolean;
 	last_success_at: string | null;

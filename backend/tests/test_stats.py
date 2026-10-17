@@ -214,13 +214,13 @@ def test_proxies_by_redacted_label_with_current_cooldown_only(db_session, seeded
 
     assert result["proxies"] == [
         {
-            "label": "http://10.1.2.3:3128", "enabled": True,
+            "label": "10.1.2.3:3128", "enabled": True,
             "attempts": 3, "completed": 1, "failed": 2, "not_found": 0, "success_rate": 1 / 3,
             "last_success_at": (now - timedelta(hours=2)).isoformat(),
             "cooldown_until": (now + timedelta(minutes=10)).isoformat(),
         },
         {
-            "label": "http://5.6.7.8:8080", "enabled": False,
+            "label": "5.6.7.8:8080", "enabled": False,
             "attempts": 0, "completed": 0, "failed": 0, "not_found": 0, "success_rate": None,
             "last_success_at": None,
             # Its cooldown ended a minute ago: not current.
@@ -312,7 +312,7 @@ def test_endpoint_returns_counts_only(admin_client, db_session, seeded):
 
     assert json.loads(body)["window"] == "7d"
     for leak in (TITLE, "AliceSecretAlbum", "open.spotify.com", "Somebody", "alice@example.com", "bob@example.com",
-                 "admin@example.com", "hunter2", "user:", SECRET_PROXY, str(seeded["proxy"].id)):
+                 "admin@example.com", "hunter2", "user:", SECRET_PROXY, OTHER_PROXY, "http://", str(seeded["proxy"].id)):
         assert leak not in body, leak
 
 
