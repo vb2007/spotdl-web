@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -469,10 +470,13 @@ def test_sync_from_file_never_logs_a_skipped_lines_credential(db_session, monkey
     monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: True)
     proxy_file = tmp_path / "proxies.txt"
-    # Assembled, so a secret scanner doesn't read the fake credentials as real ones.
-    credentials = (("firstuser", "hunter2"), ("seconduser", "swordfish"))
-    lines = [f"http://{user}:{pw}@203.0.113.5:8080" for user, pw in credentials]
-    proxy_file.write_text("\n".join(lines) + "\n")
+    # Generated, so no credential-shaped literal reaches a commit (a secret scanner flags
+    # even fake ones).
+    secrets = [uuid.uuid4().hex[:10] for _ in range(4)]
+    proxy_file.write_text(
+        f"http://{secrets[0]}:{secrets[1]}@203.0.113.5:8080\n"
+        f"http://{secrets[2]}:{secrets[3]}@203.0.113.5:8080\n"
+    )
     monkeypatch.setattr(proxies, "get_settings", lambda: _FakeSettings(proxy_file))
 
     with caplog.at_level("INFO", logger=proxies.logger.name):
@@ -480,7 +484,7 @@ def test_sync_from_file_never_logs_a_skipped_lines_credential(db_session, monkey
 
     assert "203.0.113.5:8080" in caplog.text
     assert "1 skipped" in caplog.text
-    for secret in ("firstuser", "hunter2", "seconduser", "swordfish"):
+    for secret in secrets:
         assert secret not in caplog.text
 
 

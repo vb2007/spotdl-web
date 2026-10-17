@@ -5147,12 +5147,13 @@ independently-found production bug from the same conversation)
   many HMR updates on dev, clicking "release now" on `/settings` set nothing in `pendingConfirm`
   (the `<dialog>` stayed empty, no console error), while the built nginx image and a restarted
   `web` container both worked. Restart `web` before blaming the code.
-- **GitGuardian's PR check flags fake credentials in test proxy URLs** as "Basic Auth String"
-  (`http://alicex:pw1x@203.0.113.5:8080` was flagged; `a:1@`, `old:pw@` and `user:pass@` were
-  not), and it rescans *every* commit in the PR, so a fix-forward commit leaves the check red
-  until the incidents are resolved in the GitGuardian dashboard or the commit is rewritten. Build
-  credentialed test URLs from parts (`test_proxies_router._cred_url`, an f-string) so no literal
-  `scheme://user:pass@host` with a plausible-looking credential reaches a commit.
+- **GitGuardian's PR check flags fake credentials in test proxy URLs** ("Basic Auth String" for a
+  literal URL with a six-letter user and a four-character password; single-letter or `user:pass`
+  ones were not flagged), and a `(user, password)`-shaped tuple of string literals as an
+  "Authentication Tuple". It rescans *every* commit in the PR, so a fix-forward commit leaves the
+  check red until the incidents are resolved in the GitGuardian dashboard or the commit is
+  rewritten, and quoting the flagged string in a doc is a new hit. Build credentialed test URLs
+  from parts (`test_proxies_router._cred_url`) or generate the values (`uuid4().hex`).
 - **Adding a route while the dev `web` container runs leaves root-owned
   `frontend/.svelte-kit/types/src/routes/<route>/`**, and `npm run check` fails with `EACCES`.
   `docker compose exec -T web chown -R 1000:1000 .svelte-kit` fixes it (the v28 entry's `rm`
