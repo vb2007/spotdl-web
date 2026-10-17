@@ -6,6 +6,7 @@
 	import { queue } from '$lib/stores/queue';
 	import { keepFocus } from '$lib/stores/confirm';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
+	import { helpOpen, shortcutsEnabled } from '$lib/keyboard/registry';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -86,6 +87,30 @@
 		await keepFocus(from);
 	}
 
+	// v45: the single-key shortcut switch (WCAG 2.1.4), stored per user server-side so it
+	// follows them to every device. It applies the moment the server has it; the layout reads
+	// it again from /api/auth/me on every route load.
+	let keyboardSaving = $state(false);
+	let keyboardError = $state('');
+	let keyboardSavedAt = $state<Date | null>(null);
+
+	async function setShortcuts(enabled: boolean) {
+		if (enabled === $shortcutsEnabled || keyboardSaving) return;
+		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		keyboardSaving = true;
+		keyboardError = '';
+		try {
+			const saved = await api.updateKeyboardSettings(enabled);
+			shortcutsEnabled.set(saved.keyboard_shortcuts);
+			keyboardSavedAt = new Date();
+		} catch (err) {
+			keyboardError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+		} finally {
+			keyboardSaving = false;
+		}
+		await keepFocus(from);
+	}
+
 	// v43 (F31): the account page could not sign out; it now does, the way `/` does.
 	async function onLogout() {
 		loggingOut = true;
@@ -136,8 +161,8 @@
 			<p class="form-error" role="alert">{logoutError}</p>
 		</section>
 
-		<!-- Preferences: one group per setting. v45 adds the keyboard-shortcut switch and v46
-		     the language switch here, as further groups after this one. -->
+		<!-- Preferences: one group per setting. v45 added the keyboard-shortcut switch; v46 adds
+		     the language switch here, as a further group. -->
 		<section class="panel section" aria-labelledby="preferences-heading">
 			<h2 id="preferences-heading" class="label">Preferences</h2>
 
@@ -212,6 +237,54 @@
 					</form>
 				{/if}
 				<p class="form-error" role="alert">{error}</p>
+			</div>
+
+			<div class="group" role="group" aria-labelledby="keyboard-heading">
+				<h3 id="keyboard-heading" class="group-title">Keyboard shortcuts</h3>
+				<p class="hint" id="keyboard-hint">
+					Single keys do things on the queue: <kbd>j</kbd> and <kbd>k</kbd> move between rows,
+					<kbd>x</kbd> cancels, <kbd>h</kbd> lists them all. Switch them off if they get in the way of
+					a screen reader or speech input. Tab, the arrow keys, Enter and Esc work either way.
+				</p>
+				<div class="form-field">
+					<span class="label" id="keyboard-mode-label">Single-key shortcuts</span>
+					<div class="keyboard-row">
+						<div
+							class="choice-group"
+							role="group"
+							aria-labelledby="keyboard-mode-label"
+							aria-describedby="keyboard-hint"
+						>
+							<button
+								type="button"
+								aria-pressed={$shortcutsEnabled}
+								disabled={keyboardSaving}
+								onclick={() => setShortcuts(true)}
+							>
+								on
+							</button>
+							<button
+								type="button"
+								aria-pressed={!$shortcutsEnabled}
+								disabled={keyboardSaving}
+								onclick={() => setShortcuts(false)}
+							>
+								off
+							</button>
+						</div>
+						<button type="button" class="btn" onclick={() => helpOpen.set(true)}
+							>show shortcuts</button
+						>
+					</div>
+				</div>
+				<p class="save-state" class:saved={keyboardSavedAt !== null} role="status">
+					{keyboardSaving
+						? 'Saving…'
+						: keyboardSavedAt
+							? `Saved at ${keyboardSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+							: ''}
+				</p>
+				<p class="form-error" role="alert">{keyboardError}</p>
 			</div>
 		</section>
 	</main>
@@ -315,6 +388,13 @@
 	.unit {
 		font-size: var(--fs-meta);
 		color: var(--text-muted);
+	}
+
+	.keyboard-row {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: var(--space-3);
 	}
 
 	@media (max-width: 640px) {
