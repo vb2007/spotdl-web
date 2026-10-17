@@ -384,11 +384,24 @@
 	// v41 designed; `e` opens the track if it's closed, then shows every collapsed repeat, or
 	// hides them all once any is shown.
 	function toggleRepeats() {
-		if (!expanded) toggleExpanded();
+		if (!expanded) {
+			// The history loads after the row opens: its repeats open when it arrives.
+			toggleExpanded();
+			openRepeatsOnLoad = true;
+			return;
+		}
 		const runs = groups.filter((g) => g.attempts.length > 1).map((g) => g.key);
 		if (runs.some((key) => openRuns.has(key))) openRuns.clear();
 		else for (const key of runs) openRuns.add(key);
 	}
+	let openRepeatsOnLoad = $state(false);
+	$effect(() => {
+		if (!openRepeatsOnLoad || attemptsLoadedFor === null) return;
+		openRepeatsOnLoad = false;
+		untrack(() => {
+			for (const g of groups) if (g.attempts.length > 1) openRuns.add(g.key);
+		});
+	});
 
 	// v45: the row's keys (`r`, `d`, `x`, `e`), each only where its action is offered.
 	const keys = kbRow({

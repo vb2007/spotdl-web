@@ -1,12 +1,27 @@
 <script lang="ts">
 	import { queue } from '$lib/stores/queue';
 	import TrackRow from '$lib/components/TrackRow.svelte';
-	import { kbList } from '$lib/keyboard/lists';
+	import { tick } from 'svelte';
+	import { focusRowEl, kbList } from '$lib/keyboard/lists';
 
 	let { jobId, isAdmin, total }: { jobId: string; isAdmin: boolean; total: number } = $props();
 
 	const { expanded } = queue;
 	let state = $derived($expanded[jobId]);
+
+	// v45: "load more tracks" from the keyboard (Enter on it, or End/Shift+G on the last
+	// track, which clicks it) moves focus to the first track it loaded. A pointer press leaves
+	// focus where it is.
+	async function loadMore(event: MouseEvent) {
+		if (state.loadingMore) return;
+		const known = new Set(state.items.map((t) => t.id));
+		const fromKeyboard = event.detail === 0;
+		await queue.loadMoreExpandedTracks(jobId);
+		await tick();
+		if (!fromKeyboard) return;
+		const fresh = $expanded[jobId]?.items.find((t) => !known.has(t.id));
+		if (fresh) focusRowEl(document.querySelector<HTMLElement>(`[data-kb-row="${fresh.id}"]`));
+	}
 </script>
 
 <!-- v41: the job's tracks hang off a rail in its chevron column, indented by exactly one
@@ -33,9 +48,7 @@
 				class="load-more mono"
 				data-kb-load-more
 				aria-disabled={state.loadingMore}
-				onclick={() => {
-					if (!state.loadingMore) queue.loadMoreExpandedTracks(jobId);
-				}}
+				onclick={loadMore}
 			>
 				{state.loadingMore ? 'loading…' : 'load more tracks'}
 				<span class="shown"

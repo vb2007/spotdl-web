@@ -68,7 +68,14 @@ function mem(key: string): ListMemory {
 
 /** Forgets every list's place (a logout or identity change). */
 export function resetLists(): void {
-	memory.clear();
+	// In place: a list still mounted (the chips, through a reset on an identity change) keeps
+	// its own reference to its entry, and must see the reset rather than a stale copy.
+	for (const m of memory.values()) {
+		m.active = null;
+		m.order = [];
+		m.focusWithin = false;
+		m.restoreUntil = 0;
+	}
 }
 
 export function listOf(row: Element): HTMLElement | null {
@@ -145,10 +152,10 @@ function applyTabOrder(list: HTMLElement): void {
 	// Controls in the list but outside every row of it (none today) are left alone.
 }
 
-function focusRow(row: HTMLElement | undefined | null): boolean {
+function focusRow(row: HTMLElement | undefined | null, opts?: FocusOptions): boolean {
 	const item = row ? itemOf(row) : null;
 	if (!item) return false;
-	item.focus();
+	item.focus(opts);
 	return true;
 }
 
@@ -184,7 +191,9 @@ function settle(list: HTMLElement): void {
 		settle(nested);
 		if (!focusLost()) return;
 	}
-	focusRow(activeRow);
+	// The same row back after a re-order stays where the user is reading; a neighbour after a
+	// removal is scrolled to.
+	focusRow(activeRow, { preventScroll: before === m.active });
 }
 
 function focusLost(): boolean {
@@ -220,8 +229,11 @@ export function kbList(name: string, opts: { fallback?: () => HTMLElement | null
 			// removed or moved by Svelte has no `relatedTarget`, and must keep its claim.
 			if (to && !list.contains(to)) m.focusWithin = false;
 		};
-		const onPointerDown = (event: PointerEvent) => {
-			if (!list.contains(event.target as Node)) m.focusWithin = false;
+		// A press anywhere ends the claim: on a control it comes straight back with that
+		// control's `focusin`, while a press on a row's plain text (which drops focus to <body>)
+		// must not let the next live update pull focus, and the page, back to the old row.
+		const onPointerDown = () => {
+			m.focusWithin = false;
 		};
 		list.addEventListener('focusin', onFocusIn);
 		list.addEventListener('focusout', onFocusOut);

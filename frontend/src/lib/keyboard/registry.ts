@@ -21,6 +21,7 @@ export const helpOpen = writable(false);
 export const chordPending = writable<string | null>(null);
 
 const CHORD_TIMEOUT_MS = 1500;
+const REPEATABLE = new Set(['next', 'prev']);
 let chordTimer: ReturnType<typeof setTimeout> | undefined;
 
 function setChord(prefix: string | null): void {
@@ -139,13 +140,20 @@ export function onKeydown(event: KeyboardEvent): void {
 	const binding = find(event, null);
 	if (!binding) {
 		const chords = BINDINGS.some((b) => b.prefix === 'g' && handlers.get(b.id)?.length);
-		if (enabled && chords && !typing && event.key === 'g' && !event.shiftKey) {
+		// Case-free like every letter binding, so Caps Lock doesn't take the chords away.
+		if (enabled && chords && !typing && event.key.toLowerCase() === 'g' && !event.shiftKey) {
 			event.preventDefault();
 			setChord('g');
 		}
 		return;
 	}
 	if (!enabled && isCharacter(chordFor(binding, event))) return;
+	// A held key repeats only moving through a list; holding `a` or `x` must never archive or
+	// cancel row after row as focus moves on.
+	if (event.repeat && !REPEATABLE.has(binding.id)) {
+		event.preventDefault();
+		return;
+	}
 	if (run(binding.id, event)) event.preventDefault();
 }
 

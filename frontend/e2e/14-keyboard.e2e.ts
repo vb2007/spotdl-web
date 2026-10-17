@@ -359,13 +359,29 @@ test.describe('as the admin', () => {
 			const priority = page.getByLabel(`priority of ${retryJob.title}`);
 			await page.keyboard.press('Tab');
 			await expect(priority).toBeFocused();
+			const typedFrom = await priority.inputValue();
 			await page.keyboard.type('jx?');
 			await expect(priority).toBeFocused();
 			await noOpenDialog(page);
-			// Esc from the field closes the row and returns to it.
+			// A digit goes in (letters only leave a number field invalid).
+			await page.keyboard.press('Control+a');
+			await page.keyboard.type('9');
+			await expect(priority).toHaveValue('9');
+			// Esc from the field puts the typed value back, closes the row and returns to it;
+			// nothing was saved.
+			const changes: string[] = [];
+			const onRequest = (r: { method(): string; url(): string }) => {
+				if (r.method() === 'PATCH' && r.url().includes(`/api/jobs/${retryJob.id}`))
+					changes.push(r.url());
+			};
+			page.on('request', onRequest);
 			await page.keyboard.press('Escape');
 			await expect(jobToggle(page, retryJob.title)).toHaveAttribute('aria-expanded', 'false');
 			await expect(jobToggle(page, retryJob.title)).toBeFocused();
+			await page.waitForTimeout(750);
+			page.off('request', onRequest);
+			expect(changes, 'Esc saved no priority').toEqual([]);
+			await expect(priority).toHaveValue(typedFrom);
 
 			// Priority: Shift+B raises, `-` lowers, `+` (Shift+3 on Hungarian) raises.
 			const priorityOf = async () =>
@@ -557,10 +573,17 @@ test.describe('as the admin', () => {
 			await expect(page.locator('p[aria-live="polite"]')).toHaveText(await page.title());
 			await expectNoHiddenFocusables(page);
 		}
-		// A chord times out, and Esc drops it.
+		// Esc drops a chord, and so does waiting past its 1.5s: the next `a` goes nowhere.
+		const chordReadout = page.getByRole('status').filter({ hasText: 'then' });
 		await page.keyboard.press('g');
 		await page.keyboard.press('Escape');
+		await expect(chordReadout).toHaveCount(0);
 		await page.keyboard.press('a');
+		await page.keyboard.press('g');
+		await expect(chordReadout).toBeVisible();
+		await expect(chordReadout).toHaveCount(0, { timeout: 2500 });
+		await page.keyboard.press('a');
+		await page.waitForTimeout(500);
 		await expect(page).toHaveURL('/');
 
 		// The help overlay: h opens it with focus on "close", Esc closes it, focus returns.
@@ -868,6 +891,8 @@ test.describe('signing in and out', () => {
 			await expect(page.getByLabel('Email')).toBeVisible();
 			await page.keyboard.press('Tab');
 			await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
+			await page.keyboard.press('Enter');
+			await expect(page.locator('#main')).toBeFocused();
 			const email = page.getByLabel('Email');
 			await tabTo(page, email);
 			// Typing in the field is never a shortcut (`h` is in plenty of addresses).

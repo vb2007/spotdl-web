@@ -212,9 +212,22 @@
 		archive: () =>
 			showArchive ? (handleArchive(), true) : job.archived_at !== null && (handleUnarchive(), true),
 		bump: () => showInFlight && (handleBump(), true),
-		priorityUp: () => showInFlight && (handlePriority(String(job.priority + 1)), true),
-		priorityDown: () => showInFlight && (handlePriority(String(job.priority - 1)), true)
+		priorityUp: () => showInFlight && (stepPriority(1), true),
+		priorityDown: () => showInFlight && (stepPriority(-1), true)
 	});
+
+	// One step at a time: the row's priority only moves once the server answers, so a quick
+	// second press would otherwise send the same value again and lose a step.
+	let stepping = false;
+	async function stepPriority(delta: number) {
+		if (stepping) return;
+		stepping = true;
+		try {
+			await handlePriority(String(job.priority + delta));
+		} finally {
+			stepping = false;
+		}
+	}
 
 	async function handleUnarchive() {
 		try {
@@ -281,6 +294,11 @@
 						value={job.priority}
 						aria-label="priority of {job.title}"
 						onchange={(e) => handlePriority(e.currentTarget.value)}
+						onkeydown={(e) => {
+							// v45: Esc backs out of the field (the registry then closes the row):
+							// a half-typed value is put back first, so leaving doesn't save it.
+							if (e.key === 'Escape') e.currentTarget.value = String(job.priority);
+						}}
 					/>
 				</label>
 				<button
