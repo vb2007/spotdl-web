@@ -7,6 +7,7 @@
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import Countdown from '$lib/components/Countdown.svelte';
+	import { kbRow } from '$lib/keyboard/lists';
 	import {
 		attemptVia,
 		formatDuration,
@@ -379,6 +380,24 @@
 		}
 	}
 
+	// v45: `e` (owner's choice): the history stays shown whenever an admin's track is open, as
+	// v41 designed; `e` opens the track if it's closed, then shows every collapsed repeat, or
+	// hides them all once any is shown.
+	function toggleRepeats() {
+		if (!expanded) toggleExpanded();
+		const runs = groups.filter((g) => g.attempts.length > 1).map((g) => g.key);
+		if (runs.some((key) => openRuns.has(key))) openRuns.clear();
+		else for (const key of runs) openRuns.add(key);
+	}
+
+	// v45: the row's keys (`r`, `d`, `x`, `e`), each only where its action is offered.
+	const keys = kbRow({
+		retry: () => canRetry && (handleRetry(), true),
+		download: () => canDownload && (handleDownload(), true),
+		cancel: () => canCancel && (handleCancel(), true),
+		repeats: () => isAdmin && (toggleRepeats(), true)
+	});
+
 	// v35 (e): probe first, then let the browser download the real URL itself, so a whole
 	// FLAC is streamed to disk instead of buffered into a Blob in tab memory. The empty
 	// `download` attribute keeps the page in place and takes the filename from the
@@ -431,11 +450,12 @@
 	>
 {/snippet}
 
-<li>
+<li data-kb-row={track.id} {@attach keys}>
 	<button
 		bind:this={rowButton}
 		type="button"
 		class="row"
+		data-kb-item
 		onclick={toggleExpanded}
 		aria-expanded={expanded}
 		aria-controls={detailId}

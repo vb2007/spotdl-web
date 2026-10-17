@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { queue } from '$lib/stores/queue';
 	import TrackRow from '$lib/components/TrackRow.svelte';
+	import { kbList } from '$lib/keyboard/lists';
 
 	let { jobId, isAdmin, total }: { jobId: string; isAdmin: boolean; total: number } = $props();
 
@@ -18,7 +19,8 @@
 	{:else if state.items.length === 0}
 		<p class="hint mono">No tracks.</p>
 	{:else}
-		<ul class="rows" aria-label="Tracks">
+		<!-- v45: one Tab stop (roving), reached through its open job. -->
+		<ul class="rows" aria-label="Tracks" {@attach kbList(`job-tracks:${jobId}`)}>
 			{#each state.items as track (track.id)}
 				<TrackRow {track} {jobId} {isAdmin} />
 			{/each}
@@ -29,6 +31,7 @@
 			<button
 				type="button"
 				class="load-more mono"
+				data-kb-load-more
 				aria-disabled={state.loadingMore}
 				onclick={() => {
 					if (!state.loadingMore) queue.loadMoreExpandedTracks(jobId);

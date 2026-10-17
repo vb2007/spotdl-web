@@ -4,6 +4,7 @@
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
+	import { kbRow } from '$lib/keyboard/lists';
 	import type { Job, JobLifecycle } from '$lib/api';
 
 	let { job, allUsers, isAdmin }: { job: Job; allUsers: boolean; isAdmin: boolean } = $props();
@@ -204,6 +205,17 @@
 		}
 	}
 
+	// v45: the row's keys (registry's `x`, `a`, `b`, `Shift+B`/`+`, `-`), each only where its
+	// button is offered, so a key never does what the row doesn't show.
+	const keys = kbRow({
+		cancel: () => showInFlight && (handleCancel(), true),
+		archive: () =>
+			showArchive ? (handleArchive(), true) : job.archived_at !== null && (handleUnarchive(), true),
+		bump: () => showInFlight && (handleBump(), true),
+		priorityUp: () => showInFlight && (handlePriority(String(job.priority + 1)), true),
+		priorityDown: () => showInFlight && (handlePriority(String(job.priority - 1)), true)
+	});
+
 	async function handleUnarchive() {
 		try {
 			await queue.unarchiveJobs([job.id]);
@@ -213,7 +225,7 @@
 	}
 </script>
 
-<li class="job" aria-labelledby="job-title-{job.id}">
+<li class="job" aria-labelledby="job-title-{job.id}" data-kb-row={job.id} {@attach keys}>
 	<div class="row">
 		<!-- v41 (F16): no aria-label, so the button's name is what it shows (status, title,
 		     type, owner; WCAG 2.5.3), and aria-controls ties it to the track list (F29). -->
@@ -221,6 +233,7 @@
 			bind:this={toggleButton}
 			type="button"
 			class="toggle"
+			data-kb-item
 			aria-expanded={isOpen}
 			aria-controls="job-tracks-{job.id}"
 			onclick={() => queue.toggleExpand(job.id)}

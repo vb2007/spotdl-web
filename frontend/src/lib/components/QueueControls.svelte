@@ -4,6 +4,7 @@
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import type { Scope } from '$lib/stores/queue';
 	import { SvelteSet } from 'svelte/reactivity';
+	import { focusList, kbList } from '$lib/keyboard/lists';
 
 	let {
 		isAdmin,
@@ -64,9 +65,39 @@
 		}, 300);
 	}
 
-	function setScope(scope: Scope) {
+	export function setScope(scope: Scope) {
 		if (scope === $filters.scope) return;
 		queue.setFilters({ scope });
+	}
+
+	/** v45's Esc in the search box: empties it (and the store's `q`), dropping a search still
+	 * waiting in the debounce. Whether anything was there to clear. */
+	export function clearSearch(): boolean {
+		clearTimeout(searchTimer);
+		const had = searchInput !== '' || $filters.q !== '';
+		searchInput = '';
+		if ($filters.q !== '') queue.setFilters({ q: '' });
+		return had;
+	}
+
+	/** v45's `s`: the next sort field, wrapping; a new field starts descending, as picking it
+	 * in the select does. */
+	export function cycleSort() {
+		const at = sortFields.findIndex((f) => f.value === $filters.sort);
+		onSortField(sortFields[(at + 1) % sortFields.length].value);
+	}
+
+	/** v45's `Shift+A`. */
+	export function toggleArchived() {
+		queue.setFilters({ includeArchived: !$filters.includeArchived });
+	}
+
+	/** v45's `Shift+F`: into the chips (one Tab stop, the arrows roam them). With none shown
+	 * (nothing to filter), the sort is the next control. */
+	export function focusFilters(): boolean {
+		if (focusList('chips')) return true;
+		document.getElementById('queue-sort')?.focus();
+		return true;
 	}
 
 	interface Chip {
@@ -235,7 +266,7 @@
 			type="button"
 			class="chip"
 			aria-pressed={$filters.includeArchived}
-			onclick={() => queue.setFilters({ includeArchived: !$filters.includeArchived })}
+			onclick={toggleArchived}
 		>
 			show archived
 		</button>
@@ -299,6 +330,8 @@
 				onpointerleave={() => (pointerChips = null)}
 				role="group"
 				aria-label={$filters.scope === 'jobs' ? 'Filter jobs by status' : 'Filter tracks by state'}
+				data-kb-orientation="horizontal"
+				{@attach kbList('chips')}
 			>
 				<span class="label" aria-hidden="true">{$filters.scope === 'jobs' ? 'jobs' : 'tracks'}</span
 				>
@@ -306,6 +339,8 @@
 					<button
 						type="button"
 						class="chip"
+						data-kb-row={chip.key}
+						data-kb-item
 						aria-pressed={chipPressed(chip)}
 						onfocus={() => (focusedChip = chip.key)}
 						onblur={(e) => {
