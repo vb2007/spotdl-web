@@ -9,6 +9,7 @@ import {
 	failurePeak,
 	formatRate,
 	formatSpan,
+	holdGeometry,
 	holdSpans,
 	instantLabel
 } from '$lib/stats';
@@ -151,6 +152,25 @@ describe('holds ended early', () => {
 	it('labels a hold instant with its time of day, on the response clock', () => {
 		const s = stats([], { utc_offset_minutes: 120 });
 		expect(instantLabel(s, '2026-10-16T10:05:00Z')).toMatch(/12:05/);
+	});
+});
+
+describe('holdGeometry', () => {
+	const at = (from: number, to: number) => ({ from, to }) as Parameters<typeof holdGeometry>[0];
+	it('widens a short hold to the whole buckets it touches, matching bucketHeld', () => {
+		// 24 buckets; a 12-minute hold across the 11:00/12:00 boundary.
+		const g = holdGeometry(at(11.9 / 24, 12.1 / 24), 24);
+		expect(g.left).toBeCloseTo(11 / 24);
+		expect(g.left + g.width).toBeCloseTo(13 / 24);
+		// Inside one bucket: exactly that bucket; in the last bucket: never past the end.
+		const one = holdGeometry(at(5.2 / 24, 5.3 / 24), 24);
+		expect([one.left, one.left + one.width].map((x) => x * 24)).toEqual([5, 6]);
+		const last = holdGeometry(at(23.9 / 24, 1), 24);
+		expect(last.left + last.width).toBeCloseTo(1);
+	});
+
+	it('draws a long hold as it happened', () => {
+		expect(holdGeometry(at(0.25, 0.5), 24)).toEqual({ left: 0.25, width: 0.25 });
 	});
 });
 

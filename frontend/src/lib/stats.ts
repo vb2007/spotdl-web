@@ -116,6 +116,16 @@ export function holdSpans(stats: AdminStats): HoldSpan[] {
 	return spans;
 }
 
+/** Where a hold is drawn, 0..1 on the axis. One shorter than a bucket is widened to the whole
+ * buckets it touches, so it never reads as a hairline and covers exactly the buckets
+ * `bucketHeld` (the crosshair, the table) calls held. A longer one is drawn as it happened. */
+export function holdGeometry(span: HoldSpan, n: number): { left: number; width: number } {
+	if (span.to - span.from >= 1 / n) return { left: span.from, width: span.to - span.from };
+	const left = Math.min(Math.floor(span.from * n), n - 1) / n;
+	const right = Math.min(1, Math.max(Math.ceil(span.to * n) / n, left + 1 / n));
+	return { left, width: right - left };
+}
+
 /** Whether the breaker held at any moment of bucket `index`. */
 export function bucketHeld(stats: AdminStats, spans: HoldSpan[], index: number): boolean {
 	const n = stats.failures.buckets.length;

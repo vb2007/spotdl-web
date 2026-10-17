@@ -8,6 +8,7 @@
 		errorTypeLabel,
 		failurePeak,
 		formatSpan,
+		holdGeometry,
 		holdSpans,
 		instantLabel
 	} from '$lib/stats';
@@ -84,14 +85,6 @@
 		return `max(2px, ${(count / peak) * 100}%)`;
 	}
 
-	// A hold narrower than a bucket is drawn as that whole bucket (the minimum width), so it
-	// starts at its bucket's start: the block then covers exactly the bucket the table and
-	// crosshair call held. Never past the strip's end.
-	function holdLeft(span: (typeof spans)[number]): number {
-		const left = span.to - span.from < 1 / n ? Math.floor(span.from * n) / n : span.from;
-		return Math.min(left, 1 - 1 / n);
-	}
-
 	function holdLabel(span: (typeof spans)[number]): string {
 		const step = span.stepSeconds !== null ? formatSpan(span.stepSeconds) : '';
 		const verb = span.escalated ? 'escalated' : 'tripped';
@@ -151,8 +144,8 @@
 					class="hold"
 					class:ongoing={span.ongoing}
 					class:manual={span.manual}
-					style:left="{holdLeft(span) * 100}%"
-					style:width="{Math.max(0, span.to - span.from) * 100}%"
+					style:left="{holdGeometry(span, n).left * 100}%"
+					style:width="{holdGeometry(span, n).width * 100}%"
 				></span>
 			{/each}
 		</span>
@@ -348,13 +341,11 @@
 		height: 1.25rem;
 	}
 
-	/* 3: a hold fills at least the column it falls in, so a short one never reads as a tick
-	   (its left edge is held back from the end so that minimum never overruns the strip). */
+	/* 3: a short hold is drawn over whole buckets (holdGeometry), so it never reads as a tick. */
 	.hold {
 		position: absolute;
 		top: 0;
 		bottom: 0;
-		min-width: calc(100% / var(--n));
 		background: var(--waiting-dim);
 		border-top: 2px solid var(--waiting);
 		border-radius: 2px 2px 0 0;
