@@ -418,3 +418,9 @@ here rather than edited into it, so the original record stays readable.
   - The stats payload carries the current breaker state (`breaker.current`), so the page needs no
     second request. Releases are recorded by beat's tick on an expired pause, which now clears
     `breaker_tripped_until` (NULL and expired already read the same everywhere).
+  - Owner's answers on the PR: **one connection target, one credential**: the API refuses a
+    second proxy for a `host:port` already present (409), and `proxies.txt` sync skips one and
+    rotates a changed credential into the existing row (folded into v44 at the owner's request,
+    since it closes the identical-labels question `/stats` raised). The window covering whole
+    buckets up to the current partial one ("Last 7 days" at 00:05 is 6 days and 5 minutes) stays,
+    recorded in `docs/GOTCHAS.md`.

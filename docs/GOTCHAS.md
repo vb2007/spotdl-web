@@ -521,6 +521,9 @@ needed" claim — rather than silently deleted.
   request, so it's the proxy's success, not a failure to cool it down for → *v40.1*
 - `proxies.redact()` of a credential-less proxy is its full URL; the stats labels are `host:port`
   → *v44*
+- One connection target, one credential: a second row for a `host:port` is refused (409) by the
+  API and skipped by `sync_from_file()`; a changed credential in `proxies.txt` rotates the row in
+  place → *v44*
 
 **File serving & HTTP headers**
 - A FastAPI `@router.get` does **not** answer `HEAD` (405); the file endpoint lists both. nginx
@@ -647,6 +650,8 @@ needed" claim — rather than silently deleted.
   `region`); a secondary page's `h1` opens its `main` → *v43*
 - A long-running Vite dev server stopped opening the confirmation dialog (restart `web`); a new
   route leaves root-owned `.svelte-kit/types` (chown it in the container) → *v44*
+- `/stats` windows are whole buckets ending with the current partial one: "Last 7 days" at 00:05
+  is 6 days and 5 minutes, not 168 hours → *v44*
 
 **Testing & verification technique**
 - The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
@@ -5108,7 +5113,29 @@ independently-found production bug from the same conversation)
   (`http://172.18.0.9:3128`), so "redacted" is not "not a URL". The stats payload carries no
   proxy URLs, so its labels are `host:port`; found only by grepping the real response against
   every raw `proxies.url` on dev. Two proxies on one gateway share a label (rows are keyed by
-  position on `/stats`).
+  position on `/stats`). *(2026-10-17: the owner ruled that out — see the next entry.)*
+- **One connection target, one credential** (the owner's rule, decided on v44's PR). Two proxy
+  rows for one `host:port` are the same proxy twice, and `/stats` could only tell them apart by
+  the credential it must never show. `proxies.connection_target(url)` is the key: hostname and
+  port, scheme and credentials aside, a missing port read as the scheme's default (`http` 80,
+  `https` 443) the way urllib3 dials it. `POST /api/proxies` answers 409 on any row with the same
+  target, enabled or not (the detail names the target and says where to fix it, never a
+  credential); `PATCH` refuses to *enable* a row while another enabled row holds its target.
+  `sync_from_file()` keeps the first line per target in file order, skips later ones (and a line
+  whose target a manual proxy holds) with a warning that logs only the target, and disables a
+  skipped line's existing row like a removed line. A new credential for a target whose old line
+  left the file is a **rotation**: the old row takes the new URL and keeps its history, so a
+  credential change never mints a second row. Rows that predate the rule are not rewritten; a
+  disabled duplicate can stay, but can't be enabled beside its live twin. A byte-identical
+  repeated line was always collapsed and is not a clash (dev's `proxies.txt` has one).
+- **"Last 7 days" is the last 7 calendar days *including today so far*,** not the last 168
+  hours. `stats.window_bounds` covers whole buckets of the viewer's clock ending with the one
+  `now` is in, so at 00:05 local the 7d window is 6 days and 5 minutes long, and the 24h window
+  at 14:05 starts at 15:00 yesterday. That keeps every bucket a whole hour or day, which the
+  chart and its table need. The owner accepted it as-is (2026-10-17); a change that compares
+  windows, or alerts on a window's totals, must not read it as a fixed duration. The offset is
+  the browser's *current* one, so a 30d window spanning a DST change draws the days before it an
+  hour off their local midnight.
 - **A long-running Vite dev server can stop opening the v43 confirmation dialog.** After ~39h and
   many HMR updates on dev, clicking "release now" on `/settings` set nothing in `pendingConfirm`
   (the `<dialog>` stayed empty, no console error), while the built nginx image and a restarted
