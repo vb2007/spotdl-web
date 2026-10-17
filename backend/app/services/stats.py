@@ -31,6 +31,7 @@ from app.models import (
     TrackAttemptOutcome,
     TrackErrorType,
     TrackState,
+    WorkerState,
 )
 from app.services.serializers import _proxy_label
 
@@ -247,7 +248,18 @@ def admin_stats(
         )
         .order_by(BreakerEvent.occurred_at)
     ).scalars().all()
+    # What holds downloads right now, so the page needs no second request for it. A pause
+    # that has run out but isn't recorded as released yet (beat's next tick) reads as over.
+    worker_state = db.get(WorkerState, 1)
+    holding_until = _aware(worker_state.breaker_tripped_until) if worker_state is not None else None
     breaker = {
+        "current": {
+            "paused": bool(worker_state.paused) if worker_state is not None else False,
+            "holding_until": (
+                holding_until.isoformat() if holding_until is not None and holding_until > now else None
+            ),
+            "trip_count": worker_state.breaker_trip_count if worker_state is not None else 0,
+        },
         "events": [
             {
                 "kind": event.kind.value,

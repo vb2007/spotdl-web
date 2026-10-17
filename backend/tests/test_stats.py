@@ -263,6 +263,23 @@ def test_breaker_history_includes_a_pause_reaching_into_the_window(db_session, s
     assert breaker["trips"] == 1
 
 
+def test_current_breaker_state(db_session, now):
+    from app.models import WorkerState
+
+    db_session.add(WorkerState(id=1, paused=True, breaker_trip_count=2,
+                               breaker_tripped_until=now + timedelta(minutes=40)))
+    db_session.commit()
+    assert stats.admin_stats(db_session, "24h", now)["breaker"]["current"] == {
+        "paused": True,
+        "holding_until": (now + timedelta(minutes=40)).isoformat(),
+        "trip_count": 2,
+    }
+    # A pause that ran out a moment ago, not yet recorded as released, is over.
+    assert stats.admin_stats(db_session, "24h", now + timedelta(hours=1))["breaker"]["current"][
+        "holding_until"
+    ] is None
+
+
 def test_queue_depth_and_oldest_waiting_age(db_session, seeded, now):
     queue = stats.admin_stats(db_session, "24h", now)["queue"]
 
@@ -276,7 +293,11 @@ def test_empty_database(db_session, now):
 
     assert result["proxies"] == []
     assert result["failures"]["series"] == []
-    assert result["breaker"] == {"events": [], "trips": 0}
+    assert result["breaker"] == {
+        "current": {"paused": False, "holding_until": None, "trip_count": 0},
+        "events": [],
+        "trips": 0,
+    }
     assert result["queue"] == {
         "counts": {"pending": 0, "queued": 0, "downloading": 0, "waiting": 0},
         "oldest_waiting_since": None,
