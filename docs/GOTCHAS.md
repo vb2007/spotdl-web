@@ -5177,7 +5177,7 @@ independently-found production bug from the same conversation)
   focus a clicked button), so a fast keyboard user who confirmed one question and opened another
   within a second got focus handed back to the first dialog's button. Only a pointer click
   (`detail > 0`) counts now, and any `keydown` forgets it.
-- **A Svelte `{@attach}` on a list can run before its `{#each}` rows exist.** The roving list's
+- **A Svelte `{@attach}` on a list can see no rows yet (or not all of them).** The roving list's
   "take focus back after a remount" ran once at attach time, found no rows, and gave up; a reload
   (which swaps the list for its skeleton) then dropped focus to `<body>`. The claim now waits for
   the rows (the `MutationObserver`'s next settle and a microtask).

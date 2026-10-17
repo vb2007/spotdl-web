@@ -78,9 +78,8 @@
 	async function loadMorePage(event: MouseEvent) {
 		const button = event.currentTarget as HTMLElement;
 		const fromKeyboard = event.detail === 0;
-		await loadMoreRows(
-			() => fromKeyboard || document.activeElement === document.body || !button.isConnected
-		);
+		// Safari doesn't focus a clicked button, so <body> says nothing about a pointer press.
+		await loadMoreRows(() => fromKeyboard || !button.isConnected);
 	}
 
 	/** Loads the next page; `shouldFocus()` (asked once it's in) decides whether its first row
@@ -109,7 +108,11 @@
 		registerHandlers({
 			...listHandlers({
 				mainList: () => ($filters.scope === 'jobs' ? 'jobs' : 'tracks'),
-				loadMore: () => loadMoreRows()
+				loadMore: () => {
+					if ($page.loading || $page.loadingMore || !$page.nextCursor) return false;
+					loadMoreRows();
+					return true;
+				}
 			}),
 			search: () => focusField('queue-search'),
 			submit: () => focusField('submit-url'),

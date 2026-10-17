@@ -227,6 +227,8 @@
 
 	function dismissTimeOnEscape(e: KeyboardEvent) {
 		if (e.key !== 'Escape' || hoveredTime === null) return;
+		// v45: this Esc was for the time, not for the keyboard's "close the row".
+		if (!dismissedTimes.has(hoveredTime)) e.preventDefault();
 		pinnedTimes.delete(hoveredTime);
 		dismissedTimes.add(hoveredTime);
 	}
@@ -431,7 +433,9 @@
 	}
 </script>
 
-<svelte:window onkeydown={hoveredTime !== null ? dismissTimeOnEscape : undefined} />
+<!-- Capture phase: it runs before the shortcut registry's own window listener, so an Esc that
+     dismisses a hovered time is claimed (v45) before the registry would close the row. -->
+<svelte:window onkeydowncapture={hoveredTime !== null ? dismissTimeOnEscape : undefined} />
 
 {#snippet when(iso: string, key: string)}
 	<!-- Relative at a glance; the absolute time on hover and on keyboard focus, and pinned
@@ -448,6 +452,8 @@
 		}}
 		onkeydown={(e) => {
 			if (e.key !== 'Escape') return;
+			// v45: dismissing the time uses up this Esc; a second one closes the row.
+			if (!dismissedTimes.has(key)) e.preventDefault();
 			pinnedTimes.delete(key);
 			dismissedTimes.add(key);
 		}}

@@ -131,10 +131,12 @@ function applyTabOrder(list: HTMLElement): void {
 	const m = mem(key);
 	const rows = rowsOf(list);
 	const ids = rows.map(rowId);
-	if (m.active === null || !ids.includes(m.active)) m.active = ids[0] ?? null;
+	// Only `settle` moves the remembered row (it knows a removed row's neighbour); until it
+	// has, the first row stands in for one that isn't there.
+	const current = m.active !== null && ids.includes(m.active) ? m.active : (ids[0] ?? null);
 	const reachable = gateOpen(list);
 	for (const row of rows) {
-		const active = rowId(row) === m.active;
+		const active = rowId(row) === current;
 		const item = itemOf(row);
 		if (item) item.tabIndex = reachable && active ? 0 : -1;
 		// The row's other controls: only on the current, open row. Marked so a control that
@@ -168,6 +170,8 @@ function settle(list: HTMLElement): void {
 	const order = m.order;
 	const rows = rowsOf(list);
 	const ids = rows.map(rowId);
+	// No rows (yet, or for now): nothing to place, and nothing learned about the order.
+	if (ids.length === 0) return;
 	if (before !== null && !ids.includes(before)) {
 		// The current row left (cancelled, archived, filtered out): its next surviving
 		// neighbour in the old order, else the previous one.
@@ -179,6 +183,7 @@ function settle(list: HTMLElement): void {
 			.find((id) => ids.includes(id));
 		m.active = next ?? prev ?? ids[0] ?? null;
 	}
+	if (m.active === null) m.active = ids[0];
 	m.order = ids;
 	for (const nested of list.querySelectorAll<HTMLElement>('[data-kb-list]')) applyTabOrder(nested);
 	applyTabOrder(list);
@@ -209,7 +214,6 @@ export function kbList(name: string, opts: { fallback?: () => HTMLElement | null
 	return (list: HTMLElement) => {
 		list.dataset.kbList = name;
 		const m = mem(name);
-		m.order = rowsOf(list).map(rowId);
 
 		const onFocusIn = (event: FocusEvent) => {
 			const row = rowAt(event.target as Element);
@@ -263,6 +267,11 @@ export function kbList(name: string, opts: { fallback?: () => HTMLElement | null
 			list.removeEventListener('focusout', onFocusOut);
 			document.removeEventListener('pointerdown', onPointerDown, true);
 			m.restoreUntil = m.focusWithin ? performance.now() + RESTORE_WINDOW_MS : 0;
+			// An open job's track list is forgotten once closed (one entry per job opened would
+			// otherwise pile up for the life of the tab), unless it still has a claim on focus.
+			if (name.startsWith('job-tracks:') && !m.restoreUntil && memory.get(name) === m) {
+				memory.delete(name);
+			}
 			// Until it's back, focus anywhere else wins.
 			const cancel = () => {
 				m.restoreUntil = 0;
@@ -369,7 +378,8 @@ type RowAction = keyof RowActions;
  * enter from outside any list; `loadMore` pages that list (`End` on its last row, `Shift+G`). */
 export function listHandlers(opts: {
 	mainList: () => string;
-	loadMore: () => unknown;
+	/** Starts loading the next page; whether there was one to load. */
+	loadMore: () => boolean;
 }): Record<string, (event: KeyboardEvent) => boolean> {
 	const action = (name: RowAction) => () => {
 		const fn = actionsOf(focusedRow())?.[name];
@@ -385,8 +395,7 @@ export function listHandlers(opts: {
 			button.click();
 			return true;
 		}
-		opts.loadMore();
-		return true;
+		return opts.loadMore();
 	};
 	const step = (delta: number) => (event: KeyboardEvent) => {
 		const row = focusedRow();
@@ -410,8 +419,9 @@ export function listHandlers(opts: {
 		last: () => {
 			const row = focusedRow();
 			if (!row) return false;
-			if (!move(row, 'last') && !horizontal(row)) loadMoreFor(row);
-			return true;
+			if (move(row, 'last')) return true;
+			// Already on the last row: load more if there is more, else let End scroll.
+			return !horizontal(row) && loadMoreFor(row);
 		},
 		'load-more': () => loadMoreFor(focusedRow()),
 		expand: (event) => {

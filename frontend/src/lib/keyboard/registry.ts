@@ -148,9 +148,9 @@ export function onKeydown(event: KeyboardEvent): void {
 		return;
 	}
 	if (!enabled && isCharacter(chordFor(binding, event))) return;
-	// A held key repeats only moving through a list; holding `a` or `x` must never archive or
-	// cancel row after row as focus moves on.
-	if (event.repeat && !REPEATABLE.has(binding.id)) {
+	// A held letter repeats only moving through a list; holding `a` or `x` must never archive
+	// or cancel row after row as focus moves on. Named keys (arrows, Home, End) repeat as usual.
+	if (event.repeat && isCharacter(chordFor(binding, event)) && !REPEATABLE.has(binding.id)) {
 		event.preventDefault();
 		return;
 	}
@@ -161,4 +161,6 @@ export function onKeydown(event: KeyboardEvent): void {
 export function resetKeyboard(): void {
 	setChord(null);
 	helpOpen.set(false);
+	// The next identity's own value arrives with its session (the layout sets it).
+	shortcutsEnabled.set(true);
 }
