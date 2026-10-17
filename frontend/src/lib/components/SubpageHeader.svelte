@@ -6,8 +6,10 @@
 	// (`.page-title`, app.css), so every piece of content sits inside a landmark. The admin pages
 	// are linked for the admin only: a non-admin reaches them only by typing the path
 	// (owner's decision), and then gets AdminOnlyNotice.
-	let { current, isAdmin }: { current: 'settings' | 'library' | 'account'; isAdmin: boolean } =
-		$props();
+	let {
+		current,
+		isAdmin
+	}: { current: 'settings' | 'library' | 'stats' | 'account'; isAdmin: boolean } = $props();
 </script>
 
 <header class="masthead">
@@ -24,6 +26,11 @@
 				class="nav-link mono"
 				href={resolve('/settings')}
 				aria-current={current === 'settings' ? 'page' : undefined}>settings</a
+			>
+			<a
+				class="nav-link mono"
+				href={resolve('/stats')}
+				aria-current={current === 'stats' ? 'page' : undefined}>stats</a
 			>
 		{/if}
 		<a

@@ -341,6 +341,7 @@
 			{#if isAdmin}
 				<a class="nav-link mono" href={resolve('/library')}>library</a>
 				<a class="nav-link mono" href={resolve('/settings')}>settings</a>
+				<a class="nav-link mono" href={resolve('/stats')}>stats</a>
 			{/if}
 			<a class="nav-link mono" href={resolve('/account')}>account</a>
 			<span class="who mono" title={data.session?.email}
