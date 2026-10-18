@@ -114,7 +114,7 @@ describe('formatting in Hungarian', () => {
 
 	it('formats countdowns, relative times and durations', () => {
 		useLocale('hu');
-		expect(formatCountdown(47 * 3600_000 + 12 * 60_000 + 3_000)).toBe('1 n 23:12:03');
+		expect(formatCountdown(47 * 3600_000 + 12 * 60_000 + 3_000)).toBe('1 nap 23:12:03');
 		expect(formatCountdown(65_000)).toBe('1:05');
 		expect(formatCountdown(0)).toBe('most esedékes');
 		const now = Date.parse('2026-10-14T18:00:00Z');
