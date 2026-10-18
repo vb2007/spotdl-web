@@ -420,6 +420,13 @@ export function listHandlers(opts: {
 		}
 		return opts.loadMore();
 	};
+	/** Focus is on an open job's "load more tracks": it pages that job's tracks. */
+	const onLoadMoreButton = (): boolean => {
+		const button = document.activeElement?.closest<HTMLElement>('[data-kb-load-more]');
+		if (!button) return false;
+		button.click();
+		return true;
+	};
 	const step = (delta: number) => (event: KeyboardEvent) => {
 		const row = focusedRow();
 		const letter = event.key.length === 1;
@@ -440,13 +447,15 @@ export function listHandlers(opts: {
 			return row ? (move(row, 'first'), true) : false;
 		},
 		last: () => {
+			// On an open job's "load more tracks": that list's own load more.
+			if (onLoadMoreButton()) return true;
 			const row = focusedRow();
 			if (!row) return false;
 			if (move(row, 'last')) return true;
 			// Already on the last row: load more if there is more, else let End scroll.
 			return !horizontal(row) && loadMoreFor(row);
 		},
-		'load-more': () => loadMoreFor(focusedRow()),
+		'load-more': () => onLoadMoreButton() || loadMoreFor(focusedRow()),
 		expand: (event) => {
 			const row = focusedRow();
 			if (!row) return false;

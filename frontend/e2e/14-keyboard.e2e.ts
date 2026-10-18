@@ -264,6 +264,59 @@ test.describe('as the admin', () => {
 		expect(await focusedRow(page)).toBe(tracks[1]);
 	});
 
+	test('load more tracks in an open job moves focus to its first new track', async ({ page }) => {
+		desktopOnly();
+		const { items } = (await (
+			await page.request.get('/api/jobs?include_archived=true&sort=track_count&dir=desc&limit=20')
+		).json()) as { items: Job[] };
+		const job = items.find(
+			(j) => Object.values(j.track_counts).reduce((a, b) => a + (b ?? 0), 0) >= 12
+		);
+		expect(job, 'an admin job with twelve or more tracks on the dev stack').toBeDefined();
+		// The real API, paged in fives instead of fifties, so this job's tracks take several
+		// pages (no job on the dev stack has more than one page of 50).
+		await page.route(`**/api/jobs/${job!.id}/tracks*`, (route) => {
+			const url = new URL(route.request().url());
+			url.searchParams.set('limit', '5');
+			return route.continue({ url: url.toString() });
+		});
+		await openDashboard(page);
+		await page.keyboard.press('Shift+A');
+		await page.keyboard.press('/');
+		await page.keyboard.type(job!.title);
+		await expect.poll(() => rowIds(page, 'jobs')).toContain(job!.id);
+		await expect(page.getByText('Loading…')).toHaveCount(0);
+		await leaveField(page);
+		await focusRowByKeys(page, 'jobs', job!.id);
+		await openJob(page, job!.id);
+		const nested = `job-tracks:${job!.id}`;
+		await expect.poll(async () => (await rowIds(page, nested)).length).toBe(5);
+
+		// End on the last track loads the next page and lands on its first track.
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('End');
+		await expect.poll(async () => (await rowIds(page, nested)).length).toBe(5);
+		await page.keyboard.press('End');
+		await expect.poll(async () => (await rowIds(page, nested)).length).toBe(10);
+		await expect.poll(() => focusedRow(page)).toBe((await rowIds(page, nested))[5]);
+
+		// Enter on the button itself, through to the last page (which removes the button):
+		// focus still lands on the first new track, not on the job.
+		const more = page.locator(`[data-kb-row="${job!.id}"] [data-kb-load-more]`);
+		for (let i = 0; i < 10 && (await more.count()) > 0; i++) {
+			const before = await rowIds(page, nested);
+			await tabTo(page, more);
+			await page.keyboard.press('Enter');
+			await expect
+				.poll(async () => (await rowIds(page, nested)).length)
+				.toBeGreaterThan(before.length);
+			await expect
+				.poll(() => focusedRow(page), { message: 'focus after load more tracks' })
+				.toBe((await rowIds(page, nested))[before.length]);
+		}
+		await expect(more).toHaveCount(0);
+	});
+
 	test('download a completed file by keyboard (checksum)', async ({ page }) => {
 		desktopOnly();
 		const { admin } = readSeed();

@@ -2,7 +2,7 @@
 	import { queue } from '$lib/stores/queue';
 	import TrackRow from '$lib/components/TrackRow.svelte';
 	import { tick } from 'svelte';
-	import { focusRowEl, kbList } from '$lib/keyboard/lists';
+	import { focusRowEl, itemOf, kbList, rowAt } from '$lib/keyboard/lists';
 
 	let { jobId, isAdmin, total }: { jobId: string; isAdmin: boolean; total: number } = $props();
 
@@ -16,13 +16,19 @@
 		if (state.loadingMore) return;
 		const known = new Set(state.items.map((t) => t.id));
 		const fromKeyboard = event.detail === 0;
+		const button = event.currentTarget as HTMLElement;
+		const jobRow = rowAt(button);
+		const jobItem = jobRow ? itemOf(jobRow) : null;
 		const focusAtStart = document.activeElement;
 		await queue.loadMoreExpandedTracks(jobId);
 		await tick();
 		if (!fromKeyboard) return;
-		// Focus the user moved somewhere else meanwhile (into a field, say) is theirs.
-		const moved =
-			document.activeElement !== focusAtStart && document.activeElement !== document.body;
+		// Focus the user moved somewhere else meanwhile (into a field, say) is theirs. The last
+		// page takes this button away with focus on it, and the job list then hands focus to the
+		// job itself: that isn't the user's move.
+		const active = document.activeElement;
+		const rehomed = !button.isConnected && active === jobItem;
+		const moved = active !== focusAtStart && active !== document.body && !rehomed;
 		if (moved) return;
 		const fresh = $expanded[jobId]?.items.find((t) => !known.has(t.id));
 		if (fresh) focusRowEl(document.querySelector<HTMLElement>(`[data-kb-row="${fresh.id}"]`));
