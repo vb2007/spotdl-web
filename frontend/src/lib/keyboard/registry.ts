@@ -78,6 +78,9 @@ function matches(chord: KeyChord, event: KeyboardEvent): boolean {
 		// `j` into `Shift+J`.
 		return event.key.toLowerCase() === chord.key && event.shiftKey === (chord.shift ?? false);
 	}
+	// A named key (arrows, Home, End, Space) is its bare self: Shift+↓ is the browser's.
+	// A symbol's Shift is part of typing it, so it doesn't count there.
+	if (chord.key.length > 1 || chord.key === ' ') return event.key === chord.key && !event.shiftKey;
 	return event.key === chord.key;
 }
 
