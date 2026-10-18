@@ -95,7 +95,9 @@
 	let keyboardSavedAt = $state<Date | null>(null);
 
 	async function setShortcuts(enabled: boolean) {
-		if (enabled === $shortcutsEnabled || keyboardSaving) return;
+		// Always sent, even for the choice shown as pressed: another device may have changed
+		// it since this page read it (the PATCH is idempotent).
+		if (keyboardSaving) return;
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		keyboardSaving = true;
 		keyboardError = '';

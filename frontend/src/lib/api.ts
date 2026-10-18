@@ -757,11 +757,8 @@ export interface KeyboardSettings {
 	keyboard_shortcuts: boolean;
 }
 
-/** v45: the per-user shortcut switch (WCAG 2.1.4), open to every user like retention. */
-export function getKeyboardSettings(): Promise<KeyboardSettings> {
-	return request('/api/settings/keyboard');
-}
-
+/** v45: the per-user shortcut switch (WCAG 2.1.4), open to every user like retention. The
+ * app reads it from `me()`; `GET /api/settings/keyboard` exists for completeness. */
 export function updateKeyboardSettings(enabled: boolean): Promise<KeyboardSettings> {
 	return request('/api/settings/keyboard', {
 		method: 'PATCH',

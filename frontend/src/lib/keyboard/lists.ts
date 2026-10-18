@@ -197,6 +197,23 @@ function settle(list: HTMLElement): void {
 	for (const nested of list.querySelectorAll<HTMLElement>('[data-kb-list]')) applyTabOrder(nested);
 	applyTabOrder(list);
 	if (!focusLost() || !m.focusWithin) return;
+	// The document itself isn't focused (Tab went on into the browser's own UI, or another
+	// window has it): never pull focus back from there. Once the page has it again, and
+	// focus is still nowhere, the row takes it.
+	if (!document.hasFocus()) {
+		if (!awaitingFocus.has(list)) {
+			awaitingFocus.add(list);
+			window.addEventListener(
+				'focus',
+				() => {
+					awaitingFocus.delete(list);
+					if (list.isConnected) settle(list);
+				},
+				{ once: true }
+			);
+		}
+		return;
+	}
 	const activeRow = rows.find((r) => rowId(r) === m.active);
 	// Focus was in this row's nested list (a track of the open job): that list puts it back
 	// on its own row first, and only an emptied or closed one hands it to the job.
@@ -215,6 +232,9 @@ function settle(list: HTMLElement): void {
 		}
 	}
 }
+
+/** Lists waiting for the page to have focus again before they put focus back. */
+const awaitingFocus = new WeakSet<HTMLElement>();
 
 function focusLost(): boolean {
 	return document.activeElement === null || document.activeElement === document.body;
