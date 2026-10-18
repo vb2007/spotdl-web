@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "backend/pyproject.toml": {
-    "mtime": 1792279551.132734,
-    "ast_hash": "69c737ba30e71b8266d46a55e12119c7",
+    "mtime": 1792333854.9575212,
+    "ast_hash": "5691ad66d8aae81e7d23f852774375ae",
     "semantic_hash": ""
   },
   "frontend/.vscode/extensions.json": {
@@ -80,8 +80,8 @@
     "semantic_hash": "c727963dee0c5743b26f3d2fc99abfb6"
   },
   "frontend/package.json": {
-    "mtime": 1792279551.133627,
-    "ast_hash": "a8c5d9ed0d51571b1df943a0cebe4e6a",
+    "mtime": 1792333854.9581099,
+    "ast_hash": "99b6bde30a576dbdb21d386013c98b72",
     "semantic_hash": ""
   },
   "frontend/prettier.config.js": {
@@ -100,17 +100,17 @@
     "semantic_hash": "ffcb0e97b69eb555d5739e9efe961ca0"
   },
   "frontend/src/routes/+layout.svelte": {
-    "mtime": 1792292827.7953432,
+    "mtime": 1792332790.1653283,
     "ast_hash": "56a36c7c92762b41ad1ceeebbb8b9310",
     "semantic_hash": ""
   },
   "frontend/src/routes/+layout.ts": {
-    "mtime": 1792286306.413788,
+    "mtime": 1792332790.1653283,
     "ast_hash": "9ed8104bb156f16cdb1edc055461024c",
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1792291798.9957545,
+    "mtime": 1792332790.1653283,
     "ast_hash": "0768580aa25a5777633a810ca399a3af",
     "semantic_hash": ""
   },
@@ -150,9 +150,9 @@
     "semantic_hash": "d2ab914a1820906bd49451cb0a108119"
   },
   "frontend/src/lib/assets/favicon.svg": {
-    "mtime": 1785254082.6199946,
-    "ast_hash": "a0d1b540c1b9a2a920d5f6cae983118a",
-    "semantic_hash": "a0d1b540c1b9a2a920d5f6cae983118a"
+    "mtime": 1792333854.9567056,
+    "ast_hash": "9d9364ac2006cd703202c47bcd19bd19",
+    "semantic_hash": ""
   },
   "docs/DEPLOYMENT.md": {
     "mtime": 1791896451.2918262,
@@ -200,7 +200,7 @@
     "semantic_hash": "c56dbe8d4a14e59494c84de3f41ddfc6"
   },
   "backend/app/routers/auth.py": {
-    "mtime": 1792277295.0331328,
+    "mtime": 1792332790.161894,
     "ast_hash": "97d23ce60e4d85683783f30c4be81a57",
     "semantic_hash": ""
   },
@@ -220,7 +220,7 @@
     "semantic_hash": ""
   },
   "backend/tests/test_auth.py": {
-    "mtime": 1792277322.0118518,
+    "mtime": 1792332790.161894,
     "ast_hash": "eefa659d70e1a24afcbd64c7da2b287f",
     "semantic_hash": ""
   },
@@ -345,7 +345,7 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
-    "mtime": 1792289016.6722488,
+    "mtime": 1792332790.1647305,
     "ast_hash": "31052ad2c9f862e09c75ed02241e32e1",
     "semantic_hash": ""
   },
@@ -360,12 +360,12 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1792277742.8445206,
+    "mtime": 1792332790.1653283,
     "ast_hash": "1c2e3d723e892158c824b74ea1b7266f",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
-    "mtime": 1792280403.70099,
+    "mtime": 1792332790.1653283,
     "ast_hash": "3cc905a42724853651c80c631496b962",
     "semantic_hash": ""
   },
@@ -375,7 +375,7 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1792331175.5303469,
+    "mtime": 1792332790.1647305,
     "ast_hash": "37fdc765d958cef29de214d51bb39aba",
     "semantic_hash": ""
   },
@@ -475,7 +475,7 @@
     "semantic_hash": ""
   },
   "backend/app/routers/settings.py": {
-    "mtime": 1792277334.80074,
+    "mtime": 1792332790.161894,
     "ast_hash": "6dfd4f2690ab9b650b4000b8b7868ebd",
     "semantic_hash": ""
   },
@@ -625,7 +625,7 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792296196.0537221,
+    "mtime": 1792332790.1628942,
     "ast_hash": "6bf01ac2d8944a86bf4d218b4489f0d8",
     "semantic_hash": ""
   },
@@ -650,7 +650,7 @@
     "semantic_hash": ""
   },
   "backend/app/models/user_settings.py": {
-    "mtime": 1792277280.2745335,
+    "mtime": 1792332790.161894,
     "ast_hash": "0392b6abd48c8440d06a26b576bf95ca",
     "semantic_hash": ""
   },
@@ -660,7 +660,7 @@
     "semantic_hash": ""
   },
   "backend/tests/test_ownership.py": {
-    "mtime": 1792277322.0122232,
+    "mtime": 1792332790.161894,
     "ast_hash": "f8751fdde5daedf9759b1221ea1b78d2",
     "semantic_hash": ""
   },
@@ -725,7 +725,7 @@
     "semantic_hash": ""
   },
   "backend/app/services/user_settings.py": {
-    "mtime": 1792277280.2745874,
+    "mtime": 1792332790.161894,
     "ast_hash": "a65875714692d36bc35eec084ce3573f",
     "semantic_hash": ""
   },
@@ -740,27 +740,27 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobRow.svelte": {
-    "mtime": 1792290805.3852305,
+    "mtime": 1792332790.1647305,
     "ast_hash": "5a0b748643b557bc008ebaacef79b91e",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobTrackList.svelte": {
-    "mtime": 1792292828.5555015,
+    "mtime": 1792332790.1647305,
     "ast_hash": "09f5f7d90ce73a2b33bdd34060bd68c7",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/QueueControls.svelte": {
-    "mtime": 1792331175.5304863,
+    "mtime": 1792332790.1647305,
     "ast_hash": "5e9e3c668f4275ae0bff995ff9221cfd",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/TrackRow.svelte": {
-    "mtime": 1792290805.61824,
+    "mtime": 1792332790.1647305,
     "ast_hash": "dfcb99d5935d05680a49faaa3fea6f05",
     "semantic_hash": ""
   },
   "frontend/src/routes/account/+page.svelte": {
-    "mtime": 1792292845.2922468,
+    "mtime": 1792332790.1653283,
     "ast_hash": "1f5ed997ff6a37992a854c8578e59edc",
     "semantic_hash": ""
   },
@@ -980,7 +980,7 @@
     "semantic_hash": ""
   },
   "plan/master-v4/00-master-plan.md": {
-    "mtime": 1792331175.5306146,
+    "mtime": 1792332790.1728947,
     "ast_hash": "76ccd1eadf86dad6de72896bfc8f50ef",
     "semantic_hash": ""
   },
@@ -1345,7 +1345,7 @@
     "semantic_hash": ""
   },
   "frontend/e2e/12-confirmations.e2e.ts": {
-    "mtime": 1792278130.2260904,
+    "mtime": 1792332790.1628942,
     "ast_hash": "b7e98c7b1c96337c09bb4c1980f029a6",
     "semantic_hash": ""
   },
@@ -1360,7 +1360,7 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/ConfirmDialog.svelte": {
-    "mtime": 1792279430.4016335,
+    "mtime": 1792332790.1647305,
     "ast_hash": "8b03a10222c0688ef7608da368f89559",
     "semantic_hash": ""
   },
@@ -1440,57 +1440,57 @@
     "semantic_hash": ""
   },
   "backend/alembic/versions/a7d3c9e5f2b4_add_user_keyboard_shortcuts.py": {
-    "mtime": 1792277280.2765365,
+    "mtime": 1792332790.161894,
     "ast_hash": "fe3b32f2635c9832da72ec51d66dda1c",
     "semantic_hash": ""
   },
   "backend/tests/test_settings_keyboard.py": {
-    "mtime": 1792277322.0122232,
+    "mtime": 1792332790.161894,
     "ast_hash": "6ba24742e4f0a958aea51b5740866476",
     "semantic_hash": ""
   },
   "frontend/e2e/14-keyboard.e2e.ts": {
-    "mtime": 1792331175.5300312,
+    "mtime": 1792332790.1638942,
     "ast_hash": "2ddd1ed65ae40d5c9cdefbd3431487d9",
     "semantic_hash": ""
   },
   "frontend/e2e/support/guards.ts": {
-    "mtime": 1792278121.7141721,
+    "mtime": 1792332790.1638942,
     "ast_hash": "06186f3b2f8fc83b9c4d29cacd1d76b5",
     "semantic_hash": ""
   },
   "frontend/e2e/support/keyboard.ts": {
-    "mtime": 1792278153.1684458,
+    "mtime": 1792332790.1638942,
     "ast_hash": "079bac901c1a62ceef96e58bcbd3d7a5",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/ChordIndicator.svelte": {
-    "mtime": 1792277888.1065612,
+    "mtime": 1792332790.1647305,
     "ast_hash": "f621cf720c2d7fc1b575e9a09effef68",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/HelpOverlay.svelte": {
-    "mtime": 1792290804.6096272,
+    "mtime": 1792332790.1647305,
     "ast_hash": "fd335947cfb222df0356d8e7e72590e7",
     "semantic_hash": ""
   },
   "frontend/src/lib/keyboard/bindings.test.ts": {
-    "mtime": 1792286306.4137466,
+    "mtime": 1792332790.1648943,
     "ast_hash": "12ae3f7b925b2d139fdd20952fe40308",
     "semantic_hash": ""
   },
   "frontend/src/lib/keyboard/bindings.ts": {
-    "mtime": 1792282865.8068967,
+    "mtime": 1792332790.1653283,
     "ast_hash": "5c31ebaf00c21c4ab7afa8e0c53cb53a",
     "semantic_hash": ""
   },
   "frontend/src/lib/keyboard/lists.ts": {
-    "mtime": 1792293649.3497286,
+    "mtime": 1792332790.1653283,
     "ast_hash": "376bea251115e22450d28e59f9e0b897",
     "semantic_hash": ""
   },
   "frontend/src/lib/keyboard/registry.ts": {
-    "mtime": 1792331175.5304863,
+    "mtime": 1792332790.1653283,
     "ast_hash": "39b724f2a93a31f13189723eaec921a3",
     "semantic_hash": ""
   }
