@@ -510,7 +510,7 @@
 				<div class="state" role="alert">
 					<h3 class="state-title">{m.dashboard_error_title()}</h3>
 					<p class="state-text">
-						<span class="mono">{$page.error}</span>
+						<span class="mono">{errorText($page.error.err)}</span>
 					</p>
 					<button type="button" class="state-action mono" onclick={retryQueue}
 						>{m.dashboard_error_retry()}</button
@@ -594,7 +594,7 @@
 			     retries just that page. -->
 			{#if $page.moreError}
 				<p class="more-error" role="alert">
-					{m.dashboard_more_error()} <span class="mono">{$page.moreError}</span>
+					{m.dashboard_more_error()} <span class="mono">{errorText($page.moreError.err)}</span>
 				</p>
 			{/if}
 			<!-- Stays mounted (aria-disabled) through a background reload (a reconnect's resync),

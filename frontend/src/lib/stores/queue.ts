@@ -4,7 +4,6 @@ import { clearRowNotices } from './rowNotices';
 import { resetLists } from '$lib/keyboard/lists';
 import { resetKeyboard } from '$lib/keyboard/registry';
 import * as api from '$lib/api';
-import { errorText } from '$lib/i18n/errors';
 import { clearProgress, forgetProgress, recallProgress, rememberProgress } from './progressCache';
 import type {
 	Job,
@@ -77,10 +76,17 @@ interface PageState {
 	countsByState: Record<string, number>;
 	loading: boolean;
 	loadingMore: boolean;
-	error: string;
+	/** v46: the failure itself, not its text: the page renders it with `errorText` at display
+	 * time, so a language switch elsewhere doesn't leave it in the old language. */
+	error: StoredError | null;
 	/** v42: a failed "load more" -- kept apart from `error` (the page itself failing), so
 	 * the rows already loaded stay on screen and the button retries just that page. */
-	moreError: string;
+	moreError: StoredError | null;
+}
+
+/** v46: a caught error, boxed so even a thrown falsy value reads as "failed". */
+export interface StoredError {
+	err: unknown;
 }
 
 const EMPTY_PAGE: PageState = {
@@ -91,8 +97,8 @@ const EMPTY_PAGE: PageState = {
 	countsByState: {},
 	loading: false,
 	loadingMore: false,
-	error: '',
-	moreError: ''
+	error: null,
+	moreError: null
 };
 
 export interface ExpandedJob {
@@ -101,7 +107,7 @@ export interface ExpandedJob {
 	countsByState: Record<string, number>;
 	loading: boolean;
 	loadingMore: boolean;
-	error: string;
+	error: StoredError | null;
 }
 
 function newExpandedJob(): ExpandedJob {
@@ -111,7 +117,7 @@ function newExpandedJob(): ExpandedJob {
 		countsByState: {},
 		loading: false,
 		loadingMore: false,
-		error: ''
+		error: null
 	};
 }
 
@@ -381,7 +387,7 @@ function createQueueStore() {
 	/** Shows the loading state until the stream's first `onopen` resync lands -- for a
 	 * fresh mount, which no longer fetches eagerly (see `reload`). */
 	function beginResync(): void {
-		page.update((p) => ({ ...p, loading: true, error: '', moreError: '' }));
+		page.update((p) => ({ ...p, loading: true, error: null, moreError: null }));
 	}
 
 	/** v34: one bulk request per overlay, issued in parallel -- never a per-row loop. Both
@@ -491,7 +497,7 @@ function createQueueStore() {
 	async function reloadPage(): Promise<void> {
 		const f = get(filters);
 		const seq = ++pageFetchSeq;
-		page.update((p) => ({ ...p, loading: true, error: '', moreError: '' }));
+		page.update((p) => ({ ...p, loading: true, error: null, moreError: null }));
 		try {
 			if (f.scope === 'jobs') {
 				const result: JobsPage = await api.listJobsPage({
@@ -507,8 +513,8 @@ function createQueueStore() {
 					countsByState: {},
 					loading: false,
 					loadingMore: false,
-					error: '',
-					moreError: ''
+					error: null,
+					moreError: null
 				});
 			} else {
 				const countsSeqAtStart = trackCountsSeq;
@@ -526,8 +532,8 @@ function createQueueStore() {
 					countsByState: result.counts_by_state,
 					loading: false,
 					loadingMore: false,
-					error: '',
-					moreError: ''
+					error: null,
+					moreError: null
 				});
 				// A counts refresh that started during this reload may have read a newer
 				// snapshot than these counts (or failed): one more re-read converges on
@@ -542,7 +548,7 @@ function createQueueStore() {
 				...p,
 				loading: false,
 				nextCursor: null,
-				error: errorText(err)
+				error: { err }
 			}));
 		}
 	}
@@ -552,7 +558,7 @@ function createQueueStore() {
 		if (current.nextCursor === null || current.loadingMore) return;
 		const f = get(filters);
 		const seq = pageFetchSeq;
-		page.update((p) => ({ ...p, loadingMore: true, moreError: '' }));
+		page.update((p) => ({ ...p, loadingMore: true, moreError: null }));
 		try {
 			if (f.scope === 'jobs') {
 				const result: JobsPage = await api.listJobsPage({
@@ -569,7 +575,7 @@ function createQueueStore() {
 					countsByStatus: result.counts_by_status,
 					loadingMore: false,
 					// v42: "load more" is how a failed load-more is retried, so a success clears it.
-					moreError: ''
+					moreError: null
 				}));
 			} else {
 				const result = await api.listTracksPage({
@@ -587,7 +593,7 @@ function createQueueStore() {
 					// set's counts, and this (older) read could land after a fresher
 					// refreshTrackCounts.
 					loadingMore: false,
-					moreError: ''
+					moreError: null
 				}));
 			}
 		} catch (err) {
@@ -595,7 +601,7 @@ function createQueueStore() {
 			page.update((p) => ({
 				...p,
 				loadingMore: false,
-				moreError: errorText(err)
+				moreError: { err }
 			}));
 		}
 	}
@@ -708,7 +714,7 @@ function createQueueStore() {
 		expandedFetchSeq[jobId] = seq;
 		expanded.update((e) => ({
 			...e,
-			[jobId]: { ...(e[jobId] ?? newExpandedJob()), loading: true, error: '' }
+			[jobId]: { ...(e[jobId] ?? newExpandedJob()), loading: true, error: null }
 		}));
 		try {
 			const result: JobTracksPage = await api.listJobTracksPage(jobId);
@@ -721,7 +727,7 @@ function createQueueStore() {
 					countsByState: result.counts_by_state,
 					loading: false,
 					loadingMore: false,
-					error: ''
+					error: null
 				}
 			}));
 		} catch (err) {
@@ -731,7 +737,7 @@ function createQueueStore() {
 				[jobId]: {
 					...(e[jobId] ?? newExpandedJob()),
 					loading: false,
-					error: errorText(err)
+					error: { err }
 				}
 			}));
 		}
@@ -742,7 +748,7 @@ function createQueueStore() {
 		if (!current || current.nextCursor === null || current.loadingMore) return;
 		const seq = expandedFetchSeq[jobId];
 		// v41: a retry clears the last failure, which JobTrackList shows beside the button.
-		expanded.update((e) => ({ ...e, [jobId]: { ...e[jobId], loadingMore: true, error: '' } }));
+		expanded.update((e) => ({ ...e, [jobId]: { ...e[jobId], loadingMore: true, error: null } }));
 		try {
 			const result: JobTracksPage = await api.listJobTracksPage(jobId, {
 				cursor: current.nextCursor
@@ -765,7 +771,7 @@ function createQueueStore() {
 				[jobId]: {
 					...e[jobId],
 					loadingMore: false,
-					error: errorText(err)
+					error: { err }
 				}
 			}));
 		}

@@ -163,9 +163,8 @@ test('the /login choice is honored, and adopted only by a profile without one', 
 	expect(languageOf(userIdentity().email), 'adopted into the profile').toBe('hu');
 	await context.close();
 
-	// A choice left in this browser's storage by an earlier visit (someone else's, on a shared
-	// computer) is shown on /login and followed while signed in, but never saved into the
-	// profile of whoever signs in next.
+	// A choice made on an earlier visit, still in this browser's storage, counts the same: the
+	// plan's "adopted into the profile on first login if the profile has none".
 	setLanguage(userIdentity().email, null);
 	const shared = await freshContext(browser, 'en-US');
 	await shared.addInitScript(() => localStorage.setItem('spotdl.locale', 'hu'));
@@ -176,7 +175,7 @@ test('the /login choice is honored, and adopted only by a profile without one', 
 	).toBeVisible();
 	await signIn(sharedPage, userIdentity(), 'hu');
 	await expectDashboardIn(sharedPage, 'hu');
-	expect(languageOf(userIdentity().email), 'an earlier visit’s choice is not adopted').toBeNull();
+	expect(languageOf(userIdentity().email), 'a stored choice is adopted too').toBe('hu');
 	await shared.close();
 
 	// A profile that already chose keeps its choice over this browser's /login one.

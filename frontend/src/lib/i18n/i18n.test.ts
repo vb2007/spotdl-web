@@ -2,13 +2,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { ApiError } from '$lib/api';
 import { baseLocale, overwriteGetLocale, type Locale } from '$lib/paraglide/runtime';
 import { apiErrorText, errorText } from '$lib/i18n/errors';
-import {
-	choiceMadeHere,
-	detectLocale,
-	loginChoice,
-	resolveLocale,
-	saveLoginChoice
-} from '$lib/i18n/locale.svelte';
+import { detectLocale, loginChoice, resolveLocale, saveLoginChoice } from '$lib/i18n/locale.svelte';
 import { formatNumber } from '$lib/i18n/format';
 import * as m from '$lib/paraglide/messages';
 
@@ -69,11 +63,9 @@ describe('resolveLocale', () => {
 });
 
 describe('the /login choice', () => {
-	it('holds in memory when storage is blocked, and only this visit’s choice is adopted', () => {
+	it('holds in memory when storage is blocked', () => {
 		localStorage.setItem('spotdl.locale', 'hu');
-		// Left by an earlier visit: followed for display, never handed to sign-in.
 		expect(loginChoice()).toBe('hu');
-		expect(choiceMadeHere()).toBeNull();
 
 		const original = globalThis.localStorage;
 		globalThis.localStorage = {
@@ -87,7 +79,6 @@ describe('the /login choice', () => {
 		try {
 			saveLoginChoice('en');
 			expect(loginChoice()).toBe('en');
-			expect(choiceMadeHere()).toBe('en');
 			expect(resolveLocale(null)).toBe('en');
 			expect(resolveLocale('hu')).toBe('hu');
 		} finally {
@@ -110,7 +101,7 @@ describe('apiErrorText', () => {
 		});
 		expect(apiErrorText(err)).toBe('Track is downloading, not retryable');
 		speak('hu');
-		expect(apiErrorText(err)).toBe('A szám állapota „letöltés”, így nem próbálható újra');
+		expect(apiErrorText(err)).toBe('A szám állapota „letöltés alatt”, így nem próbálható újra');
 	});
 
 	it('falls back to the server’s detail for an unknown code, or none', () => {

@@ -62,7 +62,8 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	// The reason is the Matrix server's own (redacted) words: shown as sent, untranslated.
 	alert_send_failed: (p) => m.error_alert_send_failed({ reason: String(p.reason ?? '') }),
 	retention_days_invalid: () => m.error_retention_days_invalid(),
-	request_invalid: () => m.error_request_invalid()
+	request_invalid: () => m.error_request_invalid(),
+	server_unavailable: (p) => m.error_server_unavailable({ status: String(p.status ?? '') })
 };
 
 export function apiErrorText(err: ApiError): string {

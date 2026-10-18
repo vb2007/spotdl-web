@@ -7,13 +7,12 @@
 	import * as m from '$lib/paraglide/messages';
 	import { formatNumber } from '$lib/i18n/format';
 	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
-	import { applyLocale, choiceMadeHere, locale, saveLoginChoice } from '$lib/i18n/locale.svelte';
+	import { applyLocale, locale, loginChoice, saveLoginChoice } from '$lib/i18n/locale.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
 
 	// v46: a choice made here applies at once and is remembered in this browser; signing in
-	// hands it to a profile that has no saved language yet (the backend adopts it). Only a
-	// choice made in this visit travels: neither a language detected from the browser nor one
-	// someone else left in this browser's storage is saved into the profile signing in.
+	// hands it to a profile that has no saved language yet (the backend adopts it, and never
+	// overrides a saved one). A language merely detected from the browser is not sent.
 	function chooseLanguage(next: Locale) {
 		saveLoginChoice(next);
 		applyLocale(next);
@@ -36,7 +35,7 @@
 		errorMessage = null;
 		credentialsRejected = false;
 		try {
-			await api.login(email, password, choiceMadeHere());
+			await api.login(email, password, loginChoice());
 			// v34.2: a fresh identity never inherits another's cached progress ids -- the
 			// logout reset can't run when the last session simply expired in a closed tab.
 			clearProgress();

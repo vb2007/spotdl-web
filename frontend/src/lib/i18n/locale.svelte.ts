@@ -28,9 +28,7 @@ function browserLanguages(): readonly string[] {
 	return navigator.languages?.length ? navigator.languages : [navigator.language];
 }
 
-// The choice made on /login in this page's lifetime. It's what sign-in hands to the profile
-// (a choice someone else left in this browser's storage is never adopted into yours), and it
-// keeps the choice when storage is blocked.
+// The /login choice as this tab last made it: what reads it back when storage is blocked.
 let chosenHere: Locale | null = null;
 
 export function loginChoice(): Locale | null {
@@ -41,11 +39,6 @@ export function loginChoice(): Locale | null {
 	} catch {
 		return null;
 	}
-}
-
-/** The /login choice made in this visit, for sign-in to adopt; `null` if none was made. */
-export function choiceMadeHere(): Locale | null {
-	return chosenHere;
 }
 
 export function saveLoginChoice(locale: Locale): void {

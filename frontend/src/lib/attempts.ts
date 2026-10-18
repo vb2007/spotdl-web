@@ -96,12 +96,16 @@ export function relativeTime(iso: string, now: number): string {
 	const minutes = Math.floor(seconds / 60);
 	if (minutes < 60) return m.time_minutes_ago({ minutes: formatNumber(minutes) });
 	const hours = Math.floor(minutes / 60);
+	// A whole hour or day has its own message: Hungarian says "2 órája", never "2 óra 0 perce"
+	// (English keeps "2h 00m ago").
+	if (hours < 24 && minutes % 60 === 0) return m.time_hours_ago({ hours: formatNumber(hours) });
 	if (hours < 24)
 		return m.time_hours_minutes_ago({
 			hours: formatNumber(hours),
 			minutes: formatNumber(minutes % 60),
 			minutesPadded: String(minutes % 60).padStart(2, '0')
 		});
+	if (hours % 24 === 0) return m.time_days_ago({ days: formatNumber(Math.floor(hours / 24)) });
 	return m.time_days_hours_ago({
 		days: formatNumber(Math.floor(hours / 24)),
 		hours: formatNumber(hours % 24)

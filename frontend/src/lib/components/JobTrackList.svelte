@@ -4,6 +4,7 @@
 	import { tick } from 'svelte';
 	import { focusRowEl, itemOf, kbList, rowAt, rowItemById } from '$lib/keyboard/lists';
 	import * as m from '$lib/paraglide/messages';
+	import { errorText } from '$lib/i18n/errors';
 	import { formatNumber } from '$lib/i18n/format';
 
 	let { jobId, isAdmin, total }: { jobId: string; isAdmin: boolean; total: number } = $props();
@@ -47,7 +48,7 @@
 	{#if state === undefined || state.loading}
 		<p class="hint mono">{m.job_tracks_loading()}</p>
 	{:else if state.error && state.items.length === 0}
-		<p class="hint fail mono" role="alert">{state.error}</p>
+		<p class="hint fail mono" role="alert">{errorText(state.error.err)}</p>
 	{:else if state.items.length === 0}
 		<p class="hint mono">{m.job_tracks_empty()}</p>
 	{:else}
@@ -84,7 +85,7 @@
 			</button>
 		{/if}
 		<!-- A failed "load more" keeps the rows already loaded; the button above retries. -->
-		<p class="hint fail mono" role="alert">{state.error ?? ''}</p>
+		<p class="hint fail mono" role="alert">{state.error ? errorText(state.error.err) : ''}</p>
 	{/if}
 </div>
 

@@ -291,7 +291,7 @@ describe('slotted', () => {
 		const hu = slotted(m.stats_oldest_waiting, { age: '45 mp', when: '14:03' });
 		overwriteGetLocale(() => baseLocale);
 		expect(hu.map((slot) => slot.text).join('')).toBe(
-			'A legrégebben várakozó számot 45 mp ezelőtt küldték be (14:03).'
+			'A legrégebben várakozó szám 45 mp óta vár (14:03).'
 		);
 		expect(hu.filter((slot) => slot.key !== null).map((slot) => slot.key)).toEqual(['age', 'when']);
 	});

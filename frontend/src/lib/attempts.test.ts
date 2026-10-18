@@ -100,6 +100,8 @@ describe('formatting', () => {
 		expect(relativeTime('2026-10-14T17:48:00Z', now)).toBe('12m ago');
 		expect(relativeTime('2026-10-14T14:55:00Z', now)).toBe('3h 05m ago');
 		expect(relativeTime('2026-10-12T14:00:00Z', now)).toBe('2d 4h ago');
+		expect(relativeTime('2026-10-14T16:00:00Z', now)).toBe('2h 00m ago');
+		expect(relativeTime('2026-10-12T18:00:00Z', now)).toBe('2d 0h ago');
 		expect(formatDuration(0.42)).toBe('0.4s');
 		expect(formatDuration(24.1)).toBe('24s');
 		expect(formatDuration(183.2)).toBe('3m 03s');
@@ -122,6 +124,9 @@ describe('formatting in Hungarian', () => {
 		expect(relativeTime('2026-10-14T17:48:00Z', now)).toBe('12 perce');
 		expect(relativeTime('2026-10-14T14:55:00Z', now)).toBe('3 óra 5 perce');
 		expect(relativeTime('2026-10-12T14:00:00Z', now)).toBe('2 nap 4 órája');
+		// A whole hour or day drops the zero remainder.
+		expect(relativeTime('2026-10-14T16:00:00Z', now)).toBe('2 órája');
+		expect(relativeTime('2026-10-12T18:00:00Z', now)).toBe('2 napja');
 		// A decimal comma, not a point.
 		expect(formatDuration(0.42)).toBe('0,4 mp');
 		expect(formatDuration(24.1)).toBe('24 mp');
