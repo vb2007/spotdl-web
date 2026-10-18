@@ -667,6 +667,8 @@ needed" claim — rather than silently deleted.
   comes from `node_modules` (never the CDN default) and `check-messages.mjs` counts the output → *v46*
 - Hungarian: a count is a plural message, never `${n} noun`; an inflected noun means one message per
   noun; `Countdown` labels stand before the time → *v46*
+- Formats = UI language + browser region (`en-HU`); plural messages take a pre-formatted `n`
+  (Paraglide's `number` ignores the region) → *v46*
 
 **Testing & verification technique**
 - e2e names come from the compiled message files (`t()`); a saved language beats the browser
@@ -5244,6 +5246,15 @@ independently-found production bug from the same conversation)
   rule "don't run `npm run check`/`build` while the e2e suite runs" covers the unit tests as well:
   a review agent's `vitest` during a run made the dev server reload and a keyboard spec lose its
   focused row mid-step (the same step passed 3/3 alone).
+- **Formats are the interface language *with the browser's region*** (owner's rule on PR #68):
+  `format.ts` builds `en-HU` from English and a Hungarian browser, and Chrome's ICU has the data
+  ("17 Oct 2026, 13:05", "12 345,5", lowercase "pm" when 12-hour is pinned). Paraglide's own
+  `number` registry function formats with the bare language (`en`), so plural messages take a
+  pre-formatted `n` beside the raw `count` (`counted()`), never `local n = count: number`.
+- **The browser decides the language until sign-in** (owner's rule on PR #68): no `/login`
+  switch, nothing stored in the browser, nothing adopted at sign-in. The plan's pre-login choice
+  and its adoption were built, reviewed, then removed on the owner's answer; a "choice someone
+  else left in this browser" was the bug class that made the owner's rule the simpler one.
 - **A saved language beats the browser's, and the API can set one but not clear one.** The e2e
   projects pin their browser `locale` (`en-US`, `hu-HU` for `hu`) and expect the page to follow it,
   so global setup and teardown reset both identities' `user_settings.language` to NULL straight in

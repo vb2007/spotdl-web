@@ -804,7 +804,7 @@ are two groups, "Send an alert when" (each category with a one-line description)
 
 `/account` holds "Signed in" (name, email on the page, the admin's role, **disconnect**) and
 "Preferences", whose first group is log retention. v45's shortcut switch and v46's language
-switch are further groups in Preferences.
+switch and time format are further groups in Preferences.
 
 ### Admin stats page (`routes/stats/+page.svelte`, v44)
 
@@ -858,6 +858,9 @@ in" itself read as tuning in a receiver, matching the THESIS.
 > to use ("Sign in with your vb2007.hu account. Access is by invitation."). A failed sign-in puts
 > focus back on the password (selected), with one `role="alert"` line. v46's language switch goes
 > beside the ident, outside the dial panel.
+>
+> **v46 (2026-10-18, owner's rule on PR #68):** no switch after all. Signed out, `/login` speaks
+> the browser's language; the language is chosen on `/account` and applies once signed in.
 
 ### Error / status text
 
@@ -941,16 +944,22 @@ files' keys or inputs (`scripts/check-messages.mjs`). The deliberate exceptions 
 `i18n-ignore` comment with their reason: the `SPOTDL // WEB` wordmark, CSS selectors, the proxy
 format, and the English `detail` behind a client-side error code.
 
-**Which language.** The signed-in user's saved choice, then a choice made on `/login`, then the
-first of the browser's languages that is `hu` or `en`, then English. `<html lang>` follows it, and
-a switch re-renders in place (no reload).
+**Which language** (owner's rule, PR #68). Signed out, always the browser's: the first of its
+languages that is `hu` or `en`, else English. Signed in, a language the user saved on `/account`
+wins, else the browser's again. So someone who prefers English on a Hungarian browser sees
+Hungarian on `/login` and English once signed in. Nothing is stored in the browser and nothing is
+adopted at sign-in. `<html lang>` follows it, and a switch re-renders in place (no reload).
 
-**The switch** is a `.choice-group` labelled with each language in its own name and marked with
-its own `lang` (Magyar first, since most users read it): the last group of `/account`'s
-Preferences ("Language", saved to the profile, follows the user to every device, applies once the
-server has it, with the same `role="status"` save line as the shortcut switch), and a bare one at
-the top right of `/login`'s stage, outside the dial panel, first in the tab order (this browser
-only; a profile without a saved language adopts it at sign-in).
+**The switches** are on `/account` only, in Preferences, each a `.choice-group` saved to the profile
+the moment the server has it, with the shortcut switch's `role="status"` save line. **Language** is
+labelled with each language in its own name and marked with its own `lang` (Magyar first, since
+most users read it). **Time format** is automatic / 12-hour / 24-hour, each showing the current
+time as it would read. `/login` has no switch: there the browser decides.
+
+**Formats.** Words (month names, the AM/PM marker) follow the interface language. Conventions
+(date order, digit grouping, decimal mark, 12- or 24-hour) follow the browser's region: English on
+a Hungarian browser reads "17 Oct 2026, 13:05" and "12 345" (`lib/i18n/format.ts`, the `en-HU`
+locale). A time format pinned on `/account` overrides the region's clock once signed in.
 
 **What is never translated:** track, artist and album metadata, raw attempt error and note text,
 proxy addresses, error-type machine names (`NO_OUTPUT`), and the wordmark. Matrix alerts and logs
@@ -960,8 +969,8 @@ stay English.
 (hangolás, nincs jel, jelvevő, HANGOLÁS / KAPCSOLÓDÁS), with plain state words beside it. The
 circuit breaker is the _biztosíték_ (fuse), so it never shares a root with _megszakítva_ (cancelled).
 Lowercase action labels stay lowercase. A count is a plural message with Hungarian's singular noun
-after a numeral ("5 szám"); numbers, dates and times go through `Intl` in the active language
-(`lib/i18n/format.ts`: "14:03", "0,4 mp", "12 345"). A sentence with markup (`<kbd>`) keeps it in
+after a numeral ("5 szám"), taking the raw `count` for the form and a pre-formatted `n`
+(`counted()`), so the number follows the browser's region like every other. A sentence with markup (`<kbd>`) keeps it in
 the message and renders through `RichText.svelte`. `Countdown`'s label stands before the time
 (`feloldásig 4:32`), and the time never wraps internally. Hungarian runs longer: v46 checked every
 route at 1280px and 390px for clipped text; the submit field's placeholder clips at 390px in both
