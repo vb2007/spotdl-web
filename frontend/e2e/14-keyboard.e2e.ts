@@ -171,7 +171,8 @@ test.describe('as the admin', () => {
 		await page.keyboard.press('Tab');
 		await expect(
 			jobRow(page, admin.title).getByRole('button', {
-				name: t(m.job_archive_label, { title: admin.title })
+				name: t(m.job_archive_label, { title: admin.title }),
+				exact: true
 			})
 		).toBeFocused();
 		await page.keyboard.press('Tab');
@@ -482,7 +483,7 @@ test.describe('as the admin', () => {
 			// Shortcuts are inert in the priority input: j, x and ? change only the field.
 			await focusRowByKeys(page, 'jobs', retryJob.id);
 			await openJob(page, retryJob.id);
-			const priority = page.getByLabel(`priority of ${retryJob.title}`);
+			const priority = page.getByLabel(t(m.job_priority_of, { title: retryJob.title }));
 			await page.keyboard.press('Tab');
 			await expect(priority).toBeFocused();
 			const typedFrom = await priority.inputValue();

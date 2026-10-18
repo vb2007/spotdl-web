@@ -119,10 +119,14 @@ export default defineConfig(({ command }) => ({
 		// src/lib/paraglide (generated, gitignored). The locale is resolved by
 		// src/lib/i18n/locale.svelte.ts, which overwrites the runtime's getLocale; the strategy
 		// here is only what code outside the browser app (vitest, the e2e suite) falls back to.
+		// `locale-modules`: one module per language. The default (one per message) made the
+		// dev server answer ~650 module requests per page load, slow enough that a page loaded
+		// in the e2e suite was still blank when the keyboard specs started on it.
 		paraglideVitePlugin({
 			project: './project.inlang',
 			outdir: './src/lib/paraglide',
-			strategy: ['globalVariable', 'baseLocale']
+			strategy: ['globalVariable', 'baseLocale'],
+			outputStructure: 'locale-modules'
 		}),
 		sveltekit({
 			compilerOptions: {

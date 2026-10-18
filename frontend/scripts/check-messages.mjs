@@ -5,7 +5,7 @@
 // 2. Each key takes the same inputs in both, so a translation can't drop or rename a value.
 // 3. The compiled output holds every key. The inlang SDK reports a plugin it couldn't load
 //    as a warning and still "successfully" compiles zero messages.
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { compile } from '@inlang/paraglide-js';
 
@@ -68,11 +68,12 @@ if (problems.length === 0) {
 	await compile({
 		project: path.join(root, 'project.inlang'),
 		outdir,
-		strategy: ['globalVariable', 'baseLocale']
+		strategy: ['globalVariable', 'baseLocale'],
+		// Must match vite.config.ts's paraglideVitePlugin options.
+		outputStructure: 'locale-modules'
 	});
-	const compiled = readdirSync(path.join(outdir, 'messages')).filter(
-		(file) => file.endsWith('.js') && !file.startsWith('_')
-	).length;
+	const index = readFileSync(path.join(outdir, 'messages/_index.js'), 'utf8');
+	const compiled = index.match(/^export const /gm)?.length ?? 0;
 	if (compiled !== allKeys.size)
 		problems.push(`compiled ${compiled} messages, the files hold ${allKeys.size}`);
 }

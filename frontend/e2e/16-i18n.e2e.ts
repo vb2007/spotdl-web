@@ -20,18 +20,26 @@ async function htmlLang(page: Page): Promise<string> {
 	return page.evaluate(() => document.documentElement.lang);
 }
 
-/** Signs in through the real form (real upstream), reading its labels in `lang`. */
-async function signIn(page: Page, identity: Identity, lang: Lang): Promise<void> {
+/** Signs in through the real form (real upstream), reading the form in `lang` and then the
+ * dashboard in `landsIn` (a saved preference can make it another language than the form's). */
+async function signIn(
+	page: Page,
+	identity: Identity,
+	lang: Lang,
+	landsIn: Lang = lang
+): Promise<void> {
 	if (new URL(page.url()).pathname !== '/login') await page.goto('/login');
 	await page.getByLabel(t(m.login_email, {}, lang)).fill(identity.email);
 	await page.getByLabel(t(m.login_password, {}, lang)).fill(identity.password);
 	await page.getByRole('button', { name: t(m.login_connect, {}, lang), exact: true }).click();
-	await expect(page.getByLabel(t(m.dashboard_submit_input_label, {}, lang))).toBeVisible();
+	await expect(page.getByLabel(t(m.dashboard_submit_input_label, {}, landsIn))).toBeVisible();
 }
 
-async function signOut(page: Page, lang: Lang): Promise<void> {
+/** Signs out from a dashboard in `lang`; /login then speaks `landsIn` (signed out, the
+ * browser or a /login choice decides, never the profile). */
+async function signOut(page: Page, lang: Lang, landsIn: Lang): Promise<void> {
 	await page.getByRole('button', { name: t(m.dashboard_disconnect, {}, lang) }).click();
-	await expect(page.getByRole('heading', { name: t(m.login_heading, {}, lang) })).toBeVisible();
+	await expect(page.getByRole('heading', { name: t(m.login_heading, {}, landsIn) })).toBeVisible();
 }
 
 /** The dashboard reads in `lang`: the document says so and its queue heading is in it. */
@@ -104,15 +112,15 @@ test('preference wins: Hungarian chosen on /account follows the user, and only t
 	// Logout: signed out, the page follows this (English) browser again; signing back in
 	// brings the profile's Hungarian back.
 	await page.goto('/');
-	await signOut(page, 'hu');
+	await signOut(page, 'hu', 'en');
 	expect(await htmlLang(page), 'signed out: the browser decides').toBe('en');
-	await signIn(page, userIdentity(), 'en');
+	await signIn(page, userIdentity(), 'en', 'hu');
 	await expectDashboardIn(page, 'hu');
 
 	// A second browser (no shared storage) for the same user.
 	const second = await freshContext(browser, 'en-US');
 	const secondPage = await second.newPage();
-	await signIn(secondPage, userIdentity(), 'en');
+	await signIn(secondPage, userIdentity(), 'en', 'hu');
 	await expectDashboardIn(secondPage, 'hu');
 	await second.close();
 
@@ -165,7 +173,7 @@ test('the /login choice is honored, and adopted only by a profile without one', 
 	const secondPage = await second.newPage();
 	await secondPage.goto('/login');
 	await secondPage.getByRole('button', { name: 'Magyar', exact: true }).click();
-	await signIn(secondPage, adminIdentity(), 'hu');
+	await signIn(secondPage, adminIdentity(), 'hu', 'en');
 	await expectDashboardIn(secondPage, 'en');
 	expect(languageOf(adminIdentity().email)).toBe('en');
 	await second.close();
