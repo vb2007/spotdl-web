@@ -168,7 +168,7 @@
 		</div>
 
 		{#if !isAdmin}
-			<AdminOnlyNotice what={m.stats_admin_only_what()} reason={m.stats_admin_only_reason()} />
+			<AdminOnlyNotice page="stats" />
 		{:else}
 			<p class="form-error" role="alert">
 				{#if error}{m.stats_read_failed({ error })}{/if}

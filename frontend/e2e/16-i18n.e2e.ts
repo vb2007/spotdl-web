@@ -1,6 +1,12 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { m, t, type Lang } from './support/i18n';
-import { adminIdentity, languageOf, setLanguage, userIdentity, type Identity } from './support/stack';
+import {
+	adminIdentity,
+	languageOf,
+	setLanguage,
+	userIdentity,
+	type Identity
+} from './support/stack';
 
 // Spec 16 (v46). Each test opens its own browser contexts, one per browser language, and runs
 // once (desktop project). Both identities start with no saved language (global setup), and every
@@ -72,7 +78,9 @@ test('preference wins: Hungarian chosen on /account follows the user, and only t
 
 	await page.goto('/account');
 	// A switch is not a reload: this marker survives only if the document does.
-	await page.evaluate(() => ((window as Window & { __sameDocument?: boolean }).__sameDocument = true));
+	await page.evaluate(
+		() => ((window as Window & { __sameDocument?: boolean }).__sameDocument = true)
+	);
 	await page.getByRole('button', { name: 'Magyar', exact: true }).click();
 	await expect(page.getByRole('heading', { name: t(m.account_heading, {}, 'hu') })).toBeVisible();
 	expect(await htmlLang(page), '<html lang> follows the switch').toBe('hu');
@@ -133,7 +141,9 @@ test('the /login choice is honored, and adopted only by a profile without one', 
 	const page = await context.newPage();
 	await page.goto('/login');
 	expect(await htmlLang(page)).toBe('en');
-	await page.evaluate(() => ((window as Window & { __sameDocument?: boolean }).__sameDocument = true));
+	await page.evaluate(
+		() => ((window as Window & { __sameDocument?: boolean }).__sameDocument = true)
+	);
 	await page.getByRole('button', { name: 'Magyar', exact: true }).click();
 	await expect(page.getByRole('heading', { name: t(m.login_heading, {}, 'hu') })).toBeVisible();
 	expect(await htmlLang(page), '<html lang> follows the /login switch').toBe('hu');

@@ -688,6 +688,7 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 	if (!response.ok) {
 		throw new ApiError(
 			response.status,
+			// i18n-ignore: the English `detail` behind the code, as the backend's would be.
 			response.status === 404 ? 'File not found' : response.statusText || 'Download failed',
 			response.status === 404 ? 'file_not_found' : 'download_failed'
 		);
@@ -698,6 +699,7 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 	if (response.headers.get('Content-Length') === '0') {
 		throw new ApiError(
 			502,
+			// i18n-ignore: the English `detail` behind the code, as the backend's would be.
 			'Downloaded file was empty -- the download did not complete.',
 			'file_empty'
 		);

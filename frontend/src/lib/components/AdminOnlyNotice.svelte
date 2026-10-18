@@ -7,26 +7,15 @@
 	// nothing claims a state it couldn't read. The backend's require_admin stays the real gate.
 	// v46: `page` picks the whole sentence (one message per page, so a translation never glues
 	// a subject to a reason): settings and library change shared setup, stats only reads but
-	// counts every user's downloads together. `what`/`reason` are the pre-v46 props, ignored now
-	// (a caller still passing English gets the generic sentence); drop them once no caller does.
-	let {
-		page,
-		// The pre-v46 props, accepted and ignored until every caller passes `page`.
-		..._legacy
-	}: {
-		page?: 'settings' | 'library' | 'stats';
-		what?: string;
-		reason?: string;
-	} = $props();
+	// counts every user's downloads together.
+	let { page }: { page: 'settings' | 'library' | 'stats' } = $props();
 
 	const body = $derived(
 		page === 'settings'
 			? m.adminonly_body_settings()
 			: page === 'library'
 				? m.adminonly_body_library()
-				: page === 'stats'
-					? m.adminonly_body_stats()
-					: m.adminonly_body_generic()
+				: m.adminonly_body_stats()
 	);
 
 	// The account link sits inside the sentence (`<a>…</a>` in the message), where the
