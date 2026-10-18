@@ -31,7 +31,7 @@
 		{dueText}
 	{:else}
 		{label ?? m.time_next_scan_in()}
-		{formatCountdown(remainingMs)}
+		<span class="time">{formatCountdown(remainingMs)}</span>
 	{/if}
 </span>
 
@@ -39,6 +39,12 @@
 	.countdown {
 		font-size: var(--fs-detail);
 		color: var(--waiting);
+	}
+
+	/* v46: a reading wraps as a whole ("2 nap 02:59:37"), never between its days and clock;
+	   Hungarian's longer labels wrap it on a phone. */
+	.time {
+		white-space: nowrap;
 	}
 
 	.countdown.due {
