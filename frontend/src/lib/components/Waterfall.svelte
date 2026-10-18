@@ -2,6 +2,8 @@
 	import type { LiveTrack } from '$lib/stores/queue';
 	import type { LinkState } from '$lib/stores/link';
 	import Countdown from '$lib/components/Countdown.svelte';
+	import * as m from '$lib/paraglide/messages';
+	import { formatClock } from '$lib/i18n/format';
 
 	/** v20: `busy` reflects `GET /api/worker/status`'s global `busy` flag -- since
 	 * `worker-dl` runs `--concurrency=1`, an idle-for-me waterfall during someone else's
@@ -60,17 +62,13 @@
 	// pause) or can't hear (no link): motion only ever means "listening".
 	let still = $derived(idle === 'reconnecting' || idle === 'paused' || idle === 'holding');
 
-	function clockTime(iso: string): string {
-		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-	}
-
 	// One fixed sentence per state, so a screen reader hears a hold or pause start and end
 	// (the admin-only pill is the only other place that says it) and never a countdown tick.
 	let heldSentence = $derived(
 		idle === 'holding' && breakerUntil
-			? `Downloads holding until ${clockTime(breakerUntil)}`
+			? m.waterfall_announce_holding({ time: formatClock(breakerUntil) })
 			: idle === 'paused'
-				? 'Receiver paused'
+				? m.waterfall_announce_paused()
 				: null
 	);
 	// The region keeps the hold's sentence while it lasts, then says it ended once: an
@@ -82,7 +80,7 @@
 			announcement = heldSentence;
 			wasHeld = true;
 		} else if (wasHeld && idle !== 'reconnecting' && idle !== 'connecting') {
-			announcement = 'Downloads resumed';
+			announcement = m.waterfall_announce_resumed();
 			wasHeld = false;
 		}
 	});
@@ -95,15 +93,15 @@
 	aria-labelledby="waterfall-heading"
 >
 	<div class="head">
-		<h2 id="waterfall-heading" class="label">Active signal</h2>
+		<h2 id="waterfall-heading" class="label">{m.waterfall_heading()}</h2>
 		{#if tracks.length > 0 && link !== 'live'}
 			<!-- Lanes without an open stream came from a REST snapshot (a reconnect's or the
 			     page's fallback reload) and don't update: never amber, never "receiving". -->
 			<span class="label stale"
-				>{link === 'reconnecting' ? 'link lost' : 'linking…'} — progress may be stale</span
+				>{link === 'reconnecting' ? m.waterfall_stale_lost() : m.waterfall_stale_linking()}</span
 			>
 		{:else}
-			<span class="label count">{tracks.length} lane{tracks.length === 1 ? '' : 's'}</span>
+			<span class="label count">{m.waterfall_lanes({ count: tracks.length })}</span>
 		{/if}
 	</div>
 
@@ -121,36 +119,34 @@
 				<!-- The countdown ticks every second, so it stays out of the accessibility tree;
 				     the same fact is there once, as a fixed clock time (F07's lesson). -->
 				<p class="status cond-waiting">
-					<span class="label word">holding</span>
+					<span class="label word">{m.waterfall_holding()}</span>
 					<span aria-hidden="true"
 						><Countdown
 							scheduledAt={breakerUntil}
-							label="resumes in"
+							label={m.waterfall_resumes_in()}
 							dueLive={false}
-							dueText="resuming…"
+							dueText={m.waterfall_resuming()}
 						/></span
 					>
-					<span class="sr-only">downloads resume at {clockTime(breakerUntil)}</span>
+					<span class="sr-only">{m.waterfall_resume_at({ time: formatClock(breakerUntil) })}</span>
 				</p>
-				<p class="note">
-					A deliberate pause after repeated rate limits. Waiting tracks keep their place.
-				</p>
+				<p class="note">{m.waterfall_holding_note()}</p>
 			{:else if idle === 'paused'}
-				<p class="status"><span class="label word">receiver paused</span></p>
+				<p class="status"><span class="label word">{m.waterfall_paused()}</span></p>
 				<p class="note">
-					{isAdmin
-						? 'Nothing is dispatched until you resume it in settings.'
-						: 'Downloads resume when the receiver is switched back on.'}
+					{isAdmin ? m.waterfall_paused_note_admin() : m.waterfall_paused_note_user()}
 				</p>
 			{:else if idle === 'reconnecting'}
-				<p class="status cond-waiting"><span class="label word">link lost — reconnecting</span></p>
-				<p class="note">This page catches up by itself once the link is back.</p>
+				<p class="status cond-waiting">
+					<span class="label word">{m.waterfall_reconnecting()}</span>
+				</p>
+				<p class="note">{m.waterfall_reconnecting_note()}</p>
 			{:else if idle === 'connecting'}
-				<p class="status"><span class="label word">tuning in…</span></p>
+				<p class="status"><span class="label word">{m.waterfall_connecting()}</span></p>
 			{:else if idle === 'busy'}
-				<p class="status"><span class="label word">no signal here — worker busy elsewhere</span></p>
+				<p class="status"><span class="label word">{m.waterfall_busy()}</span></p>
 			{:else}
-				<p class="status"><span class="label word">no signal — nothing downloading</span></p>
+				<p class="status"><span class="label word">{m.waterfall_clear()}</span></p>
 			{/if}
 		</div>
 	{:else}
@@ -158,8 +154,10 @@
 			{#each tracks as track (track.id)}
 				<li class="lane">
 					<div class="meta">
-						<span class="title" id="lane-title-{track.id}">{track.title ?? 'Unknown title'}</span>
-						<span class="artist">{track.artists?.join(', ') ?? 'Unknown artist'}</span>
+						<span class="title" id="lane-title-{track.id}"
+							>{track.title ?? m.waterfall_unknown_title()}</span
+						>
+						<span class="artist">{track.artists?.join(', ') ?? m.waterfall_unknown_artist()}</span>
 					</div>
 					<div
 						class="meter well"

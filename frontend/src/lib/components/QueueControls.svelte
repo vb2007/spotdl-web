@@ -5,6 +5,10 @@
 	import type { Scope } from '$lib/stores/queue';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { focusList, kbList } from '$lib/keyboard/lists';
+	import * as m from '$lib/paraglide/messages';
+	import { errorText } from '$lib/i18n/errors';
+	import { formatNumber } from '$lib/i18n/format';
+	import { jobStatusLabel, trackStateLabel } from '$lib/i18n/labels';
 
 	let {
 		isAdmin,
@@ -44,6 +48,7 @@
 		// the list just unfiltered: the queue heading instead.
 		document
 			.getElementById(
+				// i18n-ignore: a media query
 				window.matchMedia('(pointer: coarse)').matches ? 'queue-heading' : 'queue-search'
 			)
 			?.focus();
@@ -102,32 +107,39 @@
 
 	interface Chip {
 		key: string;
-		label: string;
+		/** v46: a function, so the chip re-renders in the new language on a switch. */
+		label: () => string;
 		/** The filter tokens one chip stands for -- several for a merged chip. */
 		tokens: string[];
 	}
 
 	// Track-state filter chips: v35 (g) gave them live counts (the tracks listing's
 	// counts_by_state), the same way the Jobs-scope status filter has always had.
-	const TRACK_CHIPS_ADMIN: Chip[] = [
-		{ key: 'pending', label: 'pending', tokens: ['pending'] },
-		{ key: 'queued', label: 'queued', tokens: ['queued'] },
-		{ key: 'downloading', label: 'downloading', tokens: ['downloading'] },
-		{ key: 'waiting', label: 'waiting', tokens: ['waiting'] },
-		{ key: 'lookup_failed', label: 'not found', tokens: ['lookup_failed'] },
-		{ key: 'completed', label: 'completed', tokens: ['completed'] },
-		{ key: 'skipped_duplicate', label: 'duplicate', tokens: ['skipped_duplicate'] },
-		{ key: 'cancelled', label: 'cancelled', tokens: ['cancelled'] }
-	];
+	const TRACK_CHIPS_ADMIN: Chip[] = (
+		[
+			'pending',
+			'queued',
+			'downloading',
+			'waiting',
+			'lookup_failed',
+			'completed',
+			'skipped_duplicate',
+			'cancelled'
+		] as const
+	).map((state) => ({ key: state, label: () => trackStateLabel(state), tokens: [state] }));
 	// v42 (v39 outcome 3, owner's choice): pending/queued/downloading is the dispatcher's
 	// distinction, not the listener's, so a non-admin gets one "in progress" chip for it.
 	const TRACK_CHIPS_USER: Chip[] = [
-		{ key: 'in-progress', label: 'in progress', tokens: ['pending', 'queued', 'downloading'] },
+		{
+			key: 'in-progress',
+			label: m.queuectl_chip_in_progress,
+			tokens: ['pending', 'queued', 'downloading']
+		},
 		...TRACK_CHIPS_ADMIN.slice(3)
 	];
 	const JOB_CHIPS: Chip[] = api.STATUS_TOKENS.map((token) => ({
 		key: token,
-		label: api.STATUS_LABEL[token],
+		label: () => jobStatusLabel(token),
 		tokens: [token]
 	}));
 
@@ -196,23 +208,23 @@
 
 	interface SortField {
 		value: string;
-		label: string;
+		label: () => string;
 	}
 
 	// "next retry" orders by the retry ladder's schedule: operator detail, admin only.
 	let sortFields: SortField[] = $derived(
 		$filters.scope === 'tracks'
 			? [
-					{ value: 'created_at', label: 'date added' },
-					{ value: 'title', label: 'title' },
-					{ value: 'state', label: 'state' }
+					{ value: 'created_at', label: m.queuectl_sort_created },
+					{ value: 'title', label: m.queuectl_sort_title },
+					{ value: 'state', label: m.queuectl_sort_state }
 				]
 			: [
-					{ value: 'created_at', label: 'date added' },
-					{ value: 'title', label: 'title' },
-					{ value: 'status', label: 'status' },
-					{ value: 'track_count', label: 'track count' },
-					...(isAdmin ? [{ value: 'next_retry', label: 'next retry' }] : [])
+					{ value: 'created_at', label: m.queuectl_sort_created },
+					{ value: 'title', label: m.queuectl_sort_title },
+					{ value: 'status', label: m.queuectl_sort_status },
+					{ value: 'track_count', label: m.queuectl_sort_track_count },
+					...(isAdmin ? [{ value: 'next_retry', label: m.queuectl_sort_next_retry }] : [])
 				]
 	);
 
@@ -231,14 +243,10 @@
 		const session = queue.getResetCount();
 		clearError = '';
 		const confirmed = await confirmAction({
-			title: 'Clear the log?',
-			body:
-				'Every finished job of yours (done, failed or cancelled) moves to the archive, whatever ' +
-				'this view shows. ' +
-				'Archived jobs stay under “show archived” and can be restored one by one. ' +
-				'Jobs still downloading or waiting are kept.',
-			confirmLabel: 'clear log',
-			cancelLabel: 'keep log'
+			title: m.queuectl_clear_title(),
+			body: m.queuectl_clear_body(),
+			confirmLabel: m.queuectl_clear_yes(),
+			cancelLabel: m.queuectl_clear_no()
 		});
 		// Kept or Esc: a switch to tracks scope meanwhile takes "clear log" away.
 		if (!confirmed) return keepFocus(document.getElementById('queue-heading'));
@@ -248,7 +256,9 @@
 			await queue.archiveJobs({ allSettled: true });
 		} catch (err) {
 			if (queue.getResetCount() !== session) return;
-			clearError = `Couldn't clear the log: ${err instanceof api.ApiError ? err.message : 'could not reach the server'}.`;
+			clearError = m.queuectl_clear_failed({
+				reason: errorText(err, m.queuectl_clear_unreachable)
+			});
 			// It answers one press; it doesn't stay under the heading for the rest of the visit.
 			const shown = clearError;
 			setTimeout(() => {
@@ -259,7 +269,7 @@
 </script>
 
 <div class="queue-head">
-	<h2 id="queue-heading" class="label" tabindex="-1">Queue</h2>
+	<h2 id="queue-heading" class="label" tabindex="-1">{m.queuectl_heading()}</h2>
 	<span class="count mono">{countText}</span>
 	<div class="log-tools">
 		<button
@@ -268,33 +278,33 @@
 			aria-pressed={$filters.includeArchived}
 			onclick={toggleArchived}
 		>
-			show archived
+			{m.queuectl_show_archived()}
 		</button>
 		{#if $filters.scope === 'jobs'}
 			<!-- Archives every settled job of *yours*, whatever the search, filters or all-users
 			     view (archive.archive_jobs), after a confirmation (v43). -->
-			<button type="button" class="chip danger" onclick={onClearLog}>clear log</button>
+			<button type="button" class="chip danger" onclick={onClearLog}>{m.queuectl_clear()}</button>
 		{/if}
 	</div>
 </div>
 <p class="clear-error" role="alert">{clearError}</p>
 
-<div class="controls" role="group" aria-label="Queue controls">
+<div class="controls" role="group" aria-label={m.queuectl_controls_label()}>
 	<div class="find">
-		<div class="segmented" role="group" aria-label="Search scope">
+		<div class="segmented" role="group" aria-label={m.queuectl_scope_label()}>
 			<button
 				type="button"
 				aria-pressed={$filters.scope === 'jobs'}
 				onclick={() => setScope('jobs')}
 			>
-				jobs
+				{m.queuectl_scope_jobs()}
 			</button>
 			<button
 				type="button"
 				aria-pressed={$filters.scope === 'tracks'}
 				onclick={() => setScope('tracks')}
 			>
-				tracks
+				{m.queuectl_scope_tracks()}
 			</button>
 		</div>
 
@@ -302,19 +312,23 @@
 			type="search"
 			id="queue-search"
 			class="search well"
-			placeholder={$filters.scope === 'jobs' ? 'search jobs…' : 'search tracks…'}
+			placeholder={$filters.scope === 'jobs'
+				? m.queuectl_search_jobs_placeholder()
+				: m.queuectl_search_tracks_placeholder()}
 			value={searchInput}
 			oninput={(e) => onSearchInput(e.currentTarget.value)}
-			aria-label={$filters.scope === 'jobs' ? 'Search jobs' : 'Search tracks'}
+			aria-label={$filters.scope === 'jobs'
+				? m.queuectl_search_jobs_label()
+				: m.queuectl_search_tracks_label()}
 		/>
 
 		{#if isAdmin}
-			<div class="segmented" role="group" aria-label="Viewing scope">
+			<div class="segmented" role="group" aria-label={m.queuectl_viewing_label()}>
 				<button type="button" aria-pressed={!allUsers} onclick={() => onAllUsersChange(false)}>
-					mine
+					{m.queuectl_viewing_mine()}
 				</button>
 				<button type="button" aria-pressed={allUsers} onclick={() => onAllUsersChange(true)}>
-					all users
+					{m.queuectl_viewing_all()}
 				</button>
 			</div>
 		{/if}
@@ -329,11 +343,14 @@
 				onpointerenter={() => (pointerChips = new Set(visibleChips.map((c) => c.key)))}
 				onpointerleave={() => (pointerChips = null)}
 				role="group"
-				aria-label={$filters.scope === 'jobs' ? 'Filter jobs by status' : 'Filter tracks by state'}
+				aria-label={$filters.scope === 'jobs'
+					? m.queuectl_filter_jobs_label()
+					: m.queuectl_filter_tracks_label()}
 				data-kb-orientation="horizontal"
 				{@attach kbList('chips')}
 			>
-				<span class="label" aria-hidden="true">{$filters.scope === 'jobs' ? 'jobs' : 'tracks'}</span
+				<span class="label" aria-hidden="true"
+					>{$filters.scope === 'jobs' ? m.queuectl_scope_jobs() : m.queuectl_scope_tracks()}</span
 				>
 				{#each visibleChips as chip (chip.key)}
 					<button
@@ -350,14 +367,14 @@
 						}}
 						onclick={() => toggleChip(chip)}
 					>
-						{chip.label}&nbsp;<span class="n mono">{chipCount(chip)}</span>
+						{chip.label()}&nbsp;<span class="n mono">{formatNumber(chipCount(chip))}</span>
 					</button>
 				{/each}
 			</div>
 		{/if}
 
 		<div class="sort">
-			<label class="label" for="queue-sort">sort</label>
+			<label class="label" for="queue-sort">{m.queuectl_sort()}</label>
 			<select
 				id="queue-sort"
 				class="well"
@@ -365,16 +382,16 @@
 				onchange={(e) => onSortField(e.currentTarget.value)}
 			>
 				{#each sortFields as field (field.value)}
-					<option value={field.value}>{field.label}</option>
+					<option value={field.value}>{field.label()}</option>
 				{/each}
 			</select>
 			<button
 				type="button"
 				class="chip dir"
 				aria-label={$filters.dir === 'asc'
-					? 'Reverse sort order (now ascending)'
-					: 'Reverse sort order (now descending)'}
-				title={$filters.dir === 'asc' ? 'ascending' : 'descending'}
+					? m.queuectl_dir_label_asc()
+					: m.queuectl_dir_label_desc()}
+				title={$filters.dir === 'asc' ? m.queuectl_dir_asc() : m.queuectl_dir_desc()}
 				onclick={flipDir}
 			>
 				<span aria-hidden="true">{$filters.dir === 'asc' ? '↑' : '↓'}</span>
