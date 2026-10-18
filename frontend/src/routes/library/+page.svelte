@@ -382,7 +382,6 @@
 									total: formatNumber(run.total)
 								})}
 							>
-								<!-- i18n-ignore: a CSS value, not text -->
 								<div class="progress-fill" style:transform="scaleX({percent / 100})"></div>
 							</div>
 						{/if}

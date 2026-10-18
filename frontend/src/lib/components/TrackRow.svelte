@@ -525,7 +525,6 @@
 						aria-valuemax={100}
 						aria-valuenow={track.progress}
 					>
-						<!-- i18n-ignore: a CSS value, not text -->
 						<span class="progress-fill" style:transform="scaleX({track.progress / 100})"></span>
 					</span>
 					<span class="fact mono">{track.progress}%</span>

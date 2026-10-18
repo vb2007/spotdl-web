@@ -170,7 +170,6 @@
 		</span>
 
 		<!-- The plot area: the crosshair and its readout, over every channel's strip. -->
-		<!-- i18n-ignore: a style value, not text -->
 		<span class="plot" style:grid-row="1 / span {breakerRow}" bind:this={plot}>
 			{#if shown !== null}
 				<span class="crosshair" style:left="{((shown + 0.5) / n) * 100}%"></span>
