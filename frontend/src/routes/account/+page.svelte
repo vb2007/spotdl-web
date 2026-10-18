@@ -7,6 +7,13 @@
 	import { keepFocus } from '$lib/stores/confirm';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import { helpOpen, shortcutsEnabled } from '$lib/keyboard/registry';
+	import * as m from '$lib/paraglide/messages';
+	import { errorText } from '$lib/i18n/errors';
+	import { formatClock, formatNumber } from '$lib/i18n/format';
+	import { applyLocale, locale } from '$lib/i18n/locale.svelte';
+	import type { Locale } from '$lib/paraglide/runtime';
+	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
+	import RichText from '$lib/components/RichText.svelte';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -50,7 +57,7 @@
 			.getRetentionSettings()
 			.then(syncForm)
 			.catch((err) => {
-				error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+				error = errorText(err);
 			});
 	});
 
@@ -60,7 +67,7 @@
 		if (!neverArchive) {
 			daysError =
 				typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_DAYS
-					? `Enter a whole number of days from 1 to ${MAX_DAYS.toLocaleString()}.`
+					? m.account_retention_days_invalid({ max: formatNumber(MAX_DAYS) })
 					: '';
 			if (daysError) {
 				// Nothing is sent, so focus the field: its error is read out from there.
@@ -80,7 +87,7 @@
 			syncForm(await api.updateRetentionSettings(neverArchive ? null : days));
 			savedAt = new Date();
 		} catch (err) {
-			error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			error = errorText(err);
 		} finally {
 			saving = false;
 		}
@@ -106,9 +113,35 @@
 			shortcutsEnabled.set(saved.keyboard_shortcuts);
 			keyboardSavedAt = new Date();
 		} catch (err) {
-			keyboardError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			keyboardError = errorText(err);
 		} finally {
 			keyboardSaving = false;
+		}
+		await keepFocus(from);
+	}
+
+	// v46: the interface language, saved to the profile so it follows the user to every
+	// device (and wins over the browser's language and any /login choice). Like the shortcut
+	// switch it applies once the server has it; the page then re-renders in place.
+	let languageSaving = $state(false);
+	let languageError = $state('');
+	let languageSavedAt = $state<Date | null>(null);
+
+	async function setLanguage(next: Locale) {
+		// Always sent, even for the language shown: until now it may only have been the
+		// browser's, and saving it is what makes it follow the user.
+		if (languageSaving) return;
+		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		languageSaving = true;
+		languageError = '';
+		try {
+			const saved = await api.updateLanguageSettings(next);
+			if (saved.language) applyLocale(saved.language);
+			languageSavedAt = new Date();
+		} catch (err) {
+			languageError = errorText(err);
+		} finally {
+			languageSaving = false;
 		}
 		await keepFocus(from);
 	}
@@ -122,7 +155,7 @@
 		} catch (err) {
 			// A 401 means the session is already gone: that's signed out, not a failure.
 			if (!(err instanceof api.ApiError && err.status === 401)) {
-				logoutError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+				logoutError = errorText(err);
 				loggingOut = false;
 				return;
 			}
@@ -135,16 +168,16 @@
 </script>
 
 <svelte:head>
-	<title>spotdl-web — account</title>
+	<title>{m.account_title()}</title>
 </svelte:head>
 
 <div class="stage">
 	<SubpageHeader current="account" {isAdmin} />
 
 	<main id="main" class="main">
-		<h1 class="page-title">Account</h1>
+		<h1 class="page-title">{m.account_heading()}</h1>
 		<section class="panel section" aria-labelledby="identity-heading">
-			<h2 id="identity-heading" class="label">Signed in</h2>
+			<h2 id="identity-heading" class="label">{m.account_signed_in()}</h2>
 			<div class="identity">
 				<div class="who">
 					<!-- F31: the email is on the page, not only in a tooltip. -->
@@ -153,35 +186,31 @@
 						<p class="email mono">{email}</p>
 					{/if}
 					{#if isAdmin}
-						<p class="role">Admin of this server</p>
+						<p class="role">{m.account_role_admin()}</p>
 					{/if}
 				</div>
 				<button type="button" class="btn" disabled={loggingOut} onclick={onLogout}>
-					{loggingOut ? 'disconnecting…' : 'disconnect'}
+					{loggingOut ? m.account_disconnecting() : m.account_disconnect()}
 				</button>
 			</div>
 			<p class="form-error" role="alert">{logoutError}</p>
 		</section>
 
-		<!-- Preferences: one group per setting. v45 added the keyboard-shortcut switch; v46 adds
-		     the language switch here, as a further group. -->
+		<!-- Preferences: one group per setting. v45 added the keyboard-shortcut switch; v46 the
+		     language switch, as a further group. -->
 		<section class="panel section" aria-labelledby="preferences-heading">
-			<h2 id="preferences-heading" class="label">Preferences</h2>
+			<h2 id="preferences-heading" class="label">{m.account_preferences()}</h2>
 
 			<div class="group" role="group" aria-labelledby="retention-heading">
-				<h3 id="retention-heading" class="group-title">Log retention</h3>
-				<p class="hint">
-					Finished jobs (done, failed or cancelled) are archived once nothing has happened in them
-					for this long. Archived jobs are hidden, never deleted, and come back with “show
-					archived”. A job still downloading or waiting is never archived.
-				</p>
+				<h3 id="retention-heading" class="group-title">{m.account_retention_heading()}</h3>
+				<p class="hint">{m.account_retention_hint()}</p>
 
 				{#if saved === null}
-					{#if !error}<p class="hint">Loading your retention setting…</p>{/if}
+					{#if !error}<p class="hint">{m.account_retention_loading()}</p>{/if}
 				{:else}
 					<form class="retention-form" onsubmit={onSubmit} novalidate>
 						<div class="form-field">
-							<span class="label" id="retention-mode-label">Archive finished jobs</span>
+							<span class="label" id="retention-mode-label">{m.account_retention_mode()}</span>
 							<div class="choice-group" role="group" aria-labelledby="retention-mode-label">
 								<button
 									type="button"
@@ -189,7 +218,7 @@
 									disabled={saving}
 									onclick={() => (neverArchive = false)}
 								>
-									automatically
+									{m.account_retention_auto()}
 								</button>
 								<button
 									type="button"
@@ -197,14 +226,14 @@
 									disabled={saving}
 									onclick={() => (neverArchive = true)}
 								>
-									never
+									{m.account_retention_never()}
 								</button>
 							</div>
 						</div>
 
 						<div class="form-field">
 							<!-- F30: the accessible name is the visible label (WCAG 2.5.3). -->
-							<label class="label" for="retention-days">After</label>
+							<label class="label" for="retention-days">{m.account_retention_after()}</label>
 							<div class="with-unit">
 								<input
 									id="retention-days"
@@ -219,20 +248,20 @@
 									aria-invalid={daysError ? 'true' : undefined}
 									aria-describedby="retention-days-unit retention-days-error"
 								/>
-								<span class="unit mono" id="retention-days-unit">days without activity</span>
+								<span class="unit mono" id="retention-days-unit">{m.account_retention_unit()}</span>
 							</div>
 							<p id="retention-days-error" class="field-error">{daysError}</p>
 						</div>
 
 						<div class="save-row wide">
 							<button type="submit" class="btn" disabled={saving}>
-								{saving ? 'saving…' : 'save'}
+								{saving ? m.common_saving() : m.common_save()}
 							</button>
 							<p class="save-state" class:saved={!dirty && savedAt} role="status">
 								{dirty
-									? 'Unsaved changes'
+									? m.common_unsaved_changes()
 									: savedAt
-										? `Saved at ${savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+										? m.common_saved_at({ time: formatClock(savedAt) })
 										: ''}
 							</p>
 						</div>
@@ -242,14 +271,10 @@
 			</div>
 
 			<div class="group" role="group" aria-labelledby="keyboard-heading">
-				<h3 id="keyboard-heading" class="group-title">Keyboard shortcuts</h3>
-				<p class="hint" id="keyboard-hint">
-					Single keys do things on the queue: <kbd>j</kbd> and <kbd>k</kbd> move between rows,
-					<kbd>x</kbd> cancels, <kbd>h</kbd> lists them all. Switch them off if they get in the way of
-					a screen reader or speech input. Tab, the arrow keys, Enter and Esc work either way.
-				</p>
+				<h3 id="keyboard-heading" class="group-title">{m.account_keyboard_heading()}</h3>
+				<p class="hint" id="keyboard-hint"><RichText text={m.account_keyboard_hint()} /></p>
 				<div class="form-field">
-					<span class="label" id="keyboard-mode-label">Single-key shortcuts</span>
+					<span class="label" id="keyboard-mode-label">{m.account_keyboard_mode()}</span>
 					<div class="keyboard-row">
 						<div
 							class="choice-group"
@@ -263,7 +288,7 @@
 								disabled={keyboardSaving}
 								onclick={() => setShortcuts(true)}
 							>
-								on
+								{m.account_keyboard_on()}
 							</button>
 							<button
 								type="button"
@@ -271,22 +296,45 @@
 								disabled={keyboardSaving}
 								onclick={() => setShortcuts(false)}
 							>
-								off
+								{m.account_keyboard_off()}
 							</button>
 						</div>
 						<button type="button" class="btn" onclick={() => helpOpen.set(true)}
-							>show shortcuts</button
+							>{m.account_keyboard_show()}</button
 						>
 					</div>
 				</div>
 				<p class="save-state" class:saved={keyboardSavedAt !== null} role="status">
 					{keyboardSaving
-						? 'Saving…'
+						? m.common_saving_status()
 						: keyboardSavedAt
-							? `Saved at ${keyboardSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+							? m.common_saved_at({ time: formatClock(keyboardSavedAt) })
 							: ''}
 				</p>
 				<p class="form-error" role="alert">{keyboardError}</p>
+			</div>
+
+			<div class="group" role="group" aria-labelledby="language-heading">
+				<h3 id="language-heading" class="group-title">{m.account_language_heading()}</h3>
+				<p class="hint" id="language-hint">{m.account_language_hint()}</p>
+				<div class="form-field">
+					<span class="label" id="language-mode-label">{m.account_language_label()}</span>
+					<LanguageSwitch
+						current={locale.current}
+						onchoose={setLanguage}
+						disabled={languageSaving}
+						labelledby="language-mode-label"
+						describedby="language-hint"
+					/>
+				</div>
+				<p class="save-state" class:saved={languageSavedAt !== null} role="status">
+					{languageSaving
+						? m.common_saving_status()
+						: languageSavedAt
+							? m.common_saved_at({ time: formatClock(languageSavedAt) })
+							: ''}
+				</p>
+				<p class="form-error" role="alert">{languageError}</p>
 			</div>
 		</section>
 	</main>

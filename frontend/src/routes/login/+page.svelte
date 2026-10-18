@@ -4,6 +4,19 @@
 	import { clearProgress } from '$lib/stores/progressCache';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
+	import * as m from '$lib/paraglide/messages';
+	import { formatNumber } from '$lib/i18n/format';
+	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
+	import { applyLocale, locale, loginChoice, saveLoginChoice } from '$lib/i18n/locale.svelte';
+	import type { Locale } from '$lib/paraglide/runtime';
+
+	// v46: a choice made here applies at once and is remembered in this browser; signing in
+	// hands it to a profile that has no saved language yet (the backend adopts it). Only an
+	// explicit choice travels: a language merely detected from the browser is not saved.
+	function chooseLanguage(next: Locale) {
+		saveLoginChoice(next);
+		applyLocale(next);
+	}
 
 	let email = $state('');
 	let password = $state('');
@@ -20,7 +33,7 @@
 		errorMessage = '';
 		credentialsRejected = false;
 		try {
-			await api.login(email, password);
+			await api.login(email, password, loginChoice());
 			// v34.2: a fresh identity never inherits another's cached progress ids -- the
 			// logout reset can't run when the last session simply expired in a closed tab.
 			clearProgress();
@@ -36,8 +49,8 @@
 			credentialsRejected = err instanceof api.ApiError && err.status === 401;
 			errorMessage =
 				err instanceof api.ApiError && err.status === 401
-					? "Couldn't sign in with that email and password. Check both and try again. If they're right, this account may not be invited, or the account service may be down."
-					: 'Could not reach the server. Check your connection and try again.';
+					? m.login_error_rejected()
+					: m.login_error_unreachable();
 			submitting = false;
 			// v43 (F31): after rejected credentials, back to the field to fix; after a server
 			// that couldn't be reached, back on CONNECT to try again (nothing to fix). The
@@ -54,15 +67,20 @@
 </script>
 
 <svelte:head>
-	<title>spotdl-web — sign in</title>
+	<title>{m.login_title()}</title>
 </svelte:head>
 
-<!-- v46 adds a compact language switch to this page; it goes beside the ident, top right
-     of the stage, outside the dial panel. -->
 <main id="main" class="stage">
+	<!-- v46: the compact language switch, top right of the stage, outside the dial panel.
+	     First in the tab order: someone who can't read this page's language needs it first. -->
+	<div class="language">
+		<LanguageSwitch current={locale.current} onchoose={chooseLanguage} />
+	</div>
+
 	<div class="ident">
+		<!-- i18n-ignore: the wordmark is a name, the same in every language. -->
 		<span class="label">SPOTDL // WEB</span>
-		<span class="label dim">SIGNAL RECEIVER</span>
+		<span class="label dim">{m.login_ident_receiver()}</span>
 	</div>
 
 	<form class="panel" {onsubmit}>
@@ -70,7 +88,9 @@
 			{#each Array(21) as _, i (i)}
 				<span class="tick" class:major={i % 5 === 0}>
 					{#if i % 5 === 0}
-						<span class="freq mono">{(88 + (i / 5) * 4).toFixed(1)}</span>
+						<span class="freq mono"
+							>{formatNumber(88 + (i / 5) * 4, { minimumFractionDigits: 1 })}</span
+						>
 					{/if}
 				</span>
 			{/each}
@@ -78,13 +98,13 @@
 		</div>
 
 		<div class="heading">
-			<h1 class="mono">TUNE IN</h1>
+			<h1 class="mono">{m.login_heading()}</h1>
 			<!-- v43 (F31): which account this wants. -->
-			<p class="hint">Sign in with your vb2007.hu account. Access is by invitation.</p>
+			<p class="hint">{m.login_hint()}</p>
 		</div>
 
 		<label class="form-field">
-			<span class="label">Email</span>
+			<span class="label">{m.login_email()}</span>
 			<input
 				class="well"
 				type="email"
@@ -99,7 +119,7 @@
 		</label>
 
 		<label class="form-field">
-			<span class="label">Password</span>
+			<span class="label">{m.login_password()}</span>
 			<input
 				bind:this={passwordInput}
 				class="well"
@@ -115,7 +135,7 @@
 		</label>
 
 		<button type="submit" class="connect" disabled={submitting} bind:this={connectButton}>
-			{submitting ? 'CONNECTING…' : 'CONNECT'}
+			{submitting ? m.login_connecting() : m.login_connect()}
 		</button>
 
 		<!-- One live region: role="alert" alone (it was also aria-live="polite", F31). -->
@@ -127,6 +147,7 @@
 
 <style>
 	.stage {
+		position: relative;
 		min-height: 100dvh;
 		display: flex;
 		flex-direction: column;
@@ -134,6 +155,12 @@
 		justify-content: center;
 		gap: var(--space-6);
 		padding: var(--space-5);
+	}
+
+	.language {
+		position: absolute;
+		top: var(--space-5);
+		right: var(--space-5);
 	}
 
 	.ident {

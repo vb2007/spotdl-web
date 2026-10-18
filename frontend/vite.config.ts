@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { defineConfig, type Plugin } from 'vite';
 
 const DOWNLOADS_ROOT = '/downloads';
@@ -114,6 +115,15 @@ function devFileDownloadFallback(): Plugin {
 
 export default defineConfig(({ command }) => ({
 	plugins: [
+		// v46: compiles messages/{en,hu}.json into typed message functions under
+		// src/lib/paraglide (generated, gitignored). The locale is resolved by
+		// src/lib/i18n/locale.svelte.ts, which overwrites the runtime's getLocale; the strategy
+		// here is only what code outside the browser app (vitest, the e2e suite) falls back to.
+		paraglideVitePlugin({
+			project: './project.inlang',
+			outdir: './src/lib/paraglide',
+			strategy: ['globalVariable', 'baseLocale']
+		}),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

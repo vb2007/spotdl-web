@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import * as api from '$lib/api';
 import { queue } from '$lib/stores/queue';
 import { shortcutsEnabled } from '$lib/keyboard/registry';
+import { applyLocale, resolveLocale } from '$lib/i18n/locale.svelte';
 import type { LayoutLoad } from './$types';
 
 // Adapter-static has no server to run a `+layout.server.ts` load against at request
@@ -16,6 +17,13 @@ export const prerender = true;
 // this tab navigates), and the store would otherwise carry A's rows and filters into C's
 // dashboard. `null` until the first session is seen.
 let lastSessionEmail: string | null = null;
+
+// v46: whose language the page last applied (`null`: signed out; `undefined`: nothing yet).
+// Applied here, before the route renders, so a page never paints in the wrong language first.
+// Only when the identity changes, as v45 does for the shortcut switch: within one session the
+// tab's own value is the truth (`/account` applies it on save), and a later load may carry a
+// `/me` preloaded on hover before that save. Another device's change arrives on reload.
+let localeAppliedFor: string | null | undefined;
 
 export const load: LayoutLoad = async ({ url }) => {
 	const onLoginPage = url.pathname === '/login';
@@ -51,6 +59,11 @@ export const load: LayoutLoad = async ({ url }) => {
 			shortcutsEnabled.set(session.keyboard_shortcuts ?? true);
 		}
 		lastSessionEmail = session.email;
+	}
+	const identity = session?.email ?? null;
+	if (identity !== localeAppliedFor) {
+		localeAppliedFor = identity;
+		applyLocale(resolveLocale(session?.language));
 	}
 	if (session !== null && onLoginPage) {
 		redirect(302, '/');

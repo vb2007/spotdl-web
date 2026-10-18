@@ -397,7 +397,13 @@ export interface SessionInfo {
 	/** v45: the per-user switch for single-key shortcuts. `me()` always carries it; the login
 	 * response doesn't (the layout's `me()` runs next anyway). */
 	keyboard_shortcuts?: boolean;
+	/** v46: the saved interface language, `null` while the user has none (the browser's
+	 * language decides). Like `keyboard_shortcuts`, only `me()` carries it. */
+	language?: Language | null;
 }
+
+/** v46: the interface languages there are message files for. */
+export type Language = 'hu' | 'en';
 
 /** Shared display rule for username-or-email, everywhere either can appear (session
  * header, job/track owner columns) -- username when known, email otherwise. */
@@ -435,10 +441,15 @@ export interface JobTracksPage extends Page<Track> {
 	counts_by_state: Record<string, number>;
 }
 
+/** v46: `message` is the backend's English `detail` (or a status line); `code` is its stable
+ * machine code, which the UI translates (`$lib/i18n/errors`), falling back to `message` for a
+ * code it doesn't know. `params` carries the values a translation interpolates. */
 export class ApiError extends Error {
 	constructor(
 		public status: number,
-		message: string
+		message: string,
+		public code: string | null = null,
+		public params: Record<string, string | number> = {}
 	) {
 		super(message);
 		this.name = 'ApiError';
@@ -457,13 +468,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 	if (!response.ok) {
 		let detail = response.statusText;
+		let code: string | null = null;
+		let params: Record<string, string | number> = {};
 		try {
 			const body = await response.json();
-			detail = body.detail ?? detail;
+			// A validation error's `detail` is a list, not a sentence: keep the status line
+			// and let the code-less fallback in `$lib/i18n/errors` speak for it.
+			if (typeof body.detail === 'string') detail = body.detail;
+			else if (body.detail != null) code = 'request_invalid';
+			if (typeof body.code === 'string') code = body.code;
+			if (body.params && typeof body.params === 'object') params = body.params;
 		} catch {
 			// Non-JSON error body — fall back to statusText.
 		}
-		throw new ApiError(response.status, detail);
+		throw new ApiError(response.status, detail, code, params);
 	}
 
 	if (response.status === 204) {
@@ -546,10 +564,16 @@ function tracksQuery(params: ListTracksParams): string {
 	});
 }
 
-export function login(email: string, password: string): Promise<SessionInfo> {
+/** v46: `language` is a choice made on /login before signing in; the backend adopts it into
+ * a profile that has none saved yet, and never overrides a saved one. */
+export function login(
+	email: string,
+	password: string,
+	language: Language | null = null
+): Promise<SessionInfo> {
 	return request('/api/auth/login', {
 		method: 'POST',
-		body: JSON.stringify({ email, password })
+		body: JSON.stringify(language ? { email, password, language } : { email, password })
 	});
 }
 
@@ -674,14 +698,19 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 	if (!response.ok) {
 		throw new ApiError(
 			response.status,
-			response.status === 404 ? 'File not found' : response.statusText || 'Download failed'
+			response.status === 404 ? 'File not found' : response.statusText || 'Download failed',
+			response.status === 404 ? 'file_not_found' : 'download_failed'
 		);
 	}
 
 	// v27's backstop, kept: FastAPI's own response is headers-only, so a proxy that
 	// doesn't follow X-Accel-Redirect would otherwise report a 0-byte "success".
 	if (response.headers.get('Content-Length') === '0') {
-		throw new ApiError(502, 'Downloaded file was empty -- the download did not complete.');
+		throw new ApiError(
+			502,
+			'Downloaded file was empty -- the download did not complete.',
+			'file_empty'
+		);
 	}
 }
 
@@ -816,5 +845,18 @@ export function startLibrarySort(): Promise<LibrarySortRun> {
 export function createEventSource(allUsers = false): EventSource {
 	return new EventSource(`${API_BASE}/api/stream${allUsers ? '?all_users=true' : ''}`, {
 		withCredentials: true
+	});
+}
+
+export interface LanguageSettings {
+	language: Language | null;
+}
+
+/** v46: the per-user interface language, open to every user like the shortcut switch. Stored
+ * server-side so it follows the user to every device; `me()` carries the same value. */
+export function updateLanguageSettings(language: Language): Promise<LanguageSettings> {
+	return request('/api/settings/language', {
+		method: 'PATCH',
+		body: JSON.stringify({ language })
 	});
 }
