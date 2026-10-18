@@ -55,6 +55,15 @@ interface ListMemory {
 /** Outlives the list element, so a reload (which swaps the list for its skeleton) or a
  * scope switch back keeps the place. Keyed by the list's `data-kb-list` name. */
 const memory = new Map<string, ListMemory>();
+/** How many elements are mounted under each name. An entry is only ever deleted while none
+ * is, so a mounted list's cached entry and `mem(name)` are always the same object. */
+const mounted = new Map<string, number>();
+
+/** Drops a closed job's track-list entry (one per job opened would pile up for the life of
+ * the tab), once no list of that name is mounted. */
+function forget(name: string): void {
+	if (name.startsWith('job-tracks:') && !mounted.get(name)) memory.delete(name);
+}
 const RESTORE_WINDOW_MS = 10_000;
 
 function mem(key: string): ListMemory {
@@ -213,6 +222,7 @@ function focusLost(): boolean {
 export function kbList(name: string, opts: { fallback?: () => HTMLElement | null } = {}) {
 	return (list: HTMLElement) => {
 		list.dataset.kbList = name;
+		mounted.set(name, (mounted.get(name) ?? 0) + 1);
 		const m = mem(name);
 
 		const onFocusIn = (event: FocusEvent) => {
@@ -266,20 +276,17 @@ export function kbList(name: string, opts: { fallback?: () => HTMLElement | null
 			list.removeEventListener('focusin', onFocusIn);
 			list.removeEventListener('focusout', onFocusOut);
 			document.removeEventListener('pointerdown', onPointerDown, true);
+			mounted.set(name, (mounted.get(name) ?? 1) - 1);
 			m.restoreUntil = m.focusWithin ? performance.now() + RESTORE_WINDOW_MS : 0;
-			// An open job's track list is forgotten once closed (one entry per job opened would
-			// otherwise pile up for the life of the tab), unless it still has a claim on focus.
-			if (name.startsWith('job-tracks:') && !m.restoreUntil && memory.get(name) === m) {
-				memory.delete(name);
-			}
+			// Unless it still has a claim on focus (a remount may come to take it back).
+			if (!m.restoreUntil) forget(name);
 			// Until it's back, focus anywhere else wins.
 			const cancel = () => {
 				m.restoreUntil = 0;
 				m.focusWithin = false;
-				// A closed job's track list that held focus is forgotten once its claim ends.
-				if (name.startsWith('job-tracks:') && memory.get(name) === m && !list.isConnected) {
-					memory.delete(name);
-				}
+				// A closed job's track list that held focus is forgotten once its claim ends,
+				// unless it has been mounted again meanwhile.
+				forget(name);
 			};
 			if (m.restoreUntil) {
 				const until = m.restoreUntil;

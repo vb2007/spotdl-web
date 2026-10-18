@@ -223,6 +223,47 @@ test.describe('as the admin', () => {
 		await expect(page.locator('#queue-search')).not.toBeFocused();
 	});
 
+	test('a reload keeps focus on the same track of an open job', async ({ page }) => {
+		desktopOnly();
+		const { items } = (await (
+			await page.request.get('/api/jobs?include_archived=true&sort=track_count&dir=desc&limit=20')
+		).json()) as { items: Job[] };
+		const job = items.find(
+			(j) => Object.values(j.track_counts).reduce((a, b) => a + (b ?? 0), 0) >= 3
+		);
+		expect(job, 'an admin job with three or more tracks on the dev stack').toBeDefined();
+		await openDashboard(page);
+		await page.keyboard.press('Shift+A');
+		await page.keyboard.press('/');
+		await page.keyboard.type(job!.title);
+		await expect.poll(() => rowIds(page, 'jobs')).toContain(job!.id);
+		await expect(page.getByText('Loading…')).toHaveCount(0);
+		await leaveField(page);
+		await focusRowByKeys(page, 'jobs', job!.id);
+		await openJob(page, job!.id);
+		await page.keyboard.press('ArrowRight');
+		await page.keyboard.press('j');
+		await page.keyboard.press('j');
+		const nested = `job-tracks:${job!.id}`;
+		expect(await focusedList(page)).toBe(nested);
+		const tracks = await rowIds(page, nested);
+		const track = await focusedRow(page);
+		expect(track).toBe(tracks[2]);
+
+		// `s` re-sorts: the list reloads (its skeleton replaces it, then it remounts with the
+		// job still open). Focus comes back to the same track, and its list's roving state with it.
+		await page.keyboard.press('s');
+		await expect(page.getByText('Loading…')).toHaveCount(0);
+		await expect.poll(() => focusedRow(page), { message: 'focus after the reload' }).toBe(track);
+		expect(await focusedList(page)).toBe(nested);
+		expect(
+			await page.evaluate(() => (document.activeElement as HTMLElement | null)?.tabIndex)
+		).toBe(0);
+		expect(await tabStopsIn(page, nested)).toBe(1);
+		await page.keyboard.press('k');
+		expect(await focusedRow(page)).toBe(tracks[1]);
+	});
+
 	test('download a completed file by keyboard (checksum)', async ({ page }) => {
 		desktopOnly();
 		const { admin } = readSeed();
