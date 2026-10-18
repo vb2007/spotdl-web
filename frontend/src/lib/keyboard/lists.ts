@@ -73,7 +73,22 @@ const RESTORE_WINDOW_MS = 10_000;
  * their page back to it (before v45 focus simply fell to <body> there, unscrolled). */
 let keyboardInput = false;
 if (typeof document !== 'undefined') {
-	document.addEventListener('keydown', () => (keyboardInput = true), true);
+	document.addEventListener(
+		'keydown',
+		() => {
+			keyboardInput = true;
+			// A key pressed on a row a click had focused: from here the keyboard drives it, so
+			// its lists hold the claim (an `a` that archives it hands focus on, not to <body>).
+			for (
+				let list = document.activeElement?.closest<HTMLElement>('[data-kb-list]');
+				list;
+				list = list.parentElement?.closest<HTMLElement>('[data-kb-list]')
+			) {
+				mem(list.dataset.kbList ?? '').focusWithin = true;
+			}
+		},
+		true
+	);
 	document.addEventListener('pointerdown', () => (keyboardInput = false), true);
 }
 

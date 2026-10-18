@@ -1121,7 +1121,7 @@ test.describe('the shortcut switch', () => {
 				);
 				await other.keyboard.press('h');
 				await expect(other.locator('dialog[open]')).toHaveCount(0);
-				// Back on from here: the first browser sees it on its next route load.
+				// Back on from here: the first browser picks it up on its next reload.
 				const on = other.getByRole('button', { name: 'on', exact: true });
 				await tabTo(other, on);
 				await other.keyboard.press('Enter');
