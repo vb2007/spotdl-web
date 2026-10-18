@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { ApiError } from '$lib/api';
 import { baseLocale, overwriteGetLocale, type Locale } from '$lib/paraglide/runtime';
-import { apiErrorText, errorText } from '$lib/i18n/errors';
+import { apiErrorText, errorText, knowsCode } from '$lib/i18n/errors';
 import { detectLocale, loginChoice, resolveLocale, saveLoginChoice } from '$lib/i18n/locale.svelte';
 import { formatNumber } from '$lib/i18n/format';
 import * as m from '$lib/paraglide/messages';
@@ -146,5 +146,64 @@ describe('plurals and numbers', () => {
 		// Hungarian groups with a (no-break) space from five digits, and writes a decimal comma.
 		expect(m.dashboard_count_tracks({ count: 12345 })).toBe('12\u00a0345 szám');
 		expect(formatNumber(0.5, { minimumFractionDigits: 1 })).toBe('0,5');
+	});
+});
+
+// Every code backend/app/errors.py's ApiErrors carry (tests/test_api_error_codes.py reaches
+// each one), plus the ones api.ts assigns itself.
+const BACKEND_CODES = [
+	'invalid_credentials',
+	'not_authenticated',
+	'admin_required',
+	'job_not_found',
+	'archive_nothing_selected',
+	'invalid_list_params',
+	'library_sort_running',
+	'track_not_found',
+	'job_archived',
+	'track_not_retryable',
+	'file_not_found',
+	'proxy_target_exists',
+	'proxy_not_found',
+	'proxy_url_required',
+	'proxy_url_invalid',
+	'proxy_url_exists',
+	'unsupported_format',
+	'unsupported_bitrate',
+	'setting_blank',
+	'setting_out_of_range',
+	'alerts_not_configured',
+	'alert_send_failed',
+	'retention_days_invalid'
+];
+const CLIENT_CODES = [
+	'request_invalid',
+	'download_failed',
+	'file_empty',
+	'server_error',
+	'request_failed'
+];
+const PARAMS: Record<string, string | number> = {
+	state: 'downloading',
+	target: '203.0.113.5:8080',
+	source: 'file',
+	value: 'wma',
+	field: 'alert_spike_threshold',
+	min: 2,
+	max: 1000,
+	reason: 'HTTP 403',
+	status: 'Bad Gateway'
+};
+
+describe('every error code', () => {
+	it.each([...BACKEND_CODES, ...CLIENT_CODES])('%s renders translated in Hungarian', (code) => {
+		expect(knowsCode(code)).toBe(true);
+		const err = new ApiError(400, 'the English detail', code, PARAMS);
+		const english = apiErrorText(err);
+		speak('hu');
+		const hungarian = apiErrorText(err);
+		expect(hungarian).not.toBe('the English detail');
+		expect(hungarian).not.toBe(english);
+		expect(hungarian).not.toMatch(/\{\w+\}/);
 	});
 });

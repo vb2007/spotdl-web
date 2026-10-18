@@ -74,7 +74,7 @@
 	"account_retention_mode": "Befejezett feladatok archiválása",
 	"account_retention_auto": "automatikusan",
 	"account_retention_never": "soha",
-	"account_retention_after": "Időtartam",
+	"account_retention_after": "Archiválás",
 	"account_retention_unit": "nap tétlenség után",
 	"account_retention_days_invalid": "Egész számú napot adj meg, 1 és {max} között.",
 	"account_keyboard_heading": "Billentyűparancsok",
@@ -783,5 +783,6 @@
 	"stats_hold_label": "{verb} ({step}) {when}, {end}",
 	"error_server_error": "Szerverhiba: {status}",
 	"time_hours_ago": "{hours} órája",
-	"time_days_ago": "{days} napja"
+	"time_days_ago": "{days} napja",
+	"error_request_failed": "A kérés nem sikerült: {status}"
 }

@@ -5258,6 +5258,11 @@ independently-found production bug from the same conversation)
   noun, never a noun spliced in. `Countdown` prints `{label} {time}`, so Hungarian labels are
   phrased to stand before a time (`feloldásig 4:32`), and the time is `nowrap` so a phone wraps
   before it, never between "2 nap" and its clock.
+- **Spec 14's priority keys raced the page, not the API** (v45's spec, exposed by v46 running it a
+  second time in the `hu` project). A row takes one priority step at a time and drops a key pressed
+  while the last step is still settling in the page, which outlasts the moment the API returns the
+  new value; the spec pressed the next key as soon as the API did. Each step now waits for its own
+  PATCH response and a page tick.
 - **The hidden admin 404s carry no error `code` on purpose** (`require_admin_hidden`, the test-alert
   route): a code would tell them apart from an unknown route's `{"detail": "Not Found"}`, which is
   the point of answering 404. Every other user-facing error is an `app/errors.py` `ApiError`.

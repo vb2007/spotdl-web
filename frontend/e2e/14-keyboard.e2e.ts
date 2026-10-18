@@ -514,14 +514,20 @@ test.describe('as the admin', () => {
 			const priorityOf = async () =>
 				((await (await admin.get(`/api/jobs/${retryJob.id}`)).json()) as Job).priority;
 			const start = await priorityOf();
-			await page.keyboard.press('Shift+B');
-			await expect.poll(priorityOf).toBe(start + 1);
-			await huPress(page, HU.minus);
-			await expect.poll(priorityOf).toBe(start);
-			await huPress(page, HU.plus);
-			await expect.poll(priorityOf).toBe(start + 1);
-			await huPress(page, HU.minus);
-			await expect.poll(priorityOf).toBe(start);
+			// The row takes one step at a time and drops a key pressed while the last step is
+			// still settling in the page, which outlasts the moment the API has the new value.
+			// So each step waits for its own response, and for the page to finish handling it.
+			const step = async (press: () => Promise<void>, expected: number) => {
+				const answered = page.waitForResponse(sent('PATCH', `/api/jobs/${retryJob.id}/priority`));
+				await press();
+				expect((await answered).ok()).toBe(true);
+				await expect.poll(priorityOf).toBe(expected);
+				await page.evaluate(() => new Promise((settled) => setTimeout(settled, 50)));
+			};
+			await step(() => page.keyboard.press('Shift+B'), start + 1);
+			await step(() => huPress(page, HU.minus), start);
+			await step(() => huPress(page, HU.plus), start + 1);
+			await step(() => huPress(page, HU.minus), start);
 
 			// Into its track, then retry it: held behind the pause, and focus stays on the same
 			// row through the stream's patches of it.

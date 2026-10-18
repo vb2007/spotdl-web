@@ -76,7 +76,7 @@
 	<!-- v46: the compact language switch, top right of the stage, outside the dial panel.
 	     First in the tab order: someone who can't read this page's language needs it first. -->
 	<div class="language">
-		<LanguageSwitch current={locale.current} onchoose={chooseLanguage} />
+		<LanguageSwitch current={locale.current} onchoose={chooseLanguage} disabled={submitting} />
 	</div>
 
 	<div class="ident">

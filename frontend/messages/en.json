@@ -852,5 +852,6 @@
 	"stats_hold_label": "{verb} ({step}) {when}, {end}",
 	"error_server_error": "{status}",
 	"time_hours_ago": "{hours}h 00m ago",
-	"time_days_ago": "{days}d 0h ago"
+	"time_days_ago": "{days}d 0h ago",
+	"error_request_failed": "{status}"
 }
