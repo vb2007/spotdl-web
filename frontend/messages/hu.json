@@ -556,14 +556,30 @@
 	"library_try_again": "próbáld újra",
 	"library_reading": "A legutóbbi rendezés beolvasása…",
 	"library_never_run": "Még nem futott rendezés.",
-	"library_sweeping_progress": "Rendezés · {processed} / {total} fájl",
+	"library_sweeping_progress": [
+		{
+			"declarations": ["input count", "input processed", "input total"],
+			"selectors": [],
+			"match": {
+				"*": "Rendezés · {processed} / {total} fájl"
+			}
+		}
+	],
 	"library_last_finished": "A legutóbbi rendezés vége: {when}",
 	"library_took": "· időtartam: {duration}",
 	"library_took_seconds": "{s} mp",
 	"library_took_minutes": "{m} p {s} mp",
 	"library_took_hours": "{h} ó {m} p",
 	"library_progress_label": "A rendezés állása",
-	"library_progress_valuetext": "{total} fájlból {processed} kész",
+	"library_progress_valuetext": [
+		{
+			"declarations": ["input count", "input processed", "input total"],
+			"selectors": [],
+			"match": {
+				"*": "{total} fájlból {processed} kész"
+			}
+		}
+	],
 	"library_count_moved": "áthelyezve",
 	"library_count_deleted": "törölt duplikátum",
 	"library_count_quarantined": "karanténba tett duplikátum",
@@ -784,5 +800,6 @@
 	"account_clock_label": "Órakijelzés",
 	"account_clock_auto": "automatikus ({example})",
 	"account_clock_12h": "12 órás ({example})",
-	"account_clock_24h": "24 órás ({example})"
+	"account_clock_24h": "24 órás ({example})",
+	"settings_proxy_format": "http(s)://[felhasználó:jelszó@]ipv4[:port]"
 }

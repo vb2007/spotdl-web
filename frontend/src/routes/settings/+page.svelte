@@ -49,8 +49,6 @@
 	// The fragments are machine names and formats, shown as they are in every language.
 	const TEMPLATE_PLACEHOLDER = '{placeholder}';
 	const TEMPLATE_EXAMPLE = '{artists} - {title}.{output-ext}';
-	// i18n-ignore: a URL format, not prose
-	const PROXY_FORMAT = 'http(s)://[user:pass@]ipv4[:port]';
 	const PROXIES_FILE = 'proxies.txt';
 
 	const templateHint = $derived(
@@ -68,7 +66,9 @@
 		})
 	);
 	const proxiesHint = $derived(withCode(m.settings_proxies_hint, { file: PROXIES_FILE }));
-	const proxyFormatHint = $derived(withCode(m.settings_proxy_add_hint, { format: PROXY_FORMAT }));
+	const proxyFormatHint = $derived(
+		withCode(m.settings_proxy_add_hint, { format: m.settings_proxy_format() })
+	);
 
 	// A failed check sends nothing, so nothing else would tell a screen reader: focus moves to
 	// the first invalid field, whose error its aria-describedby then reads out.
@@ -435,7 +435,7 @@
 			return focusUnlessFocused('new-proxy');
 		}
 		if (!PROXY_URL_RE.test(url)) {
-			addProxyError = m.settings_proxy_add_invalid({ format: PROXY_FORMAT });
+			addProxyError = m.settings_proxy_add_invalid({ format: m.settings_proxy_format() });
 			return focusUnlessFocused('new-proxy');
 		}
 		const from = focused();

@@ -74,12 +74,13 @@ function regionClockOptions(): Intl.DateTimeFormatOptions {
 }
 
 export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
-	// Digits carry no words, so where the pair has no data the region's own conventions apply.
+	// Digits carry no words, so where the pair has no data the region's own conventions apply,
+	// in Latin digits like every other number on the page (an Egyptian or Iranian region would
+	// otherwise bring its own beside Latin clocks and countdowns).
 	const locale = formatLocale();
 	const region = regionLocale();
-	return new Intl.NumberFormat(pairSupported(locale) || !region ? locale : region, options).format(
-		value
-	);
+	if (pairSupported(locale) || !region) return new Intl.NumberFormat(locale, options).format(value);
+	return new Intl.NumberFormat(region, { ...options, numberingSystem: 'latn' }).format(value);
 }
 
 /** A plural message's inputs: the raw `count` picks the form, `n` is how it's written. */

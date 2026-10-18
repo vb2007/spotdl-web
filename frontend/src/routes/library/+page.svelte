@@ -117,7 +117,10 @@
 	}
 	const sweepHint = $derived(linked(m.library_sweep_hint()));
 	const progressPieces = $derived(
-		pieces(m.library_sweeping_progress({ processed: MARK(0), total: MARK(1) }))
+		pieces(
+			// The raw total picks the noun's form ("1 file"); the marked values are written below.
+			m.library_sweeping_progress({ count: run?.total ?? 0, processed: MARK(0), total: MARK(1) })
+		)
 	);
 
 	async function loadStatus() {
@@ -381,6 +384,7 @@
 								aria-valuemin={0}
 								aria-valuemax={100}
 								aria-valuetext={m.library_progress_valuetext({
+									count: run.total,
 									processed: formatNumber(run.processed),
 									total: formatNumber(run.total)
 								})}

@@ -576,14 +576,42 @@
 	"library_try_again": "try again",
 	"library_reading": "Reading the last sweep…",
 	"library_never_run": "No sweep has run yet.",
-	"library_sweeping_progress": "Sweeping · {processed} of {total} files",
+	"library_sweeping_progress": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"input processed",
+				"input total"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "Sweeping · {processed} of {total} file",
+				"countPlural=*": "Sweeping · {processed} of {total} files"
+			}
+		}
+	],
 	"library_last_finished": "Last sweep finished {when}",
 	"library_took": "· took {duration}",
 	"library_took_seconds": "{s}s",
 	"library_took_minutes": "{m}m {s}s",
 	"library_took_hours": "{h}h {m}m",
 	"library_progress_label": "Sweep progress",
-	"library_progress_valuetext": "{processed} of {total} files",
+	"library_progress_valuetext": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"input processed",
+				"input total"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{processed} of {total} file",
+				"countPlural=*": "{processed} of {total} files"
+			}
+		}
+	],
 	"library_count_moved": "moved",
 	"library_count_deleted": "duplicates deleted",
 	"library_count_quarantined": "duplicates quarantined",
@@ -808,5 +836,6 @@
 	"account_clock_label": "Clock",
 	"account_clock_auto": "automatic ({example})",
 	"account_clock_12h": "12-hour ({example})",
-	"account_clock_24h": "24-hour ({example})"
+	"account_clock_24h": "24-hour ({example})",
+	"settings_proxy_format": "http(s)://[user:pass@]ipv4[:port]"
 }

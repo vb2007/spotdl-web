@@ -107,6 +107,10 @@ describe('formatting: the interface language with the browser’s region', () =>
 		browser('en-GB');
 		expect(formatNumber(12345.5)).toBe('12,345.5');
 		expect(formatClock(at)).toBe('13:05');
+		// A region with its own digits keeps its separators but writes Latin digits.
+		speak('en');
+		browser('ar-EG', 'en');
+		expect(formatNumber(12345.5)).toMatch(/^12.345.5$/);
 	});
 
 	it('lets a pinned clock override the region’s, and only the clock', () => {
@@ -179,6 +183,12 @@ describe('plurals and numbers', () => {
 		expect(m.dashboard_count_tracks(counted(5))).toBe('5 tracks');
 		expect(m.stats_attempts_unit(counted(1))).toBe('attempt');
 		expect(m.stats_attempts_unit(counted(5))).toBe('attempts');
+		expect(m.library_progress_valuetext({ count: 1, processed: '0', total: '1' })).toBe(
+			'0 of 1 file'
+		);
+		expect(m.library_progress_valuetext({ count: 5, processed: '2', total: '5' })).toBe(
+			'2 of 5 files'
+		);
 	});
 
 	it('keeps the Hungarian noun singular after a numeral: 0, 1 and 5', () => {
@@ -187,6 +197,9 @@ describe('plurals and numbers', () => {
 		expect(m.dashboard_count_tracks(counted(1))).toBe('1 szám');
 		expect(m.dashboard_count_tracks(counted(5))).toBe('5 szám');
 		expect(m.incoming_older(counted(5))).toBe('5 korábbi linket nem sikerült beolvasni');
+		expect(m.library_progress_valuetext({ count: 1, processed: '0', total: '1' })).toBe(
+			'1 fájlból 0 kész'
+		);
 	});
 
 	it('groups digits the way the browser’s region writes them', () => {
