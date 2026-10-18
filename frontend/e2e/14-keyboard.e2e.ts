@@ -574,7 +574,7 @@ test.describe('as the admin', () => {
 		}
 	});
 
-	test('switch scope, toggle filters and sort, load more', async ({ page }) => {
+	test('switch scope, toggle filters and sort', async ({ page }) => {
 		desktopOnly();
 		await openDashboard(page);
 		const scope = page.getByRole('group', { name: 'Search scope' });
@@ -632,7 +632,17 @@ test.describe('as the admin', () => {
 		}
 		await expect(sort).toHaveValue('created_at');
 		await expect(page.getByText('Loading…')).toHaveCount(0);
+	});
 
+	test('load more by keyboard focuses the first new row', async ({ page }) => {
+		desktopOnly();
+		await openDashboard(page);
+		await page.keyboard.press('Shift+A');
+		await expect(page.getByRole('button', { name: 'show archived' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await expect(page.getByText('Loading…')).toHaveCount(0);
 		// Load more: with archived jobs shown the admin has several pages. End goes to the last
 		// loaded row; End there (and Shift+G) loads the next page and focuses its first row.
 		await expect(page.getByRole('button', { name: 'load more jobs' })).toBeVisible();

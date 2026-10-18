@@ -44,6 +44,8 @@ export function actionsOf(row: Element | null): RowActions | undefined {
 interface ListMemory {
 	/** The current row's id. */
 	active: string | null;
+	/** The row this list is nested in (an open job, for its tracks), if any. */
+	parent: string | null;
 	/** Row ids in order at the last look, to find a removed row's neighbour. */
 	order: string[];
 	/** Focus was inside the list (and hasn't been taken elsewhere since). */
@@ -66,10 +68,19 @@ function forget(name: string): void {
 }
 const RESTORE_WINDOW_MS = 10_000;
 
+/** Whether the latest input was a key rather than a pointer. Focus restoration is for the
+ * keyboard: a mouse user's clicked row is never a claim, so a background reload never pulls
+ * their page back to it (before v45 focus simply fell to <body> there, unscrolled). */
+let keyboardInput = false;
+if (typeof document !== 'undefined') {
+	document.addEventListener('keydown', () => (keyboardInput = true), true);
+	document.addEventListener('pointerdown', () => (keyboardInput = false), true);
+}
+
 function mem(key: string): ListMemory {
 	let m = memory.get(key);
 	if (!m) {
-		m = { active: null, order: [], focusWithin: false, restoreUntil: 0 };
+		m = { active: null, parent: null, order: [], focusWithin: false, restoreUntil: 0 };
 		memory.set(key, m);
 	}
 	return m;
@@ -215,6 +226,14 @@ function settle(list: HTMLElement): void {
 		return;
 	}
 	const activeRow = rows.find((r) => rowId(r) === m.active);
+	// That row's own nested list (an open job's tracks) is reloading with focus inside: it
+	// takes focus back itself when it remounts, onto the same track.
+	if (activeRow) {
+		const id = rowId(activeRow);
+		const now = performance.now();
+		for (const entry of memory.values())
+			if (entry.parent === id && entry.restoreUntil > now) return;
+	}
 	// Focus was in this row's nested list (a track of the open job): that list puts it back
 	// on its own row first, and only an emptied or closed one hands it to the job.
 	const nested = activeRow ? nestedList(activeRow) : null;
@@ -250,6 +269,8 @@ export function kbList(name: string, opts: { fallback?: () => HTMLElement | null
 		list.dataset.kbList = name;
 		mounted.set(name, (mounted.get(name) ?? 0) + 1);
 		const m = mem(name);
+		const parentRow = rowAt(list.parentElement);
+		m.parent = parentRow ? rowId(parentRow) : null;
 
 		const onFocusIn = (event: FocusEvent) => {
 			const row = rowAt(event.target as Element);
@@ -258,7 +279,7 @@ export function kbList(name: string, opts: { fallback?: () => HTMLElement | null
 			while (mine && listOf(mine) !== list) mine = rowAt(mine.parentElement);
 			if (mine) {
 				m.active = rowId(mine);
-				m.focusWithin = true;
+				m.focusWithin = keyboardInput;
 				for (const l of [list, ...list.querySelectorAll<HTMLElement>('[data-kb-list]')])
 					applyTabOrder(l);
 			}

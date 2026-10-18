@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
@@ -88,8 +88,8 @@
 	}
 
 	// v45: the single-key shortcut switch (WCAG 2.1.4), stored per user server-side so it
-	// follows them to every device. It applies the moment the server has it; the layout reads
-	// it again from /api/auth/me on every route load.
+	// follows them to every device. It applies the moment the server has it; another device
+	// picks it up from /api/auth/me on its next load.
 	let keyboardSaving = $state(false);
 	let keyboardError = $state('');
 	let keyboardSavedAt = $state<Date | null>(null);
@@ -105,9 +105,6 @@
 			const saved = await api.updateKeyboardSettings(enabled);
 			shortcutsEnabled.set(saved.keyboard_shortcuts);
 			keyboardSavedAt = new Date();
-			// A link hovered before the save preloaded `/me` with the old value, and the next
-			// navigation would apply it: re-read the session now (and drop that preload).
-			await invalidateAll();
 		} catch (err) {
 			keyboardError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		} finally {

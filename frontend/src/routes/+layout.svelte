@@ -33,9 +33,15 @@
 	const signedIn = $derived(data.session != null);
 	const isAdmin = $derived(data.session?.is_admin ?? false);
 
-	// v45: the per-user switch, read from `/api/auth/me` on every route load (so a change on
-	// another device arrives with the next navigation or reload). Signed out, it's on.
+	// v45: the per-user switch, as `/api/auth/me` has it, applied when a session starts (the
+	// first load, a sign-in, another identity); signed out, it's on. Within one session the
+	// tab's own value is the truth (`/account` sets it on save): a later route load may carry
+	// a `/me` preloaded on hover before that save. Another device's change arrives on reload.
+	let appliedFor: string | null | undefined;
 	$effect(() => {
+		const email = data.session?.email ?? null;
+		if (email === appliedFor) return;
+		appliedFor = email;
 		shortcutsEnabled.set(data.session?.keyboard_shortcuts ?? true);
 	});
 

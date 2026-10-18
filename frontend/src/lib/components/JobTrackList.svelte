@@ -2,7 +2,7 @@
 	import { queue } from '$lib/stores/queue';
 	import TrackRow from '$lib/components/TrackRow.svelte';
 	import { tick } from 'svelte';
-	import { focusRowEl, itemOf, kbList, rowAt } from '$lib/keyboard/lists';
+	import { focusRowEl, itemOf, kbList, rowAt, rowItemById } from '$lib/keyboard/lists';
 
 	let { jobId, isAdmin, total }: { jobId: string; isAdmin: boolean; total: number } = $props();
 
@@ -50,7 +50,14 @@
 		<p class="hint mono">No tracks.</p>
 	{:else}
 		<!-- v45: one Tab stop (roving), reached through its open job. -->
-		<ul class="rows" aria-label="Tracks" {@attach kbList(`job-tracks:${jobId}`)}>
+		<ul
+			class="rows"
+			aria-label="Tracks"
+			{@attach kbList(`job-tracks:${jobId}`, {
+				// Tracks that don't come back (their re-read failed): the job itself.
+				fallback: () => (state?.loading ? null : rowItemById(jobId))
+			})}
+		>
 			{#each state.items as track (track.id)}
 				<TrackRow {track} {jobId} {isAdmin} />
 			{/each}
