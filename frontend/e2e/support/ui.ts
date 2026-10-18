@@ -1,20 +1,21 @@
 import { expect, type Locator, type Page, type Response } from '@playwright/test';
 import type { Job } from '../../src/lib/api';
+import { m, t } from './i18n';
 import type { Identity } from './stack';
 
 /** Signs in through the real login form (real upstream) and waits for the dashboard. Already
  * on `/login` (after a logout), it stays in the same document rather than reloading it. */
 export async function loginViaUi(page: Page, identity: Identity): Promise<void> {
 	if (new URL(page.url()).pathname !== '/login') await page.goto('/login');
-	await page.getByLabel('Email').fill(identity.email);
-	await page.getByLabel('Password').fill(identity.password);
-	await page.getByRole('button', { name: 'CONNECT', exact: true }).click();
-	await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
+	await page.getByLabel(t(m.login_email)).fill(identity.email);
+	await page.getByLabel(t(m.login_password)).fill(identity.password);
+	await page.getByRole('button', { name: t(m.login_connect), exact: true }).click();
+	await expect(page.getByLabel(t(m.dashboard_submit_input_label))).toBeVisible();
 }
 
 export async function logoutViaUi(page: Page): Promise<void> {
-	await page.getByRole('button', { name: 'disconnect' }).click();
-	await expect(page.getByRole('button', { name: 'CONNECT', exact: true })).toBeVisible();
+	await page.getByRole('button', { name: t(m.dashboard_disconnect) }).click();
+	await expect(page.getByRole('button', { name: t(m.login_connect), exact: true })).toBeVisible();
 }
 
 /** Loads the dashboard and waits until the stream's first resync has landed. Every resync
@@ -33,9 +34,9 @@ export async function openDashboard(page: Page): Promise<void> {
 	page.on('response', onResponse);
 	try {
 		await page.goto('/');
-		await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
+		await expect(page.getByLabel(t(m.dashboard_submit_input_label))).toBeVisible();
 		await expect.poll(() => resynced, { message: "the stream's first resync" }).toBe(true);
-		await expect(page.getByText('Loading…')).toHaveCount(0);
+		await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
 	} finally {
 		page.off('response', onResponse);
 	}
@@ -45,7 +46,7 @@ export async function openDashboard(page: Page): Promise<void> {
  * actions and progress can be read in scope. */
 export function jobRow(page: Page, title: string): Locator {
 	return page
-		.getByRole('list', { name: 'Jobs' })
+		.getByRole('list', { name: t(m.dashboard_list_jobs) })
 		.getByRole('listitem', { name: title, exact: true });
 }
 
@@ -60,7 +61,7 @@ export function jobToggle(page: Page, title: string): Locator {
 /** A track row's expand button inside an expanded job, by the track title in its name. */
 export function trackToggle(page: Page, jobTitle: string, trackTitle: string): Locator {
 	return jobRow(page, jobTitle)
-		.getByRole('list', { name: 'Tracks' })
+		.getByRole('list', { name: t(m.job_tracks_label) })
 		.getByRole('button', { name: literal(trackTitle) });
 }
 
@@ -69,8 +70,8 @@ export async function submitUrl(page: Page, url: string): Promise<Job> {
 	const created = page.waitForResponse(
 		(r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/jobs'
 	);
-	await page.getByLabel('Spotify URL to submit').fill(url);
-	await page.getByRole('button', { name: 'SUBMIT', exact: true }).click();
+	await page.getByLabel(t(m.dashboard_submit_input_label)).fill(url);
+	await page.getByRole('button', { name: t(m.dashboard_submit), exact: true }).click();
 	const response = await created;
 	expect(response.status()).toBe(201);
 	return (await response.json()) as Job;

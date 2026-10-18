@@ -2,7 +2,6 @@
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"settings_title": "spotdl-web — settings",
 	"settings_heading": "Settings",
-	"settings_admin_only_what": "The worker, output, library, alert and proxy setup",
 	"settings_index_label": "Settings sections",
 	"settings_section_worker": "Worker",
 	"settings_section_output": "Output",
@@ -90,7 +89,9 @@
 				"local countPlural = count: plural",
 				"local n = count: number"
 			],
-			"selectors": ["countPlural"],
+			"selectors": [
+				"countPlural"
+			],
 			"match": {
 				"countPlural=one": "{n} failed in a row",
 				"countPlural=*": "{n} failed in a row"

@@ -583,7 +583,7 @@
 	<main id="main" class="main" class:gated={!isAdmin}>
 		<h1 class="page-title">{m.settings_heading()}</h1>
 		{#if !isAdmin}
-			<AdminOnlyNotice what={m.settings_admin_only_what()} />
+			<AdminOnlyNotice page="settings" />
 		{:else}
 			<nav class="index" aria-label={m.settings_index_label()}>
 				<ul>

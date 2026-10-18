@@ -2,7 +2,6 @@
 	"$schema": "https://inlang.com/schema/inlang-message-format",
 	"settings_title": "spotdl-web — beállítások",
 	"settings_heading": "Beállítások",
-	"settings_admin_only_what": "A letöltő, a kimenet, a könyvtár, a riasztások és a proxyk beállítása",
 	"settings_index_label": "Beállítási szakaszok",
 	"settings_section_worker": "Letöltő",
 	"settings_section_output": "Kimenet",
@@ -85,7 +84,10 @@
 	"settings_proxy_no_failures": "nincs friss hiba",
 	"settings_proxy_failures": [
 		{
-			"declarations": ["input count", "local n = count: number"],
+			"declarations": [
+				"input count",
+				"local n = count: number"
+			],
 			"selectors": [],
 			"match": {
 				"*": "{n} hiba egymás után"
