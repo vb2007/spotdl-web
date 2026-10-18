@@ -37,21 +37,18 @@ describe('binding table', () => {
 		}
 	});
 
-	it('gives no two bindings the same chord where both can apply', () => {
-		// The registry takes the first match whatever the route, so a global binding clashes
-		// with every route-scoped one, in either order.
-		const overlap = (a?: string[], b?: string[]) =>
-			a === undefined || b === undefined || a.some((r) => b.includes(r));
+	it('gives no two bindings the same chord', () => {
+		// The registry takes the first match whatever the route, so a chord is one binding's
+		// everywhere, even on routes where it does nothing.
 		const key = (c: { binding: { prefix?: string }; chord: { key: string; shift?: boolean } }) =>
 			`${c.binding.prefix ?? ''}|${c.chord.key}|${c.chord.shift ? 'S' : ''}`;
-		for (const [i, a] of chords.entries()) {
-			for (const b of chords.slice(i + 1)) {
-				if (a.binding === b.binding || key(a) !== key(b)) continue;
-				expect(
-					overlap(a.binding.routes, b.binding.routes),
-					`${a.binding.id} clashes with ${b.binding.id} on ${key(a)}`
-				).toBe(false);
-			}
+		const seen = new Map<string, string>();
+		for (const c of chords) {
+			const clash = seen.get(key(c));
+			expect(clash === undefined || clash === c.binding.id, `${c.binding.id} vs ${clash}`).toBe(
+				true
+			);
+			seen.set(key(c), c.binding.id);
 		}
 	});
 

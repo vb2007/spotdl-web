@@ -292,9 +292,12 @@ export function kbList(name: string, opts: { fallback?: () => HTMLElement | null
 			};
 			if (m.restoreUntil) {
 				const until = m.restoreUntil;
+				// A press on plain text moves no focus but is just as clearly elsewhere.
 				document.addEventListener('focusin', cancel, { once: true, capture: true });
+				document.addEventListener('pointerdown', cancel, { once: true, capture: true });
 				setTimeout(() => {
 					document.removeEventListener('focusin', cancel, { capture: true });
+					document.removeEventListener('pointerdown', cancel, { capture: true });
 					// Never remounted in time: this claim lapses with its window (a later
 					// unmount's own claim is left alone).
 					if (m.restoreUntil === until) cancel();

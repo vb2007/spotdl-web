@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import * as api from '$lib/api';
 import { queue } from '$lib/stores/queue';
+import { shortcutsEnabled } from '$lib/keyboard/registry';
 import type { LayoutLoad } from './$types';
 
 // Adapter-static has no server to run a `+layout.server.ts` load against at request
@@ -43,7 +44,12 @@ export const load: LayoutLoad = async ({ url }) => {
 		redirect(302, '/login');
 	}
 	if (session !== null) {
-		if (lastSessionEmail !== null && lastSessionEmail !== session.email) queue.reset();
+		if (lastSessionEmail !== null && lastSessionEmail !== session.email) {
+			queue.reset();
+			// v45: the new identity's own switch, at once. A hover preload's `data` is never
+			// applied, so the layout's effect wouldn't set it until the next real navigation.
+			shortcutsEnabled.set(session.keyboard_shortcuts ?? true);
+		}
 		lastSessionEmail = session.email;
 	}
 	if (session !== null && onLoginPage) {
