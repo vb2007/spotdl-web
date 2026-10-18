@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.errors import ApiError
 from app.models import LibrarySortRun, LibrarySortState, User
 from app.routers.auth import require_admin
 from app.tasks.library import sort_library
@@ -64,7 +65,7 @@ def start_sort(
     narrower window than the routine "double-clicked the button" case this guards."""
     run = _get_or_create_run(db, for_update=True)
     if run.state == LibrarySortState.RUNNING:
-        raise HTTPException(status_code=409, detail="A library sort is already running")
+        raise ApiError(409, "library_sort_running", "A library sort is already running")
 
     run.state = LibrarySortState.RUNNING
     run.started_at = datetime.now(timezone.utc)

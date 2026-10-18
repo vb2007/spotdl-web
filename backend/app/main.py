@@ -2,9 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.errors import ApiError, api_error_handler
 from app.routers import admin, auth, health, jobs, library, proxies, settings, stream, tracks, worker
 
 app = FastAPI(title="spotdl-web")
+# v46: an ApiError answers with its stable `code` beside `detail` (app/errors.py).
+app.add_exception_handler(ApiError, api_error_handler)
 
 # v12: both production (nginx's /api/ proxy inside the `web` container) and local dev
 # (Vite's dev-server /api proxy) are same-origin by default, so this middleware's allowlist

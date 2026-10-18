@@ -1,10 +1,11 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.errors import ApiError
 from app.models import Proxy, ProxySource, User
 from app.routers.auth import require_admin
 from app.services.proxies import PROXY_URL_RE, connection_target, redact
@@ -40,7 +41,7 @@ def _proxy_to_dict(proxy: Proxy) -> dict:
 
 def _target_clash(
     db: Session, url: str, *, exclude: Proxy | None = None, enabled_only: bool = False
-) -> HTTPException | None:
+) -> ApiError | None:
     """One connection target, one credential (v44, the owner's rule): two rows for one
     host:port would be the same proxy twice, told apart on /stats only by a credential
     that must never be shown. The detail names the target only, never a credential."""
@@ -51,9 +52,11 @@ def _target_clash(
         if connection_target(other.url) != target:
             continue
         where = "change it in proxies.txt" if other.source == ProxySource.FILE else "delete that one first"
-        return HTTPException(
-            status_code=409,
-            detail=f"There is already a proxy for {target}. One address takes one credential: {where}.",
+        return ApiError(
+            409,
+            "proxy_target_exists",
+            f"There is already a proxy for {target}. One address takes one credential: {where}.",
+            {"target": target, "source": other.source.value},
         )
     return None
 
@@ -61,7 +64,7 @@ def _target_clash(
 def _get_proxy_or_404(db: Session, proxy_id: uuid.UUID) -> Proxy:
     proxy = db.get(Proxy, proxy_id)
     if proxy is None:
-        raise HTTPException(status_code=404, detail="Proxy not found")
+        raise ApiError(404, "proxy_not_found", "Proxy not found")
     return proxy
 
 
@@ -87,16 +90,17 @@ def create_proxy(
     feedback rather than a silent background failure days later."""
     url = payload.url.strip()
     if not url:
-        raise HTTPException(status_code=400, detail="url is required")
+        raise ApiError(400, "proxy_url_required", "url is required")
     if not PROXY_URL_RE.match(url):
-        raise HTTPException(
-            status_code=400,
-            detail="Proxy URL must look like http(s)://[user:pass@]<ipv4>[:port]",
+        raise ApiError(
+            400,
+            "proxy_url_invalid",
+            "Proxy URL must look like http(s)://[user:pass@]<ipv4>[:port]",
         )
 
     existing = db.query(Proxy).filter(Proxy.url == url).one_or_none()
     if existing is not None:
-        raise HTTPException(status_code=409, detail="A proxy with this URL already exists")
+        raise ApiError(409, "proxy_url_exists", "A proxy with this URL already exists")
     clash = _target_clash(db, url)
     if clash is not None:
         raise clash

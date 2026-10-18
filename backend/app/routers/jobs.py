@@ -1,12 +1,13 @@
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
+from app.errors import ApiError
 from app.models import Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers.auth import require_session
 from app.services import archive, events, job_listing, rollup, track_listing
@@ -120,7 +121,7 @@ def list_jobs(
             cursor=cursor,
         )
     except (job_listing.InvalidListParams, track_listing.InvalidListParams, InvalidCursor) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise ApiError(400, "invalid_list_params", str(exc)) from exc
 
 
 @router.post("/archive")
@@ -135,7 +136,7 @@ def archive_jobs(
     every eligible job for this user with no age restriction; otherwise exactly the given
     `job_ids` that turn out to be eligible."""
     if not payload.all_settled and not payload.job_ids:
-        raise HTTPException(status_code=400, detail="Provide job_ids or set all_settled=true")
+        raise ApiError(400, "archive_nothing_selected", "Provide job_ids or set all_settled=true")
     job_ids = None if payload.all_settled else payload.job_ids
     jobs = archive.archive_jobs(db, user.id, job_ids=job_ids)
     for job in jobs:
@@ -170,7 +171,7 @@ def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, st
         query = query.filter(Job.user_id == user.id)
     row = query.one_or_none()
     if row is None:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise ApiError(404, "job_not_found", "Job not found")
     return row
 
 
@@ -221,7 +222,7 @@ def list_job_tracks(
             job_id=job_id,
         )
     except (track_listing.InvalidListParams, InvalidCursor) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise ApiError(400, "invalid_list_params", str(exc)) from exc
     # counts_by_state ignores this request's own `state` filter (so switching tabs keeps
     # every tab's count visible) but, deliberately, not `q` either -- unlike the job
     # listing's counts_by_status, this is the simple full per-job breakdown already
