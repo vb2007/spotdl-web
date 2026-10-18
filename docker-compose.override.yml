@@ -109,6 +109,10 @@ services:
     volumes: !override
       - ./frontend:/app
       - /app/node_modules
+      # v46: Paraglide's compiled messages (src/lib/paraglide) get the container's own copy, as
+      # node_modules does: Vite compiles them as root, and on the bind mount those root-owned
+      # files would make every host-side `npm run check`/`lint` fail to recompile them.
+      - /app/src/lib/paraglide
       - ./downloads:/downloads:ro
       - ./test-library:/mnt/raid1/media/music:ro
     # `ports` lists merge across compose files rather than replace (unlike `command`/`build`
