@@ -29,8 +29,14 @@ class UpdateKeyboardRequest(BaseModel):
 
 
 class UpdateLanguageRequest(BaseModel):
-    # v46: the languages the frontend ships message files for (user_settings.LANGUAGES).
+    # v46: the languages the frontend ships message files for (frontend/messages/).
     language: Literal["hu", "en"]
+
+
+class UpdateClockRequest(BaseModel):
+    # v46: a pinned time format, or `null` for automatic (the browser's region decides).
+    # Required (no default), so an empty body is a 422, not a silent reset.
+    clock: Literal["12h", "24h"] | None
 
 
 class UpdateLibrarySettingsRequest(BaseModel):
@@ -318,3 +324,30 @@ def update_language_settings(
     row = user_settings.update_language(db, user.id, payload.language)
     db.commit()
     return _language_to_dict(row)
+
+
+def _clock_to_dict(row: UserSettings) -> dict:
+    return {"clock": row.clock}
+
+
+@router.get("/clock")
+def get_clock_settings(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """v46 (owner-directed): per-user, open to every user, like `/language`. `null` is
+    automatic (the browser's region picks 12- or 24-hour); `/api/auth/me` carries it too."""
+    row = user_settings.get_user_settings(db, user.id)
+    db.commit()
+    return _clock_to_dict(row)
+
+
+@router.patch("/clock")
+def update_clock_settings(
+    payload: UpdateClockRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    row = user_settings.update_clock(db, user.id, payload.clock)
+    db.commit()
+    return _clock_to_dict(row)

@@ -22,8 +22,10 @@ class UserSettings(Base):
         Boolean, nullable=False, default=True, server_default=true()
     )
     # v46: the interface language (`hu`/`en`). NULL is "no saved preference": the browser's
-    # language decides, and a choice made on /login before signing in is adopted into it.
+    # language decides.
     language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    # v46: the time format (`12h`/`24h`). NULL is "automatic": the browser's region decides.
+    clock: Mapped[str | None] = mapped_column(String(3), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now(), nullable=False

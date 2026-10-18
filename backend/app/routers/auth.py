@@ -20,10 +20,6 @@ _INVALID_CREDENTIALS = ApiError(401, "invalid_credentials", "Invalid credentials
 class LoginRequest(BaseModel):
     email: str
     password: str
-    # v46: the language picked on /login before signing in, adopted into a profile that
-    # has no saved choice yet (user_settings.adopt_language). Optional and additive; a value
-    # we don't ship is ignored rather than refused, so it can never block a sign-in.
-    language: str | None = None
 
 
 def current_session(request: Request, db: Session = Depends(get_db)) -> UserSession:
@@ -122,7 +118,6 @@ async def login(payload: LoginRequest, response: Response, db: Session = Depends
         raise _INVALID_CREDENTIALS
 
     user = get_or_create_user(db, payload.email, username)
-    user_settings.adopt_language(db, user.id, payload.language)
     session = create_session(db, user.id)
     db.commit()
     _set_session_cookie(response, session.token)
@@ -144,11 +139,13 @@ def logout(
 @router.get("/me")
 def me(user: User = Depends(require_session), db: Session = Depends(get_db)) -> dict:
     # v45: the keyboard-shortcut preference rides along, so the app shell knows it on every
-    # route load without a second request. v46: so does the language (`null`: none saved).
+    # route load without a second request. v46: so do the language and the clock (`null`:
+    # none saved, the browser decides).
     return {
         "email": user.email,
         "username": user.username,
         "is_admin": user.is_admin,
         "keyboard_shortcuts": user_settings.keyboard_shortcuts_enabled(db, user.id),
         "language": user_settings.language_preference(db, user.id),
+        "clock": user_settings.clock_preference(db, user.id),
     }

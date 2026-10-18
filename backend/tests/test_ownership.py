@@ -323,3 +323,22 @@ def test_language_preference_is_owner_scoped(client, db_session, make_user, sess
     ).json() == {"language": "en"}
     assert _as(client, alice_cookie).get("/api/auth/me").json()["language"] == "hu"
     assert _as(client, alice_cookie).get("/api/settings/language").json() == {"language": "hu"}
+
+
+
+def test_clock_preference_is_owner_scoped(client, db_session, make_user, session_cookie):
+    """v46: the time format is per user, like the language: one user pinning 24-hour changes
+    nothing for another, the admin included, and no endpoint takes an id."""
+    alice_cookie = session_cookie("alice@example.com")
+    bob_cookie = session_cookie("bob@example.com")
+    admin_cookie = session_cookie("admin@example.com", is_admin=True)
+
+    assert _as(client, alice_cookie).patch("/api/settings/clock", json={"clock": "24h"}).json() == {
+        "clock": "24h"
+    }
+    for cookie in (bob_cookie, admin_cookie):
+        assert _as(client, cookie).get("/api/settings/clock").json() == {"clock": None}
+        assert _as(client, cookie).get("/api/auth/me").json()["clock"] is None
+
+    _as(client, admin_cookie).patch("/api/settings/clock", json={"clock": "12h"})
+    assert _as(client, alice_cookie).get("/api/auth/me").json()["clock"] == "24h"

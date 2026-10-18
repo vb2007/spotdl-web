@@ -1,9 +1,8 @@
-"""Per-user preferences: retention (v19), keyboard shortcuts (v45) and language (v46) -- get-or-create singleton row per user, the same
+"""Per-user preferences: retention (v19), keyboard shortcuts (v45), language and clock (v46) -- get-or-create singleton row per user, the same
 pattern as app/services/app_settings.py's output-settings row, just keyed by `user_id`
 instead of a fixed `id=1`.
 """
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import UserSettings
@@ -37,10 +36,6 @@ def update_keyboard_shortcuts(db: Session, user_id, enabled: bool) -> UserSettin
     return row
 
 
-# v46: the interface languages the frontend ships message files for.
-LANGUAGES = ("hu", "en")
-
-
 def language_preference(db: Session, user_id) -> str | None:
     """Read-only, like `keyboard_shortcuts_enabled`: no row (or no choice yet) is `None`."""
     row = db.get(UserSettings, user_id)
@@ -53,17 +48,13 @@ def update_language(db: Session, user_id, language: str) -> UserSettings:
     return row
 
 
-def adopt_language(db: Session, user_id, language: str | None) -> None:
-    """v46: a language picked on /login before signing in becomes the profile's preference,
-    but only when the profile has none; a saved choice always wins over it.
+def clock_preference(db: Session, user_id) -> str | None:
+    """Read-only, like `language_preference`: no row (or automatic) is `None`."""
+    row = db.get(UserSettings, user_id)
+    return None if row is None else row.clock
 
-    In a savepoint: this is the one write on the sign-in path, and two first sign-ins racing
-    (two tabs) would both insert the settings row. The loser skips adopting rather than
-    failing its sign-in; the winner's row carries the same choice."""
-    if language not in LANGUAGES or language_preference(db, user_id) is not None:
-        return
-    try:
-        with db.begin_nested():
-            update_language(db, user_id, language)
-    except IntegrityError:
-        pass
+
+def update_clock(db: Session, user_id, clock: str | None) -> UserSettings:
+    row = get_user_settings(db, user_id)
+    row.clock = clock
+    return row

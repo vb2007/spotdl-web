@@ -1,4 +1,4 @@
-"""v46: the per-user interface language, and its adoption from /login."""
+"""v46: the per-user interface language and time format."""
 
 from app.routers import auth
 
@@ -67,54 +67,44 @@ def test_language_settings_endpoints_require_session(client):
     assert client.patch("/api/settings/language", json={"language": "hu"}).status_code == 401
 
 
-def test_login_adopts_the_login_page_choice_into_a_profile_without_one(client, monkeypatch):
-    assert _login(client, monkeypatch, language="hu").status_code == 200
-
-    assert client.get("/api/auth/me").json()["language"] == "hu"
-
-
-def test_login_never_overrides_a_saved_language(client, monkeypatch):
-    _login(client, monkeypatch, language="hu")
-    client.post("/api/auth/logout")
-
-    # A later sign-in from a browser where /login was left on English keeps the profile's.
-    assert _login(client, monkeypatch, language="en").status_code == 200
-    assert client.get("/api/auth/me").json()["language"] == "hu"
-
-
-def test_login_without_a_choice_saves_nothing(client, monkeypatch, db_session):
+def test_signing_in_saves_no_language(client, monkeypatch, db_session):
+    """Owner's rule: the browser decides until the user picks a language on /account; signing
+    in never stores one (a stray `language` in the body is ignored)."""
     from app.models import UserSettings
 
-    assert _login(client, monkeypatch).status_code == 200
+    assert _login(client, monkeypatch, language="hu").status_code == 200
     assert client.get("/api/auth/me").json()["language"] is None
     assert db_session.query(UserSettings).count() == 0
 
 
-def test_login_ignores_a_language_it_does_not_ship(client, monkeypatch, db_session):
-    """An optional preference never blocks a sign-in: an unknown value is dropped, not 422."""
-    from app.models import UserSettings
-
-    for value in ("de", "HU", ""):
-        assert _login(client, monkeypatch, language=value).status_code == 200, value
-        assert client.get("/api/auth/me").json()["language"] is None
-    assert db_session.query(UserSettings).count() == 0
+def test_clock_defaults_to_automatic(authenticated_client, db_session):
+    assert authenticated_client.get("/api/settings/clock").json() == {"clock": None}
+    assert authenticated_client.get("/api/auth/me").json()["clock"] is None
 
 
-def test_adopting_never_fails_a_sign_in_that_loses_a_race(db_session, make_user, monkeypatch):
-    """Two first sign-ins at once both insert the settings row; the second one's adopt must
-    swallow the conflict (its savepoint rolls back), not fail the sign-in's transaction."""
-    from sqlalchemy.exc import IntegrityError
+def test_update_clock_persists_reaches_me_and_resets_to_automatic(authenticated_client, db_session):
+    assert authenticated_client.patch("/api/settings/clock", json={"clock": "24h"}).json() == {"clock": "24h"}
+    assert authenticated_client.get("/api/auth/me").json()["clock"] == "24h"
+    assert authenticated_client.patch("/api/settings/clock", json={"clock": "12h"}).json() == {"clock": "12h"}
+    assert authenticated_client.get("/api/settings/clock").json() == {"clock": "12h"}
+    # Back to automatic: the browser's region decides again.
+    assert authenticated_client.patch("/api/settings/clock", json={"clock": None}).json() == {"clock": None}
+    assert authenticated_client.get("/api/auth/me").json()["clock"] is None
 
-    from app.services import user_settings
 
-    user = make_user("racer@example.com")
-    db_session.commit()
+def test_update_clock_rejects_unknown_values_and_an_empty_body(authenticated_client, db_session):
+    for bad in ("24", "h23", "", 24, True):
+        assert authenticated_client.patch("/api/settings/clock", json={"clock": bad}).status_code == 422, bad
+    assert authenticated_client.patch("/api/settings/clock", json={}).status_code == 422
+    assert authenticated_client.get("/api/settings/clock").json() == {"clock": None}
 
-    def lose_the_race(db, user_id, language):
-        raise IntegrityError("insert into user_settings", {}, Exception("duplicate key"))
 
-    monkeypatch.setattr(user_settings, "update_language", lose_the_race)
-    user_settings.adopt_language(db_session, user.id, "hu")
-    # The outer transaction is still usable.
-    db_session.commit()
-    assert user_settings.language_preference(db_session, user.id) is None
+def test_clock_leaves_the_language_alone(authenticated_client, db_session):
+    authenticated_client.patch("/api/settings/language", json={"language": "en"})
+    authenticated_client.patch("/api/settings/clock", json={"clock": "24h"})
+    assert authenticated_client.get("/api/settings/language").json() == {"language": "en"}
+
+
+def test_clock_settings_endpoints_require_session(client):
+    assert client.get("/api/settings/clock").status_code == 401
+    assert client.patch("/api/settings/clock", json={"clock": "24h"}).status_code == 401
