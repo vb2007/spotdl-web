@@ -314,7 +314,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_alembic_env",
-      "community": 239,
+      "community": 41,
       "norm_label": "env.py"
     },
     {
@@ -324,7 +324,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_alembic_env_run_migrations_offline",
-      "community": 239,
+      "community": 41,
       "norm_label": "run_migrations_offline()"
     },
     {
@@ -334,7 +334,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_alembic_env_run_migrations_online",
-      "community": 239,
+      "community": 41,
       "norm_label": "run_migrations_online()"
     },
     {
@@ -834,7 +834,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_config",
-      "community": 239,
+      "community": 242,
       "norm_label": "config.py"
     },
     {
@@ -844,7 +844,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_config_check_not_production_database",
-      "community": 239,
+      "community": 242,
       "norm_label": "check_not_production_database()"
     },
     {
@@ -904,7 +904,7 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "backend_app_config_settings_check_dev_not_on_production_database",
-      "community": 239,
+      "community": 242,
       "norm_label": "._check_dev_not_on_production_database()"
     },
     {
@@ -924,7 +924,7 @@
       "source_location": "L215",
       "_origin": "ast",
       "id": "backend_app_config_get_settings",
-      "community": 226,
+      "community": 242,
       "norm_label": "get_settings()"
     },
     {
@@ -934,7 +934,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_app_config_rationale_24",
-      "community": 239,
+      "community": 242,
       "norm_label": "refuses a dev-marked process pointed at the production database. fails closed: i"
     },
     {
@@ -954,7 +954,7 @@
       "source_location": "L190",
       "_origin": "ast",
       "id": "backend_app_config_rationale_190",
-      "community": 239,
+      "community": 242,
       "norm_label": "get_settings() runs at import in every backend process (db.py, main.py,"
     },
     {
@@ -974,7 +974,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_db",
-      "community": 246,
+      "community": 162,
       "norm_label": "db.py"
     },
     {
@@ -1004,7 +1004,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_db_begin_snapshot",
-      "community": 246,
+      "community": 140,
       "norm_label": "begin_snapshot()"
     },
     {
@@ -1014,7 +1014,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_db_py_session",
-      "community": 246,
+      "community": 140,
       "norm_label": "session"
     },
     {
@@ -1024,7 +1024,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_db_get_db",
-      "community": 246,
+      "community": 140,
       "norm_label": "get_db()"
     },
     {
@@ -1034,7 +1034,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_db_rationale_23",
-      "community": 246,
+      "community": 140,
       "norm_label": "ends `db`'s current transaction and starts a repeatable read one, so every state"
     },
     {
@@ -1154,7 +1154,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_app_settings",
-      "community": 246,
+      "community": 162,
       "norm_label": "app_settings.py"
     },
     {
@@ -1234,7 +1234,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 246,
+      "community": 162,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -1314,7 +1314,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run",
-      "community": 261,
+      "community": 162,
       "norm_label": "library_sort_run.py"
     },
     {
@@ -1324,7 +1324,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_librarysortstate",
-      "community": 261,
+      "community": 162,
       "norm_label": "librarysortstate"
     },
     {
@@ -1334,7 +1334,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_librarysortrun",
-      "community": 261,
+      "community": 77,
       "norm_label": "librarysortrun"
     },
     {
@@ -1344,7 +1344,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_rationale_17",
-      "community": 261,
+      "community": 77,
       "norm_label": "single-row table (v28) tracking the admin-triggered library sort & move sweep --"
     },
     {
@@ -1524,7 +1524,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_user",
-      "community": 246,
+      "community": 162,
       "norm_label": "user.py"
     },
     {
@@ -1584,7 +1584,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_worker_state",
-      "community": 246,
+      "community": 162,
       "norm_label": "worker_state.py"
     },
     {
@@ -1844,7 +1844,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_health",
-      "community": 268,
+      "community": 242,
       "norm_label": "health.py"
     },
     {
@@ -1854,7 +1854,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_routers_health_health",
-      "community": 268,
+      "community": 242,
       "norm_label": "health()"
     },
     {
@@ -1864,7 +1864,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_health_py_response",
-      "community": 268,
+      "community": 242,
       "norm_label": "response"
     },
     {
@@ -3144,7 +3144,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_alerts",
-      "community": 36,
+      "community": 259,
       "norm_label": "alerts.py"
     },
     {
@@ -3154,7 +3154,7 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "backend_app_services_alerts_matrixconfig",
-      "community": 36,
+      "community": 259,
       "norm_label": "matrixconfig"
     },
     {
@@ -3204,7 +3204,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "backend_app_services_alerts_config_values",
-      "community": 36,
+      "community": 259,
       "norm_label": "_config_values()"
     },
     {
@@ -3214,7 +3214,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "backend_app_services_alerts_matrix_config",
-      "community": 36,
+      "community": 259,
       "norm_label": "matrix_config()"
     },
     {
@@ -3224,7 +3224,7 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "backend_app_services_alerts_is_configured",
-      "community": 36,
+      "community": 259,
       "norm_label": "is_configured()"
     },
     {
@@ -3234,7 +3234,7 @@
       "source_location": "L134",
       "_origin": "ast",
       "id": "backend_app_services_alerts_missing_config_vars",
-      "community": 36,
+      "community": 259,
       "norm_label": "missing_config_vars()"
     },
     {
@@ -3244,7 +3244,7 @@
       "source_location": "L138",
       "_origin": "ast",
       "id": "backend_app_services_alerts_log_startup_state",
-      "community": 36,
+      "community": 259,
       "norm_label": "log_startup_state()"
     },
     {
@@ -3314,7 +3314,7 @@
       "source_location": "L260",
       "_origin": "ast",
       "id": "backend_app_services_alerts_enqueue",
-      "community": 36,
+      "community": 259,
       "norm_label": "enqueue()"
     },
     {
@@ -3324,7 +3324,7 @@
       "source_location": "L284",
       "_origin": "ast",
       "id": "backend_app_services_alerts_enqueue_after_commit",
-      "community": 36,
+      "community": 261,
       "norm_label": "enqueue_after_commit()"
     },
     {
@@ -3334,7 +3334,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_session",
-      "community": 36,
+      "community": 261,
       "norm_label": "session"
     },
     {
@@ -3344,7 +3344,7 @@
       "source_location": "L292",
       "_origin": "ast",
       "id": "backend_app_services_alerts_enqueue_pending",
-      "community": 36,
+      "community": 259,
       "norm_label": "_enqueue_pending()"
     },
     {
@@ -3354,7 +3354,7 @@
       "source_location": "L298",
       "_origin": "ast",
       "id": "backend_app_services_alerts_drop_pending",
-      "community": 36,
+      "community": 261,
       "norm_label": "_drop_pending()"
     },
     {
@@ -3364,7 +3364,7 @@
       "source_location": "L302",
       "_origin": "ast",
       "id": "backend_app_services_alerts_format_duration",
-      "community": 36,
+      "community": 261,
       "norm_label": "format_duration()"
     },
     {
@@ -3374,7 +3374,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_timedelta",
-      "community": 36,
+      "community": 261,
       "norm_label": "timedelta"
     },
     {
@@ -3404,7 +3404,7 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "backend_app_services_alerts_failure_spike",
-      "community": 36,
+      "community": 261,
       "norm_label": "failure_spike()"
     },
     {
@@ -3414,7 +3414,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_datetime",
-      "community": 36,
+      "community": 261,
       "norm_label": "datetime"
     },
     {
@@ -3424,7 +3424,7 @@
       "source_location": "L382",
       "_origin": "ast",
       "id": "backend_app_services_alerts_breaker_released",
-      "community": 36,
+      "community": 261,
       "norm_label": "breaker_released()"
     },
     {
@@ -3464,7 +3464,7 @@
       "source_location": "L424",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog",
-      "community": 36,
+      "community": 271,
       "norm_label": "watchdog"
     },
     {
@@ -3474,7 +3474,7 @@
       "source_location": "L439",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_init",
-      "community": 226,
+      "community": 271,
       "norm_label": ".__init__()"
     },
     {
@@ -3494,7 +3494,7 @@
       "source_location": "L505",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_run",
-      "community": 36,
+      "community": 271,
       "norm_label": ".run()"
     },
     {
@@ -3504,7 +3504,7 @@
       "source_location": "L514",
       "_origin": "ast",
       "id": "backend_app_services_alerts_spawn_watchdog",
-      "community": 36,
+      "community": 273,
       "norm_label": "spawn_watchdog()"
     },
     {
@@ -3514,7 +3514,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "popen",
-      "community": 36,
+      "community": 273,
       "norm_label": "popen"
     },
     {
@@ -3524,7 +3524,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_1",
-      "community": 36,
+      "community": 259,
       "norm_label": "matrix alerts (v36) -- conditions that need a human, pushed into the same matrix"
     },
     {
@@ -3574,7 +3574,7 @@
       "source_location": "L261",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_261",
-      "community": 36,
+      "community": 259,
       "norm_label": "fire and forget onto worker-meta. a no-op when alerts are off; never raises, and"
     },
     {
@@ -3584,7 +3584,7 @@
       "source_location": "L285",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_285",
-      "community": 36,
+      "community": 261,
       "norm_label": "queues an alert on `db` that is enqueued only once its transaction commits, and"
     },
     {
@@ -3604,7 +3604,7 @@
       "source_location": "L331",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_331",
-      "community": 36,
+      "community": 261,
       "norm_label": "(fingerprint, text, newest finished_at) when the newest `threshold` real attempt"
     },
     {
@@ -3614,7 +3614,7 @@
       "source_location": "L383",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_383",
-      "community": 36,
+      "community": 261,
       "norm_label": "the trip's pause is over and nothing else holds downloads: a manual pause still"
     },
     {
@@ -3634,7 +3634,7 @@
       "source_location": "L425",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_425",
-      "community": 36,
+      "community": 271,
       "norm_label": "runs as its own small process (alert_watchdog.py, started and supervised by"
     },
     {
@@ -3644,7 +3644,7 @@
       "source_location": "L515",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_515",
-      "community": 36,
+      "community": 273,
       "norm_label": "starts app/services/alert_watchdog.py as a child of the calling process (worker-"
     },
     {
@@ -4104,7 +4104,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_app_services_downloads_get_downloader",
-      "community": 62,
+      "community": 268,
       "norm_label": "get_downloader()"
     },
     {
@@ -4114,7 +4114,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_downloads_py_networkpath",
-      "community": 62,
+      "community": 268,
       "norm_label": "networkpath"
     },
     {
@@ -4124,7 +4124,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "downloader",
-      "community": 62,
+      "community": 268,
       "norm_label": "downloader"
     },
     {
@@ -4214,7 +4214,7 @@
       "source_location": "L203",
       "_origin": "ast",
       "id": "backend_app_services_downloads_download_one",
-      "community": 62,
+      "community": 268,
       "norm_label": "download_one()"
     },
     {
@@ -4224,7 +4224,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_downloads_py_song",
-      "community": 62,
+      "community": 268,
       "norm_label": "song"
     },
     {
@@ -4234,7 +4234,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_downloads_py_path",
-      "community": 62,
+      "community": 268,
       "norm_label": "path"
     },
     {
@@ -4294,7 +4294,7 @@
       "source_location": "L204",
       "_origin": "ast",
       "id": "backend_app_services_downloads_rationale_204",
-      "community": 62,
+      "community": 268,
       "norm_label": "must be called from a plain sync context \u2014 search_and_download raises     downlo"
     },
     {
@@ -4934,7 +4934,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_app_services_pagination_sortkey",
-      "community": 69,
+      "community": 11,
       "norm_label": "sortkey"
     },
     {
@@ -5024,7 +5024,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "backend_app_services_pagination_rationale_73",
-      "community": 69,
+      "community": 11,
       "norm_label": "one sort dimension. `expr` is the sql expression to order/filter by. `nullable`"
     },
     {
@@ -5084,7 +5084,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "backend_app_services_proxies_force_proxy",
-      "community": 50,
+      "community": 274,
       "norm_label": "force_proxy()"
     },
     {
@@ -5224,7 +5224,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "backend_app_services_proxies_rationale_92",
-      "community": 50,
+      "community": 274,
       "norm_label": "makes ytmusicapi's search calls actually route through the configured proxy (v30"
     },
     {
@@ -5304,7 +5304,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_retry",
-      "community": 62,
+      "community": 82,
       "norm_label": "retry.py"
     },
     {
@@ -5334,7 +5334,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_app_services_retry_exception_chain",
-      "community": 62,
+      "community": 269,
       "norm_label": "_exception_chain()"
     },
     {
@@ -5344,7 +5344,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_baseexception",
-      "community": 62,
+      "community": 269,
       "norm_label": "baseexception"
     },
     {
@@ -5354,7 +5354,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "backend_app_services_retry_is_proxy_transport_error",
-      "community": 62,
+      "community": 269,
       "norm_label": "is_proxy_transport_error()"
     },
     {
@@ -5374,7 +5374,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_trackerrortype",
-      "community": 62,
+      "community": 82,
       "norm_label": "trackerrortype"
     },
     {
@@ -5384,7 +5384,7 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "backend_app_services_retry_next_delay",
-      "community": 62,
+      "community": 82,
       "norm_label": "next_delay()"
     },
     {
@@ -5394,7 +5394,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_timedelta",
-      "community": 62,
+      "community": 82,
       "norm_label": "timedelta"
     },
     {
@@ -5404,7 +5404,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "backend_app_services_retry_get_worker_state",
-      "community": 62,
+      "community": 82,
       "norm_label": "get_worker_state()"
     },
     {
@@ -5414,7 +5414,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_session",
-      "community": 62,
+      "community": 82,
       "norm_label": "session"
     },
     {
@@ -5424,7 +5424,7 @@
       "source_location": "L134",
       "_origin": "ast",
       "id": "backend_app_services_retry_breaker_tripped",
-      "community": 62,
+      "community": 82,
       "norm_label": "breaker_tripped()"
     },
     {
@@ -5434,7 +5434,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_datetime",
-      "community": 62,
+      "community": 82,
       "norm_label": "datetime"
     },
     {
@@ -5444,7 +5444,7 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "backend_app_services_retry_breaker_active",
-      "community": 62,
+      "community": 82,
       "norm_label": "breaker_active()"
     },
     {
@@ -5454,7 +5454,7 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "backend_app_services_retry_maybe_trip_breaker",
-      "community": 62,
+      "community": 82,
       "norm_label": "maybe_trip_breaker()"
     },
     {
@@ -5464,7 +5464,7 @@
       "source_location": "L200",
       "_origin": "ast",
       "id": "backend_app_services_retry_record_failure",
-      "community": 62,
+      "community": 82,
       "norm_label": "record_failure()"
     },
     {
@@ -5474,7 +5474,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_track",
-      "community": 62,
+      "community": 82,
       "norm_label": "track"
     },
     {
@@ -5484,7 +5484,7 @@
       "source_location": "L228",
       "_origin": "ast",
       "id": "backend_app_services_retry_record_transport_failure",
-      "community": 62,
+      "community": 82,
       "norm_label": "record_transport_failure()"
     },
     {
@@ -5494,7 +5494,7 @@
       "source_location": "L244",
       "_origin": "ast",
       "id": "backend_app_services_retry_record_breaker_release",
-      "community": 62,
+      "community": 82,
       "norm_label": "record_breaker_release()"
     },
     {
@@ -5504,7 +5504,7 @@
       "source_location": "L280",
       "_origin": "ast",
       "id": "backend_app_services_retry_record_success",
-      "community": 62,
+      "community": 82,
       "norm_label": "record_success()"
     },
     {
@@ -5514,7 +5514,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_1",
-      "community": 62,
+      "community": 82,
       "norm_label": "per-track backoff ladder and global circuit breaker \u2014 see claude.md's \"retry eng"
     },
     {
@@ -5544,7 +5544,7 @@
       "source_location": "L80",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_80",
-      "community": 62,
+      "community": 269,
       "norm_label": "`exc` and everything it was raised from. also follows yt-dlp's downloaderror, wh"
     },
     {
@@ -5554,7 +5554,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_96",
-      "community": 62,
+      "community": 269,
       "norm_label": "true if `exc` (or anything it was raised from) shows the request never got throu"
     },
     {
@@ -5564,7 +5564,7 @@
       "source_location": "L229",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_229",
-      "community": 62,
+      "community": 82,
       "norm_label": "a proxy-rung attempt that never got past its proxy (proxytransporterror). the tr"
     },
     {
@@ -5574,7 +5574,7 @@
       "source_location": "L245",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_245",
-      "community": 62,
+      "community": 82,
       "norm_label": "ends the current trip's pause and records its `released` breaker event (v44), at"
     },
     {
@@ -6274,7 +6274,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "backend_app_services_stats_epoch_bucket",
-      "community": 265,
+      "community": 169,
       "norm_label": "epoch_bucket"
     },
     {
@@ -6284,7 +6284,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "functionelement",
-      "community": 265,
+      "community": 169,
       "norm_label": "functionelement"
     },
     {
@@ -6294,7 +6294,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "backend_app_services_stats_epoch_bucket_init",
-      "community": 265,
+      "community": 169,
       "norm_label": ".__init__()"
     },
     {
@@ -6434,7 +6434,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_55",
-      "community": 265,
+      "community": 169,
       "norm_label": "`floor((epoch seconds of <timestamp> + <offset>) / <seconds>)`: the index of the"
     },
     {
@@ -6644,7 +6644,7 @@
       "source_location": "L144",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_key",
-      "community": 69,
+      "community": 11,
       "norm_label": "_sort_key()"
     },
     {
@@ -7004,7 +7004,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app",
-      "community": 84,
+      "community": 272,
       "norm_label": "celery_app.py"
     },
     {
@@ -7014,7 +7014,7 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
-      "community": 84,
+      "community": 272,
       "norm_label": "_reconcile_disk_on_boot()"
     },
     {
@@ -7024,7 +7024,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_sync_proxies_on_boot",
-      "community": 84,
+      "community": 272,
       "norm_label": "_sync_proxies_on_boot()"
     },
     {
@@ -7214,7 +7214,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 196,
+      "community": 246,
       "norm_label": "expand.py"
     },
     {
@@ -7224,7 +7224,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_enqueue_pending_tracks",
-      "community": 196,
+      "community": 246,
       "norm_label": "_enqueue_pending_tracks()"
     },
     {
@@ -7234,7 +7234,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_py_job",
-      "community": 196,
+      "community": 246,
       "norm_label": "job"
     },
     {
@@ -7244,7 +7244,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 196,
+      "community": 246,
       "norm_label": "expand_job()"
     },
     {
@@ -7254,7 +7254,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_rationale_17",
-      "community": 196,
+      "community": 246,
       "norm_label": "enqueues `job`'s tracks still `pending`. for a job whose expanded commit landed"
     },
     {
@@ -7657,7 +7657,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_configured",
-      "community": 226,
+      "community": 242,
       "norm_label": "configured()"
     },
     {
@@ -7677,7 +7677,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_alerts_off_when_any_variable_is_missing_or_blank",
-      "community": 226,
+      "community": 242,
       "norm_label": "test_alerts_off_when_any_variable_is_missing_or_blank()"
     },
     {
@@ -8147,7 +8147,7 @@
       "source_location": "L629",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_library_alert_texts",
-      "community": 261,
+      "community": 77,
       "norm_label": "test_library_alert_texts()"
     },
     {
@@ -10047,7 +10047,7 @@
       "source_location": "L1268",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_pacing_delay_is_zero_when_unconfigured",
-      "community": 269,
+      "community": 0,
       "norm_label": "test_pacing_delay_is_zero_when_unconfigured()"
     },
     {
@@ -10137,7 +10137,7 @@
       "source_location": "L1494",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_two_failures_then_success_counts_three_attempts_and_two_failures",
-      "community": 264,
+      "community": 0,
       "norm_label": "test_two_failures_then_success_counts_three_attempts_and_two_failures()"
     },
     {
@@ -10157,7 +10157,7 @@
       "source_location": "L1561",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_next_delay_is_pinned_for_every_failure_count",
-      "community": 226,
+      "community": 242,
       "norm_label": "test_next_delay_is_pinned_for_every_failure_count()"
     },
     {
@@ -10387,7 +10387,7 @@
       "source_location": "L1269",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_rationale_1269",
-      "community": 269,
+      "community": 0,
       "norm_label": "the regression guard for the drift itself -- pacing_max_sec=0 (the default) must"
     },
     {
@@ -13617,7 +13617,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_next_delay_follows_ladder_and_caps_at_final_step",
-      "community": 226,
+      "community": 242,
       "norm_label": "test_next_delay_follows_ladder_and_caps_at_final_step()"
     },
     {
@@ -14337,7 +14337,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_stats_job",
-      "community": 259,
+      "community": 132,
       "norm_label": "_job()"
     },
     {
@@ -14347,7 +14347,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_tests_test_stats_track",
-      "community": 259,
+      "community": 132,
       "norm_label": "_track()"
     },
     {
@@ -14357,7 +14357,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "backend_tests_test_stats_attempt",
-      "community": 259,
+      "community": 132,
       "norm_label": "_attempt()"
     },
     {
@@ -14377,7 +14377,7 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "backend_tests_test_stats_seeded",
-      "community": 259,
+      "community": 132,
       "norm_label": "seeded()"
     },
     {
@@ -14397,7 +14397,7 @@
       "source_location": "L165",
       "_origin": "ast",
       "id": "backend_tests_test_stats_test_a_row_stamped_past_the_window_is_in_no_count",
-      "community": 259,
+      "community": 132,
       "norm_label": "test_a_row_stamped_past_the_window_is_in_no_count()"
     },
     {
@@ -14437,7 +14437,7 @@
       "source_location": "L206",
       "_origin": "ast",
       "id": "backend_tests_test_stats_test_day_buckets_follow_the_viewers_clock",
-      "community": 259,
+      "community": 132,
       "norm_label": "test_day_buckets_follow_the_viewers_clock()"
     },
     {
@@ -14587,7 +14587,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "backend_tests_test_stats_rationale_86",
-      "community": 259,
+      "community": 132,
       "norm_label": "two users' rows (stats are global), attempts on every path, inside and outside t"
     },
     {
@@ -14597,7 +14597,7 @@
       "source_location": "L166",
       "_origin": "ast",
       "id": "backend_tests_test_stats_rationale_166",
-      "community": 259,
+      "community": 132,
       "norm_label": "a worker clock running ahead: the route counts and the chart agree (both skip it"
     },
     {
@@ -14617,7 +14617,7 @@
       "source_location": "L207",
       "_origin": "ast",
       "id": "backend_tests_test_stats_rationale_207",
-      "community": 259,
+      "community": 132,
       "norm_label": "owner's choice: a day bucket is the viewer's own day. 23:30 utc on the 15th is"
     },
     {
@@ -16294,7 +16294,7 @@
       "label": "method()",
       "file_type": "code",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L373",
+      "source_location": "L478",
       "_origin": "ast",
       "id": "frontend_e2e_14_keyboard_e2e_method",
       "community": 137,
@@ -16304,7 +16304,7 @@
       "label": "url()",
       "file_type": "code",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L373",
+      "source_location": "L478",
       "_origin": "ast",
       "id": "frontend_e2e_14_keyboard_e2e_url",
       "community": 28,
@@ -16314,7 +16314,7 @@
       "label": "overlayEntries()",
       "file_type": "code",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L796",
+      "source_location": "L911",
       "_origin": "ast",
       "id": "frontend_e2e_14_keyboard_e2e_overlayentries",
       "community": 137,
@@ -16324,7 +16324,7 @@
       "label": "expected()",
       "file_type": "code",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L809",
+      "source_location": "L924",
       "_origin": "ast",
       "id": "frontend_e2e_14_keyboard_e2e_expected",
       "community": 31,
@@ -18158,7 +18158,7 @@
       "source_location": "L415",
       "_origin": "ast",
       "id": "frontend_src_lib_api_jobspage",
-      "community": 175,
+      "community": 137,
       "norm_label": "jobspage"
     },
     {
@@ -18168,7 +18168,7 @@
       "source_location": "L425",
       "_origin": "ast",
       "id": "frontend_src_lib_api_trackspage",
-      "community": 137,
+      "community": 175,
       "norm_label": "trackspage"
     },
     {
@@ -18188,7 +18188,7 @@
       "source_location": "L438",
       "_origin": "ast",
       "id": "frontend_src_lib_api_apierror",
-      "community": 271,
+      "community": 6,
       "norm_label": "apierror"
     },
     {
@@ -18198,7 +18198,7 @@
       "source_location": "L439",
       "_origin": "ast",
       "id": "frontend_src_lib_api_apierror_constructor",
-      "community": 271,
+      "community": 6,
       "norm_label": ".constructor()"
     },
     {
@@ -18582,20 +18582,10 @@
       "norm_label": "keyboardsettings"
     },
     {
-      "label": "getKeyboardSettings()",
-      "file_type": "code",
-      "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L761",
-      "_origin": "ast",
-      "id": "frontend_src_lib_api_getkeyboardsettings",
-      "community": 6,
-      "norm_label": "getkeyboardsettings()"
-    },
-    {
       "label": "updateKeyboardSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L765",
+      "source_location": "L762",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updatekeyboardsettings",
       "community": 6,
@@ -18605,7 +18595,7 @@
       "label": "updateRetentionSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L772",
+      "source_location": "L769",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updateretentionsettings",
       "community": 6,
@@ -18615,7 +18605,7 @@
       "label": "getLibrarySettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L779",
+      "source_location": "L776",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getlibrarysettings",
       "community": 6,
@@ -18625,7 +18615,7 @@
       "label": "updateLibrarySettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L783",
+      "source_location": "L780",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updatelibrarysettings",
       "community": 6,
@@ -18635,7 +18625,7 @@
       "label": "getAlertSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L792",
+      "source_location": "L789",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getalertsettings",
       "community": 6,
@@ -18645,7 +18635,7 @@
       "label": "updateAlertSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L796",
+      "source_location": "L793",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updatealertsettings",
       "community": 6,
@@ -18655,7 +18645,7 @@
       "label": "sendTestAlert()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L803",
+      "source_location": "L800",
       "_origin": "ast",
       "id": "frontend_src_lib_api_sendtestalert",
       "community": 6,
@@ -18665,7 +18655,7 @@
       "label": "getLibrarySortStatus()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L807",
+      "source_location": "L804",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getlibrarysortstatus",
       "community": 6,
@@ -18675,7 +18665,7 @@
       "label": "startLibrarySort()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L811",
+      "source_location": "L808",
       "_origin": "ast",
       "id": "frontend_src_lib_api_startlibrarysort",
       "community": 6,
@@ -18685,7 +18675,7 @@
       "label": "createEventSource()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L819",
+      "source_location": "L816",
       "_origin": "ast",
       "id": "frontend_src_lib_api_createeventsource",
       "community": 6,
@@ -18885,7 +18875,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_confirmdialog",
-      "community": 82,
+      "community": 44,
       "norm_label": "$lib/components/confirmdialog.svelte"
     },
     {
@@ -18906,7 +18896,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_stores_confirm",
-      "community": 82,
+      "community": 44,
       "norm_label": "$lib/stores/confirm"
     },
     {
@@ -18935,11 +18925,22 @@
       "label": "i()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/HelpOverlay.svelte",
-      "source_location": "L122",
+      "source_location": "L147",
       "_origin": "ast",
       "id": "frontend_src_lib_components_helpoverlay_i",
       "community": 44,
       "norm_label": "i()"
+    },
+    {
+      "label": "$lib/keyboard/lists",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "confidence": "EXTRACTED",
+      "_origin": "ast",
+      "source_location": "L1",
+      "id": "frontend_src_lib_keyboard_lists",
+      "community": 195,
+      "norm_label": "$lib/keyboard/lists"
     },
     {
       "label": "$lib/components/IncomingJobs.svelte",
@@ -19172,7 +19173,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_jobrow",
-      "community": 64,
+      "community": 13,
       "norm_label": "$lib/components/jobrow.svelte"
     },
     {
@@ -19182,7 +19183,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "frontend_src_lib_components_jobrow_titleisurl",
-      "community": 64,
+      "community": 13,
       "norm_label": "titleisurl"
     },
     {
@@ -19192,7 +19193,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "frontend_src_lib_components_jobrow_badgesaystrack",
-      "community": 64,
+      "community": 13,
       "norm_label": "badgesaystrack"
     },
     {
@@ -19202,7 +19203,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "frontend_src_lib_components_jobrow_showinflight",
-      "community": 64,
+      "community": 13,
       "norm_label": "showinflight"
     },
     {
@@ -19212,7 +19213,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "frontend_src_lib_components_jobrow_showarchive",
-      "community": 64,
+      "community": 13,
       "norm_label": "showarchive"
     },
     {
@@ -19223,7 +19224,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_stores_rownotices",
-      "community": 64,
+      "community": 13,
       "norm_label": "rownotices.ts"
     },
     {
@@ -19234,19 +19235,8 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_components_jobtracklist",
-      "community": 64,
+      "community": 13,
       "norm_label": "jobtracklist.svelte"
-    },
-    {
-      "label": "$lib/keyboard/lists",
-      "file_type": "code",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "confidence": "EXTRACTED",
-      "_origin": "ast",
-      "source_location": "L1",
-      "id": "frontend_src_lib_keyboard_lists",
-      "community": 195,
-      "norm_label": "$lib/keyboard/lists"
     },
     {
       "label": "$lib/components/TrackRow.svelte",
@@ -19285,7 +19275,7 @@
       "label": "group()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L571",
+      "source_location": "L594",
       "_origin": "ast",
       "id": "frontend_src_lib_components_trackrow_group",
       "community": 64,
@@ -19321,7 +19311,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_workerstatus",
-      "community": 82,
+      "community": 44,
       "norm_label": "$lib/components/workerstatus.svelte"
     },
     {
@@ -19331,7 +19321,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_paused",
-      "community": 82,
+      "community": 44,
       "norm_label": "paused"
     },
     {
@@ -19341,7 +19331,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_clocktime",
-      "community": 82,
+      "community": 44,
       "norm_label": "clocktime()"
     },
     {
@@ -19351,7 +19341,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_statesentence",
-      "community": 82,
+      "community": 44,
       "norm_label": "statesentence"
     },
     {
@@ -19361,7 +19351,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_statechanged",
-      "community": 82,
+      "community": 44,
       "norm_label": "statechanged"
     },
     {
@@ -19371,7 +19361,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_announcement",
-      "community": 82,
+      "community": 44,
       "norm_label": "announcement"
     },
     {
@@ -19381,7 +19371,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_handlepause",
-      "community": 82,
+      "community": 44,
       "norm_label": "handlepause()"
     },
     {
@@ -19391,7 +19381,7 @@
       "source_location": "L118",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_handleresume",
-      "community": 82,
+      "community": 44,
       "norm_label": "handleresume()"
     },
     {
@@ -19401,7 +19391,7 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_handlerelease",
-      "community": 82,
+      "community": 44,
       "norm_label": "handlerelease()"
     },
     {
@@ -19411,7 +19401,7 @@
       "source_location": "L176",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_readerror",
-      "community": 82,
+      "community": 44,
       "norm_label": "readerror"
     },
     {
@@ -19421,7 +19411,7 @@
       "source_location": "L177",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_poll",
-      "community": 82,
+      "community": 44,
       "norm_label": "poll()"
     },
     {
@@ -19712,7 +19702,7 @@
       "label": "NAMED",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/bindings.ts",
-      "source_location": "L283",
+      "source_location": "L285",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_bindings_named",
       "community": 31,
@@ -19722,7 +19712,7 @@
       "label": "chordLabel()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/bindings.ts",
-      "source_location": "L296",
+      "source_location": "L298",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_bindings_chordlabel",
       "community": 31,
@@ -19732,7 +19722,7 @@
       "label": "chordHelp()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/bindings.ts",
-      "source_location": "L303",
+      "source_location": "L305",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_bindings_chordhelp",
       "community": 31,
@@ -19742,7 +19732,7 @@
       "label": "bindingHelpText()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/bindings.ts",
-      "source_location": "L310",
+      "source_location": "L312",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_bindings_bindinghelptext",
       "community": 31,
@@ -19792,17 +19782,37 @@
       "label": "memory",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L57",
+      "source_location": "L59",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_memory",
       "community": 195,
       "norm_label": "memory"
     },
     {
+      "label": "mounted",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L62",
+      "_origin": "ast",
+      "id": "frontend_src_lib_keyboard_lists_mounted",
+      "community": 195,
+      "norm_label": "mounted"
+    },
+    {
+      "label": "forget()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L66",
+      "_origin": "ast",
+      "id": "frontend_src_lib_keyboard_lists_forget",
+      "community": 195,
+      "norm_label": "forget()"
+    },
+    {
       "label": "mem()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L60",
+      "source_location": "L95",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_mem",
       "community": 195,
@@ -19812,7 +19822,7 @@
       "label": "resetLists()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L70",
+      "source_location": "L105",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_resetlists",
       "community": 6,
@@ -19822,7 +19832,7 @@
       "label": "listOf()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L81",
+      "source_location": "L116",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_listof",
       "community": 195,
@@ -19832,7 +19842,7 @@
       "label": "rowsOf()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L85",
+      "source_location": "L120",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_rowsof",
       "community": 195,
@@ -19842,7 +19852,7 @@
       "label": "itemOf()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L89",
+      "source_location": "L124",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_itemof",
       "community": 195,
@@ -19852,7 +19862,7 @@
       "label": "rowId()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L98",
+      "source_location": "L133",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_rowid",
       "community": 195,
@@ -19862,7 +19872,7 @@
       "label": "rowAt()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L103",
+      "source_location": "L138",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_rowat",
       "community": 195,
@@ -19872,7 +19882,7 @@
       "label": "isOpen()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L107",
+      "source_location": "L142",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_isopen",
       "community": 195,
@@ -19882,7 +19892,7 @@
       "label": "isActive()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L111",
+      "source_location": "L146",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_isactive",
       "community": 195,
@@ -19892,7 +19902,7 @@
       "label": "gateOpen()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L119",
+      "source_location": "L154",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_gateopen",
       "community": 195,
@@ -19902,7 +19912,7 @@
       "label": "applyTabOrder()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L129",
+      "source_location": "L164",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_applytaborder",
       "community": 195,
@@ -19912,7 +19922,7 @@
       "label": "focusRow()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L155",
+      "source_location": "L192",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_focusrow",
       "community": 195,
@@ -19922,17 +19932,27 @@
       "label": "settle()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L164",
+      "source_location": "L201",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_settle",
       "community": 195,
       "norm_label": "settle()"
     },
     {
+      "label": "awaitingFocus",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L271",
+      "_origin": "ast",
+      "id": "frontend_src_lib_keyboard_lists_awaitingfocus",
+      "community": 195,
+      "norm_label": "awaitingfocus"
+    },
+    {
       "label": "focusLost()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L199",
+      "source_location": "L273",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_focuslost",
       "community": 195,
@@ -19942,7 +19962,7 @@
       "label": "kbList()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L208",
+      "source_location": "L282",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_kblist",
       "community": 195,
@@ -19952,7 +19972,7 @@
       "label": "awaitFallback()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L288",
+      "source_location": "L375",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_awaitfallback",
       "community": 195,
@@ -19962,7 +19982,7 @@
       "label": "move()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L303",
+      "source_location": "L390",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_move",
       "community": 195,
@@ -19972,7 +19992,7 @@
       "label": "focusList()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L319",
+      "source_location": "L406",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_focuslist",
       "community": 195,
@@ -19982,7 +20002,7 @@
       "label": "nestedList()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L328",
+      "source_location": "L415",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_nestedlist",
       "community": 195,
@@ -19992,17 +20012,27 @@
       "label": "focusNested()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L334",
+      "source_location": "L421",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_focusnested",
       "community": 195,
       "norm_label": "focusnested()"
     },
     {
+      "label": "rowItemById()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L431",
+      "_origin": "ast",
+      "id": "frontend_src_lib_keyboard_lists_rowitembyid",
+      "community": 195,
+      "norm_label": "rowitembyid()"
+    },
+    {
       "label": "focusRowEl()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L342",
+      "source_location": "L436",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_focusrowel",
       "community": 195,
@@ -20012,7 +20042,7 @@
       "label": "focusedRow()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L347",
+      "source_location": "L441",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_focusedrow",
       "community": 195,
@@ -20022,7 +20052,7 @@
       "label": "horizontal()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L352",
+      "source_location": "L446",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_horizontal",
       "community": 195,
@@ -20032,7 +20062,7 @@
       "label": "collapseFocused()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L357",
+      "source_location": "L452",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_collapsefocused",
       "community": 195,
@@ -20042,7 +20072,7 @@
       "label": "RowAction",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L366",
+      "source_location": "L467",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_rowaction",
       "community": 195,
@@ -20052,7 +20082,7 @@
       "label": "listHandlers()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L370",
+      "source_location": "L471",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_listhandlers",
       "community": 195,
@@ -20075,7 +20105,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_registry_shortcutsenabled",
-      "community": 31,
+      "community": 13,
       "norm_label": "shortcutsenabled"
     },
     {
@@ -20162,7 +20192,7 @@
       "label": "isAltGr()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L75",
+      "source_location": "L71",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_registry_isaltgr",
       "community": 31,
@@ -20172,7 +20202,7 @@
       "label": "matches()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L79",
+      "source_location": "L75",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_registry_matches",
       "community": 31,
@@ -20182,7 +20212,7 @@
       "label": "find()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L88",
+      "source_location": "L87",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_registry_find",
       "community": 31,
@@ -20192,7 +20222,7 @@
       "label": "chordFor()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L94",
+      "source_location": "L93",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_registry_chordfor",
       "community": 31,
@@ -20202,7 +20232,7 @@
       "label": "openModal()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L99",
+      "source_location": "L98",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_registry_openmodal",
       "community": 31,
@@ -20212,17 +20242,27 @@
       "label": "onKeydown()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L103",
+      "source_location": "L102",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_registry_onkeydown",
       "community": 31,
       "norm_label": "onkeydown()"
     },
     {
+      "label": "cancelChord()",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/keyboard/registry.ts",
+      "source_location": "L176",
+      "_origin": "ast",
+      "id": "frontend_src_lib_keyboard_registry_cancelchord",
+      "community": 31,
+      "norm_label": "cancelchord()"
+    },
+    {
       "label": "resetKeyboard()",
       "file_type": "code",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L161",
+      "source_location": "L181",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_registry_resetkeyboard",
       "community": 31,
@@ -20455,7 +20495,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_confirmrequest",
-      "community": 82,
+      "community": 44,
       "norm_label": "confirmrequest"
     },
     {
@@ -20465,7 +20505,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_pending",
-      "community": 82,
+      "community": 44,
       "norm_label": "pending"
     },
     {
@@ -20475,7 +20515,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_pendingconfirm",
-      "community": 82,
+      "community": 44,
       "norm_label": "pendingconfirm"
     },
     {
@@ -20485,7 +20525,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_confirmaction",
-      "community": 82,
+      "community": 44,
       "norm_label": "confirmaction()"
     },
     {
@@ -20495,7 +20535,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_dismissconfirm",
-      "community": 82,
+      "community": 6,
       "norm_label": "dismissconfirm()"
     },
     {
@@ -20505,7 +20545,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_keepfocus",
-      "community": 82,
+      "community": 44,
       "norm_label": "keepfocus()"
     },
     {
@@ -20536,7 +20576,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_stores_progresscache",
-      "community": 13,
+      "community": 265,
       "norm_label": "$lib/stores/progresscache"
     },
     {
@@ -20546,7 +20586,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_entry",
-      "community": 13,
+      "community": 265,
       "norm_label": "entry"
     },
     {
@@ -20556,7 +20596,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_cache",
-      "community": 13,
+      "community": 265,
       "norm_label": "cache"
     },
     {
@@ -20566,7 +20606,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_storage",
-      "community": 13,
+      "community": 265,
       "norm_label": "storage()"
     },
     {
@@ -20576,7 +20616,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_read",
-      "community": 13,
+      "community": 265,
       "norm_label": "read()"
     },
     {
@@ -20586,7 +20626,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_write",
-      "community": 13,
+      "community": 265,
       "norm_label": "write()"
     },
     {
@@ -20596,7 +20636,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_rememberprogress",
-      "community": 13,
+      "community": 265,
       "norm_label": "rememberprogress()"
     },
     {
@@ -20606,7 +20646,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_forgetprogress",
-      "community": 13,
+      "community": 265,
       "norm_label": "forgetprogress()"
     },
     {
@@ -20616,7 +20656,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_recallprogress",
-      "community": 13,
+      "community": 265,
       "norm_label": "recallprogress()"
     },
     {
@@ -20626,7 +20666,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_progresscache_clearprogress",
-      "community": 13,
+      "community": 265,
       "norm_label": "clearprogress()"
     },
     {
@@ -20976,7 +21016,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_rownotices_rownotices",
-      "community": 64,
+      "community": 13,
       "norm_label": "rownotices"
     },
     {
@@ -20986,7 +21026,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_rownotices_showrownotice",
-      "community": 64,
+      "community": 13,
       "norm_label": "showrownotice()"
     },
     {
@@ -20996,7 +21036,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_rownotices_clearrownotices",
-      "community": 64,
+      "community": 13,
       "norm_label": "clearrownotices()"
     },
     {
@@ -21030,53 +21070,13 @@
       "norm_label": "+layout.svelte"
     },
     {
-      "label": "signedIn",
-      "file_type": "code",
-      "source_file": "frontend/src/routes/+layout.svelte",
-      "source_location": "L27",
-      "_origin": "ast",
-      "id": "frontend_src_routes_layout_signedin",
-      "community": 44,
-      "norm_label": "signedin"
-    },
-    {
-      "label": "isAdmin",
-      "file_type": "code",
-      "source_file": "frontend/src/routes/+layout.svelte",
-      "source_location": "L28",
-      "_origin": "ast",
-      "id": "frontend_src_routes_layout_isadmin",
-      "community": 44,
-      "norm_label": "isadmin"
-    },
-    {
-      "label": "announcement",
-      "file_type": "code",
-      "source_file": "frontend/src/routes/+layout.svelte",
-      "source_location": "L65",
-      "_origin": "ast",
-      "id": "frontend_src_routes_layout_announcement",
-      "community": 44,
-      "norm_label": "announcement"
-    },
-    {
-      "label": "skip()",
-      "file_type": "code",
-      "source_file": "frontend/src/routes/+layout.svelte",
-      "source_location": "L85",
-      "_origin": "ast",
-      "id": "frontend_src_routes_layout_skip",
-      "community": 44,
-      "norm_label": "skip()"
-    },
-    {
       "label": "../app.css",
       "file_type": "code",
       "source_file": "frontend/src/app.css",
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_app_css",
-      "community": 84,
+      "community": 272,
       "norm_label": "../app.css"
     },
     {
@@ -21113,7 +21113,7 @@
       "label": "load()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+layout.ts",
-      "source_location": "L19",
+      "source_location": "L20",
       "_origin": "ast",
       "id": "frontend_src_routes_layout_load",
       "community": 13,
@@ -21193,7 +21193,7 @@
       "label": "if()",
       "file_type": "code",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L89",
+      "source_location": "L88",
       "_origin": "ast",
       "id": "frontend_src_routes_page_if",
       "community": 64,
@@ -21213,7 +21213,7 @@
       "label": "if()",
       "file_type": "code",
       "source_file": "frontend/src/routes/account/+page.svelte",
-      "source_location": "L122",
+      "source_location": "L124",
       "_origin": "ast",
       "id": "frontend_src_routes_account_page_if",
       "community": 44,
@@ -65269,7 +65269,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L809",
+      "source_location": "L924",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e",
       "target": "frontend_e2e_14_keyboard_e2e_expected",
@@ -65319,7 +65319,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L373",
+      "source_location": "L478",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e",
       "target": "frontend_e2e_14_keyboard_e2e_method",
@@ -65349,7 +65349,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L796",
+      "source_location": "L911",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e",
       "target": "frontend_e2e_14_keyboard_e2e_overlayentries",
@@ -65369,7 +65369,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L373",
+      "source_location": "L478",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e",
       "target": "frontend_e2e_14_keyboard_e2e_url",
@@ -65964,7 +65964,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L797",
+      "source_location": "L912",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e_overlayentries",
       "target": "frontend_src_lib_api_page"
@@ -65975,7 +65975,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L810",
+      "source_location": "L925",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e_expected",
       "target": "frontend_src_lib_keyboard_bindings_bindingsfor"
@@ -65986,7 +65986,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L812",
+      "source_location": "L927",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e_expected",
       "target": "frontend_src_lib_keyboard_bindings_chordlabel"
@@ -69018,7 +69018,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L819",
+      "source_location": "L816",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_createeventsource",
@@ -69108,7 +69108,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L792",
+      "source_location": "L789",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getalertsettings",
@@ -69128,17 +69128,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L761",
-      "weight": 1.0,
-      "source": "frontend_src_lib_api",
-      "target": "frontend_src_lib_api_getkeyboardsettings",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L779",
+      "source_location": "L776",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getlibrarysettings",
@@ -69148,7 +69138,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L807",
+      "source_location": "L804",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getlibrarysortstatus",
@@ -69608,7 +69598,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L803",
+      "source_location": "L800",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_sendtestalert",
@@ -69648,7 +69638,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L811",
+      "source_location": "L808",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_startlibrarysort",
@@ -69828,7 +69818,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L796",
+      "source_location": "L793",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_updatealertsettings",
@@ -69838,7 +69828,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L765",
+      "source_location": "L762",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_updatekeyboardsettings",
@@ -69848,7 +69838,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L783",
+      "source_location": "L780",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_updatelibrarysettings",
@@ -69868,7 +69858,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L772",
+      "source_location": "L769",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_updateretentionsettings",
@@ -70509,7 +70499,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L793",
+      "source_location": "L790",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getalertsettings",
       "target": "frontend_src_lib_api_request",
@@ -70531,18 +70521,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L762",
-      "weight": 1.0,
-      "source": "frontend_src_lib_api_getkeyboardsettings",
-      "target": "frontend_src_lib_api_request",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L780",
+      "source_location": "L777",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getlibrarysettings",
       "target": "frontend_src_lib_api_request",
@@ -70553,7 +70532,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L808",
+      "source_location": "L805",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getlibrarysortstatus",
       "target": "frontend_src_lib_api_request",
@@ -70729,7 +70708,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L804",
+      "source_location": "L801",
       "weight": 1.0,
       "source": "frontend_src_lib_api_sendtestalert",
       "target": "frontend_src_lib_api_request",
@@ -70762,7 +70741,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L812",
+      "source_location": "L809",
       "weight": 1.0,
       "source": "frontend_src_lib_api_startlibrarysort",
       "target": "frontend_src_lib_api_request",
@@ -70784,7 +70763,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L797",
+      "source_location": "L794",
       "weight": 1.0,
       "source": "frontend_src_lib_api_updatealertsettings",
       "target": "frontend_src_lib_api_request",
@@ -70795,7 +70774,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L766",
+      "source_location": "L763",
       "weight": 1.0,
       "source": "frontend_src_lib_api_updatekeyboardsettings",
       "target": "frontend_src_lib_api_request",
@@ -70806,7 +70785,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L786",
+      "source_location": "L783",
       "weight": 1.0,
       "source": "frontend_src_lib_api_updatelibrarysettings",
       "target": "frontend_src_lib_api_request",
@@ -70828,7 +70807,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L773",
+      "source_location": "L770",
       "weight": 1.0,
       "source": "frontend_src_lib_api_updateretentionsettings",
       "target": "frontend_src_lib_api_request",
@@ -71457,7 +71436,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/bindings.ts",
-      "source_location": "L310",
+      "source_location": "L312",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_bindings",
       "target": "frontend_src_lib_keyboard_bindings_bindinghelptext",
@@ -71487,7 +71466,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/bindings.ts",
-      "source_location": "L303",
+      "source_location": "L305",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_bindings",
       "target": "frontend_src_lib_keyboard_bindings_chordhelp",
@@ -71497,7 +71476,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/bindings.ts",
-      "source_location": "L296",
+      "source_location": "L298",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_bindings",
       "target": "frontend_src_lib_keyboard_bindings_chordlabel",
@@ -71557,7 +71536,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/bindings.ts",
-      "source_location": "L283",
+      "source_location": "L285",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_bindings",
       "target": "frontend_src_lib_keyboard_bindings_named",
@@ -71590,6 +71569,14 @@
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/HelpOverlay.svelte",
       "source": "frontend_src_lib_components_helpoverlay",
+      "target": "frontend_src_lib_keyboard_registry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/TrackRow.svelte",
+      "source": "frontend_src_lib_components_trackrow",
       "target": "frontend_src_lib_keyboard_registry",
       "confidence_score": 1.0
     },
@@ -71641,7 +71628,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L94",
+      "source_location": "L176",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_registry",
+      "target": "frontend_src_lib_keyboard_registry_cancelchord",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/registry.ts",
+      "source_location": "L93",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry",
       "target": "frontend_src_lib_keyboard_registry_chordfor",
@@ -71661,7 +71658,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L88",
+      "source_location": "L87",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry",
       "target": "frontend_src_lib_keyboard_registry_find",
@@ -71701,7 +71698,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L75",
+      "source_location": "L71",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry",
       "target": "frontend_src_lib_keyboard_registry_isaltgr",
@@ -71721,7 +71718,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L79",
+      "source_location": "L75",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry",
       "target": "frontend_src_lib_keyboard_registry_matches",
@@ -71731,7 +71728,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L103",
+      "source_location": "L102",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry",
       "target": "frontend_src_lib_keyboard_registry_onkeydown",
@@ -71741,7 +71738,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L99",
+      "source_location": "L98",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry",
       "target": "frontend_src_lib_keyboard_registry_openmodal",
@@ -71771,7 +71768,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L161",
+      "source_location": "L181",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry",
       "target": "frontend_src_lib_keyboard_registry_resetkeyboard",
@@ -71831,6 +71828,17 @@
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+layout.svelte",
       "source": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
+      "target": "frontend_src_lib_keyboard_registry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/+layout.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "frontend_src_routes_layout_ts_frontend_src_routes_layout",
       "target": "frontend_src_lib_keyboard_registry",
       "confidence_score": 1.0
     },
@@ -72085,7 +72093,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/HelpOverlay.svelte",
-      "source_location": "L122",
+      "source_location": "L147",
       "weight": 1.0,
       "source": "frontend_src_lib_components_helpoverlay",
       "target": "frontend_src_lib_components_helpoverlay_i",
@@ -72094,9 +72102,418 @@
     {
       "relation": "imports_from",
       "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/HelpOverlay.svelte",
+      "source": "frontend_src_lib_components_helpoverlay",
+      "target": "frontend_src_lib_keyboard_lists",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+layout.svelte",
       "source": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
       "target": "frontend_src_lib_components_helpoverlay",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/JobRow.svelte",
+      "source": "frontend_src_lib_components_jobrow",
+      "target": "frontend_src_lib_keyboard_lists",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/JobTrackList.svelte",
+      "source": "frontend_src_lib_components_jobtracklist",
+      "target": "frontend_src_lib_keyboard_lists",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/QueueControls.svelte",
+      "source": "frontend_src_lib_components_queuecontrols",
+      "target": "frontend_src_lib_keyboard_lists",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/components/TrackRow.svelte",
+      "source": "frontend_src_lib_components_trackrow",
+      "target": "frontend_src_lib_keyboard_lists",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L40",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_actionsof",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L164",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_applytaborder",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L375",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_awaitfallback",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L271",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_awaitingfocus",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L452",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_collapsefocused",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L441",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_focusedrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L406",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_focuslist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L273",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_focuslost",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L421",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_focusnested",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L192",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_focusrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L436",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_focusrowel",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L66",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_forget",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L154",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_gateopen",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L446",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_horizontal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L146",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_isactive",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L142",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_isopen",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L124",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_itemof",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L282",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_kblist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L33",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_kbrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L471",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_listhandlers",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L44",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_listmemory",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L116",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_listof",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L95",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_mem",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L59",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_memory",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L62",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_mounted",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L390",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_move",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L415",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_nestedlist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L105",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_resetlists",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L467",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_rowaction",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L30",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_rowactions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L138",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_rowat",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L133",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_rowid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L431",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_rowitembyid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L120",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_rowsof",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L201",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists",
+      "target": "frontend_src_lib_keyboard_lists_settle",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/stores/queue.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "frontend_src_lib_stores_queue",
+      "target": "frontend_src_lib_keyboard_lists",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/+page.svelte",
+      "source": "frontend_src_routes_page",
+      "target": "frontend_src_lib_keyboard_lists",
       "confidence_score": 1.0
     },
     {
@@ -72440,7 +72857,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L238",
+      "source_location": "L314",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_kblist",
       "target": "frontend_src_lib_components_incomingjobs_onfocusin"
@@ -72451,7 +72868,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L239",
+      "source_location": "L315",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_kblist",
       "target": "frontend_src_lib_components_incomingjobs_onfocusout"
@@ -72510,17 +72927,6 @@
       "source_file": "frontend/src/lib/components/Waterfall.svelte",
       "source": "frontend_src_lib_components_waterfall",
       "target": "frontend_src_lib_stores_queue",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L4",
-      "weight": 1.0,
-      "source": "frontend_src_lib_stores_queue",
-      "target": "frontend_src_lib_keyboard_lists",
       "confidence_score": 1.0
     },
     {
@@ -72936,14 +73342,6 @@
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/JobRow.svelte",
       "source": "frontend_src_lib_components_jobrow",
-      "target": "frontend_src_lib_keyboard_lists",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/components/JobRow.svelte",
-      "source": "frontend_src_lib_components_jobrow",
       "target": "frontend_src_lib_stores_rownotices",
       "confidence_score": 1.0
     },
@@ -73002,352 +73400,10 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "imports_from",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/components/JobTrackList.svelte",
-      "source": "frontend_src_lib_components_jobtracklist",
-      "target": "frontend_src_lib_keyboard_lists",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/components/QueueControls.svelte",
-      "source": "frontend_src_lib_components_queuecontrols",
-      "target": "frontend_src_lib_keyboard_lists",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source": "frontend_src_lib_components_trackrow",
-      "target": "frontend_src_lib_keyboard_lists",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L40",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_actionsof",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L129",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_applytaborder",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L288",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_awaitfallback",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L357",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_collapsefocused",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L347",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_focusedrow",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L319",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_focuslist",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L199",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_focuslost",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L334",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_focusnested",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L155",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_focusrow",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L342",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_focusrowel",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L119",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_gateopen",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L352",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_horizontal",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L111",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_isactive",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L107",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_isopen",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L89",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_itemof",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L208",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_kblist",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L33",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_kbrow",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L370",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_listhandlers",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L44",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_listmemory",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L81",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_listof",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L60",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_mem",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L57",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_memory",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L303",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_move",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L328",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_nestedlist",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L70",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_resetlists",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L366",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_rowaction",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L30",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_rowactions",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L103",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_rowat",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L98",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_rowid",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L85",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_rowsof",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L164",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists",
-      "target": "frontend_src_lib_keyboard_lists_settle",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/routes/+page.svelte",
-      "source": "frontend_src_routes_page",
-      "target": "frontend_src_lib_keyboard_lists",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/TrackRow.svelte",
-      "source_location": "L571",
+      "source_location": "L594",
       "weight": 1.0,
       "source": "frontend_src_lib_components_trackrow",
       "target": "frontend_src_lib_components_trackrow_group",
@@ -74063,7 +74119,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L89",
+      "source_location": "L88",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_find",
       "target": "frontend_src_lib_keyboard_bindings_bindings"
@@ -74074,7 +74130,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L142",
+      "source_location": "L157",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_onkeydown",
       "target": "frontend_src_lib_keyboard_bindings_bindings"
@@ -74096,7 +74152,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L150",
+      "source_location": "L165",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_onkeydown",
       "target": "frontend_src_lib_keyboard_bindings_ischaracter"
@@ -74106,7 +74162,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/bindings.ts",
-      "source_location": "L305",
+      "source_location": "L307",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_bindings_chordhelp",
       "target": "frontend_src_lib_keyboard_bindings_chordlabel",
@@ -74117,7 +74173,7 @@
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "frontend/src/lib/keyboard/bindings.ts",
-      "source_location": "L311",
+      "source_location": "L313",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_bindings_bindinghelptext",
       "target": "frontend_src_lib_keyboard_bindings_chordhelp",
@@ -74128,10 +74184,32 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L375",
+      "source_location": "L477",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_actionsof",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L67",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists_forget",
+      "target": "frontend_src_lib_keyboard_lists_rowaction"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L346",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists_kblist",
+      "target": "frontend_src_lib_keyboard_lists_forget",
       "confidence_score": 1.0
     },
     {
@@ -74139,7 +74217,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L131",
+      "source_location": "L166",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_applytaborder",
       "target": "frontend_src_lib_keyboard_lists_mem",
@@ -74150,7 +74228,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L323",
+      "source_location": "L410",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focuslist",
       "target": "frontend_src_lib_keyboard_lists_mem",
@@ -74161,7 +74239,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L338",
+      "source_location": "L425",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focusnested",
       "target": "frontend_src_lib_keyboard_lists_mem",
@@ -74172,7 +74250,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L114",
+      "source_location": "L149",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_isactive",
       "target": "frontend_src_lib_keyboard_lists_mem",
@@ -74183,7 +74261,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L211",
+      "source_location": "L286",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_kblist",
       "target": "frontend_src_lib_keyboard_lists_mem",
@@ -74194,7 +74272,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L166",
+      "source_location": "L203",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_settle",
       "target": "frontend_src_lib_keyboard_lists_mem",
@@ -74216,7 +74294,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L349",
+      "source_location": "L457",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists_collapsefocused",
+      "target": "frontend_src_lib_keyboard_lists_listof",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L443",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focusedrow",
       "target": "frontend_src_lib_keyboard_lists_listof",
@@ -74227,7 +74316,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L353",
+      "source_location": "L447",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_horizontal",
       "target": "frontend_src_lib_keyboard_lists_listof",
@@ -74238,7 +74327,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L112",
+      "source_location": "L147",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_isactive",
       "target": "frontend_src_lib_keyboard_lists_listof",
@@ -74249,7 +74338,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L218",
+      "source_location": "L294",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_kblist",
       "target": "frontend_src_lib_keyboard_lists_listof",
@@ -74260,7 +74349,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L380",
+      "source_location": "L482",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_listof",
@@ -74271,7 +74360,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L304",
+      "source_location": "L391",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_move",
       "target": "frontend_src_lib_keyboard_lists_listof",
@@ -74282,7 +74371,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L86",
+      "source_location": "L121",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_rowsof",
       "target": "frontend_src_lib_keyboard_lists_listof",
@@ -74293,7 +74382,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L132",
+      "source_location": "L167",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_applytaborder",
       "target": "frontend_src_lib_keyboard_lists_rowsof",
@@ -74304,7 +74393,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L322",
+      "source_location": "L409",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focuslist",
       "target": "frontend_src_lib_keyboard_lists_rowsof",
@@ -74315,7 +74404,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L337",
+      "source_location": "L424",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focusnested",
       "target": "frontend_src_lib_keyboard_lists_rowsof",
@@ -74326,18 +74415,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L212",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists_kblist",
-      "target": "frontend_src_lib_keyboard_lists_rowsof",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L306",
+      "source_location": "L393",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_move",
       "target": "frontend_src_lib_keyboard_lists_rowsof",
@@ -74348,7 +74426,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L169",
+      "source_location": "L206",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_settle",
       "target": "frontend_src_lib_keyboard_lists_rowsof",
@@ -74359,7 +74437,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L138",
+      "source_location": "L175",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_applytaborder",
       "target": "frontend_src_lib_keyboard_lists_itemof",
@@ -74370,7 +74448,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L360",
+      "source_location": "L461",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_collapsefocused",
       "target": "frontend_src_lib_keyboard_lists_itemof",
@@ -74381,7 +74459,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L156",
+      "source_location": "L193",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focusrow",
       "target": "frontend_src_lib_keyboard_lists_itemof",
@@ -74392,7 +74470,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L108",
+      "source_location": "L143",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_isopen",
       "target": "frontend_src_lib_keyboard_lists_itemof",
@@ -74403,9 +74481,20 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L421",
+      "source_location": "L532",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
+      "target": "frontend_src_lib_keyboard_lists_itemof",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L433",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists_rowitembyid",
       "target": "frontend_src_lib_keyboard_lists_itemof",
       "confidence_score": 1.0
     },
@@ -74414,7 +74503,7 @@
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L133",
+      "source_location": "L168",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_applytaborder",
       "target": "frontend_src_lib_keyboard_lists_rowid",
@@ -74425,7 +74514,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L324",
+      "source_location": "L411",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focuslist",
       "target": "frontend_src_lib_keyboard_lists_rowid",
@@ -74436,7 +74525,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L339",
+      "source_location": "L426",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focusnested",
       "target": "frontend_src_lib_keyboard_lists_rowid",
@@ -74447,9 +74536,20 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L114",
+      "source_location": "L149",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_isactive",
+      "target": "frontend_src_lib_keyboard_lists_rowid",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L288",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists_kblist",
       "target": "frontend_src_lib_keyboard_lists_rowid",
       "confidence_score": 1.0
     },
@@ -74458,18 +74558,7 @@
       "context": "argument",
       "confidence": "INFERRED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L212",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_lists_kblist",
-      "target": "frontend_src_lib_keyboard_lists_rowid",
-      "confidence_score": 0.5
-    },
-    {
-      "relation": "indirect_call",
-      "context": "argument",
-      "confidence": "INFERRED",
-      "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L170",
+      "source_location": "L207",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_settle",
       "target": "frontend_src_lib_keyboard_lists_rowid",
@@ -74480,7 +74569,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L144",
+      "source_location": "L181",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_applytaborder",
       "target": "frontend_src_lib_keyboard_lists_rowat",
@@ -74491,7 +74580,18 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L348",
+      "source_location": "L458",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_lists_collapsefocused",
+      "target": "frontend_src_lib_keyboard_lists_rowat",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/lists.ts",
+      "source_location": "L442",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focusedrow",
       "target": "frontend_src_lib_keyboard_lists_rowat",
@@ -74502,7 +74602,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L120",
+      "source_location": "L155",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_gateopen",
       "target": "frontend_src_lib_keyboard_lists_rowat",
@@ -74513,7 +74613,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L215",
+      "source_location": "L287",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_kblist",
       "target": "frontend_src_lib_keyboard_lists_rowat",
@@ -74524,7 +74624,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L381",
+      "source_location": "L483",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_rowat",
@@ -74535,7 +74635,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L330",
+      "source_location": "L417",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_nestedlist",
       "target": "frontend_src_lib_keyboard_lists_rowat",
@@ -74546,7 +74646,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L142",
+      "source_location": "L179",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_applytaborder",
       "target": "frontend_src_lib_keyboard_lists_isopen",
@@ -74557,7 +74657,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L359",
+      "source_location": "L456",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_collapsefocused",
       "target": "frontend_src_lib_keyboard_lists_isopen",
@@ -74568,7 +74668,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L121",
+      "source_location": "L156",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_gateopen",
       "target": "frontend_src_lib_keyboard_lists_isopen",
@@ -74579,7 +74679,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L421",
+      "source_location": "L532",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_isopen",
@@ -74590,7 +74690,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L121",
+      "source_location": "L156",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_gateopen",
       "target": "frontend_src_lib_keyboard_lists_isactive",
@@ -74601,7 +74701,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L135",
+      "source_location": "L172",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_applytaborder",
       "target": "frontend_src_lib_keyboard_lists_gateopen",
@@ -74612,7 +74712,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L223",
+      "source_location": "L299",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_kblist",
       "target": "frontend_src_lib_keyboard_lists_applytaborder",
@@ -74623,7 +74723,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L183",
+      "source_location": "L223",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_settle",
       "target": "frontend_src_lib_keyboard_lists_applytaborder",
@@ -74634,7 +74734,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L324",
+      "source_location": "L411",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focuslist",
       "target": "frontend_src_lib_keyboard_lists_focusrow",
@@ -74645,7 +74745,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L339",
+      "source_location": "L426",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focusnested",
       "target": "frontend_src_lib_keyboard_lists_focusrow",
@@ -74656,7 +74756,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L343",
+      "source_location": "L437",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focusrowel",
       "target": "frontend_src_lib_keyboard_lists_focusrow",
@@ -74667,7 +74767,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L433",
+      "source_location": "L544",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_focusrow",
@@ -74678,7 +74778,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L315",
+      "source_location": "L402",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_move",
       "target": "frontend_src_lib_keyboard_lists_focusrow",
@@ -74689,7 +74789,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L196",
+      "source_location": "L262",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_settle",
       "target": "frontend_src_lib_keyboard_lists_focusrow",
@@ -74700,7 +74800,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L242",
+      "source_location": "L318",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_kblist",
       "target": "frontend_src_lib_keyboard_lists_settle",
@@ -74711,7 +74811,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L185",
+      "source_location": "L225",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_settle",
       "target": "frontend_src_lib_keyboard_lists_focuslost",
@@ -74722,7 +74822,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L189",
+      "source_location": "L254",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_settle",
       "target": "frontend_src_lib_keyboard_lists_nestedlist",
@@ -74733,7 +74833,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L290",
+      "source_location": "L377",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_awaitfallback",
       "target": "frontend_src_lib_keyboard_lists_focuslost",
@@ -74744,7 +74844,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L253",
+      "source_location": "L329",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_kblist",
       "target": "frontend_src_lib_keyboard_lists_focuslost",
@@ -74755,7 +74855,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L280",
+      "source_location": "L367",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_kblist",
       "target": "frontend_src_lib_keyboard_lists_awaitfallback",
@@ -74766,7 +74866,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L400",
+      "source_location": "L508",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_move",
@@ -74777,7 +74877,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L398",
+      "source_location": "L506",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_focuslist",
@@ -74788,7 +74888,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L335",
+      "source_location": "L422",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_focusnested",
       "target": "frontend_src_lib_keyboard_lists_nestedlist",
@@ -74799,7 +74899,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L422",
+      "source_location": "L533",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_focusnested",
@@ -74810,7 +74910,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L358",
+      "source_location": "L453",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_collapsefocused",
       "target": "frontend_src_lib_keyboard_lists_focusedrow",
@@ -74821,7 +74921,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L375",
+      "source_location": "L477",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_focusedrow",
@@ -74832,7 +74932,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L359",
+      "source_location": "L454",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_collapsefocused",
       "target": "frontend_src_lib_keyboard_lists_horizontal",
@@ -74843,7 +74943,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L396",
+      "source_location": "L504",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_horizontal",
@@ -74854,10 +74954,21 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/lists.ts",
-      "source_location": "L429",
+      "source_location": "L540",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_lists_listhandlers",
       "target": "frontend_src_lib_keyboard_lists_collapsefocused",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/routes/+layout.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "frontend_src_routes_layout_ts_frontend_src_routes_layout",
+      "target": "frontend_src_lib_keyboard_registry_shortcutsenabled",
       "confidence_score": 1.0
     },
     {
@@ -74866,7 +74977,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L153",
+      "source_location": "L168",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_onkeydown",
       "target": "frontend_src_lib_keyboard_registry_repeatable"
@@ -74876,43 +74987,10 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L109",
+      "source_location": "L177",
       "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_registry_onkeydown",
+      "source": "frontend_src_lib_keyboard_registry_cancelchord",
       "target": "frontend_src_lib_keyboard_registry_setchord",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L162",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_registry_resetkeyboard",
-      "target": "frontend_src_lib_keyboard_registry_setchord",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L121",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_registry_onkeydown",
-      "target": "frontend_src_lib_keyboard_registry_run",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L137",
-      "weight": 1.0,
-      "source": "frontend_src_lib_keyboard_registry_onkeydown",
-      "target": "frontend_src_lib_keyboard_registry_istypingtarget",
       "confidence_score": 1.0
     },
     {
@@ -74923,6 +75001,50 @@
       "source_location": "L108",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_onkeydown",
+      "target": "frontend_src_lib_keyboard_registry_setchord",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/registry.ts",
+      "source_location": "L182",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_registry_resetkeyboard",
+      "target": "frontend_src_lib_keyboard_registry_setchord",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/registry.ts",
+      "source_location": "L122",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_registry_onkeydown",
+      "target": "frontend_src_lib_keyboard_registry_run",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/registry.ts",
+      "source_location": "L138",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_registry_onkeydown",
+      "target": "frontend_src_lib_keyboard_registry_istypingtarget",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/keyboard/registry.ts",
+      "source_location": "L107",
+      "weight": 1.0,
+      "source": "frontend_src_lib_keyboard_registry_onkeydown",
       "target": "frontend_src_lib_keyboard_registry_isaltgr",
       "confidence_score": 1.0
     },
@@ -74931,7 +75053,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L95",
+      "source_location": "L94",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_chordfor",
       "target": "frontend_src_lib_keyboard_registry_matches",
@@ -74942,7 +75064,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L90",
+      "source_location": "L89",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_find",
       "target": "frontend_src_lib_keyboard_registry_matches",
@@ -74953,7 +75075,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L95",
+      "source_location": "L94",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_chordfor",
       "target": "frontend_src_lib_keyboard_registry_find",
@@ -74964,7 +75086,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L118",
+      "source_location": "L119",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_onkeydown",
       "target": "frontend_src_lib_keyboard_registry_find",
@@ -74975,7 +75097,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L150",
+      "source_location": "L165",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_onkeydown",
       "target": "frontend_src_lib_keyboard_registry_chordfor",
@@ -74986,7 +75108,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/keyboard/registry.ts",
-      "source_location": "L114",
+      "source_location": "L113",
       "weight": 1.0,
       "source": "frontend_src_lib_keyboard_registry_onkeydown",
       "target": "frontend_src_lib_keyboard_registry_openmodal",
@@ -75740,46 +75862,6 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/routes/+layout.svelte",
-      "source_location": "L65",
-      "weight": 1.0,
-      "source": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "target": "frontend_src_routes_layout_announcement",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/routes/+layout.svelte",
-      "source_location": "L28",
-      "weight": 1.0,
-      "source": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "target": "frontend_src_routes_layout_isadmin",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/routes/+layout.svelte",
-      "source_location": "L27",
-      "weight": 1.0,
-      "source": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "target": "frontend_src_routes_layout_signedin",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": "frontend/src/routes/+layout.svelte",
-      "source_location": "L85",
-      "weight": 1.0,
-      "source": "frontend_src_routes_layout_svelte_frontend_src_routes_layout",
-      "target": "frontend_src_routes_layout_skip",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "imports_from",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+layout.svelte",
@@ -75807,7 +75889,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+layout.ts",
-      "source_location": "L19",
+      "source_location": "L20",
       "weight": 1.0,
       "source": "frontend_src_routes_layout_ts_frontend_src_routes_layout",
       "target": "frontend_src_routes_layout_load",
@@ -75857,7 +75939,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/+page.svelte",
-      "source_location": "L89",
+      "source_location": "L88",
       "weight": 1.0,
       "source": "frontend_src_routes_page",
       "target": "frontend_src_routes_page_if",
@@ -75887,7 +75969,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/account/+page.svelte",
-      "source_location": "L122",
+      "source_location": "L124",
       "weight": 1.0,
       "source": "frontend_src_routes_account_page",
       "target": "frontend_src_routes_account_page_if",
@@ -83273,5 +83355,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "386138e325700b67b4ef33e611aec4ac62f6e273"
+  "built_at_commit": "309610613c108416e95113769e4ff4fb786a9e19"
 }
