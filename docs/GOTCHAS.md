@@ -5198,3 +5198,7 @@ independently-found production bug from the same conversation)
 - **The dev stack's e2e admin has one unarchived job after global setup** (`clearSlate` archives
   the rest), so a spec needing a neighbour row or several filter chips must create a row (a ledger
   track) or show archived first.
+- **Don't run `npm run check` or `npm run build` while the e2e suite runs.** `svelte-kit sync`
+  rewrites `frontend/.svelte-kit/`, the dev stack's Vite server answers with a full page reload,
+  and spec 1 (which watches for exactly that) fails with "the observer must survive: no hard
+  navigation in between". Seen in v45's final run; the suite alone passed.
