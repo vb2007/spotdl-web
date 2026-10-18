@@ -94,7 +94,16 @@
 		const moved =
 			document.activeElement !== focusAtStart && document.activeElement !== document.body;
 		if (moved || !shouldFocus()) return true;
-		const fresh = $page.items.find((item) => !known.has(item.id));
+		// Only a page that was appended moves focus: a failed one leaves it (on the button, to
+		// retry), and one a reload superseded put an unrelated list there.
+		const appended =
+			!$page.moreError && $page.items.slice(0, known.size).every((item) => known.has(item.id));
+		const fresh = appended ? $page.items.find((item) => !known.has(item.id)) : undefined;
+		if (!fresh) {
+			if (document.activeElement === document.body)
+				document.getElementById('queue-heading')?.focus();
+			return true;
+		}
 		const row = fresh
 			? document.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(fresh.id)}"]`)
 			: null;

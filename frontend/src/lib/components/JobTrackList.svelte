@@ -30,7 +30,11 @@
 		const rehomed = !button.isConnected && active === jobItem;
 		const moved = active !== focusAtStart && active !== document.body && !rehomed;
 		if (moved) return;
-		const fresh = $expanded[jobId]?.items.find((t) => !known.has(t.id));
+		// Only rows appended to the same list: a failed page adds none, and a re-read of the
+		// job's tracks meanwhile replaced the list.
+		const items = $expanded[jobId]?.items ?? [];
+		const appended = items.slice(0, known.size).every((t) => known.has(t.id));
+		const fresh = appended ? items.find((t) => !known.has(t.id)) : undefined;
 		if (fresh) focusRowEl(document.querySelector<HTMLElement>(`[data-kb-row="${fresh.id}"]`));
 	}
 </script>
