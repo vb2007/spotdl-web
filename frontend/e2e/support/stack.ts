@@ -402,9 +402,11 @@ import sys
 from sqlalchemy import text
 from app.db import SessionLocal
 db = SessionLocal()
+# An upsert: an identity that never opened a settings page has no row yet.
 db.execute(text("""
-    update user_settings set language = :language
-    where user_id = (select id from users where email = :email)
+    insert into user_settings (user_id, language)
+    select id, :language from users where email = :email
+    on conflict (user_id) do update set language = excluded.language
 """), {"email": sys.argv[1], "language": sys.argv[2] or None})
 db.commit()
 `,

@@ -113,6 +113,19 @@ function devFileDownloadFallback(): Plugin {
 	};
 }
 
+/** v46: the dev container keeps Paraglide's compiled messages in their own anonymous volume
+ * (docker-compose.override.yml), and Vite's recursive watcher on the project doesn't cross into
+ * a nested mount: a recompile landed on disk while the dev server kept serving the old module.
+ * Watching the directory explicitly brings its changes back. Dev-only, like the plugin above. */
+function watchCompiledMessages(): Plugin {
+	return {
+		name: 'watch-compiled-messages',
+		configureServer(server) {
+			server.watcher.add(path.resolve('src/lib/paraglide'));
+		}
+	};
+}
+
 export default defineConfig(({ command }) => ({
 	plugins: [
 		// v46: compiles messages/{en,hu}.json into typed message functions under
@@ -143,7 +156,7 @@ export default defineConfig(({ command }) => ({
 				}
 			}
 		}),
-		...(command === 'serve' ? [devFileDownloadFallback()] : [])
+		...(command === 'serve' ? [devFileDownloadFallback(), watchCompiledMessages()] : [])
 	],
 	server: {
 		proxy: {

@@ -115,7 +115,7 @@
 	"track_status_downloading": "letöltés alatt",
 	"track_status_completed": "letöltve",
 	"track_status_waiting": "újrapróbálásra vár",
-	"track_status_lookup_failed": "magától nem próbálja újra · az „újra most” gombbal újrapróbálhatod",
+	"track_status_lookup_failed": "a rendszer magától nem próbálja újra · az „újra most” gombbal újrapróbálhatod",
 	"track_status_skipped_duplicate": "korábban már letöltődött · most nem kellett letölteni",
 	"track_status_cancelled": "megszakítva · nem töltődik le",
 	"attempt_outcome_completed": "letöltve",
@@ -263,7 +263,7 @@
 	"incoming_cancel_failed": "Nem sikerült megszakítani ezt a feladatot.",
 	"incoming_cancel_moved": "{message} Átkerült a lenti várólistába; ott szakítsd meg.",
 	"incoming_confirm_title": "Megszakítod ezt a beküldést?",
-	"incoming_confirm_body": "A linkjét még olvassuk. A megszakítás leállítja, amit még sorba állítana, és megszakítja, ami már megvan belőle. Nem vonható vissza, de a link újra beküldhető.",
+	"incoming_confirm_body": "A linkjét még olvassuk. A megszakítás leállítja, amit még sorba állítana, és megszakítja, ami már megvan belőle. Ez nem vonható vissza, de a linket újra beküldheted.",
 	"incoming_confirm_yes": "beküldés megszakítása",
 	"incoming_confirm_no": "maradjon",
 	"incoming_lost_failed": "Közben nem sikerült beolvasni a linkjét; nincs mit megszakítani.",
@@ -781,7 +781,7 @@
 	"stats_hold_ended_early": "korábban véget ért",
 	"stats_hold_ran_out": "lejárt",
 	"stats_hold_label": "{verb} ({step}) {when}, {end}",
-	"error_server_unavailable": "A szerver most nem válaszol ({status})",
+	"error_server_error": "Szerverhiba: {status}",
 	"time_hours_ago": "{hours} órája",
 	"time_days_ago": "{days} napja"
 }

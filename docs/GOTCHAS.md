@@ -5236,7 +5236,14 @@ independently-found production bug from the same conversation)
   (`EACCES`), so `src/lib/paraglide` gets an anonymous volume in `docker-compose.override.yml`,
   like `node_modules`. Both anonymous volumes outlive an image rebuild: after a dependency change,
   `docker compose build web` then `docker compose up -d --renew-anon-volumes`, or the container keeps
-  the old `node_modules`.
+  the old `node_modules`. **Vite's recursive watcher doesn't cross into that nested mount:** a
+  recompile landed in the volume while the dev server kept serving the old module (an e2e spec
+  read "Időtartam" from the files and found "Mikor" on the page). `vite.config.ts`'s dev-only
+  `watchCompiledMessages` adds the directory to the watcher explicitly.
+- **`npx vitest run` rewrites `frontend/.svelte-kit/` too** (its SvelteKit plugin syncs), so the v45
+  rule "don't run `npm run check`/`build` while the e2e suite runs" covers the unit tests as well:
+  a review agent's `vitest` during a run made the dev server reload and a keyboard spec lose its
+  focused row mid-step (the same step passed 3/3 alone).
 - **A saved language beats the browser's, and the API can set one but not clear one.** The e2e
   projects pin their browser `locale` (`en-US`, `hu-HU` for `hu`) and expect the page to follow it,
   so global setup and teardown reset both identities' `user_settings.language` to NULL straight in

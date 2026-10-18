@@ -98,3 +98,23 @@ def test_login_ignores_a_language_it_does_not_ship(client, monkeypatch, db_sessi
         assert _login(client, monkeypatch, language=value).status_code == 200, value
         assert client.get("/api/auth/me").json()["language"] is None
     assert db_session.query(UserSettings).count() == 0
+
+
+def test_adopting_never_fails_a_sign_in_that_loses_a_race(db_session, make_user, monkeypatch):
+    """Two first sign-ins at once both insert the settings row; the second one's adopt must
+    swallow the conflict (its savepoint rolls back), not fail the sign-in's transaction."""
+    from sqlalchemy.exc import IntegrityError
+
+    from app.services import user_settings
+
+    user = make_user("racer@example.com")
+    db_session.commit()
+
+    def lose_the_race(db, user_id, language):
+        raise IntegrityError("insert into user_settings", {}, Exception("duplicate key"))
+
+    monkeypatch.setattr(user_settings, "update_language", lose_the_race)
+    user_settings.adopt_language(db_session, user.id, "hu")
+    # The outer transaction is still usable.
+    db_session.commit()
+    assert user_settings.language_preference(db_session, user.id) is None

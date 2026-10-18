@@ -3,6 +3,7 @@ pattern as app/services/app_settings.py's output-settings row, just keyed by `us
 instead of a fixed `id=1`.
 """
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import UserSettings
@@ -54,7 +55,15 @@ def update_language(db: Session, user_id, language: str) -> UserSettings:
 
 def adopt_language(db: Session, user_id, language: str | None) -> None:
     """v46: a language picked on /login before signing in becomes the profile's preference,
-    but only when the profile has none; a saved choice always wins over it."""
+    but only when the profile has none; a saved choice always wins over it.
+
+    In a savepoint: this is the one write on the sign-in path, and two first sign-ins racing
+    (two tabs) would both insert the settings row. The loser skips adopting rather than
+    failing its sign-in; the winner's row carries the same choice."""
     if language not in LANGUAGES or language_preference(db, user_id) is not None:
         return
-    update_language(db, user_id, language)
+    try:
+        with db.begin_nested():
+            update_language(db, user_id, language)
+    except IntegrityError:
+        pass

@@ -461,7 +461,7 @@ wording implied abandonment rather than "this specific lookup came up empty."
 >
 > **v46 (2026-10-18):** the labels are now functions over the message files
 > (`lib/i18n/labels.ts`'s `trackStateLabel`/`jobStatusLabel`, TrackRow's status and outcome
-> tables), in Hungarian: sorban áll, indulásra kész, letöltés, letöltve, várakozik, nem található,
+> tables), in Hungarian: sorban áll, indulásra kész, letöltés alatt, letöltve, várakozik, nem található,
 > már megvan, megszakítva; job statuses hangolás, aktív, várakozik, kész — részben, kész,
 > megszakítva, sikertelen.
 >

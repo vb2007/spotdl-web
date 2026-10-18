@@ -160,7 +160,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 	const user = await login(baseURL, userIdentity(), false, USER_STATE);
 	// v46: a saved language wins over the browser's, and every project pins its browser locale
 	// (en-US, or hu-HU for `hu`). Neither identity may carry one in from an earlier run or from
-	// a developer's own switch on /account. After login: that's what creates a settings row.
+	// a developer's own switch on /account. After login, so both users rows exist.
 	setLanguage(adminIdentity().email, null);
 	setLanguage(userIdentity().email, null);
 	try {

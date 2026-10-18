@@ -469,11 +469,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 			if (typeof body.code === 'string') code = body.code;
 			if (body.params && typeof body.params === 'object') params = body.params;
 		} catch {
-			// Non-JSON error body — fall back to statusText. v46: a 5xx like that is the proxy
-			// answering for an `api` that's restarting or down; its code lets the UI say so in the
-			// active language, around the same status line.
+			// Non-JSON error body — fall back to statusText. v46: a 5xx like that (the proxy
+			// answering for a restarting `api`, or an unhandled exception's plain-text 500) gets a
+			// code, so the UI says so in the active language around the same status line.
 			if (response.status >= 500) {
-				code = 'server_unavailable';
+				code = 'server_error';
 				params = { status: response.statusText || String(response.status) };
 			}
 		}
