@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
+from app.errors import ApiError
 from app.models import User, UserSession
 from app.services import upstream_auth, user_settings
 from app.services.sessions import SESSION_IDLE_TIMEOUT, create_session, delete_session, get_valid_session
@@ -13,22 +16,25 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 COOKIE_NAME = "SPOTDL_SESSION"
 
-_INVALID_CREDENTIALS = HTTPException(status_code=401, detail="Invalid credentials")
+_INVALID_CREDENTIALS = ApiError(401, "invalid_credentials", "Invalid credentials")
 
 
 class LoginRequest(BaseModel):
     email: str
     password: str
+    # v46: the language picked on /login before signing in, adopted into a profile that
+    # has no saved choice yet (user_settings.adopt_language). Optional and additive.
+    language: Literal["hu", "en"] | None = None
 
 
 def current_session(request: Request, db: Session = Depends(get_db)) -> UserSession:
     token = request.cookies.get(COOKIE_NAME)
     if token is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise ApiError(401, "not_authenticated", "Not authenticated")
 
     session = get_valid_session(db, token)
     if session is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise ApiError(401, "not_authenticated", "Not authenticated")
 
     db.commit()
     return session
@@ -45,13 +51,13 @@ def require_session(
         # The session outlived its user (never expected in practice -- ON DELETE CASCADE
         # isn't set up, so this would mean a row was deleted out from under a live
         # session), but "not authenticated" is the correct response either way.
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise ApiError(401, "not_authenticated", "Not authenticated")
     return user
 
 
 def require_admin(user: User = Depends(require_session)) -> User:
     if not user.is_admin:
-        raise HTTPException(status_code=403, detail="Admin access required")
+        raise ApiError(403, "admin_required", "Admin access required")
     return user
 
 
@@ -70,7 +76,7 @@ def require_session_for_streaming(request: Request) -> User:
     after the handler returns, so `require_session` there is correctly scoped already."""
     token = request.cookies.get(COOKIE_NAME)
     if token is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise ApiError(401, "not_authenticated", "Not authenticated")
 
     db_factory = request.app.dependency_overrides.get(get_db, get_db)
     db_gen = db_factory()
@@ -78,11 +84,11 @@ def require_session_for_streaming(request: Request) -> User:
     try:
         session = get_valid_session(db, token)
         if session is None:
-            raise HTTPException(status_code=401, detail="Not authenticated")
+            raise ApiError(401, "not_authenticated", "Not authenticated")
 
         user = db.get(User, session.user_id)
         if user is None:
-            raise HTTPException(status_code=401, detail="Not authenticated")
+            raise ApiError(401, "not_authenticated", "Not authenticated")
         db.commit()
         # Re-touch *after* commit, while the session is still open -- `expire_on_commit`
         # (the sessionmaker default) marks attributes stale on commit, and reading them
@@ -117,6 +123,7 @@ async def login(payload: LoginRequest, response: Response, db: Session = Depends
         raise _INVALID_CREDENTIALS
 
     user = get_or_create_user(db, payload.email, username)
+    user_settings.adopt_language(db, user.id, payload.language)
     session = create_session(db, user.id)
     db.commit()
     _set_session_cookie(response, session.token)
@@ -138,10 +145,11 @@ def logout(
 @router.get("/me")
 def me(user: User = Depends(require_session), db: Session = Depends(get_db)) -> dict:
     # v45: the keyboard-shortcut preference rides along, so the app shell knows it on every
-    # route load without a second request.
+    # route load without a second request. v46: so does the language (`null`: none saved).
     return {
         "email": user.email,
         "username": user.username,
         "is_admin": user.is_admin,
         "keyboard_shortcuts": user_settings.keyboard_shortcuts_enabled(db, user.id),
+        "language": user_settings.language_preference(db, user.id),
     }

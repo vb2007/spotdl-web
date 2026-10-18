@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, Integer, func, true
+from sqlalchemy import Boolean, ForeignKey, Integer, String, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -21,6 +21,9 @@ class UserSettings(Base):
     keyboard_shortcuts: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=true()
     )
+    # v46: the interface language (`hu`/`en`). NULL is "no saved preference": the browser's
+    # language decides, and a choice made on /login before signing in is adopted into it.
+    language: Mapped[str | None] = mapped_column(String(8), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now(), nullable=False

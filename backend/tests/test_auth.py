@@ -28,6 +28,7 @@ def test_login_success_sets_cookie_and_me_returns_email(client, monkeypatch):
         "username": None,
         "is_admin": False,
         "keyboard_shortcuts": True,
+        "language": None,
     }
 
 
