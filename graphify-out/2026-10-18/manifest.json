@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1792285270.8824332,
-    "ast_hash": "20b5e503f1d72cdd1f09469d675fb880",
+    "mtime": 1792331175.5303469,
+    "ast_hash": "37fdc765d958cef29de214d51bb39aba",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792281563.1424687,
-    "ast_hash": "7a7e3919c8e7027cbc77b85cbf403483",
+    "mtime": 1792296196.0537221,
+    "ast_hash": "6bf01ac2d8944a86bf4d218b4489f0d8",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -750,8 +750,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/QueueControls.svelte": {
-    "mtime": 1792277809.079586,
-    "ast_hash": "8fcc53206dce493ec5f856af1066408a",
+    "mtime": 1792331175.5304863,
+    "ast_hash": "5e9e3c668f4275ae0bff995ff9221cfd",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/TrackRow.svelte": {
@@ -980,8 +980,8 @@
     "semantic_hash": ""
   },
   "plan/master-v4/00-master-plan.md": {
-    "mtime": 1792280765.0944836,
-    "ast_hash": "c28c8ac81845495218bd42a50bc321bb",
+    "mtime": 1792331175.5306146,
+    "ast_hash": "76ccd1eadf86dad6de72896bfc8f50ef",
     "semantic_hash": ""
   },
   "plan/master-v4/IMPLEMENTATION_PROMPT.md": {
@@ -1450,8 +1450,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/14-keyboard.e2e.ts": {
-    "mtime": 1792293656.7902896,
-    "ast_hash": "ddbf6db70b11e1f5510a3d844f1cb39e",
+    "mtime": 1792331175.5300312,
+    "ast_hash": "2ddd1ed65ae40d5c9cdefbd3431487d9",
     "semantic_hash": ""
   },
   "frontend/e2e/support/guards.ts": {
@@ -1490,8 +1490,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/keyboard/registry.ts": {
-    "mtime": 1792294463.880855,
-    "ast_hash": "6dfc01de4b12ff87f74f09db26264792",
+    "mtime": 1792331175.5304863,
+    "ast_hash": "39b724f2a93a31f13189723eaec921a3",
     "semantic_hash": ""
   }
 }
