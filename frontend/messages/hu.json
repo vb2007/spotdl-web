@@ -97,11 +97,7 @@
 	"time_minutes_ago": "{minutes} perce",
 	"time_hours_minutes_ago": [
 		{
-			"declarations": [
-				"input hours",
-				"input minutes",
-				"input minutesPadded"
-			],
+			"declarations": ["input hours", "input minutes", "input minutesPadded"],
 			"selectors": [],
 			"match": {
 				"*": "{hours} óra {minutes} perce"
@@ -165,10 +161,7 @@
 	"track_repeats_hide": "ismétlések elrejtése",
 	"track_repeats_show": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "összes mutatása ({n})"
@@ -233,10 +226,7 @@
 	"waterfall_stale_linking": "kapcsolódás… — a kijelzés elavult lehet",
 	"waterfall_lanes": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "{n} sáv"
@@ -288,10 +278,7 @@
 	"incoming_heading": "Bejövő beküldések",
 	"incoming_older": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "{n} korábbi linket nem sikerült beolvasni"
@@ -302,10 +289,7 @@
 	"incoming_older_hide": "rejtsd el",
 	"incoming_older_show_label": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "{n} korábbi sikertelen link mutatása"
@@ -314,10 +298,7 @@
 	],
 	"incoming_older_hide_label": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "{n} korábbi sikertelen link elrejtése"
@@ -361,11 +342,7 @@
 	"dashboard_count_loading": "Betöltés…",
 	"dashboard_count_jobs": [
 		{
-			"declarations": [
-				"input count",
-				"input shown",
-				"input total"
-			],
+			"declarations": ["input count", "input shown", "input total"],
 			"selectors": [],
 			"match": {
 				"*": "{shown} / {total} feladat"
@@ -375,10 +352,7 @@
 	"dashboard_count_cap": "{cap}+",
 	"dashboard_count_tracks": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "{n} szám"
@@ -387,10 +361,7 @@
 	],
 	"dashboard_count_tracks_more": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "{n}+ szám"
@@ -523,10 +494,7 @@
 	"settings_proxy_no_failures": "nincs friss hiba",
 	"settings_proxy_failures": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "{n} hiba egymás után"
@@ -735,10 +703,7 @@
 	"stats_col_success": "Siker",
 	"stats_attempts_unit": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "próbálkozás"
@@ -764,11 +729,7 @@
 	"stats_breaker_no_hold": "A megszakító ebben az időablakban nem tartott vissza.",
 	"stats_breaker_held": [
 		{
-			"declarations": [
-				"input span",
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input span", "input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "A megszakító összesen {span} ideig tartott vissza; ebben az időablakban {n} kioldás indult."
@@ -782,10 +743,7 @@
 	"stats_summary_day": "Hibák típusonként, naponként. {parts}. {breaker}",
 	"stats_scale_hour": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "Az oszlopok közös skálán állnak: a legmagasabb {n} hiba egy órában."
@@ -794,10 +752,7 @@
 	],
 	"stats_scale_day": [
 		{
-			"declarations": [
-				"input count",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local n = count: number"],
 			"selectors": [],
 			"match": {
 				"*": "Az oszlopok közös skálán állnak: a legmagasabb {n} hiba egy napon."

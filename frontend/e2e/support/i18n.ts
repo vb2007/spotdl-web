@@ -23,3 +23,21 @@ export function t<I>(
 ): string {
 	return message((inputs ?? {}) as I, { locale: lang });
 }
+
+function escapeRegExp(text: string): string {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Matches a name that starts with `text` (a message with its trailing value left empty). */
+export function prefix(text: string): RegExp {
+	return new RegExp(`^${escapeRegExp(text)}`);
+}
+
+/** A stand-in title for `anyTitle`: render a message with it, then match any title there. */
+export const TITLE = '\u0000';
+
+/** Matches a rendered message whose `TITLE` placeholder may be any title, wherever the
+ * language puts it ("archive {title}", "{title} archiválása"). */
+export function anyTitle(text: string): RegExp {
+	return new RegExp(`^${escapeRegExp(text).replace(TITLE, '.+')}$`);
+}
