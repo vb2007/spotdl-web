@@ -59,6 +59,10 @@
 		const row = openerRow;
 		const list = openerList;
 		opener = openerRow = openerList = null;
+		// `close` arrives a task after the dialog closed: a key pressed meanwhile (`?` then `/`)
+		// may already have put focus somewhere, and that wins.
+		const active = document.activeElement;
+		if (active && active !== document.body && !dialog?.contains(active)) return;
 		if (back?.isConnected) return back.focus();
 		if (row && focusRowEl(document.querySelector<HTMLElement>(`[data-kb-row="${row}"]`))) return;
 		if (list && focusList(list)) return;

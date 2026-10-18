@@ -947,7 +947,7 @@ page, off-screen until focused, then a small plate at the top-left.
   Queue, each section labelled by its heading. A countdown is never inside a live region.
 - **Keyboard (v45):** every action is reachable without the mouse (§6 "Keyboard"). The skip link
   focuses `main#main` with a temporary `tabindex` that goes on blur. A route change moves focus to
-  the new page's `h1` and announces its title in a polite live region. Rows announce their name
+  the new page's `h1`; SvelteKit's own route announcer (`#svelte-announcer`) reads its title. Rows announce their name
   (what the row shows) and `aria-expanded`. Any new interactive element must be keyboard-reachable,
   and gets a row in `bindings.ts` if it gets a key.
 

@@ -230,7 +230,13 @@
 		if (e.key !== 'Escape' || hoveredTime === null) return;
 		// v45: this Esc was for the time, not for the keyboard's "close the row" -- unless a
 		// dialog is open or a field has focus, whose Esc it must never take.
-		const elsewhere = document.querySelector('dialog[open]') !== null || isTypingTarget(e.target);
+		// And only while keyboard focus is in this track (or nowhere): focus on another row
+		// keeps its own Esc.
+		const focusRow = document.activeElement?.closest<HTMLElement>('[data-kb-row]');
+		const focusHere =
+			document.activeElement === document.body || focusRow?.dataset.kbRow === track.id;
+		const elsewhere =
+			!focusHere || document.querySelector('dialog[open]') !== null || isTypingTarget(e.target);
 		if (!elsewhere && !dismissedTimes.has(hoveredTime)) e.preventDefault();
 		pinnedTimes.delete(hoveredTime);
 		dismissedTimes.add(hoveredTime);

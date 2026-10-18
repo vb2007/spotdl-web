@@ -621,8 +621,8 @@ test.describe('as the admin', () => {
 			const h1 = page.locator('h1');
 			await expect(h1).toContainText(heading);
 			await expect(h1).toBeFocused();
-			// The page is announced.
-			await expect(page.locator('p[aria-live="polite"]')).toHaveText(await page.title());
+			// The page is announced (SvelteKit's route announcer).
+			await expect(page.locator('#svelte-announcer')).toHaveText(await page.title());
 			await expectNoHiddenFocusables(page);
 		}
 		// Esc drops a chord, and so does waiting past its 1.5s: the next `a` goes nowhere.

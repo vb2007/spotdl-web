@@ -66,9 +66,9 @@
 		});
 	});
 
-	// v45: a route change moves focus to the new page's h1 (or its main) and announces the
-	// page, as a full page load would; the first load leaves focus where the browser put it.
-	let announcement = $state('');
+	// v45: a route change moves focus to the new page's h1 (or its main), as a full page load
+	// would; the first load leaves focus where the browser put it. The page title is announced
+	// by SvelteKit's own route announcer (`#svelte-announcer`), so no second live region here.
 	afterNavigate(async ({ from, to, type }) => {
 		if (type === 'enter' || !from || !to || from.url.pathname === to.url.pathname) return;
 		await tick();
@@ -80,10 +80,6 @@
 			if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
 			heading.focus({ preventScroll: true });
 		}
-		// Cleared first, so a return to the same title is still announced.
-		announcement = '';
-		await tick();
-		announcement = document.title;
 	});
 
 	// The skip link: focus the landmark itself (Tab then continues inside it). The temporary
@@ -117,7 +113,6 @@
 <ConfirmDialog />
 <HelpOverlay routeId={page.route.id} {isAdmin} {signedIn} />
 <ChordIndicator routeId={page.route.id} {isAdmin} />
-<p class="sr-only" aria-live="polite">{announcement}</p>
 
 <style>
 	/* Off-screen until focused, then a plate at the top-left corner in the panel's material:

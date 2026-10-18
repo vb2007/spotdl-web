@@ -276,7 +276,9 @@ export function kbList(name: string, opts: { fallback?: () => HTMLElement | null
 			list.removeEventListener('focusin', onFocusIn);
 			list.removeEventListener('focusout', onFocusOut);
 			document.removeEventListener('pointerdown', onPointerDown, true);
-			mounted.set(name, (mounted.get(name) ?? 1) - 1);
+			const left = (mounted.get(name) ?? 1) - 1;
+			if (left > 0) mounted.set(name, left);
+			else mounted.delete(name);
 			m.restoreUntil = m.focusWithin ? performance.now() + RESTORE_WINDOW_MS : 0;
 			// Unless it still has a claim on focus (a remount may come to take it back).
 			if (!m.restoreUntil) forget(name);

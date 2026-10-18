@@ -138,9 +138,15 @@ export function onKeydown(event: KeyboardEvent): void {
 		setChord(null);
 		if (isTypingTarget(event.target) && event.key !== 'Escape') return;
 		const target = find(event, pending);
-		if (target && run(target.id, event)) event.preventDefault();
-		else if (event.key === 'Escape') event.preventDefault();
-		return;
+		if (target) {
+			if (run(target.id, event)) event.preventDefault();
+			return;
+		}
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			return;
+		}
+		// Not a chord key: the chord is over, and the key does what it always does.
 	}
 
 	const typing = isTypingTarget(event.target);
