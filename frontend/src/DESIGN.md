@@ -591,8 +591,10 @@ or unlabeled icon toggle.
 > `--bg-3` with a `--text-muted` edge, primary text and a 2px `--text-muted` floor line (segments
 > too); hover only lifts the text, so a hovered option never passes for the selected one. On a coarse
 > pointer every chip, segment, the sort select and both text inputs are 44px tall. The scope switches (jobs/tracks, mine/all users) are one
-> segmented control each rather than loose chips. The segment group doesn't clip its children, so the focus ring
-> (outside the button) always shows.
+> segmented control each rather than loose chips. The focus ring is drawn inside the segment
+> (`outline-offset: -3px`, v45), for `.choice-group` too: outside, it spilled over the neighbouring
+> segment and read as marking both. While a pressed segment has focus, the ring covers its 2px
+> floor line; the fill and primary text still mark it pressed.
 
 ### Queue panel (v42)
 
@@ -871,7 +873,9 @@ role, so it can never list a key that does nothing or miss one that does.
 and `z` (swapped against US) are never bound, keys match on `event.key` (the produced character),
 and a symbol that needs Shift on Hungarian is only ever an alias for a letter or unshifted key.
 `bindings.test.ts` enforces all of that on the table. Guards in `registry.ts`: nothing fires while
-typing in an input, textarea, select or `contenteditable` (except Esc); Ctrl, Meta and Alt chords
+typing in an input, textarea or `contenteditable` (except Esc). A `<select>` isn't typing (owner's
+review): the shortcuts work on it (a bound letter no longer picks an option by its first letter;
+unbound ones still do), and its own arrows, Home/End, Page keys, Enter and Space stay with it. Ctrl, Meta and Alt chords
 are never shadowed; AltGr (`getModifierState('AltGraph')`, or Ctrl+Alt as Windows reports it)
 never fires anything; IME composition and dead keys are ignored.
 

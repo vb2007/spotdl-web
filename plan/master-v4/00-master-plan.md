@@ -440,4 +440,10 @@ here rather than edited into it, so the original record stays readable.
     archive, with archived jobs hidden, removes a row. `lists.ts` handles any removal, and spec 14
     evidences it with archive (next row, and the previous row when the last one goes). Cancel is
     evidenced as "focus stays on the cancelled row". Making the store drop non-matching rows is a
-    store behavior change outside v45, and is left for the owner to decide.
+    store behavior change outside v45, and is left for the owner to decide. The owner's answer
+    (same day): keep it as is for now.
+  - **A `<select>` is not a typing target** (owner's review of PR #66). The plan lists `select`
+    among the inert targets, but on the sort select that made `h`, `1`/`2` and the rest dead until
+    Tab moved focus on. The shortcuts now work on a select; its own keys (arrows, Home/End, Page
+    keys, Enter, Space) stay with it; only a bound letter stops picking an option by its letter. Text inputs,
+    textareas and `contenteditable` stay inert as the plan says.

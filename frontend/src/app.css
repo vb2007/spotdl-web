@@ -431,9 +431,10 @@ kbd {
 	border-radius: 0 3px 3px 0;
 }
 
+/* v45: the ring sits inside the segment. Drawn outside, it spilled over the neighbour's
+   face and read as marking both. */
 .choice-group button:focus-visible {
-	position: relative;
-	z-index: 1;
+	outline-offset: -3px;
 }
 
 .choice-group button[aria-pressed='true'] {

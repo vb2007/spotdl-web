@@ -60,10 +60,20 @@ function run(id: string, event: KeyboardEvent): boolean {
 export function isTypingTarget(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false;
 	if (target.isContentEditable) return true;
-	if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+	if (target instanceof HTMLTextAreaElement) return true;
 	// Every input, as the plan says: a radio or range takes the arrows, the rest take text.
 	if (target instanceof HTMLInputElement) return true;
 	return false;
+}
+
+/** A `<select>` isn't text entry: the shortcuts work on it (owner's review, 2026-10-18). A bound
+ * key no longer picks an option by its letter (other letters still do), and its own keys stay
+ * its own: the arrows, Home/End and Page keys pick an option, Enter and Space open the list. */
+function selectOwns(event: KeyboardEvent): boolean {
+	return (
+		event.target instanceof HTMLSelectElement &&
+		(event.key === ' ' || (event.key.length > 1 && event.key !== 'Escape'))
+	);
 }
 
 /** AltGr is never a shortcut (plan rule 3). Windows reports it as Ctrl+Alt, so a Hungarian `@`
@@ -150,7 +160,7 @@ export function onKeydown(event: KeyboardEvent): void {
 	}
 
 	const typing = isTypingTarget(event.target);
-	if (typing && event.key !== 'Escape') return;
+	if ((typing && event.key !== 'Escape') || selectOwns(event)) return;
 
 	const binding = find(event, null);
 	if (!binding) {

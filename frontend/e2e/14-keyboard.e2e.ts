@@ -623,6 +623,35 @@ test.describe('as the admin', () => {
 		// Sort: s cycles the field.
 		const sort = page.locator('#queue-sort');
 		await expect(sort).toHaveValue('created_at');
+
+		// The sort select isn't a typing target (owner's review): the single keys work on it,
+		// while its own arrows still pick an option and keep focus there.
+		await tabTo(page, sort);
+		await page.keyboard.press('h');
+		await expect(page.locator('dialog[data-kb-help]')).toHaveJSProperty('open', true);
+		await page.keyboard.press('h');
+		await noOpenDialog(page);
+		await expect(sort).toBeFocused();
+		await page.keyboard.press('2');
+		await expect(scope.getByRole('button', { name: 'tracks' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await page.keyboard.press('1');
+		await expect(scope.getByRole('button', { name: 'jobs' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await expect(page.getByText('Loading…')).toHaveCount(0);
+		await expect(sort).toBeFocused();
+		await expect(sort).toHaveValue('created_at');
+		await page.keyboard.press('ArrowDown');
+		await expect(sort).not.toHaveValue('created_at');
+		await expect(sort).toBeFocused();
+		await page.keyboard.press('ArrowUp');
+		await expect(sort).toHaveValue('created_at');
+		await expect(sort).toBeFocused();
+		await expect(page.getByText('Loading…')).toHaveCount(0);
 		await page.keyboard.press('s');
 		await expect(sort).toHaveValue('title');
 		await page.keyboard.press('s');
