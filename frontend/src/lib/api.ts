@@ -52,16 +52,6 @@ export const STATUS_TOKENS: string[] = [
 	'failed'
 ];
 
-export const STATUS_LABEL: Record<string, string> = {
-	expanding: 'tuning in',
-	active: 'active',
-	waiting: 'waiting',
-	'settled:partial': 'done — partial',
-	'settled:complete': 'done',
-	cancelled: 'cancelled',
-	failed: 'failed'
-};
-
 export interface Job {
 	id: string;
 	source_url: string;

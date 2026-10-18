@@ -4,6 +4,7 @@ import { clearRowNotices } from './rowNotices';
 import { resetLists } from '$lib/keyboard/lists';
 import { resetKeyboard } from '$lib/keyboard/registry';
 import * as api from '$lib/api';
+import { errorText } from '$lib/i18n/errors';
 import { clearProgress, forgetProgress, recallProgress, rememberProgress } from './progressCache';
 import type {
 	Job,
@@ -541,7 +542,7 @@ function createQueueStore() {
 				...p,
 				loading: false,
 				nextCursor: null,
-				error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
+				error: errorText(err)
 			}));
 		}
 	}
@@ -594,7 +595,7 @@ function createQueueStore() {
 			page.update((p) => ({
 				...p,
 				loadingMore: false,
-				moreError: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
+				moreError: errorText(err)
 			}));
 		}
 	}
@@ -730,7 +731,7 @@ function createQueueStore() {
 				[jobId]: {
 					...(e[jobId] ?? newExpandedJob()),
 					loading: false,
-					error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
+					error: errorText(err)
 				}
 			}));
 		}
@@ -764,7 +765,7 @@ function createQueueStore() {
 				[jobId]: {
 					...e[jobId],
 					loadingMore: false,
-					error: err instanceof api.ApiError ? err.message : 'Could not reach the server.'
+					error: errorText(err)
 				}
 			}));
 		}
