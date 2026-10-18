@@ -9,14 +9,15 @@ import { trackStateLabel } from './labels';
 
 type Params = Record<string, string | number>;
 
+// The settings page's own field labels, so an error names a field exactly as the form does.
 const FIELD_LABEL: Record<string, () => string> = {
-	library_target_dir: m.error_field_library_target_dir,
-	library_folder_template: m.error_field_library_folder_template,
-	library_quarantine_dir: m.error_field_library_quarantine_dir,
-	alert_spike_threshold: m.error_field_alert_spike_threshold,
-	alert_spike_window_minutes: m.error_field_alert_spike_window_minutes,
-	alert_beat_stale_seconds: m.error_field_alert_beat_stale_seconds,
-	alert_cooldown_minutes: m.error_field_alert_cooldown_minutes
+	library_target_dir: m.settings_library_target_dir,
+	library_folder_template: m.settings_library_folder_template,
+	library_quarantine_dir: m.settings_library_quarantine_dir,
+	alert_spike_threshold: m.settings_alert_spike_threshold,
+	alert_spike_window_minutes: m.settings_alert_spike_window,
+	alert_beat_stale_seconds: m.settings_alert_beat_stale_after,
+	alert_cooldown_minutes: m.settings_alert_cooldown
 };
 
 const field = (params: Params) => {
