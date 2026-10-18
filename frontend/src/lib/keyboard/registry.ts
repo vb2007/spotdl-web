@@ -142,11 +142,12 @@ export function onKeydown(event: KeyboardEvent): void {
 			if (run(target.id, event)) event.preventDefault();
 			return;
 		}
-		if (event.key === 'Escape') {
+		// A character that isn't a chord key is a mistyped chord: swallowed, so `g` then `r` or
+		// `x` never retries or cancels. Escape just ends it; arrows, Home/End and Enter carry on.
+		if (event.key === 'Escape' || event.key.length === 1) {
 			event.preventDefault();
 			return;
 		}
-		// Not a chord key: the chord is over, and the key does what it always does.
 	}
 
 	const typing = isTypingTarget(event.target);

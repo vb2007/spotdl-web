@@ -63,7 +63,12 @@
 		// may already have put focus somewhere, and that wins.
 		const active = document.activeElement;
 		if (active && active !== document.body && !dialog?.contains(active)) return;
-		if (back?.isConnected) return back.focus();
+		// The opener may no longer take focus (the skip link's main drops its tabindex on blur):
+		// only a focus that landed ends the search.
+		if (back?.isConnected) {
+			back.focus();
+			if (document.activeElement === back) return;
+		}
 		if (row && focusRowEl(document.querySelector<HTMLElement>(`[data-kb-row="${row}"]`))) return;
 		if (list && focusList(list)) return;
 		// The opener went for good: the page's heading, never <body>.

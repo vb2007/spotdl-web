@@ -7,7 +7,7 @@
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import Countdown from '$lib/components/Countdown.svelte';
-	import { kbRow } from '$lib/keyboard/lists';
+	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import { isTypingTarget } from '$lib/keyboard/registry';
 	import {
 		attemptVia,
@@ -322,7 +322,9 @@
 			cancelLabel: 'keep track'
 		});
 		// This row's own controls, or (remounted by a list reload meanwhile) the list's heading.
-		const landing = () => (destroyed ? document.getElementById('queue-heading') : rowButton);
+		// A row remounted meanwhile (a reload) is found again by id (v45), else the list's heading.
+		const landing = () =>
+			destroyed ? (rowItemById(track.id) ?? document.getElementById('queue-heading')) : rowButton;
 		// Kept or Esc: "cancel track" may have gone meanwhile (the track settled).
 		if (!confirmed) return keepFocus(landing());
 		// Another identity took over meanwhile: this answer belongs to the previous session.

@@ -390,6 +390,13 @@ export function focusNested(row: Element): boolean {
 	return focusRow(rows.find((r) => rowId(r) === m.active) ?? rows[0]);
 }
 
+/** The button of the row with this id, wherever it is mounted now (a remounted row is a new
+ * element), or null. */
+export function rowItemById(id: string): HTMLElement | null {
+	const row = document.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(id)}"]`);
+	return row ? itemOf(row) : null;
+}
+
 export function focusRowEl(row: HTMLElement | null): boolean {
 	return focusRow(row);
 }

@@ -4,7 +4,7 @@
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
-	import { kbRow } from '$lib/keyboard/lists';
+	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import type { Job, JobLifecycle } from '$lib/api';
 
 	let { job, allUsers, isAdmin }: { job: Job; allUsers: boolean; isAdmin: boolean } = $props();
@@ -116,6 +116,10 @@
 
 	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
 	// One question and its server re-read at a time: a second press meanwhile is ignored.
+	// v45: a row remounted while its question was open (a reload) is a new element: focus
+	// goes to the same job's row again, by id, and only then to the list's heading.
+	const remounted = () => rowItemById(job.id) ?? document.getElementById('queue-heading');
+
 	let handleCancelRunning = false;
 	async function handleCancel() {
 		if (handleCancelRunning) return;
@@ -142,8 +146,7 @@
 		});
 		// Kept or Esc: the cancel button may have gone meanwhile (the job finished), or the whole
 		// row did (remounted by a list reload).
-		if (!confirmed)
-			return keepFocus(destroyed ? document.getElementById('queue-heading') : toggleButton);
+		if (!confirmed) return keepFocus(destroyed ? remounted() : toggleButton);
 		// Another identity took over meanwhile: this answer belongs to the previous session.
 		if (queue.getResetCount() !== session) return;
 		// Decide on the job as the server has it now. The question can stay open while the job
@@ -161,7 +164,7 @@
 		if (queue.getResetCount() !== session) return;
 		// A remounted row's button is gone: focus goes to the list instead. Its notice is
 		// module-level, so the remounted row shows it.
-		const landing = () => (destroyed ? document.getElementById('queue-heading') : toggleButton);
+		const landing = () => (destroyed ? remounted() : toggleButton);
 		if (!IN_FLIGHT_LIFECYCLES.has(lifecycle)) {
 			showNotice('Not cancelled: nothing in it is still to come.');
 			await keepFocus(landing());
