@@ -362,10 +362,17 @@ function horizontal(row: Element): boolean {
 	return listOf(row)?.dataset.kbOrientation === 'horizontal';
 }
 
-/** Closes the focused row (focus stays on, or returns to, its own button). */
+/** Closes the focused row (focus stays on, or returns to, its own button). On a closed track
+ * inside an open job, closes the job and focuses it. */
 export function collapseFocused(): boolean {
-	const row = focusedRow();
-	if (!row || horizontal(row) || !isOpen(row)) return false;
+	const focused = focusedRow();
+	if (!focused || horizontal(focused)) return false;
+	let row: HTMLElement | null = focused;
+	if (!isOpen(row)) {
+		const list = listOf(row);
+		row = list ? rowAt(list.parentElement) : null;
+		if (!row || !isOpen(row)) return false;
+	}
 	const item = itemOf(row);
 	item?.click();
 	item?.focus();

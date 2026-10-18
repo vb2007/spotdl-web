@@ -834,6 +834,7 @@ test.describe('the help overlay', () => {
 					...(isAdmin
 						? ([
 								['/settings', '/settings'],
+								['/library', '/library'],
 								['/stats', '/stats']
 							] as const)
 						: [])

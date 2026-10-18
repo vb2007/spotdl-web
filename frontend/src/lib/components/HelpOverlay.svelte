@@ -10,6 +10,7 @@
 		type BindingGroup
 	} from '$lib/keyboard/bindings';
 	import { helpOpen, shortcutsEnabled } from '$lib/keyboard/registry';
+	import { focusList, focusRowEl, listOf, rowAt, rowId } from '$lib/keyboard/lists';
 
 	// v45: the shortcut map, generated from the binding table (never a second list), filtered
 	// to this route and the viewer's role. A native modal <dialog>, like the confirmation: the
@@ -24,6 +25,10 @@
 	let dialog: HTMLDialogElement | undefined = $state();
 	let closeButton: HTMLButtonElement | undefined = $state();
 	let opener: HTMLElement | null = null;
+	// The opener's row and list, by id: a reload while the overlay is open remounts the rows,
+	// and focus must come back to the same row rather than fall to <body>.
+	let openerRow: string | null = null;
+	let openerList: string | null = null;
 
 	const GROUPS: BindingGroup[] = ['global', 'go', 'list', 'queue'];
 	const groups = $derived(
@@ -38,6 +43,9 @@
 		if ($helpOpen && !dialog.open) {
 			const active = document.activeElement;
 			opener = active instanceof HTMLElement && active !== document.body ? active : null;
+			const row = rowAt(opener);
+			openerRow = row ? rowId(row) : null;
+			openerList = row ? (listOf(row)?.dataset.kbList ?? null) : null;
 			dialog.showModal();
 			closeButton?.focus();
 		} else if (!$helpOpen && dialog.open) {
@@ -48,8 +56,16 @@
 	function onClose() {
 		helpOpen.set(false);
 		const back = opener;
-		opener = null;
-		if (back?.isConnected) back.focus();
+		const row = openerRow;
+		const list = openerList;
+		opener = openerRow = openerList = null;
+		if (back?.isConnected) return back.focus();
+		if (row && focusRowEl(document.querySelector<HTMLElement>(`[data-kb-row="${row}"]`))) return;
+		if (list && focusList(list)) return;
+		// The opener went for good: the page's heading, never <body>.
+		const heading = document.querySelector<HTMLElement>('main h1, h1');
+		if (heading && !heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+		heading?.focus();
 	}
 
 	function onCancel(event: Event) {

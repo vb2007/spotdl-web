@@ -125,9 +125,12 @@ export function onKeydown(event: KeyboardEvent): void {
 
 	const pending = get(chordPending);
 	if (pending !== null) {
-		// Whatever comes next ends the chord; only a listed second key goes somewhere.
+		// Shift on its way to a capital doesn't end (or extend) the chord.
+		if (event.key === 'Shift') return;
+		// Whatever comes next ends the chord; only a listed second key goes somewhere, and
+		// never one typed into a field focus reached meanwhile.
 		setChord(null);
-		if (event.key === 'Shift') return setChord(pending);
+		if (isTypingTarget(event.target) && event.key !== 'Escape') return;
 		const target = find(event, pending);
 		if (target && run(target.id, event)) event.preventDefault();
 		else if (event.key === 'Escape') event.preventDefault();
@@ -155,6 +158,11 @@ export function onKeydown(event: KeyboardEvent): void {
 		return;
 	}
 	if (run(binding.id, event)) event.preventDefault();
+}
+
+/** Drops a pending chord: a pointer press (focus may be moving to a field) ends it. */
+export function cancelChord(): void {
+	if (get(chordPending) !== null) setChord(null);
 }
 
 /** Drops a pending chord (a navigation or a session change). */

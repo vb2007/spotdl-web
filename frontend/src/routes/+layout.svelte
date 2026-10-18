@@ -11,7 +11,13 @@
 	import ChordIndicator from '$lib/components/ChordIndicator.svelte';
 	import { queue } from '$lib/stores/queue';
 	import { link as streamLink } from '$lib/stores/link';
-	import { helpOpen, onKeydown, registerHandlers, shortcutsEnabled } from '$lib/keyboard/registry';
+	import {
+		cancelChord,
+		helpOpen,
+		onKeydown,
+		registerHandlers,
+		shortcutsEnabled
+	} from '$lib/keyboard/registry';
 
 	let { children, data } = $props();
 
@@ -96,7 +102,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<svelte:window onkeydown={onKeydown} />
+<svelte:window onkeydown={onKeydown} onpointerdowncapture={cancelChord} />
 
 <!-- v45: the first focusable element on every page. -->
 <a class="skip-link" href="#main" onclick={skip}

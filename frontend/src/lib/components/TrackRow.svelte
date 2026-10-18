@@ -8,6 +8,7 @@
 	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import { kbRow } from '$lib/keyboard/lists';
+	import { isTypingTarget } from '$lib/keyboard/registry';
 	import {
 		attemptVia,
 		formatDuration,
@@ -227,8 +228,10 @@
 
 	function dismissTimeOnEscape(e: KeyboardEvent) {
 		if (e.key !== 'Escape' || hoveredTime === null) return;
-		// v45: this Esc was for the time, not for the keyboard's "close the row".
-		if (!dismissedTimes.has(hoveredTime)) e.preventDefault();
+		// v45: this Esc was for the time, not for the keyboard's "close the row" -- unless a
+		// dialog is open or a field has focus, whose Esc it must never take.
+		const elsewhere = document.querySelector('dialog[open]') !== null || isTypingTarget(e.target);
+		if (!elsewhere && !dismissedTimes.has(hoveredTime)) e.preventDefault();
 		pinnedTimes.delete(hoveredTime);
 		dismissedTimes.add(hoveredTime);
 	}
@@ -398,7 +401,13 @@
 	}
 	let openRepeatsOnLoad = $state(false);
 	$effect(() => {
-		if (!openRepeatsOnLoad || attemptsLoadedFor === null) return;
+		if (!openRepeatsOnLoad) return;
+		// Closed again, or the history couldn't load: the request lapses.
+		if (!expanded || (attemptsError !== null && !attemptsLoading)) {
+			openRepeatsOnLoad = false;
+			return;
+		}
+		if (attemptsLoadedFor === null) return;
 		openRepeatsOnLoad = false;
 		untrack(() => {
 			for (const g of groups) if (g.attempts.length > 1) openRuns.add(g.key);
