@@ -1,6 +1,8 @@
 import { derived, get, writable } from 'svelte/store';
 import { dismissConfirm } from './confirm';
 import { clearRowNotices } from './rowNotices';
+import { resetLists } from '$lib/keyboard/lists';
+import { resetKeyboard } from '$lib/keyboard/registry';
 import * as api from '$lib/api';
 import { clearProgress, forgetProgress, recallProgress, rememberProgress } from './progressCache';
 import type {
@@ -678,6 +680,10 @@ function createQueueStore() {
 		// v43: a question still open on screen was asked for the previous identity.
 		dismissConfirm();
 		clearRowNotices();
+		// v45: the lists' remembered rows and a pending `g` chord or open help belong to the
+		// previous identity too.
+		resetLists();
+		resetKeyboard();
 	}
 
 	function toggleExpand(jobId: string): void {

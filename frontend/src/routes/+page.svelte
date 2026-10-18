@@ -14,6 +14,8 @@
 	import QueueControls from '$lib/components/QueueControls.svelte';
 	import JobRow from '$lib/components/JobRow.svelte';
 	import TrackRow from '$lib/components/TrackRow.svelte';
+	import { registerHandlers } from '$lib/keyboard/registry';
+	import { collapseFocused, focusRowEl, kbList, listHandlers } from '$lib/keyboard/lists';
 
 	const { filters, page, incomingJobs, activeTracks } = queue;
 	const { status: workerStatus } = worker;
@@ -69,23 +71,88 @@
 		controls?.clearSearchAndFilters();
 	}
 
-	// The last page removes this button while it has focus: continue at the first row it
-	// loaded (where the user was reading), else the queue's heading. Rows are found by item
-	// id, not DOM position: in tracks scope a new page's tracks can join an earlier group.
+	// v45: "load more" moves focus to the first row it loaded (where the user reads on), else
+	// the queue's heading. Rows are found by item id, not DOM position: in tracks scope a new
+	// page's tracks can join an earlier group. A pointer press leaves focus where it is unless
+	// the last page took the button away from under it.
 	async function loadMorePage(event: MouseEvent) {
-		if ($page.loading) return;
-		const hadFocus = document.activeElement === event.currentTarget;
+		const button = event.currentTarget as HTMLElement;
+		const fromKeyboard = event.detail === 0;
+		// Safari doesn't focus a clicked button, so <body> says nothing about a pointer press.
+		await loadMoreRows(() => fromKeyboard || !button.isConnected);
+	}
+
+	/** Loads the next page; `shouldFocus()` (asked once it's in) decides whether its first row
+	 * takes focus. Whether there was a page to load. */
+	async function loadMoreRows(shouldFocus: () => boolean = () => true): Promise<boolean> {
+		if ($page.loading || $page.loadingMore || !$page.nextCursor) return false;
+		const focusAtStart = document.activeElement;
 		const known = new Set($page.items.map((item) => item.id));
 		await queue.loadMore();
 		await tick();
-		if (!hadFocus || document.activeElement !== document.body) return;
-		const fresh = $page.items.find((item) => !known.has(item.id));
-		const row = !fresh
-			? null
-			: $filters.scope === 'jobs'
-				? document.getElementById(`job-title-${fresh.id}`)?.closest('li')?.querySelector('button')
-				: document.querySelector<HTMLElement>(`[aria-controls="track-detail-${fresh.id}"]`);
-		(row ?? document.getElementById('queue-heading'))?.focus();
+		// Focus the user moved somewhere else meanwhile is theirs.
+		const moved =
+			document.activeElement !== focusAtStart && document.activeElement !== document.body;
+		if (moved || !shouldFocus()) return true;
+		// Only a page that was appended moves focus: a failed one leaves it (on the button, to
+		// retry), and one a reload superseded put an unrelated list there.
+		const appended =
+			!$page.moreError && $page.items.slice(0, known.size).every((item) => known.has(item.id));
+		const fresh = appended ? $page.items.find((item) => !known.has(item.id)) : undefined;
+		if (!fresh) {
+			if (document.activeElement === document.body)
+				document.getElementById('queue-heading')?.focus();
+			return true;
+		}
+		const row = fresh
+			? document.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(fresh.id)}"]`)
+			: null;
+		if (!focusRowEl(row)) document.getElementById('queue-heading')?.focus();
+		return true;
+	}
+
+	// v45: the dashboard's keys -- the lists', the queue controls', and Esc's two jobs here
+	// (close the focused row, else clear and leave the search).
+	$effect(() =>
+		registerHandlers({
+			...listHandlers({
+				mainList: () => ($filters.scope === 'jobs' ? 'jobs' : 'tracks'),
+				loadMore: () => {
+					if (!$page.nextCursor) return false;
+					// Already loading: handled (End mustn't scroll the page meanwhile).
+					if (!$page.loading && !$page.loadingMore) loadMoreRows();
+					return true;
+				}
+			}),
+			search: () => focusField('queue-search'),
+			submit: () => focusField('submit-url'),
+			escape: (event) => {
+				if (collapseFocused()) return true;
+				const search = document.getElementById('queue-search');
+				if (!search || event.target !== search) return false;
+				controls?.clearSearch();
+				search.blur();
+				return true;
+			},
+			'scope-jobs': () => (controls?.setScope('jobs'), true),
+			'scope-tracks': () => (controls?.setScope('tracks'), true),
+			filters: () => controls?.focusFilters() ?? false,
+			sort: () => (controls?.cycleSort(), true),
+			archived: () => (controls?.toggleArchived(), true)
+		})
+	);
+
+	// v45: where focus goes when the focused list empties out (its last row cancelled or
+	// archived away): the queue's heading, once no reload is still bringing the list back.
+	function listFallback(): HTMLElement | null {
+		return $page.loading ? null : document.getElementById('queue-heading');
+	}
+
+	function focusField(id: string): boolean {
+		const field = document.getElementById(id) as HTMLInputElement | null;
+		if (!field || field.disabled) return false;
+		field.focus();
+		return true;
 	}
 
 	function retryQueue() {
@@ -455,13 +522,18 @@
 					{/if}
 				</div>
 			{:else if $filters.scope === 'jobs'}
-				<ul class="job-list" aria-label="Jobs">
+				<!-- v45: each list is one Tab stop (roving tabindex, lib/keyboard/lists.ts). -->
+				<ul class="job-list" aria-label="Jobs" {@attach kbList('jobs', { fallback: listFallback })}>
 					{#each $page.items as item (item.id)}
 						<JobRow job={item as Job} allUsers={allUsersView} {isAdmin} />
 					{/each}
 				</ul>
 			{:else}
-				<ul class="job-list" aria-label="Tracks">
+				<ul
+					class="job-list"
+					aria-label="Tracks"
+					{@attach kbList('tracks', { fallback: listFallback })}
+				>
 					{#each trackGroups as group (group.job.id)}
 						<li class="track-group" aria-labelledby="group-title-{group.job.id}">
 							<!-- v41: the job row's grid, minus the chevron -- its type sits in the badge

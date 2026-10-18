@@ -273,3 +273,28 @@ def test_admin_stats_is_admin_only_and_hidden_from_everyone_else(
         assert admitted.json()["queue"]["counts"]["waiting"] == 1
         # Counts only: the victim's identity never appears, even to the admin.
         assert "victim@example.com" not in admitted.text
+
+
+def test_keyboard_preference_is_owner_scoped(client, db_session, make_user, session_cookie):
+    """v45: the shortcut off switch is a per-user preference. One user switching it off
+    changes nothing for another, the admin included, and neither endpoint takes an id that
+    could name someone else's row."""
+    alice_cookie = session_cookie("alice@example.com")
+    bob_cookie = session_cookie("bob@example.com")
+    admin_cookie = session_cookie("admin@example.com", is_admin=True)
+
+    assert _as(client, alice_cookie).patch(
+        "/api/settings/keyboard", json={"keyboard_shortcuts": False}
+    ).json() == {"keyboard_shortcuts": False}
+
+    for cookie in (bob_cookie, admin_cookie):
+        assert _as(client, cookie).get("/api/settings/keyboard").json() == {"keyboard_shortcuts": True}
+        assert _as(client, cookie).get("/api/auth/me").json()["keyboard_shortcuts"] is True
+
+    # The admin switching theirs doesn't reach Alice's either way.
+    _as(client, admin_cookie).patch("/api/settings/keyboard", json={"keyboard_shortcuts": True})
+    assert _as(client, alice_cookie).get("/api/auth/me").json()["keyboard_shortcuts"] is False
+    assert _as(client, bob_cookie).patch(
+        "/api/settings/keyboard", json={"keyboard_shortcuts": True}
+    ).json() == {"keyboard_shortcuts": True}
+    assert _as(client, alice_cookie).get("/api/settings/keyboard").json() == {"keyboard_shortcuts": False}

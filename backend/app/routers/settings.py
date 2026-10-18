@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -19,6 +19,10 @@ class UpdateOutputSettingsRequest(BaseModel):
 
 class UpdateRetentionRequest(BaseModel):
     retention_days: int | None
+
+
+class UpdateKeyboardRequest(BaseModel):
+    keyboard_shortcuts: StrictBool
 
 
 class UpdateLibrarySettingsRequest(BaseModel):
@@ -236,3 +240,31 @@ def update_retention_settings(
     row = user_settings.update_retention(db, user.id, payload.retention_days)
     db.commit()
     return _retention_to_dict(row)
+
+
+def _keyboard_to_dict(row: UserSettings) -> dict:
+    return {"keyboard_shortcuts": row.keyboard_shortcuts}
+
+
+@router.get("/keyboard")
+def get_keyboard_settings(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """v45: per-user, open to every user, like `/retention` -- the off switch for
+    single-character shortcuts (WCAG 2.1.4). Stored server-side so it follows the user
+    across devices; `/api/auth/me` carries the same value for the app shell."""
+    row = user_settings.get_user_settings(db, user.id)
+    db.commit()
+    return _keyboard_to_dict(row)
+
+
+@router.patch("/keyboard")
+def update_keyboard_settings(
+    payload: UpdateKeyboardRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    row = user_settings.update_keyboard_shortcuts(db, user.id, payload.keyboard_shortcuts)
+    db.commit()
+    return _keyboard_to_dict(row)

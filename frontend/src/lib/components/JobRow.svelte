@@ -4,6 +4,7 @@
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
+	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import type { Job, JobLifecycle } from '$lib/api';
 
 	let { job, allUsers, isAdmin }: { job: Job; allUsers: boolean; isAdmin: boolean } = $props();
@@ -115,6 +116,10 @@
 
 	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
 	// One question and its server re-read at a time: a second press meanwhile is ignored.
+	// v45: a row remounted while its question was open (a reload) is a new element: focus
+	// goes to the same job's row again, by id, and only then to the list's heading.
+	const remounted = () => rowItemById(job.id) ?? document.getElementById('queue-heading');
+
 	let handleCancelRunning = false;
 	async function handleCancel() {
 		if (handleCancelRunning) return;
@@ -141,8 +146,7 @@
 		});
 		// Kept or Esc: the cancel button may have gone meanwhile (the job finished), or the whole
 		// row did (remounted by a list reload).
-		if (!confirmed)
-			return keepFocus(destroyed ? document.getElementById('queue-heading') : toggleButton);
+		if (!confirmed) return keepFocus(destroyed ? remounted() : toggleButton);
 		// Another identity took over meanwhile: this answer belongs to the previous session.
 		if (queue.getResetCount() !== session) return;
 		// Decide on the job as the server has it now. The question can stay open while the job
@@ -160,7 +164,7 @@
 		if (queue.getResetCount() !== session) return;
 		// A remounted row's button is gone: focus goes to the list instead. Its notice is
 		// module-level, so the remounted row shows it.
-		const landing = () => (destroyed ? document.getElementById('queue-heading') : toggleButton);
+		const landing = () => (destroyed ? remounted() : toggleButton);
 		if (!IN_FLIGHT_LIFECYCLES.has(lifecycle)) {
 			showNotice('Not cancelled: nothing in it is still to come.');
 			await keepFocus(landing());
@@ -204,6 +208,30 @@
 		}
 	}
 
+	// v45: the row's keys (registry's `x`, `a`, `b`, `Shift+B`/`+`, `-`), each only where its
+	// button is offered, so a key never does what the row doesn't show.
+	const keys = kbRow({
+		cancel: () => showInFlight && (handleCancel(), true),
+		archive: () =>
+			showArchive ? (handleArchive(), true) : job.archived_at !== null && (handleUnarchive(), true),
+		bump: () => showInFlight && (handleBump(), true),
+		priorityUp: () => showInFlight && (stepPriority(1), true),
+		priorityDown: () => showInFlight && (stepPriority(-1), true)
+	});
+
+	// One step at a time: the row's priority only moves once the server answers, so a quick
+	// second press would otherwise send the same value again and lose a step.
+	let stepping = false;
+	async function stepPriority(delta: number) {
+		if (stepping) return;
+		stepping = true;
+		try {
+			await handlePriority(String(job.priority + delta));
+		} finally {
+			stepping = false;
+		}
+	}
+
 	async function handleUnarchive() {
 		try {
 			await queue.unarchiveJobs([job.id]);
@@ -213,7 +241,7 @@
 	}
 </script>
 
-<li class="job" aria-labelledby="job-title-{job.id}">
+<li class="job" aria-labelledby="job-title-{job.id}" data-kb-row={job.id} {@attach keys}>
 	<div class="row">
 		<!-- v41 (F16): no aria-label, so the button's name is what it shows (status, title,
 		     type, owner; WCAG 2.5.3), and aria-controls ties it to the track list (F29). -->
@@ -221,6 +249,7 @@
 			bind:this={toggleButton}
 			type="button"
 			class="toggle"
+			data-kb-item
 			aria-expanded={isOpen}
 			aria-controls="job-tracks-{job.id}"
 			onclick={() => queue.toggleExpand(job.id)}
@@ -268,6 +297,11 @@
 						value={job.priority}
 						aria-label="priority of {job.title}"
 						onchange={(e) => handlePriority(e.currentTarget.value)}
+						onkeydown={(e) => {
+							// v45: Esc backs out of the field (the registry then closes the row):
+							// a half-typed value is put back first, so leaving doesn't save it.
+							if (e.key === 'Escape') e.currentTarget.value = String(job.priority);
+						}}
 					/>
 				</label>
 				<button

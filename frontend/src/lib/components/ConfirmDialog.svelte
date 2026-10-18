@@ -14,16 +14,27 @@
 	// Safari doesn't focus a button on click, so activeElement can't name a pointer trigger;
 	// the last pressed control (recorded in the capture phase, before its own handler asks)
 	// stands in for it.
+	// v45: only a pointer's click counts (Enter and Space click too, with `detail` 0, and
+	// focus already names their control), and any key press forgets it, so a fast keyboard
+	// user's next question never hands focus back to whatever Enter pressed a second ago.
 	let lastPressed: { el: HTMLElement | null; at: number } = { el: null, at: 0 };
 	$effect(() => {
 		const record = (event: MouseEvent) => {
+			if (event.detail === 0) return;
 			lastPressed = {
 				el: event.target instanceof Element ? event.target.closest<HTMLElement>('button, a') : null,
 				at: performance.now()
 			};
 		};
+		const forget = () => {
+			lastPressed = { el: null, at: 0 };
+		};
 		document.addEventListener('click', record, true);
-		return () => document.removeEventListener('click', record, true);
+		document.addEventListener('keydown', forget, true);
+		return () => {
+			document.removeEventListener('click', record, true);
+			document.removeEventListener('keydown', forget, true);
+		};
 	});
 
 	const request = $derived($pendingConfirm);

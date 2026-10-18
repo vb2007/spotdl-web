@@ -394,6 +394,9 @@ export interface SessionInfo {
 	 * back to email -- see `displayName()`. */
 	username: string | null;
 	is_admin: boolean;
+	/** v45: the per-user switch for single-key shortcuts. `me()` always carries it; the login
+	 * response doesn't (the layout's `me()` runs next anyway). */
+	keyboard_shortcuts?: boolean;
 }
 
 /** Shared display rule for username-or-email, everywhere either can appear (session
@@ -748,6 +751,19 @@ export function updateOutputSettings(
 
 export function getRetentionSettings(): Promise<RetentionSettings> {
 	return request('/api/settings/retention');
+}
+
+export interface KeyboardSettings {
+	keyboard_shortcuts: boolean;
+}
+
+/** v45: the per-user shortcut switch (WCAG 2.1.4), open to every user like retention. The
+ * app reads it from `me()`; `GET /api/settings/keyboard` exists for completeness. */
+export function updateKeyboardSettings(enabled: boolean): Promise<KeyboardSettings> {
+	return request('/api/settings/keyboard', {
+		method: 'PATCH',
+		body: JSON.stringify({ keyboard_shortcuts: enabled })
+	});
 }
 
 export function updateRetentionSettings(retentionDays: number | null): Promise<RetentionSettings> {

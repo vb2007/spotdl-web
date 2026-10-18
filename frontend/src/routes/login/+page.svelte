@@ -59,7 +59,7 @@
 
 <!-- v46 adds a compact language switch to this page; it goes beside the ident, top right
      of the stage, outside the dial panel. -->
-<main class="stage">
+<main id="main" class="stage">
 	<div class="ident">
 		<span class="label">SPOTDL // WEB</span>
 		<span class="label dim">SIGNAL RECEIVER</span>

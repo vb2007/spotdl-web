@@ -591,8 +591,10 @@ or unlabeled icon toggle.
 > `--bg-3` with a `--text-muted` edge, primary text and a 2px `--text-muted` floor line (segments
 > too); hover only lifts the text, so a hovered option never passes for the selected one. On a coarse
 > pointer every chip, segment, the sort select and both text inputs are 44px tall. The scope switches (jobs/tracks, mine/all users) are one
-> segmented control each rather than loose chips. The segment group doesn't clip its children, so the focus ring
-> (outside the button) always shows.
+> segmented control each rather than loose chips. The focus ring is drawn inside the segment
+> (`outline-offset: -3px`, v45), for `.choice-group` too: outside, it spilled over the neighbouring
+> segment and read as marking both. While a pressed segment has focus, the ring covers its 2px
+> floor line; the fill and primary text still mark it pressed.
 
 ### Queue panel (v42)
 
@@ -858,6 +860,72 @@ Inline errors (`login-error`, `submit-error`) are `role="alert"` / `aria-live="p
 reflows the layout. Apply this pattern (reserved height + `aria-live`) to any future inline
 validation message.
 
+### Keyboard: shortcuts, roving lists, help overlay (`lib/keyboard/`, v45)
+
+**One listener, one table.** `lib/keyboard/bindings.ts` is every binding as data (pure TS, so
+the e2e suite imports it too); `registry.ts` is the single `window` `keydown` listener that
+matches against it and runs the handler registered under the binding's id (the layout registers
+the help and the `g` chords, `/` registers the list and queue keys). The help overlay
+(`HelpOverlay.svelte`) is rendered from the same table, filtered to the route and the viewer's
+role, so it can never list a key that does nothing or miss one that does.
+
+**Hungarian QWERTZ first.** Most users type on a Hungarian layout. No binding needs AltGr, `y`
+and `z` (swapped against US) are never bound, keys match on `event.key` (the produced character),
+and a symbol that needs Shift on Hungarian is only ever an alias for a letter or unshifted key.
+`bindings.test.ts` enforces all of that on the table. Guards in `registry.ts`: nothing fires while
+typing in an input, textarea or `contenteditable` (except Esc). A `<select>` isn't typing (owner's
+review): the shortcuts work on it (a bound letter no longer picks an option by its first letter;
+unbound ones still do), and its own arrows, Home/End, Page keys, Enter and Space stay with it. Ctrl, Meta and Alt chords
+are never shadowed; AltGr (`getModifierState('AltGraph')`, or Ctrl+Alt as Windows reports it)
+never fires anything; IME composition and dead keys are ignored.
+
+**The final table** (the overlay shows the same, with the Hungarian keys for each symbol):
+
+| Key (Hungarian QWERTZ)                                                                 | Where              | Action                                                                             |
+| -------------------------------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------- |
+| `h`, alias `?` (**Shift + ,**)                                                         | everywhere         | Show or hide the shortcut overlay                                                  |
+| `f`, alias `/` (**Shift + 6**)                                                         | `/`                | Search the queue                                                                   |
+| `i`                                                                                    | `/`                | The submit field                                                                   |
+| `Esc`                                                                                  | everywhere         | Close a dialog, else collapse the focused row, else clear and leave the search     |
+| `g` then `d` / `a`                                                                     | signed in          | Queue / Account                                                                    |
+| `g` then `s` / `l` / `t`                                                               | admin              | Settings / Library / Stats (absent for everyone else)                              |
+| `j` / `↓`, `k` / `↑`                                                                   | lists              | Next / previous row (`j`/`k` from anywhere on `/` enter the list)                  |
+| `Home` / `End`                                                                         | lists              | First / last loaded row; `End` on the last row loads more                          |
+| **Shift + G**                                                                          | lists              | Load more                                                                          |
+| `Enter` / `Space`                                                                      | lists              | Open or close the row (the button's own activation)                                |
+| `→` / `o`                                                                              | lists              | Open the row; on an open job, move into its tracks                                 |
+| `←`                                                                                    | lists              | Close the row, or go back from a track to its job                                  |
+| `r` / `d` / `x`                                                                        | rows               | Retry / download / cancel (through the confirmation), only where the row offers it |
+| `a`                                                                                    | job rows           | Archive or unarchive                                                               |
+| `b`, **Shift + B** (alias `+`, **Shift + 3**), `-` (unshifted, the key **right of .**) | in-flight job rows | Bump; priority +1; priority −1                                                     |
+| `e`                                                                                    | track rows, admin  | Open the track's history and show or hide every collapsed repeat                   |
+| `1` / `2`                                                                              | `/`                | Jobs / tracks scope                                                                |
+| **Shift + F**                                                                          | `/`                | Into the filter chips (`←`/`→` roam, `Space` toggles)                              |
+| `s`                                                                                    | `/`                | Next sort field                                                                    |
+| **Shift + A**                                                                          | `/`                | Show or hide archived jobs                                                         |
+
+Single-character keys (everything above except `Esc`, `Enter`, `Space`, the arrows, `Home` and
+`End`) are switched off by the per-user **Keyboard shortcuts** setting on `/account` (WCAG 2.1.4),
+stored server-side (`user_settings.keyboard_shortcuts`, carried on `/api/auth/me`).
+
+**Roving lists** (`lists.ts`): the jobs list, the tracks list, an open job's tracks and the filter
+chips are each one Tab stop. A row's own button (`data-kb-item`) carries the roving tabindex; the
+row's other controls are in the Tab order only while it is the current row **and open** (owner's
+decision): Enter opens a job, then Tab walks its priority, bump, cancel or archive, its track list
+(one stop) and "load more tracks". Focus is tracked by row **id**: an SSE re-order (which moves the
+DOM node and drops focus) or a reload (which remounts the list) puts it back on the same row; a row
+that leaves hands it to the next row, or the previous one if it was last; an emptied list hands it
+to the queue heading. Never `<body>`.
+
+**Visuals.** Focus is still the one global ring (§2 Focus); a roving row shows it on its button,
+nothing else. The overlay is the confirmation's material (a `.panel` modal on the same dimmed
+backdrop): keys left in a fixed track as keycaps, meaning right, one hairline between entries,
+two columns of groups on desktop and one on a phone. A keycap (`kbd`, `app.css`) is recessed like
+a well with a heavier floor, never amber (a key is not a live condition). The `g` chord readout
+docks at the bottom edge in the panel's material and lists where each second key goes. The skip
+link ("Skip to queue" on `/`, "Skip to content" elsewhere) is the first focusable element on every
+page, off-screen until focused, then a small plate at the top-left.
+
 ## 7. Accessibility (confirmed hard requirement, PRODUCT.md)
 
 - Keyboard-only navigation must work for every interactive element — confirmed, not aspirational.
@@ -878,9 +946,14 @@ validation message.
   the recorder's `role="img"` label and its "show as a table" view are the keyboard and
   screen-reader path to the same numbers.
 - **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →
-  `main#main` (the id v45's skip link will target; no `tabindex` on it, since a `tabindex="-1"` container takes focus on any click inside and resets Tab order). One `h1` (the wordmark; its
+  `main#main` (the id v45's skip link targets; no `tabindex` on it, since a `tabindex="-1"` container takes focus on any click inside and resets Tab order). One `h1` (the wordmark; its
   name is "spotdl-web"), then `h2`s for Incoming submissions (visually hidden), Active signal and
   Queue, each section labelled by its heading. A countdown is never inside a live region.
+- **Keyboard (v45):** every action is reachable without the mouse (§6 "Keyboard"). The skip link
+  focuses `main#main` with a temporary `tabindex` that goes on blur. A route change moves focus to
+  the new page's `h1`; SvelteKit's own route announcer (`#svelte-announcer`) reads its title. Rows announce their name
+  (what the row shows) and `aria-expanded`. Any new interactive element must be keyboard-reachable,
+  and gets a row in `bindings.ts` if it gets a key.
 
 ## 8. Known, accepted gaps (do not silently "fix" without re-reading this section first)
 

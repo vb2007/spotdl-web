@@ -7,6 +7,8 @@
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import Countdown from '$lib/components/Countdown.svelte';
+	import { kbRow, rowItemById } from '$lib/keyboard/lists';
+	import { isTypingTarget } from '$lib/keyboard/registry';
 	import {
 		attemptVia,
 		formatDuration,
@@ -226,6 +228,16 @@
 
 	function dismissTimeOnEscape(e: KeyboardEvent) {
 		if (e.key !== 'Escape' || hoveredTime === null) return;
+		// v45: this Esc was for the time, not for the keyboard's "close the row" -- unless a
+		// dialog is open or a field has focus, whose Esc it must never take.
+		// And only while keyboard focus is in this track (or nowhere): focus on another row
+		// keeps its own Esc.
+		const focusRow = document.activeElement?.closest<HTMLElement>('[data-kb-row]');
+		const focusHere =
+			document.activeElement === document.body || focusRow?.dataset.kbRow === track.id;
+		const elsewhere =
+			!focusHere || document.querySelector('dialog[open]') !== null || isTypingTarget(e.target);
+		if (!elsewhere && !dismissedTimes.has(hoveredTime)) e.preventDefault();
 		pinnedTimes.delete(hoveredTime);
 		dismissedTimes.add(hoveredTime);
 	}
@@ -310,7 +322,9 @@
 			cancelLabel: 'keep track'
 		});
 		// This row's own controls, or (remounted by a list reload meanwhile) the list's heading.
-		const landing = () => (destroyed ? document.getElementById('queue-heading') : rowButton);
+		// A row remounted meanwhile (a reload) is found again by id (v45), else the list's heading.
+		const landing = () =>
+			destroyed ? (rowItemById(track.id) ?? document.getElementById('queue-heading')) : rowButton;
 		// Kept or Esc: "cancel track" may have gone meanwhile (the track settled).
 		if (!confirmed) return keepFocus(landing());
 		// Another identity took over meanwhile: this answer belongs to the previous session.
@@ -379,6 +393,43 @@
 		}
 	}
 
+	// v45: `e` (owner's choice): the history stays shown whenever an admin's track is open, as
+	// v41 designed; `e` opens the track if it's closed, then shows every collapsed repeat, or
+	// hides them all once any is shown.
+	function toggleRepeats() {
+		if (!expanded || attemptsLoadedFor === null) {
+			// The history loads after the row opens: its repeats open when it arrives.
+			if (!expanded) toggleExpanded();
+			openRepeatsOnLoad = true;
+			return;
+		}
+		const runs = groups.filter((g) => g.attempts.length > 1).map((g) => g.key);
+		if (runs.some((key) => openRuns.has(key))) openRuns.clear();
+		else for (const key of runs) openRuns.add(key);
+	}
+	let openRepeatsOnLoad = $state(false);
+	$effect(() => {
+		if (!openRepeatsOnLoad) return;
+		// Closed again, or the history couldn't load: the request lapses.
+		if (!expanded || (attemptsError !== null && !attemptsLoading)) {
+			openRepeatsOnLoad = false;
+			return;
+		}
+		if (attemptsLoadedFor === null) return;
+		openRepeatsOnLoad = false;
+		untrack(() => {
+			for (const g of groups) if (g.attempts.length > 1) openRuns.add(g.key);
+		});
+	});
+
+	// v45: the row's keys (`r`, `d`, `x`, `e`), each only where its action is offered.
+	const keys = kbRow({
+		retry: () => canRetry && (handleRetry(), true),
+		download: () => canDownload && (handleDownload(), true),
+		cancel: () => canCancel && (handleCancel(), true),
+		repeats: () => isAdmin && (toggleRepeats(), true)
+	});
+
 	// v35 (e): probe first, then let the browser download the real URL itself, so a whole
 	// FLAC is streamed to disk instead of buffered into a Blob in tab memory. The empty
 	// `download` attribute keeps the page in place and takes the filename from the
@@ -399,7 +450,9 @@
 	}
 </script>
 
-<svelte:window onkeydown={hoveredTime !== null ? dismissTimeOnEscape : undefined} />
+<!-- Capture phase: it runs before the shortcut registry's own window listener, so an Esc that
+     dismisses a hovered time is claimed (v45) before the registry would close the row. -->
+<svelte:window onkeydowncapture={hoveredTime !== null ? dismissTimeOnEscape : undefined} />
 
 {#snippet when(iso: string, key: string)}
 	<!-- Relative at a glance; the absolute time on hover and on keyboard focus, and pinned
@@ -416,6 +469,8 @@
 		}}
 		onkeydown={(e) => {
 			if (e.key !== 'Escape') return;
+			// v45: dismissing the time uses up this Esc; a second one closes the row.
+			if (!dismissedTimes.has(key)) e.preventDefault();
 			pinnedTimes.delete(key);
 			dismissedTimes.add(key);
 		}}
@@ -431,11 +486,12 @@
 	>
 {/snippet}
 
-<li>
+<li data-kb-row={track.id} {@attach keys}>
 	<button
 		bind:this={rowButton}
 		type="button"
 		class="row"
+		data-kb-item
 		onclick={toggleExpanded}
 		aria-expanded={expanded}
 		aria-controls={detailId}

@@ -1,11 +1,42 @@
 <script lang="ts">
 	import { queue } from '$lib/stores/queue';
 	import TrackRow from '$lib/components/TrackRow.svelte';
+	import { tick } from 'svelte';
+	import { focusRowEl, itemOf, kbList, rowAt, rowItemById } from '$lib/keyboard/lists';
 
 	let { jobId, isAdmin, total }: { jobId: string; isAdmin: boolean; total: number } = $props();
 
 	const { expanded } = queue;
 	let state = $derived($expanded[jobId]);
+
+	// v45: "load more tracks" from the keyboard (Enter on it, or End/Shift+G on the last
+	// track, which clicks it) moves focus to the first track it loaded. A pointer press leaves
+	// focus where it is.
+	async function loadMore(event: MouseEvent) {
+		if (state.loadingMore) return;
+		const known = new Set(state.items.map((t) => t.id));
+		const fromKeyboard = event.detail === 0;
+		const button = event.currentTarget as HTMLElement;
+		const jobRow = rowAt(button);
+		const jobItem = jobRow ? itemOf(jobRow) : null;
+		const focusAtStart = document.activeElement;
+		await queue.loadMoreExpandedTracks(jobId);
+		await tick();
+		if (!fromKeyboard) return;
+		// Focus the user moved somewhere else meanwhile (into a field, say) is theirs. The last
+		// page takes this button away with focus on it, and the job list then hands focus to the
+		// job itself: that isn't the user's move.
+		const active = document.activeElement;
+		const rehomed = !button.isConnected && active === jobItem;
+		const moved = active !== focusAtStart && active !== document.body && !rehomed;
+		if (moved) return;
+		// Only rows appended to the same list: a failed page adds none, and a re-read of the
+		// job's tracks meanwhile replaced the list.
+		const items = $expanded[jobId]?.items ?? [];
+		const appended = items.slice(0, known.size).every((t) => known.has(t.id));
+		const fresh = appended ? items.find((t) => !known.has(t.id)) : undefined;
+		if (fresh) focusRowEl(document.querySelector<HTMLElement>(`[data-kb-row="${fresh.id}"]`));
+	}
 </script>
 
 <!-- v41: the job's tracks hang off a rail in its chevron column, indented by exactly one
@@ -18,7 +49,15 @@
 	{:else if state.items.length === 0}
 		<p class="hint mono">No tracks.</p>
 	{:else}
-		<ul class="rows" aria-label="Tracks">
+		<!-- v45: one Tab stop (roving), reached through its open job. -->
+		<ul
+			class="rows"
+			aria-label="Tracks"
+			{@attach kbList(`job-tracks:${jobId}`, {
+				// Tracks that don't come back (their re-read failed): the job itself.
+				fallback: () => (state?.loading ? null : rowItemById(jobId))
+			})}
+		>
 			{#each state.items as track (track.id)}
 				<TrackRow {track} {jobId} {isAdmin} />
 			{/each}
@@ -29,10 +68,9 @@
 			<button
 				type="button"
 				class="load-more mono"
+				data-kb-load-more
 				aria-disabled={state.loadingMore}
-				onclick={() => {
-					if (!state.loadingMore) queue.loadMoreExpandedTracks(jobId);
-				}}
+				onclick={loadMore}
 			>
 				{state.loadingMore ? 'loading…' : 'load more tracks'}
 				<span class="shown"
