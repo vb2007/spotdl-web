@@ -42,7 +42,9 @@
 	}
 
 	onMount(() => {
+		// i18n-ignore: media queries
 		const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
+		// i18n-ignore: a media query
 		const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 		// The glow's transform is an offset from its CSS home (left 50%, top -10% of the

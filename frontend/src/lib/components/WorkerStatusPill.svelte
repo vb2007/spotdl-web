@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { worker } from '$lib/stores/worker';
 	import Countdown from '$lib/components/Countdown.svelte';
+	import * as m from '$lib/paraglide/messages';
+	import { formatClock } from '$lib/i18n/format';
 
 	// v25: the dashboard-visible half of what used to be the full WorkerStatus panel --
 	// read-only (pause/resume and breaker-release live on /settings, admin-only).
@@ -18,20 +20,16 @@
 	);
 	let paused = $derived($status?.paused ?? false);
 
-	function clockTime(iso: string): string {
-		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-	}
-
 	// v42 (F07): the live region holds one fixed sentence per state, so it speaks when the
 	// state changes, never on the countdown's per-second tick.
 	// A pause outranks a hold, as on the Waterfall: nothing dispatches until a human
 	// resumes, even after the breaker clears, so it is the binding explanation.
 	let announcement = $derived(
 		paused
-			? 'Worker: paused'
+			? m.pill_announce_paused()
 			: breakerUntil
-				? `Worker: breaker holding until ${clockTime(breakerUntil)}`
-				: 'Worker: ready'
+				? m.pill_announce_holding({ time: formatClock(breakerUntil) })
+				: m.pill_announce_ready()
 	);
 </script>
 
@@ -43,19 +41,19 @@
 	     waiting blue, never the terminal red. A pause stays red: it holds until a human
 	     resumes it. -->
 		{#if paused}
-			<span class="cond-fail" aria-hidden="true">receiver paused</span>
+			<span class="cond-fail" aria-hidden="true">{m.pill_paused()}</span>
 		{:else if breakerUntil}
-			<span class="cond-waiting" aria-hidden="true">breaker holding</span>
+			<span class="cond-waiting" aria-hidden="true">{m.pill_holding()}</span>
 			<span aria-hidden="true"
 				><Countdown
 					scheduledAt={breakerUntil}
-					label="clears in"
+					label={m.pill_clears_in()}
 					dueLive={false}
-					dueText="clearing…"
+					dueText={m.pill_clearing()}
 				/></span
 			>
 		{:else}
-			<span class="cond-idle" aria-hidden="true">worker ready</span>
+			<span class="cond-idle" aria-hidden="true">{m.pill_ready()}</span>
 		{/if}
 	</div>
 {/if}

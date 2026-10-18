@@ -1,3 +1,239 @@
 {
-	"$schema": "https://inlang.com/schema/inlang-message-format"
+	"$schema": "https://inlang.com/schema/inlang-message-format",
+	"pill_announce_paused": "Worker: paused",
+	"pill_announce_holding": "Worker: breaker holding until {time}",
+	"pill_announce_ready": "Worker: ready",
+	"pill_paused": "receiver paused",
+	"pill_holding": "breaker holding",
+	"pill_clears_in": "clears in",
+	"pill_clearing": "clearing…",
+	"pill_ready": "worker ready",
+	"waterfall_announce_holding": "Downloads holding until {time}",
+	"waterfall_announce_paused": "Receiver paused",
+	"waterfall_announce_resumed": "Downloads resumed",
+	"waterfall_heading": "Active signal",
+	"waterfall_stale_lost": "link lost — progress may be stale",
+	"waterfall_stale_linking": "linking… — progress may be stale",
+	"waterfall_lanes": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"local n = count: number"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} lane",
+				"countPlural=*": "{n} lanes"
+			}
+		}
+	],
+	"waterfall_holding": "holding",
+	"waterfall_resumes_in": "resumes in",
+	"waterfall_resuming": "resuming…",
+	"waterfall_resume_at": "downloads resume at {time}",
+	"waterfall_holding_note": "A deliberate pause after repeated rate limits. Waiting tracks keep their place.",
+	"waterfall_paused": "receiver paused",
+	"waterfall_paused_note_admin": "Nothing is dispatched until you resume it in settings.",
+	"waterfall_paused_note_user": "Downloads resume when the receiver is switched back on.",
+	"waterfall_reconnecting": "link lost — reconnecting",
+	"waterfall_reconnecting_note": "This page catches up by itself once the link is back.",
+	"waterfall_connecting": "tuning in…",
+	"waterfall_busy": "no signal here — worker busy elsewhere",
+	"waterfall_clear": "no signal — nothing downloading",
+	"waterfall_unknown_title": "Unknown title",
+	"waterfall_unknown_artist": "Unknown artist",
+	"incoming_source_track": "track",
+	"incoming_source_album": "album",
+	"incoming_source_playlist": "playlist",
+	"incoming_source_artist": "artist",
+	"incoming_source_search": "search",
+	"incoming_tuning": "tuning in {source}",
+	"incoming_unreadable_track": "no signal — could not read this track",
+	"incoming_unreadable_album": "no signal — could not read this album",
+	"incoming_unreadable_playlist": "no signal — could not read this playlist",
+	"incoming_unreadable_artist": "no signal — could not read this artist",
+	"incoming_unreadable_search": "no signal — could not read this search",
+	"incoming_unreadable_hint": "Check that the link opens in Spotify, then try again.",
+	"incoming_cancel_failed": "Could not cancel this job.",
+	"incoming_cancel_moved": "{message} It has moved into the queue below; cancel it there.",
+	"incoming_confirm_title": "Cancel this submission?",
+	"incoming_confirm_body": "Its link is still being read. Cancelling stops what it would queue, and cancels anything it already has. This can't be undone, but the link can be submitted again.",
+	"incoming_confirm_yes": "cancel submission",
+	"incoming_confirm_no": "keep it",
+	"incoming_lost_failed": "Reading its link failed meanwhile; there's nothing left to cancel.",
+	"incoming_lost_moved": "It's no longer being read: it moved into the queue below, or was already cancelled.",
+	"incoming_retry_failed": "Could not submit it again.",
+	"incoming_retry": "try again",
+	"incoming_retry_label": "try again {url}",
+	"incoming_dismiss": "dismiss",
+	"incoming_dismiss_label": "dismiss {url}",
+	"incoming_cancel": "cancel",
+	"incoming_cancel_label": "cancel {url}",
+	"incoming_heading": "Incoming submissions",
+	"incoming_older": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"local n = count: number"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} older link couldn't be read",
+				"countPlural=*": "{n} older links couldn't be read"
+			}
+		}
+	],
+	"incoming_older_show": "show",
+	"incoming_older_hide": "hide",
+	"incoming_older_show_label": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"local n = count: number"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "show {n} older failed link",
+				"countPlural=*": "show {n} older failed links"
+			}
+		}
+	],
+	"incoming_older_hide_label": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"local n = count: number"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "hide {n} older failed link",
+				"countPlural=*": "hide {n} older failed links"
+			}
+		}
+	],
+	"queuectl_chip_in_progress": "in progress",
+	"queuectl_sort_created": "date added",
+	"queuectl_sort_title": "title",
+	"queuectl_sort_state": "state",
+	"queuectl_sort_status": "status",
+	"queuectl_sort_track_count": "track count",
+	"queuectl_sort_next_retry": "next retry",
+	"queuectl_clear_title": "Clear the log?",
+	"queuectl_clear_body": "Every finished job of yours (done, failed or cancelled) moves to the archive, whatever this view shows. Archived jobs stay under “show archived” and can be restored one by one. Jobs still downloading or waiting are kept.",
+	"queuectl_clear_yes": "clear log",
+	"queuectl_clear_no": "keep log",
+	"queuectl_clear_failed": "Couldn't clear the log: {reason}.",
+	"queuectl_clear_unreachable": "could not reach the server",
+	"queuectl_heading": "Queue",
+	"queuectl_show_archived": "show archived",
+	"queuectl_clear": "clear log",
+	"queuectl_controls_label": "Queue controls",
+	"queuectl_scope_label": "Search scope",
+	"queuectl_scope_jobs": "jobs",
+	"queuectl_scope_tracks": "tracks",
+	"queuectl_search_jobs_placeholder": "search jobs…",
+	"queuectl_search_tracks_placeholder": "search tracks…",
+	"queuectl_search_jobs_label": "Search jobs",
+	"queuectl_search_tracks_label": "Search tracks",
+	"queuectl_viewing_label": "Viewing scope",
+	"queuectl_viewing_mine": "mine",
+	"queuectl_viewing_all": "all users",
+	"queuectl_filter_jobs_label": "Filter jobs by status",
+	"queuectl_filter_tracks_label": "Filter tracks by state",
+	"queuectl_sort": "sort",
+	"queuectl_dir_label_asc": "Reverse sort order (now ascending)",
+	"queuectl_dir_label_desc": "Reverse sort order (now descending)",
+	"queuectl_dir_asc": "ascending",
+	"queuectl_dir_desc": "descending",
+	"dashboard_count_loading": "Loading…",
+	"dashboard_count_jobs": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"input shown",
+				"input total"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{shown} of {total} job",
+				"countPlural=*": "{shown} of {total} jobs"
+			}
+		}
+	],
+	"dashboard_count_cap": "{cap}+",
+	"dashboard_count_tracks": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"local n = count: number"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} track",
+				"countPlural=*": "{n} tracks"
+			}
+		}
+	],
+	"dashboard_count_tracks_more": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"local n = count: number"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n}+ tracks",
+				"countPlural=*": "{n}+ tracks"
+			}
+		}
+	],
+	"dashboard_empty_jobs_query": "No jobs match “{query}”",
+	"dashboard_empty_jobs_filters": "No jobs match these filters",
+	"dashboard_empty_tracks_query": "No tracks match “{query}”",
+	"dashboard_empty_tracks_filters": "No tracks match these filters",
+	"dashboard_submit_empty": "Paste a URL first.",
+	"dashboard_submit_failed": "Could not submit that URL.",
+	"dashboard_title": "spotdl-web — queue",
+	"dashboard_ident_receiver": "signal receiver",
+	"dashboard_link_live": "linked",
+	"dashboard_link_connecting": "linking…",
+	"dashboard_link_lost": "link lost — reconnecting",
+	"dashboard_nav_label": "Account",
+	"dashboard_nav_library": "library",
+	"dashboard_nav_settings": "settings",
+	"dashboard_nav_stats": "stats",
+	"dashboard_nav_account": "account",
+	"dashboard_disconnect": "disconnect",
+	"dashboard_submit_form_label": "Submit a link",
+	"dashboard_submit_placeholder": "paste a Spotify link — track, album, playlist or artist",
+	"dashboard_submit_input_label": "Spotify URL to submit",
+	"dashboard_submit_sending": "SENDING…",
+	"dashboard_submit": "SUBMIT",
+	"dashboard_error_title": "Couldn't load the queue",
+	"dashboard_error_retry": "try again",
+	"dashboard_empty_archived_included": "Archived ones are included.",
+	"dashboard_empty_archived_hidden": "Archived ones are hidden; show archived searches them too.",
+	"dashboard_empty_clear": "clear search and filters",
+	"dashboard_reading_any": "A link is being read",
+	"dashboard_reading_own": "Your link is being read",
+	"dashboard_reading_text": "Its tracks appear here once Spotify has listed them, and each one downloads in the background.",
+	"dashboard_empty_all_title": "Nobody has anything queued",
+	"dashboard_empty_all_text": "Every user's queue is empty in this view.",
+	"dashboard_empty_own_title": "Your queue is empty",
+	"dashboard_empty_own_text": "Paste a Spotify link above. Each track downloads in the background, and a rate limit only means it waits its turn.",
+	"dashboard_empty_own_text_archived_hidden": "Paste a Spotify link above. Each track downloads in the background, and a rate limit only means it waits its turn. Archived jobs stay under show archived.",
+	"dashboard_empty_own_action": "paste a link",
+	"dashboard_list_jobs": "Jobs",
+	"dashboard_list_tracks": "Tracks",
+	"dashboard_more_error": "Couldn't load more.",
+	"dashboard_more_loading": "loading…",
+	"dashboard_more_jobs": "load more jobs",
+	"dashboard_more_tracks": "load more tracks"
 }
