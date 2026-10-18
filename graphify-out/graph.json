@@ -1094,7 +1094,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "httpexception",
-      "community": 130,
+      "community": 239,
       "norm_label": "httpexception"
     },
     {
@@ -1424,7 +1424,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_models_job_job",
-      "community": 65,
+      "community": 9,
       "norm_label": "job"
     },
     {
@@ -1434,7 +1434,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_models_job_rationale_27",
-      "community": 65,
+      "community": 9,
       "norm_label": "one row per submitted url (album/playlist/artist/track)."
     },
     {
@@ -1464,7 +1464,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_librarysortrun",
-      "community": 162,
+      "community": 260,
       "norm_label": "librarysortrun"
     },
     {
@@ -1474,7 +1474,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_rationale_17",
-      "community": 162,
+      "community": 260,
       "norm_label": "single-row table (v28) tracking the admin-triggered library sort & move sweep --"
     },
     {
@@ -1624,7 +1624,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_trackattempt",
-      "community": 32,
+      "community": 4,
       "norm_label": "trackattempt"
     },
     {
@@ -1644,7 +1644,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_rationale_36",
-      "community": 32,
+      "community": 4,
       "norm_label": "one row per `download_track` invocation (v24) -- what it tried (direct vs. which"
     },
     {
@@ -1664,7 +1664,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_app_models_user_user",
-      "community": 130,
+      "community": 19,
       "norm_label": "user"
     },
     {
@@ -1674,7 +1674,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_models_user_rationale_11",
-      "community": 130,
+      "community": 19,
       "norm_label": "row created on first successful login (v17). the `allowed_emails` env allowlist"
     },
     {
@@ -1834,7 +1834,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "basemodel",
-      "community": 130,
+      "community": 19,
       "norm_label": "basemodel"
     },
     {
@@ -2704,7 +2704,7 @@
       "source_location": "L204",
       "_origin": "ast",
       "id": "backend_app_routers_settings_require_admin_hidden",
-      "community": 130,
+      "community": 239,
       "norm_label": "_require_admin_hidden()"
     },
     {
@@ -2834,7 +2834,7 @@
       "source_location": "L205",
       "_origin": "ast",
       "id": "backend_app_routers_settings_rationale_205",
-      "community": 130,
+      "community": 239,
       "norm_label": "v36's plan: a non-admin gets 404 on the test-alert endpoint, so its existence is"
     },
     {
@@ -4714,7 +4714,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_job_listing",
-      "community": 11,
+      "community": 239,
       "norm_label": "job_listing.py"
     },
     {
@@ -4724,7 +4724,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_invalidlistparams",
-      "community": 11,
+      "community": 239,
       "norm_label": "invalidlistparams"
     },
     {
@@ -4744,7 +4744,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_list_jobs",
-      "community": 11,
+      "community": 239,
       "norm_label": "list_jobs()"
     },
     {
@@ -4754,7 +4754,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_py_session",
-      "community": 11,
+      "community": 239,
       "norm_label": "session"
     },
     {
@@ -4764,7 +4764,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_py_jobsourcetype",
-      "community": 11,
+      "community": 239,
       "norm_label": "jobsourcetype"
     },
     {
@@ -4774,7 +4774,7 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_sort_key",
-      "community": 11,
+      "community": 239,
       "norm_label": "_sort_key()"
     },
     {
@@ -4784,7 +4784,7 @@
       "source_location": "L171",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_sort_value",
-      "community": 11,
+      "community": 239,
       "norm_label": "_sort_value()"
     },
     {
@@ -4794,7 +4794,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_rationale_1",
-      "community": 11,
+      "community": 239,
       "norm_label": "paginated/filtered/sorted/searchable job listing (v18) -- `get /api/jobs` (scope"
     },
     {
@@ -5054,7 +5054,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_app_services_pagination_invalidcursor",
-      "community": 11,
+      "community": 19,
       "norm_label": "invalidcursor"
     },
     {
@@ -6184,7 +6184,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_serializers",
-      "community": 19,
+      "community": 69,
       "norm_label": "serializers.py"
     },
     {
@@ -6194,7 +6194,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_counts_by_job",
-      "community": 19,
+      "community": 69,
       "norm_label": "track_counts_by_job()"
     },
     {
@@ -6204,7 +6204,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_serializers_py_session",
-      "community": 19,
+      "community": 69,
       "norm_label": "session"
     },
     {
@@ -6214,7 +6214,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_serializers_py_uuid",
-      "community": 19,
+      "community": 69,
       "norm_label": "uuid"
     },
     {
@@ -6224,7 +6224,7 @@
       "source_location": "L37",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_counts",
-      "community": 19,
+      "community": 69,
       "norm_label": "track_counts()"
     },
     {
@@ -6284,7 +6284,7 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "backend_app_services_serializers_proxy_label",
-      "community": 19,
+      "community": 69,
       "norm_label": "_proxy_label()"
     },
     {
@@ -6294,7 +6294,7 @@
       "source_location": "L118",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_attempt_to_dict",
-      "community": 19,
+      "community": 69,
       "norm_label": "track_attempt_to_dict()"
     },
     {
@@ -6304,7 +6304,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "trackattempt",
-      "community": 19,
+      "community": 69,
       "norm_label": "trackattempt"
     },
     {
@@ -6314,7 +6314,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_1",
-      "community": 19,
+      "community": 69,
       "norm_label": "shared rest projections for job/track \u2014 deliberate projections rather than expos"
     },
     {
@@ -6324,7 +6324,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_19",
-      "community": 19,
+      "community": 69,
       "norm_label": "one grouped aggregate covering every requested job -- replaces the per-job query"
     },
     {
@@ -6334,7 +6334,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_38",
-      "community": 19,
+      "community": 69,
       "norm_label": "single-job convenience over the bulk query -- for endpoints that serialize exact"
     },
     {
@@ -6364,7 +6364,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_108",
-      "community": 19,
+      "community": 69,
       "norm_label": "proxies.redact() raises on a malformed port (urlsplit's .port), and sync_from_fi"
     },
     {
@@ -6374,7 +6374,7 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_119",
-      "community": 19,
+      "community": 69,
       "norm_label": "`proxy_url` is the attempt's proxy's raw url, joined in by the caller's own quer"
     },
     {
@@ -6774,7 +6774,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_track_listing",
-      "community": 239,
+      "community": 11,
       "norm_label": "track_listing.py"
     },
     {
@@ -6784,7 +6784,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_invalidlistparams",
-      "community": 239,
+      "community": 11,
       "norm_label": "invalidlistparams"
     },
     {
@@ -6794,7 +6794,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_list_tracks",
-      "community": 239,
+      "community": 11,
       "norm_label": "list_tracks()"
     },
     {
@@ -6804,7 +6804,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_session",
-      "community": 239,
+      "community": 11,
       "norm_label": "session"
     },
     {
@@ -6814,7 +6814,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_jobsourcetype",
-      "community": 239,
+      "community": 11,
       "norm_label": "jobsourcetype"
     },
     {
@@ -6824,7 +6824,7 @@
       "source_location": "L144",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_key",
-      "community": 239,
+      "community": 11,
       "norm_label": "_sort_key()"
     },
     {
@@ -6834,7 +6834,7 @@
       "source_location": "L152",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_value",
-      "community": 239,
+      "community": 11,
       "norm_label": "_sort_value()"
     },
     {
@@ -6844,7 +6844,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_track",
-      "community": 239,
+      "community": 11,
       "norm_label": "track"
     },
     {
@@ -6854,7 +6854,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_rationale_1",
-      "community": 239,
+      "community": 11,
       "norm_label": "paginated/filtered/sorted/searchable track listing shared by `get /api/tracks` a"
     },
     {
@@ -6864,7 +6864,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth",
-      "community": 254,
+      "community": 242,
       "norm_label": "upstream_auth.py"
     },
     {
@@ -6874,7 +6874,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_login",
-      "community": 254,
+      "community": 242,
       "norm_label": "login()"
     },
     {
@@ -6884,7 +6884,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_fetch_username",
-      "community": 254,
+      "community": 242,
       "norm_label": "_fetch_username()"
     },
     {
@@ -6894,7 +6894,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_py_response",
-      "community": 254,
+      "community": 242,
       "norm_label": "response"
     },
     {
@@ -6904,7 +6904,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_rationale_14",
-      "community": 254,
+      "community": 242,
       "norm_label": "check credentials against vb2007.hu-api, and best-effort fetch the username via"
     },
     {
@@ -6914,7 +6914,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_app_services_upstream_auth_rationale_41",
-      "community": 254,
+      "community": 242,
       "norm_label": "`isauthenticated`'s `get /user` reads the `vb-auth` cookie itself -- extracted"
     },
     {
@@ -7344,7 +7344,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_download",
-      "community": 246,
+      "community": 196,
       "norm_label": "download.py"
     },
     {
@@ -7354,7 +7354,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "backend_app_tasks_download_pacing_delay",
-      "community": 246,
+      "community": 196,
       "norm_label": "pacing_delay()"
     },
     {
@@ -7364,7 +7364,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_app_tasks_download_hold",
-      "community": 246,
+      "community": 196,
       "norm_label": "_hold()"
     },
     {
@@ -7374,7 +7374,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_download_py_session",
-      "community": 246,
+      "community": 196,
       "norm_label": "session"
     },
     {
@@ -7384,7 +7384,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_download_py_track",
-      "community": 246,
+      "community": 196,
       "norm_label": "track"
     },
     {
@@ -7394,7 +7394,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_download_py_uuid",
-      "community": 246,
+      "community": 196,
       "norm_label": "uuid"
     },
     {
@@ -7404,7 +7404,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_download_py_datetime",
-      "community": 246,
+      "community": 196,
       "norm_label": "datetime"
     },
     {
@@ -7414,7 +7414,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "backend_app_tasks_download_download_track",
-      "community": 246,
+      "community": 196,
       "norm_label": "download_track()"
     },
     {
@@ -7424,7 +7424,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_app_tasks_download_rationale_30",
-      "community": 246,
+      "community": 196,
       "norm_label": "seconds to wait before this track's download attempt -- a uniform sample from"
     },
     {
@@ -7434,7 +7434,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_app_tasks_download_rationale_55",
-      "community": 246,
+      "community": 196,
       "norm_label": "puts a track back to `waiting` until `scheduled_at` without attempting it."
     },
     {
@@ -7444,7 +7444,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_expand",
-      "community": 196,
+      "community": 263,
       "norm_label": "expand.py"
     },
     {
@@ -7454,7 +7454,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_enqueue_pending_tracks",
-      "community": 196,
+      "community": 263,
       "norm_label": "_enqueue_pending_tracks()"
     },
     {
@@ -7464,7 +7464,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_py_job",
-      "community": 196,
+      "community": 263,
       "norm_label": "job"
     },
     {
@@ -7474,7 +7474,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_expand_job",
-      "community": 196,
+      "community": 263,
       "norm_label": "expand_job()"
     },
     {
@@ -7484,7 +7484,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_tasks_expand_rationale_17",
-      "community": 196,
+      "community": 263,
       "norm_label": "enqueues `job`'s tracks still `pending`. for a job whose expanded commit landed"
     },
     {
@@ -8647,7 +8647,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings",
-      "community": 34,
+      "community": 246,
       "norm_label": "test_app_settings.py"
     },
     {
@@ -8657,7 +8657,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_fakesettings",
-      "community": 34,
+      "community": 246,
       "norm_label": "_fakesettings"
     },
     {
@@ -8667,7 +8667,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_creates_row_seeded_from_env",
-      "community": 34,
+      "community": 246,
       "norm_label": "test_get_output_settings_creates_row_seeded_from_env()"
     },
     {
@@ -8677,7 +8677,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_output_settings_returns_existing_row_without_reseeding",
-      "community": 34,
+      "community": 246,
       "norm_label": "test_get_output_settings_returns_existing_row_without_reseeding()"
     },
     {
@@ -8687,7 +8687,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_only_touches_given_fields",
-      "community": 34,
+      "community": 246,
       "norm_label": "test_update_output_settings_only_touches_given_fields()"
     },
     {
@@ -8697,7 +8697,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_output_settings_creates_row_if_missing",
-      "community": 34,
+      "community": 246,
       "norm_label": "test_update_output_settings_creates_row_if_missing()"
     },
     {
@@ -8707,7 +8707,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_library_settings_creates_row_seeded_with_defaults",
-      "community": 34,
+      "community": 246,
       "norm_label": "test_get_library_settings_creates_row_seeded_with_defaults()"
     },
     {
@@ -8717,7 +8717,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_get_library_settings_and_output_settings_share_one_row",
-      "community": 34,
+      "community": 246,
       "norm_label": "test_get_library_settings_and_output_settings_share_one_row()"
     },
     {
@@ -8727,7 +8727,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "backend_tests_test_app_settings_test_update_library_settings_only_touches_given_fields",
-      "community": 34,
+      "community": 246,
       "norm_label": "test_update_library_settings_only_touches_given_fields()"
     },
     {
@@ -9957,7 +9957,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakeprogresshandler",
-      "community": 263,
+      "community": 0,
       "norm_label": "_fakeprogresshandler"
     },
     {
@@ -9977,7 +9977,7 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakedownloader_init",
-      "community": 263,
+      "community": 0,
       "norm_label": ".__init__()"
     },
     {
@@ -10057,7 +10057,7 @@
       "source_location": "L176",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_resolves_a_moved_track_as_a_duplicate_of_its_library_file",
-      "community": 252,
+      "community": 0,
       "norm_label": "test_download_track_resolves_a_moved_track_as_a_duplicate_of_its_library_file()"
     },
     {
@@ -10067,7 +10067,7 @@
       "source_location": "L199",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_download_track_holds_a_moved_track_when_the_library_root_is_not_mounted",
-      "community": 252,
+      "community": 0,
       "norm_label": "test_download_track_holds_a_moved_track_when_the_library_root_is_not_mounted()"
     },
     {
@@ -10607,7 +10607,7 @@
       "source_location": "L179",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_rationale_179",
-      "community": 252,
+      "community": 0,
       "norm_label": "v38: worker-dl now sees the library, so a resubmitted moved track is a duplicate"
     },
     {
@@ -10617,7 +10617,7 @@
       "source_location": "L202",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_rationale_202",
-      "community": 252,
+      "community": 0,
       "norm_label": "v38: an unmounted library root must not read as \"file gone\". the track is held a"
     },
     {
@@ -14937,7 +14937,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_tests_test_stats_now",
-      "community": 132,
+      "community": 195,
       "norm_label": "now()"
     },
     {
@@ -16884,7 +16884,7 @@
       "label": "overlayEntries()",
       "file_type": "code",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L970",
+      "source_location": "L976",
       "_origin": "ast",
       "id": "frontend_e2e_14_keyboard_e2e_overlayentries",
       "community": 137,
@@ -16894,7 +16894,7 @@
       "label": "expected()",
       "file_type": "code",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L983",
+      "source_location": "L989",
       "_origin": "ast",
       "id": "frontend_e2e_14_keyboard_e2e_expected",
       "community": 31,
@@ -28995,7 +28995,7 @@
       "label": "workerStatus",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L725",
+      "source_location": "L724",
       "_origin": "ast",
       "id": "frontend_src_lib_api_workerstatus",
       "community": 64,
@@ -29285,7 +29285,7 @@
       "label": "buildQuery()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L493",
+      "source_location": "L492",
       "_origin": "ast",
       "id": "frontend_src_lib_api_buildquery",
       "community": 6,
@@ -29295,7 +29295,7 @@
       "label": "ListJobsParams",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L509",
+      "source_location": "L508",
       "_origin": "ast",
       "id": "frontend_src_lib_api_listjobsparams",
       "community": 6,
@@ -29305,7 +29305,7 @@
       "label": "ListTracksParams",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L521",
+      "source_location": "L520",
       "_origin": "ast",
       "id": "frontend_src_lib_api_listtracksparams",
       "community": 6,
@@ -29315,7 +29315,7 @@
       "label": "jobsQuery()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L534",
+      "source_location": "L533",
       "_origin": "ast",
       "id": "frontend_src_lib_api_jobsquery",
       "community": 6,
@@ -29325,7 +29325,7 @@
       "label": "tracksQuery()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L548",
+      "source_location": "L547",
       "_origin": "ast",
       "id": "frontend_src_lib_api_tracksquery",
       "community": 6,
@@ -29335,7 +29335,7 @@
       "label": "login()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L565",
+      "source_location": "L564",
       "_origin": "ast",
       "id": "frontend_src_lib_api_login",
       "community": 6,
@@ -29345,7 +29345,7 @@
       "label": "me()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L576",
+      "source_location": "L575",
       "_origin": "ast",
       "id": "frontend_src_lib_api_me",
       "community": 6,
@@ -29355,7 +29355,7 @@
       "label": "logout()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L580",
+      "source_location": "L579",
       "_origin": "ast",
       "id": "frontend_src_lib_api_logout",
       "community": 6,
@@ -29365,7 +29365,7 @@
       "label": "createJob()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L584",
+      "source_location": "L583",
       "_origin": "ast",
       "id": "frontend_src_lib_api_createjob",
       "community": 6,
@@ -29375,7 +29375,7 @@
       "label": "listJobsPage()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L591",
+      "source_location": "L590",
       "_origin": "ast",
       "id": "frontend_src_lib_api_listjobspage",
       "community": 6,
@@ -29385,7 +29385,7 @@
       "label": "getJob()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L595",
+      "source_location": "L594",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getjob",
       "community": 6,
@@ -29395,7 +29395,7 @@
       "label": "ListJobTracksParams",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L599",
+      "source_location": "L598",
       "_origin": "ast",
       "id": "frontend_src_lib_api_listjobtracksparams",
       "community": 6,
@@ -29405,7 +29405,7 @@
       "label": "listJobTracksPage()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L608",
+      "source_location": "L607",
       "_origin": "ast",
       "id": "frontend_src_lib_api_listjobtrackspage",
       "community": 6,
@@ -29415,7 +29415,7 @@
       "label": "listTracksPage()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L627",
+      "source_location": "L626",
       "_origin": "ast",
       "id": "frontend_src_lib_api_listtrackspage",
       "community": 6,
@@ -29425,7 +29425,7 @@
       "label": "cancelJob()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L631",
+      "source_location": "L630",
       "_origin": "ast",
       "id": "frontend_src_lib_api_canceljob",
       "community": 6,
@@ -29435,7 +29435,7 @@
       "label": "setJobPriority()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L635",
+      "source_location": "L634",
       "_origin": "ast",
       "id": "frontend_src_lib_api_setjobpriority",
       "community": 6,
@@ -29445,7 +29445,7 @@
       "label": "bumpJob()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L642",
+      "source_location": "L641",
       "_origin": "ast",
       "id": "frontend_src_lib_api_bumpjob",
       "community": 6,
@@ -29455,7 +29455,7 @@
       "label": "archiveJobs()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L648",
+      "source_location": "L647",
       "_origin": "ast",
       "id": "frontend_src_lib_api_archivejobs",
       "community": 6,
@@ -29465,7 +29465,7 @@
       "label": "unarchiveJobs()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L657",
+      "source_location": "L656",
       "_origin": "ast",
       "id": "frontend_src_lib_api_unarchivejobs",
       "community": 6,
@@ -29475,7 +29475,7 @@
       "label": "cancelTrack()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L664",
+      "source_location": "L663",
       "_origin": "ast",
       "id": "frontend_src_lib_api_canceltrack",
       "community": 6,
@@ -29485,7 +29485,7 @@
       "label": "retryTrack()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L668",
+      "source_location": "L667",
       "_origin": "ast",
       "id": "frontend_src_lib_api_retrytrack",
       "community": 6,
@@ -29495,7 +29495,7 @@
       "label": "getTrackAttempts()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L672",
+      "source_location": "L671",
       "_origin": "ast",
       "id": "frontend_src_lib_api_gettrackattempts",
       "community": 6,
@@ -29505,7 +29505,7 @@
       "label": "trackFileUrl()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L679",
+      "source_location": "L678",
       "_origin": "ast",
       "id": "frontend_src_lib_api_trackfileurl",
       "community": 6,
@@ -29515,7 +29515,7 @@
       "label": "checkTrackFile()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L688",
+      "source_location": "L687",
       "_origin": "ast",
       "id": "frontend_src_lib_api_checktrackfile",
       "community": 6,
@@ -29525,7 +29525,7 @@
       "label": "pauseWorker()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L729",
+      "source_location": "L728",
       "_origin": "ast",
       "id": "frontend_src_lib_api_pauseworker",
       "community": 6,
@@ -29535,7 +29535,7 @@
       "label": "resumeWorker()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L733",
+      "source_location": "L732",
       "_origin": "ast",
       "id": "frontend_src_lib_api_resumeworker",
       "community": 6,
@@ -29545,7 +29545,7 @@
       "label": "releaseBreaker()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L737",
+      "source_location": "L736",
       "_origin": "ast",
       "id": "frontend_src_lib_api_releasebreaker",
       "community": 6,
@@ -29555,7 +29555,7 @@
       "label": "getAdminStats()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L741",
+      "source_location": "L740",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getadminstats",
       "community": 6,
@@ -29565,7 +29565,7 @@
       "label": "listProxies()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L747",
+      "source_location": "L746",
       "_origin": "ast",
       "id": "frontend_src_lib_api_listproxies",
       "community": 6,
@@ -29575,7 +29575,7 @@
       "label": "createProxy()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L751",
+      "source_location": "L750",
       "_origin": "ast",
       "id": "frontend_src_lib_api_createproxy",
       "community": 6,
@@ -29585,7 +29585,7 @@
       "label": "setProxyEnabled()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L758",
+      "source_location": "L757",
       "_origin": "ast",
       "id": "frontend_src_lib_api_setproxyenabled",
       "community": 6,
@@ -29595,7 +29595,7 @@
       "label": "deleteProxy()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L768",
+      "source_location": "L767",
       "_origin": "ast",
       "id": "frontend_src_lib_api_deleteproxy",
       "community": 6,
@@ -29605,7 +29605,7 @@
       "label": "getOutputSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L772",
+      "source_location": "L771",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getoutputsettings",
       "community": 6,
@@ -29615,7 +29615,7 @@
       "label": "getOutputOptions()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L776",
+      "source_location": "L775",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getoutputoptions",
       "community": 6,
@@ -29625,7 +29625,7 @@
       "label": "updateOutputSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L780",
+      "source_location": "L779",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updateoutputsettings",
       "community": 6,
@@ -29635,7 +29635,7 @@
       "label": "getRetentionSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L789",
+      "source_location": "L788",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getretentionsettings",
       "community": 6,
@@ -29645,7 +29645,7 @@
       "label": "KeyboardSettings",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L793",
+      "source_location": "L792",
       "_origin": "ast",
       "id": "frontend_src_lib_api_keyboardsettings",
       "community": 6,
@@ -29655,7 +29655,7 @@
       "label": "updateKeyboardSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L799",
+      "source_location": "L798",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updatekeyboardsettings",
       "community": 6,
@@ -29665,7 +29665,7 @@
       "label": "updateRetentionSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L806",
+      "source_location": "L805",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updateretentionsettings",
       "community": 6,
@@ -29675,7 +29675,7 @@
       "label": "getLibrarySettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L813",
+      "source_location": "L812",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getlibrarysettings",
       "community": 6,
@@ -29685,7 +29685,7 @@
       "label": "updateLibrarySettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L817",
+      "source_location": "L816",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updatelibrarysettings",
       "community": 6,
@@ -29695,7 +29695,7 @@
       "label": "getAlertSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L826",
+      "source_location": "L825",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getalertsettings",
       "community": 6,
@@ -29705,7 +29705,7 @@
       "label": "updateAlertSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L830",
+      "source_location": "L829",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updatealertsettings",
       "community": 6,
@@ -29715,7 +29715,7 @@
       "label": "sendTestAlert()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L837",
+      "source_location": "L836",
       "_origin": "ast",
       "id": "frontend_src_lib_api_sendtestalert",
       "community": 6,
@@ -29725,7 +29725,7 @@
       "label": "getLibrarySortStatus()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L841",
+      "source_location": "L840",
       "_origin": "ast",
       "id": "frontend_src_lib_api_getlibrarysortstatus",
       "community": 6,
@@ -29735,7 +29735,7 @@
       "label": "startLibrarySort()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L845",
+      "source_location": "L844",
       "_origin": "ast",
       "id": "frontend_src_lib_api_startlibrarysort",
       "community": 6,
@@ -29745,7 +29745,7 @@
       "label": "createEventSource()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L853",
+      "source_location": "L852",
       "_origin": "ast",
       "id": "frontend_src_lib_api_createeventsource",
       "community": 6,
@@ -29755,7 +29755,7 @@
       "label": "LanguageSettings",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L859",
+      "source_location": "L858",
       "_origin": "ast",
       "id": "frontend_src_lib_api_languagesettings",
       "community": 6,
@@ -29765,7 +29765,7 @@
       "label": "updateLanguageSettings()",
       "file_type": "code",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L865",
+      "source_location": "L864",
       "_origin": "ast",
       "id": "frontend_src_lib_api_updatelanguagesettings",
       "community": 6,
@@ -30026,7 +30026,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_stores_confirm",
-      "community": 64,
+      "community": 44,
       "norm_label": "$lib/stores/confirm"
     },
     {
@@ -30091,7 +30091,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_incomingjobs",
-      "community": 69,
+      "community": 195,
       "norm_label": "$lib/components/incomingjobs.svelte"
     },
     {
@@ -30101,7 +30101,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_failed",
-      "community": 69,
+      "community": 195,
       "norm_label": "failed"
     },
     {
@@ -30111,7 +30111,7 @@
       "source_location": "L71",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_showolder",
-      "community": 69,
+      "community": 195,
       "norm_label": "showolder"
     },
     {
@@ -30121,7 +30121,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_newestfailed",
-      "community": 69,
+      "community": 195,
       "norm_label": "newestfailed"
     },
     {
@@ -30131,7 +30131,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_olderfailed",
-      "community": 69,
+      "community": 195,
       "norm_label": "olderfailed"
     },
     {
@@ -30141,7 +30141,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_lostnotice",
-      "community": 69,
+      "community": 195,
       "norm_label": "lostnotice"
     },
     {
@@ -30151,7 +30151,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_seterror",
-      "community": 69,
+      "community": 195,
       "norm_label": "seterror()"
     },
     {
@@ -30161,7 +30161,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_errorfor",
-      "community": 69,
+      "community": 195,
       "norm_label": "errorfor()"
     },
     {
@@ -30171,7 +30171,7 @@
       "source_location": "L97",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_handlecancel",
-      "community": 69,
+      "community": 195,
       "norm_label": "handlecancel()"
     },
     {
@@ -30181,7 +30181,7 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_confirmcanceltuning",
-      "community": 69,
+      "community": 195,
       "norm_label": "confirmcanceltuning()"
     },
     {
@@ -30191,7 +30191,7 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_confirmcanceltuningflow",
-      "community": 69,
+      "community": 195,
       "norm_label": "confirmcanceltuningflow()"
     },
     {
@@ -30201,7 +30201,7 @@
       "source_location": "L190",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_dismissbuttons",
-      "community": 69,
+      "community": 195,
       "norm_label": "dismissbuttons()"
     },
     {
@@ -30211,7 +30211,7 @@
       "source_location": "L199",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_keepfocus",
-      "community": 69,
+      "community": 195,
       "norm_label": "keepfocus()"
     },
     {
@@ -30221,7 +30221,7 @@
       "source_location": "L227",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_handleretry",
-      "community": 69,
+      "community": 195,
       "norm_label": "handleretry()"
     },
     {
@@ -30231,7 +30231,7 @@
       "source_location": "L264",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_onfocusin",
-      "community": 69,
+      "community": 195,
       "norm_label": "onfocusin()"
     },
     {
@@ -30241,7 +30241,7 @@
       "source_location": "L269",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_onfocusout",
-      "community": 132,
+      "community": 195,
       "norm_label": "onfocusout()"
     },
     {
@@ -30251,7 +30251,7 @@
       "source_location": "L288",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_restorefocus",
-      "community": 69,
+      "community": 195,
       "norm_label": "restorefocus()"
     },
     {
@@ -30261,17 +30261,17 @@
       "source_location": "L318",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_isown",
-      "community": 69,
+      "community": 195,
       "norm_label": "isown()"
     },
     {
       "label": "failedRow()",
       "file_type": "code",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L414",
+      "source_location": "L416",
       "_origin": "ast",
       "id": "frontend_src_lib_components_incomingjobs_failedrow",
-      "community": 69,
+      "community": 195,
       "norm_label": "failedrow()"
     },
     {
@@ -30391,7 +30391,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_languageswitch",
-      "community": 36,
+      "community": 44,
       "norm_label": "$lib/components/languageswitch.svelte"
     },
     {
@@ -30412,7 +30412,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_frontend_src_lib_paraglide_runtime_js",
-      "community": 36,
+      "community": 44,
       "norm_label": "$lib/paraglide/runtime"
     },
     {
@@ -30597,7 +30597,7 @@
       "source_location": "L175",
       "_origin": "ast",
       "id": "frontend_src_lib_components_workerstatus_poll",
-      "community": 69,
+      "community": 64,
       "norm_label": "poll()"
     },
     {
@@ -30778,7 +30778,7 @@
       "label": "apiErrorText()",
       "file_type": "code",
       "source_file": "frontend/src/lib/i18n/errors.ts",
-      "source_location": "L69",
+      "source_location": "L70",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_errors_apierrortext",
       "community": 64,
@@ -30788,20 +30788,20 @@
       "label": "errorText()",
       "file_type": "code",
       "source_file": "frontend/src/lib/i18n/errors.ts",
-      "source_location": "L76",
+      "source_location": "L77",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_errors_errortext",
-      "community": 69,
+      "community": 64,
       "norm_label": "errortext()"
     },
     {
       "label": "knowsCode()",
       "file_type": "code",
       "source_file": "frontend/src/lib/i18n/errors.ts",
-      "source_location": "L84",
+      "source_location": "L85",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_errors_knowscode",
-      "community": 44,
+      "community": 36,
       "norm_label": "knowscode()"
     },
     {
@@ -30821,7 +30821,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_todate",
-      "community": 44,
+      "community": 64,
       "norm_label": "todate()"
     },
     {
@@ -30831,7 +30831,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formatclock",
-      "community": 44,
+      "community": 64,
       "norm_label": "formatclock()"
     },
     {
@@ -30841,7 +30841,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formattime",
-      "community": 44,
+      "community": 64,
       "norm_label": "formattime()"
     },
     {
@@ -30883,6 +30883,36 @@
       "id": "frontend_src_lib_i18n_i18n_test_speak",
       "community": 36,
       "norm_label": "speak()"
+    },
+    {
+      "label": "BACKEND_CODES",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/i18n/i18n.test.ts",
+      "source_location": "L154",
+      "_origin": "ast",
+      "id": "frontend_src_lib_i18n_i18n_test_backend_codes",
+      "community": 36,
+      "norm_label": "backend_codes"
+    },
+    {
+      "label": "CLIENT_CODES",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/i18n/i18n.test.ts",
+      "source_location": "L179",
+      "_origin": "ast",
+      "id": "frontend_src_lib_i18n_i18n_test_client_codes",
+      "community": 36,
+      "norm_label": "client_codes"
+    },
+    {
+      "label": "PARAMS",
+      "file_type": "code",
+      "source_file": "frontend/src/lib/i18n/i18n.test.ts",
+      "source_location": "L186",
+      "_origin": "ast",
+      "id": "frontend_src_lib_i18n_i18n_test_params",
+      "community": 36,
+      "norm_label": "params"
     },
     {
       "label": "jobStatusLabel()",
@@ -31991,7 +32021,7 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_confirmrequest",
-      "community": 64,
+      "community": 44,
       "norm_label": "confirmrequest"
     },
     {
@@ -32001,7 +32031,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_pending",
-      "community": 64,
+      "community": 44,
       "norm_label": "pending"
     },
     {
@@ -32011,7 +32041,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_pendingconfirm",
-      "community": 64,
+      "community": 44,
       "norm_label": "pendingconfirm"
     },
     {
@@ -32031,7 +32061,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_dismissconfirm",
-      "community": 64,
+      "community": 6,
       "norm_label": "dismissconfirm()"
     },
     {
@@ -32702,7 +32732,7 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "frontend_src_routes_account_page_if",
-      "community": 69,
+      "community": 64,
       "norm_label": "if()"
     },
     {
@@ -32732,7 +32762,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_routes_login_page",
-      "community": 36,
+      "community": 44,
       "norm_label": "+page.svelte"
     },
     {
@@ -32742,7 +32772,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "frontend_src_routes_login_page_await",
-      "community": 36,
+      "community": 44,
       "norm_label": "await()"
     },
     {
@@ -33242,7 +33272,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "claude_architecture",
-      "community": 46,
+      "community": 268,
       "norm_label": "architecture"
     },
     {
@@ -33252,7 +33282,7 @@
       "source_location": "L188",
       "_origin": "ast",
       "id": "claude_invariants_break_these_and_things_fail_silently",
-      "community": 46,
+      "community": 268,
       "norm_label": "invariants \u2014 break these and things fail silently"
     },
     {
@@ -33262,7 +33292,7 @@
       "source_location": "L206",
       "_origin": "ast",
       "id": "claude_master_v2_invariants",
-      "community": 46,
+      "community": 268,
       "norm_label": "master v2 invariants"
     },
     {
@@ -33272,7 +33302,7 @@
       "source_location": "L229",
       "_origin": "ast",
       "id": "claude_master_v3_invariants",
-      "community": 46,
+      "community": 268,
       "norm_label": "master v3 invariants"
     },
     {
@@ -33912,7 +33942,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_gotchas",
-      "community": 138,
+      "community": 254,
       "norm_label": "gotchas.md"
     },
     {
@@ -33922,7 +33952,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_web_accumulated_gotchas_master_v1_v01_v13",
-      "community": 138,
+      "community": 254,
       "norm_label": "spotdl-web \u2014 accumulated gotchas (master v1, v01\u2013v13)"
     },
     {
@@ -33932,7 +33962,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "docs_gotchas_index_by_topic",
-      "community": 138,
+      "community": 254,
       "norm_label": "index by topic"
     },
     {
@@ -33942,7 +33972,7 @@
       "source_location": "L938",
       "_origin": "ast",
       "id": "docs_gotchas_verified_external_api_contracts",
-      "community": 138,
+      "community": 254,
       "norm_label": "verified external api contracts"
     },
     {
@@ -33952,7 +33982,7 @@
       "source_location": "L943",
       "_origin": "ast",
       "id": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
-      "community": 138,
+      "community": 254,
       "norm_label": "auth api \u2014 `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)"
     },
     {
@@ -33962,7 +33992,7 @@
       "source_location": "L961",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
-      "community": 138,
+      "community": 254,
       "norm_label": "spotdl 4.5.2 \u2014 verified api surface actually used"
     },
     {
@@ -36942,7 +36972,7 @@
       "source_location": "L215",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_amendments",
-      "community": 128,
+      "community": 266,
       "norm_label": "amendments"
     },
     {
@@ -36952,7 +36982,7 @@
       "source_location": "L220",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_09_claude_md_split_into_rules_vs_reference_folded_into_v14",
-      "community": 128,
+      "community": 266,
       "norm_label": "2026-08-09 \u2014 claude.md split into rules vs. reference (folded into v14)"
     },
     {
@@ -36962,7 +36992,7 @@
       "source_location": "L235",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_09_v15_complete_two_v14_findings_confirmed_already_scheduled_one_new_finding_added",
-      "community": 128,
+      "community": 266,
       "norm_label": "2026-08-09 \u2014 v15 complete; two v14 findings confirmed already scheduled, one new finding added"
     },
     {
@@ -36972,7 +37002,7 @@
       "source_location": "L262",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_09_v16_complete_not_null_applied_literally_login_job_creation_left_broken_for_v17",
-      "community": 128,
+      "community": 266,
       "norm_label": "2026-08-09 \u2014 v16 complete; not null applied literally, login/job creation left broken for v17"
     },
     {
@@ -36982,7 +37012,7 @@
       "source_location": "L277",
       "_origin": "ast",
       "id": "plan_master_v2_00_master_plan_2026_08_13_v22_complete_the_v13_precedent_closing_pass_performed_master_v2_done",
-      "community": 128,
+      "community": 266,
       "norm_label": "2026-08-13 \u2014 v22 complete; the v13-precedent closing pass performed, master v2 done"
     },
     {
@@ -57014,7 +57044,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L500",
+      "source_location": "L499",
       "weight": 1.0,
       "source": "frontend_src_lib_api_buildquery",
       "target": "backend_app_services_rollup_rollup_key"
@@ -78137,7 +78167,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L983",
+      "source_location": "L989",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e",
       "target": "frontend_e2e_14_keyboard_e2e_expected",
@@ -78217,7 +78247,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L970",
+      "source_location": "L976",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e",
       "target": "frontend_e2e_14_keyboard_e2e_overlayentries",
@@ -78898,7 +78928,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L971",
+      "source_location": "L977",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e_overlayentries",
       "target": "frontend_e2e_support_i18n_t"
@@ -78909,7 +78939,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L971",
+      "source_location": "L977",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e_overlayentries",
       "target": "frontend_src_lib_api_page"
@@ -78920,7 +78950,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L984",
+      "source_location": "L990",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e_expected",
       "target": "frontend_src_lib_keyboard_bindings_bindingsfor"
@@ -78931,7 +78961,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/e2e/14-keyboard.e2e.ts",
-      "source_location": "L986",
+      "source_location": "L992",
       "weight": 1.0,
       "source": "frontend_e2e_14_keyboard_e2e_expected",
       "target": "frontend_src_lib_keyboard_bindings_chordlabel"
@@ -92918,7 +92948,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L648",
+      "source_location": "L647",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_archivejobs",
@@ -92938,7 +92968,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L493",
+      "source_location": "L492",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_buildquery",
@@ -92948,7 +92978,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L642",
+      "source_location": "L641",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_bumpjob",
@@ -92958,7 +92988,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L631",
+      "source_location": "L630",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_canceljob",
@@ -92968,7 +92998,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L664",
+      "source_location": "L663",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_canceltrack",
@@ -92978,7 +93008,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L688",
+      "source_location": "L687",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_checktrackfile",
@@ -92988,7 +93018,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L853",
+      "source_location": "L852",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_createeventsource",
@@ -92998,7 +93028,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L584",
+      "source_location": "L583",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_createjob",
@@ -93008,7 +93038,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L751",
+      "source_location": "L750",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_createproxy",
@@ -93018,7 +93048,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L768",
+      "source_location": "L767",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_deleteproxy",
@@ -93068,7 +93098,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L741",
+      "source_location": "L740",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getadminstats",
@@ -93078,7 +93108,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L826",
+      "source_location": "L825",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getalertsettings",
@@ -93088,7 +93118,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L595",
+      "source_location": "L594",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getjob",
@@ -93098,7 +93128,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L813",
+      "source_location": "L812",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getlibrarysettings",
@@ -93108,7 +93138,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L841",
+      "source_location": "L840",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getlibrarysortstatus",
@@ -93118,7 +93148,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L776",
+      "source_location": "L775",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getoutputoptions",
@@ -93128,7 +93158,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L772",
+      "source_location": "L771",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getoutputsettings",
@@ -93138,7 +93168,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L789",
+      "source_location": "L788",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_getretentionsettings",
@@ -93148,7 +93178,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L672",
+      "source_location": "L671",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_gettrackattempts",
@@ -93208,7 +93238,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L534",
+      "source_location": "L533",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_jobsquery",
@@ -93258,7 +93288,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L793",
+      "source_location": "L792",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_keyboardsettings",
@@ -93278,7 +93308,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L859",
+      "source_location": "L858",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_languagesettings",
@@ -93328,7 +93358,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L591",
+      "source_location": "L590",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_listjobspage",
@@ -93338,7 +93368,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L509",
+      "source_location": "L508",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_listjobsparams",
@@ -93348,7 +93378,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L608",
+      "source_location": "L607",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_listjobtrackspage",
@@ -93358,7 +93388,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L599",
+      "source_location": "L598",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_listjobtracksparams",
@@ -93368,7 +93398,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L747",
+      "source_location": "L746",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_listproxies",
@@ -93378,7 +93408,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L627",
+      "source_location": "L626",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_listtrackspage",
@@ -93388,7 +93418,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L521",
+      "source_location": "L520",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_listtracksparams",
@@ -93398,7 +93428,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L565",
+      "source_location": "L564",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_login",
@@ -93408,7 +93438,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L580",
+      "source_location": "L579",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_logout",
@@ -93418,7 +93448,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L576",
+      "source_location": "L575",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_me",
@@ -93488,7 +93518,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L729",
+      "source_location": "L728",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_pauseworker",
@@ -93528,7 +93558,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L737",
+      "source_location": "L736",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_releasebreaker",
@@ -93558,7 +93588,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L733",
+      "source_location": "L732",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_resumeworker",
@@ -93578,7 +93608,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L668",
+      "source_location": "L667",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_retrytrack",
@@ -93588,7 +93618,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L837",
+      "source_location": "L836",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_sendtestalert",
@@ -93608,7 +93638,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L635",
+      "source_location": "L634",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_setjobpriority",
@@ -93618,7 +93648,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L758",
+      "source_location": "L757",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_setproxyenabled",
@@ -93628,7 +93658,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L845",
+      "source_location": "L844",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_startlibrarysort",
@@ -93718,7 +93748,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L679",
+      "source_location": "L678",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_trackfileurl",
@@ -93748,7 +93778,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L548",
+      "source_location": "L547",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_tracksquery",
@@ -93788,7 +93818,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L657",
+      "source_location": "L656",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_unarchivejobs",
@@ -93798,7 +93828,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L830",
+      "source_location": "L829",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_updatealertsettings",
@@ -93808,7 +93838,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L799",
+      "source_location": "L798",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_updatekeyboardsettings",
@@ -93818,7 +93848,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L865",
+      "source_location": "L864",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_updatelanguagesettings",
@@ -93828,7 +93858,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L817",
+      "source_location": "L816",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_updatelibrarysettings",
@@ -93838,7 +93868,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L780",
+      "source_location": "L779",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_updateoutputsettings",
@@ -93848,7 +93878,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L806",
+      "source_location": "L805",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_updateretentionsettings",
@@ -93858,7 +93888,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L725",
+      "source_location": "L724",
       "weight": 1.0,
       "source": "frontend_src_lib_api",
       "target": "frontend_src_lib_api_workerstatus",
@@ -94248,7 +94278,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L726",
+      "source_location": "L725",
       "weight": 1.0,
       "source": "frontend_src_lib_api_workerstatus",
       "target": "frontend_src_lib_api_request",
@@ -94467,7 +94497,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L651",
+      "source_location": "L650",
       "weight": 1.0,
       "source": "frontend_src_lib_api_archivejobs",
       "target": "frontend_src_lib_api_request",
@@ -94478,7 +94508,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L643",
+      "source_location": "L642",
       "weight": 1.0,
       "source": "frontend_src_lib_api_bumpjob",
       "target": "frontend_src_lib_api_request",
@@ -94489,7 +94519,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L632",
+      "source_location": "L631",
       "weight": 1.0,
       "source": "frontend_src_lib_api_canceljob",
       "target": "frontend_src_lib_api_request",
@@ -94500,7 +94530,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L665",
+      "source_location": "L664",
       "weight": 1.0,
       "source": "frontend_src_lib_api_canceltrack",
       "target": "frontend_src_lib_api_request",
@@ -94511,7 +94541,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L585",
+      "source_location": "L584",
       "weight": 1.0,
       "source": "frontend_src_lib_api_createjob",
       "target": "frontend_src_lib_api_request",
@@ -94522,7 +94552,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L752",
+      "source_location": "L751",
       "weight": 1.0,
       "source": "frontend_src_lib_api_createproxy",
       "target": "frontend_src_lib_api_request",
@@ -94533,7 +94563,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L769",
+      "source_location": "L768",
       "weight": 1.0,
       "source": "frontend_src_lib_api_deleteproxy",
       "target": "frontend_src_lib_api_request",
@@ -94544,7 +94574,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L744",
+      "source_location": "L743",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getadminstats",
       "target": "frontend_src_lib_api_request",
@@ -94555,7 +94585,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L827",
+      "source_location": "L826",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getalertsettings",
       "target": "frontend_src_lib_api_request",
@@ -94566,7 +94596,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L596",
+      "source_location": "L595",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getjob",
       "target": "frontend_src_lib_api_request",
@@ -94577,7 +94607,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L814",
+      "source_location": "L813",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getlibrarysettings",
       "target": "frontend_src_lib_api_request",
@@ -94588,7 +94618,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L842",
+      "source_location": "L841",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getlibrarysortstatus",
       "target": "frontend_src_lib_api_request",
@@ -94599,7 +94629,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L777",
+      "source_location": "L776",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getoutputoptions",
       "target": "frontend_src_lib_api_request",
@@ -94610,7 +94640,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L773",
+      "source_location": "L772",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getoutputsettings",
       "target": "frontend_src_lib_api_request",
@@ -94621,7 +94651,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L790",
+      "source_location": "L789",
       "weight": 1.0,
       "source": "frontend_src_lib_api_getretentionsettings",
       "target": "frontend_src_lib_api_request",
@@ -94632,7 +94662,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L673",
+      "source_location": "L672",
       "weight": 1.0,
       "source": "frontend_src_lib_api_gettrackattempts",
       "target": "frontend_src_lib_api_request",
@@ -94643,7 +94673,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L592",
+      "source_location": "L591",
       "weight": 1.0,
       "source": "frontend_src_lib_api_listjobspage",
       "target": "frontend_src_lib_api_request",
@@ -94654,7 +94684,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L620",
+      "source_location": "L619",
       "weight": 1.0,
       "source": "frontend_src_lib_api_listjobtrackspage",
       "target": "frontend_src_lib_api_request",
@@ -94665,7 +94695,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L748",
+      "source_location": "L747",
       "weight": 1.0,
       "source": "frontend_src_lib_api_listproxies",
       "target": "frontend_src_lib_api_request",
@@ -94676,7 +94706,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L628",
+      "source_location": "L627",
       "weight": 1.0,
       "source": "frontend_src_lib_api_listtrackspage",
       "target": "frontend_src_lib_api_request",
@@ -94687,7 +94717,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L570",
+      "source_location": "L569",
       "weight": 1.0,
       "source": "frontend_src_lib_api_login",
       "target": "frontend_src_lib_api_request",
@@ -94698,7 +94728,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L581",
+      "source_location": "L580",
       "weight": 1.0,
       "source": "frontend_src_lib_api_logout",
       "target": "frontend_src_lib_api_request",
@@ -94709,7 +94739,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L577",
+      "source_location": "L576",
       "weight": 1.0,
       "source": "frontend_src_lib_api_me",
       "target": "frontend_src_lib_api_request",
@@ -94720,7 +94750,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L730",
+      "source_location": "L729",
       "weight": 1.0,
       "source": "frontend_src_lib_api_pauseworker",
       "target": "frontend_src_lib_api_request",
@@ -94731,7 +94761,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L738",
+      "source_location": "L737",
       "weight": 1.0,
       "source": "frontend_src_lib_api_releasebreaker",
       "target": "frontend_src_lib_api_request",
@@ -94742,7 +94772,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L734",
+      "source_location": "L733",
       "weight": 1.0,
       "source": "frontend_src_lib_api_resumeworker",
       "target": "frontend_src_lib_api_request",
@@ -94753,7 +94783,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L669",
+      "source_location": "L668",
       "weight": 1.0,
       "source": "frontend_src_lib_api_retrytrack",
       "target": "frontend_src_lib_api_request",
@@ -94764,7 +94794,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L838",
+      "source_location": "L837",
       "weight": 1.0,
       "source": "frontend_src_lib_api_sendtestalert",
       "target": "frontend_src_lib_api_request",
@@ -94775,7 +94805,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L636",
+      "source_location": "L635",
       "weight": 1.0,
       "source": "frontend_src_lib_api_setjobpriority",
       "target": "frontend_src_lib_api_request",
@@ -94786,7 +94816,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L759",
+      "source_location": "L758",
       "weight": 1.0,
       "source": "frontend_src_lib_api_setproxyenabled",
       "target": "frontend_src_lib_api_request",
@@ -94797,7 +94827,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L846",
+      "source_location": "L845",
       "weight": 1.0,
       "source": "frontend_src_lib_api_startlibrarysort",
       "target": "frontend_src_lib_api_request",
@@ -94808,7 +94838,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L658",
+      "source_location": "L657",
       "weight": 1.0,
       "source": "frontend_src_lib_api_unarchivejobs",
       "target": "frontend_src_lib_api_request",
@@ -94819,7 +94849,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L831",
+      "source_location": "L830",
       "weight": 1.0,
       "source": "frontend_src_lib_api_updatealertsettings",
       "target": "frontend_src_lib_api_request",
@@ -94830,7 +94860,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L800",
+      "source_location": "L799",
       "weight": 1.0,
       "source": "frontend_src_lib_api_updatekeyboardsettings",
       "target": "frontend_src_lib_api_request",
@@ -94841,7 +94871,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L866",
+      "source_location": "L865",
       "weight": 1.0,
       "source": "frontend_src_lib_api_updatelanguagesettings",
       "target": "frontend_src_lib_api_request",
@@ -94852,7 +94882,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L820",
+      "source_location": "L819",
       "weight": 1.0,
       "source": "frontend_src_lib_api_updatelibrarysettings",
       "target": "frontend_src_lib_api_request",
@@ -94863,7 +94893,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L783",
+      "source_location": "L782",
       "weight": 1.0,
       "source": "frontend_src_lib_api_updateoutputsettings",
       "target": "frontend_src_lib_api_request",
@@ -94874,7 +94904,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L807",
+      "source_location": "L806",
       "weight": 1.0,
       "source": "frontend_src_lib_api_updateretentionsettings",
       "target": "frontend_src_lib_api_request",
@@ -94885,7 +94915,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L535",
+      "source_location": "L534",
       "weight": 1.0,
       "source": "frontend_src_lib_api_jobsquery",
       "target": "frontend_src_lib_api_buildquery",
@@ -94896,7 +94926,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L612",
+      "source_location": "L611",
       "weight": 1.0,
       "source": "frontend_src_lib_api_listjobtrackspage",
       "target": "frontend_src_lib_api_buildquery",
@@ -94907,7 +94937,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L549",
+      "source_location": "L548",
       "weight": 1.0,
       "source": "frontend_src_lib_api_tracksquery",
       "target": "frontend_src_lib_api_buildquery",
@@ -94918,7 +94948,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L592",
+      "source_location": "L591",
       "weight": 1.0,
       "source": "frontend_src_lib_api_listjobspage",
       "target": "frontend_src_lib_api_jobsquery",
@@ -94929,7 +94959,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L628",
+      "source_location": "L627",
       "weight": 1.0,
       "source": "frontend_src_lib_api_listtrackspage",
       "target": "frontend_src_lib_api_tracksquery",
@@ -95017,7 +95047,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/api.ts",
-      "source_location": "L689",
+      "source_location": "L688",
       "weight": 1.0,
       "source": "frontend_src_lib_api_checktrackfile",
       "target": "frontend_src_lib_api_trackfileurl",
@@ -97077,7 +97107,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/components/IncomingJobs.svelte",
-      "source_location": "L437",
+      "source_location": "L439",
       "weight": 1.0,
       "source": "frontend_src_lib_components_incomingjobs",
       "target": "frontend_src_lib_components_incomingjobs_failedrow",
@@ -97880,7 +97910,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/i18n/errors.ts",
-      "source_location": "L69",
+      "source_location": "L70",
       "weight": 1.0,
       "source": "frontend_src_lib_i18n_errors",
       "target": "frontend_src_lib_i18n_errors_apierrortext",
@@ -97900,7 +97930,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/i18n/errors.ts",
-      "source_location": "L76",
+      "source_location": "L77",
       "weight": 1.0,
       "source": "frontend_src_lib_i18n_errors",
       "target": "frontend_src_lib_i18n_errors_errortext",
@@ -97930,7 +97960,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/i18n/errors.ts",
-      "source_location": "L84",
+      "source_location": "L85",
       "weight": 1.0,
       "source": "frontend_src_lib_i18n_errors",
       "target": "frontend_src_lib_i18n_errors_knowscode",
@@ -99327,7 +99357,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/i18n/errors.ts",
-      "source_location": "L80",
+      "source_location": "L81",
       "weight": 1.0,
       "source": "frontend_src_lib_i18n_errors_errortext",
       "target": "frontend_src_lib_i18n_errors_apierrortext",
@@ -99365,6 +99395,17 @@
       "weight": 1.0,
       "source": "frontend_src_routes_account_page_if",
       "target": "frontend_src_lib_i18n_errors_errortext"
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/i18n/i18n.test.ts",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "frontend_src_lib_i18n_i18n_test",
+      "target": "frontend_src_lib_i18n_errors_knowscode",
+      "confidence_score": 1.0
     },
     {
       "relation": "imports",
@@ -99469,10 +99510,40 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/i18n/i18n.test.ts",
+      "source_location": "L154",
+      "weight": 1.0,
+      "source": "frontend_src_lib_i18n_i18n_test",
+      "target": "frontend_src_lib_i18n_i18n_test_backend_codes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/i18n/i18n.test.ts",
+      "source_location": "L179",
+      "weight": 1.0,
+      "source": "frontend_src_lib_i18n_i18n_test",
+      "target": "frontend_src_lib_i18n_i18n_test_client_codes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/i18n/i18n.test.ts",
       "source_location": "L18",
       "weight": 1.0,
       "source": "frontend_src_lib_i18n_i18n_test",
       "target": "frontend_src_lib_i18n_i18n_test_length",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/src/lib/i18n/i18n.test.ts",
+      "source_location": "L186",
+      "weight": 1.0,
+      "source": "frontend_src_lib_i18n_i18n_test",
+      "target": "frontend_src_lib_i18n_i18n_test_params",
       "confidence_score": 1.0
     },
     {
@@ -109161,5 +109232,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "0608d56b676ac998c83ff58e4abd4e3218712d9d"
+  "built_at_commit": "e22d6ad26a9706e707e8f3486473fdcd1bce75bb"
 }

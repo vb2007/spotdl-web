@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1792344245.3810441,
-    "ast_hash": "fc4556739eb527e12df04e4d4cd9c5d3",
+    "mtime": 1792346777.4560664,
+    "ast_hash": "6ae626238219fea7859e8e7ab9927ecc",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -345,8 +345,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
-    "mtime": 1792345176.091673,
-    "ast_hash": "cf804c362c3172dc20e74699e3f7769b",
+    "mtime": 1792346024.9326437,
+    "ast_hash": "1e3c48d40c23daf2433bc9b1039319e7",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/Countdown.svelte": {
@@ -365,8 +365,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
-    "mtime": 1792344266.7580729,
-    "ast_hash": "76318d071aaaff8544de6931802b0263",
+    "mtime": 1792346024.9325051,
+    "ast_hash": "80aa605e4c2a967dc4b6a922d598c890",
     "semantic_hash": ""
   },
   "PRODUCT.md": {
@@ -375,13 +375,13 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1792345176.098511,
-    "ast_hash": "4fbcf18dbc992e0b0ca40ead29fa59b7",
+    "mtime": 1792346776.086937,
+    "ast_hash": "be4766b961912119b7bee93810f20ff3",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
-    "mtime": 1792341001.7618482,
-    "ast_hash": "386e90586fa4c4d462312440dc37ecbe",
+    "mtime": 1792346776.8190386,
+    "ast_hash": "5e6cdf6b5e02fec93f8e4a3f18e6077f",
     "semantic_hash": ""
   },
   "backend/alembic/versions/46be30064f8b_add_cancelled_job_state.py": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792345227.9410958,
-    "ast_hash": "f8fc57dab6debeb5e1ba82ea595aa183",
+    "mtime": 1792346067.704803,
+    "ast_hash": "feb06bb8525dd3b926d4c0325698ca27",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1450,8 +1450,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/14-keyboard.e2e.ts": {
-    "mtime": 1792342702.649564,
-    "ast_hash": "e060a79ecf005860e1c390df6fd4e684",
+    "mtime": 1792345844.4838367,
+    "ast_hash": "aa3585a27e811d07047c6d27e1769fef",
     "semantic_hash": ""
   },
   "frontend/e2e/support/guards.ts": {
@@ -1530,13 +1530,13 @@
     "semantic_hash": ""
   },
   "frontend/messages/en.json": {
-    "mtime": 1792345211.2850478,
-    "ast_hash": "ec0b34bc8f72f0e927f4a52f56eb645a",
+    "mtime": 1792346041.0988882,
+    "ast_hash": "f5cc6db978a12104d9954e7741e2b317",
     "semantic_hash": ""
   },
   "frontend/messages/hu.json": {
-    "mtime": 1792345211.2995305,
-    "ast_hash": "701e15b9d8245e31bd8052606f4280d0",
+    "mtime": 1792346777.699077,
+    "ast_hash": "28e8690d6540575c2db579cb692f0cbc",
     "semantic_hash": ""
   },
   "frontend/project.inlang/.meta.json": {
@@ -1545,8 +1545,8 @@
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/75353949c1dcafa9.json": {
-    "mtime": 1792345212.6509135,
-    "ast_hash": "06af3355807051d8aac6fe29f7b1275c",
+    "mtime": 1792346778.3690515,
+    "ast_hash": "edd7c33775219625b6c366e1e7a77090",
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/7e840a57839ab55a.json": {
@@ -1555,8 +1555,8 @@
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/ee7afd59fd01fb51.json": {
-    "mtime": 1792345227.0799603,
-    "ast_hash": "952098fb026e660208e03ae668149e9a",
+    "mtime": 1792346791.8666918,
+    "ast_hash": "3a6486b31c8241b1b4cf882b4b57eef4",
     "semantic_hash": ""
   },
   "frontend/project.inlang/settings.json": {
@@ -1585,8 +1585,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/i18n/errors.ts": {
-    "mtime": 1792345176.091731,
-    "ast_hash": "59df39766fd5a1c7e0d2ea34ef056217",
+    "mtime": 1792346024.932706,
+    "ast_hash": "bd01964042e0e776fccd12590adcc74c",
     "semantic_hash": ""
   },
   "frontend/src/lib/i18n/format.ts": {
@@ -1595,8 +1595,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/i18n/i18n.test.ts": {
-    "mtime": 1792344293.2996883,
-    "ast_hash": "64990c82f02b0c4d1dd2f02b1a70a8cd",
+    "mtime": 1792346040.6208687,
+    "ast_hash": "f0b47541f4143f0a46134288f8ae2b15",
     "semantic_hash": ""
   },
   "frontend/src/lib/i18n/labels.ts": {

@@ -263,5 +263,7 @@
   "261": "LibrarySortRun",
   "262": "_capture_enqueue",
   "263": "_NonClosingSession",
+  "264": "spawn_watchdog",
+  "265": "sent",
   "267": "a7d3c9e5f2b4_add_user_keyboard_shortcuts.py"
 }
