@@ -877,28 +877,28 @@ never fires anything; IME composition and dead keys are ignored.
 
 **The final table** (the overlay shows the same, with the Hungarian keys for each symbol):
 
-| Key (Hungarian QWERTZ)                                         | Where              | Action                                                                             |
-| -------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------- |
-| `h`, alias `?` (**Shift + ,**)                                 | everywhere         | Show or hide the shortcut overlay                                                  |
-| `f`, alias `/` (**Shift + 6**)                                 | `/`                | Search the queue                                                                   |
-| `i`                                                            | `/`                | The submit field                                                                   |
-| `Esc`                                                          | everywhere         | Close a dialog, else collapse the focused row, else clear and leave the search     |
-| `g` then `d` / `a`                                             | signed in          | Queue / Account                                                                    |
-| `g` then `s` / `l` / `t`                                       | admin              | Settings / Library / Stats (absent for everyone else)                              |
-| `j` / `↓`, `k` / `↑`                                           | lists              | Next / previous row (`j`/`k` from anywhere on `/` enter the list)                  |
-| `Home` / `End`                                                 | lists              | First / last loaded row; `End` on the last row loads more                          |
-| **Shift + G**                                                  | lists              | Load more                                                                          |
-| `Enter` / `Space`                                              | lists              | Open or close the row (the button's own activation)                                |
-| `→` / `o`                                                      | lists              | Open the row; on an open job, move into its tracks                                 |
-| `←`                                                            | lists              | Close the row, or go back from a track to its job                                  |
-| `r` / `d` / `x`                                                | rows               | Retry / download / cancel (through the confirmation), only where the row offers it |
-| `a`                                                            | job rows           | Archive or unarchive                                                               |
-| `b`, **Shift + B** (alias `+`, **Shift + 3**), `-` (unshifted) | in-flight job rows | Bump; priority +1; priority −1                                                     |
-| `e`                                                            | track rows, admin  | Open the track's history and show or hide every collapsed repeat                   |
-| `1` / `2`                                                      | `/`                | Jobs / tracks scope                                                                |
-| **Shift + F**                                                  | `/`                | Into the filter chips (`←`/`→` roam, `Space` toggles)                              |
-| `s`                                                            | `/`                | Next sort field                                                                    |
-| **Shift + A**                                                  | `/`                | Show or hide archived jobs                                                         |
+| Key (Hungarian QWERTZ)                                                                 | Where              | Action                                                                             |
+| -------------------------------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------------------------- |
+| `h`, alias `?` (**Shift + ,**)                                                         | everywhere         | Show or hide the shortcut overlay                                                  |
+| `f`, alias `/` (**Shift + 6**)                                                         | `/`                | Search the queue                                                                   |
+| `i`                                                                                    | `/`                | The submit field                                                                   |
+| `Esc`                                                                                  | everywhere         | Close a dialog, else collapse the focused row, else clear and leave the search     |
+| `g` then `d` / `a`                                                                     | signed in          | Queue / Account                                                                    |
+| `g` then `s` / `l` / `t`                                                               | admin              | Settings / Library / Stats (absent for everyone else)                              |
+| `j` / `↓`, `k` / `↑`                                                                   | lists              | Next / previous row (`j`/`k` from anywhere on `/` enter the list)                  |
+| `Home` / `End`                                                                         | lists              | First / last loaded row; `End` on the last row loads more                          |
+| **Shift + G**                                                                          | lists              | Load more                                                                          |
+| `Enter` / `Space`                                                                      | lists              | Open or close the row (the button's own activation)                                |
+| `→` / `o`                                                                              | lists              | Open the row; on an open job, move into its tracks                                 |
+| `←`                                                                                    | lists              | Close the row, or go back from a track to its job                                  |
+| `r` / `d` / `x`                                                                        | rows               | Retry / download / cancel (through the confirmation), only where the row offers it |
+| `a`                                                                                    | job rows           | Archive or unarchive                                                               |
+| `b`, **Shift + B** (alias `+`, **Shift + 3**), `-` (unshifted, the key **right of .**) | in-flight job rows | Bump; priority +1; priority −1                                                     |
+| `e`                                                                                    | track rows, admin  | Open the track's history and show or hide every collapsed repeat                   |
+| `1` / `2`                                                                              | `/`                | Jobs / tracks scope                                                                |
+| **Shift + F**                                                                          | `/`                | Into the filter chips (`←`/`→` roam, `Space` toggles)                              |
+| `s`                                                                                    | `/`                | Next sort field                                                                    |
+| **Shift + A**                                                                          | `/`                | Show or hide archived jobs                                                         |
 
 Single-character keys (everything above except `Esc`, `Enter`, `Space`, the arrows, `Home` and
 `End`) are switched off by the per-user **Keyboard shortcuts** setting on `/account` (WCAG 2.1.4),

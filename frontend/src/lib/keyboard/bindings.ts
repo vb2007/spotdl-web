@@ -272,12 +272,14 @@ export function bindingsFor(routeId: string | null, isAdmin: boolean, signedIn =
 	);
 }
 
-/** How a Hungarian QWERTZ user produces a symbol (plan rule 5). Letters, digits, `-` and the
- * named keys sit where they're labelled, so they need no hint. */
+/** How a Hungarian QWERTZ user produces a symbol (plan rule 5). Letters, digits and the named
+ * keys sit where they're labelled, so they need no hint. */
 export const HU_PHYSICAL: Record<string, string> = {
 	'?': 'Shift + ,',
 	'/': 'Shift + 6',
-	'+': 'Shift + 3'
+	'+': 'Shift + 3',
+	// Unshifted on both, but not where US has it: the key right of `.`.
+	'-': 'right of .'
 };
 
 const NAMED: Record<string, string> = {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
@@ -103,6 +103,9 @@
 			const saved = await api.updateKeyboardSettings(enabled);
 			shortcutsEnabled.set(saved.keyboard_shortcuts);
 			keyboardSavedAt = new Date();
+			// A link hovered before the save preloaded `/me` with the old value, and the next
+			// navigation would apply it: re-read the session now (and drop that preload).
+			await invalidateAll();
 		} catch (err) {
 			keyboardError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
 		} finally {

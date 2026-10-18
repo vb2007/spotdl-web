@@ -126,9 +126,20 @@ test.describe('as the admin', () => {
 	}) => {
 		const { admin } = readSeed();
 		await openDashboard(page);
-		await expect(jobRow(page, admin.title)).toHaveCount(1);
-		const rows = (await rowIds(page, 'jobs')).length;
-		expect(rows).toBeGreaterThan(0);
+		// Archived jobs shown, so the list has many rows (setup leaves one unarchived).
+		await page.keyboard.press('Shift+A');
+		await expect(page.getByRole('button', { name: 'show archived' })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await expect.poll(async () => (await rowIds(page, 'jobs')).length).toBeGreaterThan(10);
+		await expect(page.locator(`[data-kb-row="${admin.jobId}"]`)).toHaveCount(1);
+		expect(await tabStopsIn(page, 'jobs')).toBe(1);
+		// Still one stop after j/k moved the current row.
+		await page.keyboard.press('j');
+		await page.keyboard.press('j');
+		await page.keyboard.press('j');
+		await page.keyboard.press('k');
 		expect(await tabStopsIn(page, 'jobs')).toBe(1);
 
 		// Counted by pressing Tab across it: from the control before the list, one press lands

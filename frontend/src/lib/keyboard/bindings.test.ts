@@ -38,15 +38,19 @@ describe('binding table', () => {
 	});
 
 	it('gives no two bindings the same chord where both can apply', () => {
-		const seen = new Map<string, string>();
-		for (const { binding, chord } of chords) {
-			const id = `${binding.prefix ?? ''}|${chord.key}|${chord.shift ? 'S' : ''}`;
-			for (const route of binding.routes ?? ['*']) {
-				for (const other of [`${id}|${route}`, `${id}|*`]) {
-					const clash = seen.get(other);
-					expect(clash, `${binding.id} clashes with ${clash}`).toBeUndefined();
-				}
-				seen.set(`${id}|${route}`, binding.id);
+		// The registry takes the first match whatever the route, so a global binding clashes
+		// with every route-scoped one, in either order.
+		const overlap = (a?: string[], b?: string[]) =>
+			a === undefined || b === undefined || a.some((r) => b.includes(r));
+		const key = (c: { binding: { prefix?: string }; chord: { key: string; shift?: boolean } }) =>
+			`${c.binding.prefix ?? ''}|${c.chord.key}|${c.chord.shift ? 'S' : ''}`;
+		for (const [i, a] of chords.entries()) {
+			for (const b of chords.slice(i + 1)) {
+				if (a.binding === b.binding || key(a) !== key(b)) continue;
+				expect(
+					overlap(a.binding.routes, b.binding.routes),
+					`${a.binding.id} clashes with ${b.binding.id} on ${key(a)}`
+				).toBe(false);
 			}
 		}
 	});
@@ -76,5 +80,7 @@ describe('binding table', () => {
 		expect(search.keys).toBe('f or / (Shift + 6)');
 		const up = bindingHelpText(BINDINGS.find((b) => b.id === 'priority-up')!);
 		expect(up.keys).toBe('Shift + B or + (Shift + 3)');
+		const down = bindingHelpText(BINDINGS.find((b) => b.id === 'priority-down')!);
+		expect(down.keys).toBe('- (right of .)');
 	});
 });

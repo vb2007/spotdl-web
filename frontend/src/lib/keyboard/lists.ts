@@ -276,6 +276,10 @@ export function kbList(name: string, opts: { fallback?: () => HTMLElement | null
 			const cancel = () => {
 				m.restoreUntil = 0;
 				m.focusWithin = false;
+				// A closed job's track list that held focus is forgotten once its claim ends.
+				if (name.startsWith('job-tracks:') && memory.get(name) === m && !list.isConnected) {
+					memory.delete(name);
+				}
 			};
 			if (m.restoreUntil) {
 				const until = m.restoreUntil;
