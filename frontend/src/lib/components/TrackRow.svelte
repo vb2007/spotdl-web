@@ -395,9 +395,9 @@
 	// v41 designed; `e` opens the track if it's closed, then shows every collapsed repeat, or
 	// hides them all once any is shown.
 	function toggleRepeats() {
-		if (!expanded) {
+		if (!expanded || attemptsLoadedFor === null) {
 			// The history loads after the row opens: its repeats open when it arrives.
-			toggleExpanded();
+			if (!expanded) toggleExpanded();
 			openRepeatsOnLoad = true;
 			return;
 		}

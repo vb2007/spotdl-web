@@ -205,9 +205,15 @@ function settle(list: HTMLElement): void {
 		settle(nested);
 		if (!focusLost()) return;
 	}
-	// The same row back after a re-order stays where the user is reading; a neighbour after a
-	// removal is scrolled to.
-	focusRow(activeRow, { preventScroll: before === m.active });
+	// The same row back after a re-order stays where the user is reading, unless it moved
+	// out of view (a reload re-sorted it); a neighbour after a removal is scrolled to.
+	const same = before === m.active;
+	if (focusRow(activeRow, { preventScroll: same }) && same && activeRow) {
+		const box = activeRow.getBoundingClientRect();
+		if (box.bottom < 0 || box.top > window.innerHeight) {
+			activeRow.scrollIntoView({ block: 'nearest' });
+		}
+	}
 }
 
 function focusLost(): boolean {
