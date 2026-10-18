@@ -1,9 +1,12 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, StrictBool
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
+from app.errors import ApiError
 from app.models import AppSettings, User, UserSettings
 from app.routers.auth import require_admin, require_session
 from app.services import alerts, app_settings, downloads, user_settings
@@ -23,6 +26,19 @@ class UpdateRetentionRequest(BaseModel):
 
 class UpdateKeyboardRequest(BaseModel):
     keyboard_shortcuts: StrictBool
+
+
+class UpdateLanguageRequest(BaseModel):
+    # v46: the languages the frontend ships message files for (frontend/messages/), or `null`
+    # for automatic (the browser's language decides; owner's answer on PR #68). Required (no
+    # default), so an empty body is a 422, not a silent reset.
+    language: Literal["hu", "en"] | None
+
+
+class UpdateClockRequest(BaseModel):
+    # v46: a pinned time format, or `null` for automatic (the browser's region decides).
+    # Required (no default), so an empty body is a 422, not a silent reset.
+    clock: Literal["12h", "24h"] | None
 
 
 class UpdateLibrarySettingsRequest(BaseModel):
@@ -78,10 +94,18 @@ def update_output_settings(
 
     options = downloads.get_supported_output_options()
     if "default_format" in fields and fields["default_format"] not in options["formats"]:
-        raise HTTPException(status_code=400, detail=f"Unsupported format: {fields['default_format']!r}")
+        raise ApiError(
+            400,
+            "unsupported_format",
+            f"Unsupported format: {fields['default_format']!r}",
+            {"value": fields["default_format"]},
+        )
     if "default_bitrate" in fields and fields["default_bitrate"] not in options["bitrates"]:
-        raise HTTPException(
-            status_code=400, detail=f"Unsupported bitrate: {fields['default_bitrate']!r}"
+        raise ApiError(
+            400,
+            "unsupported_bitrate",
+            f"Unsupported bitrate: {fields['default_bitrate']!r}",
+            {"value": fields["default_bitrate"]},
         )
 
     row = app_settings.update_output_settings(db, **fields)
@@ -117,7 +141,7 @@ def update_library_settings(
     fields = payload.model_dump(exclude_unset=True)
     for key in ("library_target_dir", "library_folder_template", "library_quarantine_dir"):
         if key in fields and not fields[key].strip():
-            raise HTTPException(status_code=400, detail=f"{key} must not be blank")
+            raise ApiError(400, "setting_blank", f"{key} must not be blank", {"field": key})
 
     row = app_settings.update_library_settings(db, **fields)
     db.commit()
@@ -174,8 +198,11 @@ def update_alert_settings(
     fields = payload.model_dump(exclude_unset=True)
     for key, (minimum, maximum) in _ALERT_BOUNDS.items():
         if fields.get(key) is not None and not minimum <= fields[key] <= maximum:
-            raise HTTPException(
-                status_code=400, detail=f"{key} must be between {minimum} and {maximum}"
+            raise ApiError(
+                400,
+                "setting_out_of_range",
+                f"{key} must be between {minimum} and {maximum}",
+                {"field": key, "min": minimum, "max": maximum},
             )
     row = app_settings.update_alert_settings(db, **fields)
     db.commit()
@@ -186,6 +213,7 @@ def _require_admin_hidden(user: User = Depends(require_session)) -> User:
     """v36's plan: a non-admin gets 404 on the test-alert endpoint, so its existence isn't
     confirmed (the other admin-only routes here answer 403, via require_admin)."""
     if not user.is_admin:
+        # v46: deliberately no `code` -- it must read exactly like an unknown route's 404.
         raise HTTPException(status_code=404, detail="Not Found")
     return user
 
@@ -199,14 +227,17 @@ def send_test_alert(user: User = Depends(_require_admin_hidden)) -> dict:
     try:
         alerts.send_now(f"Test alert, sent from the settings page by {user.email}.")
     except alerts.AlertsNotConfigured:
-        raise HTTPException(
-            status_code=409,
-            detail="Matrix alerts are not configured (set MATRIX_HOMESERVER_URL, "
+        raise ApiError(
+            409,
+            "alerts_not_configured",
+            "Matrix alerts are not configured (set MATRIX_HOMESERVER_URL, "
             "MATRIX_ACCESS_TOKEN and MATRIX_ROOM_ID)",
         ) from None
     except alerts.AlertSendError as exc:
         alerts.logger.warning("alerts: test alert not sent: %s", exc)
-        raise HTTPException(status_code=502, detail=f"Matrix send failed: {exc}") from None
+        raise ApiError(
+            502, "alert_send_failed", f"Matrix send failed: {exc}", {"reason": str(exc)}
+        ) from None
     alerts.logger.info("alerts: test alert sent")
     return {"sent": True}
 
@@ -234,8 +265,8 @@ def update_retention_settings(
     user: User = Depends(require_session),
 ) -> dict:
     if payload.retention_days is not None and payload.retention_days <= 0:
-        raise HTTPException(
-            status_code=400, detail="retention_days must be a positive integer or null"
+        raise ApiError(
+            400, "retention_days_invalid", "retention_days must be a positive integer or null"
         )
     row = user_settings.update_retention(db, user.id, payload.retention_days)
     db.commit()
@@ -268,3 +299,57 @@ def update_keyboard_settings(
     row = user_settings.update_keyboard_shortcuts(db, user.id, payload.keyboard_shortcuts)
     db.commit()
     return _keyboard_to_dict(row)
+
+
+def _language_to_dict(row: UserSettings) -> dict:
+    return {"language": row.language}
+
+
+@router.get("/language")
+def get_language_settings(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """v46: per-user, open to every user, like `/keyboard`. `null` is "no saved choice" (the
+    browser's language decides); `/api/auth/me` carries the same value for the app shell."""
+    row = user_settings.get_user_settings(db, user.id)
+    db.commit()
+    return _language_to_dict(row)
+
+
+@router.patch("/language")
+def update_language_settings(
+    payload: UpdateLanguageRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    row = user_settings.update_language(db, user.id, payload.language)
+    db.commit()
+    return _language_to_dict(row)
+
+
+def _clock_to_dict(row: UserSettings) -> dict:
+    return {"clock": row.clock}
+
+
+@router.get("/clock")
+def get_clock_settings(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """v46 (owner-directed): per-user, open to every user, like `/language`. `null` is
+    automatic (the browser's region picks 12- or 24-hour); `/api/auth/me` carries it too."""
+    row = user_settings.get_user_settings(db, user.id)
+    db.commit()
+    return _clock_to_dict(row)
+
+
+@router.patch("/clock")
+def update_clock_settings(
+    payload: UpdateClockRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    row = user_settings.update_clock(db, user.id, payload.clock)
+    db.commit()
+    return _clock_to_dict(row)

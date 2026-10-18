@@ -459,6 +459,12 @@ wording implied abandonment rather than "this specific lookup came up empty."
 > reads the same on a chip and on a row, and no label truncates in the state column (F13). The
 > in-world voice stays on idents and moments; v46 re-words both for i18n.
 >
+> **v46 (2026-10-18):** the labels are now functions over the message files
+> (`lib/i18n/labels.ts`'s `trackStateLabel`/`jobStatusLabel`, TrackRow's status and outcome
+> tables), in Hungarian: sorban áll, indulásra kész, letöltés alatt, letöltve, várakozik, nem található,
+> már megvan, megszakítva; job statuses hangolás, aktív, várakozik, kész — részben, kész,
+> megszakítva, sikertelen.
+>
 > **v42 (2026-10-15):** one deliberate exception, the owner's choice: a non-admin's tracks scope
 > has a single **in progress** chip standing for pending, queued and downloading (v39 outcome 3),
 > while the rows keep the exact state word. The chip is a grouping of row words, not a fourth word.
@@ -474,7 +480,7 @@ pulsing-dot treatment for the same state, not `cond-idle` — a job actively bei
 `settled:partial` maps to `cond-fail`: it is a genuinely terminal, no-further-action state with a
 real gap (≥1 track that didn't make it), the same bucket `lookup_failed` already occupies at the
 track level — never `cond-waiting`, which §2 reserves for recoverable backoff, not "done, but
-incomplete." The labels themselves (`api.STATUS_LABEL`) are shared between the state-filter chips
+incomplete." The labels themselves (`api.STATUS_LABEL`; v46: `lib/i18n/labels.ts`'s `jobStatusLabel`) are shared between the state-filter chips
 and the job-row badge so the two can't drift apart: `"done — partial"` for `settled:partial`,
 never "failed" or "partial" alone, so a glance at either surface reads the same story.
 
@@ -798,7 +804,7 @@ are two groups, "Send an alert when" (each category with a one-line description)
 
 `/account` holds "Signed in" (name, email on the page, the admin's role, **disconnect**) and
 "Preferences", whose first group is log retention. v45's shortcut switch and v46's language
-switch are further groups in Preferences.
+switch and time format are further groups in Preferences.
 
 ### Admin stats page (`routes/stats/+page.svelte`, v44)
 
@@ -852,6 +858,9 @@ in" itself read as tuning in a receiver, matching the THESIS.
 > to use ("Sign in with your vb2007.hu account. Access is by invitation."). A failed sign-in puts
 > focus back on the password (selected), with one `role="alert"` line. v46's language switch goes
 > beside the ident, outside the dial panel.
+>
+> **v46 (2026-10-18, owner's rule on PR #68):** no switch after all. Signed out, `/login` speaks
+> the browser's language; the language is chosen on `/account` and applies once signed in.
 
 ### Error / status text
 
@@ -925,6 +934,50 @@ a well with a heavier floor, never amber (a key is not a live condition). The `g
 docks at the bottom edge in the panel's material and lists where each second key goes. The skip
 link ("Skip to queue" on `/`, "Skip to content" elsewhere) is the first focusable element on every
 page, off-screen until focused, then a small plate at the top-left.
+
+### Language: Hungarian and English (`lib/i18n/`, `messages/`, v46)
+
+**Every user-visible string is a message** in `messages/en.json` and `messages/hu.json` (Paraglide
+JS), keyed by meaning (`track_cancel_confirm`), never by its English. `npm run lint` fails on a
+hard-coded string in `src/` (`scripts/scan-literals.mjs`) and on any difference between the two
+files' keys or inputs (`scripts/check-messages.mjs`). The deliberate exceptions carry an
+`i18n-ignore` comment with their reason: the `SPOTDL // WEB` wordmark, CSS selectors, the proxy
+format, and the English `detail` behind a client-side error code.
+
+**Which language** (owner's rule, PR #68). Signed out, always the browser's: the first of its
+languages that is `hu` or `en`, else English. Signed in, a language the user saved on `/account`
+wins, else the browser's again. So someone who prefers English on a Hungarian browser sees
+Hungarian on `/login` and English once signed in. Nothing is stored in the browser and nothing is
+adopted at sign-in. `<html lang>` follows it, and a switch re-renders in place (no reload).
+
+**The switches** are on `/account` only, in Preferences, each a `.choice-group` saved to the profile
+the moment the server has it, with the shortcut switch's `role="status"` save line. **Language** is
+automatic / Magyar / English: each language in its own name and marked with its own `lang`
+(Magyar first, since most users read it), and "automatic (Magyar)" naming, the same way, the
+language the browser gives (owner's answer on PR #68: a way back to following the browser). **Time format** is automatic / 12-hour / 24-hour, each showing the current
+time as it would read. `/login` has no switch: there the browser decides.
+
+**Formats.** Words (month names, the AM/PM marker) follow the interface language. Conventions
+(date order, digit grouping, decimal mark, 12- or 24-hour) follow the browser's region: English on
+a Hungarian browser reads "17 Oct 2026, 13:05" and "12 345" (`lib/i18n/format.ts`, the `en-HU`
+locale). Where Intl has no data for the pair (Hungarian on a US browser, `hu-US`), numbers and the
+clock still follow the region and only the date order stays the language's. A time format pinned
+on `/account` overrides the region's clock once signed in.
+
+**What is never translated:** track, artist and album metadata, raw attempt error and note text,
+proxy addresses, error-type machine names (`NO_OUTPUT`), and the wordmark. Matrix alerts and logs
+stay English.
+
+**Hungarian copy** is tegező (te) and keeps the signal-receiver voice where English has it
+(hangolás, nincs jel, jelvevő, HANGOLÁS / KAPCSOLÓDÁS), with plain state words beside it. The
+circuit breaker is the _biztosíték_ (fuse), so it never shares a root with _megszakítva_ (cancelled).
+Lowercase action labels stay lowercase. A count is a plural message with Hungarian's singular noun
+after a numeral ("5 szám"), taking the raw `count` for the form and a pre-formatted `n`
+(`counted()`), so the number follows the browser's region like every other. A sentence with markup (`<kbd>`) keeps it in
+the message and renders through `RichText.svelte`. `Countdown`'s label stands before the time
+(`feloldásig 4:32`), and the time never wraps internally. Hungarian runs longer: v46 checked every
+route at 1280px and 390px for clipped text; the submit field's placeholder clips at 390px in both
+languages, as it did before.
 
 ## 7. Accessibility (confirmed hard requirement, PRODUCT.md)
 

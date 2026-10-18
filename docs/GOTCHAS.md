@@ -158,6 +158,9 @@ needed" claim — rather than silently deleted.
   (plus `--profile tunnel` for `up`/`down`). `up` without the overlay stops the app, creates empty
   named volumes and fails on the network cloudflared holds → *v38*
 
+- The dev `web` container's `node_modules` and `src/lib/paraglide` are anonymous volumes: they
+  outlive a rebuild, so a dependency change needs `up -d --renew-anon-volumes` → *v46*
+
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
 - `Secure` cookies work over `http://localhost` in browsers but **not** in `httpx`/`TestClient` —
@@ -658,8 +661,19 @@ needed" claim — rather than silently deleted.
   (focus restore) must retry on the next mutation → *v45*
 - The queue store patches a row that stops matching the filter in place, never drops it; only
   archive (archived hidden) removes a row from the list → *v45*
+- Messages re-render on a language switch only where they're called at render time; one built at
+  module scope, in a plain `const` or as a prop default freezes in its first language → *v46*
+- The inlang SDK "successfully" compiles zero messages when its plugin fails to load; the plugin
+  comes from `node_modules` (never the CDN default) and `check-messages.mjs` counts the output → *v46*
+- Hungarian: a count is a plural message, never `${n} noun`; an inflected noun means one message per
+  noun; `Countdown` labels stand before the time → *v46*
+- Formats = UI language + browser region (`en-HU`); plural messages take a pre-formatted `n`
+  (Paraglide's `number` ignores the region) → *v46*
 
 **Testing & verification technique**
+- e2e names come from the compiled message files (`t()`); a saved language beats the browser
+  locale, so setup/teardown clear both identities' language in the DB → *v46*
+- The hidden admin 404s carry no error `code`, so they still read like an unknown route → *v46*
 - GitGuardian flags a plausible-looking `scheme://user:pass@host` literal in a test and rescans
   every PR commit; assemble credentialed test URLs from parts → *v44*
 - The committed browser suite is `frontend/e2e/` (`npm run test:e2e`, local stack only); write
@@ -5202,3 +5216,75 @@ independently-found production bug from the same conversation)
   rewrites `frontend/.svelte-kit/`, the dev stack's Vite server answers with a full page reload,
   and spec 1 (which watches for exactly that) fails with "the observer must survive: no hard
   navigation in between". Seen in v45's final run; the suite alone passed.
+
+### v46 i18n gotchas
+
+- **Paraglide's `getLocale()` is overwritten to read a Svelte `$state`**
+  (`frontend/src/lib/i18n/locale.svelte.ts`). That's what makes a language switch re-render in
+  place with no reload: every message called in a template, a `$derived` or a function called from
+  them tracks it. The flip side: a message called once, at module scope, in a plain `const` or as a
+  prop's **default value** freezes in the language it was first built in. Label tables are
+  functions (`jobStatusLabel`, `trackStateLabel`, `pathLabel`), and `Countdown`'s `label` lost its
+  default (an unset label falls back at render time).
+- **The inlang SDK treats a plugin it can't load as a warning,** and the compile still reports
+  "Successfully compiled" with zero messages. Its default plugin source is a jsDelivr URL fetched
+  at build time; the project loads `@inlang/plugin-message-format` from `node_modules` instead, so
+  the Docker build needs no extra network. A local module path is resolved from the folder
+  *containing* `project.inlang` (`./node_modules/…`, not `../node_modules/…`).
+  `scripts/check-messages.mjs` (in `lint`, `check` and `build`) compares the compiled message count
+  with the files', alongside the `en`/`hu` key and input parity.
+- **The dev `web` container compiles Paraglide's output as root.** On the `./frontend` bind mount
+  those root-owned files make every host-side `npm run check`/`lint` fail to recompile them
+  (`EACCES`), so `src/lib/paraglide` gets an anonymous volume in `docker-compose.override.yml`,
+  like `node_modules`. Both anonymous volumes outlive an image rebuild: after a dependency change,
+  `docker compose build web` then `docker compose up -d --renew-anon-volumes`, or the container keeps
+  the old `node_modules`. **Vite's recursive watcher doesn't cross into that nested mount:** a
+  recompile landed in the volume while the dev server kept serving the old module (an e2e spec
+  read "Időtartam" from the files and found "Mikor" on the page). `vite.config.ts`'s dev-only
+  `watchCompiledMessages` adds the directory to the watcher explicitly. **That alone wasn't
+  enough** (corrected 2026-10-19): Paraglide's default `cleanOutdir` empties and recreates the
+  output, and the recreated directory dropped out of the watch again (a new key was "not a
+  function" on `/account` until a restart; an in-place append had made the first fix look
+  complete). The plugin now compiles with `cleanOutdir: false`; verified with two real
+  recompiles in a row reaching the served module.
+- **`npx vitest run` rewrites `frontend/.svelte-kit/` too** (its SvelteKit plugin syncs), so the v45
+  rule "don't run `npm run check`/`build` while the e2e suite runs" covers the unit tests as well:
+  a review agent's `vitest` during a run made the dev server reload and a keyboard spec lose its
+  focused row mid-step (the same step passed 3/3 alone).
+- **Formats are the interface language *with the browser's region*** (owner's rule on PR #68):
+  `format.ts` builds `en-HU` from English and a Hungarian browser, and Chrome's ICU has the data
+  ("17 Oct 2026, 13:05", "12 345,5", lowercase "pm" when 12-hour is pinned). Paraglide's own
+  `number` registry function formats with the bare language (`en`), so plural messages take a
+  pre-formatted `n` beside the raw `count` (`counted()`), never `local n = count: number`.
+  **Intl has no data for most `hu-<region>` pairs** (`hu-US` resolves to plain `hu`), so the region
+  silently stopped counting for a Hungarian interface; `format.ts` checks the pair resolved as
+  asked and otherwise takes numbers and the default clock from the region's likeliest locale,
+  **maximized explicitly** (`new Intl.Locale('und', { region }).maximize()`): Intl never
+  maximizes `und-DE` itself, it falls back to the runtime's default locale (en-US in Chromium and
+  Node), which made the region stop counting a second time (review round 7).
+- **The browser decides the language until sign-in** (owner's rule on PR #68): no `/login`
+  switch, nothing stored in the browser, nothing adopted at sign-in. The plan's pre-login choice
+  and its adoption were built, reviewed, then removed on the owner's answer; a "choice someone
+  else left in this browser" was the bug class that made the owner's rule the simpler one.
+- **A saved language beats the browser's, and the API can set one but not clear one.** The e2e
+  projects pin their browser `locale` (`en-US`, `hu-HU` for `hu`) and expect the page to follow it,
+  so global setup and teardown reset both identities' `user_settings.language` to NULL straight in
+  the database (`stack.ts`'s `setLanguage`). The specs read names from the compiled message files
+  (`e2e/support/i18n.ts`'s `t()`, which passes `{ locale }`); spec 14 points the Node-side runtime at
+  the project's language, since the keyboard bindings' labels are message functions.
+- **`keyboard/bindings.ts` imports its messages relatively** (`'../paraglide/messages.js'`): the e2e
+  suite imports the table under Playwright's Node loader, which knows no `$lib`.
+- **Hungarian keeps the noun singular after a numeral** ("5 szám"), so a count is a message with
+  `count` (an `Intl` plural selector in `en`, a plain variant in `hu`), never `${n} tracks`. A
+  sentence that inflects its noun ("ezt az albumot nem sikerült beolvasni") is one message per
+  noun, never a noun spliced in. `Countdown` prints `{label} {time}`, so Hungarian labels are
+  phrased to stand before a time (`feloldásig 4:32`), and the time is `nowrap` so a phone wraps
+  before it, never between "2 nap" and its clock.
+- **Spec 14's priority keys raced the page, not the API** (v45's spec, exposed by v46 running it a
+  second time in the `hu` project). A row takes one priority step at a time and drops a key pressed
+  while the last step is still settling in the page, which outlasts the moment the API returns the
+  new value; the spec pressed the next key as soon as the API did. Each step now waits for its own
+  PATCH response and a page tick.
+- **The hidden admin 404s carry no error `code` on purpose** (`require_admin_hidden`, the test-alert
+  route): a code would tell them apart from an unknown route's `{"detail": "Not Found"}`, which is
+  the point of answering 404. Every other user-facing error is an `app/errors.py` `ApiError`.

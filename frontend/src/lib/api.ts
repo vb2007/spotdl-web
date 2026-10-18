@@ -52,16 +52,6 @@ export const STATUS_TOKENS: string[] = [
 	'failed'
 ];
 
-export const STATUS_LABEL: Record<string, string> = {
-	expanding: 'tuning in',
-	active: 'active',
-	waiting: 'waiting',
-	'settled:partial': 'done — partial',
-	'settled:complete': 'done',
-	cancelled: 'cancelled',
-	failed: 'failed'
-};
-
 export interface Job {
 	id: string;
 	source_url: string;
@@ -397,7 +387,18 @@ export interface SessionInfo {
 	/** v45: the per-user switch for single-key shortcuts. `me()` always carries it; the login
 	 * response doesn't (the layout's `me()` runs next anyway). */
 	keyboard_shortcuts?: boolean;
+	/** v46: the saved interface language, `null` while the user has none (the browser's
+	 * language decides). Like `keyboard_shortcuts`, only `me()` carries it. */
+	language?: Language | null;
+	/** v46: the pinned time format, `null` for automatic (the browser's region decides). */
+	clock?: Clock | null;
 }
+
+/** v46: the interface languages there are message files for. */
+export type Language = 'hu' | 'en';
+
+/** v46: a time format the user can pin. */
+export type Clock = '12h' | '24h';
 
 /** Shared display rule for username-or-email, everywhere either can appear (session
  * header, job/track owner columns) -- username when known, email otherwise. */
@@ -435,10 +436,15 @@ export interface JobTracksPage extends Page<Track> {
 	counts_by_state: Record<string, number>;
 }
 
+/** v46: `message` is the backend's English `detail` (or a status line); `code` is its stable
+ * machine code, which the UI translates (`$lib/i18n/errors`), falling back to `message` for a
+ * code it doesn't know. `params` carries the values a translation interpolates. */
 export class ApiError extends Error {
 	constructor(
 		public status: number,
-		message: string
+		message: string,
+		public code: string | null = null,
+		public params: Record<string, string | number> = {}
 	) {
 		super(message);
 		this.name = 'ApiError';
@@ -457,13 +463,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 	if (!response.ok) {
 		let detail = response.statusText;
+		let code: string | null = null;
+		let params: Record<string, string | number> = {};
 		try {
 			const body = await response.json();
-			detail = body.detail ?? detail;
+			// A validation error's `detail` is a list, not a sentence: keep the status line
+			// and let the code-less fallback in `$lib/i18n/errors` speak for it.
+			if (typeof body.detail === 'string') detail = body.detail;
+			else if (body.detail != null) code = 'request_invalid';
+			if (typeof body.code === 'string') code = body.code;
+			if (body.params && typeof body.params === 'object') params = body.params;
 		} catch {
-			// Non-JSON error body — fall back to statusText.
+			// Non-JSON error body — fall back to statusText. v46: a response like that (the proxy
+			// answering for a restarting `api`, an unhandled exception's plain-text 500, or a page
+			// from in front of the app such as a 429) gets a code, so the UI says so in the active
+			// language around the same status line.
+			code = response.status >= 500 ? 'server_error' : 'request_failed';
+			params = { status: response.statusText || String(response.status) };
 		}
-		throw new ApiError(response.status, detail);
+		throw new ApiError(response.status, detail, code, params);
 	}
 
 	if (response.status === 204) {
@@ -672,16 +690,33 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 	});
 
 	if (!response.ok) {
+		// HEAD has no body, so no backend code either: the status picks one. An expired session
+		// says so (as any other request's 401 would); anything else keeps its status line as the
+		// `detail` a code-less fallback would show.
+		const code =
+			response.status === 404
+				? 'file_not_found'
+				: response.status === 401
+					? 'not_authenticated'
+					: 'download_failed';
 		throw new ApiError(
 			response.status,
-			response.status === 404 ? 'File not found' : response.statusText || 'Download failed'
+			// i18n-ignore: the English `detail` behind the code, as the backend's would be.
+			response.status === 404 ? 'File not found' : response.statusText || 'Download failed',
+			code,
+			{ status: response.statusText || String(response.status) }
 		);
 	}
 
 	// v27's backstop, kept: FastAPI's own response is headers-only, so a proxy that
 	// doesn't follow X-Accel-Redirect would otherwise report a 0-byte "success".
 	if (response.headers.get('Content-Length') === '0') {
-		throw new ApiError(502, 'Downloaded file was empty -- the download did not complete.');
+		throw new ApiError(
+			502,
+			// i18n-ignore: the English `detail` behind the code, as the backend's would be.
+			'Downloaded file was empty -- the download did not complete.',
+			'file_empty'
+		);
 	}
 }
 
@@ -816,5 +851,31 @@ export function startLibrarySort(): Promise<LibrarySortRun> {
 export function createEventSource(allUsers = false): EventSource {
 	return new EventSource(`${API_BASE}/api/stream${allUsers ? '?all_users=true' : ''}`, {
 		withCredentials: true
+	});
+}
+
+export interface LanguageSettings {
+	language: Language | null;
+}
+
+/** v46: the per-user interface language, open to every user like the shortcut switch. Stored
+ * server-side so it follows the user to every device; `me()` carries the same value. `null`
+ * puts it back to automatic (the browser's language). */
+export function updateLanguageSettings(language: Language | null): Promise<LanguageSettings> {
+	return request('/api/settings/language', {
+		method: 'PATCH',
+		body: JSON.stringify({ language })
+	});
+}
+
+export interface ClockSettings {
+	clock: Clock | null;
+}
+
+/** v46: the per-user time format; `null` puts it back to automatic (the browser's region). */
+export function updateClockSettings(clock: Clock | null): Promise<ClockSettings> {
+	return request('/api/settings/clock', {
+		method: 'PATCH',
+		body: JSON.stringify({ clock })
 	});
 }

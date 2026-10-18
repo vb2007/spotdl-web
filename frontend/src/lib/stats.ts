@@ -1,21 +1,31 @@
 // v44: the admin stats page's pure logic, kept out of the components so it can be tested
 // without a DOM: display names, the hold spans the breaker strip draws, and where an
 // instant sits on the window's time axis.
+// v46: every label is a function and every number and date goes through `Intl` with the
+// active locale, so the page re-renders in place on a language switch.
 import type { AdminStats, BreakerEvent, PathStats } from '$lib/api';
+import { formatDateTime, formatNumber } from '$lib/i18n/format';
+import * as m from '$lib/paraglide/messages';
 
-export const PATH_LABEL: Record<PathStats['path'], string> = {
-	'direct-ipv4': 'direct · IPv4',
-	'direct-ipv6': 'direct · IPv6',
-	proxy: 'proxy',
-	// A real attempt with no recorded path: pre-v29 rows, or beat's stale-track reclaim.
-	unknown: 'unrecorded'
-};
+export function pathLabel(path: PathStats['path']): string {
+	switch (path) {
+		case 'direct-ipv4':
+			return m.stats_path_direct_ipv4();
+		case 'direct-ipv6':
+			return m.stats_path_direct_ipv6();
+		case 'proxy':
+			return m.stats_path_proxy();
+		// A real attempt with no recorded path: pre-v29 rows, or beat's stale-track reclaim.
+		default:
+			return m.stats_unrecorded();
+	}
+}
 
-/** Error types read as in the logs and alerts (machine names), except `lookup`, which the
- * UI has called "not found" since v19. */
+/** Error types read as in the logs and alerts (machine names, the same in every language),
+ * except `lookup`, which the UI has called "not found" since v19. */
 export function errorTypeLabel(errorType: string): string {
-	if (errorType === 'lookup') return 'not found';
-	if (errorType === 'unknown') return 'unrecorded';
+	if (errorType === 'lookup') return m.state_lookup_failed();
+	if (errorType === 'unknown') return m.stats_unrecorded();
 	return errorType;
 }
 
@@ -28,24 +38,29 @@ export function errorTypeCondition(errorType: string): 'fail' | 'waiting' | 'idl
 	return 'waiting';
 }
 
+const percent = (fraction: number) => formatNumber(fraction, { style: 'percent' });
+
 export function formatRate(rate: number | null): string {
 	if (rate === null) return '—';
-	const percent = rate * 100;
+	const value = rate * 100;
 	// Never round a partial result up to 100% or down to 0%: "100%" must mean every one.
-	if (percent > 99 && percent < 100) return '>99%';
-	if (percent > 0 && percent < 1) return '<1%';
-	return `${Math.round(percent)}%`;
+	if (value > 99 && value < 100) return `>${percent(0.99)}`;
+	if (value > 0 && value < 1) return `<${percent(0.01)}`;
+	return percent(Math.round(value) / 100);
 }
 
-/** A step or an age: "45s", "30m", "1h 30m", "6h", "5d". */
+/** A step or an age: "45s", "30m", "1h 30m", "6h", "5d" ("45 mp", "1 ó 30 p" in Hungarian). */
 export function formatSpan(seconds: number): string {
-	if (seconds < 60) return `${Math.max(0, Math.round(seconds))}s`;
+	const n = (value: number) => formatNumber(value);
+	if (seconds < 60) return m.stats_span_seconds({ n: n(Math.max(0, Math.round(seconds))) });
 	const minutes = Math.round(seconds / 60);
-	if (minutes < 60) return `${minutes}m`;
+	if (minutes < 60) return m.stats_span_minutes({ n: n(minutes) });
 	const hours = Math.floor(minutes / 60);
 	if (hours < 48)
-		return minutes % 60 === 0 || hours >= 10 ? `${hours}h` : `${hours}h ${minutes % 60}m`;
-	return `${Math.floor(hours / 24)}d`;
+		return minutes % 60 === 0 || hours >= 10
+			? m.stats_span_hours({ n: n(hours) })
+			: m.stats_span_hours_minutes({ h: n(hours), m: n(minutes % 60) });
+	return m.stats_span_days({ n: n(Math.floor(hours / 24)) });
 }
 
 export function windowEnd(stats: AdminStats): number {
@@ -136,7 +151,7 @@ export function bucketHeld(stats: AdminStats, spans: HoldSpan[], index: number):
 
 /** An instant (a hold's start or end) as date and time, on the same clock as the buckets. */
 export function instantLabel(stats: AdminStats, iso: string): string {
-	return new Date(Date.parse(iso) + stats.utc_offset_minutes * 60_000).toLocaleString([], {
+	return formatDateTime(new Date(Date.parse(iso) + stats.utc_offset_minutes * 60_000), {
 		timeZone: 'UTC',
 		month: 'short',
 		day: 'numeric',
@@ -155,13 +170,13 @@ export function bucketLabel(stats: AdminStats, iso: string, long = false): strin
 	const utc = { timeZone: 'UTC' } as const;
 	if (stats.bucket_seconds < 86400) {
 		// The axis says "6 AM" / "06"; the tooltip and table give the full range.
-		if (!long) return date.toLocaleTimeString([], { ...utc, hour: 'numeric' });
-		const hour = date.toLocaleTimeString([], { ...utc, hour: '2-digit', minute: '2-digit' });
+		if (!long) return formatDateTime(date, { ...utc, hour: 'numeric' });
+		const hour = formatDateTime(date, { ...utc, hour: '2-digit', minute: '2-digit' });
 		const next = new Date(date.getTime() + stats.bucket_seconds * 1000);
-		return `${hour}–${next.toLocaleTimeString([], { ...utc, hour: '2-digit', minute: '2-digit' })}`;
+		return `${hour}–${formatDateTime(next, { ...utc, hour: '2-digit', minute: '2-digit' })}`;
 	}
-	return date.toLocaleDateString(
-		[],
+	return formatDateTime(
+		date,
 		long
 			? { ...utc, weekday: 'short', month: 'short', day: 'numeric' }
 			: stats.failures.buckets.length <= 7
@@ -185,8 +200,39 @@ export function failurePeak(stats: AdminStats): number {
 	return peak;
 }
 
-export const WINDOW_HEADING: Record<AdminStats['window'], string> = {
-	'24h': 'Last 24 hours',
-	'7d': 'Last 7 days',
-	'30d': 'Last 30 days'
-};
+export function windowHeading(window: AdminStats['window']): string {
+	if (window === '7d') return m.stats_window_heading_7d();
+	if (window === '30d') return m.stats_window_heading_30d();
+	return m.stats_window_heading_24h();
+}
+
+/** The window switch's own button text ("24h", "7d", "30d"). */
+export function windowName(window: AdminStats['window']): string {
+	if (window === '7d') return m.stats_window_7d();
+	if (window === '30d') return m.stats_window_30d();
+	return m.stats_window_24h();
+}
+
+/** One piece of a message split at its values: plain text (`key` null), or the value named
+ * `key`. A sentence whose numbers sit in their own markup ("Proxies: <mono>3</mono> switched
+ * on") stays one message, in the order its language puts them. */
+export interface Slot {
+	key: string | null;
+	text: string;
+}
+
+export function slotted<P extends Record<string, string>>(
+	message: (values: P) => string,
+	values: P
+): Slot[] {
+	const keys = Object.keys(values);
+	const marked = Object.fromEntries(keys.map((key, i) => [key, `\uE000${i}\uE001`])) as P;
+	return message(marked)
+		.split(/\uE000(\d+)\uE001/)
+		.map((text, i) =>
+			i % 2 === 1
+				? { key: keys[Number(text)], text: values[keys[Number(text)]] }
+				: { key: null, text }
+		)
+		.filter((slot) => slot.text !== '');
+}

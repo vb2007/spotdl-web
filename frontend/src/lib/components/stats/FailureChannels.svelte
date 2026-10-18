@@ -12,6 +12,8 @@
 		holdSpans,
 		instantLabel
 	} from '$lib/stats';
+	import { counted, formatNumber } from '$lib/i18n/format';
+	import * as m from '$lib/paraglide/messages';
 
 	// v44: a multi-channel chart recorder. One channel per failure class that occurred, all on
 	// one shared y-scale (so channels compare) and one time axis, with the breaker's holds as
@@ -46,18 +48,25 @@
 	);
 	const breakerLine = $derived(
 		spans.length === 0
-			? 'The breaker didn’t hold in this window.'
-			: `The breaker held ${formatSpan(heldSeconds)} in total, ${stats.breaker.trips} trip${stats.breaker.trips === 1 ? '' : 's'} started in this window.`
+			? m.stats_breaker_no_hold()
+			: m.stats_breaker_held({ span: formatSpan(heldSeconds), ...counted(stats.breaker.trips) })
 	);
 
 	const summary = $derived.by(() => {
-		if (stats.failures.series.length === 0) return `No failures. ${breakerLine}`;
+		if (stats.failures.series.length === 0) return m.stats_summary_none({ breaker: breakerLine });
 		const parts = stats.failures.series.map((series) => {
 			const most = Math.max(...series.counts);
 			const at = series.counts.indexOf(most);
-			return `${errorTypeLabel(series.error_type)}: ${series.total}, most in one ${unit} ${most} (${bucketLabel(stats, stats.failures.buckets[at], true)})`;
+			const values = {
+				type: errorTypeLabel(series.error_type),
+				total: formatNumber(series.total),
+				most: formatNumber(most),
+				when: bucketLabel(stats, stats.failures.buckets[at], true)
+			};
+			return unit === 'hour' ? m.stats_summary_part_hour(values) : m.stats_summary_part_day(values);
 		});
-		return `Failures by type, per ${unit}. ${parts.join('; ')}. ${breakerLine}`;
+		const values = { parts: parts.join('; '), breaker: breakerLine };
+		return unit === 'hour' ? m.stats_summary_hour(values) : m.stats_summary_day(values);
 	});
 
 	// Crosshair: the bucket under the pointer, or none.
@@ -87,24 +96,24 @@
 
 	function holdLabel(span: (typeof spans)[number]): string {
 		const step = span.stepSeconds !== null ? formatSpan(span.stepSeconds) : '';
-		const verb = span.escalated ? 'escalated' : 'tripped';
+		const verb = span.escalated ? m.stats_hold_escalated() : m.stats_hold_tripped();
 		const end = span.ongoing
-			? 'still holding'
+			? m.stats_hold_ongoing()
 			: span.manual
-				? 'released by the admin'
+				? m.stats_hold_released()
 				: span.early
-					? 'ended early'
-					: 'ran out';
-		return `${verb} (${step}) ${instantLabel(stats, span.startedAt)}, ${end}`;
+					? m.stats_hold_ended_early()
+					: m.stats_hold_ran_out();
+		return m.stats_hold_label({ verb, step, when: instantLabel(stats, span.startedAt), end });
 	}
 </script>
 
 <div class="recorder">
 	<p class="scale">
 		{#if peak > 0}
-			Columns share one scale: the tallest is {peak} failure{peak === 1 ? '' : 's'} in one {unit}.
+			{unit === 'hour' ? m.stats_scale_hour(counted(peak)) : m.stats_scale_day(counted(peak))}
 		{:else}
-			No failed attempts in this window.
+			{m.stats_no_failed_attempts()}
 		{/if}
 	</p>
 
@@ -132,11 +141,11 @@
 					</span>
 				{/each}
 			</span>
-			<span class="total mono" style:grid-row={row + 1}>{series.total}</span>
+			<span class="total mono" style:grid-row={row + 1}>{formatNumber(series.total)}</span>
 		{/each}
 
 		<span class="name mono" style:grid-row={breakerRow}
-			><span class="key key-hold"></span>breaker</span
+			><span class="key key-hold"></span>{m.stats_channel_breaker()}</span
 		>
 		<span class="strip holds" style:grid-row={breakerRow}>
 			{#each spans as span (span.startedAt)}
@@ -169,14 +178,16 @@
 					{#each stats.failures.series as series (series.error_type)}
 						<span class="row">
 							<span class="line-key {errorTypeCondition(series.error_type)}"></span>
-							<strong class="mono">{series.counts[shown]}</strong>
+							<strong class="mono">{formatNumber(series.counts[shown])}</strong>
 							<span class="series">{errorTypeLabel(series.error_type)}</span>
 						</span>
 					{/each}
 					<span class="row">
 						<span class="line-key key-hold"></span>
 						<span class="series">
-							{bucketHeld(stats, spans, shown) ? 'breaker held' : 'breaker clear'}
+							{bucketHeld(stats, spans, shown)
+								? m.stats_readout_breaker_held()
+								: m.stats_readout_breaker_clear()}
 						</span>
 					</span>
 				</span>
@@ -187,24 +198,21 @@
 	<p class="breaker-line">{breakerLine}</p>
 
 	<details class="as-table">
-		<summary class="mono">show as a table</summary>
+		<summary class="mono">{m.stats_show_as_table()}</summary>
 		<!-- Focusable, so a keyboard can scroll it (axe: scrollable-region-focusable). -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-		<div
-			class="table-wrap"
-			tabindex="0"
-			role="region"
-			aria-label="Failures and breaker holds as tables"
-		>
+		<div class="table-wrap" tabindex="0" role="region" aria-label={m.stats_tables_label()}>
 			<table>
-				<caption class="sr-only">Failures by type per {unit}, and whether the breaker held</caption>
+				<caption class="sr-only"
+					>{unit === 'hour' ? m.stats_table_caption_hour() : m.stats_table_caption_day()}</caption
+				>
 				<thead>
 					<tr>
-						<th scope="col">{unit === 'hour' ? 'Hour' : 'Day'}</th>
+						<th scope="col">{unit === 'hour' ? m.stats_col_hour() : m.stats_col_day()}</th>
 						{#each stats.failures.series as series (series.error_type)}
 							<th scope="col" class="mono">{errorTypeLabel(series.error_type)}</th>
 						{/each}
-						<th scope="col">Breaker</th>
+						<th scope="col">{m.stats_col_breaker()}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -212,18 +220,21 @@
 						<tr>
 							<th scope="row" class="mono">{bucketLabel(stats, bucket, true)}</th>
 							{#each stats.failures.series as series (series.error_type)}
-								<td class="mono">{series.counts[i]}</td>
+								<td class="mono">{formatNumber(series.counts[i])}</td>
 							{/each}
-							<td>{bucketHeld(stats, spans, i) ? 'held' : '—'}</td>
+							<td>{bucketHeld(stats, spans, i) ? m.stats_cell_held() : '—'}</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
 			{#if spans.length > 0}
 				<table>
-					<caption class="caption">Breaker holds</caption>
+					<caption class="caption">{m.stats_holds_caption()}</caption>
 					<thead>
-						<tr><th scope="col">Hold</th><th scope="col">Until</th></tr>
+						<tr
+							><th scope="col">{m.stats_col_hold()}</th><th scope="col">{m.stats_col_until()}</th
+							></tr
+						>
 					</thead>
 					<tbody>
 						{#each spans as span (span.startedAt)}

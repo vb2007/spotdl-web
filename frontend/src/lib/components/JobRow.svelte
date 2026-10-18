@@ -5,7 +5,11 @@
 	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
 	import { kbRow, rowItemById } from '$lib/keyboard/lists';
-	import type { Job, JobLifecycle } from '$lib/api';
+	import type { Job, JobLifecycle, JobSourceType } from '$lib/api';
+	import * as m from '$lib/paraglide/messages';
+	import { errorText } from '$lib/i18n/errors';
+	import { formatNumber } from '$lib/i18n/format';
+	import { jobStatusLabel } from '$lib/i18n/labels';
 
 	let { job, allUsers, isAdmin }: { job: Job; allUsers: boolean; isAdmin: boolean } = $props();
 
@@ -31,7 +35,7 @@
 	};
 
 	let statusToken = $derived(api.statusKey(job.status));
-	let badgeLabel = $derived(api.STATUS_LABEL[statusToken] ?? statusToken);
+	let badgeLabel = $derived(jobStatusLabel(statusToken));
 	// v42 (F28): red is for a real gap. A job that is partial only because its owner
 	// cancelled tracks has nothing missing they didn't choose, so it reads muted.
 	let cond = $derived(
@@ -54,6 +58,15 @@
 		if ((c.waiting ?? 0) === 1) return statusToken === 'waiting';
 		return false;
 	});
+	// v46: what kind of link the job is, in words (the API's own value is a machine key).
+	const SOURCE_TYPE_LABEL: Record<JobSourceType, () => string> = {
+		track: m.job_source_track,
+		album: m.job_source_album,
+		playlist: m.job_source_playlist,
+		artist: m.job_source_artist,
+		search: m.job_source_search
+	};
+
 	let toggleButton: HTMLButtonElement | undefined = $state();
 	let destroyed = false;
 	$effect(() => () => {
@@ -94,11 +107,11 @@
 		const fail = c.lookup_failed ?? 0;
 		const idle = c.cancelled ?? 0;
 		const parts: string[] = [];
-		if (settled) parts.push(`${settled.toLocaleString()} done`);
-		if (active) parts.push(`${active.toLocaleString()} active`);
-		if (waiting) parts.push(`${waiting.toLocaleString()} waiting`);
-		if (fail) parts.push(`${fail.toLocaleString()} not found`);
-		if (idle) parts.push(`${idle.toLocaleString()} cancelled`);
+		if (settled) parts.push(m.job_count_done({ count: formatNumber(settled) }));
+		if (active) parts.push(m.job_count_active({ count: formatNumber(active) }));
+		if (waiting) parts.push(m.job_count_waiting({ count: formatNumber(waiting) }));
+		if (fail) parts.push(m.job_count_not_found({ count: formatNumber(fail) }));
+		if (idle) parts.push(m.job_count_cancelled({ count: formatNumber(idle) }));
 		return parts.length ? parts.join(' · ') : '—';
 	});
 	// v41: the visible copy wraps only between parts ("120 done · 3 waiting"), never
@@ -134,15 +147,11 @@
 	async function handleCancelFlow() {
 		const session = queue.getResetCount();
 		const confirmed = await confirmAction({
-			title: 'Cancel this job?',
+			title: m.job_cancel_title(),
 			subject: job.title,
-			body:
-				"Its tracks that haven't downloaded yet (any not found included) are cancelled; one " +
-				'downloading right now ' +
-				"finishes but stays cancelled. Files already downloaded stay. This can't be undone, " +
-				'but the link can be submitted again.',
-			confirmLabel: 'cancel job',
-			cancelLabel: 'keep job'
+			body: m.job_cancel_body(),
+			confirmLabel: m.job_cancel_confirm(),
+			cancelLabel: m.job_cancel_keep()
 		});
 		// Kept or Esc: the cancel button may have gone meanwhile (the job finished), or the whole
 		// row did (remounted by a list reload).
@@ -166,7 +175,7 @@
 		// module-level, so the remounted row shows it.
 		const landing = () => (destroyed ? remounted() : toggleButton);
 		if (!IN_FLIGHT_LIFECYCLES.has(lifecycle)) {
-			showNotice('Not cancelled: nothing in it is still to come.');
+			showNotice(m.job_notice_not_cancelled());
 			await keepFocus(landing());
 			return;
 		}
@@ -174,8 +183,7 @@
 			await queue.cancelJob(job.id);
 		} catch (err) {
 			// A session reset meanwhile: the answer belongs to the previous identity.
-			if (queue.getResetCount() === session)
-				showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this job.');
+			if (queue.getResetCount() === session) showNotice(errorText(err, m.job_notice_cancel_failed));
 		}
 		// The cancel button is gone with the in-flight controls: land on the row itself.
 		await keepFocus(landing());
@@ -184,9 +192,9 @@
 	async function handleBump() {
 		try {
 			await queue.bumpJob(job.id);
-			showNotice('bumped to front of the queue');
+			showNotice(m.job_notice_bumped());
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not bump this job.');
+			showNotice(errorText(err, m.job_notice_bump_failed));
 		}
 	}
 
@@ -196,7 +204,7 @@
 		try {
 			await queue.setJobPriority(job.id, priority);
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not set priority.');
+			showNotice(errorText(err, m.job_notice_priority_failed));
 		}
 	}
 
@@ -204,7 +212,7 @@
 		try {
 			await queue.archiveJobs({ jobIds: [job.id] });
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not archive this job.');
+			showNotice(errorText(err, m.job_notice_archive_failed));
 		}
 	}
 
@@ -236,7 +244,7 @@
 		try {
 			await queue.unarchiveJobs([job.id]);
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not unarchive this job.');
+			showNotice(errorText(err, m.job_notice_unarchive_failed));
 		}
 	}
 </script>
@@ -260,7 +268,9 @@
 				>{job.title}</span
 			>
 			<span class="tags">
-				<span class="source-type mono">{job.source_type}</span>
+				<span class="source-type mono"
+					>{SOURCE_TYPE_LABEL[job.source_type]?.() ?? job.source_type}</span
+				>
 				{#if allUsers}
 					<span class="owner mono" title={job.owner_email}
 						>{api.displayName(job.owner_username, job.owner_email)}</span
@@ -271,7 +281,7 @@
 
 		<div class="progress">
 			{#if totalTracks > 0}
-				<div class="bar" role="img" aria-label="Track progress: {breakdown}">
+				<div class="bar" role="img" aria-label={m.job_progress_label({ breakdown })}>
 					{#each segments as seg, i (i)}
 						<span
 							class="seg {seg.cond}"
@@ -290,12 +300,12 @@
 		<div class="row-actions">
 			{#if showInFlight}
 				<label class="priority mono">
-					priority
+					{m.job_priority()}
 					<input
 						type="number"
 						class="priority-input"
 						value={job.priority}
-						aria-label="priority of {job.title}"
+						aria-label={m.job_priority_of({ title: job.title })}
 						onchange={(e) => handlePriority(e.currentTarget.value)}
 						onkeydown={(e) => {
 							// v45: Esc backs out of the field (the registry then closes the row):
@@ -307,31 +317,31 @@
 				<button
 					type="button"
 					class="action"
-					aria-label="bump {job.title} to the front"
-					onclick={handleBump}>bump</button
+					aria-label={m.job_bump_label({ title: job.title })}
+					onclick={handleBump}>{m.job_bump()}</button
 				>
 				<button
 					type="button"
 					class="action danger"
-					aria-label="cancel {job.title}"
-					onclick={handleCancel}>cancel</button
+					aria-label={m.job_cancel_label({ title: job.title })}
+					onclick={handleCancel}>{m.job_cancel()}</button
 				>
 			{/if}
 			{#if showArchive}
 				<button
 					type="button"
 					class="action"
-					aria-label="archive {job.title}"
-					onclick={handleArchive}>archive</button
+					aria-label={m.job_archive_label({ title: job.title })}
+					onclick={handleArchive}>{m.job_archive()}</button
 				>
 			{/if}
 			{#if job.archived_at !== null}
-				<span class="archived-tag mono">archived</span>
+				<span class="archived-tag mono">{m.job_archived()}</span>
 				<button
 					type="button"
 					class="action"
-					aria-label="unarchive {job.title}"
-					onclick={handleUnarchive}>unarchive</button
+					aria-label={m.job_unarchive_label({ title: job.title })}
+					onclick={handleUnarchive}>{m.job_unarchive()}</button
 				>
 			{/if}
 		</div>

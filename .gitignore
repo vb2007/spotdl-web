@@ -40,6 +40,9 @@
 /frontend/playwright-report/
 /frontend/test-results/
 /frontend/e2e/.auth/
+# v46: Paraglide's compiled messages (also in frontend/.gitignore), generated code graphify
+# would otherwise index (2,000+ nodes) for the same reason.
+/frontend/src/lib/paraglide/
 
 # backend
 backend/__pycache__/

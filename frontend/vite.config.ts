@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { defineConfig, type Plugin } from 'vite';
 
 const DOWNLOADS_ROOT = '/downloads';
@@ -112,8 +113,38 @@ function devFileDownloadFallback(): Plugin {
 	};
 }
 
+/** v46: the dev container keeps Paraglide's compiled messages in their own anonymous volume
+ * (docker-compose.override.yml), and Vite's recursive watcher on the project doesn't cross into
+ * a nested mount: a recompile landed on disk while the dev server kept serving the old module.
+ * Watching the directory explicitly brings its changes back. Dev-only, like the plugin above. */
+function watchCompiledMessages(): Plugin {
+	return {
+		name: 'watch-compiled-messages',
+		configureServer(server) {
+			server.watcher.add(path.resolve('src/lib/paraglide'));
+		}
+	};
+}
+
 export default defineConfig(({ command }) => ({
 	plugins: [
+		// v46: compiles messages/{en,hu}.json into typed message functions under
+		// src/lib/paraglide (generated, gitignored). The locale is resolved by
+		// src/lib/i18n/locale.svelte.ts, which overwrites the runtime's getLocale; the strategy
+		// here is only what code outside the browser app (vitest, the e2e suite) falls back to.
+		// `locale-modules`: one module per language. The default (one per message) made the
+		// dev server answer ~650 module requests per page load, slow enough that a page loaded
+		// in the e2e suite was still blank when the keyboard specs started on it.
+		paraglideVitePlugin({
+			project: './project.inlang',
+			outdir: './src/lib/paraglide',
+			strategy: ['globalVariable', 'baseLocale'],
+			outputStructure: 'locale-modules',
+			// Rewrite the files in place rather than emptying the directory first: a recreated
+			// directory drops out of the dev server's watch (below), and it kept serving the old
+			// messages. With one module per language every file is rewritten on each compile.
+			cleanOutdir: false
+		}),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
@@ -129,7 +160,7 @@ export default defineConfig(({ command }) => ({
 				}
 			}
 		}),
-		...(command === 'serve' ? [devFileDownloadFallback()] : [])
+		...(command === 'serve' ? [devFileDownloadFallback(), watchCompiledMessages()] : [])
 	],
 	server: {
 		proxy: {

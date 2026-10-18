@@ -16,6 +16,9 @@
 	import TrackRow from '$lib/components/TrackRow.svelte';
 	import { registerHandlers } from '$lib/keyboard/registry';
 	import { collapseFocused, focusRowEl, kbList, listHandlers } from '$lib/keyboard/lists';
+	import * as m from '$lib/paraglide/messages';
+	import { errorText } from '$lib/i18n/errors';
+	import { counted, formatNumber } from '$lib/i18n/format';
 
 	const { filters, page, incomingJobs, activeTracks } = queue;
 	const { status: workerStatus } = worker;
@@ -52,16 +55,40 @@
 	let filtersActive = $derived(
 		$filters.q.trim() !== '' || $filters.status.length > 0 || $filters.state.length > 0
 	);
-	let scopeNoun = $derived($filters.scope === 'jobs' ? 'jobs' : 'tracks');
+	// v46: whole phrases per scope, never a noun spliced into a sentence (Hungarian inflects
+	// it), and counts through Intl and plural rules.
 	let countText = $derived(
 		$page.loading
-			? 'Loading…'
+			? m.dashboard_count_loading()
 			: $page.error
 				? ''
 				: $filters.scope === 'jobs'
-					? `${$page.items.length} of ${$page.totalEstimate >= 1000 ? '1000+' : $page.totalEstimate} ${$page.totalEstimate === 1 ? 'job' : 'jobs'}`
-					: `${$page.items.length}${$page.nextCursor ? '+' : ''} ${$page.items.length === 1 && !$page.nextCursor ? 'track' : 'tracks'}`
+					? m.dashboard_count_jobs({
+							shown: formatNumber($page.items.length),
+							total:
+								$page.totalEstimate >= 1000
+									? m.dashboard_count_cap({ cap: formatNumber(1000) })
+									: formatNumber($page.totalEstimate),
+							count: $page.totalEstimate
+						})
+					: $page.nextCursor
+						? m.dashboard_count_tracks_more(counted($page.items.length))
+						: m.dashboard_count_tracks(counted($page.items.length))
 	);
+	let emptyTitle = $derived.by(() => {
+		const query = $filters.q.trim();
+		if ($filters.scope === 'jobs')
+			return query ? m.dashboard_empty_jobs_query({ query }) : m.dashboard_empty_jobs_filters();
+		return query ? m.dashboard_empty_tracks_query({ query }) : m.dashboard_empty_tracks_filters();
+	});
+
+	const SOURCE_LABEL: Record<Job['source_type'], () => string> = {
+		track: m.incoming_source_track,
+		album: m.incoming_source_album,
+		playlist: m.incoming_source_playlist,
+		artist: m.incoming_source_artist,
+		search: m.incoming_source_search
+	};
 
 	// v42: both state buttons swap their own block out (loading replaces it), so focus is
 	// handed to a target that stays: the search box, or the queue's heading.
@@ -175,7 +202,7 @@
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
 		if (!url.trim()) {
-			submitError = 'Paste a URL first.';
+			submitError = m.dashboard_submit_empty();
 			return;
 		}
 		submitting = true;
@@ -189,13 +216,14 @@
 			queue.addJob(job);
 			url = '';
 		} catch (err) {
-			submitError = err instanceof api.ApiError ? err.message : 'Could not submit that URL.';
+			submitError = errorText(err, m.dashboard_submit_failed);
 		} finally {
 			submitting = false;
 		}
 		// The disabled input lost focus while sending; give it back for the next link.
 		await tick();
 		// Not on touch: refocusing the input would reopen the keyboard over what was just sent.
+		// i18n-ignore: a media query
 		if (document.activeElement === document.body && !window.matchMedia('(pointer: coarse)').matches)
 			document.getElementById('submit-url')?.focus();
 	}
@@ -380,41 +408,44 @@
 </script>
 
 <svelte:head>
-	<title>spotdl-web — queue</title>
+	<title>{m.dashboard_title()}</title>
 </svelte:head>
 
 <div class="stage">
 	<header class="masthead">
 		<div class="ident">
 			<h1 class="wordmark">
+				<!-- i18n-ignore: the wordmark and its spoken name are the same in every language. -->
 				<span aria-hidden="true">SPOTDL // WEB</span><span class="sr-only">spotdl-web</span>
 			</h1>
-			<span class="label">signal receiver</span>
+			<span class="label">{m.dashboard_ident_receiver()}</span>
 		</div>
 		<div class="status">
 			<span class="link mono" class:down={$link !== 'live'} role="status">
 				<span class="link-dot" aria-hidden="true"></span>
 				{$link === 'live'
-					? 'linked'
+					? m.dashboard_link_live()
 					: $link === 'connecting'
-						? 'linking…'
-						: 'link lost — reconnecting'}
+						? m.dashboard_link_connecting()
+						: m.dashboard_link_lost()}
 			</span>
 			{#if isAdmin}
 				<WorkerStatusPill />
 			{/if}
 		</div>
-		<nav class="session" aria-label="Account">
+		<nav class="session" aria-label={m.dashboard_nav_label()}>
 			{#if isAdmin}
-				<a class="nav-link mono" href={resolve('/library')}>library</a>
-				<a class="nav-link mono" href={resolve('/settings')}>settings</a>
-				<a class="nav-link mono" href={resolve('/stats')}>stats</a>
+				<a class="nav-link mono" href={resolve('/library')}>{m.dashboard_nav_library()}</a>
+				<a class="nav-link mono" href={resolve('/settings')}>{m.dashboard_nav_settings()}</a>
+				<a class="nav-link mono" href={resolve('/stats')}>{m.dashboard_nav_stats()}</a>
 			{/if}
-			<a class="nav-link mono" href={resolve('/account')}>account</a>
+			<a class="nav-link mono" href={resolve('/account')}>{m.dashboard_nav_account()}</a>
 			<span class="who mono" title={data.session?.email}
 				>{api.displayName(data.session?.username ?? null, data.session?.email ?? '')}</span
 			>
-			<button type="button" class="logout mono" onclick={onLogout}>disconnect</button>
+			<button type="button" class="logout mono" onclick={onLogout}
+				>{m.dashboard_disconnect()}</button
+			>
 		</nav>
 	</header>
 
@@ -422,20 +453,20 @@
 	     a tabindex="-1" container takes focus on any click inside it and resets Tab order. -->
 	<main id="main" class="main">
 		<div class="submit-area">
-			<form class="panel submit" {onsubmit} aria-label="Submit a link">
+			<form class="panel submit" {onsubmit} aria-label={m.dashboard_submit_form_label()}>
 				<span class="prompt mono" class:sending={submitting} aria-hidden="true">&gt;</span>
 				<input
 					id="submit-url"
 					class="well"
 					type="url"
-					placeholder="paste a Spotify link — track, album, playlist or artist"
+					placeholder={m.dashboard_submit_placeholder()}
 					bind:value={url}
 					disabled={submitting}
-					aria-label="Spotify URL to submit"
+					aria-label={m.dashboard_submit_input_label()}
 					aria-describedby="submit-error"
 				/>
 				<button type="submit" class="mono" disabled={submitting}
-					>{submitting ? 'SENDING…' : 'SUBMIT'}</button
+					>{submitting ? m.dashboard_submit_sending() : m.dashboard_submit()}</button
 				>
 			</form>
 			<p id="submit-error" class="submit-error" role="alert">{submitError}</p>
@@ -477,53 +508,53 @@
 				</ul>
 			{:else if $page.error}
 				<div class="state" role="alert">
-					<h3 class="state-title">Couldn't load the queue</h3>
+					<h3 class="state-title">{m.dashboard_error_title()}</h3>
 					<p class="state-text">
-						<span class="mono">{$page.error}</span>
+						<span class="mono">{errorText($page.error.err)}</span>
 					</p>
-					<button type="button" class="state-action mono" onclick={retryQueue}>try again</button>
+					<button type="button" class="state-action mono" onclick={retryQueue}
+						>{m.dashboard_error_retry()}</button
+					>
 				</div>
 			{:else if $page.items.length === 0}
 				<div class="state">
 					{#if filtersActive}
-						<h3 class="state-title">
-							No {scopeNoun} match {$filters.q.trim() ? `“${$filters.q.trim()}”` : 'these filters'}
-						</h3>
+						<h3 class="state-title">{emptyTitle}</h3>
 						<p class="state-text">
 							{$filters.includeArchived
-								? 'Archived ones are included.'
-								: 'Archived ones are hidden; show archived searches them too.'}
+								? m.dashboard_empty_archived_included()
+								: m.dashboard_empty_archived_hidden()}
 						</p>
 						<button type="button" class="state-action mono" onclick={clearSearchAndFilters}
-							>clear search and filters</button
+							>{m.dashboard_empty_clear()}</button
 						>
 					{:else if $incomingJobs.some((j) => j.state === 'expanding' && (allUsersView || j.owner_email === data.session?.email))}
 						<h3 class="state-title">
-							{allUsersView ? 'A link is being read' : 'Your link is being read'}
+							{allUsersView ? m.dashboard_reading_any() : m.dashboard_reading_own()}
 						</h3>
-						<p class="state-text">
-							Its tracks appear here once Spotify has listed them, and each one downloads in the
-							background.
-						</p>
+						<p class="state-text">{m.dashboard_reading_text()}</p>
 					{:else if allUsersView}
-						<h3 class="state-title">Nobody has anything queued</h3>
-						<p class="state-text">Every user's queue is empty in this view.</p>
+						<h3 class="state-title">{m.dashboard_empty_all_title()}</h3>
+						<p class="state-text">{m.dashboard_empty_all_text()}</p>
 					{:else}
-						<h3 class="state-title">Your queue is empty</h3>
+						<h3 class="state-title">{m.dashboard_empty_own_title()}</h3>
 						<p class="state-text">
-							Paste a Spotify link above. Each track downloads in the background, and a rate limit
-							only means it waits its turn{$filters.includeArchived
-								? '.'
-								: '. Archived jobs stay under show archived.'}
+							{$filters.includeArchived
+								? m.dashboard_empty_own_text()
+								: m.dashboard_empty_own_text_archived_hidden()}
 						</p>
 						<button type="button" class="state-action mono" onclick={focusSubmit}
-							>paste a link</button
+							>{m.dashboard_empty_own_action()}</button
 						>
 					{/if}
 				</div>
 			{:else if $filters.scope === 'jobs'}
 				<!-- v45: each list is one Tab stop (roving tabindex, lib/keyboard/lists.ts). -->
-				<ul class="job-list" aria-label="Jobs" {@attach kbList('jobs', { fallback: listFallback })}>
+				<ul
+					class="job-list"
+					aria-label={m.dashboard_list_jobs()}
+					{@attach kbList('jobs', { fallback: listFallback })}
+				>
 					{#each $page.items as item (item.id)}
 						<JobRow job={item as Job} allUsers={allUsersView} {isAdmin} />
 					{/each}
@@ -531,7 +562,7 @@
 			{:else}
 				<ul
 					class="job-list"
-					aria-label="Tracks"
+					aria-label={m.dashboard_list_tracks()}
 					{@attach kbList('tracks', { fallback: listFallback })}
 				>
 					{#each trackGroups as group (group.job.id)}
@@ -539,7 +570,9 @@
 							<!-- v41: the job row's grid, minus the chevron -- its type sits in the badge
 							     column and its title over the track titles below (F02). -->
 							<div class="group-header">
-								<span class="source-type mono">{group.job.source_type}</span>
+								<span class="source-type mono"
+									>{SOURCE_LABEL[group.job.source_type]?.() ?? group.job.source_type}</span
+								>
 								<span class="title" id="group-title-{group.job.id}" title={group.job.title}
 									>{group.job.title}</span
 								>
@@ -563,7 +596,7 @@
 			     retries just that page. -->
 			{#if $page.moreError}
 				<p class="more-error" role="alert">
-					Couldn't load more. <span class="mono">{$page.moreError}</span>
+					{m.dashboard_more_error()} <span class="mono">{errorText($page.moreError.err)}</span>
 				</p>
 			{/if}
 			<!-- Stays mounted (aria-disabled) through a background reload (a reconnect's resync),
@@ -575,7 +608,11 @@
 					aria-disabled={$page.loadingMore || $page.loading}
 					onclick={loadMorePage}
 				>
-					{$page.loadingMore ? 'loading…' : `load more ${scopeNoun}`}
+					{$page.loadingMore
+						? m.dashboard_more_loading()
+						: $filters.scope === 'jobs'
+							? m.dashboard_more_jobs()
+							: m.dashboard_more_tracks()}
 				</button>
 			{/if}
 		</section>

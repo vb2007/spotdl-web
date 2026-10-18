@@ -7,24 +7,68 @@
 	import WorkerStatus from '$lib/components/WorkerStatus.svelte';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
+	import * as m from '$lib/paraglide/messages';
+	import { errorText } from '$lib/i18n/errors';
+	import { counted, formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
 
 	// v43 (F19): one page, five sections, and an in-page index (anchors, no sub-routes, so
 	// no nginx change). Each section saves on its own: they are separate endpoints.
+	// v46: labels are message functions, called at render time, so a language switch reaches
+	// them (a string built here once would stay in the language it was built in).
 	const SECTIONS = [
-		{ id: 'worker', label: 'Worker' },
-		{ id: 'output', label: 'Output' },
-		{ id: 'library', label: 'Library' },
-		{ id: 'alerts', label: 'Alerts' },
-		{ id: 'proxies', label: 'Proxies' }
+		{ id: 'worker', label: m.settings_section_worker },
+		{ id: 'output', label: m.settings_section_output },
+		{ id: 'library', label: m.settings_section_library },
+		{ id: 'alerts', label: m.settings_section_alerts },
+		{ id: 'proxies', label: m.settings_section_proxies }
 	] as const;
 	let activeSection = $state<string>('worker');
 
-	function errorText(err: unknown, fallback = 'Could not reach the server.'): string {
-		return err instanceof api.ApiError ? err.message : fallback;
+	// v46: a sentence with inline <code> fragments (env names, file names, templates). The
+	// message marks each with a named placeholder; each is filled with its own numbered
+	// sentinel and split back out here, so a translation can put them in any order and the
+	// fragments themselves (machine names) stay as they are.
+	type CodePart = { text: string; code: boolean };
+	function withCode<K extends string>(
+		message: (slots: Record<K, string>) => string,
+		codes: Record<K, string>
+	): CodePart[] {
+		const names = Object.keys(codes) as K[];
+		const slots = Object.fromEntries(names.map((name, i) => [name, `\uE000${i}\uE000`]));
+		return message(slots as Record<K, string>)
+			.split(/\uE000(\d+)\uE000/)
+			.map((piece, i) =>
+				i % 2 ? { text: codes[names[Number(piece)]], code: true } : { text: piece, code: false }
+			)
+			.filter((part) => part.text !== '');
 	}
+
+	// The fragments are machine names and formats, shown as they are in every language.
+	const TEMPLATE_PLACEHOLDER = '{placeholder}';
+	const TEMPLATE_EXAMPLE = '{artists} - {title}.{output-ext}';
+	const PROXIES_FILE = 'proxies.txt';
+
+	const templateHint = $derived(
+		withCode(m.settings_output_template_hint, { placeholder: TEMPLATE_PLACEHOLDER })
+	);
+	const libraryHint = $derived(
+		withCode(m.settings_library_hint, { link: m.settings_library_hint_link() })
+	);
+	const alertsOffHint = $derived(
+		withCode(m.settings_alerts_off_hint, {
+			homeserver: 'MATRIX_HOMESERVER_URL',
+			token: 'MATRIX_ACCESS_TOKEN',
+			room: 'MATRIX_ROOM_ID',
+			env: '.env'
+		})
+	);
+	const proxiesHint = $derived(withCode(m.settings_proxies_hint, { file: PROXIES_FILE }));
+	const proxyFormatHint = $derived(
+		withCode(m.settings_proxy_add_hint, { format: m.settings_proxy_format() })
+	);
 
 	// A failed check sends nothing, so nothing else would tell a screen reader: focus moves to
 	// the first invalid field, whose error its aria-describedby then reads out.
@@ -49,10 +93,6 @@
 	function focusUnlessFocused(id: string) {
 		const field = document.getElementById(id);
 		if (field && field !== document.activeElement) field.focus();
-	}
-
-	function clockTime(date: Date): string {
-		return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
 
 	// --- Output defaults ---------------------------------------------------------------
@@ -97,7 +137,7 @@
 		// The backend accepts a blank template; spotdl would then write files with no name.
 		outputTemplateError = outputForm.output_template.trim()
 			? ''
-			: 'Enter a filename template, for example {artists} - {title}.{output-ext}.';
+			: m.settings_output_template_required({ example: TEMPLATE_EXAMPLE });
 		if (outputTemplateError) return focusInvalid('output-template');
 		const from = focused();
 		outputSaving = true;
@@ -129,9 +169,9 @@
 	let libraryFieldErrors = $state<Record<string, string>>({});
 
 	const LIBRARY_TEXT_FIELDS = [
-		{ key: 'library_target_dir', label: 'Library folder' },
-		{ key: 'library_folder_template', label: 'Folder template' },
-		{ key: 'library_quarantine_dir', label: 'Quarantine folder' }
+		{ key: 'library_target_dir', label: m.settings_library_target_dir },
+		{ key: 'library_folder_template', label: m.settings_library_folder_template },
+		{ key: 'library_quarantine_dir', label: m.settings_library_quarantine_dir }
 	] as const;
 
 	const libraryDirty = $derived(
@@ -150,7 +190,8 @@
 		event.preventDefault();
 		const errors: Record<string, string> = {};
 		for (const { key, label } of LIBRARY_TEXT_FIELDS) {
-			if (!libraryForm[key].trim()) errors[key] = `${label} can't be empty.`;
+			if (!libraryForm[key].trim())
+				errors[key] = m.settings_library_field_empty({ field: label() });
 		}
 		libraryFieldErrors = errors;
 		if (Object.keys(errors).length > 0) return focusInvalid(Object.keys(errors)[0]);
@@ -201,26 +242,26 @@
 		| 'alert_cooldown_minutes';
 
 	// v43 (F19): what each category reports, so fourteen controls read as two short groups.
-	const ALERT_TOGGLES: { key: AlertToggleKey; label: string; hint: string }[] = [
+	const ALERT_TOGGLES: { key: AlertToggleKey; label: () => string; hint: () => string }[] = [
 		{
 			key: 'alerts_breaker_enabled',
-			label: 'Breaker trip / release',
-			hint: 'Downloads hold after repeated failed downloads, and resume.'
+			label: m.settings_alert_breaker,
+			hint: m.settings_alert_breaker_hint
 		},
 		{
 			key: 'alerts_spike_enabled',
-			label: 'Failure spike',
-			hint: 'The latest attempts all failed the same way, within the window below.'
+			label: m.settings_alert_spike,
+			hint: m.settings_alert_spike_hint
 		},
 		{
 			key: 'alerts_beat_stale_enabled',
-			label: 'Beat stale',
-			hint: "The scheduler hasn't ticked for longer than the limit below."
+			label: m.settings_alert_beat_stale,
+			hint: m.settings_alert_beat_stale_hint
 		},
 		{
 			key: 'alerts_library_enabled',
-			label: 'Library sweep',
-			hint: 'A sweep finished or crashed.'
+			label: m.settings_alert_library,
+			hint: m.settings_alert_library_hint
 		}
 	];
 
@@ -228,36 +269,36 @@
 	// the request; the backend stays the real check.
 	const ALERT_NUMBERS: {
 		key: AlertNumberKey;
-		label: string;
-		unit: string;
+		label: () => string;
+		unit: () => string;
 		min: number;
 		max: number;
 	}[] = [
 		{
 			key: 'alert_spike_threshold',
-			label: 'Spike: failures in a row',
-			unit: 'attempts',
+			label: m.settings_alert_spike_threshold,
+			unit: m.settings_alert_spike_threshold_unit,
 			min: 2,
 			max: 1000
 		},
 		{
 			key: 'alert_spike_window_minutes',
-			label: 'Spike window',
-			unit: 'minutes',
+			label: m.settings_alert_spike_window,
+			unit: m.settings_alert_spike_window_unit,
 			min: 1,
 			max: 7 * 24 * 60
 		},
 		{
 			key: 'alert_beat_stale_seconds',
-			label: 'Beat stale after',
-			unit: 'seconds',
+			label: m.settings_alert_beat_stale_after,
+			unit: m.settings_alert_beat_stale_unit,
 			min: 90,
 			max: 7 * 24 * 3600
 		},
 		{
 			key: 'alert_cooldown_minutes',
-			label: 'Repeat an alert at most every',
-			unit: 'minutes',
+			label: m.settings_alert_cooldown,
+			unit: m.settings_alert_cooldown_unit,
 			min: 1,
 			max: 7 * 24 * 60
 		}
@@ -287,9 +328,12 @@
 		for (const { key, min, max } of ALERT_NUMBERS) {
 			const value = alertForm[key];
 			if (typeof value !== 'number' || Number.isNaN(value)) {
-				errors[key] = 'Enter a number.';
+				errors[key] = m.settings_alert_number_required();
 			} else if (!Number.isInteger(value) || value < min || value > max) {
-				errors[key] = `Use a whole number from ${min.toLocaleString()} to ${max.toLocaleString()}.`;
+				errors[key] = m.settings_alert_number_range({
+					min: formatNumber(min),
+					max: formatNumber(max)
+				});
 			}
 		}
 		alertFieldErrors = errors;
@@ -317,7 +361,7 @@
 		alertError = '';
 		try {
 			await api.sendTestAlert();
-			alertTestResult = 'Test alert sent. Check the Matrix room.';
+			alertTestResult = m.settings_alerts_test_sent();
 		} catch (err) {
 			alertError = errorText(err);
 		} finally {
@@ -387,12 +431,11 @@
 		event.preventDefault();
 		const url = newProxyUrl.trim();
 		if (!url) {
-			addProxyError = 'Paste a proxy address first.';
+			addProxyError = m.settings_proxy_add_empty();
 			return focusUnlessFocused('new-proxy');
 		}
 		if (!PROXY_URL_RE.test(url)) {
-			addProxyError =
-				"That address won't work. It needs exactly http(s)://[user:pass@]ipv4[:port]: a literal IPv4 address, letters, digits or _ in the credentials, and no path.";
+			addProxyError = m.settings_proxy_add_invalid({ format: m.settings_proxy_format() });
 			return focusUnlessFocused('new-proxy');
 		}
 		const from = focused();
@@ -404,7 +447,7 @@
 			proxyList = [...proxyList, proxy];
 			newProxyUrl = '';
 		} catch (err) {
-			addProxyError = errorText(err, 'Could not add this proxy.');
+			addProxyError = errorText(err, m.settings_proxy_add_failed);
 		} finally {
 			addingProxy = false;
 		}
@@ -434,13 +477,11 @@
 		// disappears from the list rather than being merged back in updated.
 		// v43 (F08): permanent, so it asks first.
 		const confirmed = await confirmAction({
-			title: 'Remove this proxy?',
+			title: m.settings_proxy_remove_title(),
 			subject: proxy.url,
-			body:
-				"It's deleted from the pool, and no download uses it again. You can add it back later. " +
-				"One that downloads have already used can't be deleted yet; switch it off instead.",
-			confirmLabel: 'remove proxy',
-			cancelLabel: 'keep proxy'
+			body: m.settings_proxy_remove_body(),
+			confirmLabel: m.settings_proxy_remove_confirm(),
+			cancelLabel: m.settings_proxy_remove_cancel()
 		});
 		// Gone meanwhile (removed in another tab): nothing to remove.
 		// Kept, Esc, or gone meanwhile (removed elsewhere): its row may have left, so focus
@@ -463,7 +504,7 @@
 			// not something to retry).
 			proxiesError =
 				err instanceof api.ApiError && err.status === 500
-					? `Couldn't remove ${proxy.url}. If downloads have used it, it can't be deleted yet (switch it off instead); otherwise try again.`
+					? m.settings_proxy_remove_failed({ url: proxy.url })
 					: errorText(err);
 		} finally {
 			const { [proxy.id]: _unused, ...rest } = proxyBusy;
@@ -472,13 +513,14 @@
 		// A failed removal disabled the focused button for the request: put focus back on it,
 		// or on the list's heading.
 		await keepFocus(
+			// i18n-ignore: a selector
 			document.querySelector<HTMLElement>(`#proxies button[data-remove="${proxy.id}"]`) ??
 				document.getElementById('proxies-heading')
 		);
 	}
 
 	function formatTimestamp(value: string): string {
-		return new Date(value).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
+		return formatDateTime(value, { dateStyle: 'short', timeStyle: 'short' });
 	}
 
 	function isFuture(value: string | null): boolean {
@@ -526,26 +568,31 @@
 	});
 </script>
 
+<!-- v46: a sentence whose machine names (env vars, files, formats) stay code. -->
+{#snippet coded(parts: CodePart[])}{#each parts as part, i (i)}{#if part.code}<code
+				>{part.text}</code
+			>{:else}{part.text}{/if}{/each}{/snippet}
+
 <svelte:head>
-	<title>spotdl-web — settings</title>
+	<title>{m.settings_title()}</title>
 </svelte:head>
 
 <div class="stage">
 	<SubpageHeader current="settings" {isAdmin} />
 
 	<main id="main" class="main" class:gated={!isAdmin}>
-		<h1 class="page-title">Settings</h1>
+		<h1 class="page-title">{m.settings_heading()}</h1>
 		{#if !isAdmin}
-			<AdminOnlyNotice what="The worker, output, library, alert and proxy setup" />
+			<AdminOnlyNotice page="settings" />
 		{:else}
-			<nav class="index" aria-label="Settings sections">
+			<nav class="index" aria-label={m.settings_index_label()}>
 				<ul>
 					{#each SECTIONS as section (section.id)}
 						<li>
 							<a
 								href="#{section.id}"
 								aria-current={activeSection === section.id ? 'location' : undefined}
-								>{section.label}</a
+								>{section.label()}</a
 							>
 						</li>
 					{/each}
@@ -555,24 +602,24 @@
 			<div class="sections">
 				<section id="worker" class="panel section" aria-labelledby="worker-heading">
 					<header class="section-head">
-						<h2 id="worker-heading" class="label">Worker control</h2>
-						<p class="section-hint">One worker downloads for everyone, one track at a time.</p>
+						<h2 id="worker-heading" class="label">{m.settings_worker_heading()}</h2>
+						<p class="section-hint">{m.settings_worker_hint()}</p>
 					</header>
 					<WorkerStatus />
 				</section>
 
 				<section id="output" class="panel section" aria-labelledby="output-heading">
 					<header class="section-head">
-						<h2 id="output-heading" class="label">Output defaults</h2>
-						<p class="section-hint">Used from the next download on. No restart needed.</p>
+						<h2 id="output-heading" class="label">{m.settings_output_heading()}</h2>
+						<p class="section-hint">{m.settings_output_hint()}</p>
 					</header>
 
 					{#if outputOptions === null}
-						{#if !outputError}<p class="section-hint">Loading output options…</p>{/if}
+						{#if !outputError}<p class="section-hint">{m.settings_output_loading()}</p>{/if}
 					{:else}
 						<form class="grid" onsubmit={onOutputSubmit} novalidate>
 							<div class="form-field">
-								<span class="label" id="format-label">Format</span>
+								<span class="label" id="format-label">{m.settings_output_format()}</span>
 								<div class="choice-group" role="group" aria-labelledby="format-label">
 									{#each outputOptions.formats as fmt (fmt)}
 										<button
@@ -588,7 +635,7 @@
 							</div>
 
 							<label class="form-field">
-								<span class="label">Bitrate</span>
+								<span class="label">{m.settings_output_bitrate()}</span>
 								<select
 									class="well"
 									bind:value={outputForm.default_bitrate}
@@ -601,7 +648,7 @@
 							</label>
 
 							<div class="form-field wide">
-								<label class="label" for="output-template">Filename template</label>
+								<label class="label" for="output-template">{m.settings_output_template()}</label>
 								<input
 									id="output-template"
 									class="well"
@@ -613,7 +660,7 @@
 									aria-describedby="output-template-hint output-template-error"
 								/>
 								<p id="output-template-hint" class="field-hint">
-									spotdl fills each <code>{'{placeholder}'}</code> per track.
+									{@render coded(templateHint)}
 								</p>
 								<p id="output-template-error" class="field-error">
 									{outputTemplateError}
@@ -622,13 +669,13 @@
 
 							<div class="save-row wide">
 								<button type="submit" class="btn" disabled={outputSaving || outputSettings === null}
-									>{outputSaving ? 'saving…' : 'save'}</button
+									>{outputSaving ? m.common_saving() : m.common_save()}</button
 								>
 								<p class="save-state" class:saved={!outputDirty && outputSavedAt} role="status">
 									{outputDirty
-										? 'Unsaved changes'
+										? m.common_unsaved_changes()
 										: outputSavedAt
-											? `Saved at ${clockTime(outputSavedAt)}`
+											? m.common_saved_at({ time: formatClock(outputSavedAt) })
 											: ''}
 								</p>
 							</div>
@@ -639,20 +686,21 @@
 
 				<section id="library" class="panel section" aria-labelledby="library-heading">
 					<header class="section-head">
-						<h2 id="library-heading" class="label">Library sort &amp; move</h2>
+						<h2 id="library-heading" class="label">{m.settings_library_heading()}</h2>
 						<p class="section-hint">
-							Where a sweep files finished downloads. Run one from the
-							<a href={resolve('/library')}>library page</a>.
+							{#each libraryHint as part, i (i)}{#if part.code}<a href={resolve('/library')}
+										>{part.text}</a
+									>{:else}{part.text}{/if}{/each}
 						</p>
 					</header>
 
 					{#if librarySettings === null}
-						{#if !libraryError}<p class="section-hint">Loading library settings…</p>{/if}
+						{#if !libraryError}<p class="section-hint">{m.settings_library_loading()}</p>{/if}
 					{:else}
 						<form class="grid" onsubmit={onLibrarySubmit} novalidate>
 							{#each LIBRARY_TEXT_FIELDS.slice(0, 2) as field (field.key)}
 								<div class="form-field wide">
-									<label class="label" for={field.key}>{field.label}</label>
+									<label class="label" for={field.key}>{field.label()}</label>
 									<input
 										id={field.key}
 										class="well"
@@ -670,7 +718,7 @@
 							{/each}
 
 							<div class="form-field">
-								<span class="label" id="quarantine-label">Duplicate downloads</span>
+								<span class="label" id="quarantine-label">{m.settings_library_duplicates()}</span>
 								<div class="choice-group" role="group" aria-labelledby="quarantine-label">
 									<button
 										type="button"
@@ -678,7 +726,7 @@
 										disabled={librarySaving}
 										onclick={() => (libraryForm.library_quarantine_enabled = true)}
 									>
-										quarantine
+										{m.settings_library_quarantine()}
 									</button>
 									<button
 										type="button"
@@ -686,17 +734,16 @@
 										disabled={librarySaving}
 										onclick={() => (libraryForm.library_quarantine_enabled = false)}
 									>
-										delete
+										{m.settings_library_delete()}
 									</button>
 								</div>
-								<p class="field-hint">
-									A download the library already has is quarantined (moved to the folder beside) or
-									deleted. The library's own file is never touched.
-								</p>
+								<p class="field-hint">{m.settings_library_duplicates_hint()}</p>
 							</div>
 
 							<div class="form-field">
-								<label class="label" for="library_quarantine_dir">Quarantine folder</label>
+								<label class="label" for="library_quarantine_dir"
+									>{m.settings_library_quarantine_dir()}</label
+								>
 								<input
 									id="library_quarantine_dir"
 									class="well"
@@ -714,13 +761,13 @@
 
 							<div class="save-row wide">
 								<button type="submit" class="btn" disabled={librarySaving}
-									>{librarySaving ? 'saving…' : 'save'}</button
+									>{librarySaving ? m.common_saving() : m.common_save()}</button
 								>
 								<p class="save-state" class:saved={!libraryDirty && librarySavedAt} role="status">
 									{libraryDirty
-										? 'Unsaved changes'
+										? m.common_unsaved_changes()
 										: librarySavedAt
-											? `Saved at ${clockTime(librarySavedAt)}`
+											? m.common_saved_at({ time: formatClock(librarySavedAt) })
 											: ''}
 								</p>
 							</div>
@@ -731,19 +778,14 @@
 
 				<section id="alerts" class="panel section" aria-labelledby="alerts-heading">
 					<header class="section-head">
-						<h2 id="alerts-heading" class="label">Alerts</h2>
+						<h2 id="alerts-heading" class="label">{m.settings_alerts_heading()}</h2>
 						{#if alertSettings === null}
-							{#if !alertError}<p class="section-hint">Loading alert settings…</p>{/if}
+							{#if !alertError}<p class="section-hint">{m.settings_alerts_loading()}</p>{/if}
 						{:else if alertSettings.configured}
-							<p class="section-hint">
-								Matrix alerts are on. Switch off any category you don't want; the same alert repeats
-								at most once per the interval below.
-							</p>
+							<p class="section-hint">{m.settings_alerts_on_hint()}</p>
 						{:else}
 							<p class="section-hint">
-								Matrix alerts are off. Set <code>MATRIX_HOMESERVER_URL</code>,
-								<code>MATRIX_ACCESS_TOKEN</code> and <code>MATRIX_ROOM_ID</code> in
-								<code>.env</code>, then restart the stack, to turn them on.
+								{@render coded(alertsOffHint)}
 							</p>
 						{/if}
 					</header>
@@ -751,13 +793,13 @@
 					{#if alertSettings !== null}
 						<form class="alert-form" onsubmit={onAlertSubmit} novalidate>
 							<fieldset class="group">
-								<legend class="label">Send an alert when</legend>
+								<legend class="label">{m.settings_alerts_send_when()}</legend>
 								<ul class="toggle-list">
 									{#each ALERT_TOGGLES as toggle (toggle.key)}
 										<li class="toggle-row">
 											<div class="toggle-text">
-												<span class="toggle-name" id="{toggle.key}-label">{toggle.label}</span>
-												<span class="field-hint" id="{toggle.key}-hint">{toggle.hint}</span>
+												<span class="toggle-name" id="{toggle.key}-label">{toggle.label()}</span>
+												<span class="field-hint" id="{toggle.key}-hint">{toggle.hint()}</span>
 											</div>
 											<div
 												class="choice-group"
@@ -771,7 +813,7 @@
 													disabled={alertSaving}
 													onclick={() => (alertForm = { ...alertForm, [toggle.key]: true })}
 												>
-													on
+													{m.settings_on()}
 												</button>
 												<button
 													type="button"
@@ -779,7 +821,7 @@
 													disabled={alertSaving}
 													onclick={() => (alertForm = { ...alertForm, [toggle.key]: false })}
 												>
-													off
+													{m.settings_off()}
 												</button>
 											</div>
 										</li>
@@ -788,11 +830,11 @@
 							</fieldset>
 
 							<fieldset class="group">
-								<legend class="label">Thresholds</legend>
+								<legend class="label">{m.settings_alerts_thresholds()}</legend>
 								<div class="grid">
 									{#each ALERT_NUMBERS as field (field.key)}
 										<div class="form-field">
-											<label class="label" for={field.key}>{field.label}</label>
+											<label class="label" for={field.key}>{field.label()}</label>
 											<div class="with-unit">
 												<input
 													id={field.key}
@@ -807,7 +849,7 @@
 													aria-invalid={alertFieldErrors[field.key] ? 'true' : undefined}
 													aria-describedby="{field.key}-unit {field.key}-error"
 												/>
-												<span class="unit mono" id="{field.key}-unit">{field.unit}</span>
+												<span class="unit mono" id="{field.key}-unit">{field.unit()}</span>
 											</div>
 											<p id="{field.key}-error" class="field-error">
 												{alertFieldErrors[field.key] ?? ''}
@@ -819,7 +861,7 @@
 
 							<div class="save-row">
 								<button type="submit" class="btn" disabled={alertSaving}
-									>{alertSaving ? 'saving…' : 'save'}</button
+									>{alertSaving ? m.common_saving() : m.common_save()}</button
 								>
 								<button
 									type="button"
@@ -827,13 +869,13 @@
 									disabled={alertTesting || !alertSettings.configured}
 									onclick={onTestAlert}
 								>
-									{alertTesting ? 'sending…' : 'send test alert'}
+									{alertTesting ? m.settings_alerts_testing() : m.settings_alerts_test()}
 								</button>
 								<p class="save-state" class:saved={!alertDirty && alertSavedAt} role="status">
 									{alertDirty
-										? 'Unsaved changes'
+										? m.common_unsaved_changes()
 										: alertSavedAt
-											? `Saved at ${clockTime(alertSavedAt)}`
+											? m.common_saved_at({ time: formatClock(alertSavedAt) })
 											: ''}
 								</p>
 							</div>
@@ -845,17 +887,15 @@
 
 				<section id="proxies" class="panel section" aria-labelledby="proxies-heading">
 					<header class="section-head">
-						<h2 id="proxies-heading" class="label" tabindex="-1">Proxy pool</h2>
+						<h2 id="proxies-heading" class="label" tabindex="-1">{m.settings_proxies_heading()}</h2>
 						<p class="section-hint">
-							Proxies from <code>proxies.txt</code> and those added here are used equally, from a track's
-							third attempt: after a direct IPv4 and a direct IPv6 try, each with its wait. Addresses
-							are shown with their credentials hidden.
+							{@render coded(proxiesHint)}
 						</p>
 					</header>
 
 					<form class="add-proxy" onsubmit={onAddProxy} novalidate>
 						<div class="form-field">
-							<label class="label" for="new-proxy">Add a proxy</label>
+							<label class="label" for="new-proxy">{m.settings_proxy_add_label()}</label>
 							<div class="add-row">
 								<input
 									id="new-proxy"
@@ -863,86 +903,96 @@
 									type="text"
 									spellcheck="false"
 									autocomplete="off"
-									placeholder="http://user:pass@203.0.113.7:8080"
+									placeholder={m.settings_proxy_add_placeholder()}
 									bind:value={newProxyUrl}
 									disabled={addingProxy}
 									aria-invalid={addProxyError ? 'true' : undefined}
 									aria-describedby="new-proxy-hint new-proxy-error"
 								/>
 								<button type="submit" class="btn" disabled={addingProxy}
-									>{addingProxy ? 'adding…' : 'add proxy'}</button
+									>{addingProxy ? m.settings_proxy_adding() : m.settings_proxy_add()}</button
 								>
 							</div>
 							<p id="new-proxy-hint" class="field-hint">
-								<code>http(s)://[user:pass@]ipv4[:port]</code>, with a literal IPv4 address.
+								{@render coded(proxyFormatHint)}
 							</p>
 							<p id="new-proxy-error" class="field-error" role="alert">{addProxyError}</p>
 						</div>
 					</form>
 
 					{#if proxiesLoading}
-						<p class="section-hint">Loading proxies…</p>
+						<p class="section-hint">{m.settings_proxies_loading()}</p>
 					{:else if proxiesLoadError && proxyList.length === 0}
 						<!-- Nothing read: never claim "no proxies" over a failed load. -->
 						<p class="section-hint">
-							Couldn't read the proxy pool ({proxiesLoadError}).
-							<button type="button" class="btn small" onclick={loadProxies}>try again</button>
+							{m.settings_proxies_load_failed({ error: proxiesLoadError })}
+							<button type="button" class="btn small" onclick={loadProxies}
+								>{m.settings_proxies_try_again()}</button
+							>
 						</p>
 					{:else if proxyList.length === 0}
-						<p class="section-hint">No proxies yet. Every attempt goes out directly.</p>
+						<p class="section-hint">{m.settings_proxies_empty()}</p>
 					{:else}
-						<ul class="proxy-list" aria-label="Proxies">
+						<ul class="proxy-list" aria-label={m.settings_proxies_list_label()}>
 							{#each proxyList as proxy (proxy.id)}
 								<li class="proxy-row" class:off={!proxy.enabled}>
 									<span class="url mono">{proxy.url}</span>
 									<span class="health">
 										<span class="source mono" class:manual={proxy.source === 'manual'}
-											>{proxy.source === 'manual' ? 'added here' : 'proxies.txt'}</span
+											>{proxy.source === 'manual'
+												? m.settings_proxy_source_manual()
+												: PROXIES_FILE}</span
 										>
 										<span class="fact mono">
 											{proxy.consecutive_failures === 0
-												? 'no recent failures'
-												: `${proxy.consecutive_failures} failed in a row`}
+												? m.settings_proxy_no_failures()
+												: m.settings_proxy_failures(counted(proxy.consecutive_failures))}
 										</span>
 										<span class="fact mono">
 											{proxy.last_success_at
-												? `last worked ${formatTimestamp(proxy.last_success_at)}`
-												: 'never worked yet'}
+												? m.settings_proxy_last_worked({
+														when: formatTimestamp(proxy.last_success_at)
+													})
+												: m.settings_proxy_never_worked()}
 										</span>
 										{#if isFuture(proxy.cooldown_until)}
 											<span class="fact"
 												><Countdown
 													scheduledAt={proxy.cooldown_until ?? ''}
-													label="resting"
+													label={m.settings_proxy_resting()}
 													dueLive={false}
-													dueText="rested"
+													dueText={m.settings_proxy_rested()}
 												/></span
 											>
 										{/if}
 									</span>
 									<span class="controls">
 										<span class="state mono" class:on={proxy.enabled}
-											>{proxy.enabled ? 'switched on' : 'switched off'}</span
+											>{proxy.enabled
+												? m.settings_proxy_switched_on()
+												: m.settings_proxy_switched_off()}</span
 										>
 										<button
 											type="button"
 											class="btn small"
 											disabled={proxyBusy[proxy.id]}
-											aria-label="{proxy.enabled ? 'switch off' : 'switch on'} {proxy.url}"
+											aria-label={proxy.enabled
+												? m.settings_proxy_switch_off_named({ url: proxy.url })
+												: m.settings_proxy_switch_on_named({ url: proxy.url })}
 											onclick={() => toggleProxy(proxy)}
 										>
-											{proxy.enabled ? 'switch off' : 'switch on'}
+											{proxy.enabled ? m.settings_proxy_switch_off() : m.settings_proxy_switch_on()}
 										</button>
 										{#if proxy.source === 'manual'}
 											<button
 												type="button"
 												class="btn small danger"
 												disabled={proxyBusy[proxy.id]}
-												aria-label="remove {proxy.url}"
+												aria-label={m.settings_proxy_remove_named({ url: proxy.url })}
 												data-remove={proxy.id}
 												onclick={() => removeProxy(proxy)}
 											>
-												remove
+												{m.settings_proxy_remove()}
 											</button>
 										{/if}
 									</span>
@@ -952,7 +1002,9 @@
 					{/if}
 					<p class="form-error" role="alert">{proxiesError}</p>
 					<p class="sr-only" role="alert">
-						{proxiesLoadError && proxyList.length === 0 ? "Couldn't read the proxy pool." : ''}
+						{proxiesLoadError && proxyList.length === 0
+							? m.settings_proxies_load_failed_alert()
+							: ''}
 					</p>
 				</section>
 			</div>

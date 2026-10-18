@@ -447,3 +447,22 @@ here rather than edited into it, so the original record stays readable.
     Tab moved focus on. The shortcuts now work on a select; its own keys (arrows, Home/End, Page
     keys, Enter, Space) stay with it; only a bound letter stops picking an option by its letter. Text inputs,
     textareas and `contenteditable` stay inert as the plan says.
+- **2026-10-18, v46: owner's answers on PR #68 change the locale rule and add a time format.**
+  - **The browser decides the language until sign-in.** Detection is automatic; signed in, a
+    language the user saved on `/account` overrides it, and signed out the browser decides again
+    (a user preferring English on a Hungarian browser sees Hungarian on `/login`, English once
+    signed in). This replaces the plan's step 2 ("a `localStorage` choice made on `/login`") and
+    its "compact equivalent on `/login` … adopted into the profile on first login": there is no
+    `/login` switch, nothing is stored in the browser, and nothing is adopted at sign-in. The
+    Done-when bullet "The `/login` choice before login is honored, and adopted into a profile that
+    has none" is superseded by this rule (spec 16 tests the rule instead).
+  - **Formats keep the browser's region, plus a per-user time format.** Dates and numbers use the
+    interface language with the browser's region (English on a Hungarian browser: 24-hour,
+    "12 345"), not the bare language's conventions. `/account` gains a Time format setting
+    (automatic / 12-hour / 24-hour, `user_settings.clock`, additive), by the same rules: the
+    browser's region until sign-in, a pinned format after.
+  - **Follow-up answers (2026-10-19):** the language also gets an "automatic" choice on
+    `/account` (a saved language can be cleared, and the browser decides again); and the region
+    keeps coming from the browser's *first* language tag even when the matched language is later
+    in the list (owner: "if a user has that funky setting it probably wants that behaviour").
+

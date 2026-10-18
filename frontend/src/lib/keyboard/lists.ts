@@ -158,6 +158,7 @@ function gateOpen(list: Element): boolean {
 	return true;
 }
 
+// i18n-ignore: a selector
 const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]';
 
 /** Sets the tabindexes of `list`'s own rows and controls (nested lists do their own). */

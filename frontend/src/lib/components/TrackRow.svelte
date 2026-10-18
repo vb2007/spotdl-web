@@ -10,12 +10,18 @@
 	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import { isTypingTarget } from '$lib/keyboard/registry';
 	import {
+		attemptPath,
 		attemptVia,
 		formatDuration,
 		groupAttempts,
+		pathLabel,
 		relativeTime,
 		summarizeVia
 	} from '$lib/attempts';
+	import * as m from '$lib/paraglide/messages';
+	import { errorText } from '$lib/i18n/errors';
+	import { counted, formatDateTime, formatNumber } from '$lib/i18n/format';
+	import { trackStateLabel } from '$lib/i18n/labels';
 	import type { TrackAttempt, TrackAttemptOutcome, TrackState } from '$lib/api';
 	import type { LiveTrack } from '$lib/stores/queue';
 
@@ -35,18 +41,8 @@
 	let attemptsError = $state<string | null>(null);
 	let attemptsLoadedFor = $state<string | null>(null);
 
-	// v41 (F21): the same words the state-filter chips use, so a state reads the same on a
-	// chip and on a row (and none of them truncates in the state column, F13).
-	const STATE_LABEL: Record<TrackState, string> = {
-		pending: 'pending',
-		queued: 'queued',
-		downloading: 'downloading',
-		completed: 'completed',
-		waiting: 'waiting',
-		lookup_failed: 'not found',
-		skipped_duplicate: 'duplicate',
-		cancelled: 'cancelled'
-	};
+	// v41 (F21): a state reads with the same words the state-filter chips use (v46:
+	// `trackStateLabel`, shared with them), and none of them truncates in the state column (F13).
 
 	const STATE_COND: Record<TrackState, string> = {
 		pending: 'cond-idle',
@@ -60,24 +56,25 @@
 	};
 
 	// The first thing the expanded view says: what this state means for the listener, in
-	// plain words, with the next step where there is one (F24, F25).
-	const STATUS_TEXT: Record<TrackState, string> = {
-		pending: 'in line, not dispatched yet',
-		queued: 'queued for the downloader',
-		downloading: 'downloading',
-		completed: 'downloaded',
-		waiting: 'waiting to retry',
-		lookup_failed: "won't retry on its own · retry now to try again",
-		skipped_duplicate: 'already downloaded earlier · nothing fetched',
-		cancelled: "cancelled · won't be downloaded"
+	// plain words, with the next step where there is one (F24, F25). v46: message functions,
+	// called at render time, so a language switch re-renders them.
+	const STATUS_TEXT: Record<TrackState, () => string> = {
+		pending: m.track_status_pending,
+		queued: m.track_status_queued,
+		downloading: m.track_status_downloading,
+		completed: m.track_status_completed,
+		waiting: m.track_status_waiting,
+		lookup_failed: m.track_status_lookup_failed,
+		skipped_duplicate: m.track_status_skipped_duplicate,
+		cancelled: m.track_status_cancelled
 	};
 
-	const ATTEMPT_OUTCOME_LABEL: Record<TrackAttemptOutcome, string> = {
-		completed: 'completed',
-		failed: 'failed',
-		cancelled: 'cancelled',
-		skipped_duplicate: 'duplicate',
-		held: 'held · not attempted'
+	const ATTEMPT_OUTCOME_LABEL: Record<TrackAttemptOutcome, () => string> = {
+		completed: m.attempt_outcome_completed,
+		failed: m.attempt_outcome_failed,
+		cancelled: m.attempt_outcome_cancelled,
+		skipped_duplicate: m.attempt_outcome_skipped_duplicate,
+		held: m.attempt_outcome_held
 	};
 
 	// Same `.cond-*` vocabulary as the row (app.css), so a color means one thing everywhere.
@@ -136,8 +133,7 @@
 		const reached = attempts.filter((a) => a.network_path !== null || a.proxy_id !== null);
 		if (!reached.length) return null;
 		// The strip names the family; the proxy's address is in the timeline's own entry.
-		const via = attemptVia(reached[reached.length - 1]);
-		return via.startsWith('via proxy') ? 'via proxy' : via;
+		return pathLabel(attemptPath(reached[reached.length - 1]));
 	});
 	// `last_error` is the newest failure's text, which the timeline already shows. It only
 	// gets its own line when the timeline can't: a track failed before v24 kept attempts.
@@ -191,7 +187,7 @@
 		} catch (err) {
 			// A request superseded by a newer key never touches the newer one's state.
 			if (key !== attemptsKey) return;
-			attemptsError = err instanceof api.ApiError ? err.message : 'Could not load attempt history.';
+			attemptsError = errorText(err, m.track_history_load_failed);
 		} finally {
 			if (key === attemptsKey) attemptsLoading = false;
 		}
@@ -262,8 +258,16 @@
 		};
 	}
 
+	// The fields `toLocaleString()` shows by default, in the interface's language.
 	function formatTimestamp(value: string): string {
-		return new Date(value).toLocaleString();
+		return formatDateTime(value, {
+			year: 'numeric',
+			month: 'numeric',
+			day: 'numeric',
+			hour: 'numeric',
+			minute: '2-digit',
+			second: '2-digit'
+		});
 	}
 
 	// Per-row transient feedback (e.g. "held behind the global pause"), kept in the rowNotices
@@ -311,15 +315,12 @@
 		const askedState = track.state;
 		const artists = track.artists?.join(', ');
 		const confirmed = await confirmAction({
-			title: 'Cancel this track?',
-			subject: [track.title ?? 'Unknown title', artists].filter(Boolean).join(' — '),
+			title: m.track_cancel_title(),
+			subject: [track.title ?? m.track_unknown_title(), artists].filter(Boolean).join(' — '),
 			body:
-				(track.state === 'downloading'
-					? 'The download in progress finishes, but the track stays cancelled. '
-					: "It won't be downloaded. ") +
-				"This can't be undone, but the link can be submitted again.",
-			confirmLabel: 'cancel track',
-			cancelLabel: 'keep track'
+				track.state === 'downloading' ? m.track_cancel_body_downloading() : m.track_cancel_body(),
+			confirmLabel: m.track_cancel_confirm(),
+			cancelLabel: m.track_cancel_keep()
 		});
 		// This row's own controls, or (remounted by a list reload meanwhile) the list's heading.
 		// A row remounted meanwhile (a reload) is found again by id (v45), else the list's heading.
@@ -351,8 +352,8 @@
 			// The notice map outlives this row, so a remounted (collapsed) row shows it too.
 			showNotice(
 				current === undefined
-					? "Not cancelled: couldn't check the track first. Try again."
-					: "Not cancelled: it isn't waiting to download any more."
+					? m.track_notice_not_cancelled_unchecked()
+					: m.track_notice_not_cancelled_settled()
 			);
 			return keepFocus(landing());
 		}
@@ -369,12 +370,12 @@
 				awaitCancelledAttempt(seenAttempts, [3000, 5000, 7000, 15000, 30000]);
 			}
 			if (wasDownloading && !askedDownloading && queue.getResetCount() === session) {
-				showNotice('Cancelled. It had started downloading; that finishes but stays cancelled.');
+				showNotice(m.track_notice_cancelled_while_downloading());
 			}
 		} catch (err) {
 			// A session reset meanwhile: the answer belongs to the previous identity.
 			if (queue.getResetCount() === session)
-				showNotice(err instanceof api.ApiError ? err.message : 'Could not cancel this track.');
+				showNotice(errorText(err, m.track_notice_cancel_failed));
 		}
 		// "cancel track" leaves with the cancellable state: land on the row itself.
 		await keepFocus(landing());
@@ -383,13 +384,9 @@
 	async function handleRetry() {
 		try {
 			const { breakerHeld } = await queue.retryTrack(track.id, jobId);
-			showNotice(
-				breakerHeld
-					? 'held — global pause is active, will dispatch once it clears'
-					: 'queued — dispatching on the next pass'
-			);
+			showNotice(breakerHeld ? m.track_notice_retry_held() : m.track_notice_retry_queued());
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not retry this track.');
+			showNotice(errorText(err, m.track_notice_retry_failed));
 		}
 	}
 
@@ -438,7 +435,7 @@
 		try {
 			await api.checkTrackFile(track.id);
 		} catch (err) {
-			showNotice(err instanceof api.ApiError ? err.message : 'Could not download this file.');
+			showNotice(errorText(err, m.track_notice_download_failed));
 			return;
 		}
 		const anchor = document.createElement('a');
@@ -497,13 +494,14 @@
 		aria-controls={detailId}
 	>
 		<span class="cell state {STATE_COND[track.state]} mono"
-			>{STATE_LABEL[
+			>{trackStateLabel(
 				track.state
-			]}{#if track.state === 'downloading' && track.progress !== undefined}<span class="pct"
+			)}{#if track.state === 'downloading' && track.progress !== undefined}<span class="pct"
 					>&nbsp;{track.progress}%</span
 				>{/if}</span
 		>
-		<span class="cell title" title={track.title ?? undefined}>{track.title ?? 'Unknown title'}</span
+		<span class="cell title" title={track.title ?? undefined}
+			>{track.title ?? m.track_unknown_title()}</span
 		>
 		<span class="meta">
 			<span class="cell artist" title={track.artists?.join(', ')}
@@ -517,12 +515,12 @@
 	{#if expanded}
 		<div class="detail" id={detailId}>
 			<div class="strip">
-				<span class="status {STATE_COND[track.state]}">{STATUS_TEXT[track.state]}</span>
+				<span class="status {STATE_COND[track.state]}">{STATUS_TEXT[track.state]()}</span>
 				{#if track.state === 'downloading' && track.progress !== undefined}
 					<span
 						class="progress"
 						role="progressbar"
-						aria-label="Download progress"
+						aria-label={m.track_download_progress()}
 						aria-valuemin={0}
 						aria-valuemax={100}
 						aria-valuenow={track.progress}
@@ -535,40 +533,53 @@
 					<span class="fact"
 						><Countdown
 							scheduledAt={nextTry.at}
-							label="next try in"
+							label={m.track_next_try_in()}
 							dueLive={false}
-							dueText={workerPaused ? 'due' : 'due on the next pass'}
+							dueText={workerPaused ? m.track_due() : m.track_due_next_pass()}
 						/></span
 					>
 					{#if nextTry.heldByBreaker}
-						<span class="fact quiet">after the global pause clears</span>
+						<span class="fact quiet">{m.track_after_pause_clears()}</span>
 					{/if}
 					{#if workerPaused}
-						<span class="fact quiet">downloads are paused</span>
+						<span class="fact quiet">{m.track_downloads_paused()}</span>
 					{/if}
 				{/if}
 				{#if isAdmin && track.state !== 'skipped_duplicate'}
 					<!-- One unit: the counts and the path wrap together, never apart. -->
 					<span class="facts">
-						<span class="fact mono"><span class="key">attempts</span> {track.attempts_made}</span>
-						<span class="fact mono"><span class="key">failed</span> {track.failure_count}</span>
+						<span class="fact mono"
+							><span class="key">{m.track_fact_attempts()}</span>
+							{formatNumber(track.attempts_made)}</span
+						>
+						<span class="fact mono"
+							><span class="key">{m.track_fact_failed()}</span>
+							{formatNumber(track.failure_count)}</span
+						>
 						{#if lastPath}
-							<span class="fact mono"><span class="key">last path</span> {lastPath}</span>
+							<span class="fact mono"
+								><span class="key">{m.track_fact_last_path()}</span> {lastPath}</span
+							>
 						{/if}
 					</span>
 				{/if}
 			</div>
 
 			{#if canRetry || canDownload || canCancel}
-				<div class="actions" role="group" aria-label="Track actions">
+				<div class="actions" role="group" aria-label={m.track_actions()}>
 					{#if canRetry}
-						<button type="button" class="action" onclick={handleRetry}>retry now</button>
+						<button type="button" class="action" onclick={handleRetry}>{m.track_retry_now()}</button
+						>
 					{/if}
 					{#if canDownload}
-						<button type="button" class="action" onclick={handleDownload}>download</button>
+						<button type="button" class="action" onclick={handleDownload}
+							>{m.track_download()}</button
+						>
 					{/if}
 					{#if canCancel}
-						<button type="button" class="action danger" onclick={handleCancel}>cancel track</button>
+						<button type="button" class="action danger" onclick={handleCancel}
+							>{m.track_cancel_confirm()}</button
+						>
 					{/if}
 				</div>
 			{/if}
@@ -579,18 +590,18 @@
 					{#if attemptsError && attemptsLoadedFor !== null}
 						<!-- A failed re-read never hides the history already loaded. -->
 						<p class="history-status history-error">
-							couldn't refresh ({attemptsError}) · showing the last loaded history
+							{m.track_history_refresh_failed({ error: attemptsError })}
 						</p>
 					{/if}
 					{#if attemptsLoading && attemptsLoadedFor === null}
-						<p class="history-status">loading attempt history…</p>
+						<p class="history-status">{m.track_history_loading()}</p>
 					{:else if attemptsError && attemptsLoadedFor === null}
 						<p class="history-status history-error">{attemptsError}</p>
 					{:else if attempts.length === 0}
-						<p class="history-status">no attempts yet</p>
+						<p class="history-status">{m.track_history_empty()}</p>
 					{:else}
-						<p class="history-heading mono">attempt history · newest first</p>
-						<ol class="timeline" aria-label="attempt history">
+						<p class="history-heading mono">{m.track_history_heading()}</p>
+						<ol class="timeline" aria-label={m.track_history_label()}>
 							{#each groups as group (group.key)}
 								{@const head = group.attempts[0]}
 								{@const run = group.attempts.length}
@@ -599,9 +610,9 @@
 									{@render when(head.finished_at, head.id)}
 									<div class="entry-body">
 										<p class="reading mono">
-											{#if run > 1}<span class="times">×{run}</span>{/if}
+											{#if run > 1}<span class="times">×{formatNumber(run)}</span>{/if}
 											<span class="outcome {outcomeCond(head)}"
-												>{ATTEMPT_OUTCOME_LABEL[head.outcome]}</span
+												>{ATTEMPT_OUTCOME_LABEL[head.outcome]()}</span
 											>
 											{#if head.error_type}<span class="class">{head.error_type}</span>{/if}
 											<span class="via"
@@ -627,13 +638,15 @@
 													aria-expanded={openMessages.has(group.key)}
 													aria-controls="msg-{group.key}"
 													onclick={() => toggleIn(openMessages, group.key)}
-													>{openMessages.has(group.key) ? 'show less' : 'show full message'}</button
+													>{openMessages.has(group.key)
+														? m.track_message_less()
+														: m.track_message_full()}</button
 												>
 											{/if}
 										{/if}
 										{#if head.warning_message}
 											<p class="note">
-												<span class="note-tag mono">note</span>
+												<span class="note-tag mono">{m.track_note()}</span>
 												<span class="note-text mono">{head.warning_message}</span>
 											</p>
 										{/if}
@@ -644,10 +657,12 @@
 												aria-expanded={openRuns.has(group.key)}
 												aria-controls="run-{group.key}"
 												onclick={() => toggleIn(openRuns, group.key)}
-												>{openRuns.has(group.key) ? 'hide the repeats' : `show all ${run}`}</button
+												>{openRuns.has(group.key)
+													? m.track_repeats_hide()
+													: m.track_repeats_show(counted(run))}</button
 											>
 											{#if openRuns.has(group.key)}
-												<ol class="run" id="run-{group.key}" aria-label="repeated attempts">
+												<ol class="run" id="run-{group.key}" aria-label={m.track_repeats_label()}>
 													{#each group.attempts as attempt (attempt.id)}
 														<li class="run-item mono">
 															{@render when(attempt.finished_at, `run-${attempt.id}`)}
@@ -655,7 +670,7 @@
 															{#if attempt.outcome !== 'held'}
 																<span class="dur">{formatDuration(attempt.duration_seconds)}</span>
 															{/if}
-															<span class="quiet">same reading</span>
+															<span class="quiet">{m.track_same_reading()}</span>
 														</li>
 													{/each}
 												</ol>
@@ -667,7 +682,10 @@
 						</ol>
 					{/if}
 					{#if lastErrorUnshown && !attemptsLoading}
-						<p class="last-error mono"><span class="key">last error</span> {track.last_error}</p>
+						<p class="last-error mono">
+							<span class="key">{m.track_last_error()}</span>
+							{track.last_error}
+						</p>
 					{/if}
 				</div>
 			{/if}

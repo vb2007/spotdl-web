@@ -7,6 +7,20 @@
 	import { keepFocus } from '$lib/stores/confirm';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import { helpOpen, shortcutsEnabled } from '$lib/keyboard/registry';
+	import * as m from '$lib/paraglide/messages';
+	import { errorText } from '$lib/i18n/errors';
+	import { clockExample, formatClock, formatNumber } from '$lib/i18n/format';
+	import {
+		applyClock,
+		applyLanguagePreference,
+		clockPreference,
+		detectLocale,
+		languagePreference,
+		type Clock
+	} from '$lib/i18n/locale.svelte';
+	import type { Locale } from '$lib/paraglide/runtime';
+	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
+	import RichText from '$lib/components/RichText.svelte';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -22,14 +36,17 @@
 	let days = $state<number | null>(30);
 	let saving = $state(false);
 	let savedAt = $state<Date | null>(null);
-	let error = $state('');
-	let daysError = $state('');
+	// v46: errors are kept as the message to render, not its text, so a language switch on this
+	// page re-renders a standing error in the new language like everything around it.
+	type Shown = (() => string) | null;
+	let error = $state<Shown>(null);
+	let daysError = $state<Shown>(null);
 	// A hundred years. The backend takes any positive number, but the hourly retention sweep
 	// computes now - days, which overflows past year 1 and stops it for every user (found,
 	// not fixed in the backend: v48).
 	const MAX_DAYS = 36_500;
 	let loggingOut = $state(false);
-	let logoutError = $state('');
+	let logoutError = $state<Shown>(null);
 
 	// The mode and the number both count: switching to "automatically" with the days field
 	// cleared is a change even though no number is there yet.
@@ -50,18 +67,18 @@
 			.getRetentionSettings()
 			.then(syncForm)
 			.catch((err) => {
-				error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+				error = () => errorText(err);
 			});
 	});
 
 	async function onSubmit(event: SubmitEvent) {
 		event.preventDefault();
-		daysError = '';
+		daysError = null;
 		if (!neverArchive) {
 			daysError =
 				typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_DAYS
-					? `Enter a whole number of days from 1 to ${MAX_DAYS.toLocaleString()}.`
-					: '';
+					? () => m.account_retention_days_invalid({ max: formatNumber(MAX_DAYS) })
+					: null;
 			if (daysError) {
 				// Nothing is sent, so focus the field: its error is read out from there.
 				await tick();
@@ -75,12 +92,12 @@
 		// Saving disables the field or button that had focus: give it back afterwards.
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		saving = true;
-		error = '';
+		error = null;
 		try {
 			syncForm(await api.updateRetentionSettings(neverArchive ? null : days));
 			savedAt = new Date();
 		} catch (err) {
-			error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			error = () => errorText(err);
 		} finally {
 			saving = false;
 		}
@@ -91,7 +108,7 @@
 	// follows them to every device. It applies the moment the server has it; another device
 	// picks it up from /api/auth/me on its next load.
 	let keyboardSaving = $state(false);
-	let keyboardError = $state('');
+	let keyboardError = $state<Shown>(null);
 	let keyboardSavedAt = $state<Date | null>(null);
 
 	async function setShortcuts(enabled: boolean) {
@@ -100,15 +117,81 @@
 		if (keyboardSaving) return;
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		keyboardSaving = true;
-		keyboardError = '';
+		keyboardError = null;
 		try {
 			const saved = await api.updateKeyboardSettings(enabled);
 			shortcutsEnabled.set(saved.keyboard_shortcuts);
 			keyboardSavedAt = new Date();
 		} catch (err) {
-			keyboardError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			keyboardError = () => errorText(err);
 		} finally {
 			keyboardSaving = false;
+		}
+		await keepFocus(from);
+	}
+
+	// v46: the interface language, saved to the profile so it follows the user to every
+	// device (and, once signed in, wins over the browser's language). Like the shortcut
+	// switch it applies once the server has it; the page then re-renders in place.
+	let languageSaving = $state(false);
+	let languageError = $state<Shown>(null);
+	let languageSavedAt = $state<Date | null>(null);
+
+	async function setLanguage(next: Locale | null) {
+		// Always sent, even for the choice shown as pressed: another device may have changed it
+		// since this page read it (the PATCH is idempotent). `null` is automatic.
+		if (languageSaving) return;
+		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		languageSaving = true;
+		languageError = null;
+		// A sign-out (or another identity) while the save is in flight resets the store; the
+		// late answer must not then set the signed-out page's language (v42's late-write guard).
+		const resets = queue.getResetCount();
+		try {
+			const saved = await api.updateLanguageSettings(next);
+			if (queue.getResetCount() !== resets) return;
+			applyLanguagePreference(saved.language);
+			languageSavedAt = new Date();
+		} catch (err) {
+			languageError = () => errorText(err);
+		} finally {
+			languageSaving = false;
+		}
+		await keepFocus(from);
+	}
+
+	// v46 (owner's rule, PR #68): the time format, by the language's rules: automatic (the
+	// browser's region) until pinned here, saved to the profile, applied once the server has it.
+	let clockSaving = $state(false);
+	let clockError = $state<Shown>(null);
+	let clockSavedAt = $state<Date | null>(null);
+	// The examples read the minute this page shows, ticking so they stay true.
+	let now = $state(new Date());
+	$effect(() => {
+		const id = setInterval(() => (now = new Date()), 30_000);
+		return () => clearInterval(id);
+	});
+	const CLOCK_CHOICES: { value: Clock | null; label: (example: string) => string }[] = [
+		{ value: null, label: (example) => m.account_clock_auto({ example }) },
+		{ value: '12h', label: (example) => m.account_clock_12h({ example }) },
+		{ value: '24h', label: (example) => m.account_clock_24h({ example }) }
+	];
+
+	async function setClock(next: Clock | null) {
+		if (clockSaving) return;
+		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		clockSaving = true;
+		clockError = null;
+		const resets = queue.getResetCount();
+		try {
+			const saved = await api.updateClockSettings(next);
+			if (queue.getResetCount() !== resets) return;
+			applyClock(saved.clock);
+			clockSavedAt = new Date();
+		} catch (err) {
+			clockError = () => errorText(err);
+		} finally {
+			clockSaving = false;
 		}
 		await keepFocus(from);
 	}
@@ -116,13 +199,13 @@
 	// v43 (F31): the account page could not sign out; it now does, the way `/` does.
 	async function onLogout() {
 		loggingOut = true;
-		logoutError = '';
+		logoutError = null;
 		try {
 			await api.logout();
 		} catch (err) {
 			// A 401 means the session is already gone: that's signed out, not a failure.
 			if (!(err instanceof api.ApiError && err.status === 401)) {
-				logoutError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+				logoutError = () => errorText(err);
 				loggingOut = false;
 				return;
 			}
@@ -135,16 +218,16 @@
 </script>
 
 <svelte:head>
-	<title>spotdl-web — account</title>
+	<title>{m.account_title()}</title>
 </svelte:head>
 
 <div class="stage">
 	<SubpageHeader current="account" {isAdmin} />
 
 	<main id="main" class="main">
-		<h1 class="page-title">Account</h1>
+		<h1 class="page-title">{m.account_heading()}</h1>
 		<section class="panel section" aria-labelledby="identity-heading">
-			<h2 id="identity-heading" class="label">Signed in</h2>
+			<h2 id="identity-heading" class="label">{m.account_signed_in()}</h2>
 			<div class="identity">
 				<div class="who">
 					<!-- F31: the email is on the page, not only in a tooltip. -->
@@ -153,35 +236,31 @@
 						<p class="email mono">{email}</p>
 					{/if}
 					{#if isAdmin}
-						<p class="role">Admin of this server</p>
+						<p class="role">{m.account_role_admin()}</p>
 					{/if}
 				</div>
 				<button type="button" class="btn" disabled={loggingOut} onclick={onLogout}>
-					{loggingOut ? 'disconnecting…' : 'disconnect'}
+					{loggingOut ? m.account_disconnecting() : m.account_disconnect()}
 				</button>
 			</div>
-			<p class="form-error" role="alert">{logoutError}</p>
+			<p class="form-error" role="alert">{logoutError?.()}</p>
 		</section>
 
-		<!-- Preferences: one group per setting. v45 added the keyboard-shortcut switch; v46 adds
-		     the language switch here, as a further group. -->
+		<!-- Preferences: one group per setting. v45 added the keyboard-shortcut switch; v46 the
+		     language switch and the time format, as further groups. -->
 		<section class="panel section" aria-labelledby="preferences-heading">
-			<h2 id="preferences-heading" class="label">Preferences</h2>
+			<h2 id="preferences-heading" class="label">{m.account_preferences()}</h2>
 
 			<div class="group" role="group" aria-labelledby="retention-heading">
-				<h3 id="retention-heading" class="group-title">Log retention</h3>
-				<p class="hint">
-					Finished jobs (done, failed or cancelled) are archived once nothing has happened in them
-					for this long. Archived jobs are hidden, never deleted, and come back with “show
-					archived”. A job still downloading or waiting is never archived.
-				</p>
+				<h3 id="retention-heading" class="group-title">{m.account_retention_heading()}</h3>
+				<p class="hint">{m.account_retention_hint()}</p>
 
 				{#if saved === null}
-					{#if !error}<p class="hint">Loading your retention setting…</p>{/if}
+					{#if !error}<p class="hint">{m.account_retention_loading()}</p>{/if}
 				{:else}
 					<form class="retention-form" onsubmit={onSubmit} novalidate>
 						<div class="form-field">
-							<span class="label" id="retention-mode-label">Archive finished jobs</span>
+							<span class="label" id="retention-mode-label">{m.account_retention_mode()}</span>
 							<div class="choice-group" role="group" aria-labelledby="retention-mode-label">
 								<button
 									type="button"
@@ -189,7 +268,7 @@
 									disabled={saving}
 									onclick={() => (neverArchive = false)}
 								>
-									automatically
+									{m.account_retention_auto()}
 								</button>
 								<button
 									type="button"
@@ -197,14 +276,14 @@
 									disabled={saving}
 									onclick={() => (neverArchive = true)}
 								>
-									never
+									{m.account_retention_never()}
 								</button>
 							</div>
 						</div>
 
 						<div class="form-field">
 							<!-- F30: the accessible name is the visible label (WCAG 2.5.3). -->
-							<label class="label" for="retention-days">After</label>
+							<label class="label" for="retention-days">{m.account_retention_after()}</label>
 							<div class="with-unit">
 								<input
 									id="retention-days"
@@ -219,37 +298,33 @@
 									aria-invalid={daysError ? 'true' : undefined}
 									aria-describedby="retention-days-unit retention-days-error"
 								/>
-								<span class="unit mono" id="retention-days-unit">days without activity</span>
+								<span class="unit mono" id="retention-days-unit">{m.account_retention_unit()}</span>
 							</div>
-							<p id="retention-days-error" class="field-error">{daysError}</p>
+							<p id="retention-days-error" class="field-error">{daysError?.()}</p>
 						</div>
 
 						<div class="save-row wide">
 							<button type="submit" class="btn" disabled={saving}>
-								{saving ? 'saving…' : 'save'}
+								{saving ? m.common_saving() : m.common_save()}
 							</button>
 							<p class="save-state" class:saved={!dirty && savedAt} role="status">
 								{dirty
-									? 'Unsaved changes'
+									? m.common_unsaved_changes()
 									: savedAt
-										? `Saved at ${savedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+										? m.common_saved_at({ time: formatClock(savedAt) })
 										: ''}
 							</p>
 						</div>
 					</form>
 				{/if}
-				<p class="form-error" role="alert">{error}</p>
+				<p class="form-error" role="alert">{error?.()}</p>
 			</div>
 
 			<div class="group" role="group" aria-labelledby="keyboard-heading">
-				<h3 id="keyboard-heading" class="group-title">Keyboard shortcuts</h3>
-				<p class="hint" id="keyboard-hint">
-					Single keys do things on the queue: <kbd>j</kbd> and <kbd>k</kbd> move between rows,
-					<kbd>x</kbd> cancels, <kbd>h</kbd> lists them all. Switch them off if they get in the way of
-					a screen reader or speech input. Tab, the arrow keys, Enter and Esc work either way.
-				</p>
+				<h3 id="keyboard-heading" class="group-title">{m.account_keyboard_heading()}</h3>
+				<p class="hint" id="keyboard-hint"><RichText text={m.account_keyboard_hint()} /></p>
 				<div class="form-field">
-					<span class="label" id="keyboard-mode-label">Single-key shortcuts</span>
+					<span class="label" id="keyboard-mode-label">{m.account_keyboard_mode()}</span>
 					<div class="keyboard-row">
 						<div
 							class="choice-group"
@@ -263,7 +338,7 @@
 								disabled={keyboardSaving}
 								onclick={() => setShortcuts(true)}
 							>
-								on
+								{m.account_keyboard_on()}
 							</button>
 							<button
 								type="button"
@@ -271,22 +346,78 @@
 								disabled={keyboardSaving}
 								onclick={() => setShortcuts(false)}
 							>
-								off
+								{m.account_keyboard_off()}
 							</button>
 						</div>
 						<button type="button" class="btn" onclick={() => helpOpen.set(true)}
-							>show shortcuts</button
+							>{m.account_keyboard_show()}</button
 						>
 					</div>
 				</div>
 				<p class="save-state" class:saved={keyboardSavedAt !== null} role="status">
 					{keyboardSaving
-						? 'Saving…'
+						? m.common_saving_status()
 						: keyboardSavedAt
-							? `Saved at ${keyboardSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+							? m.common_saved_at({ time: formatClock(keyboardSavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{keyboardError}</p>
+				<p class="form-error" role="alert">{keyboardError?.()}</p>
+			</div>
+
+			<div class="group" role="group" aria-labelledby="language-heading">
+				<h3 id="language-heading" class="group-title">{m.account_language_heading()}</h3>
+				<p class="hint" id="language-hint">{m.account_language_hint()}</p>
+				<div class="form-field">
+					<span class="label" id="language-mode-label">{m.account_language_label()}</span>
+					<LanguageSwitch
+						preference={languagePreference.current}
+						detected={detectLocale()}
+						onchoose={setLanguage}
+						disabled={languageSaving}
+						labelledby="language-mode-label"
+						describedby="language-hint"
+					/>
+				</div>
+				<p class="save-state" class:saved={languageSavedAt !== null} role="status">
+					{languageSaving
+						? m.common_saving_status()
+						: languageSavedAt
+							? m.common_saved_at({ time: formatClock(languageSavedAt) })
+							: ''}
+				</p>
+				<p class="form-error" role="alert">{languageError?.()}</p>
+			</div>
+
+			<div class="group" role="group" aria-labelledby="clock-heading">
+				<h3 id="clock-heading" class="group-title">{m.account_clock_heading()}</h3>
+				<p class="hint" id="clock-hint">{m.account_clock_hint()}</p>
+				<div class="form-field">
+					<span class="label" id="clock-mode-label">{m.account_clock_label()}</span>
+					<div
+						class="choice-group clock-choice"
+						role="group"
+						aria-labelledby="clock-mode-label"
+						aria-describedby="clock-hint"
+					>
+						{#each CLOCK_CHOICES as choice (choice.value)}
+							<button
+								type="button"
+								aria-pressed={clockPreference.current === choice.value}
+								disabled={clockSaving}
+								onclick={() => setClock(choice.value)}
+								>{choice.label(clockExample(now, choice.value))}</button
+							>
+						{/each}
+					</div>
+				</div>
+				<p class="save-state" class:saved={clockSavedAt !== null} role="status">
+					{clockSaving
+						? m.common_saving_status()
+						: clockSavedAt
+							? m.common_saved_at({ time: formatClock(clockSavedAt) })
+							: ''}
+				</p>
+				<p class="form-error" role="alert">{clockError?.()}</p>
 			</div>
 		</section>
 	</main>
@@ -410,6 +541,30 @@
 
 		.retention-form {
 			grid-template-columns: minmax(0, 1fr);
+		}
+
+		/* v46: three options with their examples don't fit a phone row (Hungarian least of
+		   all), and a wrapped segmented control breaks its own edges: stack them instead. */
+		.clock-choice {
+			flex-direction: column;
+			align-self: stretch;
+		}
+
+		.clock-choice button {
+			text-align: left;
+		}
+
+		.clock-choice button + button {
+			border-left: none;
+			border-top: 1px solid var(--line-control);
+		}
+
+		.clock-choice button:first-child {
+			border-radius: 3px 3px 0 0;
+		}
+
+		.clock-choice button:last-child {
+			border-radius: 0 0 3px 3px;
 		}
 	}
 </style>

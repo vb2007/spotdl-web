@@ -10,6 +10,7 @@
 	import HelpOverlay from '$lib/components/HelpOverlay.svelte';
 	import ChordIndicator from '$lib/components/ChordIndicator.svelte';
 	import { queue } from '$lib/stores/queue';
+	import * as m from '$lib/paraglide/messages';
 	import { link as streamLink } from '$lib/stores/link';
 	import {
 		cancelChord,
@@ -79,6 +80,7 @@
 		if (type === 'enter' || !from || !to || from.url.pathname === to.url.pathname) return;
 		await tick();
 		const heading =
+			// i18n-ignore: a selector
 			document.querySelector<HTMLElement>('main h1') ??
 			document.querySelector<HTMLElement>('h1') ??
 			document.querySelector<HTMLElement>('main');
@@ -108,7 +110,7 @@
 
 <!-- v45: the first focusable element on every page. -->
 <a class="skip-link" href="#main" onclick={skip}
-	>{page.route.id === '/' ? 'Skip to queue' : 'Skip to content'}</a
+	>{page.route.id === '/' ? m.layout_skip_to_queue() : m.layout_skip_to_content()}</a
 >
 
 <AmbientField {live} />

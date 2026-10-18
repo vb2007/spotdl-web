@@ -4,11 +4,12 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
+from app.errors import ApiError
 from app.models import DownloadedTrack, Job, JobSourceType, Proxy, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
 from app.services import app_settings, events, retry, track_listing
@@ -39,7 +40,7 @@ def _get_track_or_404(
         query = query.filter(Job.user_id == user.id)
     row = query.one_or_none()
     if row is None:
-        raise HTTPException(status_code=404, detail="Track not found")
+        raise ApiError(404, "track_not_found", "Track not found")
     return row
 
 
@@ -123,7 +124,7 @@ def list_tracks(
             include_state_counts=True,
         )
     except (track_listing.InvalidListParams, InvalidCursor) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise ApiError(400, "invalid_list_params", str(exc), {"reason": str(exc)}) from exc
 
 
 @router.delete("/{track_id}")
@@ -166,10 +167,13 @@ def retry_track(
     unarchived first, exactly like a re-download would need it visible again anyway."""
     track, owner_id, archived_at = _get_track_or_404(db, track_id, user)
     if archived_at is not None:
-        raise HTTPException(status_code=409, detail="Job is archived; unarchive it first")
+        raise ApiError(409, "job_archived", "Job is archived; unarchive it first")
     if track.state not in _RETRYABLE_TRACK_STATES:
-        raise HTTPException(
-            status_code=409, detail=f"Track is {track.state.value}, not retryable"
+        raise ApiError(
+            409,
+            "track_not_retryable",
+            f"Track is {track.state.value}, not retryable",
+            {"state": track.state.value},
         )
 
     now = datetime.now(timezone.utc)
@@ -240,7 +244,7 @@ def download_track_file(
 
     raw_path = _resolve_track_file_path(db, track)
     if raw_path is None:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise ApiError(404, "file_not_found", "File not found")
 
     # `output_path`/the ledger's `file_path` are app-generated today, but this endpoint
     # turns them into an authorization boundary -- confirm the resolved path is actually
@@ -260,7 +264,7 @@ def download_track_file(
     elif resolved.is_relative_to(library_root) and resolved != library_root:
         root, prefix = library_root, _INTERNAL_LIBRARY_PREFIX
     else:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise ApiError(404, "file_not_found", "File not found")
 
     accel_uri = prefix + "/".join(
         quote(part, safe="") for part in resolved.relative_to(root).parts

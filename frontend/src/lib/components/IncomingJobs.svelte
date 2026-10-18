@@ -6,6 +6,9 @@
 	import { link } from '$lib/stores/link';
 	import { confirmAction } from '$lib/stores/confirm';
 	import type { Job } from '$lib/api';
+	import * as m from '$lib/paraglide/messages';
+	import { counted } from '$lib/i18n/format';
+	import { errorText } from '$lib/i18n/errors';
 
 	/** `allUsers`: the admin's all-users scope, where rows can be someone else's -- they
 	 * then carry their owner, and "try again" (which submits as *this* session) is offered
@@ -17,12 +20,21 @@
 		isAdmin = false
 	}: { jobs: Job[]; allUsers?: boolean; sessionEmail?: string; isAdmin?: boolean } = $props();
 
-	const SOURCE_LABEL: Record<Job['source_type'], string> = {
-		track: 'track',
-		album: 'album',
-		playlist: 'playlist',
-		artist: 'artist',
-		search: 'search'
+	// v46: functions, not strings, so a language switch re-renders them. The failure line is
+	// one sentence per source type: Hungarian inflects the noun ("ezt az albumot").
+	const SOURCE_LABEL: Record<Job['source_type'], () => string> = {
+		track: m.incoming_source_track,
+		album: m.incoming_source_album,
+		playlist: m.incoming_source_playlist,
+		artist: m.incoming_source_artist,
+		search: m.incoming_source_search
+	};
+	const UNREADABLE: Record<Job['source_type'], () => string> = {
+		track: m.incoming_unreadable_track,
+		album: m.incoming_unreadable_album,
+		playlist: m.incoming_unreadable_playlist,
+		artist: m.incoming_unreadable_artist,
+		search: m.incoming_unreadable_search
 	};
 
 	let tuning = $derived(jobs.filter((j) => j.state === 'expanding'));
@@ -91,7 +103,7 @@
 		try {
 			await queue.cancelJob(jobId);
 		} catch (err) {
-			const message = err instanceof api.ApiError ? err.message : 'Could not cancel this job.';
+			const message = errorText(err, m.incoming_cancel_failed);
 			await tick();
 			acting = false;
 			if (!jobs.some((j) => j.id === jobId)) {
@@ -100,7 +112,7 @@
 				// the queue (its expansion finished); a failed row that left was dismissed or
 				// archived elsewhere, so there is nothing left to say about it.
 				if (wasTuning) {
-					lostNotice = `${message} It has moved into the queue below; cancel it there.`;
+					lostNotice = m.incoming_cancel_moved({ message });
 					const shown = lostNotice;
 					setTimeout(() => {
 						if (lostNotice === shown) lostNotice = '';
@@ -138,14 +150,11 @@
 	async function confirmCancelTuningFlow(job: Job) {
 		const session = queue.getResetCount();
 		const confirmed = await confirmAction({
-			title: 'Cancel this submission?',
+			title: m.incoming_confirm_title(),
 			subject: job.source_url,
-			body:
-				'Its link is still being read. Cancelling stops what it would queue, and cancels anything ' +
-				'it already has. This ' +
-				"can't be undone, but the link can be submitted again.",
-			confirmLabel: 'cancel submission',
-			cancelLabel: 'keep it'
+			body: m.incoming_confirm_body(),
+			confirmLabel: m.incoming_confirm_yes(),
+			cancelLabel: m.incoming_confirm_no()
 		});
 		if (!confirmed) {
 			// Kept or Esc: the row may have left meanwhile (it finished reading or failed).
@@ -168,10 +177,7 @@
 		if (current?.state !== 'expanding') {
 			// Failed meanwhile (the row stays here as failed), or gone from this panel: it
 			// finished reading into the queue, or was cancelled elsewhere.
-			lostNotice =
-				current?.state === 'failed'
-					? "Reading its link failed meanwhile; there's nothing left to cancel."
-					: "It's no longer being read: it moved into the queue below, or was already cancelled.";
+			lostNotice = current?.state === 'failed' ? m.incoming_lost_failed() : m.incoming_lost_moved();
 			const shown = lostNotice;
 			setTimeout(() => {
 				if (lostNotice === shown) lostNotice = '';
@@ -210,6 +216,7 @@
 		lastFocus = null;
 		// The submit box is the next step for a keyboard user, but a programmatic focus on a
 		// text input opens a phone's on-screen keyboard: touch gets the queue heading instead.
+		// i18n-ignore: a media query
 		const fallback = window.matchMedia('(pointer: coarse)').matches
 			? document.getElementById('queue-heading')
 			: document.getElementById('submit-url');
@@ -229,7 +236,7 @@
 			queue.addJob(created);
 			resubmitted = { ...resubmitted, [job.id]: true };
 		} catch (err) {
-			setError(job.id, err instanceof api.ApiError ? err.message : 'Could not submit it again.');
+			setError(job.id, errorText(err, m.incoming_retry_failed));
 			busy = { ...busy, [job.id]: false };
 			// Disabling the focused "try again" dropped focus to the page; give it back.
 			await tick();
@@ -317,7 +324,7 @@
 {#snippet failedRow(job: Job)}
 	<li class="row failed">
 		<span class="dot fail" aria-hidden="true"></span>
-		<span class="mono state">no signal — could not read this {SOURCE_LABEL[job.source_type]}</span>
+		<span class="mono state">{UNREADABLE[job.source_type]?.() ?? job.source_type}</span>
 		<span class="url mono" title={job.source_url}>{job.source_url}</span>
 		{#if allUsers}
 			<span class="owner mono" title={job.owner_email}
@@ -329,7 +336,7 @@
 		{#if isAdmin && job.error}
 			<span class="reason" title={job.error}>{job.error}</span>
 		{:else if !isAdmin}
-			<span class="reason">Check that the link opens in Spotify, then try again.</span>
+			<span class="reason">{m.incoming_unreadable_hint()}</span>
 		{/if}
 		<span class="actions">
 			{#if isOwn(job) && !resubmitted[job.id]}
@@ -337,20 +344,20 @@
 					type="button"
 					class="action"
 					disabled={busy[job.id]}
-					aria-label="try again {job.source_url}"
+					aria-label={m.incoming_retry_label({ url: job.source_url })}
 					data-act="retry"
 					data-job={job.id}
-					onclick={() => handleRetry(job)}>try again</button
+					onclick={() => handleRetry(job)}>{m.incoming_retry()}</button
 				>
 			{/if}
 			<button
 				type="button"
 				class="action"
-				aria-label="dismiss {job.source_url}"
+				aria-label={m.incoming_dismiss_label({ url: job.source_url })}
 				data-act="dismiss"
 				data-job={job.id}
 				disabled={busy[job.id]}
-				onclick={() => handleCancel(job.id, 'next-dismiss')}>dismiss</button
+				onclick={() => handleCancel(job.id, 'next-dismiss')}>{m.incoming_dismiss()}</button
 			>
 		</span>
 		{#if errorFor(job)}
@@ -371,13 +378,17 @@
 		onfocusin={onFocusIn}
 		onfocusout={onFocusOut}
 	>
-		<h2 id="incoming-heading" class="sr-only">Incoming submissions</h2>
-		<ul class="rows" aria-label="Incoming submissions">
+		<h2 id="incoming-heading" class="sr-only">{m.incoming_heading()}</h2>
+		<ul class="rows" aria-label={m.incoming_heading()}>
 			{#each tuning as job (job.id)}
 				<li class="row">
 					<!-- Without the live link the row may be stale: no amber, no pulse. -->
 					<span class="dot" class:stale={$link !== 'live'} aria-hidden="true"></span>
-					<span class="mono state">tuning in {SOURCE_LABEL[job.source_type]}</span>
+					<span class="mono state"
+						>{m.incoming_tuning({
+							source: SOURCE_LABEL[job.source_type]?.() ?? job.source_type
+						})}</span
+					>
 					<span class="url mono" title={job.source_url}>{job.source_url}</span>
 					{#if allUsers}
 						<span class="owner mono" title={job.owner_email}
@@ -388,10 +399,10 @@
 						<button
 							type="button"
 							class="action danger"
-							aria-label="cancel {job.source_url}"
+							aria-label={m.incoming_cancel_label({ url: job.source_url })}
 							data-act="cancel"
 							data-job={job.id}
-							onclick={() => confirmCancelTuning(job)}>cancel</button
+							onclick={() => confirmCancelTuning(job)}>{m.incoming_cancel()}</button
 						>
 					</span>
 					{#if errorFor(job)}
@@ -409,21 +420,18 @@
 			{#if olderFailed.length > 0}
 				<li class="row summary">
 					<span class="dot fail" aria-hidden="true"></span>
-					<span class="summary-text"
-						>{olderFailed.length} older link{olderFailed.length === 1 ? '' : 's'} couldn't be read</span
-					>
+					<span class="summary-text">{m.incoming_older(counted(olderFailed.length))}</span>
 					<span class="actions">
 						<button
 							type="button"
 							class="action"
 							aria-expanded={showOlder}
 							data-act="older"
-							aria-label="{showOlder
-								? 'hide'
-								: 'show'} {olderFailed.length} older failed link{olderFailed.length === 1
-								? ''
-								: 's'}"
-							onclick={() => (showOlder = !showOlder)}>{showOlder ? 'hide' : 'show'}</button
+							aria-label={showOlder
+								? m.incoming_older_hide_label(counted(olderFailed.length))
+								: m.incoming_older_show_label(counted(olderFailed.length))}
+							onclick={() => (showOlder = !showOlder)}
+							>{showOlder ? m.incoming_older_hide() : m.incoming_older_show()}</button
 						>
 					</span>
 				</li>

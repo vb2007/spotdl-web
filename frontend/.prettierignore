@@ -8,3 +8,10 @@ bun.lockb
 # Miscellaneous
 /static/
 .impeccable/
+
+# v46: the inlang project keeps its own generated files (it ignores them itself, in
+# project.inlang/.gitignore, which prettier does not read). Only settings.json is ours.
+/project.inlang/*
+!/project.inlang/settings.json
+# v46: Paraglide's compiled messages
+/src/lib/paraglide/

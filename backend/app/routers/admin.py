@@ -16,6 +16,7 @@ def require_admin_hidden(user: User = Depends(require_session)) -> User:
     plan: 404, not `require_admin`'s 403), so the page's existence isn't confirmed to
     anyone who can't use it. Unauthenticated is still 401, from require_session."""
     if not user.is_admin:
+        # v46: deliberately no `code` -- it must read exactly like an unknown route's 404.
         raise HTTPException(status_code=404, detail="Not Found")
     return user
 

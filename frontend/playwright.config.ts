@@ -37,11 +37,15 @@ export default defineConfig({
 		trace: 'retain-on-failure',
 		screenshot: 'only-on-failure'
 	},
-	// Each project pins `locale` itself: accessible names are text, and v45's Hungarian would
-	// otherwise change them under the specs. v45 adds its own `hu` project instead.
+	// Each project pins `locale` itself: accessible names are text, and v46's Hungarian would
+	// otherwise change them under the specs. The `en` projects run the whole suite; `hu` is the
+	// v46 smoke (login, dashboard, a track's detail, the /account switch) plus v45's keyboard
+	// journeys, with names read from the same message files the app renders. Spec 16 drives its
+	// own browser contexts (one per locale) and runs once, on desktop.
 	projects: [
 		{
 			name: 'desktop',
+			testIgnore: ['**/15-hu-smoke.e2e.ts'],
 			use: {
 				browserName: 'chromium',
 				viewport: { width: 1280, height: 800 },
@@ -50,6 +54,7 @@ export default defineConfig({
 		},
 		{
 			name: 'mobile',
+			testIgnore: ['**/15-hu-smoke.e2e.ts', '**/16-i18n.e2e.ts'],
 			use: {
 				browserName: 'chromium',
 				viewport: { width: 390, height: 844 },
@@ -57,6 +62,15 @@ export default defineConfig({
 				isMobile: true,
 				hasTouch: true,
 				locale: 'en-US'
+			}
+		},
+		{
+			name: 'hu',
+			testMatch: ['**/14-keyboard.e2e.ts', '**/15-hu-smoke.e2e.ts'],
+			use: {
+				browserName: 'chromium',
+				viewport: { width: 1280, height: 800 },
+				locale: 'hu-HU'
 			}
 		}
 	]

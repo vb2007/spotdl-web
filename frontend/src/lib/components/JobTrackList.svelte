@@ -3,6 +3,9 @@
 	import TrackRow from '$lib/components/TrackRow.svelte';
 	import { tick } from 'svelte';
 	import { focusRowEl, itemOf, kbList, rowAt, rowItemById } from '$lib/keyboard/lists';
+	import * as m from '$lib/paraglide/messages';
+	import { errorText } from '$lib/i18n/errors';
+	import { formatNumber } from '$lib/i18n/format';
 
 	let { jobId, isAdmin, total }: { jobId: string; isAdmin: boolean; total: number } = $props();
 
@@ -43,16 +46,16 @@
      lead column (F02), on the panel's own surface rather than a darker well. -->
 <div class="job-tracks" id="job-tracks-{jobId}">
 	{#if state === undefined || state.loading}
-		<p class="hint mono">Loading tracks…</p>
+		<p class="hint mono">{m.job_tracks_loading()}</p>
 	{:else if state.error && state.items.length === 0}
-		<p class="hint fail mono" role="alert">{state.error}</p>
+		<p class="hint fail mono" role="alert">{errorText(state.error.err)}</p>
 	{:else if state.items.length === 0}
-		<p class="hint mono">No tracks.</p>
+		<p class="hint mono">{m.job_tracks_empty()}</p>
 	{:else}
 		<!-- v45: one Tab stop (roving), reached through its open job. -->
 		<ul
 			class="rows"
-			aria-label="Tracks"
+			aria-label={m.job_tracks_label()}
 			{@attach kbList(`job-tracks:${jobId}`, {
 				// Tracks that don't come back (their re-read failed): the job itself.
 				fallback: () => (state?.loading ? null : rowItemById(jobId))
@@ -72,14 +75,17 @@
 				aria-disabled={state.loadingMore}
 				onclick={loadMore}
 			>
-				{state.loadingMore ? 'loading…' : 'load more tracks'}
+				{state.loadingMore ? m.job_tracks_loading_more() : m.job_tracks_load_more()}
 				<span class="shown"
-					>{state.items.length.toLocaleString()} of {total.toLocaleString()} shown</span
+					>{m.job_tracks_shown({
+						shown: formatNumber(state.items.length),
+						total: formatNumber(total)
+					})}</span
 				>
 			</button>
 		{/if}
 		<!-- A failed "load more" keeps the rows already loaded; the button above retries. -->
-		<p class="hint fail mono" role="alert">{state.error ?? ''}</p>
+		<p class="hint fail mono" role="alert">{state.error ? errorText(state.error.err) : ''}</p>
 	{/if}
 </div>
 
