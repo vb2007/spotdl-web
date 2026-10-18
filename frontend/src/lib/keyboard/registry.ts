@@ -113,6 +113,8 @@ export function onKeydown(event: KeyboardEvent): void {
 	const enabled = get(shortcutsEnabled);
 	const modal = openModal();
 	if (modal) {
+		// A held `h` mustn't close the overlay it just opened.
+		if (event.repeat) return;
 		// A dialog owns the keyboard (Tab stays inside it, Esc is its own `cancel`); only the
 		// help key reaches through, so `h` closes the overlay it opened.
 		const help = find(event, null);
@@ -125,8 +127,12 @@ export function onKeydown(event: KeyboardEvent): void {
 
 	const pending = get(chordPending);
 	if (pending !== null) {
-		// Shift on its way to a capital doesn't end (or extend) the chord.
+		// Shift on its way to a capital doesn't end (or extend) the chord, nor does a held `g`.
 		if (event.key === 'Shift') return;
+		if (event.repeat) {
+			event.preventDefault();
+			return;
+		}
 		// Whatever comes next ends the chord; only a listed second key goes somewhere, and
 		// never one typed into a field focus reached meanwhile.
 		setChord(null);

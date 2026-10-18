@@ -16,9 +16,14 @@
 		if (state.loadingMore) return;
 		const known = new Set(state.items.map((t) => t.id));
 		const fromKeyboard = event.detail === 0;
+		const focusAtStart = document.activeElement;
 		await queue.loadMoreExpandedTracks(jobId);
 		await tick();
 		if (!fromKeyboard) return;
+		// Focus the user moved somewhere else meanwhile (into a field, say) is theirs.
+		const moved =
+			document.activeElement !== focusAtStart && document.activeElement !== document.body;
+		if (moved) return;
 		const fresh = $expanded[jobId]?.items.find((t) => !known.has(t.id));
 		if (fresh) focusRowEl(document.querySelector<HTMLElement>(`[data-kb-row="${fresh.id}"]`));
 	}
