@@ -386,7 +386,7 @@
 				<div class="form-field">
 					<span class="label" id="clock-mode-label">{m.account_clock_label()}</span>
 					<div
-						class="choice-group"
+						class="choice-group clock-choice"
 						role="group"
 						aria-labelledby="clock-mode-label"
 						aria-describedby="clock-hint"
@@ -533,6 +533,30 @@
 
 		.retention-form {
 			grid-template-columns: minmax(0, 1fr);
+		}
+
+		/* v46: three options with their examples don't fit a phone row (Hungarian least of
+		   all), and a wrapped segmented control breaks its own edges: stack them instead. */
+		.clock-choice {
+			flex-direction: column;
+			align-self: stretch;
+		}
+
+		.clock-choice button {
+			text-align: left;
+		}
+
+		.clock-choice button + button {
+			border-left: none;
+			border-top: 1px solid var(--line-control);
+		}
+
+		.clock-choice button:first-child {
+			border-radius: 3px 3px 0 0;
+		}
+
+		.clock-choice button:last-child {
+			border-radius: 0 0 3px 3px;
 		}
 	}
 </style>
