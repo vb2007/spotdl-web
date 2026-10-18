@@ -5,6 +5,9 @@
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
+	import * as m from '$lib/paraglide/messages';
+	import { apiErrorText, errorText } from '$lib/i18n/errors';
+	import { formatDateTime, formatNumber, formatTime } from '$lib/i18n/format';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -50,22 +53,20 @@
 	// load so asking makes no request of its own.
 	let librarySettings = $state<api.LibrarySettings | undefined>();
 	let progressEvents = 0;
-	const linkNote = $derived(
-		running && linkDown ? 'Live updates lost. Reconnecting; the counts may be behind.' : ''
-	);
+	const linkNote = $derived(running && linkDown ? m.library_link_lost() : '');
 
 	const stateSentence = $derived(
 		run === null
 			? ''
 			: running
-				? 'Sweep running.'
+				? m.library_state_running()
 				: run.finished_at === null
 					? ''
 					: reportPending
 						? reportError
-							? "Sweep finished; its error list couldn't be read."
+							? m.library_state_finished_unread()
 							: ''
-						: `Sweep finished: ${run.moved} moved, ${run.errors.length} error${run.errors.length === 1 ? '' : 's'}.`
+						: m.library_state_finished({ moved: run.moved, count: run.errors.length })
 	);
 	// Spoken only once the state changes from what the page opened on: a visit doesn't
 	// announce an old sweep's result.
@@ -80,18 +81,41 @@
 	let heading: HTMLElement | undefined = $state();
 
 	function formatWhen(iso: string): string {
-		return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+		return formatDateTime(iso, { dateStyle: 'medium', timeStyle: 'short' });
 	}
 
 	function formatTook(startIso: string | null, endIso: string | null): string | null {
 		if (!startIso || !endIso) return null;
 		const seconds = Math.max(0, Math.round((Date.parse(endIso) - Date.parse(startIso)) / 1000));
-		if (seconds < 60) return `${seconds}s`;
+		if (seconds < 60) return m.library_took_seconds({ s: formatNumber(seconds) });
 		const minutes = Math.floor(seconds / 60);
 		return minutes < 60
-			? `${minutes}m ${seconds % 60}s`
-			: `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+			? m.library_took_minutes({ m: formatNumber(minutes), s: formatNumber(seconds % 60) })
+			: m.library_took_hours({
+					h: formatNumber(Math.floor(minutes / 60)),
+					m: formatNumber(minutes % 60)
+				});
 	}
+
+	// v46: a message with a link (`<a>…</a>`) or a value styled apart inside it, kept whole so
+	// a translation puts them where its grammar wants. Values go in as markers and come back
+	// out as separate pieces: `slot` is the marker's index, `null` is plain text.
+	const MARK = (n: number) => `\uE000${n}\uE000`;
+	function pieces(text: string): { slot: number | null; text: string }[] {
+		return text
+			.split(/\uE000(\d)\uE000/)
+			.map((part, i) => (i % 2 ? { slot: Number(part), text: '' } : { slot: null, text: part }));
+	}
+	function linked(text: string): { before: string; link: string; after: string } {
+		const match = /^(.*?)<a>(.*?)<\/a>(.*)$/s.exec(text);
+		return match
+			? { before: match[1], link: match[2], after: match[3] }
+			: { before: text, link: '', after: '' };
+	}
+	const sweepHint = $derived(linked(m.library_sweep_hint()));
+	const progressPieces = $derived(
+		pieces(m.library_sweeping_progress({ processed: MARK(0), total: MARK(1) }))
+	);
 
 	async function loadStatus() {
 		const seen = progressEvents;
@@ -121,21 +145,17 @@
 
 	async function onStartFlow() {
 		const settings = librarySettings;
-		const duplicates =
-			settings === undefined
-				? 'quarantined or deleted, as set in settings'
-				: settings.library_quarantine_enabled
-					? `moved to ${settings.library_quarantine_dir}`
-					: 'deleted';
 		const confirmed = await confirmAction({
-			title: 'Start a library sweep?',
+			title: m.library_confirm_title(),
 			subject: settings?.library_target_dir,
 			body:
-				'Every finished download not yet in the library moves there. A download the library ' +
-				`already has is ${duplicates}. Finished jobs whose tracks get filed are archived, for every ` +
-				'user. Nothing already in the library is deleted.',
-			confirmLabel: 'start sweep',
-			cancelLabel: 'not now'
+				settings === undefined
+					? m.library_confirm_body_unknown()
+					: settings.library_quarantine_enabled
+						? m.library_confirm_body_quarantine({ dir: settings.library_quarantine_dir })
+						: m.library_confirm_body_delete(),
+			confirmLabel: m.library_start(),
+			cancelLabel: m.library_confirm_cancel()
 		});
 		if (!confirmed) return keepFocus(heading);
 		// The question named the settings as this page read them on load; if they changed in the
@@ -152,8 +172,7 @@
 					now.library_quarantine_enabled !== asked.library_quarantine_enabled ||
 					now.library_quarantine_dir !== asked.library_quarantine_dir
 				) {
-					error =
-						'The library settings changed while you were deciding. Check them and start again.';
+					error = m.library_settings_changed();
 					return keepFocus(heading);
 				}
 			} catch {
@@ -163,7 +182,7 @@
 		}
 		// Started meanwhile (another tab): this one would only be refused. Say so.
 		if (running) {
-			error = 'A sweep is already running; its progress is below.';
+			error = m.library_already_running();
 			return keepFocus(heading);
 		}
 		starting = true;
@@ -175,7 +194,7 @@
 			// the stream is then newer than the answer and must not be overwritten by it.
 			if (progressEvents === seen) run = started;
 		} catch (err) {
-			error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			error = errorText(err);
 		} finally {
 			starting = false;
 		}
@@ -218,7 +237,7 @@
 			loadStatus().catch(() => {
 				// The four counts came with the event; only the error list is missing, so the
 				// error count stays the one derived from the event and the gap is said.
-				reportError = "Couldn't read the list of files that weren't filed; reload to see it.";
+				reportError = m.library_report_unread();
 			});
 		}
 	}
@@ -235,7 +254,7 @@
 				loadStatus().catch(() => {
 					// Back online but the status read failed: a sweep that ended meanwhile may
 					// still read as running. Say so rather than freeze silently.
-					reportError = "Reconnected, but couldn't re-read the sweep; reload to be sure.";
+					reportError = m.library_reconnected_unread();
 				});
 			}
 		};
@@ -251,7 +270,7 @@
 		// A non-admin gets the notice: no status request and no stream (F17).
 		if (!isAdmin) return;
 		loadStatus().catch((err) => {
-			loadError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			loadError = errorText(err);
 		});
 		api
 			.getLibrarySettings()
@@ -269,31 +288,31 @@
 </script>
 
 <svelte:head>
-	<title>spotdl-web — library</title>
+	<title>{m.library_title()}</title>
 </svelte:head>
 
 <div class="stage">
 	<SubpageHeader current="library" {isAdmin} />
 
 	<main id="main" class="main">
-		<h1 class="page-title">Library sort &amp; move</h1>
+		<h1 class="page-title">{m.library_heading()}</h1>
 		{#if !isAdmin}
-			<AdminOnlyNotice what="The music library" />
+			<AdminOnlyNotice page="library" />
 		{:else}
 			<section class="panel sweep" aria-labelledby="sweep-heading">
 				<!-- One sentence per state, never per file: the counts tick, the announcement doesn't. -->
 				<p class="sr-only" role="status">{announcement}</p>
 				<header class="head">
 					<div class="head-text">
-						<h2 id="sweep-heading" class="label" tabindex="-1" bind:this={heading}>Sweep</h2>
+						<h2 id="sweep-heading" class="label" tabindex="-1" bind:this={heading}>
+							{m.library_sweep_heading()}
+						</h2>
 						<p class="hint">
-							Moves finished downloads into the music library, into folders named by the folder
-							template. The folder, the template and what happens to duplicates are set in
-							<a href={resolve('/settings')}>settings</a>.
+							{sweepHint.before}<a href={resolve('/settings')}>{sweepHint.link}</a>{sweepHint.after}
 						</p>
 					</div>
 					<button type="button" class="btn" disabled={starting || running} onclick={onStart}>
-						{running ? 'sweeping…' : starting ? 'starting…' : 'start sweep'}
+						{running ? m.library_sweeping() : starting ? m.library_starting() : m.library_start()}
 					</button>
 				</header>
 				<!-- One alert line for the page: a start that failed, or a report that couldn't be read. -->
@@ -302,7 +321,7 @@
 				{#if run === null}
 					{#if loadError}
 						<p class="form-error">
-							Couldn't read the last sweep: {loadError}
+							{m.library_load_failed({ error: loadError })}
 							<button
 								type="button"
 								class="btn small"
@@ -310,26 +329,35 @@
 									loadStatus().catch((err) => {
 										loadError =
 											err instanceof api.ApiError
-												? `${err.message} (tried again at ${new Date().toLocaleTimeString()})`
-												: `Could not reach the server (tried again at ${new Date().toLocaleTimeString()}).`;
-									})}>try again</button
+												? m.library_retry_failed({
+														error: apiErrorText(err),
+														time: formatTime(new Date())
+													})
+												: m.library_retry_unreachable({ time: formatTime(new Date()) });
+									})}>{m.library_try_again()}</button
 							>
 						</p>
 					{:else}
-						<p class="hint">Reading the last sweep…</p>
+						<p class="hint">{m.library_reading()}</p>
 					{/if}
 				{:else if !running && run.finished_at === null}
-					<p class="status">No sweep has run yet.</p>
+					<p class="status">{m.library_never_run()}</p>
 				{:else}
 					<div class="status-block">
 						<p class="status">
 							{#if running}
-								Sweeping · <span class="mono">{run.processed.toLocaleString()}</span> of
-								<span class="mono">{run.total.toLocaleString()}</span> files
+								{@const values = [formatNumber(run.processed), formatNumber(run.total)]}
+								{#each progressPieces as piece, i (i)}{#if piece.slot === null}{piece.text}{:else}<span
+											class="mono">{values[piece.slot]}</span
+										>{/if}{/each}
 							{:else if run.finished_at}
-								Last sweep finished {formatWhen(run.finished_at)}
+								{m.library_last_finished({ when: formatWhen(run.finished_at) })}
 								{#if formatTook(run.started_at, run.finished_at)}
-									<span class="took">· took {formatTook(run.started_at, run.finished_at)}</span>
+									<span class="took"
+										>{m.library_took({
+											duration: formatTook(run.started_at, run.finished_at) ?? ''
+										})}</span
+									>
 								{/if}
 							{/if}
 						</p>
@@ -345,47 +373,48 @@
 								class:crashed={!running && errorCount > 0}
 								class:stale={running && linkDown}
 								role="progressbar"
-								aria-label="Sweep progress"
+								aria-label={m.library_progress_label()}
 								aria-valuenow={percent}
 								aria-valuemin={0}
 								aria-valuemax={100}
-								aria-valuetext="{run.processed} of {run.total} files"
+								aria-valuetext={m.library_progress_valuetext({
+									processed: formatNumber(run.processed),
+									total: formatNumber(run.total)
+								})}
 							>
+								<!-- i18n-ignore: a CSS value, not text -->
 								<div class="progress-fill" style:transform="scaleX({percent / 100})"></div>
 							</div>
 						{/if}
 
 						<dl class="counts">
 							<div class="count">
-								<dt>moved</dt>
-								<dd class="mono">{run.moved.toLocaleString()}</dd>
+								<dt>{m.library_count_moved()}</dt>
+								<dd class="mono">{formatNumber(run.moved)}</dd>
 							</div>
 							<div class="count">
-								<dt>duplicates deleted</dt>
-								<dd class="mono">{run.skipped_present.toLocaleString()}</dd>
+								<dt>{m.library_count_deleted()}</dt>
+								<dd class="mono">{formatNumber(run.skipped_present)}</dd>
 							</div>
 							<div class="count">
-								<dt>duplicates quarantined</dt>
-								<dd class="mono">{run.quarantined.toLocaleString()}</dd>
+								<dt>{m.library_count_quarantined()}</dt>
+								<dd class="mono">{formatNumber(run.quarantined)}</dd>
 							</div>
 							<div class="count" class:fail={errorCount > 0}>
-								<dt>errors</dt>
-								<dd class="mono">{errorCount.toLocaleString()}</dd>
+								<dt>{m.library_count_errors()}</dt>
+								<dd class="mono">{formatNumber(errorCount)}</dd>
 							</div>
 						</dl>
 						<!-- A crash before the count (errors > 0, total 0) is not "nothing to move". -->
 						{#if !running && run.total === 0 && errorCount === 0}
-							<p class="hint">Nothing to move: no download was waiting to go into the library.</p>
+							<p class="hint">{m.library_nothing_to_move()}</p>
 						{/if}
 					</div>
 
 					{#if !running && !reportPending && sweepRows.length > 0}
 						<div class="errors">
-							<h3 class="label">Sweep problems</h3>
-							<p class="hint">
-								Not about one file: the sweep itself hit these (bookkeeping after the moves, or a
-								crash). Files it already filed stay filed.
-							</p>
+							<h3 class="label">{m.library_sweep_problems()}</h3>
+							<p class="hint">{m.library_sweep_problems_hint()}</p>
 							<ul class="error-list">
 								{#each sweepRows as e, i (i)}
 									<li>
@@ -398,18 +427,15 @@
 					{/if}
 					{#if !running && !reportPending && fileRows.length > 0}
 						<div class="errors">
-							<h3 class="label">Not filed</h3>
-							<p class="hint">
-								The sweep hit an error on each of these; the reason says what. Nothing already in
-								the library was deleted.
-							</p>
+							<h3 class="label">{m.library_not_filed()}</h3>
+							<p class="hint">{m.library_not_filed_hint()}</p>
 							<ul class="error-list">
 								{#each fileRows as e, i (i)}
 									<li>
 										<span class="file mono">{e.file}</span>
 										<span class="reason"
 											>{e.error}{#if e.times > 1}<span class="times mono">
-													×{e.times}</span
+													×{formatNumber(e.times)}</span
 												>{/if}</span
 										>
 									</li>

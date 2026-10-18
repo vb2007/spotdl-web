@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import * as m from '$lib/paraglide/messages';
 
 	// v43: the masthead of /settings, /library and /account, in the same terms as `/`'s
 	// (the wordmark left, the page links right). The page's own h1 opens its <main>
@@ -13,30 +14,31 @@
 </script>
 
 <header class="masthead">
+	<!-- i18n-ignore: the wordmark is a name, the same in every language. -->
 	<span class="wordmark mono" aria-hidden="true">SPOTDL // WEB</span>
-	<nav class="pages" aria-label="Pages">
-		<a class="nav-link mono" href={resolve('/')}>queue</a>
+	<nav class="pages" aria-label={m.nav_pages()}>
+		<a class="nav-link mono" href={resolve('/')}>{m.nav_queue()}</a>
 		{#if isAdmin}
 			<a
 				class="nav-link mono"
 				href={resolve('/library')}
-				aria-current={current === 'library' ? 'page' : undefined}>library</a
+				aria-current={current === 'library' ? 'page' : undefined}>{m.nav_library()}</a
 			>
 			<a
 				class="nav-link mono"
 				href={resolve('/settings')}
-				aria-current={current === 'settings' ? 'page' : undefined}>settings</a
+				aria-current={current === 'settings' ? 'page' : undefined}>{m.nav_settings()}</a
 			>
 			<a
 				class="nav-link mono"
 				href={resolve('/stats')}
-				aria-current={current === 'stats' ? 'page' : undefined}>stats</a
+				aria-current={current === 'stats' ? 'page' : undefined}>{m.nav_stats()}</a
 			>
 		{/if}
 		<a
 			class="nav-link mono"
 			href={resolve('/account')}
-			aria-current={current === 'account' ? 'page' : undefined}>account</a
+			aria-current={current === 'account' ? 'page' : undefined}>{m.nav_account()}</a
 		>
 	</nav>
 </header>
