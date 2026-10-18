@@ -4,6 +4,9 @@
 	import { worker } from '$lib/stores/worker';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
+	import * as m from '$lib/paraglide/messages';
+	import { apiErrorText, errorText } from '$lib/i18n/errors';
+	import { formatClock } from '$lib/i18n/format';
 
 	// The admin's worker controls on /settings (v25). Rendered for the admin only (v43,
 	// F17); the server-side require_admin gate on these endpoints is the real enforcement.
@@ -45,7 +48,7 @@
 	const paused = $derived($status?.paused ?? false);
 
 	function clockTime(iso: string): string {
-		return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+		return formatClock(iso);
 	}
 
 	// One fixed sentence per state for assistive technology: the ticking countdown beside
@@ -56,11 +59,9 @@
 		$status === null
 			? ''
 			: [
-					paused ? 'Downloads paused.' : null,
-					holdUntil
-						? `Holding after repeated failed downloads until ${clockTime(holdUntil)}.`
-						: null,
-					!paused && !holdUntil ? 'Downloads running.' : null
+					paused ? m.worker_sentence_paused() : null,
+					holdUntil ? m.worker_sentence_holding({ time: clockTime(holdUntil) }) : null,
+					!paused && !holdUntil ? m.worker_sentence_running() : null
 				]
 					.filter(Boolean)
 					.join(' ')
@@ -81,7 +82,7 @@
 		try {
 			await action();
 		} catch (err) {
-			error = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			error = errorText(err);
 		} finally {
 			busy = false;
 		}
@@ -91,12 +92,10 @@
 	// v43 (A4): pausing stops every user's downloads until someone resumes, so it asks.
 	async function handlePause() {
 		const confirmed = await confirmAction({
-			title: 'Pause all downloads?',
-			body:
-				'Nothing new starts, for any user, until you resume. A download already running ' +
-				'finishes; tracks that come due meanwhile are held and tried again later.',
-			confirmLabel: 'pause downloads',
-			cancelLabel: 'keep running'
+			title: m.worker_pause_confirm_title(),
+			body: m.worker_pause_confirm_body(),
+			confirmLabel: m.worker_pause(),
+			cancelLabel: m.worker_pause_confirm_cancel()
 		});
 		// Kept or Esc: the trigger may have swapped meanwhile (another tab paused).
 		if (!confirmed) return keepFocus(toggleButton);
@@ -108,7 +107,7 @@
 		if (gone) return;
 		// Paused meanwhile (another tab): nothing left to do, and the button has swapped.
 		if (fresh?.paused ?? paused) {
-			note = 'Downloads were already paused.';
+			note = m.worker_note_already_paused();
 			await keepFocus(toggleButton);
 			return;
 		}
@@ -124,16 +123,15 @@
 	async function handleRelease() {
 		const until = holdUntil;
 		const confirmed = await confirmAction({
-			title: 'Release the hold now?',
+			title: m.worker_release_confirm_title(),
+			// Whole sentences, joined: each is a message of its own.
 			body:
 				(paused
-					? 'The hold ends now. Downloads stay paused until you resume them, and then start ' +
-						'while YouTube may still be rate-limiting this server.'
-					: 'Tracks that are due start again on the next pass, while YouTube may still be ' +
-						'rate-limiting this server, which is what the hold protects against.') +
-				(until ? ` It clears on its own at ${clockTime(until)}.` : ''),
-			confirmLabel: 'release now',
-			cancelLabel: 'keep holding'
+					? m.worker_release_confirm_body_paused()
+					: m.worker_release_confirm_body_running()) +
+				(until ? ` ${m.worker_release_confirm_clears({ time: clockTime(until) })}` : ''),
+			confirmLabel: m.worker_release(),
+			cancelLabel: m.worker_release_confirm_cancel()
 		});
 		// Kept or Esc: the hold row (and its button) may have gone meanwhile.
 		if (!confirmed) return keepFocus(toggleButton);
@@ -147,7 +145,9 @@
 			fresh = await worker.refresh();
 		} catch (err) {
 			busy = false;
-			error = `Couldn't check the hold first (${err instanceof api.ApiError ? err.message : 'no connection'}); nothing was released.`;
+			error = m.worker_release_check_failed({
+				reason: err instanceof api.ApiError ? apiErrorText(err) : m.worker_no_connection()
+			});
 			await keepFocus(toggleButton);
 			return;
 		}
@@ -162,9 +162,7 @@
 				: null;
 		if (!freshHold || freshHold !== until) {
 			// Ended, or ended and a new hold began: the question was about the old one.
-			note = freshHold
-				? 'A new hold began while you were deciding; nothing was released.'
-				: 'The hold had already ended; nothing was released.';
+			note = freshHold ? m.worker_note_new_hold() : m.worker_note_hold_ended();
 			await keepFocus(toggleButton);
 			return;
 		}
@@ -179,7 +177,7 @@
 			await worker.refresh();
 			readError = '';
 		} catch (err) {
-			readError = err instanceof api.ApiError ? err.message : 'Could not reach the server.';
+			readError = errorText(err);
 		}
 	}
 
@@ -202,21 +200,19 @@
 
 	{#if $status === null}
 		{#if readError}
-			<p class="form-error">
-				Couldn't read the worker: {readError}. Trying again every few seconds.
-			</p>
+			<p class="form-error">{m.worker_read_failed({ error: readError })}</p>
 		{:else}
-			<p class="state cond-idle">Reading the worker…</p>
+			<p class="state cond-idle">{m.worker_reading()}</p>
 		{/if}
 	{:else}
 		<div class="row">
 			<div class="state-text">
 				{#if paused}
-					<p class="state cond-fail">Downloads paused</p>
-					<p class="note">Nothing new starts, for anyone, until you resume.</p>
+					<p class="state cond-fail">{m.worker_state_paused()}</p>
+					<p class="note">{m.worker_state_paused_note()}</p>
 				{:else if !holdUntil}
-					<p class="state cond-idle">Downloads running</p>
-					<p class="note">Tracks start as they come due, one at a time.</p>
+					<p class="state cond-idle">{m.worker_state_running()}</p>
+					<p class="note">{m.worker_state_running_note()}</p>
 				{/if}
 			</div>
 			{#if paused}
@@ -225,7 +221,7 @@
 					type="button"
 					class="btn"
 					disabled={busy}
-					onclick={handleResume}>resume downloads</button
+					onclick={handleResume}>{m.worker_resume()}</button
 				>
 			{:else}
 				<button
@@ -233,7 +229,7 @@
 					type="button"
 					class="btn"
 					disabled={busy}
-					onclick={handlePause}>pause downloads</button
+					onclick={handlePause}>{m.worker_pause()}</button
 				>
 			{/if}
 		</div>
@@ -242,35 +238,32 @@
 			<div class="row hold">
 				<div class="state-text">
 					<p class="state cond-waiting">
-						Holding until {clockTime(holdUntil)}
+						{m.worker_holding_until({ time: clockTime(holdUntil) })}
 						<span aria-hidden="true"
 							>· <Countdown
 								scheduledAt={holdUntil}
-								label={paused ? 'clears in' : 'resumes in'}
+								label={paused ? m.worker_countdown_clears() : m.worker_countdown_resumes()}
 								dueLive={false}
-								dueText="resuming…"
+								dueText={m.worker_countdown_due()}
 							/></span
 						>
 					</p>
-					<p class="note">
-						A deliberate pause after five failed downloads in a row, usually a rate limit. Waiting
-						tracks keep their place.
-					</p>
+					<p class="note">{m.worker_hold_note()}</p>
 				</div>
 				<button type="button" class="btn danger" disabled={busy} onclick={handleRelease}
-					>release now</button
+					>{m.worker_release()}</button
 				>
 			</div>
 		{/if}
 	{/if}
 
 	{#if $status !== null && readError}
-		<p class="note">Couldn't refresh ({readError}); showing the last reading.</p>
+		<p class="note">{m.worker_refresh_failed({ error: readError })}</p>
 	{/if}
 	<p class="note" role="status">{note}</p>
 	<!-- A read failure is said to assistive technology too (the visible lines above are not
 	     live regions); fixed text, so a failing poll isn't re-announced every 5s. -->
-	<p class="sr-only" role="alert">{readError ? "Couldn't read the worker's status." : ''}</p>
+	<p class="sr-only" role="alert">{readError ? m.worker_read_failed_alert() : ''}</p>
 	<p class="form-error" role="alert">{error}</p>
 </div>
 
