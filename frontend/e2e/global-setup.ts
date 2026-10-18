@@ -16,6 +16,7 @@ import {
 	restartExpandWorker,
 	restoreSettings,
 	restoreSweepReport,
+	setLanguage,
 	restoreWorker,
 	spotifyTrackUrl,
 	stackPython,
@@ -157,6 +158,11 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 
 	const admin = await login(baseURL, adminIdentity(), true, ADMIN_STATE);
 	const user = await login(baseURL, userIdentity(), false, USER_STATE);
+	// v46: a saved language wins over the browser's, and every project pins its browser locale
+	// (en-US, or hu-HU for `hu`). Neither identity may carry one in from an earlier run or from
+	// a developer's own switch on /account. After login: that's what creates a settings row.
+	setLanguage(adminIdentity().email, null);
+	setLanguage(userIdentity().email, null);
 	try {
 		await Promise.all([clearSlate(admin), clearSlate(user)]);
 		// allSettled: each seed cancels its own job on failure, which needs its context alive

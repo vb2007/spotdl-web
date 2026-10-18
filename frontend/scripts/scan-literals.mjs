@@ -126,7 +126,10 @@ function walkTemplate(file, source, lines, node, inComponent = false) {
 			}
 			return;
 		}
+		// A `style:`/`class:` directive's value is CSS, never shown.
 		case 'StyleSheet':
+		case 'StyleDirective':
+		case 'ClassDirective':
 			return;
 	}
 	const component = node.type === 'Component' || node.type === 'SvelteComponent';

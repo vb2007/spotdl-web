@@ -391,6 +391,42 @@ export function stackPython(
 	}).trim();
 }
 
+/** v46: an identity's saved interface language, straight in `user_settings` (`null`: none, so
+ * the browser's language decides). The API can set a language but never clear one, and the
+ * suite needs both identities back at "none": every project pins its browser `locale` and
+ * expects the page to follow it. */
+export function setLanguage(email: string, language: 'hu' | 'en' | null): void {
+	stackPython(
+		`
+import sys
+from sqlalchemy import text
+from app.db import SessionLocal
+db = SessionLocal()
+db.execute(text("""
+    update user_settings set language = :language
+    where user_id = (select id from users where email = :email)
+"""), {"email": sys.argv[1], "language": sys.argv[2] or None})
+db.commit()
+`,
+		[normalizeEmail(email), language ?? '']
+	);
+}
+
+export function languageOf(email: string): string | null {
+	const out = stackPython(
+		`
+import sys
+from sqlalchemy import text
+from app.db import SessionLocal
+print(SessionLocal().execute(text("""
+    select s.language from user_settings s join users u on u.id = s.user_id where u.email = :email
+"""), {"email": sys.argv[1]}).scalar() or "")
+`,
+		[normalizeEmail(email)]
+	);
+	return out || null;
+}
+
 /** The `LEDGER_TRACKS` ids worker-dl would NOT resolve as duplicates right now, by the dedup
  * gate's own check: no ledger row, its file is gone (a download), or its root looks unmounted
  * (held as `waiting`, so the job never settles). Asked inside `worker-dl`, the worker that
