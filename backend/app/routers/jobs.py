@@ -121,7 +121,7 @@ def list_jobs(
             cursor=cursor,
         )
     except (job_listing.InvalidListParams, track_listing.InvalidListParams, InvalidCursor) as exc:
-        raise ApiError(400, "invalid_list_params", str(exc)) from exc
+        raise ApiError(400, "invalid_list_params", str(exc), {"reason": str(exc)}) from exc
 
 
 @router.post("/archive")
@@ -222,7 +222,7 @@ def list_job_tracks(
             job_id=job_id,
         )
     except (track_listing.InvalidListParams, InvalidCursor) as exc:
-        raise ApiError(400, "invalid_list_params", str(exc)) from exc
+        raise ApiError(400, "invalid_list_params", str(exc), {"reason": str(exc)}) from exc
     # counts_by_state ignores this request's own `state` filter (so switching tabs keeps
     # every tab's count visible) but, deliberately, not `q` either -- unlike the job
     # listing's counts_by_status, this is the simple full per-job breakdown already

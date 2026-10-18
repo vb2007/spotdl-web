@@ -28,7 +28,13 @@ function browserLanguages(): readonly string[] {
 	return navigator.languages?.length ? navigator.languages : [navigator.language];
 }
 
+// The choice made on /login in this page's lifetime. It's what sign-in hands to the profile
+// (a choice someone else left in this browser's storage is never adopted into yours), and it
+// keeps the choice when storage is blocked.
+let chosenHere: Locale | null = null;
+
 export function loginChoice(): Locale | null {
+	if (chosenHere) return chosenHere;
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
 		return stored && isLocale(stored) ? stored : null;
@@ -37,11 +43,17 @@ export function loginChoice(): Locale | null {
 	}
 }
 
+/** The /login choice made in this visit, for sign-in to adopt; `null` if none was made. */
+export function choiceMadeHere(): Locale | null {
+	return chosenHere;
+}
+
 export function saveLoginChoice(locale: Locale): void {
+	chosenHere = locale;
 	try {
 		localStorage.setItem(STORAGE_KEY, locale);
 	} catch {
-		// Storage blocked: the choice still applies to this tab, and login carries it.
+		// Storage blocked: the choice still applies to this tab, and sign-in carries it.
 	}
 }
 

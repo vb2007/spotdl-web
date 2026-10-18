@@ -124,7 +124,7 @@ def list_tracks(
             include_state_counts=True,
         )
     except (track_listing.InvalidListParams, InvalidCursor) as exc:
-        raise ApiError(400, "invalid_list_params", str(exc)) from exc
+        raise ApiError(400, "invalid_list_params", str(exc), {"reason": str(exc)}) from exc
 
 
 @router.delete("/{track_id}")

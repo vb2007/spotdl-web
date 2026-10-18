@@ -1,5 +1,3 @@
-from typing import Literal
-
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -23,8 +21,9 @@ class LoginRequest(BaseModel):
     email: str
     password: str
     # v46: the language picked on /login before signing in, adopted into a profile that
-    # has no saved choice yet (user_settings.adopt_language). Optional and additive.
-    language: Literal["hu", "en"] | None = None
+    # has no saved choice yet (user_settings.adopt_language). Optional and additive; a value
+    # we don't ship is ignored rather than refused, so it can never block a sign-in.
+    language: str | None = None
 
 
 def current_session(request: Request, db: Session = Depends(get_db)) -> UserSession:

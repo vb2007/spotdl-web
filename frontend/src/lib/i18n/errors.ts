@@ -31,14 +31,15 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	admin_required: () => m.error_admin_required(),
 	job_not_found: () => m.error_job_not_found(),
 	archive_nothing_selected: () => m.error_archive_nothing_selected(),
-	invalid_list_params: () => m.error_invalid_list_params(),
+	// The reason is the server's own diagnostic (a bad cursor, an unknown sort), kept as sent.
+	invalid_list_params: (p) => m.error_invalid_list_params({ reason: String(p.reason ?? '') }),
 	library_sort_running: () => m.error_library_sort_running(),
 	track_not_found: () => m.error_track_not_found(),
 	job_archived: () => m.error_job_archived(),
 	track_not_retryable: (p) =>
 		m.error_track_not_retryable({ state: trackStateLabel(String(p.state)) }),
 	file_not_found: () => m.error_file_not_found(),
-	download_failed: () => m.error_download_failed(),
+	download_failed: (p) => m.error_download_failed({ status: String(p.status ?? '') }),
 	file_empty: () => m.error_file_empty(),
 	proxy_target_exists: (p) =>
 		p.source === 'file'

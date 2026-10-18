@@ -29,14 +29,17 @@
 	let days = $state<number | null>(30);
 	let saving = $state(false);
 	let savedAt = $state<Date | null>(null);
-	let error = $state('');
-	let daysError = $state('');
+	// v46: errors are kept as the message to render, not its text, so a language switch on this
+	// page re-renders a standing error in the new language like everything around it.
+	type Shown = (() => string) | null;
+	let error = $state<Shown>(null);
+	let daysError = $state<Shown>(null);
 	// A hundred years. The backend takes any positive number, but the hourly retention sweep
 	// computes now - days, which overflows past year 1 and stops it for every user (found,
 	// not fixed in the backend: v48).
 	const MAX_DAYS = 36_500;
 	let loggingOut = $state(false);
-	let logoutError = $state('');
+	let logoutError = $state<Shown>(null);
 
 	// The mode and the number both count: switching to "automatically" with the days field
 	// cleared is a change even though no number is there yet.
@@ -57,18 +60,18 @@
 			.getRetentionSettings()
 			.then(syncForm)
 			.catch((err) => {
-				error = errorText(err);
+				error = () => errorText(err);
 			});
 	});
 
 	async function onSubmit(event: SubmitEvent) {
 		event.preventDefault();
-		daysError = '';
+		daysError = null;
 		if (!neverArchive) {
 			daysError =
 				typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_DAYS
-					? m.account_retention_days_invalid({ max: formatNumber(MAX_DAYS) })
-					: '';
+					? () => m.account_retention_days_invalid({ max: formatNumber(MAX_DAYS) })
+					: null;
 			if (daysError) {
 				// Nothing is sent, so focus the field: its error is read out from there.
 				await tick();
@@ -82,12 +85,12 @@
 		// Saving disables the field or button that had focus: give it back afterwards.
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		saving = true;
-		error = '';
+		error = null;
 		try {
 			syncForm(await api.updateRetentionSettings(neverArchive ? null : days));
 			savedAt = new Date();
 		} catch (err) {
-			error = errorText(err);
+			error = () => errorText(err);
 		} finally {
 			saving = false;
 		}
@@ -98,7 +101,7 @@
 	// follows them to every device. It applies the moment the server has it; another device
 	// picks it up from /api/auth/me on its next load.
 	let keyboardSaving = $state(false);
-	let keyboardError = $state('');
+	let keyboardError = $state<Shown>(null);
 	let keyboardSavedAt = $state<Date | null>(null);
 
 	async function setShortcuts(enabled: boolean) {
@@ -107,13 +110,13 @@
 		if (keyboardSaving) return;
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		keyboardSaving = true;
-		keyboardError = '';
+		keyboardError = null;
 		try {
 			const saved = await api.updateKeyboardSettings(enabled);
 			shortcutsEnabled.set(saved.keyboard_shortcuts);
 			keyboardSavedAt = new Date();
 		} catch (err) {
-			keyboardError = errorText(err);
+			keyboardError = () => errorText(err);
 		} finally {
 			keyboardSaving = false;
 		}
@@ -124,7 +127,7 @@
 	// device (and wins over the browser's language and any /login choice). Like the shortcut
 	// switch it applies once the server has it; the page then re-renders in place.
 	let languageSaving = $state(false);
-	let languageError = $state('');
+	let languageError = $state<Shown>(null);
 	let languageSavedAt = $state<Date | null>(null);
 
 	async function setLanguage(next: Locale) {
@@ -133,13 +136,13 @@
 		if (languageSaving) return;
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		languageSaving = true;
-		languageError = '';
+		languageError = null;
 		try {
 			const saved = await api.updateLanguageSettings(next);
 			if (saved.language) applyLocale(saved.language);
 			languageSavedAt = new Date();
 		} catch (err) {
-			languageError = errorText(err);
+			languageError = () => errorText(err);
 		} finally {
 			languageSaving = false;
 		}
@@ -149,13 +152,13 @@
 	// v43 (F31): the account page could not sign out; it now does, the way `/` does.
 	async function onLogout() {
 		loggingOut = true;
-		logoutError = '';
+		logoutError = null;
 		try {
 			await api.logout();
 		} catch (err) {
 			// A 401 means the session is already gone: that's signed out, not a failure.
 			if (!(err instanceof api.ApiError && err.status === 401)) {
-				logoutError = errorText(err);
+				logoutError = () => errorText(err);
 				loggingOut = false;
 				return;
 			}
@@ -193,7 +196,7 @@
 					{loggingOut ? m.account_disconnecting() : m.account_disconnect()}
 				</button>
 			</div>
-			<p class="form-error" role="alert">{logoutError}</p>
+			<p class="form-error" role="alert">{logoutError?.()}</p>
 		</section>
 
 		<!-- Preferences: one group per setting. v45 added the keyboard-shortcut switch; v46 the
@@ -250,7 +253,7 @@
 								/>
 								<span class="unit mono" id="retention-days-unit">{m.account_retention_unit()}</span>
 							</div>
-							<p id="retention-days-error" class="field-error">{daysError}</p>
+							<p id="retention-days-error" class="field-error">{daysError?.()}</p>
 						</div>
 
 						<div class="save-row wide">
@@ -267,7 +270,7 @@
 						</div>
 					</form>
 				{/if}
-				<p class="form-error" role="alert">{error}</p>
+				<p class="form-error" role="alert">{error?.()}</p>
 			</div>
 
 			<div class="group" role="group" aria-labelledby="keyboard-heading">
@@ -311,7 +314,7 @@
 							? m.common_saved_at({ time: formatClock(keyboardSavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{keyboardError}</p>
+				<p class="form-error" role="alert">{keyboardError?.()}</p>
 			</div>
 
 			<div class="group" role="group" aria-labelledby="language-heading">
@@ -334,7 +337,7 @@
 							? m.common_saved_at({ time: formatClock(languageSavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{languageError}</p>
+				<p class="form-error" role="alert">{languageError?.()}</p>
 			</div>
 		</section>
 	</main>

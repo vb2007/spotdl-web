@@ -158,14 +158,26 @@ test('the /login choice is honored, and adopted only by a profile without one', 
 	expect(
 		await page.evaluate(() => (window as Window & { __sameDocument?: boolean }).__sameDocument)
 	).toBe(true);
-	// Remembered in this browser.
-	await page.reload();
-	await expect(page.getByRole('heading', { name: t(m.login_heading, {}, 'hu') })).toBeVisible();
-
 	await signIn(page, userIdentity(), 'hu');
 	await expectDashboardIn(page, 'hu');
 	expect(languageOf(userIdentity().email), 'adopted into the profile').toBe('hu');
 	await context.close();
+
+	// A choice left in this browser's storage by an earlier visit (someone else's, on a shared
+	// computer) is shown on /login and followed while signed in, but never saved into the
+	// profile of whoever signs in next.
+	setLanguage(userIdentity().email, null);
+	const shared = await freshContext(browser, 'en-US');
+	await shared.addInitScript(() => localStorage.setItem('spotdl.locale', 'hu'));
+	const sharedPage = await shared.newPage();
+	await sharedPage.goto('/login');
+	await expect(
+		sharedPage.getByRole('heading', { name: t(m.login_heading, {}, 'hu') })
+	).toBeVisible();
+	await signIn(sharedPage, userIdentity(), 'hu');
+	await expectDashboardIn(sharedPage, 'hu');
+	expect(languageOf(userIdentity().email), 'an earlier visit’s choice is not adopted').toBeNull();
+	await shared.close();
 
 	// A profile that already chose keeps its choice over this browser's /login one.
 	setLanguage(adminIdentity().email, 'en');

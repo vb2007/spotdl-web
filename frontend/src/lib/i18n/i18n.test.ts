@@ -2,7 +2,13 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { ApiError } from '$lib/api';
 import { baseLocale, overwriteGetLocale, type Locale } from '$lib/paraglide/runtime';
 import { apiErrorText, errorText } from '$lib/i18n/errors';
-import { detectLocale, resolveLocale } from '$lib/i18n/locale.svelte';
+import {
+	choiceMadeHere,
+	detectLocale,
+	loginChoice,
+	resolveLocale,
+	saveLoginChoice
+} from '$lib/i18n/locale.svelte';
 import { formatNumber } from '$lib/i18n/format';
 import * as m from '$lib/paraglide/messages';
 
@@ -59,6 +65,34 @@ describe('resolveLocale', () => {
 	it('ignores a stored value that is not a language we ship', () => {
 		localStorage.setItem('spotdl.locale', 'de');
 		expect(resolveLocale('xx')).toBe(detectLocale());
+	});
+});
+
+describe('the /login choice', () => {
+	it('holds in memory when storage is blocked, and only this visit’s choice is adopted', () => {
+		localStorage.setItem('spotdl.locale', 'hu');
+		// Left by an earlier visit: followed for display, never handed to sign-in.
+		expect(loginChoice()).toBe('hu');
+		expect(choiceMadeHere()).toBeNull();
+
+		const original = globalThis.localStorage;
+		globalThis.localStorage = {
+			getItem: () => {
+				throw new DOMException('blocked', 'SecurityError');
+			},
+			setItem: () => {
+				throw new DOMException('blocked', 'SecurityError');
+			}
+		} as unknown as Storage;
+		try {
+			saveLoginChoice('en');
+			expect(loginChoice()).toBe('en');
+			expect(choiceMadeHere()).toBe('en');
+			expect(resolveLocale(null)).toBe('en');
+			expect(resolveLocale('hu')).toBe('hu');
+		} finally {
+			globalThis.localStorage = original;
+		}
 	});
 });
 

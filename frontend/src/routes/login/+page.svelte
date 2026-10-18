@@ -7,12 +7,13 @@
 	import * as m from '$lib/paraglide/messages';
 	import { formatNumber } from '$lib/i18n/format';
 	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
-	import { applyLocale, locale, loginChoice, saveLoginChoice } from '$lib/i18n/locale.svelte';
+	import { applyLocale, choiceMadeHere, locale, saveLoginChoice } from '$lib/i18n/locale.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
 
 	// v46: a choice made here applies at once and is remembered in this browser; signing in
-	// hands it to a profile that has no saved language yet (the backend adopts it). Only an
-	// explicit choice travels: a language merely detected from the browser is not saved.
+	// hands it to a profile that has no saved language yet (the backend adopts it). Only a
+	// choice made in this visit travels: neither a language detected from the browser nor one
+	// someone else left in this browser's storage is saved into the profile signing in.
 	function chooseLanguage(next: Locale) {
 		saveLoginChoice(next);
 		applyLocale(next);
@@ -21,7 +22,9 @@
 	let email = $state('');
 	let password = $state('');
 	let submitting = $state(false);
-	let errorMessage = $state('');
+	// v46: the message itself, rendered on display, so a language switch after a failed sign-in
+	// re-renders it in the new language like everything around it.
+	let errorMessage = $state<(() => string) | null>(null);
 	// Only a 401 says the credentials are wrong; an unreachable server says nothing about them.
 	let credentialsRejected = $state(false);
 	let passwordInput: HTMLInputElement | undefined = $state();
@@ -30,10 +33,10 @@
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
 		submitting = true;
-		errorMessage = '';
+		errorMessage = null;
 		credentialsRejected = false;
 		try {
-			await api.login(email, password, loginChoice());
+			await api.login(email, password, choiceMadeHere());
 			// v34.2: a fresh identity never inherits another's cached progress ids -- the
 			// logout reset can't run when the last session simply expired in a closed tab.
 			clearProgress();
@@ -49,8 +52,8 @@
 			credentialsRejected = err instanceof api.ApiError && err.status === 401;
 			errorMessage =
 				err instanceof api.ApiError && err.status === 401
-					? m.login_error_rejected()
-					: m.login_error_unreachable();
+					? m.login_error_rejected
+					: m.login_error_unreachable;
 			submitting = false;
 			// v43 (F31): after rejected credentials, back to the field to fix; after a server
 			// that couldn't be reached, back on CONNECT to try again (nothing to fix). The
@@ -140,7 +143,7 @@
 
 		<!-- One live region: role="alert" alone (it was also aria-live="polite", F31). -->
 		<p id="login-error" class="error" role="alert">
-			{errorMessage}
+			{errorMessage?.()}
 		</p>
 	</form>
 </main>

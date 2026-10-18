@@ -686,11 +686,21 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 	});
 
 	if (!response.ok) {
+		// HEAD has no body, so no backend code either: the status picks one. An expired session
+		// says so (as any other request's 401 would); anything else keeps its status line as the
+		// `detail` a code-less fallback would show.
+		const code =
+			response.status === 404
+				? 'file_not_found'
+				: response.status === 401
+					? 'not_authenticated'
+					: 'download_failed';
 		throw new ApiError(
 			response.status,
 			// i18n-ignore: the English `detail` behind the code, as the backend's would be.
 			response.status === 404 ? 'File not found' : response.statusText || 'Download failed',
-			response.status === 404 ? 'file_not_found' : 'download_failed'
+			code,
+			{ status: response.statusText || String(response.status) }
 		);
 	}
 

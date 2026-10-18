@@ -55,6 +55,6 @@ def update_language(db: Session, user_id, language: str) -> UserSettings:
 def adopt_language(db: Session, user_id, language: str | None) -> None:
     """v46: a language picked on /login before signing in becomes the profile's preference,
     but only when the profile has none; a saved choice always wins over it."""
-    if language is None or language_preference(db, user_id) is not None:
+    if language not in LANGUAGES or language_preference(db, user_id) is not None:
         return
     update_language(db, user_id, language)

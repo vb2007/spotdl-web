@@ -90,5 +90,11 @@ def test_login_without_a_choice_saves_nothing(client, monkeypatch, db_session):
     assert db_session.query(UserSettings).count() == 0
 
 
-def test_login_rejects_an_unknown_language(client, monkeypatch):
-    assert _login(client, monkeypatch, language="de").status_code == 422
+def test_login_ignores_a_language_it_does_not_ship(client, monkeypatch, db_session):
+    """An optional preference never blocks a sign-in: an unknown value is dropped, not 422."""
+    from app.models import UserSettings
+
+    for value in ("de", "HU", ""):
+        assert _login(client, monkeypatch, language=value).status_code == 200, value
+        assert client.get("/api/auth/me").json()["language"] is None
+    assert db_session.query(UserSettings).count() == 0

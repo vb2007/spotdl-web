@@ -950,14 +950,16 @@ its own `lang` (Magyar first, since most users read it): the last group of `/acc
 Preferences ("Language", saved to the profile, follows the user to every device, applies once the
 server has it, with the same `role="status"` save line as the shortcut switch), and a bare one at
 the top right of `/login`'s stage, outside the dial panel, first in the tab order (this browser
-only; a profile without a saved language adopts it at sign-in).
+only; a profile without a saved language adopts a choice made in that visit at sign-in, never one
+someone else left in the browser's storage).
 
 **What is never translated:** track, artist and album metadata, raw attempt error and note text,
 proxy addresses, error-type machine names (`NO_OUTPUT`), and the wordmark. Matrix alerts and logs
 stay English.
 
 **Hungarian copy** is tegező (te) and keeps the signal-receiver voice where English has it
-(hangolás, vétel, nincs jel, jelvevő, HANGOLÁS / KAPCSOLÓDÁS), with plain state words beside it.
+(hangolás, nincs jel, jelvevő, HANGOLÁS / KAPCSOLÓDÁS), with plain state words beside it. The
+circuit breaker is the _biztosíték_ (fuse), so it never shares a root with _megszakítva_ (cancelled).
 Lowercase action labels stay lowercase. A count is a plural message with Hungarian's singular noun
 after a numeral ("5 szám"); numbers, dates and times go through `Intl` in the active language
 (`lib/i18n/format.ts`: "14:03", "0,4 mp", "12 345"). A sentence with markup (`<kbd>`) keeps it in

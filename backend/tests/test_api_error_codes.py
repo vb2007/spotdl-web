@@ -74,7 +74,9 @@ def test_hidden_admin_404s_stay_codeless(authenticated_client):
 def test_job_errors_carry_codes(authenticated_client, owner, db_session):
     _error(authenticated_client.get(f"/api/jobs/{uuid.uuid4()}"), 404, "job_not_found")
     _error(authenticated_client.post("/api/jobs/archive", json={}), 400, "archive_nothing_selected")
-    _error(authenticated_client.get("/api/jobs?sort=nope"), 400, "invalid_list_params")
+    body = _error(authenticated_client.get("/api/jobs?sort=nope"), 400, "invalid_list_params")
+    # The server's own diagnostic travels as a param, for the translation to quote.
+    assert body["params"] == {"reason": body["detail"]} and "nope" in body["detail"]
     _error(authenticated_client.get("/api/jobs?cursor=garbage"), 400, "invalid_list_params")
     _error(authenticated_client.get("/api/tracks?state=nope"), 400, "invalid_list_params")
     track = _make_track(db_session, owner)
