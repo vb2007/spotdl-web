@@ -22,6 +22,7 @@
 		const record = (event: MouseEvent) => {
 			if (event.detail === 0) return;
 			lastPressed = {
+				// i18n-ignore: a selector
 				el: event.target instanceof Element ? event.target.closest<HTMLElement>('button, a') : null,
 				at: performance.now()
 			};

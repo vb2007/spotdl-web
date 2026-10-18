@@ -11,6 +11,8 @@
 	} from '$lib/keyboard/bindings';
 	import { helpOpen, shortcutsEnabled } from '$lib/keyboard/registry';
 	import { focusList, focusRowEl, listOf, rowAt, rowId } from '$lib/keyboard/lists';
+	import * as m from '$lib/paraglide/messages';
+	import RichText from '$lib/components/RichText.svelte';
 
 	// v45: the shortcut map, generated from the binding table (never a second list), filtered
 	// to this route and the viewer's role. A native modal <dialog>, like the confirmation: the
@@ -72,6 +74,7 @@
 		if (row && focusRowEl(document.querySelector<HTMLElement>(`[data-kb-row="${row}"]`))) return;
 		if (list && focusList(list)) return;
 		// The opener went for good: the page's heading, never <body>.
+		// i18n-ignore: a selector
 		const heading = document.querySelector<HTMLElement>('main h1, h1');
 		if (heading && !heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
 		heading?.focus();
@@ -92,6 +95,11 @@
 	}
 
 	beforeNavigate(() => helpOpen.set(false));
+
+	// The "off" note's link sits inside its sentence, wherever the language puts it: the
+	// message is split at a placeholder rather than built from fragments.
+	const LINK = '\uE000';
+	const offNote = $derived(m.help_off({ account: LINK }).split(LINK));
 
 	/** A key with its Hungarian combination, for the symbols that need one. */
 	function hint(binding: Binding, i: number): string | undefined {
@@ -114,45 +122,41 @@
 	     moment it opens. -->
 	<div class="box">
 		<header class="head">
-			<h2 id="help-title" class="title">Keyboard shortcuts</h2>
+			<h2 id="help-title" class="title">{m.help_title()}</h2>
 			<button
 				type="button"
 				class="btn small"
 				bind:this={closeButton}
-				onclick={() => helpOpen.set(false)}>close</button
+				onclick={() => helpOpen.set(false)}>{m.help_close()}</button
 			>
 		</header>
-		<p id="help-layout" class="note">
-			Keys as they sit on a Hungarian keyboard. A symbol shows the keys that type it there; on a US
-			keyboard <kbd>?</kbd> and <kbd>/</kbd> are where you expect them.
-		</p>
+		<p id="help-layout" class="note"><RichText text={m.help_layout_note()} /></p>
 		{#if !$shortcutsEnabled && signedIn}
 			<p class="note off" role="status">
-				Single-key shortcuts are off. Tab, the arrows, Enter, Space and Esc still work. Turn them
-				back on in <a href={resolve('/account')}>account</a>.
+				{offNote[0]}<a href={resolve('/account')}>{m.help_off_link()}</a>{offNote[1] ?? ''}
 			</p>
 		{/if}
 
 		<div class="groups">
 			{#each groups as { group, bindings } (group)}
 				<section class="group" aria-labelledby="help-group-{group}">
-					<h3 id="help-group-{group}" class="label">{GROUP_TITLE[group]}</h3>
+					<h3 id="help-group-{group}" class="label">{GROUP_TITLE[group]()}</h3>
 					<dl class="list">
 						{#each bindings as binding (binding.id)}
 							<div class="entry" data-binding={binding.id}>
 								<dt class="keys">
 									{#if binding.prefix}
-										<kbd>{binding.prefix}</kbd><span class="then">then</span>
+										<kbd>{binding.prefix}</kbd><span class="then">{m.kbd_then()}</span>
 									{/if}
 									{#each binding.keys as chord, i (i)}
-										{#if i > 0}<span class="or">or</span>{/if}
+										{#if i > 0}<span class="or">{m.kbd_or()}</span>{/if}
 										<kbd>{chordLabel(chord)}</kbd>
 										{#if hint(binding, i)}
 											<span class="hu mono">({hint(binding, i)})</span>
 										{/if}
 									{/each}
 								</dt>
-								<dd class="what">{binding.label}</dd>
+								<dd class="what">{binding.label()}</dd>
 							</div>
 						{/each}
 					</dl>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { bindingsFor, chordLabel } from '$lib/keyboard/bindings';
 	import { chordPending } from '$lib/keyboard/registry';
+	import * as m from '$lib/paraglide/messages';
 
 	// v45: while `g` waits for its second key (about 1.5s), say so, and say where each key goes,
 	// so a half-remembered chord is finished by reading rather than guessing. Filtered like the
@@ -18,10 +19,10 @@
 <div class="chord" class:shown={$chordPending !== null} role="status">
 	{#if $chordPending !== null}
 		<kbd>{$chordPending}</kbd>
-		<span class="then">then</span>
+		<span class="then">{m.kbd_then()}</span>
 		<span class="targets">
 			{#each targets as target (target.id)}
-				<span class="target"><kbd>{chordLabel(target.keys[0])}</kbd> {target.label}</span>
+				<span class="target"><kbd>{chordLabel(target.keys[0])}</kbd> {target.label()}</span>
 			{/each}
 		</span>
 	{/if}

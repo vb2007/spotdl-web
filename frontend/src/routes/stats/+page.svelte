@@ -23,7 +23,18 @@
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 	import OutcomeBar from '$lib/components/stats/OutcomeBar.svelte';
 	import FailureChannels from '$lib/components/stats/FailureChannels.svelte';
-	import { formatRate, formatSpan, PATH_LABEL, WINDOW_HEADING } from '$lib/stats';
+	import {
+		formatRate,
+		formatSpan,
+		pathLabel,
+		slotted,
+		windowHeading,
+		windowName
+	} from '$lib/stats';
+	import * as m from '$lib/paraglide/messages';
+	import { errorText } from '$lib/i18n/errors';
+	import { formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
+	import { trackStateLabel } from '$lib/i18n/labels';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -48,7 +59,7 @@
 			stats = fresh;
 		} catch (err) {
 			if (mine !== sequence) return;
-			error = err instanceof Error ? err.message : String(err);
+			error = errorText(err);
 			// The switch didn't happen: the pressed window is the one still shown.
 			if (stats !== null) selected = stats.window;
 		} finally {
@@ -68,19 +79,15 @@
 	});
 
 	const generated = $derived(stats === null ? 0 : Date.parse(stats.generated_at));
-	const readAt = $derived(
-		stats === null
-			? ''
-			: new Date(stats.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-	);
+	const readAt = $derived(stats === null ? '' : formatClock(stats.generated_at));
 	const shownWindow = $derived(stats?.window ?? selected);
 
 	function clock(iso: string): string {
 		const date = new Date(iso);
 		const sameDay = new Date(generated).toDateString() === date.toDateString();
 		return sameDay
-			? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-			: date.toLocaleString([], {
+			? formatClock(date)
+			: formatDateTime(date, {
 					month: 'short',
 					day: 'numeric',
 					hour: '2-digit',
@@ -92,24 +99,24 @@
 		stats === null
 			? []
 			: [
-					{ key: 'waiting', label: 'waiting', value: stats.queue.counts.waiting },
-					{ key: 'pending', label: 'pending', value: stats.queue.counts.pending },
-					{ key: 'queued', label: 'queued', value: stats.queue.counts.queued },
-					{ key: 'downloading', label: 'downloading', value: stats.queue.counts.downloading }
+					{ key: 'waiting', value: stats.queue.counts.waiting },
+					{ key: 'pending', value: stats.queue.counts.pending },
+					{ key: 'queued', value: stats.queue.counts.queued },
+					{ key: 'downloading', value: stats.queue.counts.downloading }
 				]
 	);
 	const breakerNow = $derived.by(() => {
 		if (stats === null) return null;
 		const current = stats.breaker.current;
 		if (current.paused)
-			return { tone: 'fail', text: 'Downloads paused', detail: 'until resumed in settings' };
+			return { tone: 'fail', text: m.stats_now_paused(), detail: m.stats_now_paused_detail() };
 		if (current.holding_until !== null)
 			return {
 				tone: 'waiting',
-				text: `Breaker holding until ${clock(current.holding_until)}`,
-				detail: 'after repeated rate limits; waiting tracks keep their place'
+				text: m.stats_now_holding({ time: clock(current.holding_until) }),
+				detail: m.stats_now_holding_detail()
 			};
-		return { tone: 'idle', text: 'Breaker clear', detail: 'downloads run when due' };
+		return { tone: 'idle', text: m.stats_now_clear(), detail: m.stats_now_clear_detail() };
 	});
 	const proxiesOn = $derived(stats?.proxies.filter((p) => p.enabled).length ?? 0);
 	const proxiesCooling = $derived(
@@ -117,10 +124,27 @@
 	);
 	const anyAttempts = $derived(stats?.network_paths.some((p) => p.attempts > 0) ?? false);
 	const anyProxyAttempts = $derived(stats?.proxies.some((p) => p.attempts > 0) ?? false);
+
+	const oldestLine = $derived(
+		stats?.queue.oldest_waiting_since != null && stats.queue.oldest_waiting_age_seconds !== null
+			? slotted(m.stats_oldest_waiting, {
+					age: formatSpan(stats.queue.oldest_waiting_age_seconds),
+					when: clock(stats.queue.oldest_waiting_since)
+				})
+			: null
+	);
+	const proxiesLine = $derived(
+		proxiesCooling > 0
+			? slotted(m.stats_proxies_on_cooling, {
+					on: formatNumber(proxiesOn),
+					cooling: formatNumber(proxiesCooling)
+				})
+			: slotted(m.stats_proxies_on, { on: formatNumber(proxiesOn) })
+	);
 </script>
 
 <svelte:head>
-	<title>spotdl-web — stats</title>
+	<title>{m.stats_title()}</title>
 </svelte:head>
 
 <div class="stage">
@@ -128,50 +152,50 @@
 
 	<main id="main" class="main">
 		<div class="title-row">
-			<h1 class="page-title">Download stats</h1>
+			<h1 class="page-title">{m.stats_heading()}</h1>
 			{#if isAdmin}
 				<div class="read">
 					<span class="read-at mono" role="status">
-						{#if loading}reading…{:else if readAt}read at {readAt}{/if}
+						{#if loading}{m.stats_reading()}{:else if readAt}{m.stats_read_at({
+								time: readAt
+							})}{/if}
 					</span>
 					<button type="button" class="btn small" disabled={loading} onclick={() => void load()}>
-						refresh
+						{m.stats_refresh()}
 					</button>
 				</div>
 			{/if}
 		</div>
 
 		{#if !isAdmin}
-			<AdminOnlyNotice
-				what="Download statistics"
-				reason="count every user's downloads together, so only the admin can see them."
-			/>
+			<AdminOnlyNotice what={m.stats_admin_only_what()} reason={m.stats_admin_only_reason()} />
 		{:else}
 			<p class="form-error" role="alert">
-				{#if error}Couldn't read the stats: {error}{/if}
+				{#if error}{m.stats_read_failed({ error })}{/if}
 			</p>
 
 			<div class="layout" class:stale={loading && stats !== null}>
 				<section class="panel now" aria-labelledby="now-heading">
-					<h2 id="now-heading" class="label">Right now</h2>
+					<h2 id="now-heading" class="label">{m.stats_now_heading()}</h2>
 					{#if stats === null}
-						<p class="quiet">{loading ? 'Reading…' : 'Nothing read yet.'}</p>
+						<p class="quiet">{loading ? m.stats_reading_status() : m.stats_nothing_read()}</p>
 					{:else}
 						<dl class="readout">
 							{#each queueRows as row (row.key)}
 								<div class="reading">
-									<dt>{row.label}</dt>
-									<dd class="mono">{row.value.toLocaleString()}</dd>
+									<dt>{trackStateLabel(row.key)}</dt>
+									<dd class="mono">{formatNumber(row.value)}</dd>
 								</div>
 							{/each}
 						</dl>
 						<p class="note">
-							{#if stats.queue.oldest_waiting_since !== null && stats.queue.oldest_waiting_age_seconds !== null}
-								Oldest waiting track was submitted
-								<span class="mono">{formatSpan(stats.queue.oldest_waiting_age_seconds)}</span> ago
-								<span class="mono quiet">({clock(stats.queue.oldest_waiting_since)})</span>.
+							{#if oldestLine !== null}
+								{#each oldestLine as part, i (i)}{#if part.key === 'age'}<span class="mono"
+											>{part.text}</span
+										>{:else if part.key === 'when'}<span class="mono quiet">{part.text}</span
+										>{:else}{part.text}{/if}{/each}
 							{:else}
-								Nothing is waiting.
+								{m.stats_nothing_waiting()}
 							{/if}
 						</p>
 						{#if breakerNow !== null}
@@ -182,10 +206,11 @@
 						{/if}
 						<p class="note">
 							{#if stats.proxies.length === 0}
-								No proxies configured.
+								{m.stats_no_proxies()}
 							{:else}
-								Proxies: <span class="mono">{proxiesOn}</span> switched on{#if proxiesCooling > 0},
-									<span class="mono">{proxiesCooling}</span> cooling down{/if}.
+								{#each proxiesLine as part, i (i)}{#if part.key !== null}<span class="mono"
+											>{part.text}</span
+										>{:else}{part.text}{/if}{/each}
 							{/if}
 						</p>
 					{/if}
@@ -193,67 +218,68 @@
 
 				<section class="panel window" aria-labelledby="window-heading" aria-busy={loading}>
 					<header class="window-head">
-						<h2 id="window-heading" class="label">{WINDOW_HEADING[shownWindow]}</h2>
-						<div class="choice-group" role="group" aria-label="Window">
+						<h2 id="window-heading" class="label">{windowHeading(shownWindow)}</h2>
+						<div class="choice-group" role="group" aria-label={m.stats_window_label()}>
 							{#each WINDOWS as option (option)}
 								<button
 									type="button"
 									aria-pressed={selected === option}
-									onclick={() => choose(option)}>{option}</button
+									onclick={() => choose(option)}>{windowName(option)}</button
 								>
 							{/each}
 						</div>
 					</header>
 
 					{#if stats === null}
-						<p class="quiet">{loading ? 'Reading…' : 'Nothing read yet.'}</p>
+						<p class="quiet">{loading ? m.stats_reading_status() : m.stats_nothing_read()}</p>
 					{:else}
 						<section class="block" aria-labelledby="routes-heading">
 							<div class="block-head">
-								<h3 id="routes-heading" class="block-title">Routes</h3>
+								<h3 id="routes-heading" class="block-title">{m.stats_routes_heading()}</h3>
 								{#if anyAttempts}
 									<p class="legend" aria-hidden="true">
-										<span class="swatch completed"></span>completed
-										<span class="swatch failed"></span>failed, retried
-										<span class="swatch not-found"></span>not found
+										<span class="swatch completed"></span>{m.stats_legend_completed()}
+										<span class="swatch failed"></span>{m.stats_legend_failed()}
+										<span class="swatch not-found"></span>{m.stats_legend_not_found()}
 									</p>
 								{/if}
 							</div>
 							{#if anyAttempts}
 								<!-- 2: the rate's definition, visible (a title attribute reaches no keyboard or touch). -->
-								<p id="rate-definition" class="quiet">
-									Success is completed ÷ (completed + failed). Not found is a verdict on the track,
-									not the route, so it's counted apart.
-								</p>
+								<p id="rate-definition" class="quiet">{m.stats_rate_definition()}</p>
 							{:else}
-								<p class="quiet">No download attempts in this window.</p>
+								<p class="quiet">{m.stats_no_attempts()}</p>
 							{/if}
 							<table class="rates" aria-describedby={anyAttempts ? 'rate-definition' : undefined}>
 								<thead>
 									<tr>
-										<th scope="col">Route</th>
-										<th scope="col" class="num">Attempts</th>
-										<th scope="col">Outcome</th>
-										<th scope="col" class="num">Success</th>
+										<th scope="col">{m.stats_col_route()}</th>
+										<th scope="col" class="num">{m.stats_col_attempts()}</th>
+										<th scope="col">{m.stats_col_outcome()}</th>
+										<th scope="col" class="num">{m.stats_col_success()}</th>
 									</tr>
 								</thead>
 								<tbody>
 									{#each stats.network_paths as path (path.path)}
 										<tr class:empty={path.attempts === 0}>
-											<th scope="row" class="mono route">{PATH_LABEL[path.path]}</th>
+											<th scope="row" class="mono route">{pathLabel(path.path)}</th>
 											<td class="num mono"
-												>{path.attempts.toLocaleString()}<span class="unit"
-													>&nbsp;{path.attempts === 1 ? 'attempt' : 'attempts'}</span
+												>{formatNumber(path.attempts)}<span class="unit"
+													>&nbsp;{m.stats_attempts_unit({ count: path.attempts })}</span
 												></td
 											>
 											<td class="outcome">
 												{#if path.attempts > 0}
 													<OutcomeBar counts={path} />
 													<span class="counts mono">
-														{path.completed} completed · {path.failed} failed · {path.not_found} not found
+														{m.stats_outcome_counts({
+															completed: formatNumber(path.completed),
+															failed: formatNumber(path.failed),
+															not_found: formatNumber(path.not_found)
+														})}
 													</span>
 												{:else}
-													<span class="quiet">not used</span>
+													<span class="quiet">{m.stats_not_used()}</span>
 												{/if}
 											</td>
 											<td class="num mono rate">{formatRate(path.success_rate)}</td>
@@ -265,26 +291,24 @@
 
 						<section class="block" aria-labelledby="failures-heading">
 							<div class="block-head">
-								<h3 id="failures-heading" class="block-title">Failures and breaker holds</h3>
+								<h3 id="failures-heading" class="block-title">{m.stats_failures_heading()}</h3>
 							</div>
 							<FailureChannels {stats} />
 						</section>
 
 						<section class="block" aria-labelledby="proxies-heading">
 							<div class="block-head">
-								<h3 id="proxies-heading" class="block-title">Proxies</h3>
+								<h3 id="proxies-heading" class="block-title">{m.stats_proxies_heading()}</h3>
 								{#if stats.proxies.length > 0}
 									<p class="legend" aria-hidden="true">
-										<span class="swatch completed"></span>completed
-										<span class="swatch failed"></span>failed, retried
-										<span class="swatch not-found"></span>not found
+										<span class="swatch completed"></span>{m.stats_legend_completed()}
+										<span class="swatch failed"></span>{m.stats_legend_failed()}
+										<span class="swatch not-found"></span>{m.stats_legend_not_found()}
 									</p>
 								{/if}
 							</div>
 							{#if stats.proxies.length === 0}
-								<p class="quiet">
-									No proxies configured. Downloads go out directly; proxies are added in settings.
-								</p>
+								<p class="quiet">{m.stats_no_proxies_detail()}</p>
 							{:else}
 								<table
 									class="rates proxies"
@@ -292,12 +316,12 @@
 								>
 									<thead>
 										<tr>
-											<th scope="col">Proxy</th>
-											<th scope="col">State</th>
-											<th scope="col" class="num">Attempts</th>
-											<th scope="col">Outcome</th>
-											<th scope="col" class="num">Success</th>
-											<th scope="col">Last success</th>
+											<th scope="col">{m.stats_col_proxy()}</th>
+											<th scope="col">{m.stats_col_state()}</th>
+											<th scope="col" class="num">{m.stats_col_attempts()}</th>
+											<th scope="col">{m.stats_col_outcome()}</th>
+											<th scope="col" class="num">{m.stats_col_success()}</th>
+											<th scope="col">{m.stats_col_last_success()}</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -305,43 +329,47 @@
 										     and two proxies on one gateway share one. -->
 										{#each stats.proxies as proxy, i (i)}
 											<tr class:empty={proxy.attempts === 0}>
+												<!-- i18n-ignore: a proxy's host:port label, shown as recorded -->
 												<th scope="row" class="mono route">{proxy.label}</th>
 												<td class="state-cell">
 													{#if !proxy.enabled}
-														<span class="quiet">switched off</span>
+														<span class="quiet">{m.stats_proxy_off()}</span>
 													{:else if proxy.cooldown_until !== null}
 														<span class="cond-waiting"
-															>cooling until {clock(proxy.cooldown_until)}</span
+															>{m.stats_proxy_cooling({ time: clock(proxy.cooldown_until) })}</span
 														>
 													{:else}
-														<span>ready</span>
+														<span>{m.stats_proxy_ready()}</span>
 													{/if}
 												</td>
 												<td class="num mono"
-													>{proxy.attempts.toLocaleString()}<span class="unit"
-														>&nbsp;{proxy.attempts === 1 ? 'attempt' : 'attempts'}</span
+													>{formatNumber(proxy.attempts)}<span class="unit"
+														>&nbsp;{m.stats_attempts_unit({ count: proxy.attempts })}</span
 													></td
 												>
 												<td class="outcome">
 													{#if proxy.attempts > 0}
 														<OutcomeBar counts={proxy} />
 														<span class="counts mono">
-															{proxy.completed}<span class="sr-only"> completed</span> · {proxy.failed}<span
-																class="sr-only"
+															{formatNumber(proxy.completed)}<span class="sr-only"
+																>{` ${m.stats_sr_completed()}`}</span
 															>
-																failed</span
+															· {formatNumber(proxy.failed)}<span class="sr-only"
+																>{` ${m.stats_sr_failed()}`}</span
 															>
-															· {proxy.not_found}<span class="sr-only"> not found</span>
+															· {formatNumber(proxy.not_found)}<span class="sr-only"
+																>{` ${m.stats_sr_not_found()}`}</span
+															>
 														</span>
 													{:else}
-														<span class="quiet">not used</span>
+														<span class="quiet">{m.stats_not_used()}</span>
 													{/if}
 												</td>
 												<td class="num mono rate">{formatRate(proxy.success_rate)}</td>
 												<td class="mono last">
-													<span class="unit">last success&nbsp;</span>{proxy.last_success_at ===
-													null
-														? 'never'
+													<span class="unit">{m.stats_last_success_unit()}&nbsp;</span
+													>{proxy.last_success_at === null
+														? m.stats_never()
 														: relativeTime(proxy.last_success_at, generated)}
 												</td>
 											</tr>

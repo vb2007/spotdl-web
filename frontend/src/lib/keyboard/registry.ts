@@ -36,6 +36,7 @@ const handlers = new Map<string, Handler[]>();
  * Returns the removal. */
 export function registerHandlers(entries: Record<string, Handler>): () => void {
 	for (const [id, fn] of Object.entries(entries)) {
+		// i18n-ignore: a programming error, never shown
 		if (!BINDINGS.some((b) => b.id === id)) throw new Error(`unknown binding ${id}`);
 		handlers.set(id, [...(handlers.get(id) ?? []), fn]);
 	}
