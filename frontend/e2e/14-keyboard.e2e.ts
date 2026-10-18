@@ -955,7 +955,7 @@ test.describe('the help overlay', () => {
 			id: b.id,
 			keys: [...(b.prefix ? [b.prefix] : []), ...b.keys.map(chordLabel)],
 			hu: b.keys.filter((k) => HU_PHYSICAL[k.key]).map((k) => `(${HU_PHYSICAL[k.key]})`),
-			label: b.label
+			label: b.label()
 		}));
 	}
 

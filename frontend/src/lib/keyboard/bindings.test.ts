@@ -1,5 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import { BINDINGS, HU_PHYSICAL, bindingHelpText, bindingsFor, isCharacter } from './bindings';
+import { afterEach, describe, expect, it } from 'vitest';
+import { baseLocale, overwriteGetLocale } from '$lib/paraglide/runtime';
+import {
+	BINDINGS,
+	GROUP_TITLE,
+	HU_PHYSICAL,
+	bindingHelpText,
+	bindingsFor,
+	chordLabel,
+	isCharacter
+} from './bindings';
 
 // v45's Hungarian QWERTZ rules (plan rules 1-5), checked on the table itself so a new binding
 // can't break them unnoticed.
@@ -79,5 +88,26 @@ describe('binding table', () => {
 		expect(up.keys).toBe('Shift + B or + (Shift + 3)');
 		const down = bindingHelpText(BINDINGS.find((b) => b.id === 'priority-down')!);
 		expect(down.keys).toBe('- (right of .)');
+	});
+});
+
+// v46: the help text in Hungarian, read when shown (labels are message functions).
+describe('in Hungarian', () => {
+	afterEach(() => overwriteGetLocale(() => baseLocale));
+
+	it('labels every binding and group, and names Space and the "-" key', () => {
+		overwriteGetLocale(() => 'hu');
+		for (const binding of BINDINGS) expect(binding.label(), binding.id).not.toBe('');
+		expect(bindingHelpText(BINDINGS.find((b) => b.id === 'help')!)).toEqual({
+			keys: 'h vagy ? (Shift + ,)',
+			label: 'A billentyűparancsok megjelenítése vagy elrejtése'
+		});
+		expect(bindingHelpText(BINDINGS.find((b) => b.id === 'go-account')!).keys).toBe('g, aztán a');
+		expect(GROUP_TITLE.global()).toBe('Bárhol');
+		expect(chordLabel({ key: ' ' })).toBe('Szóköz');
+		expect(HU_PHYSICAL['-']).toBe('a . jobb oldalán');
+		overwriteGetLocale(() => baseLocale);
+		expect(chordLabel({ key: ' ' })).toBe('Space');
+		expect(bindingHelpText(BINDINGS.find((b) => b.id === 'go-account')!).keys).toBe('g then a');
 	});
 });

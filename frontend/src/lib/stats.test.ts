@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { AdminStats, BreakerEvent } from '$lib/api';
+import { baseLocale, overwriteGetLocale, type Locale } from '$lib/paraglide/runtime';
 import {
 	axisPosition,
 	bucketHeld,
@@ -11,8 +12,12 @@ import {
 	formatSpan,
 	holdGeometry,
 	holdSpans,
-	instantLabel
+	instantLabel,
+	pathLabel,
+	slotted,
+	windowHeading
 } from '$lib/stats';
+import * as m from '$lib/paraglide/messages';
 
 const HOUR = 3600 * 1000;
 const START = Date.parse('2026-10-16T00:00:00Z');
@@ -219,5 +224,75 @@ describe('formatting', () => {
 		expect(failurePeak(s)).toBe(3);
 		expect(axisPosition(s, at(12))).toBeCloseTo(0.5);
 		expect(axisPosition(s, at(30))).toBe(1);
+	});
+});
+
+// v46: the same readings in Hungarian, the noun singular after a numeral and Intl's own
+// number and date forms.
+describe('in Hungarian', () => {
+	const speak = (locale: Locale) => overwriteGetLocale(() => locale);
+	afterEach(() => speak(baseLocale));
+
+	it('labels paths, windows and error types', () => {
+		speak('hu');
+		expect(pathLabel('direct-ipv4')).toBe('közvetlen · IPv4');
+		expect(pathLabel('unknown')).toBe('nincs rögzítve');
+		expect(windowHeading('7d')).toBe('Az elmúlt 7 nap');
+		expect(errorTypeLabel('lookup')).toBe('nem található');
+		// A machine name reads the same in every language.
+		expect(errorTypeLabel('no_output')).toBe('no_output');
+	});
+
+	it('formats rates and spans', () => {
+		speak('hu');
+		expect(formatRate(0.7491)).toBe('75%');
+		expect(formatRate(0.996)).toBe('>99%');
+		expect(formatSpan(30)).toBe('30 mp');
+		expect(formatSpan(5400)).toBe('1 ó 30 p');
+		expect(formatSpan(5 * 86400)).toBe('5 nap');
+	});
+
+	it('reads bucket and instant labels on the response clock, in Hungarian forms', () => {
+		speak('hu');
+		const hourly = stats([], { utc_offset_minutes: 120 });
+		expect(bucketLabel(hourly, '2026-10-16T10:00:00Z', true)).toBe('12:00–13:00');
+		expect(instantLabel(hourly, '2026-10-16T10:05:00Z')).toMatch(/okt\. 16\..*12:05/);
+	});
+
+	it('keeps the noun singular after a numeral', () => {
+		for (const [count, en, hu] of [
+			[0, 'Columns share one scale: the tallest is 0 failures in one hour.', '0 hiba'],
+			[1, 'Columns share one scale: the tallest is 1 failure in one hour.', '1 hiba'],
+			[5, 'Columns share one scale: the tallest is 5 failures in one hour.', '5 hiba']
+		] as const) {
+			speak('en');
+			expect(m.stats_scale_hour({ count })).toBe(en);
+			speak('hu');
+			expect(m.stats_scale_hour({ count })).toContain(`${hu} egy órában`);
+		}
+		speak('hu');
+		expect(m.stats_attempts_unit({ count: 5 })).toBe('próbálkozás');
+		speak('en');
+		expect(m.stats_attempts_unit({ count: 1 })).toBe('attempt');
+		expect(m.stats_attempts_unit({ count: 5 })).toBe('attempts');
+	});
+});
+
+describe('slotted', () => {
+	it('splits a message at its values, in the order the language puts them', () => {
+		expect(slotted(m.stats_proxies_on_cooling, { on: '3', cooling: '1' })).toEqual([
+			{ key: null, text: 'Proxies: ' },
+			{ key: 'on', text: '3' },
+			{ key: null, text: ' switched on, ' },
+			{ key: 'cooling', text: '1' },
+			{ key: null, text: ' cooling down.' }
+		]);
+		overwriteGetLocale(() => 'hu');
+		const hu = slotted(m.stats_oldest_waiting, { age: '45 mp', when: '14:03' });
+		overwriteGetLocale(() => baseLocale);
+		expect(hu.map((slot) => slot.text).join('')).toBe(
+			'A legrégebben várakozó számot 45 mp ezelőtt küldték be (14:03).'
+		);
+		expect(hu.filter((slot) => slot.key !== null).map((slot) => slot.key)).toEqual(['age', 'when']);
 	});
 });
