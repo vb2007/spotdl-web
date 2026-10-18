@@ -459,6 +459,12 @@ wording implied abandonment rather than "this specific lookup came up empty."
 > reads the same on a chip and on a row, and no label truncates in the state column (F13). The
 > in-world voice stays on idents and moments; v46 re-words both for i18n.
 >
+> **v46 (2026-10-18):** the labels are now functions over the message files
+> (`lib/i18n/labels.ts`'s `trackStateLabel`/`jobStatusLabel`, TrackRow's status and outcome
+> tables), in Hungarian: sorban áll, indulásra kész, letöltés, letöltve, várakozik, nem található,
+> már megvan, megszakítva; job statuses hangolás, aktív, várakozik, kész — részben, kész,
+> megszakítva, sikertelen.
+>
 > **v42 (2026-10-15):** one deliberate exception, the owner's choice: a non-admin's tracks scope
 > has a single **in progress** chip standing for pending, queued and downloading (v39 outcome 3),
 > while the rows keep the exact state word. The chip is a grouping of row words, not a fourth word.
@@ -925,6 +931,40 @@ a well with a heavier floor, never amber (a key is not a live condition). The `g
 docks at the bottom edge in the panel's material and lists where each second key goes. The skip
 link ("Skip to queue" on `/`, "Skip to content" elsewhere) is the first focusable element on every
 page, off-screen until focused, then a small plate at the top-left.
+
+### Language: Hungarian and English (`lib/i18n/`, `messages/`, v46)
+
+**Every user-visible string is a message** in `messages/en.json` and `messages/hu.json` (Paraglide
+JS), keyed by meaning (`track_cancel_confirm`), never by its English. `npm run lint` fails on a
+hard-coded string in `src/` (`scripts/scan-literals.mjs`) and on any difference between the two
+files' keys or inputs (`scripts/check-messages.mjs`). The deliberate exceptions carry an
+`i18n-ignore` comment with their reason: the `SPOTDL // WEB` wordmark, CSS selectors, the proxy
+format, and the English `detail` behind a client-side error code.
+
+**Which language.** The signed-in user's saved choice, then a choice made on `/login`, then the
+first of the browser's languages that is `hu` or `en`, then English. `<html lang>` follows it, and
+a switch re-renders in place (no reload).
+
+**The switch** is a `.choice-group` labelled with each language in its own name and marked with
+its own `lang` (Magyar first, since most users read it): the last group of `/account`'s
+Preferences ("Language", saved to the profile, follows the user to every device, applies once the
+server has it, with the same `role="status"` save line as the shortcut switch), and a bare one at
+the top right of `/login`'s stage, outside the dial panel, first in the tab order (this browser
+only; a profile without a saved language adopts it at sign-in).
+
+**What is never translated:** track, artist and album metadata, raw attempt error and note text,
+proxy addresses, error-type machine names (`NO_OUTPUT`), and the wordmark. Matrix alerts and logs
+stay English.
+
+**Hungarian copy** is tegező (te) and keeps the signal-receiver voice where English has it
+(hangolás, vétel, nincs jel, jelvevő, HANGOLÁS / KAPCSOLÓDÁS), with plain state words beside it.
+Lowercase action labels stay lowercase. A count is a plural message with Hungarian's singular noun
+after a numeral ("5 szám"); numbers, dates and times go through `Intl` in the active language
+(`lib/i18n/format.ts`: "14:03", "0,4 mp", "12 345"). A sentence with markup (`<kbd>`) keeps it in
+the message and renders through `RichText.svelte`. `Countdown`'s label stands before the time
+(`feloldásig 4:32`), and the time never wraps internally. Hungarian runs longer: v46 checked every
+route at 1280px and 390px for clipped text; the submit field's placeholder clips at 390px in both
+languages, as it did before.
 
 ## 7. Accessibility (confirmed hard requirement, PRODUCT.md)
 
