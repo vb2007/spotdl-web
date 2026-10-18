@@ -5253,7 +5253,10 @@ independently-found production bug from the same conversation)
   pre-formatted `n` beside the raw `count` (`counted()`), never `local n = count: number`.
   **Intl has no data for most `hu-<region>` pairs** (`hu-US` resolves to plain `hu`), so the region
   silently stopped counting for a Hungarian interface; `format.ts` checks the pair resolved as
-  asked and otherwise takes numbers and the default clock from `und-<region>`.
+  asked and otherwise takes numbers and the default clock from the region's likeliest locale,
+  **maximized explicitly** (`new Intl.Locale('und', { region }).maximize()`): Intl never
+  maximizes `und-DE` itself, it falls back to the runtime's default locale (en-US in Chromium and
+  Node), which made the region stop counting a second time (review round 7).
 - **The browser decides the language until sign-in** (owner's rule on PR #68): no `/login`
   switch, nothing stored in the browser, nothing adopted at sign-in. The plan's pre-login choice
   and its adoption were built, reviewed, then removed on the owner's answer; a "choice someone

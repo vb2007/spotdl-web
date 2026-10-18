@@ -98,6 +98,17 @@ describe('formatting: the interface language with the browser’s region', () =>
 		expect(formatClock(at)).toBe('13:05');
 	});
 
+	it('takes the region’s own conventions, not the runtime default, for a pair without data', () => {
+		// Node's default locale is en-US; a German region must still read German conventions.
+		speak('hu');
+		browser('de-DE');
+		expect(formatNumber(12345.5)).toBe('12.345,5');
+		expect(formatClock(at)).toBe('13:05');
+		browser('en-GB');
+		expect(formatNumber(12345.5)).toBe('12,345.5');
+		expect(formatClock(at)).toBe('13:05');
+	});
+
 	it('lets a pinned clock override the region’s, and only the clock', () => {
 		browser('en-US');
 		applyClock('24h');

@@ -42,11 +42,18 @@ function pairSupported(locale: string): boolean {
 	return new Intl.DateTimeFormat(locale).resolvedOptions().locale === locale;
 }
 
-/** The region's own conventions, for what has no words: `und-US` resolves to the region's
- * likeliest locale (en-US). */
+/** The region's own conventions, for what has no words: its likeliest locale (DE → de-DE).
+ * Maximized explicitly: Intl never maximizes `und-DE` itself, it falls back to the runtime's
+ * default locale, and the region would stop counting again. */
 function regionLocale(): string | undefined {
 	const region = browserRegion();
-	return region ? `und-${region}` : undefined;
+	if (!region) return undefined;
+	try {
+		const likely = new Intl.Locale('und', { region }).maximize();
+		return `${likely.language}-${region}`;
+	} catch {
+		return undefined;
+	}
 }
 
 function clockOptions(): Intl.DateTimeFormatOptions {
