@@ -570,7 +570,9 @@
 							<!-- v41: the job row's grid, minus the chevron -- its type sits in the badge
 							     column and its title over the track titles below (F02). -->
 							<div class="group-header">
-								<span class="source-type mono">{SOURCE_LABEL[group.job.source_type]()}</span>
+								<span class="source-type mono"
+									>{SOURCE_LABEL[group.job.source_type]?.() ?? group.job.source_type}</span
+								>
 								<span class="title" id="group-title-{group.job.id}" title={group.job.title}
 									>{group.job.title}</span
 								>

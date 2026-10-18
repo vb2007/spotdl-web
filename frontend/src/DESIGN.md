@@ -480,7 +480,7 @@ pulsing-dot treatment for the same state, not `cond-idle` — a job actively bei
 `settled:partial` maps to `cond-fail`: it is a genuinely terminal, no-further-action state with a
 real gap (≥1 track that didn't make it), the same bucket `lookup_failed` already occupies at the
 track level — never `cond-waiting`, which §2 reserves for recoverable backoff, not "done, but
-incomplete." The labels themselves (`api.STATUS_LABEL`) are shared between the state-filter chips
+incomplete." The labels themselves (`api.STATUS_LABEL`; v46: `lib/i18n/labels.ts`'s `jobStatusLabel`) are shared between the state-filter chips
 and the job-row badge so the two can't drift apart: `"done — partial"` for `settled:partial`,
 never "failed" or "partial" alone, so a glance at either surface reads the same story.
 

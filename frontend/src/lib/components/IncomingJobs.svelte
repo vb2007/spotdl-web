@@ -323,7 +323,7 @@
 {#snippet failedRow(job: Job)}
 	<li class="row failed">
 		<span class="dot fail" aria-hidden="true"></span>
-		<span class="mono state">{UNREADABLE[job.source_type]()}</span>
+		<span class="mono state">{UNREADABLE[job.source_type]?.() ?? job.source_type}</span>
 		<span class="url mono" title={job.source_url}>{job.source_url}</span>
 		{#if allUsers}
 			<span class="owner mono" title={job.owner_email}
@@ -384,7 +384,9 @@
 					<!-- Without the live link the row may be stale: no amber, no pulse. -->
 					<span class="dot" class:stale={$link !== 'live'} aria-hidden="true"></span>
 					<span class="mono state"
-						>{m.incoming_tuning({ source: SOURCE_LABEL[job.source_type]() })}</span
+						>{m.incoming_tuning({
+							source: SOURCE_LABEL[job.source_type]?.() ?? job.source_type
+						})}</span
 					>
 					<span class="url mono" title={job.source_url}>{job.source_url}</span>
 					{#if allUsers}

@@ -42,8 +42,8 @@
 	"error_proxy_url_exists": "Ezzel az URL-lel már van proxy",
 	"error_unsupported_format": "Nem támogatott formátum: {value}",
 	"error_unsupported_bitrate": "Nem támogatott bitráta: {value}",
-	"error_setting_blank": "{field}: nem lehet üres",
-	"error_setting_out_of_range": "{field}: {min} és {max} között legyen",
+	"error_setting_blank": "„{field}” nem lehet üres",
+	"error_setting_out_of_range": "„{field}” értéke {min} és {max} között legyen",
 	"error_alerts_not_configured": "A Matrix-riasztások nincsenek beállítva (add meg: MATRIX_HOMESERVER_URL, MATRIX_ACCESS_TOKEN és MATRIX_ROOM_ID)",
 	"error_alert_send_failed": "A Matrix-üzenet nem ment el: {reason}",
 	"error_retention_days_invalid": "A megőrzés pozitív egész számú nap legyen, vagy soha",
@@ -285,8 +285,8 @@
 			}
 		}
 	],
-	"incoming_older_show": "mutasd",
-	"incoming_older_hide": "rejtsd el",
+	"incoming_older_show": "mutatás",
+	"incoming_older_hide": "elrejtés",
 	"incoming_older_show_label": [
 		{
 			"declarations": ["input count", "local n = count: number"],
@@ -589,7 +589,7 @@
 	"worker_resume": "letöltések folytatása",
 	"worker_note_already_paused": "A letöltések már szüneteltek.",
 	"worker_release_confirm_title": "Feloldod most a visszatartást?",
-	"worker_release_confirm_body_paused": "A visszatartás most véget ér. A letöltések addig szünetelnek, amíg nem folytatod őket, utána pedig akkor indulnak, amikor a YouTube talán még mindig korlátozza ezt a szervert.",
+	"worker_release_confirm_body_paused": "A visszatartás most véget ér. A letöltések addig szünetelnek, amíg nem folytatod őket, utána pedig úgy indulnak, hogy a YouTube talán még mindig korlátozza ezt a szervert.",
 	"worker_release_confirm_body_running": "Az esedékes számok a következő körben újraindulnak, miközben a YouTube talán még mindig korlátozza ezt a szervert: épp ez ellen véd a visszatartás.",
 	"worker_release_confirm_clears": "Magától is feloldódik ekkor: {time}.",
 	"worker_release_confirm_cancel": "maradjon",
