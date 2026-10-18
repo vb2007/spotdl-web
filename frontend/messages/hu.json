@@ -83,7 +83,7 @@
 	"account_keyboard_off": "ki",
 	"account_keyboard_show": "parancsok listája",
 	"account_language_heading": "Nyelv",
-	"account_language_hint": "Ezen a nyelven szól hozzád az alkalmazás, ha be vagy jelentkezve, minden eszközön. Amíg nem választasz, és kijelentkezve mindig, a böngésződ nyelvét követi.",
+	"account_language_hint": "Ezen a nyelven szól hozzád az alkalmazás, ha be vagy jelentkezve, minden eszközön. Az automatikus a böngésződ nyelvét követi, ahogy kijelentkezve mindig.",
 	"account_language_label": "A felület nyelve",
 	"attempt_via_direct_ipv4": "közvetlen · IPv4",
 	"attempt_via_direct_ipv6": "közvetlen · IPv6",
@@ -801,5 +801,6 @@
 	"account_clock_auto": "automatikus ({example})",
 	"account_clock_12h": "12 órás ({example})",
 	"account_clock_24h": "24 órás ({example})",
-	"settings_proxy_format": "http(s)://[felhasználó:jelszó@]ipv4[:port]"
+	"settings_proxy_format": "http(s)://[felhasználó:jelszó@]ipv4[:port]",
+	"account_language_auto": "automatikus ({language})"
 }

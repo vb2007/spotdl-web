@@ -859,8 +859,9 @@ export interface LanguageSettings {
 }
 
 /** v46: the per-user interface language, open to every user like the shortcut switch. Stored
- * server-side so it follows the user to every device; `me()` carries the same value. */
-export function updateLanguageSettings(language: Language): Promise<LanguageSettings> {
+ * server-side so it follows the user to every device; `me()` carries the same value. `null`
+ * puts it back to automatic (the browser's language). */
+export function updateLanguageSettings(language: Language | null): Promise<LanguageSettings> {
 	return request('/api/settings/language', {
 		method: 'PATCH',
 		body: JSON.stringify({ language })

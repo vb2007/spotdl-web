@@ -2,7 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '$lib/api';
 import { baseLocale, overwriteGetLocale, type Locale } from '$lib/paraglide/runtime';
 import { apiErrorText, errorText, knowsCode } from '$lib/i18n/errors';
-import { applyClock, detectLocale, resolveLocale } from '$lib/i18n/locale.svelte';
+import {
+	applyClock,
+	applyLanguagePreference,
+	detectLocale,
+	languagePreference,
+	locale,
+	resolveLocale
+} from '$lib/i18n/locale.svelte';
 import {
 	browserRegion,
 	clockExample,
@@ -53,6 +60,16 @@ describe('resolveLocale', () => {
 		browser('de-DE');
 		expect(resolveLocale(null)).toBe('en');
 		expect(resolveLocale('hu')).toBe('hu');
+	});
+
+	it('remembers whether a language is saved, and automatic speaks the browser’s', () => {
+		browser('hu-HU');
+		applyLanguagePreference('en');
+		expect(languagePreference.current).toBe('en');
+		expect(locale.current).toBe('en');
+		applyLanguagePreference(null);
+		expect(languagePreference.current).toBeNull();
+		expect(locale.current).toBe('hu');
 	});
 
 	it('ignores a saved value that is not a language we ship', () => {

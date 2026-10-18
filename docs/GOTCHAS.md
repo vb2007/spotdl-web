@@ -5241,7 +5241,12 @@ independently-found production bug from the same conversation)
   the old `node_modules`. **Vite's recursive watcher doesn't cross into that nested mount:** a
   recompile landed in the volume while the dev server kept serving the old module (an e2e spec
   read "Időtartam" from the files and found "Mikor" on the page). `vite.config.ts`'s dev-only
-  `watchCompiledMessages` adds the directory to the watcher explicitly.
+  `watchCompiledMessages` adds the directory to the watcher explicitly. **That alone wasn't
+  enough** (corrected 2026-10-19): Paraglide's default `cleanOutdir` empties and recreates the
+  output, and the recreated directory dropped out of the watch again (a new key was "not a
+  function" on `/account` until a restart; an in-place append had made the first fix look
+  complete). The plugin now compiles with `cleanOutdir: false`; verified with two real
+  recompiles in a row reaching the served module.
 - **`npx vitest run` rewrites `frontend/.svelte-kit/` too** (its SvelteKit plugin syncs), so the v45
   rule "don't run `npm run check`/`build` while the e2e suite runs" covers the unit tests as well:
   a review agent's `vitest` during a run made the dev server reload and a keyboard spec lose its

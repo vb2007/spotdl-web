@@ -42,7 +42,7 @@ def language_preference(db: Session, user_id) -> str | None:
     return None if row is None else row.language
 
 
-def update_language(db: Session, user_id, language: str) -> UserSettings:
+def update_language(db: Session, user_id, language: str | None) -> UserSettings:
     row = get_user_settings(db, user_id)
     row.language = language
     return row

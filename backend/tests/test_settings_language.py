@@ -38,6 +38,15 @@ def test_update_language_persists_and_reaches_me(authenticated_client, db_sessio
     assert authenticated_client.get("/api/auth/me").json()["language"] == "en"
 
 
+def test_language_goes_back_to_automatic(authenticated_client, db_session):
+    """Owner's answer on PR #68: a saved language can be cleared, and the browser decides again."""
+    authenticated_client.patch("/api/settings/language", json={"language": "hu"})
+    assert authenticated_client.patch("/api/settings/language", json={"language": None}).json() == {
+        "language": None
+    }
+    assert authenticated_client.get("/api/auth/me").json()["language"] is None
+
+
 def test_me_reports_no_language_without_creating_a_settings_row(authenticated_client, db_session):
     from app.models import UserSettings
 
@@ -46,7 +55,7 @@ def test_me_reports_no_language_without_creating_a_settings_row(authenticated_cl
 
 
 def test_update_language_rejects_an_unknown_language(authenticated_client, db_session):
-    for bad in ("de", "HU", "", None, 1):
+    for bad in ("de", "HU", "", 1):
         response = authenticated_client.patch("/api/settings/language", json={"language": bad})
         assert response.status_code == 422, bad
     assert authenticated_client.patch("/api/settings/language", json={}).status_code == 422

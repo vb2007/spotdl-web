@@ -139,7 +139,11 @@ export default defineConfig(({ command }) => ({
 			project: './project.inlang',
 			outdir: './src/lib/paraglide',
 			strategy: ['globalVariable', 'baseLocale'],
-			outputStructure: 'locale-modules'
+			outputStructure: 'locale-modules',
+			// Rewrite the files in place rather than emptying the directory first: a recreated
+			// directory drops out of the dev server's watch (below), and it kept serving the old
+			// messages. With one module per language every file is rewritten on each compile.
+			cleanOutdir: false
 		}),
 		sveltekit({
 			compilerOptions: {

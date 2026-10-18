@@ -153,6 +153,26 @@ test('preference wins: Hungarian chosen on /account follows the user, and only t
 	).toBeVisible();
 	expect(await htmlLang(page)).toBe('en');
 	expect(languageOf(userIdentity().email)).toBe('en');
+
+	// And back to automatic (owner's answer on PR #68): it names what the browser gives, and
+	// the profile holds no language again. Set to Hungarian first, so the switch is visible.
+	await page.getByRole('button', { name: 'Magyar', exact: true }).click();
+	await expect(
+		page.getByRole('heading', { name: t(m.account_heading, {}, 'hu'), exact: true })
+	).toBeVisible();
+	const automatic = page.getByRole('button', {
+		name: t(m.account_language_auto, { language: 'English' }, 'hu'),
+		exact: true
+	});
+	await automatic.click();
+	await expect(
+		page.getByRole('heading', { name: t(m.account_heading, {}, 'en'), exact: true })
+	).toBeVisible();
+	expect(await htmlLang(page), 'automatic: the (English) browser decides again').toBe('en');
+	await expect(
+		page.getByRole('button', { name: 'automatic (English)', exact: true })
+	).toHaveAttribute('aria-pressed', 'true');
+	expect(languageOf(userIdentity().email)).toBeNull();
 	await context.close();
 });
 
@@ -175,8 +195,11 @@ test('signed out the browser decides; a time format pinned on /account wins once
 	await signIn(page, userIdentity(), 'hu', 'en');
 	await expectDashboardIn(page, 'en');
 	await page.goto('/account');
+	// The clock's choices, inside the clock's own group (the language has an "automatic" too).
+	const clockGroup = (p: Page, lang: Lang = 'en') =>
+		p.getByRole('group', { name: t(m.account_clock_label, {}, lang), exact: true });
 	const choice = (message: typeof m.account_clock_auto, lang: Lang = 'en') =>
-		page.getByRole('button', {
+		clockGroup(page, lang).getByRole('button', {
 			name: new RegExp(`^${t(message, { example: 'X' }, lang).split('(')[0].trim()} \\(`)
 		});
 	await expect(choice(m.account_clock_auto)).toHaveAttribute('aria-pressed', 'true');
@@ -190,7 +213,7 @@ test('signed out the browser decides; a time format pinned on /account wins once
 	await signIn(usPage, userIdentity(), 'en');
 	await usPage.goto('/account');
 	const usChoice = (message: typeof m.account_clock_auto) =>
-		usPage.getByRole('button', {
+		clockGroup(usPage).getByRole('button', {
 			name: new RegExp(`^${t(message, { example: 'X' }, 'en').split('(')[0].trim()} \\(`)
 		});
 	const saved = usPage.getByRole('status').filter({ hasText: /^Saved at / });
@@ -212,7 +235,7 @@ test('signed out the browser decides; a time format pinned on /account wins once
 	const secondPage = await second.newPage();
 	await signIn(secondPage, userIdentity(), 'en');
 	await secondPage.goto('/account');
-	await expect(secondPage.getByRole('button', { name: /^24-hour \(/ })).toHaveAttribute(
+	await expect(clockGroup(secondPage).getByRole('button', { name: /^24-hour \(/ })).toHaveAttribute(
 		'aria-pressed',
 		'true'
 	);
@@ -224,10 +247,9 @@ test('signed out the browser decides; a time format pinned on /account wins once
 	const otherPage = await other.newPage();
 	await signIn(otherPage, adminIdentity(), 'en');
 	await otherPage.goto('/account');
-	await expect(otherPage.getByRole('button', { name: /^automatic \(/ })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
+	await expect(
+		clockGroup(otherPage).getByRole('button', { name: /^automatic \(/ })
+	).toHaveAttribute('aria-pressed', 'true');
 	await other.close();
 
 	// Back to automatic.

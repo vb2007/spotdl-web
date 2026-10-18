@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import * as api from '$lib/api';
 import { queue } from '$lib/stores/queue';
 import { shortcutsEnabled } from '$lib/keyboard/registry';
-import { applyClock, applyLocale, resolveLocale } from '$lib/i18n/locale.svelte';
+import { applyClock, applyLanguagePreference } from '$lib/i18n/locale.svelte';
 import type { LayoutLoad } from './$types';
 
 // Adapter-static has no server to run a `+layout.server.ts` load against at request
@@ -64,7 +64,7 @@ export const load: LayoutLoad = async ({ url }) => {
 	const identity = session?.email ?? null;
 	if (identity !== localeAppliedFor) {
 		localeAppliedFor = identity;
-		applyLocale(resolveLocale(session?.language));
+		applyLanguagePreference(session?.language);
 		applyClock(session?.clock);
 	}
 	if (session !== null && onLoginPage) {

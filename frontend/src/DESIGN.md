@@ -952,8 +952,9 @@ adopted at sign-in. `<html lang>` follows it, and a switch re-renders in place (
 
 **The switches** are on `/account` only, in Preferences, each a `.choice-group` saved to the profile
 the moment the server has it, with the shortcut switch's `role="status"` save line. **Language** is
-labelled with each language in its own name and marked with its own `lang` (Magyar first, since
-most users read it). **Time format** is automatic / 12-hour / 24-hour, each showing the current
+automatic / Magyar / English: each language in its own name and marked with its own `lang`
+(Magyar first, since most users read it), and "automatic (Magyar)" naming, the same way, the
+language the browser gives (owner's answer on PR #68: a way back to following the browser). **Time format** is automatic / 12-hour / 24-hour, each showing the current
 time as it would read. `/login` has no switch: there the browser decides.
 
 **Formats.** Words (month names, the AM/PM marker) follow the interface language. Conventions

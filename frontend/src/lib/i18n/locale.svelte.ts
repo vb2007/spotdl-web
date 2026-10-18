@@ -50,6 +50,23 @@ export function applyLocale(next: Locale): void {
 	syncDocumentLang();
 }
 
+// The signed-in user's saved language, `null` for automatic (and whenever signed out): what
+// /account shows as chosen. The language spoken is `current`, resolved from it.
+let savedLanguage = $state<Locale | null>(null);
+
+export const languagePreference = {
+	get current(): Locale | null {
+		return savedLanguage;
+	}
+};
+
+/** A session's saved language (or `null`: automatic, or signed out), applied: remembered for
+ * /account and resolved into the language the page speaks. */
+export function applyLanguagePreference(saved: string | null | undefined): void {
+	savedLanguage = saved && isLocale(saved) ? saved : null;
+	applyLocale(resolveLocale(savedLanguage));
+}
+
 function syncDocumentLang() {
 	if (typeof document !== 'undefined') document.documentElement.lang = current;
 }

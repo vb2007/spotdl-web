@@ -83,7 +83,7 @@
 	"account_keyboard_off": "off",
 	"account_keyboard_show": "show shortcuts",
 	"account_language_heading": "Language",
-	"account_language_hint": "The language this app speaks to you once you're signed in, on every device. Until you choose one, and whenever you're signed out, it follows your browser.",
+	"account_language_hint": "The language this app speaks to you once you're signed in, on every device. Automatic follows your browser, as it always does when you're signed out.",
 	"account_language_label": "Interface language",
 	"attempt_via_direct_ipv4": "direct · IPv4",
 	"attempt_via_direct_ipv6": "direct · IPv6",
@@ -837,5 +837,6 @@
 	"account_clock_auto": "automatic ({example})",
 	"account_clock_12h": "12-hour ({example})",
 	"account_clock_24h": "24-hour ({example})",
-	"settings_proxy_format": "http(s)://[user:pass@]ipv4[:port]"
+	"settings_proxy_format": "http(s)://[user:pass@]ipv4[:port]",
+	"account_language_auto": "automatic ({language})"
 }

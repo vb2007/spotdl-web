@@ -461,4 +461,8 @@ here rather than edited into it, so the original record stays readable.
     "12 345"), not the bare language's conventions. `/account` gains a Time format setting
     (automatic / 12-hour / 24-hour, `user_settings.clock`, additive), by the same rules: the
     browser's region until sign-in, a pinned format after.
+  - **Follow-up answers (2026-10-19):** the language also gets an "automatic" choice on
+    `/account` (a saved language can be cleared, and the browser decides again); and the region
+    keeps coming from the browser's *first* language tag even when the matched language is later
+    in the list (owner: "if a user has that funky setting it probably wants that behaviour").
 

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { m, t } from './support/i18n';
-import { readSeed, setLanguage, userIdentity } from './support/stack';
+import { languageOf, readSeed, setLanguage, userIdentity } from './support/stack';
 import { jobToggle, loginViaUi, trackToggle } from './support/ui';
 
 // Spec 15 (v46): the `hu` project's smoke, in a Hungarian browser (`hu-HU`) with no saved
@@ -56,4 +56,13 @@ test('Hungarian: sign in, the dashboard, a track’s detail, and the /account sw
 		'aria-pressed',
 		'true'
 	);
+	// Automatic follows this (Hungarian) browser: it stays Hungarian, with nothing saved.
+	const automatic = page.getByRole('button', {
+		name: t(m.account_language_auto, { language: 'Magyar' }),
+		exact: true
+	});
+	await automatic.click();
+	await expect(automatic).toHaveAttribute('aria-pressed', 'true');
+	expect(await page.evaluate(() => document.documentElement.lang)).toBe('hu');
+	expect(languageOf(userIdentity().email)).toBeNull();
 });

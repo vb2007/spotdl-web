@@ -12,9 +12,10 @@
 	import { clockExample, formatClock, formatNumber } from '$lib/i18n/format';
 	import {
 		applyClock,
-		applyLocale,
+		applyLanguagePreference,
 		clockPreference,
-		locale,
+		detectLocale,
+		languagePreference,
 		type Clock
 	} from '$lib/i18n/locale.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
@@ -136,16 +137,16 @@
 	let languageError = $state<Shown>(null);
 	let languageSavedAt = $state<Date | null>(null);
 
-	async function setLanguage(next: Locale) {
-		// Always sent, even for the language shown: until now it may only have been the
-		// browser's, and saving it is what makes it follow the user.
+	async function setLanguage(next: Locale | null) {
+		// Always sent, even for the choice shown as pressed: another device may have changed it
+		// since this page read it (the PATCH is idempotent). `null` is automatic.
 		if (languageSaving) return;
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		languageSaving = true;
 		languageError = null;
 		try {
 			const saved = await api.updateLanguageSettings(next);
-			if (saved.language) applyLocale(saved.language);
+			applyLanguagePreference(saved.language);
 			languageSavedAt = new Date();
 		} catch (err) {
 			languageError = () => errorText(err);
@@ -363,7 +364,8 @@
 				<div class="form-field">
 					<span class="label" id="language-mode-label">{m.account_language_label()}</span>
 					<LanguageSwitch
-						current={locale.current}
+						preference={languagePreference.current}
+						detected={detectLocale()}
 						onchoose={setLanguage}
 						disabled={languageSaving}
 						labelledby="language-mode-label"

@@ -29,8 +29,10 @@ class UpdateKeyboardRequest(BaseModel):
 
 
 class UpdateLanguageRequest(BaseModel):
-    # v46: the languages the frontend ships message files for (frontend/messages/).
-    language: Literal["hu", "en"]
+    # v46: the languages the frontend ships message files for (frontend/messages/), or `null`
+    # for automatic (the browser's language decides; owner's answer on PR #68). Required (no
+    # default), so an empty body is a 422, not a silent reset.
+    language: Literal["hu", "en"] | None
 
 
 class UpdateClockRequest(BaseModel):
