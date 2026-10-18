@@ -61,12 +61,8 @@ export function isTypingTarget(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false;
 	if (target.isContentEditable) return true;
 	if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
-	if (target instanceof HTMLInputElement) {
-		// A checkbox or radio takes Space, not text; every other input type is typed into.
-		return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color'].includes(
-			target.type
-		);
-	}
+	// Every input, as the plan says: a radio or range takes the arrows, the rest take text.
+	if (target instanceof HTMLInputElement) return true;
 	return false;
 }
 

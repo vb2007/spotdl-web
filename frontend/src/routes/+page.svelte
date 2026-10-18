@@ -118,8 +118,9 @@
 			...listHandlers({
 				mainList: () => ($filters.scope === 'jobs' ? 'jobs' : 'tracks'),
 				loadMore: () => {
-					if ($page.loading || $page.loadingMore || !$page.nextCursor) return false;
-					loadMoreRows();
+					if (!$page.nextCursor) return false;
+					// Already loading: handled (End mustn't scroll the page meanwhile).
+					if (!$page.loading && !$page.loadingMore) loadMoreRows();
 					return true;
 				}
 			}),
