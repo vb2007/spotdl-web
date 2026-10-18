@@ -144,8 +144,12 @@
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		languageSaving = true;
 		languageError = null;
+		// A sign-out (or another identity) while the save is in flight resets the store; the
+		// late answer must not then set the signed-out page's language (v42's late-write guard).
+		const resets = queue.getResetCount();
 		try {
 			const saved = await api.updateLanguageSettings(next);
+			if (queue.getResetCount() !== resets) return;
 			applyLanguagePreference(saved.language);
 			languageSavedAt = new Date();
 		} catch (err) {
@@ -178,8 +182,10 @@
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		clockSaving = true;
 		clockError = null;
+		const resets = queue.getResetCount();
 		try {
 			const saved = await api.updateClockSettings(next);
+			if (queue.getResetCount() !== resets) return;
 			applyClock(saved.clock);
 			clockSavedAt = new Date();
 		} catch (err) {
