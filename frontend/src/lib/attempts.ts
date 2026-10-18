@@ -1,4 +1,6 @@
 import type { TrackAttempt } from '$lib/api';
+import { formatNumber } from '$lib/i18n/format';
+import * as m from '$lib/paraglide/messages';
 
 /** One timeline entry: a single attempt, or a run of consecutive attempts that read the
  * same (outcome, error class, error text, note), newest first. */
@@ -33,58 +35,108 @@ export function groupAttempts(oldestFirst: TrackAttempt[]): AttemptGroup[] {
 	return groups;
 }
 
-/** v35 (b): the path the attempt actually took, from the API's network_path. A row
- * without one either never reached the network or predates v29 recording it; only a
- * completed/failed pre-v29 row falls back to the old proxy-or-direct label. */
-export function attemptVia(attempt: TrackAttempt): string {
-	if (attempt.network_path === 'direct-ipv4') return 'direct · IPv4';
-	if (attempt.network_path === 'direct-ipv6') return 'direct · IPv6';
-	if (attempt.network_path === 'proxy') return `via proxy ${attempt.proxy_label ?? ''}`.trim();
-	if (attempt.proxy_id) return 'via proxy';
+/** v35 (b): the path an attempt actually took, from the API's network_path. A row without
+ * one either never reached the network or predates v29 recording it; only a completed/failed
+ * pre-v29 row falls back to the old proxy-or-direct reading. v46: a kind, so callers group
+ * and compare paths without matching (translated) words. */
+export type AttemptPath = 'direct-ipv4' | 'direct-ipv6' | 'proxy' | 'direct' | 'none';
+
+export function attemptPath(attempt: TrackAttempt): AttemptPath {
+	if (attempt.network_path === 'direct-ipv4' || attempt.network_path === 'direct-ipv6')
+		return attempt.network_path;
+	if (attempt.network_path === 'proxy' || attempt.proxy_id) return 'proxy';
 	if (attempt.outcome === 'completed' || attempt.outcome === 'failed') return 'direct';
-	return 'no network';
+	return 'none';
+}
+
+/** A path in words; a proxied one names its proxy when the API gave a label (`proxyLabel`
+ * is shown as-is, never translated). */
+export function pathLabel(path: AttemptPath, proxyLabel: string | null = null): string {
+	switch (path) {
+		case 'direct-ipv4':
+			return m.attempt_via_direct_ipv4();
+		case 'direct-ipv6':
+			return m.attempt_via_direct_ipv6();
+		case 'proxy':
+			return proxyLabel ? m.attempt_via_proxy_named({ proxy: proxyLabel }) : m.attempt_via_proxy();
+		case 'direct':
+			return m.attempt_via_direct();
+		case 'none':
+			return m.attempt_via_none();
+	}
+}
+
+export function attemptVia(attempt: TrackAttempt): string {
+	// Only a row that recorded the proxy path carries its label (a pre-v29 proxied row doesn't).
+	const label = attempt.network_path === 'proxy' ? attempt.proxy_label : null;
+	return pathLabel(attemptPath(attempt), label);
 }
 
 /** A collapsed run's paths, by family rather than by proxy address, so five proxied
  * attempts through five pool proxies read "via proxy ×5", not five addresses. */
 export function summarizeVia(attempts: TrackAttempt[]): string {
-	const counts = new Map<string, number>();
+	const counts = new Map<AttemptPath, number>();
 	for (const attempt of attempts) {
-		const via = attemptVia(attempt).startsWith('via proxy') ? 'via proxy' : attemptVia(attempt);
-		counts.set(via, (counts.get(via) ?? 0) + 1);
+		const path = attemptPath(attempt);
+		counts.set(path, (counts.get(path) ?? 0) + 1);
 	}
-	return [...counts].map(([via, n]) => (n > 1 ? `${via} ×${n}` : via)).join(', ');
+	return [...counts]
+		.map(([path, n]) =>
+			n > 1
+				? m.attempt_via_repeated({ via: pathLabel(path), times: formatNumber(n) })
+				: pathLabel(path)
+		)
+		.join(', ');
 }
 
 /** "just now", "12m ago", "3h 05m ago", "2d 4h ago". */
 export function relativeTime(iso: string, now: number): string {
 	const seconds = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
-	if (seconds < 60) return 'just now';
+	if (seconds < 60) return m.time_just_now();
 	const minutes = Math.floor(seconds / 60);
-	if (minutes < 60) return `${minutes}m ago`;
+	if (minutes < 60) return m.time_minutes_ago({ minutes: formatNumber(minutes) });
 	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return `${hours}h ${String(minutes % 60).padStart(2, '0')}m ago`;
-	return `${Math.floor(hours / 24)}d ${hours % 24}h ago`;
+	if (hours < 24)
+		return m.time_hours_minutes_ago({
+			hours: formatNumber(hours),
+			minutes: formatNumber(minutes % 60),
+			minutesPadded: String(minutes % 60).padStart(2, '0')
+		});
+	return m.time_days_hours_ago({
+		days: formatNumber(Math.floor(hours / 24)),
+		hours: formatNumber(hours % 24)
+	});
 }
 
 /** "0.4s", "24s", "3m 05s". */
 export function formatDuration(seconds: number): string {
 	// Rounded before the unit is picked, so 9.96s never reads "10.0s" nor 59.6s "60s".
-	if (Number(seconds.toFixed(1)) < 10) return `${seconds.toFixed(1)}s`;
+	const tenths = Number(seconds.toFixed(1));
+	if (tenths < 10)
+		return m.time_seconds({
+			seconds: formatNumber(tenths, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+		});
 	const whole = Math.round(seconds);
-	if (whole < 60) return `${whole}s`;
-	return `${Math.floor(whole / 60)}m ${String(whole % 60).padStart(2, '0')}s`;
+	if (whole < 60) return m.time_seconds({ seconds: formatNumber(whole) });
+	return m.time_minutes_seconds({
+		minutes: formatNumber(Math.floor(whole / 60)),
+		seconds: String(whole % 60).padStart(2, '0')
+	});
 }
 
 /** v41 (F23): a countdown past 24h gets a days unit -- "1d 23:12:03", never "47:12:03". */
 export function formatCountdown(ms: number): string {
-	if (ms <= 0) return 'due now';
+	if (ms <= 0) return m.time_due_now();
 	const totalSeconds = Math.floor(ms / 1000);
 	const d = Math.floor(totalSeconds / 86400);
 	const h = Math.floor((totalSeconds % 86400) / 3600);
-	const m = Math.floor((totalSeconds % 3600) / 60);
+	const min = Math.floor((totalSeconds % 3600) / 60);
 	const s = totalSeconds % 60;
 	const pad = (n: number) => String(n).padStart(2, '0');
-	if (d > 0) return `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`;
-	return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+	if (d > 0)
+		return m.time_countdown_days({
+			days: formatNumber(d),
+			clock: `${pad(h)}:${pad(min)}:${pad(s)}`
+		});
+	return h > 0 ? `${h}:${pad(min)}:${pad(s)}` : `${min}:${pad(s)}`;
 }
