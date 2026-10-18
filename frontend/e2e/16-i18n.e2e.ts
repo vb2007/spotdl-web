@@ -29,22 +29,30 @@ async function signIn(
 	landsIn: Lang = lang
 ): Promise<void> {
 	if (new URL(page.url()).pathname !== '/login') await page.goto('/login');
-	await page.getByLabel(t(m.login_email, {}, lang)).fill(identity.email);
-	await page.getByLabel(t(m.login_password, {}, lang)).fill(identity.password);
+	await page.getByLabel(t(m.login_email, {}, lang), { exact: true }).fill(identity.email);
+	await page.getByLabel(t(m.login_password, {}, lang), { exact: true }).fill(identity.password);
 	await page.getByRole('button', { name: t(m.login_connect, {}, lang), exact: true }).click();
-	await expect(page.getByLabel(t(m.dashboard_submit_input_label, {}, landsIn))).toBeVisible();
+	await expect(
+		page.getByLabel(t(m.dashboard_submit_input_label, {}, landsIn), { exact: true })
+	).toBeVisible();
 }
 
 /** Signs out from a dashboard in `lang`; /login then speaks `landsIn` (signed out, the
  * browser or a /login choice decides, never the profile). */
 async function signOut(page: Page, lang: Lang, landsIn: Lang): Promise<void> {
-	await page.getByRole('button', { name: t(m.dashboard_disconnect, {}, lang) }).click();
-	await expect(page.getByRole('heading', { name: t(m.login_heading, {}, landsIn) })).toBeVisible();
+	await page
+		.getByRole('button', { name: t(m.dashboard_disconnect, {}, lang), exact: true })
+		.click();
+	await expect(
+		page.getByRole('heading', { name: t(m.login_heading, {}, landsIn), exact: true })
+	).toBeVisible();
 }
 
 /** The dashboard reads in `lang`: the document says so and its queue heading is in it. */
 async function expectDashboardIn(page: Page, lang: Lang): Promise<void> {
-	await expect(page.getByRole('heading', { name: t(m.queuectl_heading, {}, lang) })).toBeVisible();
+	await expect(
+		page.getByRole('heading', { name: t(m.queuectl_heading, {}, lang), exact: true })
+	).toBeVisible();
 	expect(await htmlLang(page)).toBe(lang);
 }
 
@@ -64,7 +72,9 @@ test('auto-detect: hu-HU gets Hungarian, en-US English, de-DE falls back to Engl
 		const context = await freshContext(browser, locale);
 		const page = await context.newPage();
 		await page.goto('/login');
-		await expect(page.getByRole('heading', { name: t(m.login_heading, {}, lang) })).toBeVisible();
+		await expect(
+			page.getByRole('heading', { name: t(m.login_heading, {}, lang), exact: true })
+		).toBeVisible();
 		expect(await htmlLang(page), `/login in a ${locale} browser`).toBe(lang);
 		await expect(page).toHaveTitle(t(m.login_title, {}, lang));
 
@@ -90,7 +100,9 @@ test('preference wins: Hungarian chosen on /account follows the user, and only t
 		() => ((window as Window & { __sameDocument?: boolean }).__sameDocument = true)
 	);
 	await page.getByRole('button', { name: 'Magyar', exact: true }).click();
-	await expect(page.getByRole('heading', { name: t(m.account_heading, {}, 'hu') })).toBeVisible();
+	await expect(
+		page.getByRole('heading', { name: t(m.account_heading, {}, 'hu'), exact: true })
+	).toBeVisible();
 	expect(await htmlLang(page), '<html lang> follows the switch').toBe('hu');
 	await expect(page.getByRole('button', { name: 'Magyar', exact: true })).toHaveAttribute(
 		'aria-pressed',
@@ -106,7 +118,9 @@ test('preference wins: Hungarian chosen on /account follows the user, and only t
 
 	// Reload.
 	await page.reload();
-	await expect(page.getByRole('heading', { name: t(m.account_heading, {}, 'hu') })).toBeVisible();
+	await expect(
+		page.getByRole('heading', { name: t(m.account_heading, {}, 'hu'), exact: true })
+	).toBeVisible();
 	expect(await htmlLang(page)).toBe('hu');
 
 	// Logout: signed out, the page follows this (English) browser again; signing back in
@@ -135,7 +149,9 @@ test('preference wins: Hungarian chosen on /account follows the user, and only t
 	// And back: English chosen in Hungarian.
 	await page.goto('/account');
 	await page.getByRole('button', { name: 'English', exact: true }).click();
-	await expect(page.getByRole('heading', { name: t(m.account_heading, {}, 'en') })).toBeVisible();
+	await expect(
+		page.getByRole('heading', { name: t(m.account_heading, {}, 'en'), exact: true })
+	).toBeVisible();
 	expect(await htmlLang(page)).toBe('en');
 	expect(languageOf(userIdentity().email)).toBe('en');
 	await context.close();
@@ -153,7 +169,9 @@ test('the /login choice is honored, and adopted only by a profile without one', 
 		() => ((window as Window & { __sameDocument?: boolean }).__sameDocument = true)
 	);
 	await page.getByRole('button', { name: 'Magyar', exact: true }).click();
-	await expect(page.getByRole('heading', { name: t(m.login_heading, {}, 'hu') })).toBeVisible();
+	await expect(
+		page.getByRole('heading', { name: t(m.login_heading, {}, 'hu'), exact: true })
+	).toBeVisible();
 	expect(await htmlLang(page), '<html lang> follows the /login switch').toBe('hu');
 	expect(
 		await page.evaluate(() => (window as Window & { __sameDocument?: boolean }).__sameDocument)
@@ -171,7 +189,7 @@ test('the /login choice is honored, and adopted only by a profile without one', 
 	const sharedPage = await shared.newPage();
 	await sharedPage.goto('/login');
 	await expect(
-		sharedPage.getByRole('heading', { name: t(m.login_heading, {}, 'hu') })
+		sharedPage.getByRole('heading', { name: t(m.login_heading, {}, 'hu'), exact: true })
 	).toBeVisible();
 	await signIn(sharedPage, userIdentity(), 'hu');
 	await expectDashboardIn(sharedPage, 'hu');

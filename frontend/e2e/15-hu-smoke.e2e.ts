@@ -15,14 +15,18 @@ test('Hungarian: sign in, the dashboard, a track’s detail, and the /account sw
 	const seed = readSeed().user;
 
 	await page.goto('/login');
-	await expect(page.getByRole('heading', { name: t(m.login_heading) })).toBeVisible();
+	await expect(page.getByRole('heading', { name: t(m.login_heading), exact: true })).toBeVisible();
 	expect(await page.evaluate(() => document.documentElement.lang)).toBe('hu');
 	await loginViaUi(page, userIdentity());
 
 	// The dashboard, in Hungarian.
 	await expect(page).toHaveTitle(t(m.dashboard_title));
-	await expect(page.getByRole('heading', { name: t(m.queuectl_heading) })).toBeVisible();
-	await expect(page.getByRole('heading', { name: t(m.waterfall_heading) })).toBeVisible();
+	await expect(
+		page.getByRole('heading', { name: t(m.queuectl_heading), exact: true })
+	).toBeVisible();
+	await expect(
+		page.getByRole('heading', { name: t(m.waterfall_heading), exact: true })
+	).toBeVisible();
 
 	// A job opens to its tracks, and a track to its detail. The track's own metadata stays as
 	// Spotify has it; only the interface around it is translated.

@@ -136,10 +136,9 @@ test.describe('as the admin', () => {
 		await openDashboard(page);
 		// Archived jobs shown, so the list has many rows (setup leaves one unarchived).
 		await page.keyboard.press('Shift+A');
-		await expect(page.getByRole('button', { name: t(m.queuectl_show_archived) })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		await expect(
+			page.getByRole('button', { name: t(m.queuectl_show_archived), exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
 		await expect.poll(async () => (await rowIds(page, 'jobs')).length).toBeGreaterThan(10);
 		await expect(page.locator(`[data-kb-row="${admin.jobId}"]`)).toHaveCount(1);
 		expect(await tabStopsIn(page, 'jobs')).toBe(1);
@@ -189,18 +188,20 @@ test.describe('as the admin', () => {
 
 		// The skip link is the first stop and lands in the queue's landmark.
 		await page.keyboard.press('Tab');
-		await expect(page.getByRole('link', { name: t(m.layout_skip_to_queue) })).toBeFocused();
+		await expect(
+			page.getByRole('link', { name: t(m.layout_skip_to_queue), exact: true })
+		).toBeFocused();
 		await page.keyboard.press('Enter');
 		await expect(page.locator('#main')).toBeFocused();
 		await page.keyboard.press('Tab');
-		await expect(page.getByLabel(t(m.dashboard_submit_input_label))).toBeFocused();
+		await expect(page.getByLabel(t(m.dashboard_submit_input_label), { exact: true })).toBeFocused();
 		await leaveField(page);
 
 		await page.keyboard.press('/');
 		await expect(page.locator('#queue-search')).toBeFocused();
 		await page.keyboard.type(admin.title);
 		await expect(
-			page.getByRole('list', { name: t(m.dashboard_list_jobs) }).getByRole('listitem')
+			page.getByRole('list', { name: t(m.dashboard_list_jobs), exact: true }).getByRole('listitem')
 		).toHaveCount(1);
 		await tabTo(page, jobToggle(page, admin.title));
 
@@ -215,7 +216,7 @@ test.describe('as the admin', () => {
 		// them (recorded with the run).
 		await page.keyboard.press('o');
 		const snapshot = await page
-			.getByRole('list', { name: t(m.dashboard_list_jobs) })
+			.getByRole('list', { name: t(m.dashboard_list_jobs), exact: true })
 			.ariaSnapshot();
 		await test.info().attach('jobs-aria-snapshot.yml', { body: snapshot });
 		const done = t(m.status_settled_complete);
@@ -397,10 +398,9 @@ test.describe('as the admin', () => {
 			await expect.poll(() => focusedRow(page), { message: 'focus after archive' }).toBe(neighbour);
 
 			await page.keyboard.press('Shift+A');
-			await expect(page.getByRole('button', { name: t(m.queuectl_show_archived) })).toHaveAttribute(
-				'aria-pressed',
-				'true'
-			);
+			await expect(
+				page.getByRole('button', { name: t(m.queuectl_show_archived), exact: true })
+			).toHaveAttribute('aria-pressed', 'true');
 			await expect(page.locator(`[data-kb-row="${extra.id}"]`)).toHaveCount(1);
 			await focusRowByKeys(page, 'jobs', extra.id);
 			await expect(page.locator(`[data-kb-row="${extra.id}"]`)).toContainText(t(m.job_archived));
@@ -460,7 +460,9 @@ test.describe('as the admin', () => {
 			// Submit: `i`, the link, Enter; twice.
 			for (const id of [HELD_TRACKS.retry, HELD_TRACKS.cancel]) {
 				await page.keyboard.press('i');
-				await expect(page.getByLabel(t(m.dashboard_submit_input_label))).toBeFocused();
+				await expect(
+					page.getByLabel(t(m.dashboard_submit_input_label), { exact: true })
+				).toBeFocused();
 				const response = page.waitForResponse(sent('POST', '/api/jobs'));
 				await page.keyboard.type(spotifyTrackUrl(id));
 				await page.keyboard.press('Enter');
@@ -483,7 +485,9 @@ test.describe('as the admin', () => {
 			// Shortcuts are inert in the priority input: j, x and ? change only the field.
 			await focusRowByKeys(page, 'jobs', retryJob.id);
 			await openJob(page, retryJob.id);
-			const priority = page.getByLabel(t(m.job_priority_of, { title: retryJob.title }));
+			const priority = page.getByLabel(t(m.job_priority_of, { title: retryJob.title }), {
+				exact: true
+			});
 			await page.keyboard.press('Tab');
 			await expect(priority).toBeFocused();
 			const typedFrom = await priority.inputValue();
@@ -548,9 +552,11 @@ test.describe('as the admin', () => {
 			// Cancel the track: x asks, focus starts on the safe button; Esc keeps it and focus
 			// comes back to the row.
 			await page.keyboard.press('x');
-			const dialog = page.getByRole('alertdialog', { name: t(m.track_cancel_title) });
+			const dialog = page.getByRole('alertdialog', { name: t(m.track_cancel_title), exact: true });
 			await expect(dialog).toBeVisible();
-			await expect(dialog.getByRole('button', { name: t(m.track_cancel_keep) })).toBeFocused();
+			await expect(
+				dialog.getByRole('button', { name: t(m.track_cancel_keep), exact: true })
+			).toBeFocused();
 			await page.keyboard.press('Escape');
 			await expect(dialog).toBeHidden();
 			await expect.poll(() => focusedRow(page)).toBe(retryTrack.id);
@@ -558,7 +564,9 @@ test.describe('as the admin', () => {
 			await page.keyboard.press('x');
 			await expect(dialog).toBeVisible();
 			await page.keyboard.press('Tab');
-			await expect(dialog.getByRole('button', { name: t(m.track_cancel_confirm) })).toBeFocused();
+			await expect(
+				dialog.getByRole('button', { name: t(m.track_cancel_confirm), exact: true })
+			).toBeFocused();
 			const cancelled = page.waitForResponse(sent('DELETE', `/api/tracks/${retryTrack.id}`));
 			await page.keyboard.press('Enter');
 			expect((await cancelled).ok()).toBe(true);
@@ -571,11 +579,15 @@ test.describe('as the admin', () => {
 			// row in the list (patched in place, as before v45), so focus stays on that row.
 			await focusRowByKeys(page, 'jobs', cancelJob.id);
 			await page.keyboard.press('x');
-			const jobDialog = page.getByRole('alertdialog', { name: t(m.job_cancel_title) });
+			const jobDialog = page.getByRole('alertdialog', { name: t(m.job_cancel_title), exact: true });
 			await expect(jobDialog).toBeVisible();
-			await expect(jobDialog.getByRole('button', { name: t(m.job_cancel_keep) })).toBeFocused();
+			await expect(
+				jobDialog.getByRole('button', { name: t(m.job_cancel_keep), exact: true })
+			).toBeFocused();
 			await page.keyboard.press('Tab');
-			await expect(jobDialog.getByRole('button', { name: t(m.job_cancel_confirm) })).toBeFocused();
+			await expect(
+				jobDialog.getByRole('button', { name: t(m.job_cancel_confirm), exact: true })
+			).toBeFocused();
 			const jobCancelled = page.waitForResponse(sent('DELETE', `/api/jobs/${cancelJob.id}`));
 			await page.keyboard.press('Enter');
 			expect((await jobCancelled).ok()).toBe(true);
@@ -607,32 +619,31 @@ test.describe('as the admin', () => {
 	test('switch scope, toggle filters and sort', async ({ page }) => {
 		desktopOnly();
 		await openDashboard(page);
-		const scope = page.getByRole('group', { name: t(m.queuectl_scope_label) });
+		const scope = page.getByRole('group', { name: t(m.queuectl_scope_label), exact: true });
 
 		await page.keyboard.press('2');
-		await expect(scope.getByRole('button', { name: t(m.queuectl_scope_tracks) })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
 		await expect(
-			page.getByRole('list', { name: t(m.dashboard_list_tracks) }).first()
+			scope.getByRole('button', { name: t(m.queuectl_scope_tracks), exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
+		await expect(
+			page.getByRole('list', { name: t(m.dashboard_list_tracks), exact: true }).first()
 		).toBeVisible();
 		await page.keyboard.press('j');
 		await expectFocusInList(page, 'tracks');
 		await page.keyboard.press('1');
-		await expect(scope.getByRole('button', { name: t(m.queuectl_scope_jobs) })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
-		await expect(page.getByRole('group', { name: t(m.queuectl_filter_jobs_label) })).toBeVisible();
+		await expect(
+			scope.getByRole('button', { name: t(m.queuectl_scope_jobs), exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
+		await expect(
+			page.getByRole('group', { name: t(m.queuectl_filter_jobs_label), exact: true })
+		).toBeVisible();
 
 		// Filters: Shift+F into the chips, arrows roam, Space toggles. With archived jobs shown
 		// (Shift+A) there are several statuses to roam.
 		await page.keyboard.press('Shift+A');
-		await expect(page.getByRole('button', { name: t(m.queuectl_show_archived) })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		await expect(
+			page.getByRole('button', { name: t(m.queuectl_show_archived), exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
 		await expect
 			.poll(() => page.locator('[data-kb-list="chips"] [data-kb-row]').count())
 			.toBeGreaterThan(1);
@@ -665,15 +676,13 @@ test.describe('as the admin', () => {
 		await noOpenDialog(page);
 		await expect(sort).toBeFocused();
 		await page.keyboard.press('2');
-		await expect(scope.getByRole('button', { name: t(m.queuectl_scope_tracks) })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		await expect(
+			scope.getByRole('button', { name: t(m.queuectl_scope_tracks), exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
 		await page.keyboard.press('1');
-		await expect(scope.getByRole('button', { name: t(m.queuectl_scope_jobs) })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		await expect(
+			scope.getByRole('button', { name: t(m.queuectl_scope_jobs), exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
 		await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
 		await expect(sort).toBeFocused();
 		await expect(sort).toHaveValue('created_at');
@@ -699,14 +708,15 @@ test.describe('as the admin', () => {
 		desktopOnly();
 		await openDashboard(page);
 		await page.keyboard.press('Shift+A');
-		await expect(page.getByRole('button', { name: t(m.queuectl_show_archived) })).toHaveAttribute(
-			'aria-pressed',
-			'true'
-		);
+		await expect(
+			page.getByRole('button', { name: t(m.queuectl_show_archived), exact: true })
+		).toHaveAttribute('aria-pressed', 'true');
 		await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
 		// Load more: with archived jobs shown the admin has several pages. End goes to the last
 		// loaded row; End there (and Shift+G) loads the next page and focuses its first row.
-		await expect(page.getByRole('button', { name: t(m.dashboard_more_jobs) })).toBeVisible();
+		await expect(
+			page.getByRole('button', { name: t(m.dashboard_more_jobs), exact: true })
+		).toBeVisible();
 		await page.keyboard.press('j');
 		await expectFocusInList(page, 'jobs');
 		await page.keyboard.press('End');
@@ -769,9 +779,9 @@ test.describe('as the admin', () => {
 		await expect(page.locator('h1')).toHaveText(t(m.account_heading));
 		await expect(page.locator('h1')).toBeFocused();
 		await page.keyboard.press('h');
-		const help = page.getByRole('dialog', { name: t(m.help_title) });
+		const help = page.getByRole('dialog', { name: t(m.help_title), exact: true });
 		await expect(help).toBeVisible();
-		await expect(help.getByRole('button', { name: t(m.help_close) })).toBeFocused();
+		await expect(help.getByRole('button', { name: t(m.help_close), exact: true })).toBeFocused();
 		await page.keyboard.press('Escape');
 		await expect(help).toBeHidden();
 		await expect(page.locator('h1')).toBeFocused();
@@ -786,9 +796,9 @@ test.describe('as the admin', () => {
 		).json()) as RetentionSettings;
 		try {
 			await page.goto('/settings');
-			const section = page.getByRole('region', { name: t(m.settings_output_heading) });
+			const section = page.getByRole('region', { name: t(m.settings_output_heading), exact: true });
 			// Inert in a settings text field.
-			const template = section.getByLabel(t(m.settings_output_template));
+			const template = section.getByLabel(t(m.settings_output_template), { exact: true });
 			await tabTo(page, template, { max: 200 });
 			await page.keyboard.press('End');
 			await page.keyboard.type('jx?');
@@ -797,6 +807,7 @@ test.describe('as the admin', () => {
 			for (let i = 0; i < 3; i++) await page.keyboard.press('Backspace');
 			await expect(template).toHaveValue(output.output_template);
 
+			// Not exact: a select inside its label is named with its selected option too.
 			const bitrate = section.getByLabel(t(m.settings_output_bitrate));
 			await tabTo(page, bitrate, { back: true });
 			stageSettings({ default_bitrate: { original: output.default_bitrate, set: '?' } });
@@ -823,7 +834,7 @@ test.describe('as the admin', () => {
 			await tabTo(page, auto);
 			await page.keyboard.press('Enter');
 			await expect(auto).toHaveAttribute('aria-pressed', 'true');
-			const days = page.getByLabel(t(m.account_retention_after));
+			const days = page.getByLabel(t(m.account_retention_after), { exact: true });
 			await tabTo(page, days);
 			await page.keyboard.press('Control+a');
 			await page.keyboard.type('jx?');
@@ -862,10 +873,17 @@ test.describe('as the admin', () => {
 			await expect(start).toBeEnabled();
 			await tabTo(page, start);
 			await page.keyboard.press('Enter');
-			const dialog = page.getByRole('alertdialog', { name: t(m.library_confirm_title) });
-			await expect(dialog.getByRole('button', { name: t(m.library_confirm_cancel) })).toBeFocused();
+			const dialog = page.getByRole('alertdialog', {
+				name: t(m.library_confirm_title),
+				exact: true
+			});
+			await expect(
+				dialog.getByRole('button', { name: t(m.library_confirm_cancel), exact: true })
+			).toBeFocused();
 			await page.keyboard.press('Tab');
-			await expect(dialog.getByRole('button', { name: t(m.library_start) })).toBeFocused();
+			await expect(
+				dialog.getByRole('button', { name: t(m.library_start), exact: true })
+			).toBeFocused();
 			markSweepRequested();
 			const posted = page.waitForResponse(sent('POST', '/api/library/sort'));
 			await page.keyboard.press('Enter');
@@ -885,7 +903,7 @@ test.describe('as the admin', () => {
 		const rowsBefore = await rowIds(page, 'jobs');
 		for (const [key, field] of [
 			['f', page.locator('#queue-search')],
-			['i', page.getByLabel(t(m.dashboard_submit_input_label))]
+			['i', page.getByLabel(t(m.dashboard_submit_input_label), { exact: true })]
 		] as const) {
 			await page.keyboard.press(key);
 			await expect(field).toBeFocused();
@@ -929,7 +947,7 @@ test.describe('as the admin', () => {
 	}) => {
 		desktopOnly();
 		await openDashboard(page);
-		const help = page.getByRole('dialog', { name: t(m.help_title) });
+		const help = page.getByRole('dialog', { name: t(m.help_title), exact: true });
 
 		// `?` is Shift + the comma key: opens and closes the help.
 		await huPress(page, HU.question);
@@ -974,7 +992,7 @@ test.describe('as the admin', () => {
 
 test.describe('the help overlay', () => {
 	async function overlayEntries(page: Page) {
-		const help = page.getByRole('dialog', { name: t(m.help_title) });
+		const help = page.getByRole('dialog', { name: t(m.help_title), exact: true });
 		await expect(help).toBeVisible();
 		return help.locator('[data-binding]').evaluateAll((entries) =>
 			entries.map((e) => ({
@@ -1032,7 +1050,7 @@ test.describe('the help overlay', () => {
 					}
 					if (path === '/' && isAdmin) {
 						await page
-							.getByRole('dialog', { name: t(m.help_title) })
+							.getByRole('dialog', { name: t(m.help_title), exact: true })
 							.screenshot({ path: test.info().outputPath('help-overlay-admin.png') });
 					}
 					await page.keyboard.press('Escape');
@@ -1050,7 +1068,7 @@ test.describe('the help overlay', () => {
 		const page = await context.newPage();
 		try {
 			await page.goto('/login');
-			await expect(page.getByLabel(t(m.login_email))).toBeVisible();
+			await expect(page.getByLabel(t(m.login_email), { exact: true })).toBeVisible();
 			await page.keyboard.press('h');
 			expect(byId(await overlayEntries(page))).toEqual(byId(expected('/login', false, false)));
 			await page.keyboard.press('Escape');
@@ -1069,24 +1087,28 @@ test.describe('signing in and out', () => {
 		const page = await context.newPage();
 		try {
 			await page.goto('/login');
-			await expect(page.getByLabel(t(m.login_email))).toBeVisible();
+			await expect(page.getByLabel(t(m.login_email), { exact: true })).toBeVisible();
 			await page.keyboard.press('Tab');
-			await expect(page.getByRole('link', { name: t(m.layout_skip_to_content) })).toBeFocused();
+			await expect(
+				page.getByRole('link', { name: t(m.layout_skip_to_content), exact: true })
+			).toBeFocused();
 			await page.keyboard.press('Enter');
 			await expect(page.locator('#main')).toBeFocused();
-			const email = page.getByLabel(t(m.login_email));
+			const email = page.getByLabel(t(m.login_email), { exact: true });
 			await tabTo(page, email);
 			// Typing in the field is never a shortcut (`h` is in plenty of addresses).
 			await page.keyboard.type(identity.email);
 			await noOpenDialog(page);
 			await page.keyboard.press('Tab');
-			await expect(page.getByLabel(t(m.login_password))).toBeFocused();
+			await expect(page.getByLabel(t(m.login_password), { exact: true })).toBeFocused();
 			await page.keyboard.type(identity.password);
 			await page.keyboard.press('Enter');
-			await expect(page.getByLabel(t(m.dashboard_submit_input_label))).toBeVisible();
+			await expect(
+				page.getByLabel(t(m.dashboard_submit_input_label), { exact: true })
+			).toBeVisible();
 			await expect(page.locator('h1')).toBeFocused();
 
-			const disconnect = page.getByRole('button', { name: t(m.dashboard_disconnect) });
+			const disconnect = page.getByRole('button', { name: t(m.dashboard_disconnect), exact: true });
 			await tabTo(page, disconnect);
 			await page.keyboard.press('Enter');
 			await expect(
@@ -1143,7 +1165,7 @@ test.describe('the shortcut switch', () => {
 
 			// Tab, the arrows, Enter and Esc still work: show archived (a button), into the list,
 			// down a row, open it, close it.
-			const archived = page.getByRole('button', { name: t(m.queuectl_show_archived) });
+			const archived = page.getByRole('button', { name: t(m.queuectl_show_archived), exact: true });
 			await tabTo(page, archived);
 			await page.keyboard.press('Enter');
 			await expect(archived).toHaveAttribute('aria-pressed', 'true');
@@ -1169,7 +1191,9 @@ test.describe('the shortcut switch', () => {
 
 			// Persists across a reload…
 			await page.reload();
-			await expect(page.getByLabel(t(m.dashboard_submit_input_label))).toBeVisible();
+			await expect(
+				page.getByLabel(t(m.dashboard_submit_input_label), { exact: true })
+			).toBeVisible();
 			await expectSingleKeysInert();
 
 			// …and to a second browser signed in as the same user.
@@ -1193,14 +1217,18 @@ test.describe('the shortcut switch', () => {
 				await other.keyboard.press('Enter');
 				await expect(on).toHaveAttribute('aria-pressed', 'true');
 				await other.keyboard.press('h');
-				await expect(other.getByRole('dialog', { name: t(m.help_title) })).toBeVisible();
+				await expect(
+					other.getByRole('dialog', { name: t(m.help_title), exact: true })
+				).toBeVisible();
 			} finally {
 				await second2.close();
 			}
 			await page.reload();
-			await expect(page.getByLabel(t(m.dashboard_submit_input_label))).toBeVisible();
+			await expect(
+				page.getByLabel(t(m.dashboard_submit_input_label), { exact: true })
+			).toBeVisible();
 			await page.keyboard.press('h');
-			await expect(page.getByRole('dialog', { name: t(m.help_title) })).toBeVisible();
+			await expect(page.getByRole('dialog', { name: t(m.help_title), exact: true })).toBeVisible();
 		} finally {
 			await userApi.patch('/api/settings/keyboard', { data: { keyboard_shortcuts: true } });
 			await userApi.dispose();
