@@ -86,6 +86,18 @@ describe('formatting: the interface language with the browser’s region', () =>
 		expect(formatClock(at)).toBe('01:05 PM');
 	});
 
+	it('keeps the region’s numbers and clock where the pair has no data (hu-US)', () => {
+		browser('en-US');
+		speak('hu');
+		expect(formatLocale()).toBe('hu-US');
+		expect(formatNumber(12345.5)).toBe('12,345.5');
+		expect(formatClock(at)).toMatch(/^du\. 01:05$/);
+		expect(m.dashboard_count_tracks(counted(12345))).toBe('12,345 szám');
+		// A pinned clock still wins.
+		applyClock('24h');
+		expect(formatClock(at)).toBe('13:05');
+	});
+
 	it('lets a pinned clock override the region’s, and only the clock', () => {
 		browser('en-US');
 		applyClock('24h');
@@ -105,9 +117,12 @@ describe('formatting: the interface language with the browser’s region', () =>
 	it('shows each /account choice as it would read', () => {
 		browser('en-US');
 		applyClock('24h');
-		expect(clockExample(at, null)).toBe('1:05 PM');
-		expect(clockExample(at, '12h')).toBe('1:05 PM');
+		// The same padded shape as every time the app prints.
+		expect(clockExample(at, null)).toBe('01:05 PM');
+		expect(clockExample(at, '12h')).toBe('01:05 PM');
 		expect(clockExample(at, '24h')).toBe('13:05');
+		browser('hu-HU');
+		expect(clockExample(at, null)).toBe('13:05');
 	});
 });
 
@@ -163,11 +178,13 @@ describe('plurals and numbers', () => {
 		expect(m.incoming_older(counted(5))).toBe('5 korábbi linket nem sikerült beolvasni');
 	});
 
-	it('groups digits the way each language writes them', () => {
+	it('groups digits the way the browser’s region writes them', () => {
+		browser('en-US');
 		expect(m.dashboard_count_tracks(counted(12345))).toBe('12,345 tracks');
 		expect(formatNumber(0.5, { minimumFractionDigits: 1 })).toBe('0.5');
+		browser('hu-HU');
 		speak('hu');
-		// Hungarian groups with a (no-break) space from five digits, and writes a decimal comma.
+		// Hungary groups with a (no-break) space from five digits, and writes a decimal comma.
 		expect(m.dashboard_count_tracks(counted(12345))).toBe('12\u00a0345 szám');
 		expect(formatNumber(0.5, { minimumFractionDigits: 1 })).toBe('0,5');
 	});

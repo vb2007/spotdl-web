@@ -5,7 +5,9 @@ import { browserLanguages, clockPreference } from './locale.svelte';
  * string or `toLocaleString()`. The words (month names, AM/PM) follow the interface language;
  * the conventions (date order, digit grouping, decimal mark, 12/24-hour) follow the browser's
  * region (owner's rule, PR #68): English on a Hungarian browser reads "17 Oct 2026, 13:05"
- * and "12 345". A time format the user pinned on /account overrides the region's clock.
+ * and "12 345". Where Intl has no data for the pair (`hu-US`), numbers and the clock still
+ * follow the region; only the date order stays the language's. A time format the user pinned
+ * on /account overrides the region's clock.
  * Called from a template or `$derived`, each re-renders on a language or clock switch. */
 
 /** The browser's region, from its first language tag (`hu-HU` → HU; a bare `hu` → HU by
@@ -22,8 +24,7 @@ export function browserRegion(
 	}
 }
 
-/** The interface language with the browser's region (`en-HU`). Intl falls back to the bare
- * language where it has no data for the pair. */
+/** The interface language with the browser's region (`en-HU`). */
 export function formatLocale(): string {
 	const language = getLocale();
 	const region = browserRegion();
@@ -35,13 +36,43 @@ export function formatLocale(): string {
 	}
 }
 
+/** Whether Intl has data for the language-region pair. Where it hasn't (`hu-US`), it falls
+ * back to the bare language and the region would silently stop counting. */
+function pairSupported(locale: string): boolean {
+	return new Intl.DateTimeFormat(locale).resolvedOptions().locale === locale;
+}
+
+/** The region's own conventions, for what has no words: `und-US` resolves to the region's
+ * likeliest locale (en-US). */
+function regionLocale(): string | undefined {
+	const region = browserRegion();
+	return region ? `und-${region}` : undefined;
+}
+
 function clockOptions(): Intl.DateTimeFormatOptions {
 	const pinned = clockPreference.current;
-	return pinned === null ? {} : { hourCycle: pinned === '24h' ? 'h23' : 'h12' };
+	if (pinned !== null) return { hourCycle: pinned === '24h' ? 'h23' : 'h12' };
+	return regionClockOptions();
+}
+
+/** Automatic: the region's clock, even where the pair has no data of its own (a Hungarian
+ * interface on a US browser still reads 12-hour). */
+function regionClockOptions(): Intl.DateTimeFormatOptions {
+	const locale = formatLocale();
+	const region = regionLocale();
+	if (pairSupported(locale) || !region) return {};
+	const hourCycle = new Intl.DateTimeFormat(region, { hour: 'numeric' }).resolvedOptions()
+		.hourCycle;
+	return hourCycle ? { hourCycle } : {};
 }
 
 export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
-	return new Intl.NumberFormat(formatLocale(), options).format(value);
+	// Digits carry no words, so where the pair has no data the region's own conventions apply.
+	const locale = formatLocale();
+	const region = regionLocale();
+	return new Intl.NumberFormat(pairSupported(locale) || !region ? locale : region, options).format(
+		value
+	);
 }
 
 /** A plural message's inputs: the raw `count` picks the form, `n` is how it's written. */
@@ -84,9 +115,11 @@ export function formatDateTime(
 /** For the /account choice: what a clock reads as with `clock` pinned, or with the browser
  * region's own (`null`), whatever the user has pinned right now. */
 export function clockExample(value: Date | string | number, clock: '12h' | '24h' | null): string {
+	const pinned = clock === null ? {} : { hourCycle: clock === '24h' ? 'h23' : 'h12' };
+	// The same shape as `formatClock`, so the example reads as the app's times will.
 	return new Intl.DateTimeFormat(formatLocale(), {
-		hour: 'numeric',
+		hour: '2-digit',
 		minute: '2-digit',
-		...(clock === null ? {} : { hourCycle: clock === '24h' ? 'h23' : 'h12' })
-	}).format(toDate(value));
+		...(clock === null ? regionClockOptions() : pinned)
+	} as Intl.DateTimeFormatOptions).format(toDate(value));
 }

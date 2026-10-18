@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TrackAttempt } from '$lib/api';
 import {
 	attemptVia,
@@ -112,6 +112,10 @@ describe('formatting', () => {
 
 // v46: the same readings in Hungarian, through Intl and the message files.
 describe('formatting in Hungarian', () => {
+	// A Hungarian browser (Node's own says en-US): conventions follow the browser's region.
+	beforeEach(() => vi.stubGlobal('navigator', { languages: ['hu-HU'], language: 'hu-HU' }));
+	afterEach(() => vi.unstubAllGlobals());
+
 	afterEach(() => useLocale(baseLocale));
 
 	it('formats countdowns, relative times and durations', () => {

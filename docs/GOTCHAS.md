@@ -5251,6 +5251,9 @@ independently-found production bug from the same conversation)
   ("17 Oct 2026, 13:05", "12 345,5", lowercase "pm" when 12-hour is pinned). Paraglide's own
   `number` registry function formats with the bare language (`en`), so plural messages take a
   pre-formatted `n` beside the raw `count` (`counted()`), never `local n = count: number`.
+  **Intl has no data for most `hu-<region>` pairs** (`hu-US` resolves to plain `hu`), so the region
+  silently stopped counting for a Hungarian interface; `format.ts` checks the pair resolved as
+  asked and otherwise takes numbers and the default clock from `und-<region>`.
 - **The browser decides the language until sign-in** (owner's rule on PR #68): no `/login`
   switch, nothing stored in the browser, nothing adopted at sign-in. The plan's pre-login choice
   and its adoption were built, reviewed, then removed on the owner's answer; a "choice someone

@@ -50,7 +50,6 @@
 	"error_request_invalid": "The server rejected this request.",
 	"layout_skip_to_queue": "Skip to queue",
 	"layout_skip_to_content": "Skip to content",
-	"language_label": "Language",
 	"login_title": "spotdl-web — sign in",
 	"login_ident_receiver": "SIGNAL RECEIVER",
 	"login_heading": "TUNE IN",

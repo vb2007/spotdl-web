@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminStats, BreakerEvent } from '$lib/api';
 import { baseLocale, overwriteGetLocale, type Locale } from '$lib/paraglide/runtime';
 import {
@@ -231,6 +231,10 @@ describe('formatting', () => {
 // v46: the same readings in Hungarian, the noun singular after a numeral and Intl's own
 // number and date forms.
 describe('in Hungarian', () => {
+	// A Hungarian browser (Node's own says en-US): conventions follow the browser's region.
+	beforeEach(() => vi.stubGlobal('navigator', { languages: ['hu-HU'], language: 'hu-HU' }));
+	afterEach(() => vi.unstubAllGlobals());
+
 	const speak = (locale: Locale) => overwriteGetLocale(() => locale);
 	afterEach(() => speak(baseLocale));
 

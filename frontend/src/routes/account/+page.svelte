@@ -130,7 +130,7 @@
 	}
 
 	// v46: the interface language, saved to the profile so it follows the user to every
-	// device (and wins over the browser's language and any /login choice). Like the shortcut
+	// device (and, once signed in, wins over the browser's language). Like the shortcut
 	// switch it applies once the server has it; the page then re-renders in place.
 	let languageSaving = $state(false);
 	let languageError = $state<Shown>(null);

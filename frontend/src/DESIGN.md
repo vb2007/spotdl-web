@@ -959,7 +959,9 @@ time as it would read. `/login` has no switch: there the browser decides.
 **Formats.** Words (month names, the AM/PM marker) follow the interface language. Conventions
 (date order, digit grouping, decimal mark, 12- or 24-hour) follow the browser's region: English on
 a Hungarian browser reads "17 Oct 2026, 13:05" and "12 345" (`lib/i18n/format.ts`, the `en-HU`
-locale). A time format pinned on `/account` overrides the region's clock once signed in.
+locale). Where Intl has no data for the pair (Hungarian on a US browser, `hu-US`), numbers and the
+clock still follow the region and only the date order stays the language's. A time format pinned
+on `/account` overrides the region's clock once signed in.
 
 **What is never translated:** track, artist and album metadata, raw attempt error and note text,
 proxy addresses, error-type machine names (`NO_OUTPUT`), and the wordmark. Matrix alerts and logs

@@ -50,7 +50,6 @@
 	"error_request_invalid": "A szerver elutasította a kérést.",
 	"layout_skip_to_queue": "Ugrás a várólistára",
 	"layout_skip_to_content": "Ugrás a tartalomra",
-	"language_label": "Nyelv",
 	"login_title": "spotdl-web — bejelentkezés",
 	"login_ident_receiver": "JELVEVŐ",
 	"login_heading": "HANGOLÁS",
@@ -782,7 +781,7 @@
 	"error_request_failed": "A kérés nem sikerült: {status}",
 	"account_clock_heading": "Időformátum",
 	"account_clock_hint": "Így jelennek meg az időpontok az alkalmazásban, ha be vagy jelentkezve, minden eszközön. Az automatikus a böngésződ régióját követi, ahogy kijelentkezve mindig.",
-	"account_clock_label": "Óra",
+	"account_clock_label": "Órakijelzés",
 	"account_clock_auto": "automatikus ({example})",
 	"account_clock_12h": "12 órás ({example})",
 	"account_clock_24h": "24 órás ({example})"
