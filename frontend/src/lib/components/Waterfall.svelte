@@ -3,7 +3,7 @@
 	import type { LinkState } from '$lib/stores/link';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { formatClock } from '$lib/i18n/format';
+	import { counted, formatClock } from '$lib/i18n/format';
 
 	/** v20: `busy` reflects `GET /api/worker/status`'s global `busy` flag -- since
 	 * `worker-dl` runs `--concurrency=1`, an idle-for-me waterfall during someone else's
@@ -101,7 +101,7 @@
 				>{link === 'reconnecting' ? m.waterfall_stale_lost() : m.waterfall_stale_linking()}</span
 			>
 		{:else}
-			<span class="label count">{m.waterfall_lanes({ count: tracks.length })}</span>
+			<span class="label count">{m.waterfall_lanes(counted(tracks.length))}</span>
 		{/if}
 	</div>
 

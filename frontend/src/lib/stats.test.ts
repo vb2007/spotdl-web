@@ -18,6 +18,7 @@ import {
 	windowHeading
 } from '$lib/stats';
 import * as m from '$lib/paraglide/messages';
+import { counted } from '$lib/i18n/format';
 
 const HOUR = 3600 * 1000;
 const START = Date.parse('2026-10-16T00:00:00Z');
@@ -266,15 +267,15 @@ describe('in Hungarian', () => {
 			[5, 'Columns share one scale: the tallest is 5 failures in one hour.', '5 hiba']
 		] as const) {
 			speak('en');
-			expect(m.stats_scale_hour({ count })).toBe(en);
+			expect(m.stats_scale_hour(counted(count))).toBe(en);
 			speak('hu');
-			expect(m.stats_scale_hour({ count })).toContain(`${hu} egy órában`);
+			expect(m.stats_scale_hour(counted(count))).toContain(`${hu} egy órában`);
 		}
 		speak('hu');
-		expect(m.stats_attempts_unit({ count: 5 })).toBe('próbálkozás');
+		expect(m.stats_attempts_unit(counted(5))).toBe('próbálkozás');
 		speak('en');
-		expect(m.stats_attempts_unit({ count: 1 })).toBe('attempt');
-		expect(m.stats_attempts_unit({ count: 5 })).toBe('attempts');
+		expect(m.stats_attempts_unit(counted(1))).toBe('attempt');
+		expect(m.stats_attempts_unit(counted(5))).toBe('attempts');
 	});
 });
 

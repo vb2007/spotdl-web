@@ -84,7 +84,7 @@
 	"account_keyboard_off": "off",
 	"account_keyboard_show": "show shortcuts",
 	"account_language_heading": "Language",
-	"account_language_hint": "The language this app speaks to you, on every device you sign in on. Until you choose one, it follows your browser.",
+	"account_language_hint": "The language this app speaks to you once you're signed in, on every device. Until you choose one, and whenever you're signed out, it follows your browser.",
 	"account_language_label": "Interface language",
 	"attempt_via_direct_ipv4": "direct · IPv4",
 	"attempt_via_direct_ipv6": "direct · IPv6",
@@ -161,11 +161,7 @@
 	"track_repeats_hide": "hide the repeats",
 	"track_repeats_show": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "show all {n}",
@@ -231,11 +227,7 @@
 	"waterfall_stale_linking": "linking… — progress may be stale",
 	"waterfall_lanes": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "{n} lane",
@@ -288,11 +280,7 @@
 	"incoming_heading": "Incoming submissions",
 	"incoming_older": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "{n} older link couldn't be read",
@@ -304,11 +292,7 @@
 	"incoming_older_hide": "hide",
 	"incoming_older_show_label": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "show {n} older failed link",
@@ -318,11 +302,7 @@
 	],
 	"incoming_older_hide_label": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "hide {n} older failed link",
@@ -383,11 +363,7 @@
 	"dashboard_count_cap": "{cap}+",
 	"dashboard_count_tracks": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "{n} track",
@@ -397,11 +373,7 @@
 	],
 	"dashboard_count_tracks_more": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "{n}+ tracks",
@@ -535,11 +507,7 @@
 	"settings_proxy_no_failures": "no recent failures",
 	"settings_proxy_failures": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "{n} failed in a row",
@@ -589,11 +557,10 @@
 	"library_state_finished": [
 		{
 			"declarations": [
-				"input moved",
 				"input count",
 				"local countPlural = count: plural",
-				"local n = count: number",
-				"local movedN = moved: number"
+				"input n",
+				"input movedN"
 			],
 			"selectors": ["countPlural"],
 			"match": {
@@ -751,11 +718,7 @@
 	"stats_col_success": "Success",
 	"stats_attempts_unit": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "attempt",
@@ -782,12 +745,7 @@
 	"stats_breaker_no_hold": "The breaker didn’t hold in this window.",
 	"stats_breaker_held": [
 		{
-			"declarations": [
-				"input span",
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input span", "input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "The breaker held {span} in total, {n} trip started in this window.",
@@ -802,11 +760,7 @@
 	"stats_summary_day": "Failures by type, per day. {parts}. {breaker}",
 	"stats_scale_hour": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "Columns share one scale: the tallest is {n} failure in one hour.",
@@ -816,11 +770,7 @@
 	],
 	"stats_scale_day": [
 		{
-			"declarations": [
-				"input count",
-				"local countPlural = count: plural",
-				"local n = count: number"
-			],
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
 			"selectors": ["countPlural"],
 			"match": {
 				"countPlural=one": "Columns share one scale: the tallest is {n} failure in one day.",
@@ -853,5 +803,11 @@
 	"error_server_error": "{status}",
 	"time_hours_ago": "{hours}h 00m ago",
 	"time_days_ago": "{days}d 0h ago",
-	"error_request_failed": "{status}"
+	"error_request_failed": "{status}",
+	"account_clock_heading": "Time format",
+	"account_clock_hint": "How times read across the app once you're signed in, on every device. Automatic follows your browser's region, as it always does when you're signed out.",
+	"account_clock_label": "Clock",
+	"account_clock_auto": "automatic ({example})",
+	"account_clock_12h": "12-hour ({example})",
+	"account_clock_24h": "24-hour ({example})"
 }

@@ -20,7 +20,7 @@
 	} from '$lib/attempts';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { formatDateTime, formatNumber } from '$lib/i18n/format';
+	import { counted, formatDateTime, formatNumber } from '$lib/i18n/format';
 	import { trackStateLabel } from '$lib/i18n/labels';
 	import type { TrackAttempt, TrackAttemptOutcome, TrackState } from '$lib/api';
 	import type { LiveTrack } from '$lib/stores/queue';
@@ -659,7 +659,7 @@
 												onclick={() => toggleIn(openRuns, group.key)}
 												>{openRuns.has(group.key)
 													? m.track_repeats_hide()
-													: m.track_repeats_show({ count: run })}</button
+													: m.track_repeats_show(counted(run))}</button
 											>
 											{#if openRuns.has(group.key)}
 												<ol class="run" id="run-{group.key}" aria-label={m.track_repeats_label()}>

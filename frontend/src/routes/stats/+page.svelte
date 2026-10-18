@@ -33,7 +33,7 @@
 	} from '$lib/stats';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
+	import { counted, formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
 	import { trackStateLabel } from '$lib/i18n/labels';
 
 	let { data } = $props();
@@ -265,7 +265,7 @@
 											<th scope="row" class="mono route">{pathLabel(path.path)}</th>
 											<td class="num mono"
 												>{formatNumber(path.attempts)}<span class="unit"
-													>&nbsp;{m.stats_attempts_unit({ count: path.attempts })}</span
+													>&nbsp;{m.stats_attempts_unit(counted(path.attempts))}</span
 												></td
 											>
 											<td class="outcome">
@@ -344,7 +344,7 @@
 												</td>
 												<td class="num mono"
 													>{formatNumber(proxy.attempts)}<span class="unit"
-														>&nbsp;{m.stats_attempts_unit({ count: proxy.attempts })}</span
+														>&nbsp;{m.stats_attempts_unit(counted(proxy.attempts))}</span
 													></td
 												>
 												<td class="outcome">

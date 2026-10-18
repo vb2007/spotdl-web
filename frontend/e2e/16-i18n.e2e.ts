@@ -2,15 +2,17 @@ import { expect, test, type Browser, type BrowserContext, type Page } from '@pla
 import { m, t, type Lang } from './support/i18n';
 import {
 	adminIdentity,
+	clockOf,
 	languageOf,
+	resetPreferences,
 	setLanguage,
 	userIdentity,
 	type Identity
 } from './support/stack';
 
 // Spec 16 (v46). Each test opens its own browser contexts, one per browser language, and runs
-// once (desktop project). Both identities start with no saved language (global setup), and every
-// test puts back what it saved.
+// once (desktop project). Both identities start with no saved language or clock (global setup),
+// and every test puts back what it saved.
 
 async function freshContext(browser: Browser, locale: string): Promise<BrowserContext> {
 	return browser.newContext({ locale, viewport: { width: 1280, height: 800 } });
@@ -38,7 +40,7 @@ async function signIn(
 }
 
 /** Signs out from a dashboard in `lang`; /login then speaks `landsIn` (signed out, the
- * browser or a /login choice decides, never the profile). */
+ * browser decides, never the profile). */
 async function signOut(page: Page, lang: Lang, landsIn: Lang): Promise<void> {
 	await page
 		.getByRole('button', { name: t(m.dashboard_disconnect, {}, lang), exact: true })
@@ -56,10 +58,7 @@ async function expectDashboardIn(page: Page, lang: Lang): Promise<void> {
 	expect(await htmlLang(page)).toBe(lang);
 }
 
-test.afterEach(() => {
-	setLanguage(userIdentity().email, null);
-	setLanguage(adminIdentity().email, null);
-});
+test.afterEach(() => resetPreferences());
 
 test('auto-detect: hu-HU gets Hungarian, en-US English, de-DE falls back to English', async ({
 	browser
@@ -157,53 +156,83 @@ test('preference wins: Hungarian chosen on /account follows the user, and only t
 	await context.close();
 });
 
-test('the /login choice is honored, and adopted only by a profile without one', async ({
+test('signed out the browser decides; a time format pinned on /account wins once signed in', async ({
 	browser
 }) => {
-	// A profile with none adopts it.
-	const context = await freshContext(browser, 'en-US');
+	// Owner's rule: no language switch on /login. The page simply speaks the browser's language,
+	// even for a user whose saved preference is another one.
+	setLanguage(userIdentity().email, 'en');
+	const context = await freshContext(browser, 'hu-HU');
 	const page = await context.newPage();
 	await page.goto('/login');
-	expect(await htmlLang(page)).toBe('en');
-	await page.evaluate(
-		() => ((window as Window & { __sameDocument?: boolean }).__sameDocument = true)
-	);
-	await page.getByRole('button', { name: 'Magyar', exact: true }).click();
 	await expect(
 		page.getByRole('heading', { name: t(m.login_heading, {}, 'hu'), exact: true })
 	).toBeVisible();
-	expect(await htmlLang(page), '<html lang> follows the /login switch').toBe('hu');
-	expect(
-		await page.evaluate(() => (window as Window & { __sameDocument?: boolean }).__sameDocument)
-	).toBe(true);
-	await signIn(page, userIdentity(), 'hu');
-	await expectDashboardIn(page, 'hu');
-	expect(languageOf(userIdentity().email), 'adopted into the profile').toBe('hu');
+	await expect(page.getByRole('button', { name: 'English', exact: true })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Magyar', exact: true })).toHaveCount(0);
+	// Signed in, the saved English wins; the conventions stay the browser's region (Hungary):
+	// the automatic clock reads 24-hour.
+	await signIn(page, userIdentity(), 'hu', 'en');
+	await expectDashboardIn(page, 'en');
+	await page.goto('/account');
+	const choice = (message: typeof m.account_clock_auto, lang: Lang = 'en') =>
+		page.getByRole('button', {
+			name: new RegExp(`^${t(message, { example: 'X' }, lang).split('(')[0].trim()} \\(`)
+		});
+	await expect(choice(m.account_clock_auto)).toHaveAttribute('aria-pressed', 'true');
+	await expect(choice(m.account_clock_auto)).toHaveText(/\(\d{1,2}:\d{2}\)$/);
 	await context.close();
 
-	// A choice made on an earlier visit, still in this browser's storage, counts the same: the
-	// plan's "adopted into the profile on first login if the profile has none".
+	// An English (US) browser: automatic is 12-hour; pinning 24-hour overrides it at once.
 	setLanguage(userIdentity().email, null);
-	const shared = await freshContext(browser, 'en-US');
-	await shared.addInitScript(() => localStorage.setItem('spotdl.locale', 'hu'));
-	const sharedPage = await shared.newPage();
-	await sharedPage.goto('/login');
-	await expect(
-		sharedPage.getByRole('heading', { name: t(m.login_heading, {}, 'hu'), exact: true })
-	).toBeVisible();
-	await signIn(sharedPage, userIdentity(), 'hu');
-	await expectDashboardIn(sharedPage, 'hu');
-	expect(languageOf(userIdentity().email), 'a stored choice is adopted too').toBe('hu');
-	await shared.close();
+	const us = await freshContext(browser, 'en-US');
+	const usPage = await us.newPage();
+	await signIn(usPage, userIdentity(), 'en');
+	await usPage.goto('/account');
+	const usChoice = (message: typeof m.account_clock_auto) =>
+		usPage.getByRole('button', {
+			name: new RegExp(`^${t(message, { example: 'X' }, 'en').split('(')[0].trim()} \\(`)
+		});
+	const saved = usPage.getByRole('status').filter({ hasText: /^Saved at / });
+	await expect(usChoice(m.account_clock_auto)).toHaveText(/ [AP]M\)$/);
+	await usChoice(m.account_clock_24h).click();
+	await expect(usChoice(m.account_clock_24h)).toHaveAttribute('aria-pressed', 'true');
+	await expect(saved).toHaveText(/^Saved at \d{2}:\d{2}$/);
+	expect(clockOf(userIdentity().email), 'saved server-side').toBe('24h');
+	await usChoice(m.account_clock_12h).click();
+	await expect(usChoice(m.account_clock_12h)).toHaveAttribute('aria-pressed', 'true');
+	await expect(saved).toHaveText(/^Saved at \d{2}:\d{2} [AP]M$/);
+	await usChoice(m.account_clock_24h).click();
+	await expect(saved).toHaveText(/^Saved at \d{2}:\d{2}$/);
 
-	// A profile that already chose keeps its choice over this browser's /login one.
-	setLanguage(adminIdentity().email, 'en');
-	const second = await freshContext(browser, 'hu-HU');
+	// It persists across a reload and follows the user to another browser.
+	await usPage.reload();
+	await expect(usChoice(m.account_clock_24h)).toHaveAttribute('aria-pressed', 'true');
+	const second = await freshContext(browser, 'en-US');
 	const secondPage = await second.newPage();
-	await secondPage.goto('/login');
-	await secondPage.getByRole('button', { name: 'Magyar', exact: true }).click();
-	await signIn(secondPage, adminIdentity(), 'hu', 'en');
-	await expectDashboardIn(secondPage, 'en');
-	expect(languageOf(adminIdentity().email)).toBe('en');
+	await signIn(secondPage, userIdentity(), 'en');
+	await secondPage.goto('/account');
+	await expect(secondPage.getByRole('button', { name: /^24-hour \(/ })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
 	await second.close();
+
+	// Another user is unaffected.
+	expect(clockOf(adminIdentity().email)).toBeNull();
+	const other = await freshContext(browser, 'en-US');
+	const otherPage = await other.newPage();
+	await signIn(otherPage, adminIdentity(), 'en');
+	await otherPage.goto('/account');
+	await expect(otherPage.getByRole('button', { name: /^automatic \(/ })).toHaveAttribute(
+		'aria-pressed',
+		'true'
+	);
+	await other.close();
+
+	// Back to automatic.
+	await usChoice(m.account_clock_auto).click();
+	await expect(usChoice(m.account_clock_auto)).toHaveAttribute('aria-pressed', 'true');
+	expect(clockOf(userIdentity().email)).toBeNull();
+	await us.close();
 });

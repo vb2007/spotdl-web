@@ -7,7 +7,7 @@
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { apiErrorText, errorText } from '$lib/i18n/errors';
-	import { formatDateTime, formatNumber, formatTime } from '$lib/i18n/format';
+	import { counted, formatDateTime, formatNumber, formatTime } from '$lib/i18n/format';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -66,7 +66,10 @@
 						? reportError
 							? m.library_state_finished_unread()
 							: ''
-						: m.library_state_finished({ moved: run.moved, count: run.errors.length })
+						: m.library_state_finished({
+								movedN: formatNumber(run.moved),
+								...counted(run.errors.length)
+							})
 	);
 	// Spoken only once the state changes from what the page opened on: a visit doesn't
 	// announce an old sweep's result.

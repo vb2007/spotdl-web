@@ -5,7 +5,7 @@ import {
 	e2eDownloadsInFlight,
 	normalizeEmail,
 	readRun,
-	setLanguage,
+	resetPreferences,
 	stackPython,
 	userIdentity
 } from './support/stack';
@@ -16,9 +16,9 @@ import {
  * beat reclaim records `failed` with no path and isn't counted. The `@network` spec is the one
  * deliberate exception. */
 export default async function globalTeardown(): Promise<void> {
-	// v46: whatever language a spec saved, the identities end the run with none, as they began.
-	setLanguage(adminIdentity().email, null);
-	setLanguage(userIdentity().email, null);
+	// v46: whatever language or clock a spec saved, the identities end the run with none, as
+	// they began.
+	resetPreferences();
 	if (process.env.E2E_NETWORK === '1' || !existsSync(RUN_FILE)) return;
 	const { startedAt } = readRun();
 	const count = stackPython(

@@ -391,11 +391,10 @@ export function stackPython(
 	}).trim();
 }
 
-/** v46: an identity's saved interface language, straight in `user_settings` (`null`: none, so
- * the browser's language decides). The API can set a language but never clear one, and the
- * suite needs both identities back at "none": every project pins its browser `locale` and
- * expects the page to follow it. */
-export function setLanguage(email: string, language: 'hu' | 'en' | null): void {
+/** v46: an identity's saved interface preference, straight in `user_settings` (`null`: none,
+ * so the browser decides). The suite needs both identities back at "none": every project pins
+ * its browser `locale` and expects the page to follow it. */
+function setPreference(column: 'language' | 'clock', email: string, value: string | null): void {
 	stackPython(
 		`
 import sys
@@ -403,30 +402,55 @@ from sqlalchemy import text
 from app.db import SessionLocal
 db = SessionLocal()
 # An upsert: an identity that never opened a settings page has no row yet.
-db.execute(text("""
-    insert into user_settings (user_id, language)
-    select id, :language from users where email = :email
-    on conflict (user_id) do update set language = excluded.language
-"""), {"email": sys.argv[1], "language": sys.argv[2] or None})
+db.execute(text(f"""
+    insert into user_settings (user_id, {sys.argv[1]})
+    select id, :value from users where email = :email
+    on conflict (user_id) do update set {sys.argv[1]} = excluded.{sys.argv[1]}
+"""), {"email": sys.argv[2], "value": sys.argv[3] or None})
 db.commit()
 `,
-		[normalizeEmail(email), language ?? '']
+		[column, normalizeEmail(email), value ?? '']
 	);
 }
 
-export function languageOf(email: string): string | null {
+function preferenceOf(column: 'language' | 'clock', email: string): string | null {
 	const out = stackPython(
 		`
 import sys
 from sqlalchemy import text
 from app.db import SessionLocal
-print(SessionLocal().execute(text("""
-    select s.language from user_settings s join users u on u.id = s.user_id where u.email = :email
-"""), {"email": sys.argv[1]}).scalar() or "")
+print(SessionLocal().execute(text(f"""
+    select s.{sys.argv[1]} from user_settings s join users u on u.id = s.user_id
+    where u.email = :email
+"""), {"email": sys.argv[2]}).scalar() or "")
 `,
-		[normalizeEmail(email)]
+		[column, normalizeEmail(email)]
 	);
 	return out || null;
+}
+
+export function setLanguage(email: string, language: 'hu' | 'en' | null): void {
+	setPreference('language', email, language);
+}
+
+export function languageOf(email: string): string | null {
+	return preferenceOf('language', email);
+}
+
+export function setClock(email: string, clock: '12h' | '24h' | null): void {
+	setPreference('clock', email, clock);
+}
+
+export function clockOf(email: string): string | null {
+	return preferenceOf('clock', email);
+}
+
+/** Both identities back to "no saved preference": the browser decides. */
+export function resetPreferences(): void {
+	for (const email of [adminIdentity().email, userIdentity().email]) {
+		setLanguage(email, null);
+		setClock(email, null);
+	}
 }
 
 /** The `LEDGER_TRACKS` ids worker-dl would NOT resolve as duplicates right now, by the dedup

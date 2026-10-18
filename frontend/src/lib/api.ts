@@ -390,10 +390,15 @@ export interface SessionInfo {
 	/** v46: the saved interface language, `null` while the user has none (the browser's
 	 * language decides). Like `keyboard_shortcuts`, only `me()` carries it. */
 	language?: Language | null;
+	/** v46: the pinned time format, `null` for automatic (the browser's region decides). */
+	clock?: Clock | null;
 }
 
 /** v46: the interface languages there are message files for. */
 export type Language = 'hu' | 'en';
+
+/** v46: a time format the user can pin. */
+export type Clock = '12h' | '24h';
 
 /** Shared display rule for username-or-email, everywhere either can appear (session
  * header, job/track owner columns) -- username when known, email otherwise. */
@@ -559,16 +564,10 @@ function tracksQuery(params: ListTracksParams): string {
 	});
 }
 
-/** v46: `language` is a choice made on /login before signing in; the backend adopts it into
- * a profile that has none saved yet, and never overrides a saved one. */
-export function login(
-	email: string,
-	password: string,
-	language: Language | null = null
-): Promise<SessionInfo> {
+export function login(email: string, password: string): Promise<SessionInfo> {
 	return request('/api/auth/login', {
 		method: 'POST',
-		body: JSON.stringify(language ? { email, password, language } : { email, password })
+		body: JSON.stringify({ email, password })
 	});
 }
 
@@ -865,5 +864,17 @@ export function updateLanguageSettings(language: Language): Promise<LanguageSett
 	return request('/api/settings/language', {
 		method: 'PATCH',
 		body: JSON.stringify({ language })
+	});
+}
+
+export interface ClockSettings {
+	clock: Clock | null;
+}
+
+/** v46: the per-user time format; `null` puts it back to automatic (the browser's region). */
+export function updateClockSettings(clock: Clock | null): Promise<ClockSettings> {
+	return request('/api/settings/clock', {
+		method: 'PATCH',
+		body: JSON.stringify({ clock })
 	});
 }

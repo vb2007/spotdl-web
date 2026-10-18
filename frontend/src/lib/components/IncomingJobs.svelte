@@ -7,6 +7,7 @@
 	import { confirmAction } from '$lib/stores/confirm';
 	import type { Job } from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
+	import { counted } from '$lib/i18n/format';
 	import { errorText } from '$lib/i18n/errors';
 
 	/** `allUsers`: the admin's all-users scope, where rows can be someone else's -- they
@@ -419,7 +420,7 @@
 			{#if olderFailed.length > 0}
 				<li class="row summary">
 					<span class="dot fail" aria-hidden="true"></span>
-					<span class="summary-text">{m.incoming_older({ count: olderFailed.length })}</span>
+					<span class="summary-text">{m.incoming_older(counted(olderFailed.length))}</span>
 					<span class="actions">
 						<button
 							type="button"
@@ -427,8 +428,8 @@
 							aria-expanded={showOlder}
 							data-act="older"
 							aria-label={showOlder
-								? m.incoming_older_hide_label({ count: olderFailed.length })
-								: m.incoming_older_show_label({ count: olderFailed.length })}
+								? m.incoming_older_hide_label(counted(olderFailed.length))
+								: m.incoming_older_show_label(counted(olderFailed.length))}
 							onclick={() => (showOlder = !showOlder)}
 							>{showOlder ? m.incoming_older_hide() : m.incoming_older_show()}</button
 						>

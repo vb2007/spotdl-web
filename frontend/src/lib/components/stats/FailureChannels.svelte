@@ -12,7 +12,7 @@
 		holdSpans,
 		instantLabel
 	} from '$lib/stats';
-	import { formatNumber } from '$lib/i18n/format';
+	import { counted, formatNumber } from '$lib/i18n/format';
 	import * as m from '$lib/paraglide/messages';
 
 	// v44: a multi-channel chart recorder. One channel per failure class that occurred, all on
@@ -49,7 +49,7 @@
 	const breakerLine = $derived(
 		spans.length === 0
 			? m.stats_breaker_no_hold()
-			: m.stats_breaker_held({ span: formatSpan(heldSeconds), count: stats.breaker.trips })
+			: m.stats_breaker_held({ span: formatSpan(heldSeconds), ...counted(stats.breaker.trips) })
 	);
 
 	const summary = $derived.by(() => {
@@ -111,7 +111,7 @@
 <div class="recorder">
 	<p class="scale">
 		{#if peak > 0}
-			{unit === 'hour' ? m.stats_scale_hour({ count: peak }) : m.stats_scale_day({ count: peak })}
+			{unit === 'hour' ? m.stats_scale_hour(counted(peak)) : m.stats_scale_day(counted(peak))}
 		{:else}
 			{m.stats_no_failed_attempts()}
 		{/if}

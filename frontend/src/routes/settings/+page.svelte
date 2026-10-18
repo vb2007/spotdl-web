@@ -9,7 +9,7 @@
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
+	import { counted, formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -946,7 +946,7 @@
 										<span class="fact mono">
 											{proxy.consecutive_failures === 0
 												? m.settings_proxy_no_failures()
-												: m.settings_proxy_failures({ count: proxy.consecutive_failures })}
+												: m.settings_proxy_failures(counted(proxy.consecutive_failures))}
 										</span>
 										<span class="fact mono">
 											{proxy.last_success_at

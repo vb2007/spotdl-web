@@ -9,8 +9,14 @@
 	import { helpOpen, shortcutsEnabled } from '$lib/keyboard/registry';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { formatClock, formatNumber } from '$lib/i18n/format';
-	import { applyLocale, locale } from '$lib/i18n/locale.svelte';
+	import { clockExample, formatClock, formatNumber } from '$lib/i18n/format';
+	import {
+		applyClock,
+		applyLocale,
+		clockPreference,
+		locale,
+		type Clock
+	} from '$lib/i18n/locale.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
 	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
 	import RichText from '$lib/components/RichText.svelte';
@@ -149,6 +155,40 @@
 		await keepFocus(from);
 	}
 
+	// v46 (owner's rule, PR #68): the time format, by the language's rules: automatic (the
+	// browser's region) until pinned here, saved to the profile, applied once the server has it.
+	let clockSaving = $state(false);
+	let clockError = $state<Shown>(null);
+	let clockSavedAt = $state<Date | null>(null);
+	// The examples read the minute this page shows, ticking so they stay true.
+	let now = $state(new Date());
+	$effect(() => {
+		const id = setInterval(() => (now = new Date()), 30_000);
+		return () => clearInterval(id);
+	});
+	const CLOCK_CHOICES: { value: Clock | null; label: (example: string) => string }[] = [
+		{ value: null, label: (example) => m.account_clock_auto({ example }) },
+		{ value: '12h', label: (example) => m.account_clock_12h({ example }) },
+		{ value: '24h', label: (example) => m.account_clock_24h({ example }) }
+	];
+
+	async function setClock(next: Clock | null) {
+		if (clockSaving) return;
+		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		clockSaving = true;
+		clockError = null;
+		try {
+			const saved = await api.updateClockSettings(next);
+			applyClock(saved.clock);
+			clockSavedAt = new Date();
+		} catch (err) {
+			clockError = () => errorText(err);
+		} finally {
+			clockSaving = false;
+		}
+		await keepFocus(from);
+	}
+
 	// v43 (F31): the account page could not sign out; it now does, the way `/` does.
 	async function onLogout() {
 		loggingOut = true;
@@ -200,7 +240,7 @@
 		</section>
 
 		<!-- Preferences: one group per setting. v45 added the keyboard-shortcut switch; v46 the
-		     language switch, as a further group. -->
+		     language switch and the time format, as further groups. -->
 		<section class="panel section" aria-labelledby="preferences-heading">
 			<h2 id="preferences-heading" class="label">{m.account_preferences()}</h2>
 
@@ -338,6 +378,38 @@
 							: ''}
 				</p>
 				<p class="form-error" role="alert">{languageError?.()}</p>
+			</div>
+
+			<div class="group" role="group" aria-labelledby="clock-heading">
+				<h3 id="clock-heading" class="group-title">{m.account_clock_heading()}</h3>
+				<p class="hint" id="clock-hint">{m.account_clock_hint()}</p>
+				<div class="form-field">
+					<span class="label" id="clock-mode-label">{m.account_clock_label()}</span>
+					<div
+						class="choice-group"
+						role="group"
+						aria-labelledby="clock-mode-label"
+						aria-describedby="clock-hint"
+					>
+						{#each CLOCK_CHOICES as choice (choice.value)}
+							<button
+								type="button"
+								aria-pressed={clockPreference.current === choice.value}
+								disabled={clockSaving}
+								onclick={() => setClock(choice.value)}
+								>{choice.label(clockExample(now, choice.value))}</button
+							>
+						{/each}
+					</div>
+				</div>
+				<p class="save-state" class:saved={clockSavedAt !== null} role="status">
+					{clockSaving
+						? m.common_saving_status()
+						: clockSavedAt
+							? m.common_saved_at({ time: formatClock(clockSavedAt) })
+							: ''}
+				</p>
+				<p class="form-error" role="alert">{clockError?.()}</p>
 			</div>
 		</section>
 	</main>

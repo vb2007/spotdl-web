@@ -1,19 +1,19 @@
 import { baseLocale, isLocale, overwriteGetLocale, type Locale } from '$lib/paraglide/runtime';
 
-/** v46: which language the interface speaks, in the plan's order of precedence:
+/** v46: which language the interface speaks (owner's rule, PR #68):
  *
- * 1. the signed-in user's saved preference (`/api/auth/me`'s `language`),
- * 2. a choice made on /login before signing in (this browser's `localStorage`),
- * 3. the first of `navigator.languages` whose primary subtag is one we ship,
- * 4. English.
+ * - signed out, always the browser's: the first of `navigator.languages` whose primary subtag
+ *   is one we ship, else English;
+ * - signed in, the user's saved preference (`/api/auth/me`'s `language`) when they've picked
+ *   one on /account, else the browser's as above.
+ *
+ * So a user who prefers English on a Hungarian browser sees Hungarian on /login and English
+ * once signed in. Nothing is stored in the browser.
  *
  * Paraglide's `getLocale()` is overwritten to read a `$state`, so every message a template
  * (or a `$derived`) renders re-renders on a switch, with no reload. The flip side: a string
  * computed once, outside a reactive context, stays in the language it was computed in. Keep
  * labels as functions or `$derived`, never as module-level constants. */
-
-/** The `/login` choice. Wrapped in try/catch: storage can be blocked or absent. */
-const STORAGE_KEY = 'spotdl.locale';
 
 export function detectLocale(languages: readonly string[] = browserLanguages()): Locale {
 	for (const tag of languages) {
@@ -23,37 +23,15 @@ export function detectLocale(languages: readonly string[] = browserLanguages()):
 	return baseLocale;
 }
 
-function browserLanguages(): readonly string[] {
+export function browserLanguages(): readonly string[] {
 	if (typeof navigator === 'undefined') return [];
 	return navigator.languages?.length ? navigator.languages : [navigator.language];
 }
 
-// The /login choice as this tab last made it: what reads it back when storage is blocked.
-let chosenHere: Locale | null = null;
-
-export function loginChoice(): Locale | null {
-	if (chosenHere) return chosenHere;
-	try {
-		const stored = localStorage.getItem(STORAGE_KEY);
-		return stored && isLocale(stored) ? stored : null;
-	} catch {
-		return null;
-	}
-}
-
-export function saveLoginChoice(locale: Locale): void {
-	chosenHere = locale;
-	try {
-		localStorage.setItem(STORAGE_KEY, locale);
-	} catch {
-		// Storage blocked: the choice still applies to this tab, and sign-in carries it.
-	}
-}
-
-/** The precedence above, for a session's saved preference (`null`: none, or signed out). */
+/** A session's saved preference (`null`: none saved, or signed out), else the browser's. */
 export function resolveLocale(saved: string | null | undefined): Locale {
 	if (saved && isLocale(saved)) return saved;
-	return loginChoice() ?? detectLocale();
+	return detectLocale();
 }
 
 let current = $state<Locale>(resolveLocale(null));
@@ -83,3 +61,20 @@ export const LANGUAGES: readonly { code: Locale; name: string }[] = [
 	{ code: 'hu', name: 'Magyar' },
 	{ code: 'en', name: 'English' }
 ];
+
+/** v46 (owner's rule, PR #68): the time format, by the same rules as the language. `null` is
+ * automatic: the browser's region decides 12- or 24-hour (`format.ts`). Signed in, a format
+ * pinned on /account overrides it; signed out, it's always automatic. */
+export type Clock = '12h' | '24h';
+
+let clock = $state<Clock | null>(null);
+
+export const clockPreference = {
+	get current(): Clock | null {
+		return clock;
+	}
+};
+
+export function applyClock(next: string | null | undefined): void {
+	clock = next === '12h' || next === '24h' ? next : null;
+}

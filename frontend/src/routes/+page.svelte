@@ -18,7 +18,7 @@
 	import { collapseFocused, focusRowEl, kbList, listHandlers } from '$lib/keyboard/lists';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { formatNumber } from '$lib/i18n/format';
+	import { counted, formatNumber } from '$lib/i18n/format';
 
 	const { filters, page, incomingJobs, activeTracks } = queue;
 	const { status: workerStatus } = worker;
@@ -72,8 +72,8 @@
 							count: $page.totalEstimate
 						})
 					: $page.nextCursor
-						? m.dashboard_count_tracks_more({ count: $page.items.length })
-						: m.dashboard_count_tracks({ count: $page.items.length })
+						? m.dashboard_count_tracks_more(counted($page.items.length))
+						: m.dashboard_count_tracks(counted($page.items.length))
 	);
 	let emptyTitle = $derived.by(() => {
 		const query = $filters.q.trim();

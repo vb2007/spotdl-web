@@ -6,24 +6,11 @@
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { formatNumber } from '$lib/i18n/format';
-	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
-	import { applyLocale, locale, loginChoice, saveLoginChoice } from '$lib/i18n/locale.svelte';
-	import type { Locale } from '$lib/paraglide/runtime';
-
-	// v46: a choice made here applies at once and is remembered in this browser; signing in
-	// hands it to a profile that has no saved language yet (the backend adopts it, and never
-	// overrides a saved one). A language merely detected from the browser is not sent.
-	function chooseLanguage(next: Locale) {
-		saveLoginChoice(next);
-		applyLocale(next);
-	}
 
 	let email = $state('');
 	let password = $state('');
 	let submitting = $state(false);
-	// v46: the message itself, rendered on display, so a language switch after a failed sign-in
-	// re-renders it in the new language like everything around it.
-	let errorMessage = $state<(() => string) | null>(null);
+	let errorMessage = $state('');
 	// Only a 401 says the credentials are wrong; an unreachable server says nothing about them.
 	let credentialsRejected = $state(false);
 	let passwordInput: HTMLInputElement | undefined = $state();
@@ -32,10 +19,10 @@
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
 		submitting = true;
-		errorMessage = null;
+		errorMessage = '';
 		credentialsRejected = false;
 		try {
-			await api.login(email, password, loginChoice());
+			await api.login(email, password);
 			// v34.2: a fresh identity never inherits another's cached progress ids -- the
 			// logout reset can't run when the last session simply expired in a closed tab.
 			clearProgress();
@@ -51,8 +38,8 @@
 			credentialsRejected = err instanceof api.ApiError && err.status === 401;
 			errorMessage =
 				err instanceof api.ApiError && err.status === 401
-					? m.login_error_rejected
-					: m.login_error_unreachable;
+					? m.login_error_rejected()
+					: m.login_error_unreachable();
 			submitting = false;
 			// v43 (F31): after rejected credentials, back to the field to fix; after a server
 			// that couldn't be reached, back on CONNECT to try again (nothing to fix). The
@@ -73,12 +60,8 @@
 </svelte:head>
 
 <main id="main" class="stage">
-	<!-- v46: the compact language switch, top right of the stage, outside the dial panel.
-	     First in the tab order: someone who can't read this page's language needs it first. -->
-	<div class="language">
-		<LanguageSwitch current={locale.current} onchoose={chooseLanguage} disabled={submitting} />
-	</div>
-
+	<!-- v46: no language switch here (owner's rule, PR #68): signed out, the page speaks the
+	     browser's language; a preference is picked on /account and applies once signed in. -->
 	<div class="ident">
 		<!-- i18n-ignore: the wordmark is a name, the same in every language. -->
 		<span class="label">SPOTDL // WEB</span>
@@ -142,14 +125,13 @@
 
 		<!-- One live region: role="alert" alone (it was also aria-live="polite", F31). -->
 		<p id="login-error" class="error" role="alert">
-			{errorMessage?.()}
+			{errorMessage}
 		</p>
 	</form>
 </main>
 
 <style>
 	.stage {
-		position: relative;
 		min-height: 100dvh;
 		display: flex;
 		flex-direction: column;
@@ -157,12 +139,6 @@
 		justify-content: center;
 		gap: var(--space-6);
 		padding: var(--space-5);
-	}
-
-	.language {
-		position: absolute;
-		top: var(--space-5);
-		right: var(--space-5);
 	}
 
 	.ident {
