@@ -249,20 +249,28 @@
 		return found?.replace(/[^A-Za-z0-9/=_-]+$/u, '');
 	}
 
+	// v47: the form's own checks mark the field invalid, and a repeated sentence is announced
+	// again (the region is emptied first; the same text twice isn't a change).
+	let submitInvalid = $state(false);
+	async function showSubmitProblem(text: string): Promise<void> {
+		submitInvalid = true;
+		submitError = '';
+		await tick();
+		submitError = text;
+	}
+
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
+		submitInvalid = false;
 		if (!url.trim()) {
-			submitError = m.dashboard_submit_empty();
-			return;
+			return showSubmitProblem(m.dashboard_submit_empty());
 		}
 		if ((url.match(ANY_LINK_RE) ?? []).length > 1) {
-			submitError = m.dashboard_submit_many_links();
-			return;
+			return showSubmitProblem(m.dashboard_submit_many_links());
 		}
 		const link = linkIn(url);
 		if (!link) {
-			submitError = m.dashboard_submit_not_link();
-			return;
+			return showSubmitProblem(m.dashboard_submit_not_link());
 		}
 		url = link;
 		submitting = true;
@@ -608,6 +616,7 @@
 					disabled={submitting}
 					aria-label={m.dashboard_submit_input_label()}
 					aria-describedby="submit-error"
+					aria-invalid={submitInvalid ? 'true' : undefined}
 				/>
 				<button type="submit" class="mono" disabled={submitting}
 					>{submitting ? m.dashboard_submit_sending() : m.dashboard_submit()}</button

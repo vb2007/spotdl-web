@@ -115,12 +115,12 @@
 			</button>
 		{/if}
 		<!-- A failed read keeps the rows already on screen: a "load more" (the button above
-		     retries it) or a re-read of the list (a cancel's), which offers its own retry when
-		     there's no next page to load. v47: one sentence for both, since either can fail. -->
+		     retries it) or a re-read of the list (a cancel's), which offers its own retry. v47:
+		     one sentence for both, since either can fail. -->
 		<p class="hint fail" role="alert">
 			{state.error ? `${m.job_tracks_failed()} ${errorText(state.error.err)}` : ''}
 		</p>
-		{#if state.error && !state.nextCursor}
+		{#if state.error && (state.rereadFailed || !state.nextCursor)}
 			<button
 				type="button"
 				class="retry stale-retry"

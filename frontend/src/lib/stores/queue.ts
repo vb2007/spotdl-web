@@ -108,6 +108,9 @@ export interface ExpandedJob {
 	loading: boolean;
 	loadingMore: boolean;
 	error: StoredError | null;
+	/** v47: the error came from a re-read of the whole list (opening it, or a cancel's), not
+	 * from "load more": the list offers its own retry for it, whatever pages remain. */
+	rereadFailed?: boolean;
 }
 
 function newExpandedJob(): ExpandedJob {
@@ -727,7 +730,8 @@ function createQueueStore() {
 					countsByState: result.counts_by_state,
 					loading: false,
 					loadingMore: false,
-					error: null
+					error: null,
+					rereadFailed: false
 				}
 			}));
 		} catch (err) {
@@ -737,7 +741,8 @@ function createQueueStore() {
 				[jobId]: {
 					...(e[jobId] ?? newExpandedJob()),
 					loading: false,
-					error: { err }
+					error: { err },
+					rereadFailed: true
 				}
 			}));
 		}

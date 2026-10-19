@@ -70,10 +70,13 @@
 			// whoever's actually blocked by a config/network issue, not a bad
 			// credential.
 			credentialsRejected = err instanceof api.ApiError && err.status === 401;
-			// v47: a 5xx is the server answering with a problem, not an unreachable one.
+			// v47: a 500 is the service answering with a problem; a 502/503/504 is the proxy in
+			// front saying the api isn't there (a deploy, a restart), which is "couldn't reach",
+			// the same words the layout's unreachable screen uses for it.
+			const status = err instanceof api.ApiError ? err.status : 0;
 			errorMessage = credentialsRejected
 				? m.login_error_rejected()
-				: err instanceof api.ApiError && err.status >= 500
+				: status >= 500 && ![502, 503, 504].includes(status)
 					? m.login_error_server()
 					: m.login_error_unreachable();
 			submitting = false;
