@@ -221,8 +221,12 @@
 		gap: var(--space-4);
 	}
 
+	/* v47: clipped sideways: the needle moves by transform across a box the dial's width, which
+	   at mid-sweep would otherwise widen the page on a phone. Clip, not hidden: the frequency
+	   labels below the dial still show. */
 	.dial {
 		position: relative;
+		overflow-x: clip;
 		height: 2rem;
 		border-bottom: 1px solid var(--line);
 		margin-bottom: var(--space-4);
