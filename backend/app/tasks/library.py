@@ -31,12 +31,22 @@ def _record_error(run: LibrarySortRun, file_path: str, message: str) -> None:
     run.errors = [*run.errors, {"file": file_path, "error": message}]
 
 
-def _repoint(rows: list[DownloadedTrack], dest: Path) -> None:
+def _repoint(db, rows: list[DownloadedTrack], source: Path, dest: Path) -> list[DownloadedTrack]:
     """Every ledger row sharing the moved file follows it (v48, F34): a row left on the
-    old path would read as deleted to reconcile_disk and be pruned into a re-download."""
-    for row in rows:
+    old path would read as deleted to reconcile_disk and be pruned into a re-download.
+    The rows are re-read here, not only taken from the sweep's starting snapshot: worker-dl
+    can record another row on the same file while the sweep runs (spotdl's skip-existing
+    hands back the file already on disk). Returns every row it moved."""
+    current = (
+        db.query(DownloadedTrack)
+        .filter(DownloadedTrack.file_path == str(source), DownloadedTrack.in_library.is_(False))
+        .all()
+    )
+    moved = list({id(row): row for row in [*rows, *current]}.values())
+    for row in moved:
         row.file_path = str(dest)
         row.in_library = True
+    return moved
 
 
 def _sync_tracks_and_archive_jobs(db, moved_spotify_ids: set[str], admin_user_id: str) -> None:
@@ -52,9 +62,9 @@ def _sync_tracks_and_archive_jobs(db, moved_spotify_ids: set[str], admin_user_id
 
     Called only after every ledger repoint in this sweep has already been committed
     (see sort_library) -- a failure in here (caught by the caller) leaves that real,
-    correct ledger state untouched; only this secondary output_path/archival bookkeeping
-    is left for a future sweep to redo, since it re-derives moved_spotify_ids fresh from
-    `in_library` each run rather than depending on this function ever completing."""
+    correct ledger state untouched. A later sweep does *not* redo this bookkeeping (it
+    only reads rows still `in_library=False`); a track left on its old output_path still
+    downloads, because the file endpoint resolves through the ledger first."""
     ledger_rows = (
         db.query(DownloadedTrack)
         .filter(DownloadedTrack.spotify_track_id.in_(moved_spotify_ids))
@@ -162,7 +172,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 # quarantine/delete below leaks a redundant source file (recoverable
                 # manually), instead of losing track of the real, already-correct file
                 # the way committing only at the end of the row would.
-                _repoint(rows, dest)
+                rows = _repoint(db, rows, source, dest)
                 db.commit()
                 if quarantine_enabled:
                     library.quarantine(source, quarantine_dir)
@@ -185,7 +195,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 # Same crash-safety ordering as the conflict branch above: the ledger
                 # is repointed and committed to the *verified* copy before the source
                 # is ever deleted.
-                _repoint(rows, dest)
+                rows = _repoint(db, rows, source, dest)
                 db.commit()
                 source.unlink()
                 run.moved += 1

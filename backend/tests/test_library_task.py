@@ -494,6 +494,87 @@ def test_sort_library_quarantines_a_shared_file_once_and_repoints_every_row(
     assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (1, 1, 0, 0, 1)
 
 
+def test_sort_library_deletes_a_shared_duplicate_once_and_repoints_every_row(
+    db_session, tmp_path, monkeypatch
+):
+    """v48 (F34), the delete rule: the shared file is already in the library, so its one
+    download copy is deleted and both rows point at the library's copy."""
+    _configure(db_session, tmp_path, quarantine_enabled=False)
+    first = _make_ledger_row(db_session, tmp_path, spotify_track_id="single-cut")
+    second = _share_file(db_session, first, "album-cut")
+    dest = tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "single-cut.mp3"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"the copy already in the library")
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    for row in (first, second):
+        db_session.refresh(row)
+        assert row.in_library is True
+        assert row.file_path == str(dest)
+    assert not (tmp_path / "downloads" / "single-cut.mp3").exists()
+
+    run = library_task._get_run(db_session)
+    assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (1, 1, 0, 1, 0)
+
+
+def test_sort_library_keeps_every_shared_row_repointed_when_the_source_delete_fails(
+    db_session, tmp_path, monkeypatch
+):
+    """v48 (F34): the shared rows are repointed and committed together before the source
+    is touched, so a failure deleting it (or a crash there) can't split them."""
+    _configure(db_session, tmp_path)
+    first = _make_ledger_row(db_session, tmp_path, spotify_track_id="single-cut")
+    second = _share_file(db_session, first, "album-cut")
+    _capture_progress(monkeypatch)
+    real_unlink = type(tmp_path).unlink
+
+    def _failing_unlink(self, *args, **kwargs):
+        if self.name == "single-cut.mp3" and self.parent.name == "downloads":
+            raise OSError("simulated failure deleting the source")
+        return real_unlink(self, *args, **kwargs)
+
+    monkeypatch.setattr(type(tmp_path), "unlink", _failing_unlink)
+
+    _run(monkeypatch, db_session)
+
+    dest = str(tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "single-cut.mp3")
+    for row in (first, second):
+        db_session.refresh(row)
+        assert row.in_library is True
+        assert row.file_path == dest
+    run = library_task._get_run(db_session)
+    assert len(run.errors) == 1
+    assert "simulated failure" in run.errors[0]["error"]
+
+
+def test_sort_library_files_a_row_recorded_on_the_same_file_during_the_sweep(
+    db_session, tmp_path, monkeypatch
+):
+    """v48 (review round 2): worker-dl can record another ledger row on the same file while
+    the sweep runs (spotdl's skip-existing returns the file already on disk). That row isn't
+    in the sweep's starting snapshot, but it must still follow the file."""
+    _configure(db_session, tmp_path)
+    first = _make_ledger_row(db_session, tmp_path, spotify_track_id="single-cut")
+    real_copy_verify = library_service.copy_verify
+
+    def _copy_verify_with_a_late_row(source, dest):
+        _share_file(db_session, first, "album-cut-late")
+        return real_copy_verify(source, dest)
+
+    monkeypatch.setattr(library_service, "copy_verify", _copy_verify_with_a_late_row)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    late = db_session.get(DownloadedTrack, "album-cut-late")
+    db_session.refresh(late)
+    dest = str(tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "single-cut.mp3")
+    assert late.in_library is True
+    assert late.file_path == dest
+
+
 def test_sort_library_leaves_every_row_on_a_shared_file_whose_copy_failed(
     db_session, tmp_path, monkeypatch
 ):
