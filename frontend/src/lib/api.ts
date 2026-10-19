@@ -457,6 +457,13 @@ export class ApiError extends Error {
 // the layout's own load already redirects on it.
 const SESSION_PATHS = new Set(['/api/auth/login', '/api/auth/logout', '/api/auth/me']);
 let unauthorizedHandler: (() => void) | null = null;
+// v47: set while this tab signs out (until the next sign-in): a request answered 401 in that
+// window is the sign-out itself, not a session that ended under the user.
+let signingOut = false;
+
+export function isSigningOut(): boolean {
+	return signingOut;
+}
 
 /** Registers what a 401 does (the layout's session-ended path); returns the unregister. */
 export function onUnauthorized(handler: () => void): () => void {
@@ -503,7 +510,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 			// Hungarian sentence).
 			params = { status: String(response.status) };
 		}
-		if (response.status === 401 && !SESSION_PATHS.has(path.split('?')[0])) unauthorizedHandler?.();
+		if (response.status === 401 && !signingOut && !SESSION_PATHS.has(path.split('?')[0]))
+			unauthorizedHandler?.();
 		throw new ApiError(response.status, detail, code, params);
 	}
 
@@ -587,19 +595,28 @@ function tracksQuery(params: ListTracksParams): string {
 	});
 }
 
-export function login(email: string, password: string): Promise<SessionInfo> {
-	return request('/api/auth/login', {
+export async function login(email: string, password: string): Promise<SessionInfo> {
+	const session = await request<SessionInfo>('/api/auth/login', {
 		method: 'POST',
 		body: JSON.stringify({ email, password })
 	});
+	signingOut = false;
+	return session;
 }
 
 export function me(): Promise<SessionInfo> {
 	return request('/api/auth/me');
 }
 
-export function logout(): Promise<{ status: string }> {
-	return request('/api/auth/logout', { method: 'POST' });
+export async function logout(): Promise<{ status: string }> {
+	signingOut = true;
+	try {
+		return await request<{ status: string }>('/api/auth/logout', { method: 'POST' });
+	} catch (err) {
+		// Still signed in: a later 401 means what it says again.
+		signingOut = false;
+		throw err;
+	}
 }
 
 export function createJob(url: string): Promise<Job> {

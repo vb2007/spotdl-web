@@ -2,7 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
-	import { confirmAction, keepFocus } from '$lib/stores/confirm';
+	import { confirmAction, keepFocus, keepFocusOnHeading } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import WorkerStatus from '$lib/components/WorkerStatus.svelte';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
@@ -126,19 +126,35 @@
 
 	// v47: a section whose first read failed says so in one sentence, with its own retry
 	// (it took a reload before), and the save line below stays for save errors.
-	function retryOutput() {
+	function readOutput() {
 		outputError = '';
 		loadOutputSettings().catch((err) => (outputError = errorText(err)));
 	}
 
-	function retryLibrary() {
+	function readLibrary() {
 		libraryError = '';
 		loadLibrarySettings().catch((err) => (libraryError = errorText(err)));
 	}
 
-	function retryAlerts() {
+	function readAlerts() {
 		alertError = '';
 		loadAlertSettings().catch((err) => (alertError = errorText(err)));
+	}
+
+	// A retry button goes with its block: focus lands on the section's heading (v47).
+	function retryOutput() {
+		readOutput();
+		keepFocusOnHeading('output-heading');
+	}
+
+	function retryLibrary() {
+		readLibrary();
+		keepFocusOnHeading('library-heading');
+	}
+
+	function retryAlerts() {
+		readAlerts();
+		keepFocusOnHeading('alerts-heading');
 	}
 
 	async function loadOutputSettings() {
@@ -548,9 +564,9 @@
 	onMount(() => {
 		// A non-admin gets the notice and nothing else: no admin request is ever made (F17).
 		if (!isAdmin) return;
-		retryOutput();
-		retryLibrary();
-		retryAlerts();
+		readOutput();
+		readLibrary();
+		readAlerts();
 		loadProxies();
 		const poll = setInterval(refreshProxiesSilently, PROXY_POLL_MS);
 

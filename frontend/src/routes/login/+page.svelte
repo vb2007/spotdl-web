@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { consumeSessionEnded } from '$lib/stores/sessionEnded';
@@ -22,6 +22,15 @@
 	// v47: the session ended under this tab, found by a request's 401 (page state) or by the
 	// layout on a navigation (the module flag).
 	const sessionEnded = consumeSessionEnded();
+	// The status region is on the page from the start and its sentence arrives after it (a
+	// region inserted together with its text often goes unannounced), once the layout has
+	// moved focus to the heading.
+	let endedText = $state('');
+	onMount(() => {
+		if (!page.state.sessionEnded && !sessionEnded) return;
+		const timer = setTimeout(() => (endedText = m.login_session_ended()), 250);
+		return () => clearTimeout(timer);
+	});
 	// v47: which field the form's own check found empty, for aria-invalid.
 	let missing = $state<'email' | 'password' | null>(null);
 
@@ -115,9 +124,7 @@
 			<!-- v43 (F31): which account this wants. -->
 			<p class="hint">{m.login_hint()}</p>
 			<!-- v47: arrived here because the session ended mid-page (a 401), not by signing out. -->
-			{#if (page.state.sessionEnded || sessionEnded) && !errorMessage}
-				<p class="ended" role="status">{m.login_session_ended()}</p>
-			{/if}
+			<p class="ended" role="status">{errorMessage ? '' : endedText}</p>
 		</div>
 
 		<label class="form-field">
@@ -324,6 +331,14 @@
 	.ended {
 		font-size: var(--fs-detail);
 		color: var(--text-primary);
+	}
+
+	.ended:empty {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 
 	.error {

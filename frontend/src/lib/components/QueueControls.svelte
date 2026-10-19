@@ -31,14 +31,30 @@
 
 	// v47 (v39 §4.3): a search, filter or scope change ends in one announced sentence, the
 	// list's size, once its load lands. The visible count changes with every live update
-	// too, so it isn't a live region itself: that would talk over the page all day.
+	// too, so it isn't a live region itself: that would talk over the page all day. Only a
+	// load whose filters differ from the last announced one speaks (a stream reconnect's
+	// resync reloads with the same filters, and the first load isn't a change), and the
+	// region is emptied first so a repeated count is announced again.
 	let announcedCount = $state('');
 	let wasLoading = false;
+	let announcedFor: string | null = null;
+	let announceTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		const loading = $page.loading;
-		if (wasLoading && !loading && !$page.error) announcedCount = countText;
+		const f = $filters;
+		const key = JSON.stringify([f.scope, f.q, f.status, f.state, f.includeArchived]);
+		if (wasLoading && !loading && !$page.error) {
+			if (announcedFor !== null && key !== announcedFor) {
+				const text = countText;
+				announcedCount = '';
+				clearTimeout(announceTimer);
+				announceTimer = setTimeout(() => (announcedCount = text), 50);
+			}
+			announcedFor = key;
+		}
 		wasLoading = loading;
 	});
+	$effect(() => () => clearTimeout(announceTimer));
 
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 

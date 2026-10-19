@@ -4,7 +4,7 @@
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
-	import { keepFocus } from '$lib/stores/confirm';
+	import { keepFocus, keepFocusOnHeading } from '$lib/stores/confirm';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import { helpOpen, shortcutsEnabled } from '$lib/keyboard/registry';
 	import * as m from '$lib/paraglide/messages';
@@ -75,6 +75,11 @@
 	}
 
 	onMount(loadRetention);
+
+	function retryRetention() {
+		loadRetention();
+		keepFocusOnHeading('retention-heading');
+	}
 
 	async function onSubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -264,7 +269,7 @@
 					{#if loadError}
 						<div class="load-failed" role="alert">
 							<p>{loadError()}</p>
-							<button type="button" class="btn small" onclick={loadRetention}
+							<button type="button" class="btn small" onclick={retryRetention}
 								>{m.account_retention_try_again()}</button
 							>
 						</div>

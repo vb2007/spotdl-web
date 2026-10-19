@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import * as api from '$lib/api';
 import { queue } from '$lib/stores/queue';
-import { markSessionEnded } from '$lib/stores/sessionEnded';
+import { consumeSessionEnded, markSessionEnded } from '$lib/stores/sessionEnded';
 import { shortcutsEnabled } from '$lib/keyboard/registry';
 import { applyClock, applyLanguagePreference } from '$lib/i18n/locale.svelte';
 import type { LayoutLoad } from './$types';
@@ -63,6 +63,8 @@ export const load: LayoutLoad = async ({ url }) => {
 		redirect(302, '/login');
 	}
 	if (session !== null) {
+		// v47: a live session answers any earlier "it ended" (a hover preload's, say).
+		consumeSessionEnded();
 		if (lastSessionEmail !== null && lastSessionEmail !== session.email) {
 			queue.reset();
 			// v45: the new identity's own switch, at once. A hover preload's `data` is never

@@ -373,7 +373,7 @@
 			jobId={job.id}
 			{isAdmin}
 			total={totalTracks}
-			unreadable={job.status.lifecycle === 'failed' ? (job.error ?? null) : null}
+			unreadable={job.status.lifecycle === 'failed' ? (isAdmin ? (job.error ?? '') : '') : null}
 		/>
 	{/if}
 </li>

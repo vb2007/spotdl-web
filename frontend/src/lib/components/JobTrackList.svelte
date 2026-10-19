@@ -3,12 +3,15 @@
 	import TrackRow from '$lib/components/TrackRow.svelte';
 	import { tick } from 'svelte';
 	import { focusRowEl, itemOf, kbList, rowAt, rowItemById } from '$lib/keyboard/lists';
+	import { keepFocus } from '$lib/stores/confirm';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
 	import { formatNumber } from '$lib/i18n/format';
 
-	// v47: `unreadable` (the job failed before any track was read, `job.error` its reason) says
-	// why the list is empty instead of a bare "No tracks.".
+	// v47: `unreadable` (the job failed before any track was read) says why the list is empty
+	// instead of a bare "No tracks.". It carries `job.error` for the admin only: the raw
+	// expansion error is operator detail (v39 outcome 3), as in IncomingJobs; a non-admin gets
+	// the sentence alone ('').
 	let {
 		jobId,
 		isAdmin,
@@ -59,14 +62,21 @@
 		     re-open before). -->
 		<div class="hint fail" role="alert">
 			<p>{m.job_tracks_failed()} {errorText(state.error.err)}</p>
-			<button type="button" class="retry" onclick={() => queue.loadExpandedTracks(jobId)}
-				>{m.job_tracks_retry()}</button
+			<button
+				type="button"
+				class="retry"
+				onclick={() => {
+					queue.loadExpandedTracks(jobId);
+					// The block (and this button) goes while it loads: focus goes back to the job.
+					keepFocus(rowItemById(jobId));
+				}}>{m.job_tracks_retry()}</button
 			>
 		</div>
 	{:else if state.items.length === 0}
 		{#if unreadable !== null}
 			<p class="hint">
-				{m.job_tracks_unreadable()} <span class="reason mono" lang="en">{unreadable}</span>
+				{m.job_tracks_unreadable()}
+				{#if unreadable}<span class="reason mono" lang="en">{unreadable}</span>{/if}
 			</p>
 		{:else}
 			<p class="hint">{m.job_tracks_empty()}</p>

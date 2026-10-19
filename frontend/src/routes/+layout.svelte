@@ -20,7 +20,7 @@
 	import HelpOverlay from '$lib/components/HelpOverlay.svelte';
 	import ChordIndicator from '$lib/components/ChordIndicator.svelte';
 	import { queue } from '$lib/stores/queue';
-	import { onUnauthorized } from '$lib/api';
+	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { link as streamLink } from '$lib/stores/link';
 	import {
@@ -91,10 +91,20 @@
 	// change and reload the tab.
 	let ending = false;
 	$effect(() =>
-		onUnauthorized(async () => {
+		api.onUnauthorized(async () => {
 			if (ending || page.url.pathname === resolve('/login')) return;
 			ending = true;
 			try {
+				// v47: a 401 can be stale (a request sent before a sign-in in another tab, or
+				// answered after this tab's own sign-out began): only a session /me no longer
+				// knows has ended. Anything but a 401 here can't tell, so the 401 stands.
+				try {
+					await api.me();
+					return;
+				} catch {
+					// A 401 confirms it; any other failure can't tell, and the request's 401 stands.
+				}
+				if (api.isSigningOut() || page.url.pathname === resolve('/login')) return;
 				await goto(resolve('/login'), { state: { sessionEnded: true } });
 				queue.reset();
 			} finally {
@@ -114,6 +124,17 @@
 			await invalidateAll();
 		} finally {
 			retrying = false;
+		}
+		// The screen this button was on is gone once the server answers; an invalidation is
+		// no navigation, so afterNavigate won't place focus: the page's h1 takes it (v47).
+		await tick();
+		if (document.activeElement === document.body || document.activeElement === null) {
+			// i18n-ignore: a selector
+			const heading = document.querySelector<HTMLElement>('main h1');
+			if (heading) {
+				if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+				heading.focus();
+			}
 		}
 	}
 	$effect(() => {
@@ -148,7 +169,8 @@
 	function skip(event: MouseEvent) {
 		// v47: on `/` "Skip to queue" means the queue: its heading (already focusable), past the
 		// submit form, the incoming submissions and the Waterfall (it landed 13 stops short).
-		const heading = page.route.id === '/' ? document.getElementById('queue-heading') : null;
+		const heading =
+			page.route.id === '/' && !data.unreachable ? document.getElementById('queue-heading') : null;
 		if (heading) {
 			event.preventDefault();
 			heading.focus();
@@ -173,7 +195,9 @@
 
 <!-- v45: the first focusable element on every page. -->
 <a class="skip-link" href="#main" onclick={skip}
-	>{page.route.id === '/' ? m.layout_skip_to_queue() : m.layout_skip_to_content()}</a
+	>{page.route.id === '/' && !data.unreachable
+		? m.layout_skip_to_queue()
+		: m.layout_skip_to_content()}</a
 >
 
 <AmbientField {live} />

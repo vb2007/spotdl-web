@@ -234,7 +234,16 @@
 	// v47: the form checks the link itself (`novalidate`): the browser's own bubble spoke the
 	// browser's language, sat outside the design, and turned away a link pasted with words or
 	// an emoji around it. The first http(s) address in what was pasted is the one sent.
+	// What the browser's own check let through goes as before: one absolute URL, any scheme
+	// (a `spotify:` URI included). Anything else has its first http(s) link taken out, minus
+	// the sentence punctuation that tends to follow a pasted link.
+	const ABSOLUTE_RE = /^[a-z][a-z0-9+.-]*:\S+$/i;
 	const LINK_RE = /https?:\/\/[^\s<>"']+/i;
+	function linkIn(text: string): string | undefined {
+		const trimmed = text.trim();
+		if (ABSOLUTE_RE.test(trimmed)) return trimmed;
+		return LINK_RE.exec(trimmed)?.[0].replace(/[.,;:!?)\]}»”’]+$/, '');
+	}
 
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -242,7 +251,7 @@
 			submitError = m.dashboard_submit_empty();
 			return;
 		}
-		const link = LINK_RE.exec(url)?.[0];
+		const link = linkIn(url);
 		if (!link) {
 			submitError = m.dashboard_submit_not_link();
 			return;
@@ -467,8 +476,10 @@
 	// v47: the browser knows when it's offline; the tell says so at once rather than "linked".
 	// Back online, or back to this tab with the link down, it reconnects now instead of
 	// waiting out a backoff of up to 30s.
+	// A start-over rather than only the tell: a spurious `offline` (a VPN or Wi-Fi handoff)
+	// with the stream still alive would otherwise pin "link lost" until something else fired.
 	function onOffline() {
-		link.set('reconnecting');
+		restartStream();
 	}
 
 	function onOnline() {
