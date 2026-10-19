@@ -200,30 +200,38 @@
 		await keepFocus(landing());
 	}
 
+	// v47: each answer is shown only to the session that asked (the reset count, as cancel's):
+	// a late one after a sign-out must not land on the next identity's row.
 	async function handleBump() {
+		const session = queue.getResetCount();
 		try {
 			await queue.bumpJob(job.id);
-			showNotice(m.job_notice_bumped());
+			if (queue.getResetCount() === session) showNotice(m.job_notice_bumped());
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_bump_failed), true);
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_bump_failed), true);
 		}
 	}
 
 	async function handlePriority(value: string) {
 		const priority = Number.parseInt(value, 10);
 		if (Number.isNaN(priority)) return;
+		const session = queue.getResetCount();
 		try {
 			await queue.setJobPriority(job.id, priority);
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_priority_failed), true);
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_priority_failed), true);
 		}
 	}
 
 	async function handleArchive() {
+		const session = queue.getResetCount();
 		try {
 			await queue.archiveJobs({ jobIds: [job.id] });
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_archive_failed), true);
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_archive_failed), true);
 		}
 	}
 
@@ -252,10 +260,12 @@
 	}
 
 	async function handleUnarchive() {
+		const session = queue.getResetCount();
 		try {
 			await queue.unarchiveJobs([job.id]);
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_unarchive_failed), true);
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_unarchive_failed), true);
 		}
 	}
 </script>

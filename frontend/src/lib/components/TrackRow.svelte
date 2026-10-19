@@ -389,12 +389,16 @@
 		await keepFocus(landing());
 	}
 
+	// v47: shown only to the session that asked (the reset count, as cancel's).
 	async function handleRetry() {
+		const session = queue.getResetCount();
 		try {
 			const { breakerHeld } = await queue.retryTrack(track.id, jobId);
+			if (queue.getResetCount() !== session) return;
 			showNotice(breakerHeld ? m.track_notice_retry_held() : m.track_notice_retry_queued());
 		} catch (err) {
-			showNotice(errorText(err, m.track_notice_retry_failed), true);
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.track_notice_retry_failed), true);
 		}
 	}
 
@@ -440,12 +444,15 @@
 	// `download` attribute keeps the page in place and takes the filename from the
 	// response's Content-Disposition.
 	async function handleDownload() {
+		const session = queue.getResetCount();
 		try {
 			await api.checkTrackFile(track.id);
 		} catch (err) {
-			showNotice(errorText(err, m.track_notice_download_failed), true);
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.track_notice_download_failed), true);
 			return;
 		}
+		if (queue.getResetCount() !== session) return;
 		const anchor = document.createElement('a');
 		anchor.href = api.trackFileUrl(track.id);
 		anchor.download = '';

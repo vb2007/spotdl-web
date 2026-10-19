@@ -38,6 +38,7 @@
 	let announcedCount = $state('');
 	let wasLoading = false;
 	let announcedFor: string | null = null;
+	const FAILED = '\u0000failed';
 	let announceTimer: ReturnType<typeof setTimeout> | undefined;
 	$effect(() => {
 		const loading = $page.loading;
@@ -57,9 +58,9 @@
 				clearTimeout(announceTimer);
 				announceTimer = setTimeout(() => (announcedCount = text), 50);
 			}
-			// A failed load still settles which filters were asked for (a first load that failed
-			// would otherwise leave every later change unannounced).
-			announcedFor = key;
+			// A failed load marks nothing as heard: the retry that lands next (same filters, or the
+			// first load's) is announced, and so is every change after it.
+			announcedFor = $page.error ? FAILED : key;
 		}
 		wasLoading = loading;
 	});

@@ -37,17 +37,23 @@ export const load: LayoutLoad = async ({ url }) => {
 	// blip. A real navigation still goes to /login as before; if someone else then signs
 	// in on this tab, the identity-change reset below clears the store.
 	let sessionGone = false;
+	// 0: the request never got an answer (the network, the api down).
+	let failedStatus: number | null = null;
 	try {
 		session = await api.me();
 	} catch (err) {
 		session = null;
-		sessionGone = err instanceof api.ApiError && err.status === 401;
+		failedStatus = err instanceof api.ApiError ? err.status : 0;
+		sessionGone = failedStatus === 401;
 	}
 
-	// v47: nor does a failed first answer sign anyone out. A 5xx or a network failure (an api
-	// restart, a deploy) used to send a signed-in user to /login, where they stayed after the
-	// api came back. The layout shows "can't reach the server" and retries instead.
-	const unreachable = session === null && !sessionGone && !onLoginPage;
+	// v47: nor does a failed first answer sign anyone out. A 5xx, a 429 or a network failure
+	// (an api restart, a deploy) used to send a signed-in user to /login, where they stayed after
+	// the api came back. The layout shows "can't reach the server" and retries instead. Any
+	// other answer (a 4xx from something in front of the app) won't pass by waiting, so it
+	// goes to /login as before rather than retrying forever.
+	const transient = failedStatus === 0 || failedStatus === 429 || (failedStatus ?? 0) >= 500;
+	const unreachable = session === null && transient && !onLoginPage;
 
 	if (session === null && !onLoginPage && !unreachable) {
 		// `queue` is a module-level singleton that survives this client-side redirect (no
