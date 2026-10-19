@@ -282,14 +282,19 @@
 			document.getElementById('submit-url')?.focus();
 	}
 
+	// v47: a sign-out the server couldn't take says so (it failed silently on /).
+	let logoutError = $state('');
+
 	async function onLogout() {
 		loggingOut = true;
+		logoutError = '';
 		try {
 			await api.logout();
 		} catch (err) {
 			// Still here and still signed in: the reload guard must work again.
 			loggingOut = false;
-			throw err;
+			logoutError = m.dashboard_disconnect_failed({ error: errorText(err) });
+			return;
 		}
 		// `queue` is a module-level singleton that survives this SPA navigation -- clear it
 		// before leaving, so a different identity logging in on the same tab next can never
@@ -603,6 +608,7 @@
 				>{api.displayName(data.session?.username ?? null, data.session?.email ?? '')}</span
 			>
 			<button type="button" class="logout" onclick={onLogout}>{m.dashboard_disconnect()}</button>
+			<p class="logout-error" role="alert">{logoutError}</p>
 		</nav>
 	</header>
 
@@ -938,6 +944,21 @@
 
 	.logout:active {
 		background: var(--bg-3);
+	}
+
+	.logout-error {
+		flex-basis: 100%;
+		text-align: right;
+		font-size: var(--fs-meta);
+		color: var(--fail);
+	}
+
+	.logout-error:empty {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 
 	.main {

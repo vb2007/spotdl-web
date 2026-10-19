@@ -79,9 +79,11 @@
 			const status = err instanceof api.ApiError ? err.status : 0;
 			errorMessage = credentialsRejected
 				? m.login_error_rejected()
-				: status >= 500 && ![502, 503, 504].includes(status)
-					? m.login_error_server()
-					: m.login_error_unreachable();
+				: status === 429
+					? m.login_error_rate_limited()
+					: status >= 500 && ![502, 503, 504].includes(status)
+						? m.login_error_server()
+						: m.login_error_unreachable();
 			submitting = false;
 			// v43 (F31): after rejected credentials, back to the field to fix; after a server
 			// that couldn't be reached, back on CONNECT to try again (nothing to fix). The

@@ -1311,8 +1311,12 @@
 			line-clamp: none;
 		}
 
+		/* v47: wrapping inside a cell too, so the two-line clamp (not the cells' nowrap) decides
+		   where a long artist list or album is cut, with its ellipsis. */
 		.meta .cell {
 			display: inline;
+			white-space: normal;
+			overflow-wrap: anywhere;
 		}
 
 		.meta .cell.album::before {
