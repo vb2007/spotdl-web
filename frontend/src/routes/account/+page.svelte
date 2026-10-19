@@ -486,6 +486,14 @@
 		gap: var(--space-3);
 	}
 
+	/* v47: the groups read apart from one another: a rule and more air between them than
+	   inside one (they ran together at about the same 12px). */
+	.group + .group {
+		margin-top: var(--space-2);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--line);
+	}
+
 	.group-title {
 		font-size: var(--fs-body);
 		font-weight: var(--fw-medium);

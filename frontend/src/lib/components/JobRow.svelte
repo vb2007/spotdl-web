@@ -9,7 +9,7 @@
 	import type { Job, JobLifecycle, JobSourceType } from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { formatNumber } from '$lib/i18n/format';
+	import { formatNumber, keepReadings } from '$lib/i18n/format';
 	import { jobStatusLabel } from '$lib/i18n/labels';
 
 	let { job, allUsers, isAdmin }: { job: Job; allUsers: boolean; isAdmin: boolean } = $props();
@@ -130,12 +130,7 @@
 	});
 	// v41: the visible copy wraps only between parts ("120 done · 3 waiting"), never
 	// inside one, so every count stays readable in the fixed progress column.
-	let breakdownVisible = $derived(
-		breakdown
-			.split(' · ')
-			.map((part) => part.replace(/ /g, '\u00a0'))
-			.join(' · ')
-	);
+	let breakdownVisible = $derived(keepReadings(breakdown));
 
 	function showNotice(text: string) {
 		showRowNotice(`job:${job.id}`, text);

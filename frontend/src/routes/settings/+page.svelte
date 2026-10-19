@@ -124,6 +124,23 @@
 		};
 	}
 
+	// v47: a section whose first read failed says so in one sentence, with its own retry
+	// (it took a reload before), and the save line below stays for save errors.
+	function retryOutput() {
+		outputError = '';
+		loadOutputSettings().catch((err) => (outputError = errorText(err)));
+	}
+
+	function retryLibrary() {
+		libraryError = '';
+		loadLibrarySettings().catch((err) => (libraryError = errorText(err)));
+	}
+
+	function retryAlerts() {
+		alertError = '';
+		loadAlertSettings().catch((err) => (alertError = errorText(err)));
+	}
+
 	async function loadOutputSettings() {
 		[outputSettings, outputOptions] = await Promise.all([
 			api.getOutputSettings(),
@@ -531,9 +548,9 @@
 	onMount(() => {
 		// A non-admin gets the notice and nothing else: no admin request is ever made (F17).
 		if (!isAdmin) return;
-		loadOutputSettings().catch((err) => (outputError = errorText(err)));
-		loadLibrarySettings().catch((err) => (libraryError = errorText(err)));
-		loadAlertSettings().catch((err) => (alertError = errorText(err)));
+		retryOutput();
+		retryLibrary();
+		retryAlerts();
 		loadProxies();
 		const poll = setInterval(refreshProxiesSilently, PROXY_POLL_MS);
 
@@ -551,7 +568,10 @@
 				const el = document.getElementById(id);
 				if (el && el.getBoundingClientRect().top <= line) current = id;
 			}
-			activeSection = atEnd && window.scrollY > 0 ? SECTIONS[SECTIONS.length - 1].id : current;
+			// v47: at the top of the page the first section is the one being read, even when the
+			// next one's top already sits above the line (a 900px-tall window marked Output).
+			activeSection =
+				window.scrollY < 8 ? SECTIONS[0].id : atEnd ? SECTIONS[SECTIONS.length - 1].id : current;
 		};
 		const onScroll = () => {
 			if (!frame) frame = requestAnimationFrame(mark);
@@ -570,6 +590,15 @@
 </script>
 
 <!-- v46: a sentence whose machine names (env vars, files, formats) stay code. -->
+<!-- v47: one shape for a section whose first read failed: what, why, and a retry. -->
+{#snippet loadFailed(error: string, retry: () => void)}
+	<div class="load-failed" role="alert">
+		<p>{m.settings_section_load_failed({ error })}</p>
+		<button type="button" class="btn small" onclick={retry}>{m.settings_proxies_try_again()}</button
+		>
+	</div>
+{/snippet}
+
 {#snippet coded(parts: CodePart[])}{#each parts as part, i (i)}{#if part.code}<code
 				>{part.text}</code
 			>{:else}{part.text}{/if}{/each}{/snippet}
@@ -616,7 +645,11 @@
 					</header>
 
 					{#if outputOptions === null}
-						{#if !outputError}<p class="section-hint">{m.settings_output_loading()}</p>{/if}
+						{#if outputError}
+							{@render loadFailed(outputError, retryOutput)}
+						{:else}
+							<p class="section-hint">{m.settings_output_loading()}</p>
+						{/if}
 					{:else}
 						<form class="grid" onsubmit={onOutputSubmit} novalidate>
 							<div class="form-field">
@@ -682,7 +715,7 @@
 							</div>
 						</form>
 					{/if}
-					<p class="form-error" role="alert">{outputError}</p>
+					<p class="form-error" role="alert">{outputSettings !== null ? outputError : ''}</p>
 				</section>
 
 				<section id="library" class="panel section" aria-labelledby="library-heading">
@@ -696,7 +729,11 @@
 					</header>
 
 					{#if librarySettings === null}
-						{#if !libraryError}<p class="section-hint">{m.settings_library_loading()}</p>{/if}
+						{#if libraryError}
+							{@render loadFailed(libraryError, retryLibrary)}
+						{:else}
+							<p class="section-hint">{m.settings_library_loading()}</p>
+						{/if}
 					{:else}
 						<form class="grid" onsubmit={onLibrarySubmit} novalidate>
 							{#each LIBRARY_TEXT_FIELDS.slice(0, 2) as field (field.key)}
@@ -774,14 +811,18 @@
 							</div>
 						</form>
 					{/if}
-					<p class="form-error" role="alert">{libraryError}</p>
+					<p class="form-error" role="alert">{librarySettings !== null ? libraryError : ''}</p>
 				</section>
 
 				<section id="alerts" class="panel section" aria-labelledby="alerts-heading">
 					<header class="section-head">
 						<h2 id="alerts-heading" class="label">{m.settings_alerts_heading()}</h2>
 						{#if alertSettings === null}
-							{#if !alertError}<p class="section-hint">{m.settings_alerts_loading()}</p>{/if}
+							{#if alertError}
+								{@render loadFailed(alertError, retryAlerts)}
+							{:else}
+								<p class="section-hint">{m.settings_alerts_loading()}</p>
+							{/if}
 						{:else if alertSettings.configured}
 							<p class="section-hint">{m.settings_alerts_on_hint()}</p>
 						{:else}
@@ -794,7 +835,7 @@
 					{#if alertSettings !== null}
 						<form class="alert-form" onsubmit={onAlertSubmit} novalidate>
 							<fieldset class="group">
-								<legend class="label">{m.settings_alerts_send_when()}</legend>
+								<legend class="group-title">{m.settings_alerts_send_when()}</legend>
 								<ul class="toggle-list">
 									{#each ALERT_TOGGLES as toggle (toggle.key)}
 										<li class="toggle-row">
@@ -831,7 +872,7 @@
 							</fieldset>
 
 							<fieldset class="group">
-								<legend class="label">{m.settings_alerts_thresholds()}</legend>
+								<legend class="group-title">{m.settings_alerts_thresholds()}</legend>
 								<div class="grid">
 									{#each ALERT_NUMBERS as field (field.key)}
 										<div class="form-field">
@@ -883,7 +924,7 @@
 							<p class="save-state saved" role="status">{alertTestResult}</p>
 						</form>
 					{/if}
-					<p class="form-error" role="alert">{alertError}</p>
+					<p class="form-error" role="alert">{alertSettings !== null ? alertError : ''}</p>
 				</section>
 
 				<section id="proxies" class="panel section" aria-labelledby="proxies-heading">
@@ -925,12 +966,12 @@
 						<p class="section-hint">{m.settings_proxies_loading()}</p>
 					{:else if proxiesLoadError && proxyList.length === 0}
 						<!-- Nothing read: never claim "no proxies" over a failed load. -->
-						<p class="section-hint">
-							{m.settings_proxies_load_failed({ error: proxiesLoadError })}
+						<div class="load-failed">
+							<p>{m.settings_proxies_load_failed({ error: proxiesLoadError })}</p>
 							<button type="button" class="btn small" onclick={loadProxies}
 								>{m.settings_proxies_try_again()}</button
 							>
-						</p>
+						</div>
 					{:else if proxyList.length === 0}
 						<p class="section-hint">{m.settings_proxies_empty()}</p>
 					{:else}
@@ -1098,6 +1139,15 @@
 		gap: var(--space-1);
 	}
 
+	.load-failed {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2) var(--space-3);
+		font-size: var(--fs-detail);
+		color: var(--fail);
+	}
+
 	.section-hint {
 		font-size: var(--fs-detail);
 		color: var(--text-muted);
@@ -1139,9 +1189,17 @@
 		gap: var(--space-3);
 	}
 
+	/* v47: a group inside a section is a heading of its own (Sans, body size, medium), as on
+	   /account, not one more uppercase .label like the section's h2 and the field labels. */
 	.group legend {
 		padding: 0;
-		margin-bottom: var(--space-3);
+		margin-bottom: var(--space-2);
+	}
+
+	.group-title {
+		font-size: var(--fs-body);
+		font-weight: var(--fw-medium);
+		color: var(--text-primary);
 	}
 
 	.toggle-list {
@@ -1178,14 +1236,13 @@
 		flex-shrink: 0;
 	}
 
+	/* v47: the unit has a column of its own, so every threshold input ends at the same x
+	   whatever its unit's length ("attempts" / "minutes", Hungarian's longer ones). */
 	.with-unit {
-		display: flex;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 5.5rem;
 		align-items: center;
 		gap: var(--space-2);
-	}
-
-	.with-unit input {
-		flex: 1 1 auto;
 	}
 
 	.unit {

@@ -421,9 +421,23 @@ kbd {
 
 /* Unlike the page-level error lines, a field's error reserves nothing at rest: it appears
    only after a submit, which also moves focus to the field, and reserving a line under every
-   field cost about 200px on a phone /settings (v43, DESIGN.md §6). */
-.field-error:empty {
+   field cost about 200px on a phone /settings (v43, DESIGN.md §6).
+   v47: an empty live region (a field's error, a section's error, its save state) takes no
+   room at all: in a flex column it still took a gap, so every panel ended in 16-40px of dead
+   space. It stays rendered and in the accessibility tree (never display:none, which some
+   screen readers then don't announce into), just out of the flow. */
+.field-error:empty,
+.form-error:empty,
+.save-state:empty {
+	position: absolute;
+	width: 1px;
+	height: 1px;
 	min-height: 0;
+	margin: 0;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 
 /* A choice between a few values: one segmented edge, one pressed option. The pressed
@@ -440,7 +454,8 @@ kbd {
 .choice-group button {
 	background: var(--bg-2);
 	border: none;
-	padding: var(--space-1) var(--space-3);
+	/* v47: the same height as a .btn beside it (28px against 36px before). */
+	padding: var(--space-2) var(--space-3);
 	font-family: var(--font-sans);
 	font-size: var(--fs-detail);
 	font-weight: var(--fw-medium);

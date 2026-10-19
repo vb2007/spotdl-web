@@ -33,7 +33,13 @@
 	} from '$lib/stats';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { counted, formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
+	import {
+		counted,
+		formatClock,
+		formatDateTime,
+		formatNumber,
+		keepReadings
+	} from '$lib/i18n/format';
 	import { trackStateLabel } from '$lib/i18n/labels';
 
 	let { data } = $props();
@@ -272,11 +278,13 @@
 												{#if path.attempts > 0}
 													<OutcomeBar counts={path} />
 													<span class="counts mono">
-														{m.stats_outcome_counts({
-															completed: formatNumber(path.completed),
-															failed: formatNumber(path.failed),
-															not_found: formatNumber(path.not_found)
-														})}
+														{keepReadings(
+															m.stats_outcome_counts({
+																completed: formatNumber(path.completed),
+																failed: formatNumber(path.failed),
+																not_found: formatNumber(path.not_found)
+															})
+														)}
 													</span>
 												{:else}
 													<span class="quiet">{m.stats_not_used()}</span>
@@ -395,10 +403,12 @@
 		gap: var(--space-4);
 	}
 
+	/* v47: the same title-to-plate rhythm as the other secondary pages (--space-5). The error
+	   line reserved a band at rest, which put the plates 81px under the title (49 elsewhere). */
 	.main {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-4);
+		gap: var(--space-5);
 		margin-top: var(--space-2);
 	}
 
@@ -419,11 +429,6 @@
 	.read-at {
 		font-size: var(--fs-meta);
 		color: var(--text-dim);
-	}
-
-	/* Reserved at rest (DESIGN.md "Error / status text"): a failed refresh doesn't move the plates. */
-	.form-error {
-		min-height: 1.5em;
 	}
 
 	/* Desktop: a narrow "now" plate beside the window plate; below 1024 they stack, now first. */
@@ -452,6 +457,11 @@
 	.quiet {
 		color: var(--text-muted);
 		font-size: var(--fs-detail);
+	}
+
+	/* v47: a definition is a sentence, read at a sentence's measure (it ran ~103 characters). */
+	#rate-definition {
+		max-width: 68ch;
 	}
 
 	.note {
@@ -516,9 +526,11 @@
 		color: var(--text-primary);
 	}
 
+	/* v47: top-aligned, so its heading sits level with the "Right now" plate's beside it
+	   (centred against the taller window switch, it sat 5px lower). */
 	.window-head {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: var(--space-3);
@@ -634,7 +646,7 @@
 	.counts {
 		display: block;
 		margin-top: var(--space-1);
-		font-size: var(--fs-label);
+		font-size: var(--fs-meta);
 		color: var(--text-dim);
 	}
 

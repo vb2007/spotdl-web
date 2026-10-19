@@ -510,8 +510,18 @@
 		color: var(--text-primary);
 	}
 
+	/* v47: "· took 10m 0s" moves to the next line whole, never split from its value. */
 	.took {
 		color: var(--text-muted);
+		white-space: nowrap;
+	}
+
+	/* v47: a count inside the sentence keeps tabular figures but the sentence's own face:
+	   Plex Mono's full-cell comma read "1 ,360" between Sans words. */
+	.status .mono {
+		font-family: inherit;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: normal;
 	}
 
 	.link-lost {
@@ -562,7 +572,9 @@
 		background: var(--line-bright);
 	}
 
+	/* v47: its own space: the leading whitespace collapsed into "missing album×2". */
 	.times {
+		margin-left: var(--space-2);
 		color: var(--text-muted);
 	}
 
@@ -623,6 +635,11 @@
 		gap: var(--space-1);
 		padding: var(--space-2) 0;
 		border-bottom: 1px solid var(--line);
+	}
+
+	/* v47: the next list's own top rule closes this one; two hairlines doubled up. */
+	.error-list li:last-child {
+		border-bottom: none;
 	}
 
 	.file {
