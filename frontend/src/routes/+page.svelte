@@ -460,6 +460,10 @@
 	// dropped while the machine slept, if the network is back on wake (no poll fails, and a
 	// quiet stream looks the same as a dead one); the browser's own socket timeout ends it.
 	let unreachedPolls = 0;
+	// A poll with no answer after 10s counts as unreached too, once: a request that hangs on
+	// a dead connection never rejects. Later polls still go out, so one stuck request can't
+	// stop the worker status from refreshing.
+	const POLL_ANSWER_MS = 10_000;
 	// Set by the cleanup: a poll, an offline/online event or a stream callback that settles
 	// after the page is gone must not open a stream nobody owns.
 	let unmounted = false;
@@ -469,20 +473,35 @@
 			window.location.reload();
 			return;
 		}
+		let settled = false;
+		const overdue = setTimeout(() => {
+			if (settled || unmounted) return;
+			settled = true;
+			countUnreached();
+		}, POLL_ANSWER_MS);
 		worker
 			.refresh()
 			.then(() => {
 				unreachedPolls = 0;
 			})
 			.catch((err) => {
+				if (settled) return;
 				// An error answer reached the server: the run of unreached polls is broken.
 				if (err instanceof api.ApiError) {
 					unreachedPolls = 0;
 					return;
 				}
-				unreachedPolls += 1;
-				if (unreachedPolls >= 2 && get(link) === 'live') restartStream();
+				countUnreached();
+			})
+			.finally(() => {
+				settled = true;
+				clearTimeout(overdue);
 			});
+	}
+
+	function countUnreached() {
+		unreachedPolls += 1;
+		if (unreachedPolls >= 2 && get(link) === 'live') restartStream();
 	}
 
 	/** Drops the current stream and opens a new one now, at the first backoff step. */

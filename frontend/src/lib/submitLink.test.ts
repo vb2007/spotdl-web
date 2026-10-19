@@ -35,8 +35,12 @@ describe('v47 submit link', () => {
 		);
 	});
 
-	it('prefers a Spotify link over another one before it', () => {
-		expect(linkIn(`https://example.com/x then ${ALBUM}`)).toBe(ALBUM);
+	it('drops a case ending from a spotify: URI too', () => {
+		expect(linkIn(`Hallgasd meg: spotify:album:${ID}-t!`)).toBe(`spotify:album:${ID}`);
+	});
+
+	it('takes any other http(s) link as it is', () => {
+		expect(linkIn('see https://example.com/x-y-z.')).toBe('https://example.com/x-y-z');
 	});
 
 	it('counts the links, a Markdown link as the two it holds', () => {
