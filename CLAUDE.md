@@ -18,8 +18,8 @@ YouTube-Music rate limiting as an expected, permanent condition rather than a fa
 That inverts normal web-app priorities — durability beats throughput. A track may legitimately sit
 in the queue for days, and that is correct behavior, not a stall.
 
-**Status:** masters v1–v4 (v00–v48) are complete and deployed at `spotdl.vb2007.hu`. No next
-master is planned; a new one starts with its own `plan/master-vN/00-master-plan.md`.
+**Status:** masters v1–v4 (v00–v48) are complete; releases ship to `spotdl.vb2007.hu` through the
+release pipeline. No next master is planned; a new one starts with its own `plan/master-vN/00-master-plan.md`.
 
 ### Where things are
 
@@ -27,13 +27,10 @@ master is planned; a new one starts with its own `plan/master-vN/00-master-plan.
 |---|---|
 | Latest roadmap + rationale (and its Amendments) | `plan/master-v4/00-master-plan.md` |
 | Per-version plans (finished masters' are historical, never edited) | `plan/master-vN/vNN-*.md`; agent prompt template `plan/master-v4/IMPLEMENTATION_PROMPT.md` |
-| **Accumulated gotchas, v01–v48** | **`docs/GOTCHAS.md`** — indexed by topic; read the relevant section before touching an area |
+| **Accumulated gotchas, v01–v48** | **`docs/GOTCHAS.md`** — read the relevant section (via its topic index, never end to end) before touching an area, and verify a referenced file or function still exists before acting on it |
 | Deploy runbook (Debian host) / local dev runbook | `docs/DEPLOYMENT.md` / `docs/LOCAL_DEV.md` |
 | CI (self-hosted runner) / release pipeline (versioning, GHCR, deploy, rollback) | `docs/CI_SELF_HOSTED_RUNNER.md` / `docs/RELEASE_PIPELINE.md` |
 | Product brief / frontend design system | `PRODUCT.md` / `frontend/src/DESIGN.md` |
-
-`docs/GOTCHAS.md` records *why* things are as they are; use its topic index, never read it end to
-end, and **verify a referenced file or function still exists before acting on it.**
 
 ### Workflow rules (do not deviate without asking)
 
@@ -68,8 +65,9 @@ end, and **verify a referenced file or function still exists before acting on it
 Two environments share the physical Postgres server but **never a database**: local dev uses
 **`spotdlwebtest`**, production **`spotdlweb`** (v32). The dev override sets `SPOTDL_ENV=dev` on every
 backend service, and `app/config.py` refuses to boot any of them, `migrate` included, against a
-production database name or an unparseable URL. Never remove the marker or set it in production.
-Dev uses test identities only, the dev `ADMIN_EMAIL` included.
+production database name (`spotdlweb`, also the templates' old `spotdl_web`) or an unparseable URL.
+Never remove the marker or set it in production. Dev uses test identities only, the dev
+`ADMIN_EMAIL` included; create/reset steps are in `docs/LOCAL_DEV.md`'s "Dedicated dev database".
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
 |---|---|---|
@@ -77,7 +75,8 @@ Dev uses test identities only, the dev `ADMIN_EMAIL` included.
 | Compose invocation | `docker compose up` (override applies — hot reload) | `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build` (the overlay is mandatory) |
 | Postgres | Dev DB `spotdlwebtest`, reached over LAN by its real address | Prod DB `spotdlweb`, reached via `host.docker.internal` |
 
-Redis and the other containers are per environment. Never cross the two `DATABASE_URL`s' host or name.
+Redis and the other containers are per environment. The two `DATABASE_URL`s differ in host, database
+name and role; never copy one's into the other.
 
 ## Locked decisions (settled — don't re-litigate without asking)
 
@@ -120,10 +119,10 @@ Redis and the other containers are per environment. Never cross the two `DATABAS
 | Production data | **Not disposable** (v2's "destructive migrations allowed" is over). No API back-compat needed, but a migration that drops/rewrites data says so in its plan and takes a `pg_backup` first |
 | Alerts | One Matrix room (host's Synapse, bot token) for pipeline and app alerts (breaker, failure spike, stale beat, library sweep); unconfigured = off; an alert never blocks work and a failed send is dropped |
 | Rollback | Restores the last healthy `persist=true` release's commit **and** tag together (`.last-good`); if the DB is ahead of it, falls back to the pre-deploy commit + tag when that knows the schema (v33.1); never across a migration the target doesn't know |
-| UI work | Every UI slice goes through the impeccable skill; refinement of the existing world (v39). Operator detail (breaker pill, full filters, attempt diagnostics, priority/bump) is admin-only and absent from non-admin DOM; non-admins get a simpler view |
+| UI work | Every UI slice goes through the impeccable skill; refinement of the existing world (v39). All monitoring information is kept for the **admin**; operator detail (breaker pill, full filters, attempt diagnostics, priority/bump) is admin-only and absent from non-admin DOM; non-admins get a simpler view |
 | Browser tests | Playwright suite run locally against the real stack (desktop, mobile, `hu` projects); no CI browser job (the runner is the prod host) |
 | Keyboard | Full mouse-free operation, bindings designed for **Hungarian QWERTZ** (no AltGr, no `Y`/`Z`, match `event.key`); single-key shortcuts inert in text inputs and turn-off-able per user; every new interactive element is keyboard-reachable |
-| i18n | `hu` + `en`, full coverage, every new string in both message files. Signed out the browser decides (`navigator.languages` → `en`); signed in, a language saved on `/account` wins, and its "automatic" choice follows the browser again. Formats = UI language + browser region, with a per-user 12h/24h override. Backend stays language-neutral (error `code`s); track metadata/raw errors/alerts/logs untranslated |
+| i18n | `hu` + `en`, full coverage, every new string in both message files. Signed out the browser decides (`navigator.languages` → `en`); signed in, a language saved on `/account` wins, and its "automatic" choice follows the browser again (no `/login` switch, nothing adopted at sign-in). Formats = UI language + browser region, with a per-user 12h/24h override by the same rules. Backend stays language-neutral (error `code`s); track metadata/raw errors/alerts/logs untranslated |
 | Library sweep scope | A sweep repoints every user's moved tracks but archives only the **sweeping admin's own** settled jobs (v48, F34) |
 
 ## Architecture
@@ -219,8 +218,9 @@ any ──> cancelled
   only the following attempt uses a proxy. A failing proxy gets its own `cooldown_until`. A proxy
   is TCP-probed before use, and a proxied attempt that dies at its proxy doesn't consume the
   track's rung (v40.1).
-- **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`, `MAX_SEC=0` = off): randomized delay before
-  each attempt, the first dial to turn if 429s stay frequent; raising it means also raising
+- **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`, `MAX_SEC=0` = off, `MIN` > `MAX` rejected at
+  startup): randomized delay in `download_track` after the cancel/breaker/dedup gates, before the
+  attempt. The first dial to turn if 429s stay frequent; raising it means also raising
   `STALE_TRACK_AFTER_SECONDS` (beat's stale sweep can't tell "paced" from "stuck").
 
 ### Job rollup status (v2) — two derived axes, never one stored flag
@@ -228,9 +228,8 @@ any ──> cancelled
 **Lifecycle**: `expanding` · `failed` (expansion errored, zero tracks) · `cancelled` · `active`
 (≥1 track `pending`/`queued`/`downloading`) · `waiting` (no active, ≥1 `waiting`) · `settled` (all
 terminal). **Outcome**, only once `settled`: `complete` (all `completed`/`skipped_duplicate`) vs
-`partial` (≥1 `lookup_failed`/`cancelled`). A 10-track album with 1 `LookupError` is `settled ·
-partial` — "Done — 9 of 10", never "failed" and never a bare green tick. Both axes are derived in
-SQL from per-state counts; a stored column would be wrong the moment one path forgot to update it.
+`partial` (≥1 `lookup_failed`/`cancelled`): a 10-track album with 1 `LookupError` is "Done — 9 of
+10", never "failed" or a bare green tick. Both axes are derived in SQL, never stored.
 
 ## Version roadmap
 

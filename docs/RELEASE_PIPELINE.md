@@ -349,8 +349,9 @@ deduplicated by the homeserver, while a re-run (a new attempt) posts again, on p
 | `publish-deploy.yml` | a release-mode deploy succeeded and wasn't idempotency-skipped | version, release tag, run URL |
 | `release.yml` | the `release` job failed or was cancelled | workflow, version tag, run URL |
 
-So silence means "nothing happened", never "maybe it failed". A skipped run (a docs-only merge)
-sends nothing. Messages never contain `.env` content.
+So silence is meant to mean "nothing happened", never "maybe it failed" (two exceptions below: a
+failure GitHub causes before any step runs, and an outage of the alert channel itself). A skipped
+run (a docs-only merge) sends nothing. Messages never contain `.env` content.
 
 The running app's own alerts (v36: breaker, failure spikes, stale beat, library sweeps) use the
 same bot and room, configured in the host's `.env` rather than these secrets; see

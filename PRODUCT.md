@@ -117,5 +117,5 @@ usage data.
 Keyboard-only navigation is a required, explicitly confirmed standard — every interactive element
 must be fully operable without a mouse. Met since v45, Hungarian QWERTZ first (see Users &
 Purpose above); any new interactive element must be keyboard-reachable and, if it gets a key,
-registered in the shortcut registry. The UI is bilingual (Hungarian/English, v46), and text
-contrast meets WCAG AA on every surface (v42–v43 contrast tokens).
+registered in the shortcut registry. The UI is bilingual (Hungarian/English, v46), and v42–v43
+raised the text and control contrast tokens to WCAG AA (4.5:1 text, 3:1 control borders).

@@ -166,6 +166,7 @@ needed" claim — rather than silently deleted.
   "Waiting for connections to close" until `docker compose restart api` → *v48*
 - A deploy recreates every container, so `docker compose logs` on the host only reaches back to
   the last deploy; anything older (an alert that never arrived) can't be reconstructed → *v48*
+
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
 - `Secure` cookies work over `http://localhost` in browsers but **not** in `httpx`/`TestClient` —
@@ -416,6 +417,7 @@ needed" claim — rather than silently deleted.
   tracks are still repointed (owner decision, F34) → *v48*
 - A real production breaker trip (2026-10-18 18:46 UTC) reached `breaker_events` but never the
   Matrix room; unexplained, and its logs were gone by the next deploy → *v48*
+
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
   Tunnel closes the connection → *v08*
@@ -694,6 +696,7 @@ needed" claim — rather than silently deleted.
 
 - A ≤640px column stack inherits flex-basis values meant for the row layout (the toggle's
   `16rem`, the bar's `100%`), which made every job row ~4× taller and hid its bar → *v39.1*
+
 **Testing & verification technique**
 - e2e names come from the compiled message files (`t()`); a saved language beats the browser
   locale, so setup/teardown clear both identities' language in the DB → *v46*
@@ -923,6 +926,7 @@ needed" claim — rather than silently deleted.
   edit runs the old code: handy for a real before/after on the same stack, a trap otherwise → *v48*
 - v31's open questions closed on dev: a real album's every `COMPLETED` file exists at its
   `output_path`, and four real ladder delays matched `LADDER_SECONDS` exactly → *v48*
+
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
   vanishes from PR checks rather than showing as failed → *v12*
@@ -952,6 +956,7 @@ needed" claim — rather than silently deleted.
 - GitHub answering `429` to the runner's action download kills the job at "Set up job", and the
   `notify` job needs the same action, so the failure and its alert vanish together (4.40.2 never
   deployed, and nobody was told) → *v48*
+
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
   request, always → *v12*
@@ -5371,10 +5376,12 @@ independently-found production bug from the same conversation)
   spotdl names a file from its metadata, so a single and its album cut (two Spotify ids) can
   resolve to the same `/downloads/...mp3`, and both ledger rows point at it. The sweep moved the
   file for the first row; the second then hit `source file missing on disk`, kept its old path,
-  and would be pruned by `reconcile_disk()` into a re-download. The sweep now remembers where it
-  filed each source path and files a later row with the same path to the same destination
-  (counted under "already present"). Real before/after on the dev stack, same running worker
-  for "before" (it predated the edit): `main` listed `/downloads/v48-ghost.mp3` twice and left
+  and would be pruned by `reconcile_disk()` into a re-download. The sweep now groups the ledger
+  by source file: each file is decided once, every row sharing it is repointed in the same commit
+  before the source is deleted (so neither a crash between rows nor a failed copy can split
+  them), and every count in the report (`total`, `processed`, moved, deleted, quarantined,
+  errors) is a count of files. Real before/after on the dev stack, same running worker for
+  "before" (it predated the edit): `main` listed `/downloads/v48-ghost.mp3` twice and left
   `v48-sharedA-2` stranded; the branch listed the ghost once and filed both `v48-sharedB` rows to
   one library file.
 - **Rows stranded before v48 stay stranded.** Production's last sweep (2026-10-18) reported 47
@@ -5382,8 +5389,12 @@ independently-found production bug from the same conversation)
   with the same basename already in the library: earlier sweeps stranded them. The fix only
   prevents new ones; those rows keep erroring on each sweep until repaired or pruned (a prune
   means a re-download if that track is requested again).
-- **The error log keeps one row per path.** `_record_error` drops a second entry for a path
-  already listed, so two rows sharing one missing file no longer show it twice.
+- **A first fix that deduplicated the error log row by row was wrong.** The blind review found
+  that a per-row pass still split shared rows (a failed copy for the first row, then a successful
+  one for the second, deleted the source the first still pointed at) and that a per-path error
+  list disagreed with the per-row live count `/library` derives (`processed − moved − deleted −
+  quarantined`). Grouping by file fixes the cause; the error list is one entry per file because
+  each file is processed once.
 - **A sweep archives only the sweeping admin's jobs (owner decision, F34(b)).** It used to archive
   every user's settled jobs whose tracks it moved, silently. Now every user's `Track.output_path`
   is still repointed, but only the admin's own jobs are archived (`archive.archive_jobs` is scoped
