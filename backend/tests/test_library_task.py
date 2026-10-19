@@ -523,10 +523,30 @@ def test_sort_library_keeps_every_shared_row_repointed_when_the_source_delete_fa
     db_session, tmp_path, monkeypatch
 ):
     """v48 (F34): the shared rows are repointed and committed together before the source
-    is touched, so a failure deleting it (or a crash there) can't split them."""
+    is touched, so a failure deleting it (or a crash there) can't split them. The file is
+    handled once: the failure leaves the source where it is, with no second row's pass
+    quarantining it, and the tracks on the file are still repointed."""
     _configure(db_session, tmp_path)
+    owner = _owner(db_session)
     first = _make_ledger_row(db_session, tmp_path, spotify_track_id="single-cut")
     second = _share_file(db_session, first, "album-cut")
+    job = Job(
+        user_id=owner.id,
+        source_url="https://open.spotify.com/album/abc",
+        source_type=JobSourceType.ALBUM,
+        state=JobState.EXPANDED,
+    )
+    db_session.add(job)
+    db_session.flush()
+    track = Track(
+        job_id=job.id,
+        spotify_track_id="album-cut",
+        song_json={"name": "album cut"},
+        state=TrackState.COMPLETED,
+        output_path=first.file_path,
+    )
+    db_session.add(track)
+    db_session.commit()
     _capture_progress(monkeypatch)
     real_unlink = type(tmp_path).unlink
 
@@ -544,7 +564,12 @@ def test_sort_library_keeps_every_shared_row_repointed_when_the_source_delete_fa
         db_session.refresh(row)
         assert row.in_library is True
         assert row.file_path == dest
+    db_session.refresh(track)
+    assert track.output_path == dest
+    assert (tmp_path / "downloads" / "single-cut.mp3").exists()
+    assert not (tmp_path / "quarantine").exists() or not list((tmp_path / "quarantine").rglob("*"))
     run = library_task._get_run(db_session)
+    assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (1, 1, 0, 0, 0)
     assert len(run.errors) == 1
     assert "simulated failure" in run.errors[0]["error"]
 
