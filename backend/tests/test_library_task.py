@@ -549,6 +549,49 @@ def test_sort_library_keeps_every_shared_row_repointed_when_the_source_delete_fa
     assert "simulated failure" in run.errors[0]["error"]
 
 
+def test_sort_library_still_flags_a_collision_after_a_failed_source_delete(
+    db_session, tmp_path, monkeypatch
+):
+    """v48 (review round 3): a file whose source can't be deleted after its copy was filed
+    still claims its destination. A second, different file mapping to the same destination
+    is flagged as a collision, not silently merged into the first (which would delete or
+    quarantine its own, different audio)."""
+    _configure(db_session, tmp_path, quarantine_enabled=False)
+    rows = []
+    for folder, spotify_track_id, audio in (("a", "first", b"first audio"), ("b", "second", b"second audio")):
+        source = tmp_path / "downloads" / folder / "same-name.mp3"
+        source.parent.mkdir(parents=True)
+        source.write_bytes(audio)
+        row = DownloadedTrack(
+            spotify_track_id=spotify_track_id, file_path=str(source), format="mp3", bitrate="320k"
+        )
+        db_session.add(row)
+        rows.append(row)
+    db_session.commit()
+    _capture_progress(monkeypatch)
+    real_unlink = type(tmp_path).unlink
+
+    def _failing_unlink(self, *args, **kwargs):
+        if self.parent.name == "a":
+            raise OSError("simulated failure deleting the first source")
+        return real_unlink(self, *args, **kwargs)
+
+    monkeypatch.setattr(type(tmp_path), "unlink", _failing_unlink)
+
+    _run(monkeypatch, db_session)
+
+    dest = tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "same-name.mp3"
+    first, second = rows
+    db_session.refresh(first)
+    db_session.refresh(second)
+    assert first.in_library is True and first.file_path == str(dest)
+    assert second.in_library is False
+    assert (tmp_path / "downloads" / "b" / "same-name.mp3").read_bytes() == b"second audio"
+    assert dest.read_bytes() == b"first audio"
+    run = library_task._get_run(db_session)
+    assert any("collides" in e["error"] for e in run.errors)
+
+
 def test_sort_library_files_a_row_recorded_on_the_same_file_during_the_sweep(
     db_session, tmp_path, monkeypatch
 ):
@@ -559,8 +602,27 @@ def test_sort_library_files_a_row_recorded_on_the_same_file_during_the_sweep(
     first = _make_ledger_row(db_session, tmp_path, spotify_track_id="single-cut")
     real_copy_verify = library_service.copy_verify
 
+    owner = _owner(db_session)
+    job = Job(
+        user_id=owner.id,
+        source_url="https://open.spotify.com/album/late",
+        source_type=JobSourceType.ALBUM,
+        state=JobState.EXPANDED,
+    )
+    db_session.add(job)
+    db_session.commit()
+    late_track = Track(
+        job_id=job.id,
+        spotify_track_id="album-cut-late",
+        song_json={"name": "late"},
+        state=TrackState.COMPLETED,
+        output_path=first.file_path,
+    )
+
     def _copy_verify_with_a_late_row(source, dest):
         _share_file(db_session, first, "album-cut-late")
+        db_session.add(late_track)
+        db_session.commit()
         return real_copy_verify(source, dest)
 
     monkeypatch.setattr(library_service, "copy_verify", _copy_verify_with_a_late_row)
@@ -573,6 +635,8 @@ def test_sort_library_files_a_row_recorded_on_the_same_file_during_the_sweep(
     dest = str(tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "single-cut.mp3")
     assert late.in_library is True
     assert late.file_path == dest
+    db_session.refresh(late_track)
+    assert late_track.output_path == dest
 
 
 def test_sort_library_leaves_every_row_on_a_shared_file_whose_copy_failed(

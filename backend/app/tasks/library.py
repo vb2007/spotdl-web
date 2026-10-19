@@ -141,6 +141,14 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     # second file's own, actually-different audio.
     claimed_destinations: dict[Path, str] = {}
 
+    def _mark_filed(rows: list[DownloadedTrack], dest: Path) -> None:
+        # Recorded as soon as the repoint is committed, before the source is touched: a
+        # failure deleting or quarantining it (caught below as this file's error) must not
+        # leave dest unclaimed -- a later file mapping there would read as "already exists"
+        # and be silently merged -- nor skip the tracks' output_path repoint.
+        claimed_destinations[dest] = rows[0].spotify_track_id
+        moved_spotify_ids.update(row.spotify_track_id for row in rows)
+
     for source, rows in groups.items():
         file_path = str(source)
         try:
@@ -174,6 +182,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 # the way committing only at the end of the row would.
                 rows = _repoint(db, rows, source, dest)
                 db.commit()
+                _mark_filed(rows, dest)
                 if quarantine_enabled:
                     library.quarantine(source, quarantine_dir)
                     run.quarantined += 1
@@ -197,11 +206,9 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 # is ever deleted.
                 rows = _repoint(db, rows, source, dest)
                 db.commit()
+                _mark_filed(rows, dest)
                 source.unlink()
                 run.moved += 1
-
-            claimed_destinations[dest] = rows[0].spotify_track_id
-            moved_spotify_ids.update(row.spotify_track_id for row in rows)
         except Exception as exc:
             logger.exception("library: error processing %s", file_path)
             _record_error(run, file_path, str(exc))
