@@ -238,7 +238,7 @@ def test_sort_library_repoints_track_output_path_and_archives_settled_job(db_ses
     )
     _capture_progress(monkeypatch)
 
-    _run(monkeypatch, db_session)
+    _run(monkeypatch, db_session, admin_id=owner.id)
 
     db_session.refresh(track)
     db_session.refresh(job)
@@ -278,7 +278,7 @@ def test_sort_library_does_not_archive_job_with_active_sibling_track(db_session,
     original_path = row.file_path
     _capture_progress(monkeypatch)
 
-    _run(monkeypatch, db_session)
+    _run(monkeypatch, db_session, admin_id=owner.id)
 
     db_session.refresh(moved_track)
     db_session.refresh(job)
@@ -351,17 +351,18 @@ def test_sort_library_flags_intra_sweep_destination_collision_as_an_error(db_ses
     assert second_source.read_bytes() == b"second, genuinely different track's audio"
 
 
-def test_sort_library_archives_two_different_users_jobs_in_one_sweep(db_session, tmp_path, monkeypatch):
-    """The plan's own Done-when checklist calls this out as its own scenario ('including
-    a second user's job moved by the admin') -- a single sweep must correctly archive
-    settled jobs belonging to two distinct owners, not just the triggering admin's own."""
+def test_sort_library_archives_only_the_sweeping_admins_jobs(db_session, tmp_path, monkeypatch):
+    """v48 (F34, owner decision): a sweep repoints every user's moved tracks, but archives
+    only the settled jobs of the admin who ran it. Another user's job keeps its
+    repointed track and stays unarchived, and no archive event reaches that user."""
     _configure(db_session, tmp_path)
-    owner_a = _owner(db_session, "owner-a@example.com")
-    owner_b = _owner(db_session, "owner-b@example.com")
+    admin = _owner(db_session, "admin@example.com")
+    other = _owner(db_session, "other@example.com")
 
     rows = {}
     jobs = {}
-    for label, owner in (("a", owner_a), ("b", owner_b)):
+    tracks = {}
+    for label, owner in (("admin", admin), ("other", other)):
         row = _make_ledger_row(db_session, tmp_path, spotify_track_id=f"cross-user-{label}")
         job = Job(
             user_id=owner.id,
@@ -381,6 +382,7 @@ def test_sort_library_archives_two_different_users_jobs_in_one_sweep(db_session,
         db_session.add(track)
         rows[label] = row
         jobs[label] = job
+        tracks[label] = track
     db_session.commit()
 
     captured_job_events = []
@@ -389,15 +391,73 @@ def test_sort_library_archives_two_different_users_jobs_in_one_sweep(db_session,
     )
     _capture_progress(monkeypatch)
 
+    _run(monkeypatch, db_session, admin_id=admin.id)
+
+    for label in ("admin", "other"):
+        db_session.refresh(rows[label])
+        db_session.refresh(tracks[label])
+        db_session.refresh(jobs[label])
+        assert rows[label].in_library is True
+        assert tracks[label].output_path == rows[label].file_path
+    assert jobs["admin"].archived_at is not None
+    assert jobs["other"].archived_at is None
+
+    event_owner_ids = {a[0] for a, _ in captured_job_events}
+    assert event_owner_ids == {admin.id}
+
+
+def test_sort_library_files_a_second_ledger_row_sharing_a_moved_file(db_session, tmp_path, monkeypatch):
+    """v48 (F34): two ledger rows (two Spotify ids) can share one downloaded file. Once
+    the first row moves it, the second follows it to the same destination instead of
+    recording "source file missing" -- left behind, its ledger row would point at a
+    deleted path, and reconcile_disk would prune it into a re-download."""
+    _configure(db_session, tmp_path)
+    first = _make_ledger_row(db_session, tmp_path, spotify_track_id="single-cut")
+    second = DownloadedTrack(
+        spotify_track_id="album-cut",
+        file_path=first.file_path,
+        format="mp3",
+        bitrate="320k",
+    )
+    db_session.add(second)
+    db_session.commit()
+    _capture_progress(monkeypatch)
+
     _run(monkeypatch, db_session)
 
-    for label, owner in (("a", owner_a), ("b", owner_b)):
-        db_session.refresh(jobs[label])
-        assert jobs[label].archived_at is not None
-        assert jobs[label].user_id == owner.id
+    dest = str(tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "single-cut.mp3")
+    for row in (first, second):
+        db_session.refresh(row)
+        assert row.in_library is True
+        assert row.file_path == dest
 
-    archived_owner_ids = {kw.get("archived") and a[0] for a, kw in captured_job_events if kw.get("archived")}
-    assert archived_owner_ids == {owner_a.id, owner_b.id}
+    run = library_task._get_run(db_session)
+    assert run.errors == []
+    assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (2, 2, 1, 1, 0)
+
+
+def test_sort_library_lists_a_missing_shared_source_once(db_session, tmp_path, monkeypatch):
+    """v48 (F34): two ledger rows sharing one missing file used to list the same path
+    twice in the sweep's error log."""
+    _configure(db_session, tmp_path)
+    missing = str(tmp_path / "downloads" / "ghost.mp3")
+    for spotify_track_id in ("ghost-single", "ghost-album"):
+        db_session.add(
+            DownloadedTrack(
+                spotify_track_id=spotify_track_id,
+                file_path=missing,
+                format="mp3",
+                bitrate="320k",
+            )
+        )
+    db_session.commit()
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    run = library_task._get_run(db_session)
+    assert run.processed == 2
+    assert run.errors == [{"file": missing, "error": "source file missing on disk"}]
 
 
 def test_sort_library_resets_to_idle_when_sync_and_archive_raises(db_session, tmp_path, monkeypatch):
@@ -411,7 +471,7 @@ def test_sort_library_resets_to_idle_when_sync_and_archive_raises(db_session, tm
     monkeypatch.setattr(library_task, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
 
-    def _boom(db, moved_spotify_ids):
+    def _boom(db, moved_spotify_ids, admin_user_id):
         raise RuntimeError("simulated crash syncing tracks/jobs")
 
     monkeypatch.setattr(library_task, "_sync_tracks_and_archive_jobs", _boom)

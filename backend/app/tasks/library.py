@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.db import SessionLocal
-from app.models import DownloadedTrack, Job, LibrarySortRun, LibrarySortState, Track, TrackState
+from app.models import DownloadedTrack, LibrarySortRun, LibrarySortState, Track, TrackState
 from app.services import alerts, app_settings, archive, events, library
 from app.tasks.celery_app import celery_app
 
@@ -27,18 +27,23 @@ def _get_run(db) -> LibrarySortRun:
 
 def _record_error(run: LibrarySortRun, file_path: str, message: str) -> None:
     # Reassigned wholesale, never appended in place -- see LibrarySortRun's own
-    # docstring on why (JSONB change tracking).
+    # docstring on why (JSONB change tracking). v48 (F34): one row per path -- two ledger
+    # rows sharing one missing source file used to list the same path twice.
+    if any(entry["file"] == file_path for entry in run.errors):
+        return
     run.errors = [*run.errors, {"file": file_path, "error": message}]
 
 
-def _sync_tracks_and_archive_jobs(db, moved_spotify_ids: set[str]) -> None:
+def _sync_tracks_and_archive_jobs(db, moved_spotify_ids: set[str], admin_user_id: str) -> None:
     """Repoints every affected Track.output_path to the ledger's new location (the
-    ledger row itself is already repointed by the caller) and archives the settled jobs
-    those tracks belong to -- including another user's job, since the moved file is
-    shared across the whole dedup ledger regardless of who originally downloaded it.
-    Reuses archive.archive_jobs, which already re-derives eligibility from real track
-    states per user -- a job with another still-active/waiting track is correctly left
-    alone rather than archived out from under it.
+    ledger row itself is already repointed by the caller) -- every user's, since the
+    moved file is shared across the whole dedup ledger regardless of who originally
+    downloaded it -- and archives the settled jobs among them that belong to the admin
+    who ran the sweep. v48 (F34, owner decision): another user's job is never archived by
+    a sweep; it keeps its repointed tracks and is left to that user and their own
+    retention setting. Reuses archive.archive_jobs, which re-derives eligibility from
+    real track states -- a job with another still-active/waiting track is correctly
+    left alone rather than archived out from under it.
 
     Called only after every ledger repoint in this sweep has already been committed
     (see sort_library) -- a failure in here (caught by the caller) leaves that real,
@@ -69,14 +74,11 @@ def _sync_tracks_and_archive_jobs(db, moved_spotify_ids: set[str]) -> None:
     if not job_ids:
         return
 
-    jobs_by_user: dict[uuid.UUID, list[uuid.UUID]] = {}
-    for job_id, user_id in db.query(Job.id, Job.user_id).filter(Job.id.in_(job_ids)).all():
-        jobs_by_user.setdefault(user_id, []).append(job_id)
-
-    for user_id, ids in jobs_by_user.items():
-        archived = archive.archive_jobs(db, user_id, job_ids=ids)
-        for job in archived:
-            events.publish_job_event(user_id, job.id, job.state.value, archived=True)
+    admin_id = uuid.UUID(admin_user_id)
+    # archive_jobs is itself scoped to admin_id, so another user's id here is dropped.
+    archived = archive.archive_jobs(db, admin_id, job_ids=list(job_ids))
+    for job in archived:
+        events.publish_job_event(admin_id, job.id, job.state.value, archived=True)
 
 
 def _publish_progress(run: LibrarySortRun, admin_user_id: str, **kwargs) -> None:
@@ -113,10 +115,27 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     # is -- merging would repoint the second track's ledger row onto the first track's
     # file and quarantine/delete the second track's own, actually-different audio.
     claimed_destinations: dict[Path, str] = {}
+    # v48 (F34): source path -> where this sweep filed it. Two ledger rows (two Spotify
+    # ids, e.g. a single and its album cut) can share one downloaded file. Once the first
+    # row has moved it, the second must follow it to the same destination: left behind
+    # as "source file missing", its ledger row would point at a deleted path, and
+    # reconcile_disk's prune would turn that into a re-download.
+    filed_sources: dict[Path, Path] = {}
 
     for row in ledger_rows:
         source = Path(row.file_path)
         try:
+            filed_dest = filed_sources.get(source)
+            if filed_dest is not None:
+                row.file_path = str(filed_dest)
+                row.in_library = True
+                db.commit()
+                # Counted as already present: its file is in the library, and nothing
+                # moved for this row.
+                run.skipped_present += 1
+                moved_spotify_ids.add(row.spotify_track_id)
+                continue
+
             if not source.exists():
                 _record_error(run, row.file_path, "source file missing on disk")
                 continue
@@ -176,6 +195,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 run.moved += 1
 
             claimed_destinations[dest] = row.spotify_track_id
+            filed_sources[source] = dest
             moved_spotify_ids.add(row.spotify_track_id)
         except Exception as exc:
             logger.exception("library: error processing %s", row.file_path)
@@ -187,7 +207,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
 
     if moved_spotify_ids:
         try:
-            _sync_tracks_and_archive_jobs(db, moved_spotify_ids)
+            _sync_tracks_and_archive_jobs(db, moved_spotify_ids, admin_user_id)
         except Exception as exc:
             # The ledger repoint for every moved track is already committed above --
             # this is secondary bookkeeping (Track.output_path, job archiving), and a
