@@ -70,6 +70,15 @@
 	/* v47: the dimmed (never blurred) page behind a modal: the confirmation and the help. */
 	--backdrop: rgba(5, 6, 7, 0.72);
 
+	/* v47: the two materials as tokens (they were literals in four components). A raised
+	   plate: a machined top bevel, a dark lower edge and a short offset drop shadow (v42,
+	   F36). A well cut into it: an inset shadow. The live meter's moving sheen. */
+	--shadow-plate:
+		inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 1px 0 rgba(0, 0, 0, 0.6),
+		0 6px 12px -7px rgba(0, 0, 0, 0.8);
+	--shadow-well: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+	--sheen: rgba(255, 255, 255, 0.22);
+
 	/* Focus (accessibility — keyboard-only nav is a hard requirement, never suppressed) */
 	--focus-ring: #ffd479;
 
@@ -215,18 +224,21 @@ input {
 	   now carries it (--bg-1 at 1.17:1), with a machined top bevel catching the light and
 	   a short, offset drop shadow under the plate. Wells cut into the plate (inputs,
 	   meters) stay --bg-0 with an inset shadow, so raised and recessed read apart. */
-	box-shadow:
-		inset 0 1px 0 rgba(255, 255, 255, 0.055),
-		0 1px 0 rgba(0, 0, 0, 0.6),
-		0 6px 12px -7px rgba(0, 0, 0, 0.8);
+	box-shadow: var(--shadow-plate);
 }
 
 /* A recessed well cut into a faceplate: text inputs and meters. */
+/* v47: placeholder text at --text-dim (5.63:1 on --bg-0); the browser's own grey was 4.25:1. */
+::placeholder {
+	color: var(--text-dim);
+	opacity: 1;
+}
+
 .well {
 	background: var(--bg-0);
 	border: 1px solid var(--line-control);
 	border-radius: 4px;
-	box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+	box-shadow: var(--shadow-well);
 }
 
 /* Present to assistive technology, absent from the screen. */
@@ -530,6 +542,11 @@ kbd {
 }
 
 @media (pointer: coarse) {
+	/* v47: a short option ("on", "7d") gets a finger's width too. */
+	.choice-group button {
+		min-width: 2.75rem;
+	}
+
 	.choice-group button,
 	.form-field input[type='text'],
 	.form-field input[type='number'],

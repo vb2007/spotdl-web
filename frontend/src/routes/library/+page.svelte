@@ -327,7 +327,7 @@
 
 				{#if run === null}
 					{#if loadError}
-						<p class="form-error">
+						<p class="form-error" role="alert">
 							{m.library_load_failed({ error: loadError })}
 							<button
 								type="button"

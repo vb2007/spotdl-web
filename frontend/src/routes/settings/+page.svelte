@@ -560,7 +560,9 @@
 		let frame = 0;
 		const mark = () => {
 			frame = 0;
-			const line = window.innerHeight / 3;
+			// v47: at most 10rem down, so a tall window doesn't mark the next section while the
+			// first is still the one on screen.
+			const line = Math.min(window.innerHeight / 3, 160);
 			const atEnd =
 				window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
 			let current: string = SECTIONS[0].id;

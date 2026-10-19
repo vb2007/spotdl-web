@@ -62,14 +62,19 @@
 		if (settings.retention_days !== null) days = settings.retention_days;
 	}
 
-	onMount(() => {
+	// v47: a failed first read says what failed and can be retried here (it took a reload).
+	let loadError = $state<Shown>(null);
+	function loadRetention() {
+		loadError = null;
 		api
 			.getRetentionSettings()
 			.then(syncForm)
 			.catch((err) => {
-				error = () => errorText(err);
+				loadError = () => m.account_retention_load_failed({ error: errorText(err) });
 			});
-	});
+	}
+
+	onMount(loadRetention);
 
 	async function onSubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -256,7 +261,16 @@
 				<p class="hint">{m.account_retention_hint()}</p>
 
 				{#if saved === null}
-					{#if !error}<p class="hint">{m.account_retention_loading()}</p>{/if}
+					{#if loadError}
+						<div class="load-failed" role="alert">
+							<p>{loadError()}</p>
+							<button type="button" class="btn small" onclick={loadRetention}
+								>{m.account_retention_try_again()}</button
+							>
+						</div>
+					{:else}
+						<p class="hint">{m.account_retention_loading()}</p>
+					{/if}
 				{:else}
 					<form class="retention-form" onsubmit={onSubmit} novalidate>
 						<div class="form-field">
@@ -497,6 +511,15 @@
 	.group-title {
 		font-size: var(--fs-body);
 		font-weight: var(--fw-medium);
+	}
+
+	.load-failed {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2) var(--space-3);
+		font-size: var(--fs-detail);
+		color: var(--fail);
 	}
 
 	.hint {

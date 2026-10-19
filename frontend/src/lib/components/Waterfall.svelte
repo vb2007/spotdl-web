@@ -394,7 +394,7 @@
 		content: '';
 		position: absolute;
 		inset: 0;
-		background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+		background: linear-gradient(90deg, transparent, var(--sheen), transparent);
 		transform: translateX(-100%);
 		animation: shimmer 2.4s linear infinite;
 	}

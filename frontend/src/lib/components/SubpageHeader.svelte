@@ -98,7 +98,9 @@
 		.nav-link {
 			display: inline-flex;
 			align-items: center;
+			justify-content: center;
 			min-height: 2.75rem;
+			min-width: 2.75rem;
 		}
 	}
 </style>

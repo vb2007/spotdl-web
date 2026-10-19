@@ -71,6 +71,8 @@
 		if ($page.loading) return m.dashboard_count_loading();
 		if ($page.error) return '';
 		const shown = $page.items.length;
+		// v47: an empty queue says so in its own state below; "0 of 0 jobs" added nothing.
+		if (shown === 0 && !filtersActive) return '';
 		if ($filters.scope === 'jobs') {
 			const exact = exactTotal($page.countsByStatus, $filters.status);
 			const total = Math.max(exact ?? $page.totalEstimate, shown);
@@ -535,7 +537,7 @@
 				<WorkerStatusPill />
 			{/if}
 		</div>
-		<nav class="session" aria-label={m.dashboard_nav_label()}>
+		<nav class="session" aria-label={m.nav_pages()}>
 			{#if isAdmin}
 				<a class="nav-link" href={resolve('/library')}>{m.dashboard_nav_library()}</a>
 				<a class="nav-link" href={resolve('/settings')}>{m.dashboard_nav_settings()}</a>
@@ -926,9 +928,15 @@
 	}
 
 	/* F10: no amber and no halo; focus is the global ring alone. */
-	.submit button:hover:not(:disabled) {
+	@media (hover: hover) {
+		.submit button:hover:not(:disabled) {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+		}
+	}
+
+	.submit button:active:not(:disabled) {
 		background: var(--bg-3);
-		border-color: var(--text-muted);
 	}
 
 	.submit-error {
@@ -1156,10 +1164,13 @@
 			min-height: 2.75rem;
 		}
 
+		/* v47: wide as well as tall; Sans made "fiók" a 21px-wide target. */
 		.nav-link {
 			display: inline-flex;
 			align-items: center;
+			justify-content: center;
 			min-height: 2.75rem;
+			min-width: 2.75rem;
 		}
 	}
 

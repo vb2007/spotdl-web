@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import * as api from '$lib/api';
 import { queue } from '$lib/stores/queue';
+import { markSessionEnded } from '$lib/stores/sessionEnded';
 import { shortcutsEnabled } from '$lib/keyboard/registry';
 import { applyClock, applyLanguagePreference } from '$lib/i18n/locale.svelte';
 import type { LayoutLoad } from './$types';
@@ -54,7 +55,11 @@ export const load: LayoutLoad = async ({ url }) => {
 		// invalid for other reasons (expiry, revocation) and surface through this exact
 		// `load()` re-running on the next in-app navigation, so this is the one chokepoint
 		// that must clear it regardless of *why* the session is gone.
-		if (sessionGone) queue.reset();
+		if (sessionGone) {
+			queue.reset();
+			// v47: only a tab that had a session here says it ended (not a first visit).
+			if (lastSessionEmail !== null) markSessionEnded();
+		}
 		redirect(302, '/login');
 	}
 	if (session !== null) {

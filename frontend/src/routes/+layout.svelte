@@ -165,6 +165,8 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
+	<!-- v47: the unreachable screen's own tab title (no page renders to give one). -->
+	{#if data.unreachable}<title>{m.layout_unreachable_title()}</title>{/if}
 </svelte:head>
 
 <svelte:window onkeydown={onKeydown} onpointerdowncapture={cancelChord} />

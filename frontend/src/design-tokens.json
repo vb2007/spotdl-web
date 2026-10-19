@@ -51,7 +51,10 @@
 		},
 		"overlay": {
 			"backdrop": "rgba(5, 6, 7, 0.72)",
-			"note": "v47: the dimmed (never blurred) page behind a modal: the confirmation and the help overlay"
+			"note": "v47: the dimmed (never blurred) page behind a modal: the confirmation and the help overlay",
+			"shadow-plate": "inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 1px 0 rgba(0, 0, 0, 0.6), 0 6px 12px -7px rgba(0, 0, 0, 0.8)",
+			"shadow-well": "inset 0 1px 3px rgba(0, 0, 0, 0.5)",
+			"sheen": "rgba(255, 255, 255, 0.22)"
 		},
 		"focus": {
 			"meaning": "keyboard focus ring, never suppressed (hard accessibility requirement)",

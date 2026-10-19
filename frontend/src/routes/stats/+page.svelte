@@ -374,11 +374,12 @@
 													{/if}
 												</td>
 												<td class="num mono rate">{formatRate(proxy.success_rate)}</td>
-												<td class="mono last">
+												<!-- v47: words in Sans; only the reading itself is mono. -->
+												<td class="last">
 													<span class="unit">{m.stats_last_success_unit()}&nbsp;</span
-													>{proxy.last_success_at === null
-														? m.stats_never()
-														: relativeTime(proxy.last_success_at, generated)}
+													>{#if proxy.last_success_at === null}{m.stats_never()}{:else}<span
+															class="mono">{relativeTime(proxy.last_success_at, generated)}</span
+														>{/if}
 												</td>
 											</tr>
 										{/each}

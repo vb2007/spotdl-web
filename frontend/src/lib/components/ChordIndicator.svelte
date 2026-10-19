@@ -45,7 +45,8 @@
 		background: var(--bg-1);
 		border: 1px solid var(--line-control);
 		border-radius: 6px;
-		box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+		/* v47: the panel's own material, as DESIGN.md §6 says it is (it had its own shadow). */
+		box-shadow: var(--shadow-plate);
 		font-size: var(--fs-detail);
 		color: var(--text-primary);
 		pointer-events: none;

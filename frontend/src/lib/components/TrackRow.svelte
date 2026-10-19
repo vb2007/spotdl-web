@@ -749,10 +749,13 @@
 
 	/* v42: on the raised faceplate (--bg-1) a --bg-2 fill is only 1.045:1, and any brighter
 	   fill would drop the row's dim and fail text under 4.5:1, so hover underlines the title. */
-	.row:hover .cell.title {
-		text-decoration: underline;
-		text-decoration-color: var(--text-muted);
-		text-underline-offset: 0.2em;
+	/* v47: only where a pointer hovers; on touch a tapped row kept the underline. */
+	@media (hover: hover) {
+		.row:hover .cell.title {
+			text-decoration: underline;
+			text-decoration-color: var(--text-muted);
+			text-underline-offset: 0.2em;
+		}
 	}
 
 	/* Artist and album are grid cells of the row on desktop; the wrapper only exists so

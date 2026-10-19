@@ -2,6 +2,7 @@
 	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { consumeSessionEnded } from '$lib/stores/sessionEnded';
 	import { clearProgress } from '$lib/stores/progressCache';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -18,6 +19,11 @@
 	let connectButton: HTMLButtonElement | undefined = $state();
 
 	let emailInput: HTMLInputElement | undefined = $state();
+	// v47: the session ended under this tab, found by a request's 401 (page state) or by the
+	// layout on a navigation (the module flag).
+	const sessionEnded = consumeSessionEnded();
+	// v47: which field the form's own check found empty, for aria-invalid.
+	let missing = $state<'email' | 'password' | null>(null);
 
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -26,9 +32,11 @@
 		if (!email.trim() || !password) {
 			errorMessage = m.login_error_missing();
 			credentialsRejected = false;
+			missing = email.trim() ? 'password' : 'email';
 			(email.trim() ? passwordInput : emailInput)?.focus();
 			return;
 		}
+		missing = null;
 		submitting = true;
 		errorMessage = '';
 		credentialsRejected = false;
@@ -107,7 +115,7 @@
 			<!-- v43 (F31): which account this wants. -->
 			<p class="hint">{m.login_hint()}</p>
 			<!-- v47: arrived here because the session ended mid-page (a 401), not by signing out. -->
-			{#if page.state.sessionEnded && !errorMessage}
+			{#if (page.state.sessionEnded || sessionEnded) && !errorMessage}
 				<p class="ended" role="status">{m.login_session_ended()}</p>
 			{/if}
 		</div>
@@ -123,7 +131,7 @@
 				required
 				bind:value={email}
 				disabled={submitting}
-				aria-invalid={credentialsRejected ? 'true' : undefined}
+				aria-invalid={credentialsRejected || missing === 'email' ? 'true' : undefined}
 				aria-describedby="login-error"
 			/>
 		</label>
@@ -139,7 +147,7 @@
 				required
 				bind:value={password}
 				disabled={submitting}
-				aria-invalid={credentialsRejected ? 'true' : undefined}
+				aria-invalid={credentialsRejected || missing === 'password' ? 'true' : undefined}
 				aria-describedby="login-error"
 			/>
 		</label>

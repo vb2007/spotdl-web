@@ -61,6 +61,8 @@ typography:
     fontWeight: 500
     letterSpacing: '0.12em'
 rounded:
+  hairline: '1px'
+  focus: '2px'
   segment: '3px'
   control: '4px'
   panel: '6px'
@@ -180,6 +182,7 @@ Dark-only (`color-scheme: dark`); no light theme exists or is planned.
 | `--line-bright`  | Emphasized hairline: the idle Waterfall top edge, the idle bar segment, stale lanes; not a control edge                                           |
 | `--line-control` | The edge of every neutral control (input, select, button, chip, segment): ≥3:1 on `--bg-0/1/2` (4.16 / 3.56 / 3.41)                               |
 | `--backdrop`     | The dimmed (never blurred) page behind a modal: the confirmation and the help overlay (v47; one token for both)                                   |
+| `::placeholder`  | `--text-dim` (v47): 5.63:1 on `--bg-0`. The browser's own placeholder grey was 4.25:1, the one text under AA the audit still found                |
 
 > **v42 (2026-10-15, F09/A2, owner's choice):** a control's edge is `--line-control`, which reaches
 > WCAG 1.4.11's 3:1. The owner chose a separate token over raising `--line` itself, so the job list
@@ -452,7 +455,9 @@ machined top bevel (`inset 0 1px 0 rgba(255,255,255,.055)`), a 1px dark lower ed
 (`0 1px 0 rgba(0,0,0,.6)`) and a short offset drop shadow (`0 6px 12px -7px rgba(0,0,0,.8)`). Every
 panel-like surface in the tree (login form, submit bar, Waterfall, the queue, every secondary
 route's sections, the confirmation and help dialogs) uses this class rather than a locally
-redeclared surface style.
+redeclared surface style. The shadow is the `--shadow-plate` token (v47), which the `g` chord
+readout and `/stats`' crosshair readout share (the readout had its own wider, softer shadow); a
+`.well`'s inset is `--shadow-well`, and the live meter's moving sheen is `--sheen`.
 
 History, kept because it is why the material is what it is: the intended "matte charcoal chassis"
 — a perceptible plate, distinct from a flat SaaS card — was never made perceptible across two

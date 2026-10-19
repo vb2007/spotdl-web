@@ -169,8 +169,9 @@ export function bucketLabel(stats: AdminStats, iso: string, long = false): strin
 	const date = new Date(Date.parse(iso) + shift);
 	const utc = { timeZone: 'UTC' } as const;
 	if (stats.bucket_seconds < 86400) {
-		// The axis says "6 AM" / "06"; the tooltip and table give the full range.
-		if (!long) return formatDateTime(date, { ...utc, hour: 'numeric' });
+		// The axis says "06:00" (v47: a bare "7 13 19" read as unitless numbers in Hungarian);
+		// the tooltip and table give the full range.
+		if (!long) return formatDateTime(date, { ...utc, hour: '2-digit', minute: '2-digit' });
 		const hour = formatDateTime(date, { ...utc, hour: '2-digit', minute: '2-digit' });
 		const next = new Date(date.getTime() + stats.bucket_seconds * 1000);
 		return `${hour}–${formatDateTime(next, { ...utc, hour: '2-digit', minute: '2-digit' })}`;

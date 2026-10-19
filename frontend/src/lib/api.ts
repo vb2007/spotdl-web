@@ -499,7 +499,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 			// from in front of the app such as a 429) gets a code, so the UI says so in the active
 			// language around the same status line.
 			code = response.status >= 500 ? 'server_error' : 'request_failed';
-			params = { status: response.statusText || String(response.status) };
+			// v47: the number, never the statusText ("Bad Gateway" is English inside a
+			// Hungarian sentence).
+			params = { status: String(response.status) };
 		}
 		if (response.status === 401 && !SESSION_PATHS.has(path.split('?')[0])) unauthorizedHandler?.();
 		throw new ApiError(response.status, detail, code, params);
