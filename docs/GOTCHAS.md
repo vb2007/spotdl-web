@@ -5377,10 +5377,12 @@ independently-found production bug from the same conversation)
   resolve to the same `/downloads/...mp3`, and both ledger rows point at it. The sweep moved the
   file for the first row; the second then hit `source file missing on disk`, kept its old path,
   and would be pruned by `reconcile_disk()` into a re-download. The sweep now groups the ledger
-  by source file: each file is decided once, every row sharing it is repointed in the same commit
+  by source file: each file is decided once, and every row sharing it (re-read just before the
+  repoint, so a row worker-dl recorded mid-sweep is included) is repointed in the same commit
   before the source is deleted (so neither a crash between rows nor a failed copy can split
-  them), and every count in the report (`total`, `processed`, moved, deleted, quarantined,
-  errors) is a count of files. Real before/after on the dev stack, same running worker for
+  them). One window stays open: a row worker-dl commits between that re-read and the delete is
+  still stranded, since the sweep and worker-dl run concurrently. Every count in the report
+  (`total`, `processed`, moved, deleted, quarantined, errors) is a count of files. Real before/after on the dev stack, same running worker for
   "before" (it predated the edit): `main` listed `/downloads/v48-ghost.mp3` twice and left
   `v48-sharedA-2` stranded; the branch listed the ghost once and filed both `v48-sharedB` rows to
   one library file.

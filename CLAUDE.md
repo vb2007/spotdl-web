@@ -18,8 +18,8 @@ YouTube-Music rate limiting as an expected, permanent condition rather than a fa
 That inverts normal web-app priorities — durability beats throughput. A track may legitimately sit
 in the queue for days, and that is correct behavior, not a stall.
 
-**Status:** masters v1–v4 (v00–v48) are complete; releases ship to `spotdl.vb2007.hu` through the
-release pipeline. No next master is planned; a new one starts with its own `plan/master-vN/00-master-plan.md`.
+**Status:** masters v1–v4 (v00–v48) are complete, shipping to `spotdl.vb2007.hu` through the release
+pipeline. No next master is planned; one starts with its own `plan/master-vN/00-master-plan.md`.
 
 ### Where things are
 
@@ -37,13 +37,15 @@ release pipeline. No next master is planned; a new one starts with its own `plan
 - **One feature at a time.** Work through `plan/master-vN/vNN-*.md` in order; never two versions in
   parallel, never one out of order (the sequencing is deliberate). Subagents work *within* a
   version, on its single concern.
-- **Branch per version**: `dev-<feature-name>` from `main`, one PR into `main` per version.
+- **Branch per version**: `dev-<feature-name>` from `main`, one PR into `main` per version (a
+  "version" is a feature slice, not a release).
 - **"Done when" is a literal checklist, not a vibe.** Every bullet needs its own concrete evidence
   (a log line, command output, a file listing) gathered *this session*. One scenario passing never
   proves a differently shaped one (v05's untested album, v11's untested bump endpoint). Re-read the
   plan's list fresh before saying merge-ready.
 - **A PR isn't merge-ready until every change on it has been re-tested against the real stack** —
-  the local `docker compose` stack, real Postgres, real network — not just `pytest`.
+  the local `docker compose` stack, real Postgres, real network — not just `pytest` (unit tests pass
+  while a fix still fails against the real dialect or runtime).
 - **Mocked verification is not verification.** A feature touching the network, a proxy or the
   database needs one real end-to-end run. Login included: at least one identity goes through the
   real upstream `vb2007.hu-api` (local `host.docker.internal:3000` if running, else
@@ -119,7 +121,7 @@ name and role; never copy one's into the other.
 | Production data | **Not disposable** (v2's "destructive migrations allowed" is over). No API back-compat needed, but a migration that drops/rewrites data says so in its plan and takes a `pg_backup` first |
 | Alerts | One Matrix room (host's Synapse, bot token) for pipeline and app alerts (breaker, failure spike, stale beat, library sweep); unconfigured = off; an alert never blocks work and a failed send is dropped |
 | Rollback | Restores the last healthy `persist=true` release's commit **and** tag together (`.last-good`); if the DB is ahead of it, falls back to the pre-deploy commit + tag when that knows the schema (v33.1); never across a migration the target doesn't know |
-| UI work | Every UI slice goes through the impeccable skill; refinement of the existing world (v39). All monitoring information is kept for the **admin**; operator detail (breaker pill, full filters, attempt diagnostics, priority/bump) is admin-only and absent from non-admin DOM; non-admins get a simpler view |
+| UI work | Every UI slice goes through the impeccable skill; refinement of the existing world (v39). All monitoring information is kept for the **admin**; operator detail (breaker pill, full filters, attempt diagnostics, priority/bump; hidden in the UI only, the API still accepts a job's owner) is admin-only and absent from non-admin DOM; non-admins get a simpler view |
 | Browser tests | Playwright suite run locally against the real stack (desktop, mobile, `hu` projects); no CI browser job (the runner is the prod host) |
 | Keyboard | Full mouse-free operation, bindings designed for **Hungarian QWERTZ** (no AltGr, no `Y`/`Z`, match `event.key`); single-key shortcuts inert in text inputs and turn-off-able per user; every new interactive element is keyboard-reachable |
 | i18n | `hu` + `en`, full coverage, every new string in both message files. Signed out the browser decides (`navigator.languages` → `en`); signed in, a language saved on `/account` wins, and its "automatic" choice follows the browser again (no `/login` switch, nothing adopted at sign-in). Formats = UI language + browser region, with a per-user 12h/24h override by the same rules. Backend stays language-neutral (error `code`s); track metadata/raw errors/alerts/logs untranslated |
@@ -181,7 +183,8 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
 - **Moving a file must repoint `downloaded_tracks.file_path`** in the same transaction — for every
   ledger row sharing that file (v48). `reconcile_disk()` prunes rows whose file is missing, and a
   move looks exactly like a deletion — get this wrong and the track silently re-downloads.
-- **"Already exists" is folder + filename only** — never content, bitrate or duration.
+- **"Already exists" is folder + filename only** — never content, bitrate or duration (a re-download
+  at another bitrate still counts as present).
 - **File-download availability keys on the file existing at its recorded path, never on
   `archived_at`.** A retention-archived job still has its file and stays downloadable.
 - **`yt-dlp` and `yt-dlp-ejs` float to latest together** (v23.1, PO tokens); everything else is pinned.
@@ -242,7 +245,6 @@ Amendments), and its findings under per-version headings in `docs/GOTCHAS.md`.
 Loaded into **every** session's context: keep it under ~250 lines, holding only what an agent must
 know *before* doing anything (rules, locked decisions, invariants, where to find the rest).
 - **New findings and war stories go in `docs/GOTCHAS.md`** under a version heading, with a one-line
-  entry in its topic index. Never append a session summary here.
+  entry in its topic index (a stale gotcha is corrected in place with a dated note, never deleted).
 - **Change this file only when a rule, locked decision, invariant, or roadmap position changes**,
-  editing the existing line rather than appending a section.
-- Correct a stale gotcha in place with a dated note rather than deleting it.
+  editing the existing line, never appending a section or a session summary.
