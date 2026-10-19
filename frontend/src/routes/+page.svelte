@@ -234,7 +234,7 @@
 
 	// v47: the form checks the link itself (`novalidate`): the browser's own bubble spoke the
 	// browser's language, sat outside the design, and turned away a link pasted with words or
-	// an emoji around it. The first http(s) address in what was pasted is the one sent.
+	// an emoji around it. What is sent out of what was pasted: `$lib/submitLink`.
 	// v47: the form's own checks mark the field invalid, and a repeated sentence is announced
 	// again (the region is emptied first; the same text twice isn't a change).
 	let submitInvalid = $state(false);

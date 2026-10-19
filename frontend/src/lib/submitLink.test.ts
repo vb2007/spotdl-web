@@ -39,8 +39,20 @@ describe('v47 submit link', () => {
 		expect(linkIn(`Hallgasd meg: spotify:album:${ID}-t!`)).toBe(`spotify:album:${ID}`);
 	});
 
-	it('takes any other http(s) link as it is', () => {
+	it('takes any other link out of words without its punctuation, keeping a final "-"', () => {
 		expect(linkIn('see https://example.com/x-y-z.')).toBe('https://example.com/x-y-z');
+		expect(linkIn('nézd: https://www.youtube.com/playlist?list=PLabc-')).toBe(
+			'https://www.youtube.com/playlist?list=PLabc-'
+		);
+	});
+
+	it('sends a single token as it is: a manual match, a YouTube playlist', () => {
+		const pinned = `https://www.youtube.com/watch?v=dQw4w9WgXcQ|https://open.spotify.com/track/${ID}`;
+		expect(countLinks(pinned)).toBe(1);
+		expect(linkIn(pinned)).toBe(pinned);
+		expect(linkIn('https://www.youtube.com/playlist?list=PLabc-')).toBe(
+			'https://www.youtube.com/playlist?list=PLabc-'
+		);
 	});
 
 	it('counts the links, a Markdown link as the two it holds', () => {
