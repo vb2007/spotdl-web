@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1792415969.7985268,
-    "ast_hash": "140e5c36ef6b5ce55cc754575b709ddc",
+    "mtime": 1792416493.237129,
+    "ast_hash": "41b998c8a1bdd0a201dfe74e02b33173",
     "semantic_hash": ""
   },
   "README.md": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792415962.2339723,
-    "ast_hash": "098747e6603a75524ad2eea9cd79cabd",
+    "mtime": 1792417128.409891,
+    "ast_hash": "d737bd7b661d9a90ac36bd396b11520d",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -930,8 +930,8 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/library.py": {
-    "mtime": 1792416189.772812,
-    "ast_hash": "658b0875e71514d8a117553d8017d656",
+    "mtime": 1792416521.2537143,
+    "ast_hash": "330092c0bf775793e5dacfb712ad212a",
     "semantic_hash": ""
   },
   "backend/tests/test_library.py": {
@@ -945,13 +945,13 @@
     "semantic_hash": ""
   },
   "backend/tests/test_library_task.py": {
-    "mtime": 1792416185.1621273,
-    "ast_hash": "a8a8f5c8d54835b5c6e2f06d5c47cfd8",
+    "mtime": 1792416831.1595116,
+    "ast_hash": "ed81a80998be4f22bb81e40d1cf7aabe",
     "semantic_hash": ""
   },
   "frontend/src/routes/library/+page.svelte": {
-    "mtime": 1792415203.5420427,
-    "ast_hash": "9d0d2bd8a7b6f64b82751e134f308cad",
+    "mtime": 1792416493.23704,
+    "ast_hash": "a6b8c0ec11dd948dfbde1cfc7371876a",
     "semantic_hash": ""
   },
   "backend/alembic/versions/e7c1f9a4d2b6_add_track_attempt_network_path.py": {
