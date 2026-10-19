@@ -240,6 +240,8 @@
 	// ("…/album/abc." or "(…/album/abc)").
 	const SPOTIFY_RE = /https?:\/\/open\.spotify\.com\/[^\s<>"']+|spotify:[a-z]+:[A-Za-z0-9]+/i;
 	const LINK_RE = /https?:\/\/[^\s<>"']+/i;
+	// Two or more links: say so rather than send the first and drop the rest.
+	const ANY_LINK_RE = /https?:\/\/[^\s<>"']+|spotify:[a-z]+:[A-Za-z0-9]+/gi;
 	function linkIn(text: string): string | undefined {
 		const found = SPOTIFY_RE.exec(text)?.[0] ?? LINK_RE.exec(text)?.[0];
 		return found?.replace(/[.,;:!?)\]}»”’]+$/, '');
@@ -249,6 +251,10 @@
 		event.preventDefault();
 		if (!url.trim()) {
 			submitError = m.dashboard_submit_empty();
+			return;
+		}
+		if ((url.match(ANY_LINK_RE) ?? []).length > 1) {
+			submitError = m.dashboard_submit_many_links();
 			return;
 		}
 		const link = linkIn(url);

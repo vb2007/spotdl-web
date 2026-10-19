@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { consumeSessionEnded } from '$lib/stores/sessionEnded';
 	import { clearProgress } from '$lib/stores/progressCache';
@@ -31,6 +31,9 @@
 	const showEnded = page.state.sessionEnded === true || sessionEnded;
 	onMount(() => {
 		if (!showEnded) return;
+		// Read once: cleared from this history entry, so Back to it later (after a deliberate
+		// sign-out) doesn't say the session ended.
+		if (page.state.sessionEnded) replaceState('', {});
 		const timer = setTimeout(() => (endedText = m.login_session_ended()), 250);
 		return () => clearTimeout(timer);
 	});
