@@ -234,15 +234,15 @@
 	// v47: the form checks the link itself (`novalidate`): the browser's own bubble spoke the
 	// browser's language, sat outside the design, and turned away a link pasted with words or
 	// an emoji around it. The first http(s) address in what was pasted is the one sent.
-	// A `spotify:` URI goes as it is (the browser's own check accepted it). Otherwise the first
-	// http(s) link in what was pasted is sent, minus the sentence punctuation that tends to
-	// follow a pasted link ("…/album/abc." or "(…/album/abc)").
-	const URI_RE = /^spotify:\S+$/i;
+	// What was pasted may carry words around the link: a Spotify link (or a `spotify:` URI,
+	// which the browser's own check accepted) is preferred wherever it is, then the first
+	// http(s) link; either minus the sentence punctuation that tends to follow a pasted link
+	// ("…/album/abc." or "(…/album/abc)").
+	const SPOTIFY_RE = /https?:\/\/open\.spotify\.com\/[^\s<>"']+|spotify:[a-z]+:[A-Za-z0-9]+/i;
 	const LINK_RE = /https?:\/\/[^\s<>"']+/i;
 	function linkIn(text: string): string | undefined {
-		const trimmed = text.trim();
-		if (URI_RE.test(trimmed)) return trimmed;
-		return LINK_RE.exec(trimmed)?.[0].replace(/[.,;:!?)\]}»”’]+$/, '');
+		const found = SPOTIFY_RE.exec(text)?.[0] ?? LINK_RE.exec(text)?.[0];
+		return found?.replace(/[.,;:!?)\]}»”’]+$/, '');
 	}
 
 	async function onsubmit(event: SubmitEvent) {

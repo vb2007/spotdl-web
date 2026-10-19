@@ -26,8 +26,11 @@
 	// region inserted together with its text often goes unannounced), once the layout has
 	// moved focus to the heading.
 	let endedText = $state('');
+	// Its line is held from the first paint whenever it applies, so the sentence arriving (or
+	// an error clearing it) never moves the fields under a finger.
+	const showEnded = page.state.sessionEnded === true || sessionEnded;
 	onMount(() => {
-		if (!page.state.sessionEnded && !sessionEnded) return;
+		if (!showEnded) return;
 		const timer = setTimeout(() => (endedText = m.login_session_ended()), 250);
 		return () => clearTimeout(timer);
 	});
@@ -124,7 +127,9 @@
 			<!-- v43 (F31): which account this wants. -->
 			<p class="hint">{m.login_hint()}</p>
 			<!-- v47: arrived here because the session ended mid-page (a 401), not by signing out. -->
-			<p class="ended" role="status">{errorMessage ? '' : endedText}</p>
+			<p class="ended" class:reserved={showEnded} role="status">
+				{errorMessage ? '' : endedText}
+			</p>
 		</div>
 
 		<label class="form-field">
@@ -333,7 +338,11 @@
 		color: var(--text-primary);
 	}
 
-	.ended:empty {
+	.ended.reserved {
+		min-height: 1.5em;
+	}
+
+	.ended:empty:not(.reserved) {
 		position: absolute;
 		width: 1px;
 		height: 1px;

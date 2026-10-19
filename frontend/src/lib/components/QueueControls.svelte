@@ -42,7 +42,14 @@
 	$effect(() => {
 		const loading = $page.loading;
 		const f = $filters;
-		const key = JSON.stringify([f.scope, f.q, f.status, f.state, f.includeArchived]);
+		const key = JSON.stringify([
+			f.scope,
+			f.q,
+			f.status,
+			f.state,
+			f.includeArchived,
+			queue.getAllUsers()
+		]);
 		if (wasLoading && !loading) {
 			if (!$page.error && announcedFor !== null && key !== announcedFor) {
 				const text = countText;

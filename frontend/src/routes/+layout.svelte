@@ -121,7 +121,9 @@
 	// v47: the session check itself couldn't get an answer (a 5xx or a network failure: the
 	// api restarting, a deploy). That says nothing about the session, so the page waits and
 	// asks again, backing off to 30s, rather than sending a signed-in user to /login.
-	let retryDelayMs = 2000;
+	// The first ask is almost at once: the screen can come from a hover preload taken during a
+	// blip that is already over (SvelteKit reuses it on the click).
+	let retryDelayMs = 300;
 	let retrying = $state(false);
 	async function retrySession() {
 		if (retrying) return;
@@ -148,11 +150,11 @@
 	}
 	$effect(() => {
 		if (!data.unreachable) {
-			retryDelayMs = 2000;
+			retryDelayMs = 300;
 			return;
 		}
 		const timer = setTimeout(retrySession, retryDelayMs);
-		retryDelayMs = Math.min(retryDelayMs * 2, 30_000);
+		retryDelayMs = Math.min(Math.max(retryDelayMs * 2, 2000), 30_000);
 		return () => clearTimeout(timer);
 	});
 
@@ -214,7 +216,7 @@
 {#if data.unreachable}
 	<main id="main" class="unreachable">
 		<!-- i18n-ignore: the wordmark is a name, the same in every language. -->
-		<span class="label">SPOTDL // WEB</span>
+		<span class="label" aria-hidden="true">SPOTDL // WEB</span>
 		<h1 class="page-title">{m.layout_unreachable_title()}</h1>
 		<p>{m.layout_unreachable_body()}</p>
 		<!-- aria-disabled, not disabled: the automatic retries would otherwise pull focus off it
