@@ -1024,7 +1024,8 @@ Inline error lines (`/`'s `submit-error`, `/login`'s `#login-error`, `.form-erro
 are `role="alert"` (or a polite live region), coloured `--fail`, in **Sans** at `--fs-detail` (a
 field's at `--fs-meta`): an error is a sentence (§3). The server's own words inside one stay as
 sent. `/login`'s line reserves its height at rest (`min-height: 1.25rem`) so its appearance never
-reflows the card; `/`'s submit error and the form errors take no room while empty (v42 for
+reflows the card, and so does `/stats`' (pulled up into the title's air), so a failed window switch
+never moves the switch under the pointer; `/`'s submit error and the form errors take no room while empty (v42 for
 `submit-error`; v47's live-region rule above for the rest), and they keep their live region
 rendered so the message is announced. For any future inline message: a live region that exists
 before the message does, `--fail`, Sans; reserve height where a shift would move the thing the user
@@ -1033,7 +1034,7 @@ is about to press.
 > **v47 (2026-10-19):** this section said inline errors were "mono" and all "reserve their vertical
 > space at rest". Neither is true any more: v42 moved sentences, errors included, to Sans (F12), and
 > v42/v47 let empty error regions leave the flow except where a shift would move the target
-> (`/login`).
+> (`/login`, `/stats`).
 
 ### Keyboard: shortcuts, roving lists, help overlay (`lib/keyboard/`, v45)
 

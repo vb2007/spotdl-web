@@ -138,11 +138,15 @@
 		}
 	}
 
-	// The button's own ask: the screen it was on is gone once the server answers, and an
-	// invalidation is no navigation, so afterNavigate won't place focus; the page's h1 takes it.
-	async function retrySession() {
+	// When the screen goes (the server answered), focus that was on it (the button) has nowhere
+	// to be, and an invalidation is no navigation, so afterNavigate won't place it: the page's
+	// h1 takes it. Only then: an automatic ask with focus elsewhere leaves it alone.
+	async function askAndKeepFocus() {
+		// i18n-ignore: a selector
+		const onScreen = document.activeElement?.closest('main.unreachable') != null;
 		await askAgain();
 		await tick();
+		if (!onScreen) return;
 		if (document.activeElement === document.body || document.activeElement === null) {
 			const heading =
 				// i18n-ignore: a selector
@@ -156,6 +160,11 @@
 		}
 	}
 
+	// The button's own ask.
+	function retrySession() {
+		askAndKeepFocus();
+	}
+
 	// One loop per outage, keyed to the flag flipping (not to every new `data` object):
 	// 300ms, then 2s doubling to 30s, until the screen goes.
 	const isUnreachable = $derived(data.unreachable === true);
@@ -167,7 +176,7 @@
 			while (!cancelled) {
 				await sleep(delay);
 				if (cancelled) return;
-				await askAgain();
+				await askAndKeepFocus();
 				delay = Math.min(Math.max(delay * 2, 2000), 30_000);
 			}
 		})();

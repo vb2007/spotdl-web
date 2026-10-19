@@ -236,15 +236,17 @@
 	// an emoji around it. The first http(s) address in what was pasted is the one sent.
 	// What was pasted may carry words around the link: a Spotify link (or a `spotify:` URI,
 	// which the browser's own check accepted) is preferred wherever it is, then the first
-	// http(s) link; either minus the sentence punctuation that tends to follow a pasted link
-	// ("…/album/abc." or "(…/album/abc)").
+	// http(s) link; either minus whatever the sentence glued onto its end ("…/album/abc.",
+	// "(…/album/abc)", an emoji).
 	const SPOTIFY_RE = /https?:\/\/open\.spotify\.com\/[^\s<>"',]+|spotify:[a-z]+(?::[A-Za-z0-9]+)+/i;
 	const LINK_RE = /https?:\/\/[^\s<>"',]+/i;
 	// Two or more links: say so rather than send the first and drop the rest.
 	const ANY_LINK_RE = /https?:\/\/[^\s<>"',]+|spotify:[a-z]+(?::[A-Za-z0-9]+)+/gi;
 	function linkIn(text: string): string | undefined {
 		const found = SPOTIFY_RE.exec(text)?.[0] ?? LINK_RE.exec(text)?.[0];
-		return found?.replace(/[.,;:!?)\]}»”’]+$/, '');
+		// A link ends in an id, a path or a query value: anything else glued on (punctuation, an
+		// emoji, "…") is the sentence's, not the link's.
+		return found?.replace(/[^A-Za-z0-9/=_-]+$/u, '');
 	}
 
 	async function onsubmit(event: SubmitEvent) {

@@ -404,8 +404,7 @@
 		gap: var(--space-4);
 	}
 
-	/* v47: the same title-to-plate rhythm as the other secondary pages (--space-5). The error
-	   line reserved a band at rest, which put the plates 81px under the title (49 elsewhere). */
+	/* v47: the same title-to-plate rhythm as the other secondary pages (--space-5). */
 	.main {
 		display: flex;
 		flex-direction: column;
@@ -766,5 +765,20 @@
 		.proxies .last {
 			grid-column: 1 / -1;
 		}
+	}
+	/* Reserved at rest, so a failed refresh or window switch doesn't move the window switch
+	   under the pointer (DESIGN.md "Error / status text": reserve where a shift would move what
+	   the user is about to press). Pulled up into the title's air, so the plates sit as on the
+	   other pages. Overrides app.css's empty-region rule. */
+	.form-error,
+	.form-error:empty {
+		position: static;
+		width: auto;
+		height: auto;
+		clip-path: none;
+		white-space: normal;
+		min-height: 1.25em;
+		margin-top: calc(-1 * var(--space-3));
+		margin-bottom: calc(-1 * var(--space-3));
 	}
 </style>

@@ -324,10 +324,15 @@
 				</header>
 				<!-- One alert line for the page: a start that failed, or a report that couldn't be read. -->
 				<p class="form-error" role="alert">{error || reportError}</p>
+				<!-- v47: the first load failure is announced here, a region present from the start
+				     (the visible block below is inserted with its text, which often isn't). -->
+				<p class="sr-only" role="alert">
+					{run === null && loadError ? m.library_load_failed({ error: loadError }) : ''}
+				</p>
 
 				{#if run === null}
 					{#if loadError}
-						<p class="form-error" role="alert">
+						<p class="form-error">
 							{m.library_load_failed({ error: loadError })}
 							<button
 								type="button"
