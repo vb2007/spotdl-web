@@ -298,7 +298,7 @@
 									aria-invalid={daysError ? 'true' : undefined}
 									aria-describedby="retention-days-unit retention-days-error"
 								/>
-								<span class="unit mono" id="retention-days-unit">{m.account_retention_unit()}</span>
+								<span class="unit" id="retention-days-unit">{m.account_retention_unit()}</span>
 							</div>
 							<p id="retention-days-error" class="field-error">{daysError?.()}</p>
 						</div>

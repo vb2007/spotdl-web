@@ -1394,6 +1394,7 @@ function createQueueStore() {
 		reset,
 		toggleExpand,
 		isExpanded,
+		loadExpandedTracks,
 		loadMoreExpandedTracks,
 		addJob,
 		applyEvent,

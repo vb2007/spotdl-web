@@ -479,11 +479,17 @@
 		<div class="status">
 			<span class="link mono" class:down={$link !== 'live'} role="status">
 				<span class="link-dot" aria-hidden="true"></span>
-				{$link === 'live'
-					? m.dashboard_link_live()
-					: $link === 'connecting'
-						? m.dashboard_link_connecting()
-						: m.dashboard_link_lost()}
+				{#if $link === 'live'}
+					{m.dashboard_link_live()}
+				{:else if $link === 'connecting'}
+					{m.dashboard_link_connecting()}
+				{:else}
+					<!-- v47: the phone's masthead takes the short form; the Waterfall carries the
+					     whole sentence, and the long one wrapped and pushed the page down. -->
+					<span class="lost-full">{m.dashboard_link_lost()}</span><span class="lost-short"
+						>{m.dashboard_link_lost_short()}</span
+					>
+				{/if}
 			</span>
 			{#if isAdmin}
 				<WorkerStatusPill />
@@ -491,17 +497,15 @@
 		</div>
 		<nav class="session" aria-label={m.dashboard_nav_label()}>
 			{#if isAdmin}
-				<a class="nav-link mono" href={resolve('/library')}>{m.dashboard_nav_library()}</a>
-				<a class="nav-link mono" href={resolve('/settings')}>{m.dashboard_nav_settings()}</a>
-				<a class="nav-link mono" href={resolve('/stats')}>{m.dashboard_nav_stats()}</a>
+				<a class="nav-link" href={resolve('/library')}>{m.dashboard_nav_library()}</a>
+				<a class="nav-link" href={resolve('/settings')}>{m.dashboard_nav_settings()}</a>
+				<a class="nav-link" href={resolve('/stats')}>{m.dashboard_nav_stats()}</a>
 			{/if}
-			<a class="nav-link mono" href={resolve('/account')}>{m.dashboard_nav_account()}</a>
+			<a class="nav-link" href={resolve('/account')}>{m.dashboard_nav_account()}</a>
 			<span class="who mono" title={data.session?.email}
 				>{api.displayName(data.session?.username ?? null, data.session?.email ?? '')}</span
 			>
-			<button type="button" class="logout mono" onclick={onLogout}
-				>{m.dashboard_disconnect()}</button
-			>
+			<button type="button" class="logout" onclick={onLogout}>{m.dashboard_disconnect()}</button>
 		</nav>
 	</header>
 
@@ -566,9 +570,9 @@
 				<div class="state" role="alert">
 					<h3 class="state-title">{m.dashboard_error_title()}</h3>
 					<p class="state-text">
-						<span class="mono">{errorText($page.error.err)}</span>
+						<span>{errorText($page.error.err)}</span>
 					</p>
-					<button type="button" class="state-action mono" onclick={retryQueue}
+					<button type="button" class="state-action" onclick={retryQueue}
 						>{m.dashboard_error_retry()}</button
 					>
 				</div>
@@ -581,7 +585,7 @@
 								? m.dashboard_empty_archived_included()
 								: m.dashboard_empty_archived_hidden()}
 						</p>
-						<button type="button" class="state-action mono" onclick={clearSearchAndFilters}
+						<button type="button" class="state-action" onclick={clearSearchAndFilters}
 							>{m.dashboard_empty_clear()}</button
 						>
 					{:else if $incomingJobs.some((j) => j.state === 'expanding' && (allUsersView || j.owner_email === data.session?.email))}
@@ -599,7 +603,7 @@
 								? m.dashboard_empty_own_text()
 								: m.dashboard_empty_own_text_archived_hidden()}
 						</p>
-						<button type="button" class="state-action mono" onclick={focusSubmit}
+						<button type="button" class="state-action" onclick={focusSubmit}
 							>{m.dashboard_empty_own_action()}</button
 						>
 					{/if}
@@ -652,7 +656,7 @@
 			     retries just that page. -->
 			{#if $page.moreError}
 				<p class="more-error" role="alert">
-					{m.dashboard_more_error()} <span class="mono">{errorText($page.moreError.err)}</span>
+					{m.dashboard_more_error()} <span>{errorText($page.moreError.err)}</span>
 				</p>
 			{/if}
 			<!-- Stays mounted (aria-disabled) through a background reload (a reconnect's resync),
@@ -660,7 +664,7 @@
 			{#if $page.nextCursor && !$page.error}
 				<button
 					type="button"
-					class="load-more mono"
+					class="load-more"
 					aria-disabled={$page.loadingMore || $page.loading}
 					onclick={loadMorePage}
 				>
@@ -742,6 +746,14 @@
 		color: var(--waiting);
 	}
 
+	.link {
+		white-space: nowrap;
+	}
+
+	.lost-short {
+		display: none;
+	}
+
 	.link.down .link-dot {
 		background: transparent;
 		border: 1.5px solid var(--waiting);
@@ -799,20 +811,30 @@
 		overflow-wrap: anywhere;
 	}
 
+	/* v47: signing out isn't destructive, so it takes the neutral control's hover (DESIGN.md
+	   §2), the same as /account's disconnect; it was the fail red. */
 	.logout {
 		background: transparent;
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		color: var(--text-muted);
-		font-size: var(--fs-meta);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
 		cursor: pointer;
 	}
 
-	.logout:hover,
-	.logout:focus-visible {
-		border-color: var(--fail);
-		color: var(--fail);
+	@media (hover: hover) {
+		.logout:hover {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+			color: var(--text-primary);
+		}
+	}
+
+	.logout:active {
+		background: var(--bg-3);
 	}
 
 	.main {
@@ -969,7 +991,9 @@
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-2) var(--space-4);
-		font-size: var(--fs-meta);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
 		color: var(--text-primary);
 		cursor: pointer;
 	}
@@ -978,27 +1002,39 @@
 		margin-top: var(--space-2);
 	}
 
-	.state-action:hover,
-	.load-more:hover:not([aria-disabled='true']) {
-		background: var(--bg-3);
-		border-color: var(--text-muted);
+	@media (hover: hover) {
+		.state-action:hover,
+		.load-more:hover:not([aria-disabled='true']) {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+		}
 	}
 
+	.state-action:active,
+	.load-more:active:not([aria-disabled='true']) {
+		background: var(--bg-3);
+	}
+
+	/* v47: on the row grid, its edge on the rows' state column (where a job's badge starts),
+	   rather than a free 16px inset. */
 	.load-more {
-		margin: var(--space-3) var(--space-4);
+		margin: var(--space-3) var(--row-pad-x) var(--space-3) calc(var(--row-pad-x) + var(--row-nest));
+		align-self: flex-start;
 		color: var(--text-muted);
 	}
 
 	.more-error {
-		margin: var(--space-3) var(--space-4) 0;
+		margin: var(--space-3) var(--row-pad-x) 0 calc(var(--row-pad-x) + var(--row-nest));
 		color: var(--fail);
 		font-size: var(--fs-detail);
 	}
 
 	/* aria-disabled, not disabled: disabling the focused button would drop focus to the
-	   page, and this button is also how a failed page is retried (v41's JobTrackList fix). */
+	   page, and this button is also how a failed page is retried (v41's JobTrackList fix).
+	   v47: dimmed text and edge, not opacity (an opacity-faded control drops under 4.5:1). */
 	.load-more[aria-disabled='true'] {
-		opacity: 0.6;
+		border-color: var(--line);
+		color: var(--text-dim);
 		cursor: default;
 	}
 
@@ -1139,6 +1175,20 @@
 
 		.logout {
 			margin-left: auto;
+		}
+
+		.lost-full {
+			display: none;
+		}
+
+		.lost-short {
+			display: inline;
+		}
+
+		/* The phone's rows stack with no state column: back to the row's own inset. */
+		.load-more,
+		.more-error {
+			margin-left: var(--row-pad-x);
 		}
 
 		.submit {

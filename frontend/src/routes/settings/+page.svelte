@@ -479,6 +479,7 @@
 		const confirmed = await confirmAction({
 			title: m.settings_proxy_remove_title(),
 			subject: proxy.url,
+			subjectIsAddress: true,
 			body: m.settings_proxy_remove_body(),
 			confirmLabel: m.settings_proxy_remove_confirm(),
 			cancelLabel: m.settings_proxy_remove_cancel()
@@ -620,7 +621,7 @@
 						<form class="grid" onsubmit={onOutputSubmit} novalidate>
 							<div class="form-field">
 								<span class="label" id="format-label">{m.settings_output_format()}</span>
-								<div class="choice-group" role="group" aria-labelledby="format-label">
+								<div class="choice-group values" role="group" aria-labelledby="format-label">
 									{#each outputOptions.formats as fmt (fmt)}
 										<button
 											type="button"
@@ -849,7 +850,7 @@
 													aria-invalid={alertFieldErrors[field.key] ? 'true' : undefined}
 													aria-describedby="{field.key}-unit {field.key}-error"
 												/>
-												<span class="unit mono" id="{field.key}-unit">{field.unit()}</span>
+												<span class="unit" id="{field.key}-unit">{field.unit()}</span>
 											</div>
 											<p id="{field.key}-error" class="field-error">
 												{alertFieldErrors[field.key] ?? ''}
@@ -943,12 +944,12 @@
 												? m.settings_proxy_source_manual()
 												: PROXIES_FILE}</span
 										>
-										<span class="fact mono">
+										<span class="fact">
 											{proxy.consecutive_failures === 0
 												? m.settings_proxy_no_failures()
 												: m.settings_proxy_failures(counted(proxy.consecutive_failures))}
 										</span>
-										<span class="fact mono">
+										<span class="fact">
 											{proxy.last_success_at
 												? m.settings_proxy_last_worked({
 														when: formatTimestamp(proxy.last_success_at)
@@ -960,7 +961,6 @@
 												><Countdown
 													scheduledAt={proxy.cooldown_until ?? ''}
 													label={m.settings_proxy_resting()}
-													dueLive={false}
 													dueText={m.settings_proxy_rested()}
 												/></span
 											>
@@ -1062,7 +1062,6 @@
 		padding: var(--space-1) var(--space-3);
 		margin-left: -1px;
 		border-left: 2px solid transparent;
-		font-family: var(--font-mono);
 		font-size: var(--fs-detail);
 		color: var(--text-muted);
 		text-decoration: none;

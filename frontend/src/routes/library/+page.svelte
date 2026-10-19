@@ -154,6 +154,7 @@
 		const confirmed = await confirmAction({
 			title: m.library_confirm_title(),
 			subject: settings?.library_target_dir,
+			subjectIsAddress: true,
 			body:
 				settings === undefined
 					? m.library_confirm_body_unknown()

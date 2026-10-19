@@ -198,7 +198,7 @@
 	<p class="breaker-line">{breakerLine}</p>
 
 	<details class="as-table">
-		<summary class="mono">{m.stats_show_as_table()}</summary>
+		<summary>{m.stats_show_as_table()}</summary>
 		<!-- Focusable, so a keyboard can scroll it (axe: scrollable-region-focusable). -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div class="table-wrap" tabindex="0" role="region" aria-label={m.stats_tables_label()}>

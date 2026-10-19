@@ -48,7 +48,6 @@
 				><Countdown
 					scheduledAt={breakerUntil}
 					label={m.pill_clears_in()}
-					dueLive={false}
 					dueText={m.pill_clearing()}
 				/></span
 			>

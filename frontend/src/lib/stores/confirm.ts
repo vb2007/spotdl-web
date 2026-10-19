@@ -8,6 +8,9 @@ export interface ConfirmRequest {
 	title: string;
 	/** The object acted on, shown as data (a job title, a proxy address). Optional. */
 	subject?: string;
+	/** v47: the subject is an address (a link, a proxy, a folder), set in mono. A song or job
+	 * title is content, and content is never in the instrument face (DESIGN.md §3). */
+	subjectIsAddress?: boolean;
 	/** One or two sentences: what happens, and whether it can be undone. */
 	body: string;
 	/** The destructive button, naming the action: "cancel job". */

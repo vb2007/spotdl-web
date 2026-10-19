@@ -219,7 +219,7 @@
 				<section class="panel window" aria-labelledby="window-heading" aria-busy={loading}>
 					<header class="window-head">
 						<h2 id="window-heading" class="label">{windowHeading(shownWindow)}</h2>
-						<div class="choice-group" role="group" aria-label={m.stats_window_label()}>
+						<div class="choice-group values" role="group" aria-label={m.stats_window_label()}>
 							{#each WINDOWS as option (option)}
 								<button
 									type="button"

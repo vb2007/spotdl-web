@@ -152,6 +152,7 @@
 		const confirmed = await confirmAction({
 			title: m.incoming_confirm_title(),
 			subject: job.source_url,
+			subjectIsAddress: true,
 			body: m.incoming_confirm_body(),
 			confirmLabel: m.incoming_confirm_yes(),
 			cancelLabel: m.incoming_confirm_no()
@@ -590,17 +591,28 @@
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
-		font-family: var(--font-mono);
-		font-size: var(--fs-meta);
+		font-family: var(--font-sans);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
 		color: var(--text-muted);
 		cursor: pointer;
 		white-space: nowrap;
 	}
 
-	.action:hover:not(:disabled),
-	.action:focus-visible {
+	/* v47: the one hover of a neutral control (DESIGN.md §2): --bg-3 under a --text-muted edge,
+	   and only where a pointer hovers (on touch, a tapped button used to keep it). Focus is the
+	   global ring alone; pressed is the --bg-3 fill. */
+	@media (hover: hover) {
+		.action:hover:not(:disabled) {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+			color: var(--text-primary);
+		}
+	}
+
+	.action:active:not(:disabled) {
 		background: var(--bg-3);
-		color: var(--text-primary);
 	}
 
 	/* Cancelling a submission is destructive: the same outline as v41's row cancel. */
@@ -609,15 +621,25 @@
 		border-color: var(--fail-edge);
 	}
 
-	.action.danger:hover,
-	.action.danger:focus-visible {
+	.action.danger:focus-visible,
+	.action.danger:active:not(:disabled) {
 		background: transparent;
 		border-color: var(--fail);
 		color: var(--fail);
 	}
 
+	@media (hover: hover) {
+		.action.danger:hover:not(:disabled) {
+			background: transparent;
+			border-color: var(--fail);
+			color: var(--fail);
+		}
+	}
+
+	/* Dimmed text, not opacity: an opacity-faded control drops under 4.5:1 (v42). */
 	.action:disabled {
-		opacity: 0.6;
+		border-color: var(--line);
+		color: var(--text-dim);
 		cursor: default;
 	}
 

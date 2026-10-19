@@ -546,7 +546,6 @@
 						><Countdown
 							scheduledAt={nextTry.at}
 							label={m.track_next_try_in()}
-							dueLive={false}
 							dueText={workerPaused ? m.track_due() : m.track_due_next_pass()}
 						/></span
 					>
@@ -878,16 +877,27 @@
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
-		font-family: var(--font-mono);
-		font-size: var(--fs-meta);
+		font-family: var(--font-sans);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
 		color: var(--text-muted);
 		cursor: pointer;
 	}
 
-	.action:hover,
-	.action:focus-visible {
-		border-color: var(--waiting);
-		color: var(--text-primary);
+	/* v47: the one hover of a neutral control (DESIGN.md §2): --bg-3 under a --text-muted edge,
+	   and only where a pointer hovers (on touch, a tapped button used to keep it). Focus is the
+	   global ring alone; pressed is the --bg-3 fill. */
+	@media (hover: hover) {
+		.action:hover {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+			color: var(--text-primary);
+		}
+	}
+
+	.action:active {
+		background: var(--bg-3);
 	}
 
 	/* Destructive, so set apart from the neutral actions and outlined in the fail tone
@@ -903,10 +913,19 @@
 		margin-left: var(--space-4);
 	}
 
-	.action.danger:hover,
-	.action.danger:focus-visible {
+	.action.danger:focus-visible,
+	.action.danger:active {
+		background: transparent;
 		border-color: var(--fail);
 		color: var(--fail);
+	}
+
+	@media (hover: hover) {
+		.action.danger:hover {
+			background: transparent;
+			border-color: var(--fail);
+			color: var(--fail);
+		}
 	}
 
 	.notice.collapsed {
@@ -915,8 +934,7 @@
 
 	.notice {
 		color: var(--waiting);
-		font-family: var(--font-mono);
-		font-size: var(--fs-meta);
+		font-size: var(--fs-detail);
 	}
 
 	/* Empty, it stays in the accessibility tree (a status region inserted together with
@@ -1138,13 +1156,13 @@
 		overflow: hidden;
 	}
 
-	/* Text-sized, but a 24px-tall hit area (WCAG 2.5.8) on every inline control. */
+	/* Text-sized, but a 24px-tall hit area (WCAG 2.5.8) on every inline control; v47 (F32): a
+	   finger gets 44px, like every other control on the row. */
 	.inline-toggle {
 		min-height: 1.5rem;
 		background: none;
 		border: none;
 		padding: 0;
-		font-family: var(--font-mono);
 		font-size: var(--fs-meta);
 		color: var(--text-primary);
 		text-decoration: underline;
@@ -1254,7 +1272,9 @@
 	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
 	@media (pointer: coarse) {
 		.row,
-		.action {
+		.action,
+		.inline-toggle,
+		.when {
 			min-height: 2.75rem;
 		}
 	}

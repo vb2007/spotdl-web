@@ -137,7 +137,9 @@
 		<div class="box">
 			<h2 id="confirm-title" class="title">{request.title}</h2>
 			{#if request.subject}
-				<p id="confirm-subject" class="subject mono">{request.subject}</p>
+				<p id="confirm-subject" class="subject" class:mono={request.subjectIsAddress}>
+					{request.subject}
+				</p>
 			{/if}
 			<p id="confirm-body" class="body">{request.body}</p>
 			<div class="actions">
@@ -195,7 +197,8 @@
 		line-height: 1.3;
 	}
 
-	/* The object is data (a title, an address): mono, wrapping rather than truncating. */
+	/* The object acted on, wrapping rather than truncating: an address in mono, a title (content)
+	   in Sans (v47, DESIGN.md §3). */
 	.subject {
 		font-size: var(--fs-detail);
 		color: var(--text-primary);
@@ -214,5 +217,13 @@
 		justify-content: flex-end;
 		gap: var(--space-2);
 		margin-top: var(--space-2);
+	}
+
+	/* v47: stacked on a phone, both buttons take the full width rather than two ragged ones. */
+	@media (max-width: 480px) {
+		.actions {
+			flex-direction: column;
+			align-items: stretch;
+		}
 	}
 </style>

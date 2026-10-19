@@ -108,6 +108,10 @@
 	--row-nest: calc(var(--col-lead) + var(--row-gap));
 	--cell-inset: calc(var(--space-2) + 1px);
 
+	/* v47: the one height of a dense control row (/'s find and refine rows): segments, the
+	   search well, chips and the sort select. Touch raises every one to 44px (F32). */
+	--control-h: 1.875rem;
+
 	/* Motion */
 	--ease-signal: cubic-bezier(0.16, 1, 0.3, 1);
 	--dur-fast: 120ms;
@@ -278,10 +282,12 @@ kbd {
 	border: 1px solid var(--line-control);
 	border-radius: 4px;
 	padding: var(--space-2) var(--space-4);
-	font-family: var(--font-mono);
-	font-size: var(--fs-meta);
+	/* v47 (F12, owner-approved narrowing): a control's label is a word, not a reading, so Sans.
+	   Mono is for numbers, times, state tokens and addresses. */
+	font-family: var(--font-sans);
+	font-size: var(--fs-detail);
 	font-weight: var(--fw-medium);
-	letter-spacing: 0.04em;
+	line-height: 1.25;
 	color: var(--text-primary);
 	white-space: nowrap;
 	cursor: pointer;
@@ -290,13 +296,23 @@ kbd {
 		border-color var(--dur-fast) var(--ease-signal);
 }
 
-.btn:hover:not(:disabled) {
-	background: var(--bg-3);
-	border-color: var(--text-muted);
+/* v47: hover only where a pointer hovers (on touch a tapped button kept it); pressed is the
+   same --bg-3 fill, so a tap answers too. */
+@media (hover: hover) {
+	.btn:hover:not(:disabled) {
+		background: var(--bg-3);
+		border-color: var(--text-muted);
+	}
 }
 
-/* Dimmed text, not opacity: an opacity-faded control drops under 4.5:1 (v42's remainder). */
+.btn:active:not(:disabled) {
+	background: var(--bg-3);
+}
+
+/* Dimmed text, not opacity: an opacity-faded control drops under 4.5:1 (v42's remainder).
+   v47: the edge drops to --line too, so a disabled button no longer passes for a live one. */
 .btn:disabled {
+	border-color: var(--line);
 	color: var(--text-dim);
 	cursor: default;
 }
@@ -309,13 +325,20 @@ kbd {
 	color: var(--fail);
 }
 
-.btn.danger:hover:not(:disabled) {
+@media (hover: hover) {
+	.btn.danger:hover:not(:disabled) {
+		background: transparent;
+		border-color: var(--fail);
+	}
+}
+
+.btn.danger:active:not(:disabled) {
 	background: transparent;
 	border-color: var(--fail);
 }
 
 .btn.danger:disabled {
-	border-color: var(--line-control);
+	border-color: var(--line);
 	color: var(--text-dim);
 }
 
@@ -413,10 +436,19 @@ kbd {
 	background: var(--bg-2);
 	border: none;
 	padding: var(--space-1) var(--space-3);
-	font-family: var(--font-mono);
-	font-size: var(--fs-meta);
+	font-family: var(--font-sans);
+	font-size: var(--fs-detail);
+	font-weight: var(--fw-medium);
+	line-height: 1.25;
 	color: var(--text-muted);
 	cursor: pointer;
+}
+
+/* v47: a choice between values (a window like 24h, a format like mp3) keeps the instrument
+   face: the option is a reading, not a word. */
+.choice-group.values button {
+	font-family: var(--font-mono);
+	font-size: var(--fs-meta);
 }
 
 .choice-group button + button {

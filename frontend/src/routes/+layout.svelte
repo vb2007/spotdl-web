@@ -189,8 +189,8 @@
 		background: var(--bg-1);
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
-		font-family: var(--font-mono);
-		font-size: var(--fs-meta);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
 		color: var(--text-primary);
 		text-decoration: none;
 		transform: translateY(calc(-100% - var(--space-4)));

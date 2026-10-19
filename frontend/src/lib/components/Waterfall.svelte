@@ -124,7 +124,6 @@
 						><Countdown
 							scheduledAt={breakerUntil}
 							label={m.waterfall_resumes_in()}
-							dueLive={false}
 							dueText={m.waterfall_resuming()}
 						/></span
 					>
