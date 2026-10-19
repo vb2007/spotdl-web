@@ -108,6 +108,11 @@
 	--row-nest: calc(var(--col-lead) + var(--row-gap));
 	--cell-inset: calc(var(--space-2) + 1px);
 
+	/* v47 (WCAG 1.4.4): every width breakpoint is in em, not px, so a larger browser text size
+	   moves the layout to its narrower band as the text grows. In px, a 1024px window at 200%
+	   text kept the desktop row grid and squeezed every title to nothing. Bands at the default
+	   16px: phone <= 40em (640px), tablet <= 63.9375em (1023px), rows fold <= 60em (960px). */
+
 	/* v47: the one height of a dense control row (/'s find and refine rows): segments, the
 	   search well, chips and the sort select. Touch raises every one to 44px (F32). */
 	--control-h: 1.875rem;

@@ -401,7 +401,7 @@
 	}
 
 	/* Phone: the title line gets the full width; meter and percentage share the next. */
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.waterfall {
 			padding: var(--space-3) var(--space-4);
 		}

@@ -530,7 +530,7 @@
 		gap: var(--space-3);
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.stage {
 			padding: var(--space-4);
 		}

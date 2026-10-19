@@ -1119,7 +1119,7 @@
 
 	/* Tablet (F37): the masthead keeps ident and nav on one line and drops the status to
 	   its own line under them, left-aligned under the ident, instead of squeezing three columns. */
-	@media (max-width: 1023px) {
+	@media (max-width: 63.9375em) {
 		.masthead {
 			grid-template-columns: auto minmax(0, 1fr);
 			grid-template-areas:
@@ -1135,7 +1135,7 @@
 	/* Phone (F15): about a screen of chrome before the first job came down to the header
 	   on two lines (ident + link tell, then the nav in one row), tighter page gutters, and
 	   the controls' own trimmed rows. */
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.stage {
 			padding: var(--space-4);
 			gap: var(--space-4);

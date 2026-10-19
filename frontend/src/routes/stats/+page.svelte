@@ -670,7 +670,7 @@
 	}
 
 	/* Tablet: the plates stack; the readout runs across. */
-	@media (max-width: 1023px) {
+	@media (max-width: 63.9375em) {
 		.layout {
 			grid-template-columns: minmax(0, 1fr);
 		}
@@ -692,7 +692,7 @@
 	}
 
 	/* Phone: 16px gutter; table rows become stacked readings. */
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.stage {
 			padding: var(--space-4);
 		}

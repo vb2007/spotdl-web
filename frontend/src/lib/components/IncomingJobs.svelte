@@ -653,7 +653,7 @@
 	   actions go under them. At tablet widths the one-line grid left the link (the only thing
 	   saying which link failed) a few pixels wide once a long state and two actions took
 	   their room. */
-	@media (max-width: 1023px) {
+	@media (max-width: 63.9375em) {
 		.row:not(.summary) {
 			grid-template-columns: 0.5rem minmax(0, 1fr) auto;
 		}

@@ -647,7 +647,7 @@
 
 	/* Tablet: the actions drop to a second line under the title instead of squeezing it
 	   (F37, for this row; v42 owns the page breakpoint). */
-	@media (max-width: 960px) {
+	@media (max-width: 60em) {
 		.row {
 			grid-template-columns: var(--col-lead) var(--col-state) minmax(0, 1fr) 10rem;
 		}
@@ -680,7 +680,7 @@
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.row {
 			grid-template-columns: var(--col-lead) minmax(0, 1fr);
 		}

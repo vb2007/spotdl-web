@@ -1222,7 +1222,7 @@
 
 	/* Tablet: artist and album fold into one muted line under the title rather than
 	   squeezing three text columns (F37, for these rows; v42 owns the page breakpoint). */
-	@media (max-width: 960px) {
+	@media (max-width: 60em) {
 		.row {
 			grid-template-columns: var(--col-state) minmax(0, 1fr) var(--col-lead);
 			grid-template-areas:
@@ -1279,7 +1279,7 @@
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.row {
 			grid-template-columns: minmax(0, 1fr) var(--col-lead);
 			grid-template-areas:

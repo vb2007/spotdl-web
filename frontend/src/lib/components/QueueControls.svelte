@@ -613,7 +613,7 @@
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.queue-head,
 		.controls {
 			padding-left: var(--space-3);

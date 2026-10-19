@@ -636,7 +636,7 @@
 		color: var(--fail);
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.stage {
 			padding: var(--space-4);
 		}

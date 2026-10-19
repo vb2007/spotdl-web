@@ -298,13 +298,13 @@
 		line-height: 1.45;
 	}
 
-	@media (max-width: 760px) {
+	@media (max-width: 47.5em) {
 		.groups {
 			grid-template-columns: minmax(0, 1fr);
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.box {
 			padding: var(--space-4);
 		}

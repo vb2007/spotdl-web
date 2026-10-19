@@ -220,7 +220,7 @@
 	}
 
 	/* v47: stacked on a phone, both buttons take the full width rather than two ragged ones. */
-	@media (max-width: 480px) {
+	@media (max-width: 30em) {
 		.actions {
 			flex-direction: column;
 			align-items: stretch;

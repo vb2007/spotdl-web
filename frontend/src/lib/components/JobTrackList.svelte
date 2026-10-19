@@ -235,7 +235,7 @@
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.hint,
 		.load-more {
 			padding-left: 0;

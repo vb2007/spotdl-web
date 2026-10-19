@@ -88,7 +88,7 @@
 	}
 
 	/* v47: a phone's admin masthead wrapped its six links onto a third row in Hungarian. */
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.pages {
 			column-gap: var(--space-3);
 		}

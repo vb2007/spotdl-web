@@ -1276,7 +1276,7 @@
 		color: var(--text-muted);
 	}
 
-	@media (max-width: 1023px) {
+	@media (max-width: 63.9375em) {
 		.main {
 			grid-template-columns: minmax(0, 1fr);
 			gap: var(--space-4);
@@ -1305,7 +1305,7 @@
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.stage {
 			padding: var(--space-4);
 		}

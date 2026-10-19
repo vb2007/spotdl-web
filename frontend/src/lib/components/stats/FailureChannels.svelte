@@ -510,7 +510,7 @@
 	}
 
 	/* Phone: a slimmer name column, and every other axis label, so they never collide. */
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.channels {
 			--name-col: 5.5rem;
 			grid-template-columns: var(--name-col) minmax(0, 1fr) 2rem;
