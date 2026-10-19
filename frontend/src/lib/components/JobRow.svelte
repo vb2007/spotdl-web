@@ -1,14 +1,15 @@
 <script lang="ts">
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
+	import { link } from '$lib/stores/link';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
-	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
+	import { failedRowNotices, rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
 	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import type { Job, JobLifecycle, JobSourceType } from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { formatNumber } from '$lib/i18n/format';
+	import { formatNumber, keepReadings } from '$lib/i18n/format';
 	import { jobStatusLabel } from '$lib/i18n/labels';
 
 	let { job, allUsers, isAdmin }: { job: Job; allUsers: boolean; isAdmin: boolean } = $props();
@@ -38,10 +39,19 @@
 	let badgeLabel = $derived(jobStatusLabel(statusToken));
 	// v42 (F28): red is for a real gap. A job that is partial only because its owner
 	// cancelled tracks has nothing missing they didn't choose, so it reads muted.
+	// v47 (F04/F05, DESIGN.md §2): amber says something is receiving right now. An active job
+	// is mostly tracks queued behind the one download the worker runs at a time (or held by
+	// the breaker), so it is amber only while one of its own tracks is downloading; and
+	// nothing is while `/`'s link is down, since the row is a snapshot that no longer updates.
+	let receiving = $derived(
+		$link === 'live' && (statusToken === 'expanding' || (job.track_counts.downloading ?? 0) > 0)
+	);
 	let cond = $derived(
 		statusToken === 'settled:partial' && !(job.track_counts.lookup_failed ?? 0)
 			? 'cond-idle'
-			: (JOB_STATUS_COND[statusToken] ?? 'cond-idle')
+			: (statusToken === 'active' || statusToken === 'expanding') && !receiving
+				? 'cond-idle'
+				: (JOB_STATUS_COND[statusToken] ?? 'cond-idle')
 	);
 	// v42 (F28): with no tracks read yet the backend falls back to the link itself; show it
 	// as the address it is, not as a bold title.
@@ -84,13 +94,17 @@
 
 	let segments = $derived.by((): Segment[] => {
 		const c = job.track_counts;
-		const active = (c.pending ?? 0) + (c.queued ?? 0) + (c.downloading ?? 0);
+		// v47: only a downloading track is the live segment; pending and queued are idle, as
+		// their own rows read (DESIGN.md §2's idle condition).
+		const downloading = c.downloading ?? 0;
+		const lined = (c.pending ?? 0) + (c.queued ?? 0);
 		const settled = (c.completed ?? 0) + (c.skipped_duplicate ?? 0);
 		const waiting = c.waiting ?? 0;
 		const fail = c.lookup_failed ?? 0;
 		const idle = c.cancelled ?? 0;
 		return [
-			{ cond: 'cond-live', n: active },
+			{ cond: $link === 'live' ? 'cond-live' : 'cond-idle', n: downloading },
+			{ cond: 'cond-idle', n: lined },
 			{ cond: 'cond-waiting', n: waiting },
 			{ cond: 'cond-settled', n: settled },
 			{ cond: 'cond-fail', n: fail },
@@ -116,15 +130,10 @@
 	});
 	// v41: the visible copy wraps only between parts ("120 done · 3 waiting"), never
 	// inside one, so every count stays readable in the fixed progress column.
-	let breakdownVisible = $derived(
-		breakdown
-			.split(' · ')
-			.map((part) => part.replace(/ /g, '\u00a0'))
-			.join(' · ')
-	);
+	let breakdownVisible = $derived(keepReadings(breakdown));
 
-	function showNotice(text: string) {
-		showRowNotice(`job:${job.id}`, text);
+	function showNotice(text: string, failed = false) {
+		showRowNotice(`job:${job.id}`, text, failed);
 	}
 
 	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
@@ -149,6 +158,7 @@
 		const confirmed = await confirmAction({
 			title: m.job_cancel_title(),
 			subject: job.title,
+			subjectIsAddress: titleIsUrl,
 			body: m.job_cancel_body(),
 			confirmLabel: m.job_cancel_confirm(),
 			cancelLabel: m.job_cancel_keep()
@@ -183,36 +193,45 @@
 			await queue.cancelJob(job.id);
 		} catch (err) {
 			// A session reset meanwhile: the answer belongs to the previous identity.
-			if (queue.getResetCount() === session) showNotice(errorText(err, m.job_notice_cancel_failed));
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_cancel_failed), true);
 		}
 		// The cancel button is gone with the in-flight controls: land on the row itself.
 		await keepFocus(landing());
 	}
 
+	// v47: each answer is shown only to the session that asked (the reset count, as cancel's):
+	// a late one after a sign-out must not land on the next identity's row.
 	async function handleBump() {
+		const session = queue.getResetCount();
 		try {
 			await queue.bumpJob(job.id);
-			showNotice(m.job_notice_bumped());
+			if (queue.getResetCount() === session) showNotice(m.job_notice_bumped());
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_bump_failed));
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_bump_failed), true);
 		}
 	}
 
 	async function handlePriority(value: string) {
 		const priority = Number.parseInt(value, 10);
 		if (Number.isNaN(priority)) return;
+		const session = queue.getResetCount();
 		try {
 			await queue.setJobPriority(job.id, priority);
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_priority_failed));
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_priority_failed), true);
 		}
 	}
 
 	async function handleArchive() {
+		const session = queue.getResetCount();
 		try {
 			await queue.archiveJobs({ jobIds: [job.id] });
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_archive_failed));
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_archive_failed), true);
 		}
 	}
 
@@ -222,9 +241,9 @@
 		cancel: () => showInFlight && (handleCancel(), true),
 		archive: () =>
 			showArchive ? (handleArchive(), true) : job.archived_at !== null && (handleUnarchive(), true),
-		bump: () => showInFlight && (handleBump(), true),
-		priorityUp: () => showInFlight && (stepPriority(1), true),
-		priorityDown: () => showInFlight && (stepPriority(-1), true)
+		bump: () => isAdmin && showInFlight && (handleBump(), true),
+		priorityUp: () => isAdmin && showInFlight && (stepPriority(1), true),
+		priorityDown: () => isAdmin && showInFlight && (stepPriority(-1), true)
 	});
 
 	// One step at a time: the row's priority only moves once the server answers, so a quick
@@ -241,10 +260,12 @@
 	}
 
 	async function handleUnarchive() {
+		const session = queue.getResetCount();
 		try {
 			await queue.unarchiveJobs([job.id]);
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_unarchive_failed));
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_unarchive_failed), true);
 		}
 	}
 </script>
@@ -292,13 +313,17 @@
 				</div>
 			{/if}
 			<!-- v42 (F28): see badgeSaysTrack. -->
-			{#if totalTracks !== 1 || !badgeSaysTrack}
+			<!-- v47: a job with no tracks (expanding, or failed before any was read) shows no count:
+			     a lone "—" took a line of its own on a phone, like the bar DESIGN.md §6 already drops. -->
+			{#if totalTracks > 0 && (totalTracks !== 1 || !badgeSaysTrack)}
 				<span class="breakdown mono">{breakdownVisible}</span>
 			{/if}
 		</div>
 
 		<div class="row-actions">
-			{#if showInFlight}
+			<!-- v47 (owner's call): priority and bump are the admin's. The queue's order is shared,
+			     operator detail (v39 outcome 3); a non-admin's in-flight job offers cancel only. -->
+			{#if showInFlight && isAdmin}
 				<label class="priority mono">
 					{m.job_priority()}
 					<input
@@ -320,6 +345,8 @@
 					aria-label={m.job_bump_label({ title: job.title })}
 					onclick={handleBump}>{m.job_bump()}</button
 				>
+			{/if}
+			{#if showInFlight}
 				<button
 					type="button"
 					class="action danger"
@@ -347,10 +374,17 @@
 		</div>
 	</div>
 
-	<p class="notice mono" role="status">{rowNotices.get(`job:${job.id}`) ?? ''}</p>
+	<p class="notice" class:failed={failedRowNotices.has(`job:${job.id}`)} role="status">
+		{rowNotices.get(`job:${job.id}`) ?? ''}
+	</p>
 
 	{#if isOpen}
-		<JobTrackList jobId={job.id} {isAdmin} total={totalTracks} />
+		<JobTrackList
+			jobId={job.id}
+			{isAdmin}
+			total={totalTracks}
+			unreadable={job.status.lifecycle === 'failed' ? (isAdmin ? (job.error ?? '') : '') : null}
+		/>
 	{/if}
 </li>
 
@@ -396,10 +430,12 @@
 	}
 	/* v42: on the raised faceplate a fill doesn't read, so hover underlines the title, as
 	   a track row does. */
-	.toggle:hover .title {
-		text-decoration: underline;
-		text-decoration-color: var(--text-muted);
-		text-underline-offset: 0.2em;
+	@media (hover: hover) {
+		.toggle:hover .title {
+			text-decoration: underline;
+			text-decoration-color: var(--text-muted);
+			text-underline-offset: 0.2em;
+		}
 	}
 
 	.chevron {
@@ -430,7 +466,8 @@
 		padding: 0.125rem var(--space-2);
 		border: 1px solid var(--line);
 		border-radius: 3px;
-		font-size: var(--fs-label);
+		/* v47: the track state word's size (it was 11px over a 12px state in the same column). */
+		font-size: var(--fs-meta);
 		letter-spacing: 0.04em;
 	}
 
@@ -445,17 +482,34 @@
 		margin-left: calc(var(--space-2) - var(--row-gap));
 	}
 
+	/* v47: a long title takes up to two lines before it is cut (one line cut a 110-character
+	   live title at "Live In L…", and the tooltip holding the rest is unreachable by touch
+	   and keyboard). Opening the row shows it whole. */
 	.title {
 		min-width: 0;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font-weight: 500;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow-wrap: anywhere;
+		font-weight: var(--fw-medium);
 	}
 
 	/* The link's tail (the id) is what tells two untitled jobs apart: it wraps rather than
 	   ellipsizing behind a tooltip touch and keyboard can't reach. */
+	/* Open, the job shows its whole title. */
+	.toggle[aria-expanded='true'] .title {
+		display: block;
+		-webkit-line-clamp: unset;
+		line-clamp: none;
+	}
+
+	/* The whole link, never clamped: its tail (the id) is what tells two untitled jobs apart. */
 	.title.address {
+		display: block;
+		-webkit-line-clamp: unset;
+		line-clamp: none;
 		white-space: normal;
 		overflow-wrap: anywhere;
 		font-family: var(--font-mono);
@@ -555,17 +609,28 @@
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
-		font-family: var(--font-mono);
-		font-size: var(--fs-meta);
+		font-family: var(--font-sans);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
 		color: var(--text-muted);
 		cursor: pointer;
 		white-space: nowrap;
 	}
 
-	.action:hover,
-	.action:focus-visible {
-		border-color: var(--waiting);
-		color: var(--text-primary);
+	/* v47: the one hover of a neutral control (DESIGN.md §2): --bg-3 under a --text-muted edge,
+	   and only where a pointer hovers (on touch, a tapped button used to keep it). Focus is the
+	   global ring alone; pressed is the --bg-3 fill. */
+	@media (hover: hover) {
+		.action:hover {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+			color: var(--text-primary);
+		}
+	}
+
+	.action:active {
+		background: var(--bg-3);
 	}
 
 	/* Destructive: outlined in the fail tone at rest, full red only when about to be used
@@ -575,10 +640,19 @@
 		border-color: var(--fail-edge);
 	}
 
-	.action.danger:hover,
-	.action.danger:focus-visible {
+	.action.danger:focus-visible,
+	.action.danger:active {
+		background: transparent;
 		border-color: var(--fail);
 		color: var(--fail);
+	}
+
+	@media (hover: hover) {
+		.action.danger:hover {
+			background: transparent;
+			border-color: var(--fail);
+			color: var(--fail);
+		}
 	}
 
 	.archived-tag {
@@ -595,6 +669,11 @@
 		font-size: var(--fs-detail);
 	}
 
+	/* v47: a failure reads as one ("Couldn't archive: …"), not in the scheduling blue. */
+	.notice.failed {
+		color: var(--fail);
+	}
+
 	/* Empty, it stays in the accessibility tree (a status region inserted together with
 	   its text is often not announced) but takes no room. */
 	.notice:empty {
@@ -607,7 +686,7 @@
 
 	/* Tablet: the actions drop to a second line under the title instead of squeezing it
 	   (F37, for this row; v42 owns the page breakpoint). */
-	@media (max-width: 960px) {
+	@media (max-width: 60em) {
 		.row {
 			grid-template-columns: var(--col-lead) var(--col-state) minmax(0, 1fr) 10rem;
 		}
@@ -640,7 +719,7 @@
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.row {
 			grid-template-columns: var(--col-lead) minmax(0, 1fr);
 		}
@@ -677,6 +756,13 @@
 		.row-actions {
 			grid-column: 2;
 			grid-row: auto;
+		}
+	}
+	/* v47: in a forced-colors theme (Windows High Contrast) a bar's fills were dropped to empty
+	   outlines; a reading keeps its own colours, as /stats' charts already do. */
+	@media (forced-colors: active) {
+		.bar {
+			forced-color-adjust: none;
 		}
 	}
 </style>

@@ -69,7 +69,11 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 
 export function apiErrorText(err: ApiError): string {
 	const translate = err.code ? BY_CODE[err.code] : undefined;
-	return translate ? translate(err.params) : err.message;
+	if (translate) return translate(err.params);
+	// v47: a 5xx with no code we know (an unhandled exception's JSON `detail`) is still the
+	// server's problem in the page's language, never its raw English.
+	if (err.status >= 500) return m.error_server_error({ status: String(err.status) });
+	return err.message;
 }
 
 /** The pattern every catch block uses: an API error in words, anything else (the server

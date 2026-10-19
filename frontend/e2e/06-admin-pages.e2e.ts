@@ -77,7 +77,9 @@ test.describe('admin', () => {
 		expect((await status).status()).toBe(200);
 		await expect(page).toHaveTitle('spotdl-web — library');
 		await expect(page.getByRole('button', { name: 'start sweep', exact: true })).toBeVisible();
-		await expect(page.getByRole('alert')).toHaveText('');
+		// v47: the page has two alert regions (the error line and the first-load failure's own,
+		// present from the start); neither says anything.
+		for (const alert of await page.getByRole('alert').all()) await expect(alert).toHaveText('');
 
 		for (const path of ADMIN_GETS) {
 			expect((await page.request.get(path)).status(), path).toBe(200);

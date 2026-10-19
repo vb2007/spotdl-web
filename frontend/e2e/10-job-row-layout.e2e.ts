@@ -26,8 +26,10 @@ test('a job row stays compact and its progress bar visible', async ({ page }) =>
 	expect(bar, 'progress bar box').not.toBeNull();
 	expect(whole, 'job row box').not.toBeNull();
 
-	// Two text lines at most: the title ellipsizes rather than wrapping.
-	expect.soft(toggle!.height, 'job toggle height').toBeLessThan(48);
+	// v47: the title takes up to two lines before it is cut (it ellipsized after one), so a
+	// phone's toggle is its badge line plus at most two title lines: three lines, ~70px. Still
+	// far under the 256px the F01 bug produced.
+	expect.soft(toggle!.height, 'job toggle height').toBeLessThan(80);
 	// The 0.5rem bar, not its 2px border alone.
 	expect.soft(bar!.height, 'progress bar height').toBeGreaterThanOrEqual(6);
 	expect.soft(bar!.width, 'progress bar width').toBeGreaterThan(100);

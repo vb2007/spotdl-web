@@ -17,26 +17,26 @@
 	<!-- i18n-ignore: the wordmark is a name, the same in every language. -->
 	<span class="wordmark mono" aria-hidden="true">SPOTDL // WEB</span>
 	<nav class="pages" aria-label={m.nav_pages()}>
-		<a class="nav-link mono" href={resolve('/')}>{m.nav_queue()}</a>
+		<a class="nav-link" href={resolve('/')}>{m.nav_queue()}</a>
 		{#if isAdmin}
 			<a
-				class="nav-link mono"
+				class="nav-link"
 				href={resolve('/library')}
 				aria-current={current === 'library' ? 'page' : undefined}>{m.nav_library()}</a
 			>
 			<a
-				class="nav-link mono"
+				class="nav-link"
 				href={resolve('/settings')}
 				aria-current={current === 'settings' ? 'page' : undefined}>{m.nav_settings()}</a
 			>
 			<a
-				class="nav-link mono"
+				class="nav-link"
 				href={resolve('/stats')}
 				aria-current={current === 'stats' ? 'page' : undefined}>{m.nav_stats()}</a
 			>
 		{/if}
 		<a
-			class="nav-link mono"
+			class="nav-link"
 			href={resolve('/account')}
 			aria-current={current === 'account' ? 'page' : undefined}>{m.nav_account()}</a
 		>
@@ -75,10 +75,16 @@
 		text-underline-offset: 0.3em;
 	}
 
-	.nav-link:hover,
 	.nav-link:focus-visible {
 		color: var(--text-primary);
 		text-decoration-color: currentColor;
+	}
+
+	@media (hover: hover) {
+		.nav-link:hover {
+			color: var(--text-primary);
+			text-decoration-color: currentColor;
+		}
 	}
 
 	/* The page you're on: primary text and no underline, a place rather than a link. */
@@ -87,11 +93,20 @@
 		text-decoration: none;
 	}
 
+	/* v47: a phone's admin masthead wrapped its six links onto a third row in Hungarian. */
+	@media (max-width: 40em) {
+		.pages {
+			column-gap: var(--space-3);
+		}
+	}
+
 	@media (pointer: coarse) {
 		.nav-link {
 			display: inline-flex;
 			align-items: center;
+			justify-content: center;
 			min-height: 2.75rem;
+			min-width: 2.75rem;
 		}
 	}
 </style>

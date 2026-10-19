@@ -39,4 +39,4 @@ fail = a not-found verdict or a pause. Never amber.
 ## Unresolved
 
 - v45 keyboard: the recorder's crosshair is pointer-only (the table view is the keyboard path).
-- v46: every string here is still a literal.
+- ~~v46: every string here is still a literal.~~ Resolved in v46: every string is a Paraglide message (en + hu).

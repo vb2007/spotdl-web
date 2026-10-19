@@ -20,5 +20,9 @@ Shows only the signed-in user's own data.
 
 ## Direction
 
-Unresolved: the v39 audit (`plan/master-v4/v39-ui-audit-report.md`) proposes refinement vs
-redesign, and the owner approves it in the v39 PR before v40 starts.
+Resolved: **refinement**, not redesign. The owner approved the v39 audit's recommendation on
+2026-10-12 on PR #56 ("Keep the design for now"; `plan/master-v4/v39-ui-audit-report.md` §8,
+`plan/master-v4/00-master-plan.md` Amendments): keep the signal-receiver world and fix its
+execution against its own rules (`frontend/src/DESIGN.md`).
+
+v40–v47 on `/account`: "Signed in" and "Preferences" panels in the shared form vocabulary (v43); the keyboard-shortcut switch (v45); language and time-format switches (v46); and v47's polish: preference groups that read apart, choice groups at a `.btn`'s height, Sans control labels, and a neutral disconnect.

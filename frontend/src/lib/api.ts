@@ -451,6 +451,35 @@ export class ApiError extends Error {
 	}
 }
 
+// v47: what a 401 from anything but signing in or out means: the session is gone. The layout
+// registers the one handler (back to /login, saying why), so no page is left showing "Not
+// authenticated" with a retry that can only fail again. `/api/auth/me` is left to its callers:
+// the layout's own load already redirects on it.
+const SESSION_PATHS = new Set(['/api/auth/login', '/api/auth/logout', '/api/auth/me']);
+let unauthorizedHandler: (() => void) | null = null;
+// v47: set while this tab signs out (until the next sign-in): a request answered 401 in that
+// window is the sign-out itself, not a session that ended under the user.
+let signingOut = false;
+// Whether this tab's sign-out has been answered: only a /me sent after that can undo it.
+let signedOut = false;
+
+export function isSigningOut(): boolean {
+	return signingOut;
+}
+
+/** Registers what a 401 does (the layout's session-ended path); returns the unregister. */
+export function onUnauthorized(handler: () => void): () => void {
+	unauthorizedHandler = handler;
+	return () => {
+		if (unauthorizedHandler === handler) unauthorizedHandler = null;
+	};
+}
+
+/** v47: for a caller that learns of a 401 some other way (an `api.me()` it already catches). */
+export function sessionEnded(): void {
+	unauthorizedHandler?.();
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	const response = await fetch(`${API_BASE}${path}`, {
 		...init,
@@ -479,8 +508,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 			// from in front of the app such as a 429) gets a code, so the UI says so in the active
 			// language around the same status line.
 			code = response.status >= 500 ? 'server_error' : 'request_failed';
-			params = { status: response.statusText || String(response.status) };
+			// v47: the number, never the statusText ("Bad Gateway" is English inside a
+			// Hungarian sentence).
+			params = { status: String(response.status) };
 		}
+		if (response.status === 401 && !signingOut && !SESSION_PATHS.has(path.split('?')[0]))
+			unauthorizedHandler?.();
 		throw new ApiError(response.status, detail, code, params);
 	}
 
@@ -564,19 +597,45 @@ function tracksQuery(params: ListTracksParams): string {
 	});
 }
 
-export function login(email: string, password: string): Promise<SessionInfo> {
-	return request('/api/auth/login', {
+export async function login(email: string, password: string): Promise<SessionInfo> {
+	const session = await request<SessionInfo>('/api/auth/login', {
 		method: 'POST',
 		body: JSON.stringify({ email, password })
 	});
+	signingOut = false;
+	signedOut = false;
+	return session;
 }
 
-export function me(): Promise<SessionInfo> {
-	return request('/api/auth/me');
+export async function me(): Promise<SessionInfo> {
+	const afterSignOut = signedOut;
+	const session = await request<SessionInfo>('/api/auth/me');
+	// v47: a live session read after this tab's sign-out finished (a sign-in in another tab,
+	// then Back) means a later 401 is a session ending again. One sent before it finished
+	// says nothing about the sign-out, so it leaves the latch alone.
+	if (afterSignOut) {
+		signingOut = false;
+		signedOut = false;
+	}
+	return session;
 }
 
-export function logout(): Promise<{ status: string }> {
-	return request('/api/auth/logout', { method: 'POST' });
+export async function logout(): Promise<{ status: string }> {
+	signingOut = true;
+	try {
+		const answer = await request<{ status: string }>('/api/auth/logout', { method: 'POST' });
+		signedOut = true;
+		return answer;
+	} catch (err) {
+		// A 401: there was no session left to end, so this tab is signed out all the same.
+		if (err instanceof ApiError && err.status === 401) {
+			signedOut = true;
+			return { status: 'ok' };
+		}
+		// Still signed in: a later 401 means what it says again.
+		signingOut = false;
+		throw err;
+	}
 }
 
 export function createJob(url: string): Promise<Job> {
@@ -690,6 +749,8 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 	});
 
 	if (!response.ok) {
+		// v47: an expired session is the session ending, the same as any other request's 401.
+		if (response.status === 401 && !signingOut) unauthorizedHandler?.();
 		// HEAD has no body, so no backend code either: the status picks one. An expired session
 		// says so (as any other request's 401 would); anything else keeps its status line as the
 		// `detail` a code-less fallback would show.
@@ -704,7 +765,8 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 			// i18n-ignore: the English `detail` behind the code, as the backend's would be.
 			response.status === 404 ? 'File not found' : response.statusText || 'Download failed',
 			code,
-			{ status: response.statusText || String(response.status) }
+			// v47: the number, as request() does: never English statusText in a Hungarian line.
+			{ status: String(response.status) }
 		);
 	}
 

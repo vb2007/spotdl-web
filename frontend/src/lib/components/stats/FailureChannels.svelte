@@ -198,7 +198,7 @@
 	<p class="breaker-line">{breakerLine}</p>
 
 	<details class="as-table">
-		<summary class="mono">{m.stats_show_as_table()}</summary>
+		<summary>{m.stats_show_as_table()}</summary>
 		<!-- Focusable, so a keyboard can scroll it (axe: scrollable-region-focusable). -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 		<div class="table-wrap" tabindex="0" role="region" aria-label={m.stats_tables_label()}>
@@ -324,7 +324,7 @@
 	}
 
 	.cell.hover {
-		background: rgba(232, 236, 238, 0.04);
+		background: color-mix(in srgb, var(--text-primary) 4%, transparent);
 	}
 
 	.column {
@@ -420,7 +420,7 @@
 		background: var(--bg-3);
 		border: 1px solid var(--line-bright);
 		border-radius: 4px;
-		box-shadow: 0 6px 12px -7px rgba(0, 0, 0, 0.8);
+		box-shadow: var(--shadow-plate);
 		font-size: var(--fs-meta);
 	}
 
@@ -467,8 +467,10 @@
 		width: max-content;
 	}
 
-	.as-table summary:hover {
-		color: var(--text-primary);
+	@media (hover: hover) {
+		.as-table summary:hover {
+			color: var(--text-primary);
+		}
 	}
 
 	.table-wrap {
@@ -510,7 +512,7 @@
 	}
 
 	/* Phone: a slimmer name column, and every other axis label, so they never collide. */
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.channels {
 			--name-col: 5.5rem;
 			grid-template-columns: var(--name-col) minmax(0, 1fr) 2rem;
@@ -527,6 +529,14 @@
 		.hold,
 		.key {
 			background: CanvasText;
+		}
+	}
+	/* v47 (F32): the disclosure is a control: a finger's height on touch. */
+	@media (pointer: coarse) {
+		/* Padding, not display:flex: a summary draws its open/closed marker only as a
+		   list-item. */
+		.as-table summary {
+			padding-block: 0.75rem;
 		}
 	}
 </style>

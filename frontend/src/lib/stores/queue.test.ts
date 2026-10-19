@@ -423,6 +423,30 @@ describe('v34 live hydration', () => {
 			expect(store.data.has('spotdl:live-progress:v1')).toBe(false);
 		});
 
+		it('v47: ticks within a second are written once, then the newest on the trailing edge', async () => {
+			vi.useFakeTimers();
+			try {
+				const store = fakeStorage();
+				let writes = 0;
+				const setItem = store.setItem;
+				store.setItem = (k: string, v: string) => {
+					writes += 1;
+					setItem(k, v);
+				};
+				vi.stubGlobal('localStorage', store);
+				for (const progress of [10, 20, 30, 40]) {
+					await queue.applyEvent(trackEvent('t1', 'downloading', progress));
+				}
+				expect(writes).toBe(1);
+				expect(JSON.parse(store.data.get('spotdl:live-progress:v1')!).t1.progress).toBe(10);
+				vi.advanceTimersByTime(1000);
+				expect(writes).toBe(2);
+				expect(JSON.parse(store.data.get('spotdl:live-progress:v1')!).t1.progress).toBe(40);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
 		it('a different attempt never inherits the stored progress', async () => {
 			vi.stubGlobal('localStorage', fakeStorage());
 			const { rememberProgress } = await import('$lib/stores/progressCache');

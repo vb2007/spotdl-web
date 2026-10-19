@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
+	import { get } from 'svelte/store';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -19,6 +20,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
 	import { counted, formatNumber } from '$lib/i18n/format';
+	import { countLinks, linkIn } from '$lib/submitLink';
 
 	const { filters, page, incomingJobs, activeTracks } = queue;
 	const { status: workerStatus } = worker;
@@ -57,24 +59,45 @@
 	);
 	// v46: whole phrases per scope, never a noun spliced into a sentence (Hungarian inflects
 	// it), and counts through Intl and plural rules.
-	let countText = $derived(
-		$page.loading
-			? m.dashboard_count_loading()
-			: $page.error
-				? ''
-				: $filters.scope === 'jobs'
-					? m.dashboard_count_jobs({
-							shown: formatNumber($page.items.length),
-							total:
-								$page.totalEstimate >= 1000
-									? m.dashboard_count_cap({ cap: formatNumber(1000) })
-									: formatNumber($page.totalEstimate),
-							count: $page.totalEstimate
-						})
-					: $page.nextCursor
-						? m.dashboard_count_tracks_more(counted($page.items.length))
-						: m.dashboard_count_tracks(counted($page.items.length))
-	);
+	// v47: the exact total, from the same grouped counts the chips show (each is over the
+	// searched set before its own filter, so the selected chips' sum is the list's size).
+	// The capped estimate read "1,662 of 1,000+ jobs" at volume, and tracks only "150+".
+	// `null` while there are no counts to sum (then the jobs head falls back to the estimate).
+	function exactTotal(counts: Record<string, number>, selected: string[]): number | null {
+		const keys = Object.keys(counts);
+		if (keys.length === 0) return null;
+		return (selected.length ? selected : keys).reduce((sum, key) => sum + (counts[key] ?? 0), 0);
+	}
+	let countText = $derived.by(() => {
+		if ($page.loading) return m.dashboard_count_loading();
+		if ($page.error) return '';
+		const shown = $page.items.length;
+		// v47: an empty queue says so in its own state below; "0 of 0 jobs" added nothing.
+		if (shown === 0 && !filtersActive) return '';
+		if ($filters.scope === 'jobs') {
+			const exact = exactTotal($page.countsByStatus, $filters.status);
+			const total = Math.max(exact ?? $page.totalEstimate, shown);
+			return m.dashboard_count_jobs({
+				shown: formatNumber(shown),
+				total:
+					exact === null && total >= 1000
+						? m.dashboard_count_cap({ cap: formatNumber(1000) })
+						: formatNumber(total),
+				count: total
+			});
+		}
+		const exact = exactTotal($page.countsByState, $filters.state);
+		if (exact === null)
+			return $page.nextCursor
+				? m.dashboard_count_tracks_more(counted(shown))
+				: m.dashboard_count_tracks(counted(shown));
+		const total = Math.max(exact, shown);
+		return m.dashboard_count_tracks_of({
+			shown: formatNumber(shown),
+			total: formatNumber(total),
+			count: total
+		});
+	});
 	let emptyTitle = $derived.by(() => {
 		const query = $filters.q.trim();
 		if ($filters.scope === 'jobs')
@@ -196,22 +219,53 @@
 	);
 
 	let url = $state('');
+	// v47: a phone's field shows the short placeholder (the long one was cut mid-phrase at 390).
+	let narrow = $state(false);
+	$effect(() => {
+		// i18n-ignore: a media query
+		const query = window.matchMedia('(max-width: 40em)');
+		narrow = query.matches;
+		const update = () => (narrow = query.matches);
+		query.addEventListener('change', update);
+		return () => query.removeEventListener('change', update);
+	});
 	let submitting = $state(false);
 	let submitError = $state('');
 
+	// v47: the form checks the link itself (`novalidate`): the browser's own bubble spoke the
+	// browser's language, sat outside the design, and turned away a link pasted with words or
+	// an emoji around it. What is sent out of what was pasted: `$lib/submitLink`.
+	// v47: the form's own checks mark the field invalid, and a repeated sentence is announced
+	// again (the region is emptied first; the same text twice isn't a change).
+	let submitInvalid = $state(false);
+	async function showSubmitProblem(text: string): Promise<void> {
+		submitInvalid = true;
+		submitError = '';
+		await tick();
+		submitError = text;
+	}
+
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
+		submitInvalid = false;
 		if (!url.trim()) {
-			submitError = m.dashboard_submit_empty();
-			return;
+			return showSubmitProblem(m.dashboard_submit_empty());
 		}
+		if (countLinks(url) > 1) {
+			return showSubmitProblem(m.dashboard_submit_many_links());
+		}
+		const link = linkIn(url);
+		if (!link) {
+			return showSubmitProblem(m.dashboard_submit_not_link());
+		}
+		url = link;
 		submitting = true;
 		submitError = '';
 		// A logout while the POST is in flight resets the store; the created job then belongs
 		// to the previous identity and must not land in the next one's overlay (v42 sweep).
 		const session = queue.getResetCount();
 		try {
-			const job = await api.createJob(url.trim());
+			const job = await api.createJob(link);
 			if (queue.getResetCount() !== session) return;
 			queue.addJob(job);
 			url = '';
@@ -228,14 +282,24 @@
 			document.getElementById('submit-url')?.focus();
 	}
 
+	// v47: a sign-out the server couldn't take says so (it failed silently on /).
+	let logoutError = $state('');
+
 	async function onLogout() {
 		loggingOut = true;
+		logoutError = '';
 		try {
 			await api.logout();
 		} catch (err) {
 			// Still here and still signed in: the reload guard must work again.
 			loggingOut = false;
-			throw err;
+			const shown = m.dashboard_disconnect_failed({ error: errorText(err) });
+			logoutError = shown;
+			// It answers one press; it doesn't stay in the masthead for the rest of the visit.
+			setTimeout(() => {
+				if (logoutError === shown) logoutError = '';
+			}, 10_000);
+			return;
 		}
 		// `queue` is a module-level singleton that survives this SPA navigation -- clear it
 		// before leaving, so a different identity logging in on the same tab next can never
@@ -270,7 +334,9 @@
 	// CONNECTING, which never reaches the CLOSED branch below), do one plain REST reload so
 	// the page shows its data or its error instead of "Loading…" indefinitely. The
 	// eventual `onopen` still resyncs as usual.
-	const RESYNC_FALLBACK_MS = 5000;
+	// v47: 2.5s, down from 5s. A healthy stream opens in about 0.3s; with it down, five seconds
+	// of "Loading…" read as a hung page.
+	const RESYNC_FALLBACK_MS = 2500;
 	let awaitingResync = false;
 	let resyncFallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -288,6 +354,7 @@
 	}
 
 	function connectStream() {
+		if (unmounted) return;
 		const stream = api.createEventSource(allUsersView);
 		source = stream;
 		// v42: the stream belongs to the session it was opened under. If the store is reset
@@ -324,8 +391,23 @@
 					window.location.reload();
 					return;
 				}
-			} catch {
-				// Can't tell (a blip): carry on; the layout and next reconnect check again.
+			} catch (err) {
+				// v47: a 401 is the session ending (the layout takes the tab to /login). Anything
+				// else can't tell (a blip): carry on; the layout and next reconnect check again.
+				if (err instanceof api.ApiError && err.status === 401) {
+					stream.close();
+					// A stream that something else replaced meanwhile isn't this page's to retry.
+					if (source !== stream) return;
+					clearTimeout(streamRetryTimer);
+					api.sessionEnded();
+					// If the session turns out to be alive (a stale 401: a sign-in elsewhere), the
+					// layout stays put, so this page keeps trying like any other drop; if it ended,
+					// leaving the page clears the timer.
+					link.set('reconnecting');
+					streamRetryTimer = setTimeout(connectStream, streamRetryDelayMs);
+					streamRetryDelayMs = Math.min(streamRetryDelayMs * 2, 30_000);
+					return;
+				}
 			}
 			// The stream may have dropped, or been replaced by a scope switch, meanwhile.
 			if (outlived() || !current()) return;
@@ -380,12 +462,86 @@
 	// countdown read it and the pill itself is admin-only. A failed poll keeps the last value.
 	const WORKER_POLL_MS = 5000;
 
+	// v47: an open EventSource can outlive the network under it (a dropped or changed network
+	// while the page runs): no error, no events, the tell still "linked". The server's
+	// heartbeat is an SSE comment, which a page can't see, so the poll is the watchdog: two
+	// polls in a row that never reached the server (a network failure, not an error answer)
+	// mean the link is down too, and the stream starts over. Not covered: a stream the server
+	// dropped while the machine slept, if the network is back on wake (no poll fails, and a
+	// quiet stream looks the same as a dead one); the browser's own socket timeout ends it.
+	let unreachedPolls = 0;
+	// A poll with no answer after 10s counts as unreached too, once: a request that hangs on
+	// a dead connection never rejects. Later polls still go out, so one stuck request can't
+	// stop the worker status from refreshing.
+	const POLL_ANSWER_MS = 10_000;
+	// Set by the cleanup: a poll, an offline/online event or a stream callback that settles
+	// after the page is gone must not open a stream nobody owns.
+	let unmounted = false;
+
 	function pollWorker() {
 		if (!loggingOut && queue.getResetCount() !== mountedSession) {
 			window.location.reload();
 			return;
 		}
-		worker.refresh().catch(() => {});
+		let settled = false;
+		const overdue = setTimeout(() => {
+			if (settled || unmounted) return;
+			settled = true;
+			countUnreached();
+		}, POLL_ANSWER_MS);
+		worker
+			.refresh()
+			.then(() => {
+				unreachedPolls = 0;
+			})
+			.catch((err) => {
+				if (settled) return;
+				// An error answer reached the server: the run of unreached polls is broken.
+				if (err instanceof api.ApiError) {
+					unreachedPolls = 0;
+					return;
+				}
+				countUnreached();
+			})
+			.finally(() => {
+				settled = true;
+				clearTimeout(overdue);
+			});
+	}
+
+	function countUnreached() {
+		unreachedPolls += 1;
+		if (unreachedPolls >= 2 && get(link) === 'live') restartStream();
+	}
+
+	/** Drops the current stream and opens a new one now, at the first backoff step. */
+	function restartStream() {
+		if (unmounted) return;
+		link.set('reconnecting');
+		clearTimeout(streamRetryTimer);
+		streamRetryDelayMs = 1000;
+		source?.close();
+		connectStream();
+	}
+
+	// v47: the browser knows when it's offline; the tell says so at once rather than "linked".
+	// Back online, or back to this tab with the link down, it reconnects now instead of
+	// waiting out a backoff of up to 30s.
+	// A start-over rather than only the tell: a spurious `offline` (a VPN or Wi-Fi handoff)
+	// with the stream still alive would otherwise pin "link lost" until something else fired.
+	function onOffline() {
+		restartStream();
+	}
+
+	// Only a link that is down starts over: an `online` with the stream still live (a VPN or
+	// Wi-Fi handoff that never broke it) would otherwise wipe the list for a resync.
+	function onOnline() {
+		unreachedPolls = 0;
+		if (get(link) !== 'live') restartStream();
+	}
+
+	function onVisible() {
+		if (document.visibilityState === 'visible' && get(link) === 'reconnecting') restartStream();
 	}
 
 	onMount(() => {
@@ -397,8 +553,15 @@
 		connectStream();
 		pollWorker();
 		const workerPoll = setInterval(pollWorker, WORKER_POLL_MS);
+		window.addEventListener('offline', onOffline);
+		window.addEventListener('online', onOnline);
+		document.addEventListener('visibilitychange', onVisible);
 
 		return () => {
+			unmounted = true;
+			window.removeEventListener('offline', onOffline);
+			window.removeEventListener('online', onOnline);
+			document.removeEventListener('visibilitychange', onVisible);
 			clearInterval(workerPoll);
 			clearTimeout(streamRetryTimer);
 			clearTimeout(resyncFallbackTimer);
@@ -423,29 +586,34 @@
 		<div class="status">
 			<span class="link mono" class:down={$link !== 'live'} role="status">
 				<span class="link-dot" aria-hidden="true"></span>
-				{$link === 'live'
-					? m.dashboard_link_live()
-					: $link === 'connecting'
-						? m.dashboard_link_connecting()
-						: m.dashboard_link_lost()}
+				{#if $link === 'live'}
+					{m.dashboard_link_live()}
+				{:else if $link === 'connecting'}
+					{m.dashboard_link_connecting()}
+				{:else}
+					<!-- v47: the phone's masthead takes the short form; the Waterfall carries the
+					     whole sentence, and the long one wrapped and pushed the page down. -->
+					<span class="lost-full">{m.dashboard_link_lost()}</span><span class="lost-short"
+						>{m.dashboard_link_lost_short()}</span
+					>
+				{/if}
 			</span>
 			{#if isAdmin}
 				<WorkerStatusPill />
 			{/if}
 		</div>
-		<nav class="session" aria-label={m.dashboard_nav_label()}>
+		<nav class="session" aria-label={m.nav_pages()}>
 			{#if isAdmin}
-				<a class="nav-link mono" href={resolve('/library')}>{m.dashboard_nav_library()}</a>
-				<a class="nav-link mono" href={resolve('/settings')}>{m.dashboard_nav_settings()}</a>
-				<a class="nav-link mono" href={resolve('/stats')}>{m.dashboard_nav_stats()}</a>
+				<a class="nav-link" href={resolve('/library')}>{m.dashboard_nav_library()}</a>
+				<a class="nav-link" href={resolve('/settings')}>{m.dashboard_nav_settings()}</a>
+				<a class="nav-link" href={resolve('/stats')}>{m.dashboard_nav_stats()}</a>
 			{/if}
-			<a class="nav-link mono" href={resolve('/account')}>{m.dashboard_nav_account()}</a>
+			<a class="nav-link" href={resolve('/account')}>{m.dashboard_nav_account()}</a>
 			<span class="who mono" title={data.session?.email}
 				>{api.displayName(data.session?.username ?? null, data.session?.email ?? '')}</span
 			>
-			<button type="button" class="logout mono" onclick={onLogout}
-				>{m.dashboard_disconnect()}</button
-			>
+			<button type="button" class="logout" onclick={onLogout}>{m.dashboard_disconnect()}</button>
+			<p class="logout-error" role="alert">{logoutError}</p>
 		</nav>
 	</header>
 
@@ -453,17 +621,21 @@
 	     a tabindex="-1" container takes focus on any click inside it and resets Tab order. -->
 	<main id="main" class="main">
 		<div class="submit-area">
-			<form class="panel submit" {onsubmit} aria-label={m.dashboard_submit_form_label()}>
+			<form class="panel submit" {onsubmit} novalidate aria-label={m.dashboard_submit_form_label()}>
 				<span class="prompt mono" class:sending={submitting} aria-hidden="true">&gt;</span>
 				<input
 					id="submit-url"
 					class="well"
 					type="url"
-					placeholder={m.dashboard_submit_placeholder()}
+					placeholder={narrow
+						? m.dashboard_submit_placeholder_short()
+						: m.dashboard_submit_placeholder()}
 					bind:value={url}
 					disabled={submitting}
 					aria-label={m.dashboard_submit_input_label()}
 					aria-describedby="submit-error"
+					aria-invalid={submitInvalid ? 'true' : undefined}
+					oninput={() => (submitInvalid = false)}
 				/>
 				<button type="submit" class="mono" disabled={submitting}
 					>{submitting ? m.dashboard_submit_sending() : m.dashboard_submit()}</button
@@ -510,9 +682,9 @@
 				<div class="state" role="alert">
 					<h3 class="state-title">{m.dashboard_error_title()}</h3>
 					<p class="state-text">
-						<span class="mono">{errorText($page.error.err)}</span>
+						<span>{errorText($page.error.err)}</span>
 					</p>
-					<button type="button" class="state-action mono" onclick={retryQueue}
+					<button type="button" class="state-action" onclick={retryQueue}
 						>{m.dashboard_error_retry()}</button
 					>
 				</div>
@@ -525,7 +697,7 @@
 								? m.dashboard_empty_archived_included()
 								: m.dashboard_empty_archived_hidden()}
 						</p>
-						<button type="button" class="state-action mono" onclick={clearSearchAndFilters}
+						<button type="button" class="state-action" onclick={clearSearchAndFilters}
 							>{m.dashboard_empty_clear()}</button
 						>
 					{:else if $incomingJobs.some((j) => j.state === 'expanding' && (allUsersView || j.owner_email === data.session?.email))}
@@ -543,7 +715,7 @@
 								? m.dashboard_empty_own_text()
 								: m.dashboard_empty_own_text_archived_hidden()}
 						</p>
-						<button type="button" class="state-action mono" onclick={focusSubmit}
+						<button type="button" class="state-action" onclick={focusSubmit}
 							>{m.dashboard_empty_own_action()}</button
 						>
 					{/if}
@@ -596,7 +768,7 @@
 			     retries just that page. -->
 			{#if $page.moreError}
 				<p class="more-error" role="alert">
-					{m.dashboard_more_error()} <span class="mono">{errorText($page.moreError.err)}</span>
+					{m.dashboard_more_error()} <span>{errorText($page.moreError.err)}</span>
 				</p>
 			{/if}
 			<!-- Stays mounted (aria-disabled) through a background reload (a reconnect's resync),
@@ -604,7 +776,7 @@
 			{#if $page.nextCursor && !$page.error}
 				<button
 					type="button"
-					class="load-more mono"
+					class="load-more"
 					aria-disabled={$page.loadingMore || $page.loading}
 					onclick={loadMorePage}
 				>
@@ -686,6 +858,10 @@
 		color: var(--waiting);
 	}
 
+	.lost-short {
+		display: none;
+	}
+
 	.link.down .link-dot {
 		background: transparent;
 		border: 1.5px solid var(--waiting);
@@ -728,10 +904,16 @@
 		text-underline-offset: 0.3em;
 	}
 
-	.nav-link:hover,
 	.nav-link:focus-visible {
 		color: var(--text-primary);
 		text-decoration-color: currentColor;
+	}
+
+	@media (hover: hover) {
+		.nav-link:hover {
+			color: var(--text-primary);
+			text-decoration-color: currentColor;
+		}
 	}
 
 	/* Wraps rather than truncating (the tooltip holding the full name is unreachable by
@@ -743,20 +925,45 @@
 		overflow-wrap: anywhere;
 	}
 
+	/* v47: signing out isn't destructive, so it takes the neutral control's hover (DESIGN.md
+	   §2), the same as /account's disconnect; it was the fail red. */
 	.logout {
 		background: transparent;
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
 		color: var(--text-muted);
-		font-size: var(--fs-meta);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
 		cursor: pointer;
 	}
 
-	.logout:hover,
-	.logout:focus-visible {
-		border-color: var(--fail);
+	@media (hover: hover) {
+		.logout:hover {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+			color: var(--text-primary);
+		}
+	}
+
+	.logout:active {
+		background: var(--bg-3);
+	}
+
+	.logout-error {
+		flex-basis: 100%;
+		text-align: right;
+		font-size: var(--fs-meta);
 		color: var(--fail);
+	}
+
+	.logout-error:empty {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 
 	.main {
@@ -806,9 +1013,15 @@
 	}
 
 	/* F10: no amber and no halo; focus is the global ring alone. */
-	.submit button:hover:not(:disabled) {
+	@media (hover: hover) {
+		.submit button:hover:not(:disabled) {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+		}
+	}
+
+	.submit button:active:not(:disabled) {
 		background: var(--bg-3);
-		border-color: var(--text-muted);
 	}
 
 	.submit-error {
@@ -913,7 +1126,9 @@
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-2) var(--space-4);
-		font-size: var(--fs-meta);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
 		color: var(--text-primary);
 		cursor: pointer;
 	}
@@ -922,27 +1137,39 @@
 		margin-top: var(--space-2);
 	}
 
-	.state-action:hover,
-	.load-more:hover:not([aria-disabled='true']) {
-		background: var(--bg-3);
-		border-color: var(--text-muted);
+	@media (hover: hover) {
+		.state-action:hover,
+		.load-more:hover:not([aria-disabled='true']) {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+		}
 	}
 
+	.state-action:active,
+	.load-more:active:not([aria-disabled='true']) {
+		background: var(--bg-3);
+	}
+
+	/* v47: on the row grid, its edge on the rows' state column (where a job's badge starts),
+	   rather than a free 16px inset. */
 	.load-more {
-		margin: var(--space-3) var(--space-4);
+		margin: var(--space-3) var(--row-pad-x) var(--space-3) calc(var(--row-pad-x) + var(--row-nest));
+		align-self: flex-start;
 		color: var(--text-muted);
 	}
 
 	.more-error {
-		margin: var(--space-3) var(--space-4) 0;
+		margin: var(--space-3) var(--row-pad-x) 0 calc(var(--row-pad-x) + var(--row-nest));
 		color: var(--fail);
 		font-size: var(--fs-detail);
 	}
 
 	/* aria-disabled, not disabled: disabling the focused button would drop focus to the
-	   page, and this button is also how a failed page is retried (v41's JobTrackList fix). */
+	   page, and this button is also how a failed page is retried (v41's JobTrackList fix).
+	   v47: dimmed text and edge, not opacity (an opacity-faded control drops under 4.5:1). */
 	.load-more[aria-disabled='true'] {
-		opacity: 0.6;
+		border-color: var(--line);
+		color: var(--text-dim);
 		cursor: default;
 	}
 
@@ -962,11 +1189,15 @@
 		padding: var(--space-3) var(--row-pad-x) var(--space-2) calc(var(--row-pad-x) + var(--row-nest));
 	}
 
+	/* v47: two lines before it is cut, as a job row's title (JobRow.svelte). */
 	.group-header .title {
 		min-width: 0;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow-wrap: anywhere;
 		font-weight: var(--fw-medium);
 	}
 
@@ -1018,16 +1249,19 @@
 			min-height: 2.75rem;
 		}
 
+		/* v47: wide as well as tall; Sans made "fiók" a 21px-wide target. */
 		.nav-link {
 			display: inline-flex;
 			align-items: center;
+			justify-content: center;
 			min-height: 2.75rem;
+			min-width: 2.75rem;
 		}
 	}
 
 	/* Tablet (F37): the masthead keeps ident and nav on one line and drops the status to
 	   its own line under them, left-aligned under the ident, instead of squeezing three columns. */
-	@media (max-width: 1023px) {
+	@media (max-width: 63.9375em) {
 		.masthead {
 			grid-template-columns: auto minmax(0, 1fr);
 			grid-template-areas:
@@ -1043,7 +1277,7 @@
 	/* Phone (F15): about a screen of chrome before the first job came down to the header
 	   on two lines (ident + link tell, then the nav in one row), tighter page gutters, and
 	   the controls' own trimmed rows. */
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.stage {
 			padding: var(--space-4);
 			gap: var(--space-4);
@@ -1083,6 +1317,26 @@
 
 		.logout {
 			margin-left: auto;
+		}
+
+		/* One line on a phone, where the short form fits; the desktop sentence may wrap in its
+		   column rather than run under the nav. */
+		.link {
+			white-space: nowrap;
+		}
+
+		.lost-full {
+			display: none;
+		}
+
+		.lost-short {
+			display: inline;
+		}
+
+		/* The phone's rows stack with no state column: back to the row's own inset. */
+		.load-more,
+		.more-error {
+			margin-left: var(--row-pad-x);
 		}
 
 		.submit {

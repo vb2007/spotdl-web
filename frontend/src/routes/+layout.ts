@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import * as api from '$lib/api';
 import { queue } from '$lib/stores/queue';
+import { consumeSessionEnded, markSessionEnded } from '$lib/stores/sessionEnded';
 import { shortcutsEnabled } from '$lib/keyboard/registry';
 import { applyClock, applyLanguagePreference } from '$lib/i18n/locale.svelte';
 import type { LayoutLoad } from './$types';
@@ -36,23 +37,40 @@ export const load: LayoutLoad = async ({ url }) => {
 	// blip. A real navigation still goes to /login as before; if someone else then signs
 	// in on this tab, the identity-change reset below clears the store.
 	let sessionGone = false;
+	// 0: the request never got an answer (the network, the api down).
+	let failedStatus: number | null = null;
 	try {
 		session = await api.me();
 	} catch (err) {
 		session = null;
-		sessionGone = err instanceof api.ApiError && err.status === 401;
+		failedStatus = err instanceof api.ApiError ? err.status : 0;
+		sessionGone = failedStatus === 401;
 	}
 
-	if (session === null && !onLoginPage) {
+	// v47: nor does a failed first answer sign anyone out. A 5xx, a 429 or a network failure
+	// (an api restart, a deploy) used to send a signed-in user to /login, where they stayed after
+	// the api came back. The layout shows "can't reach the server" and retries instead. Any
+	// other answer (a 4xx from something in front of the app) won't pass by waiting, so it
+	// goes to /login as before rather than retrying forever.
+	const transient = failedStatus === 0 || failedStatus === 429 || (failedStatus ?? 0) >= 500;
+	const unreachable = session === null && transient && !onLoginPage;
+
+	if (session === null && !onLoginPage && !unreachable) {
 		// `queue` is a module-level singleton that survives this client-side redirect (no
 		// hard reload) -- explicit onLogout isn't the only path here. A session can go
 		// invalid for other reasons (expiry, revocation) and surface through this exact
 		// `load()` re-running on the next in-app navigation, so this is the one chokepoint
 		// that must clear it regardless of *why* the session is gone.
-		if (sessionGone) queue.reset();
+		if (sessionGone) {
+			queue.reset();
+			// v47: only a tab that had a session here says it ended (not a first visit).
+			if (lastSessionEmail !== null && !api.isSigningOut()) markSessionEnded();
+		}
 		redirect(302, '/login');
 	}
 	if (session !== null) {
+		// v47: a live session answers any earlier "it ended" (a hover preload's, say).
+		consumeSessionEnded();
 		if (lastSessionEmail !== null && lastSessionEmail !== session.email) {
 			queue.reset();
 			// v45: the new identity's own switch, at once. A hover preload's `data` is never
@@ -62,7 +80,8 @@ export const load: LayoutLoad = async ({ url }) => {
 		lastSessionEmail = session.email;
 	}
 	const identity = session?.email ?? null;
-	if (identity !== localeAppliedFor) {
+	// Unreachable says nothing about who is signed in: keep the language already on screen.
+	if (identity !== localeAppliedFor && !(unreachable && localeAppliedFor !== undefined)) {
 		localeAppliedFor = identity;
 		applyLanguagePreference(session?.language);
 		applyClock(session?.clock);
@@ -71,5 +90,5 @@ export const load: LayoutLoad = async ({ url }) => {
 		redirect(302, '/');
 	}
 
-	return { session };
+	return { session, unreachable };
 };

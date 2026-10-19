@@ -191,21 +191,27 @@ export const BINDINGS: Binding[] = [
 		keys: [{ key: 'b' }],
 		label: m.kbd_bump,
 		group: 'list',
-		routes: DASHBOARD
+		routes: DASHBOARD,
+		// v47 (owner's call): the queue's order is operator detail, like v39's outcome 3.
+		adminOnly: true
 	},
 	{
 		id: 'priority-up',
 		keys: [{ key: 'b', shift: true }, { key: '+' }],
 		label: m.kbd_priority_up,
 		group: 'list',
-		routes: DASHBOARD
+		routes: DASHBOARD,
+		// v47 (owner's call): the queue's order is operator detail, like v39's outcome 3.
+		adminOnly: true
 	},
 	{
 		id: 'priority-down',
 		keys: [{ key: '-' }],
 		label: m.kbd_priority_down,
 		group: 'list',
-		routes: DASHBOARD
+		routes: DASHBOARD,
+		// v47 (owner's call): the queue's order is operator detail, like v39's outcome 3.
+		adminOnly: true
 	},
 	{
 		id: 'repeats',

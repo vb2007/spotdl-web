@@ -53,4 +53,11 @@
 		color: var(--text-muted);
 		max-width: 60ch;
 	}
+
+	/* v47: a phone's panel inset, as every other plate has. */
+	@media (max-width: 40em) {
+		.notice {
+			padding: var(--space-4);
+		}
+	}
 </style>

@@ -8,6 +8,9 @@ export interface ConfirmRequest {
 	title: string;
 	/** The object acted on, shown as data (a job title, a proxy address). Optional. */
 	subject?: string;
+	/** v47: the subject is an address (a link, a proxy, a folder), set in mono. A song or job
+	 * title is content, and content is never in the instrument face (DESIGN.md §3). */
+	subjectIsAddress?: boolean;
 	/** One or two sentences: what happens, and whether it can be undone. */
 	body: string;
 	/** The destructive button, naming the action: "cancel job". */
@@ -52,4 +55,17 @@ export async function keepFocus(fallback: HTMLElement | null | undefined): Promi
 	await tick();
 	const active = document.activeElement;
 	if ((active === null || active === document.body) && fallback?.isConnected) fallback.focus();
+}
+
+/** v47: the same rescue for a control that removes itself (a retry button whose section
+ * re-renders): when focus fell to `<body>`, it lands on the heading of what was retried
+ * (made focusable for it, as the layout does for a page's h1). */
+export async function keepFocusOnHeading(id: string): Promise<void> {
+	await tick();
+	const active = document.activeElement;
+	if (active !== null && active !== document.body) return;
+	const heading = document.getElementById(id);
+	if (!heading) return;
+	if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
+	heading.focus();
 }

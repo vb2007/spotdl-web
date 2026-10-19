@@ -131,3 +131,13 @@ export function clockExample(value: Date | string | number, clock: '12h' | '24h'
 		...(clock === null ? regionClockOptions() : pinned)
 	} as Intl.DateTimeFormatOptions).format(toDate(value));
 }
+
+/** v41/v47: a " · "-joined reading ("120 done · 3 waiting") wraps only between its parts,
+ * never inside one, and a wrapped line starts with its separator instead of the line above
+ * ending on one (Hungarian's longer words stranded a "·" at the line's end). */
+export function keepReadings(text: string): string {
+	return text
+		.split(' · ')
+		.map((part) => part.replace(/ /g, ' '))
+		.join(' · ');
+}

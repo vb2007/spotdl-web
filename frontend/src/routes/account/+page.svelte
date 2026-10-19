@@ -4,7 +4,7 @@
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
-	import { keepFocus } from '$lib/stores/confirm';
+	import { keepFocus, keepFocusOnHeading } from '$lib/stores/confirm';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import { helpOpen, shortcutsEnabled } from '$lib/keyboard/registry';
 	import * as m from '$lib/paraglide/messages';
@@ -62,14 +62,24 @@
 		if (settings.retention_days !== null) days = settings.retention_days;
 	}
 
-	onMount(() => {
+	// v47: a failed first read says what failed and can be retried here (it took a reload).
+	let loadError = $state<Shown>(null);
+	function loadRetention() {
+		loadError = null;
 		api
 			.getRetentionSettings()
 			.then(syncForm)
 			.catch((err) => {
-				error = () => errorText(err);
+				loadError = () => m.account_retention_load_failed({ error: errorText(err) });
 			});
-	});
+	}
+
+	onMount(loadRetention);
+
+	function retryRetention() {
+		loadRetention();
+		keepFocusOnHeading('retention-heading');
+	}
 
 	async function onSubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -256,7 +266,17 @@
 				<p class="hint">{m.account_retention_hint()}</p>
 
 				{#if saved === null}
-					{#if !error}<p class="hint">{m.account_retention_loading()}</p>{/if}
+					{#if loadError}
+						<!-- Announced by the always-present error line below, not as an inserted alert. -->
+						<div class="load-failed">
+							<p>{loadError()}</p>
+							<button type="button" class="btn small" onclick={retryRetention}
+								>{m.account_retention_try_again()}</button
+							>
+						</div>
+					{:else}
+						<p class="hint">{m.account_retention_loading()}</p>
+					{/if}
 				{:else}
 					<form class="retention-form" onsubmit={onSubmit} novalidate>
 						<div class="form-field">
@@ -298,7 +318,7 @@
 									aria-invalid={daysError ? 'true' : undefined}
 									aria-describedby="retention-days-unit retention-days-error"
 								/>
-								<span class="unit mono" id="retention-days-unit">{m.account_retention_unit()}</span>
+								<span class="unit" id="retention-days-unit">{m.account_retention_unit()}</span>
 							</div>
 							<p id="retention-days-error" class="field-error">{daysError?.()}</p>
 						</div>
@@ -317,7 +337,9 @@
 						</div>
 					</form>
 				{/if}
-				<p class="form-error" role="alert">{error?.()}</p>
+				<p class="form-error" class:sr-only={saved === null && loadError !== null} role="alert">
+					{saved === null && loadError !== null ? loadError() : error?.()}
+				</p>
 			</div>
 
 			<div class="group" role="group" aria-labelledby="keyboard-heading">
@@ -486,9 +508,26 @@
 		gap: var(--space-3);
 	}
 
+	/* v47: the groups read apart from one another: a rule and more air between them than
+	   inside one (they ran together at about the same 12px). */
+	.group + .group {
+		margin-top: var(--space-2);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--line);
+	}
+
 	.group-title {
 		font-size: var(--fs-body);
 		font-weight: var(--fw-medium);
+	}
+
+	.load-failed {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2) var(--space-3);
+		font-size: var(--fs-detail);
+		color: var(--fail);
 	}
 
 	.hint {
@@ -530,7 +569,7 @@
 		gap: var(--space-3);
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.stage {
 			padding: var(--space-4);
 		}

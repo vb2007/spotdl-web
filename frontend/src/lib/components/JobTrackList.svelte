@@ -3,11 +3,21 @@
 	import TrackRow from '$lib/components/TrackRow.svelte';
 	import { tick } from 'svelte';
 	import { focusRowEl, itemOf, kbList, rowAt, rowItemById } from '$lib/keyboard/lists';
+	import { keepFocus } from '$lib/stores/confirm';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
 	import { formatNumber } from '$lib/i18n/format';
 
-	let { jobId, isAdmin, total }: { jobId: string; isAdmin: boolean; total: number } = $props();
+	// v47: `unreadable` (the job failed before any track was read) says why the list is empty
+	// instead of a bare "No tracks.". It carries `job.error` for the admin only: the raw
+	// expansion error is operator detail (v39 outcome 3), as in IncomingJobs; a non-admin gets
+	// the sentence alone ('').
+	let {
+		jobId,
+		isAdmin,
+		total,
+		unreadable = null
+	}: { jobId: string; isAdmin: boolean; total: number; unreadable?: string | null } = $props();
 
 	const { expanded } = queue;
 	let state = $derived($expanded[jobId]);
@@ -45,12 +55,37 @@
 <!-- v41: the job's tracks hang off a rail in its chevron column, indented by exactly one
      lead column (F02), on the panel's own surface rather than a darker well. -->
 <div class="job-tracks" id="job-tracks-{jobId}">
+	<!-- v47: the list's one failure announcement, present from the moment the list opens (the
+	     visible lines below are swapped in with their text, which often goes unannounced). -->
+	<p class="sr-only" role="alert">
+		{state?.error ? `${m.job_tracks_failed()} ${errorText(state.error.err)}` : ''}
+	</p>
 	{#if state === undefined || state.loading}
-		<p class="hint mono">{m.job_tracks_loading()}</p>
+		<p class="hint">{m.job_tracks_loading()}</p>
 	{:else if state.error && state.items.length === 0}
-		<p class="hint fail mono" role="alert">{errorText(state.error.err)}</p>
+		<!-- v47: what failed, the reason, and a way to retry it here (it took a collapse and
+		     re-open before). -->
+		<div class="hint fail">
+			<p>{m.job_tracks_failed()} {errorText(state.error.err)}</p>
+			<button
+				type="button"
+				class="retry"
+				onclick={() => {
+					queue.loadExpandedTracks(jobId);
+					// The block (and this button) goes while it loads: focus goes back to the job.
+					keepFocus(rowItemById(jobId));
+				}}>{m.job_tracks_retry()}</button
+			>
+		</div>
 	{:else if state.items.length === 0}
-		<p class="hint mono">{m.job_tracks_empty()}</p>
+		{#if unreadable !== null}
+			<p class="hint">
+				{m.job_tracks_unreadable()}
+				{#if unreadable}<span class="reason mono" lang="en">{unreadable}</span>{/if}
+			</p>
+		{:else}
+			<p class="hint">{m.job_tracks_empty()}</p>
+		{/if}
 	{:else}
 		<!-- v45: one Tab stop (roving), reached through its open job. -->
 		<ul
@@ -65,12 +100,14 @@
 				<TrackRow {track} {jobId} {isAdmin} />
 			{/each}
 		</ul>
-		{#if state.nextCursor}
+		<!-- Not after a failed re-read: the rows above are stale, and a next page would be
+		     appended under them; the re-read's own retry (below) is the way on. -->
+		{#if state.nextCursor && !state.rereadFailed}
 			<!-- aria-disabled, not disabled: disabling the focused button would drop keyboard
 			     focus to the page while the next page loads. -->
 			<button
 				type="button"
-				class="load-more mono"
+				class="load-more"
 				data-kb-load-more
 				aria-disabled={state.loadingMore}
 				onclick={loadMore}
@@ -84,8 +121,22 @@
 				>
 			</button>
 		{/if}
-		<!-- A failed "load more" keeps the rows already loaded; the button above retries. -->
-		<p class="hint fail mono" role="alert">{state.error ? errorText(state.error.err) : ''}</p>
+		<!-- A failed read keeps the rows already on screen: a "load more" (the button above
+		     retries it) or a re-read of the list (a cancel's), which offers its own retry. v47:
+		     one sentence for both, since either can fail. -->
+		<p class="hint fail">
+			{state.error ? `${m.job_tracks_failed()} ${errorText(state.error.err)}` : ''}
+		</p>
+		{#if state.error && (state.rereadFailed || !state.nextCursor)}
+			<button
+				type="button"
+				class="retry stale-retry"
+				onclick={() => {
+					queue.loadExpandedTracks(jobId);
+					keepFocus(rowItemById(jobId));
+				}}>{m.job_tracks_retry()}</button
+			>
+		{/if}
 	{/if}
 </div>
 
@@ -111,15 +162,60 @@
 		margin: 0;
 		padding: var(--space-3) 0 var(--space-3) var(--cell-inset);
 		color: var(--text-muted);
-		font-size: 0.8125rem;
+		font-size: var(--fs-detail);
 	}
 
 	.hint.fail {
 		color: var(--fail);
 	}
 
+	.hint p {
+		margin: 0;
+	}
+
+	.reason {
+		color: var(--text-muted);
+		overflow-wrap: anywhere;
+	}
+
+	.stale-retry {
+		margin: 0 0 var(--space-3) var(--cell-inset);
+	}
+
+	.retry {
+		margin-top: var(--space-2);
+		background: var(--bg-2);
+		border: 1px solid var(--line-control);
+		border-radius: 4px;
+		padding: var(--space-1) var(--space-3);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
+		color: var(--text-primary);
+		cursor: pointer;
+	}
+
+	@media (hover: hover) {
+		.retry:hover {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+		}
+	}
+
+	.retry:active {
+		background: var(--bg-3);
+	}
+
+	/* Empty, it stays in the accessibility tree and takes no room. v47: not display:none,
+	   since an alert whose element was display:none isn't announced by every screen reader
+	   when its text arrives. */
 	.hint.fail:empty {
-		display: none;
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
 	}
 
 	.rows {
@@ -139,7 +235,8 @@
 		border: none;
 		border-top: 1px solid var(--line);
 		padding: var(--space-2) var(--row-pad-x) var(--space-3) var(--cell-inset);
-		font-size: 0.75rem;
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
 		color: var(--text-primary);
 		text-align: left;
 		cursor: pointer;
@@ -150,26 +247,34 @@
 	}
 
 	/* v42: a --bg-2 fill no longer reads on the faceplate; hover underlines instead. */
-	.load-more:hover:not([aria-disabled='true']),
 	.load-more:focus-visible {
 		text-decoration: underline;
 		text-underline-offset: 0.2em;
 	}
 
+	@media (hover: hover) {
+		.load-more:hover:not([aria-disabled='true']) {
+			text-decoration: underline;
+			text-underline-offset: 0.2em;
+		}
+	}
+
+	/* v47: dimmed text, not opacity (an opacity-faded control drops under 4.5:1). */
 	.load-more[aria-disabled='true'] {
-		opacity: 0.6;
+		color: var(--text-dim);
 		cursor: default;
 	}
 
 	/* A phone's track rows drop the state inset (TrackRow.svelte), so the hints follow. */
 	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
 	@media (pointer: coarse) {
+		.retry,
 		.load-more {
 			min-height: 2.75rem;
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.hint,
 		.load-more {
 			padding-left: 0;

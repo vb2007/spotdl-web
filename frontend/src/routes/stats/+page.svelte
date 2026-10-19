@@ -33,7 +33,13 @@
 	} from '$lib/stats';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { counted, formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
+	import {
+		counted,
+		formatClock,
+		formatDateTime,
+		formatNumber,
+		keepReadings
+	} from '$lib/i18n/format';
 	import { trackStateLabel } from '$lib/i18n/labels';
 
 	let { data } = $props();
@@ -219,7 +225,7 @@
 				<section class="panel window" aria-labelledby="window-heading" aria-busy={loading}>
 					<header class="window-head">
 						<h2 id="window-heading" class="label">{windowHeading(shownWindow)}</h2>
-						<div class="choice-group" role="group" aria-label={m.stats_window_label()}>
+						<div class="choice-group values" role="group" aria-label={m.stats_window_label()}>
 							{#each WINDOWS as option (option)}
 								<button
 									type="button"
@@ -272,11 +278,13 @@
 												{#if path.attempts > 0}
 													<OutcomeBar counts={path} />
 													<span class="counts mono">
-														{m.stats_outcome_counts({
-															completed: formatNumber(path.completed),
-															failed: formatNumber(path.failed),
-															not_found: formatNumber(path.not_found)
-														})}
+														{keepReadings(
+															m.stats_outcome_counts({
+																completed: formatNumber(path.completed),
+																failed: formatNumber(path.failed),
+																not_found: formatNumber(path.not_found)
+															})
+														)}
 													</span>
 												{:else}
 													<span class="quiet">{m.stats_not_used()}</span>
@@ -366,11 +374,12 @@
 													{/if}
 												</td>
 												<td class="num mono rate">{formatRate(proxy.success_rate)}</td>
-												<td class="mono last">
+												<!-- v47: words in Sans; only the reading itself is mono. -->
+												<td class="last">
 													<span class="unit">{m.stats_last_success_unit()}&nbsp;</span
-													>{proxy.last_success_at === null
-														? m.stats_never()
-														: relativeTime(proxy.last_success_at, generated)}
+													>{#if proxy.last_success_at === null}{m.stats_never()}{:else}<span
+															class="mono">{relativeTime(proxy.last_success_at, generated)}</span
+														>{/if}
 												</td>
 											</tr>
 										{/each}
@@ -395,10 +404,11 @@
 		gap: var(--space-4);
 	}
 
+	/* v47: the same title-to-plate rhythm as the other secondary pages (--space-5). */
 	.main {
 		display: flex;
 		flex-direction: column;
-		gap: var(--space-4);
+		gap: var(--space-5);
 		margin-top: var(--space-2);
 	}
 
@@ -419,11 +429,6 @@
 	.read-at {
 		font-size: var(--fs-meta);
 		color: var(--text-dim);
-	}
-
-	/* Reserved at rest (DESIGN.md "Error / status text"): a failed refresh doesn't move the plates. */
-	.form-error {
-		min-height: 1.5em;
 	}
 
 	/* Desktop: a narrow "now" plate beside the window plate; below 1024 they stack, now first. */
@@ -452,6 +457,11 @@
 	.quiet {
 		color: var(--text-muted);
 		font-size: var(--fs-detail);
+	}
+
+	/* v47: a definition is a sentence, read at a sentence's measure (it ran ~103 characters). */
+	#rate-definition {
+		max-width: 68ch;
 	}
 
 	.note {
@@ -516,9 +526,11 @@
 		color: var(--text-primary);
 	}
 
+	/* v47: top-aligned, so its heading sits level with the "Right now" plate's beside it
+	   (centred against the taller window switch, it sat 5px lower). */
 	.window-head {
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: var(--space-3);
@@ -634,7 +646,7 @@
 	.counts {
 		display: block;
 		margin-top: var(--space-1);
-		font-size: var(--fs-label);
+		font-size: var(--fs-meta);
 		color: var(--text-dim);
 	}
 
@@ -670,7 +682,7 @@
 	}
 
 	/* Tablet: the plates stack; the readout runs across. */
-	@media (max-width: 1023px) {
+	@media (max-width: 63.9375em) {
 		.layout {
 			grid-template-columns: minmax(0, 1fr);
 		}
@@ -692,7 +704,7 @@
 	}
 
 	/* Phone: 16px gutter; table rows become stacked readings. */
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.stage {
 			padding: var(--space-4);
 		}
@@ -753,5 +765,20 @@
 		.proxies .last {
 			grid-column: 1 / -1;
 		}
+	}
+	/* Reserved at rest, so a failed refresh or window switch doesn't move the window switch
+	   under the pointer (DESIGN.md "Error / status text": reserve where a shift would move what
+	   the user is about to press). Pulled up into the title's air, so the plates sit as on the
+	   other pages. Overrides app.css's empty-region rule. */
+	.form-error,
+	.form-error:empty {
+		position: static;
+		width: auto;
+		height: auto;
+		clip-path: none;
+		white-space: normal;
+		min-height: 1.25em;
+		margin-top: calc(-1 * var(--space-3));
+		margin-bottom: calc(-1 * var(--space-3));
 	}
 </style>

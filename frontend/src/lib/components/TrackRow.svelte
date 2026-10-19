@@ -4,8 +4,9 @@
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { worker } from '$lib/stores/worker';
+	import { link } from '$lib/stores/link';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
-	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
+	import { failedRowNotices, rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import { isTypingTarget } from '$lib/keyboard/registry';
@@ -54,6 +55,13 @@
 		skipped_duplicate: 'cond-settled',
 		cancelled: 'cond-idle'
 	};
+
+	// v47 (F04/F05, DESIGN.md §2): amber is "receiving right now". With `/`'s link down the
+	// row's state came from a snapshot that no longer updates, so a downloading row reads
+	// idle until the link is back, as the Waterfall's lanes and the ambient field already do.
+	let stateCond = $derived(
+		track.state === 'downloading' && $link !== 'live' ? 'cond-idle' : STATE_COND[track.state]
+	);
 
 	// The first thing the expanded view says: what this state means for the listener, in
 	// plain words, with the next step where there is one (F24, F25). v46: message functions,
@@ -272,8 +280,8 @@
 
 	// Per-row transient feedback (e.g. "held behind the global pause"), kept in the rowNotices
 	// store (v43) so it outlives a remount and is cleared by queue.reset().
-	function showNotice(text: string) {
-		showRowNotice(`track:${track.id}`, text);
+	function showNotice(text: string, failed = false) {
+		showRowNotice(`track:${track.id}`, text, failed);
 	}
 
 	// The pending re-read, cleared when the row is destroyed (a collapsed job, a scope
@@ -375,18 +383,22 @@
 		} catch (err) {
 			// A session reset meanwhile: the answer belongs to the previous identity.
 			if (queue.getResetCount() === session)
-				showNotice(errorText(err, m.track_notice_cancel_failed));
+				showNotice(errorText(err, m.track_notice_cancel_failed), true);
 		}
 		// "cancel track" leaves with the cancellable state: land on the row itself.
 		await keepFocus(landing());
 	}
 
+	// v47: shown only to the session that asked (the reset count, as cancel's).
 	async function handleRetry() {
+		const session = queue.getResetCount();
 		try {
 			const { breakerHeld } = await queue.retryTrack(track.id, jobId);
+			if (queue.getResetCount() !== session) return;
 			showNotice(breakerHeld ? m.track_notice_retry_held() : m.track_notice_retry_queued());
 		} catch (err) {
-			showNotice(errorText(err, m.track_notice_retry_failed));
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.track_notice_retry_failed), true);
 		}
 	}
 
@@ -432,12 +444,15 @@
 	// `download` attribute keeps the page in place and takes the filename from the
 	// response's Content-Disposition.
 	async function handleDownload() {
+		const session = queue.getResetCount();
 		try {
 			await api.checkTrackFile(track.id);
 		} catch (err) {
-			showNotice(errorText(err, m.track_notice_download_failed));
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.track_notice_download_failed), true);
 			return;
 		}
+		if (queue.getResetCount() !== session) return;
 		const anchor = document.createElement('a');
 		anchor.href = api.trackFileUrl(track.id);
 		anchor.download = '';
@@ -493,7 +508,7 @@
 		aria-expanded={expanded}
 		aria-controls={detailId}
 	>
-		<span class="cell state {STATE_COND[track.state]} mono"
+		<span class="cell state {stateCond} mono"
 			>{trackStateLabel(
 				track.state
 			)}{#if track.state === 'downloading' && track.progress !== undefined}<span class="pct"
@@ -515,7 +530,7 @@
 	{#if expanded}
 		<div class="detail" id={detailId}>
 			<div class="strip">
-				<span class="status {STATE_COND[track.state]}">{STATUS_TEXT[track.state]()}</span>
+				<span class="status {stateCond}">{STATUS_TEXT[track.state]()}</span>
 				{#if track.state === 'downloading' && track.progress !== undefined}
 					<span
 						class="progress"
@@ -525,7 +540,11 @@
 						aria-valuemax={100}
 						aria-valuenow={track.progress}
 					>
-						<span class="progress-fill" style:transform="scaleX({track.progress / 100})"></span>
+						<span
+							class="progress-fill"
+							class:stale={$link !== 'live'}
+							style:transform="scaleX({track.progress / 100})"
+						></span>
 					</span>
 					<span class="fact mono">{track.progress}%</span>
 				{/if}
@@ -534,7 +553,6 @@
 						><Countdown
 							scheduledAt={nextTry.at}
 							label={m.track_next_try_in()}
-							dueLive={false}
 							dueText={workerPaused ? m.track_due() : m.track_due_next_pass()}
 						/></span
 					>
@@ -583,7 +601,9 @@
 					{/if}
 				</div>
 			{/if}
-			<p class="notice" role="status">{rowNotices.get(`track:${track.id}`) ?? ''}</p>
+			<p class="notice" class:failed={failedRowNotices.has(`track:${track.id}`)} role="status">
+				{rowNotices.get(`track:${track.id}`) ?? ''}
+			</p>
 
 			{#if isAdmin}
 				<div class="history">
@@ -625,6 +645,7 @@
 										{#if message}
 											<p
 												class="message mono"
+												lang="en"
 												class:clamped={!openMessages.has(group.key)}
 												id="msg-{group.key}"
 												{@attach measureClamp(group.key)}
@@ -647,7 +668,7 @@
 										{#if head.warning_message}
 											<p class="note">
 												<span class="note-tag mono">{m.track_note()}</span>
-												<span class="note-text mono">{head.warning_message}</span>
+												<span class="note-text mono" lang="en">{head.warning_message}</span>
 											</p>
 										{/if}
 										{#if run > 1}
@@ -684,7 +705,8 @@
 					{#if lastErrorUnshown && !attemptsLoading}
 						<p class="last-error mono">
 							<span class="key">{m.track_last_error()}</span>
-							{track.last_error}
+							<!-- v47 (WCAG 3.1.2): raw worker text stays English (v46), and says so. -->
+							<span lang="en">{track.last_error}</span>
 						</p>
 					{/if}
 				</div>
@@ -694,7 +716,13 @@
 	<!-- v43: a collapsed row's own notice (a remount after a list reload collapses it, and the
 	     cancel's outcome must still be seen and heard). Always present, so its text is announced;
 	     while expanded the notice lives in the detail instead. -->
-	<p class="notice collapsed" role="status">{collapsedNotice}</p>
+	<p
+		class="notice collapsed"
+		class:failed={collapsedNotice !== '' && failedRowNotices.has(`track:${track.id}`)}
+		role="status"
+	>
+		{collapsedNotice}
+	</p>
 </li>
 
 <style>
@@ -728,10 +756,13 @@
 
 	/* v42: on the raised faceplate (--bg-1) a --bg-2 fill is only 1.045:1, and any brighter
 	   fill would drop the row's dim and fail text under 4.5:1, so hover underlines the title. */
-	.row:hover .cell.title {
-		text-decoration: underline;
-		text-decoration-color: var(--text-muted);
-		text-underline-offset: 0.2em;
+	/* v47: only where a pointer hovers; on touch a tapped row kept the underline. */
+	@media (hover: hover) {
+		.row:hover .cell.title {
+			text-decoration: underline;
+			text-decoration-color: var(--text-muted);
+			text-underline-offset: 0.2em;
+		}
 	}
 
 	/* Artist and album are grid cells of the row on desktop; the wrapper only exists so
@@ -765,9 +796,11 @@
 		font-size: var(--fs-detail);
 	}
 
+	/* v47: level with the title's first line, not the middle of a wrapped title. */
 	.chevron {
 		justify-self: center;
-		align-self: center;
+		align-self: start;
+		margin-top: calc(0.75lh - 0.2rem);
 		width: 0.4rem;
 		height: 0.4rem;
 		border-right: 1.5px solid var(--text-muted);
@@ -806,7 +839,7 @@
 	}
 
 	.status {
-		font-weight: 500;
+		font-weight: var(--fw-medium);
 	}
 
 	.facts {
@@ -851,6 +884,10 @@
 		transition: transform var(--dur-med) var(--ease-signal);
 	}
 
+	.progress-fill.stale {
+		background: var(--line-bright);
+	}
+
 	.actions {
 		display: flex;
 		flex-wrap: wrap;
@@ -862,16 +899,27 @@
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
 		padding: var(--space-1) var(--space-3);
-		font-family: var(--font-mono);
-		font-size: var(--fs-meta);
+		font-family: var(--font-sans);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
 		color: var(--text-muted);
 		cursor: pointer;
 	}
 
-	.action:hover,
-	.action:focus-visible {
-		border-color: var(--waiting);
-		color: var(--text-primary);
+	/* v47: the one hover of a neutral control (DESIGN.md §2): --bg-3 under a --text-muted edge,
+	   and only where a pointer hovers (on touch, a tapped button used to keep it). Focus is the
+	   global ring alone; pressed is the --bg-3 fill. */
+	@media (hover: hover) {
+		.action:hover {
+			background: var(--bg-3);
+			border-color: var(--text-muted);
+			color: var(--text-primary);
+		}
+	}
+
+	.action:active {
+		background: var(--bg-3);
 	}
 
 	/* Destructive, so set apart from the neutral actions and outlined in the fail tone
@@ -887,10 +935,19 @@
 		margin-left: var(--space-4);
 	}
 
-	.action.danger:hover,
-	.action.danger:focus-visible {
+	.action.danger:focus-visible,
+	.action.danger:active {
+		background: transparent;
 		border-color: var(--fail);
 		color: var(--fail);
+	}
+
+	@media (hover: hover) {
+		.action.danger:hover {
+			background: transparent;
+			border-color: var(--fail);
+			color: var(--fail);
+		}
 	}
 
 	.notice.collapsed {
@@ -899,8 +956,12 @@
 
 	.notice {
 		color: var(--waiting);
-		font-family: var(--font-mono);
-		font-size: var(--fs-meta);
+		font-size: var(--fs-detail);
+	}
+
+	/* v47: a failure reads as one ("Couldn't retry: …"), not in the scheduling blue. */
+	.notice.failed {
+		color: var(--fail);
 	}
 
 	/* Empty, it stays in the accessibility tree (a status region inserted together with
@@ -1010,7 +1071,6 @@
 		clip-path: inset(50%);
 	}
 
-	.when:hover .abs,
 	.when:focus-visible .abs,
 	.when.pinned .abs {
 		/* Visible, or it clips its own hover bridge below. */
@@ -1028,15 +1088,37 @@
 		color: var(--text-primary);
 	}
 
+	/* v47: hover reveals only where a pointer hovers. On touch a tap pins it (above); a sticky
+	   hover kept it on screen after a second tap had unpinned it. */
+	@media (hover: hover) {
+		.when:hover .abs {
+			/* Visible, or it clips its own hover bridge below. */
+			overflow: visible;
+			left: 0;
+			bottom: calc(100% + var(--space-1));
+			z-index: 1;
+			width: auto;
+			height: auto;
+			clip-path: none;
+			padding: var(--space-1) var(--space-2);
+			background: var(--bg-3);
+			border: 1px solid var(--line-bright);
+			border-radius: 3px;
+			color: var(--text-primary);
+		}
+	}
+
 	/* Bridges the gap down to the button, so the pointer can move onto the tooltip without
 	   losing it (WCAG 1.4.13, hoverable). */
-	.when:hover .abs::after {
-		content: '';
-		position: absolute;
-		left: 0;
-		right: 0;
-		top: 100%;
-		height: calc(var(--space-1) + 2px);
+	@media (hover: hover) {
+		.when:hover .abs::after {
+			content: '';
+			position: absolute;
+			left: 0;
+			right: 0;
+			top: 100%;
+			height: calc(var(--space-1) + 2px);
+		}
 	}
 
 	/* Pinned, the absolute time joins the gutter under the relative one instead of
@@ -1080,11 +1162,11 @@
 
 	.times {
 		color: var(--text-primary);
-		font-weight: 600;
+		font-weight: var(--fw-strong);
 	}
 
 	.outcome {
-		font-weight: 600;
+		font-weight: var(--fw-strong);
 	}
 
 	.class {
@@ -1122,13 +1204,13 @@
 		overflow: hidden;
 	}
 
-	/* Text-sized, but a 24px-tall hit area (WCAG 2.5.8) on every inline control. */
+	/* Text-sized, but a 24px-tall hit area (WCAG 2.5.8) on every inline control; v47 (F32): a
+	   finger gets 44px, like every other control on the row. */
 	.inline-toggle {
 		min-height: 1.5rem;
 		background: none;
 		border: none;
 		padding: 0;
-		font-family: var(--font-mono);
 		font-size: var(--fs-meta);
 		color: var(--text-primary);
 		text-decoration: underline;
@@ -1188,7 +1270,7 @@
 
 	/* Tablet: artist and album fold into one muted line under the title rather than
 	   squeezing three text columns (F37, for these rows; v42 owns the page breakpoint). */
-	@media (max-width: 960px) {
+	@media (max-width: 60em) {
 		.row {
 			grid-template-columns: var(--col-state) minmax(0, 1fr) var(--col-lead);
 			grid-template-areas:
@@ -1209,23 +1291,32 @@
 			grid-area: chevron;
 		}
 
+		/* v47: two lines before it is cut, so a several-artist track still shows its album
+		   (one line hid "TRON: Legacy Reconfigured" behind four artists). */
 		.meta {
 			grid-area: meta;
-			display: block;
+			display: -webkit-box;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: 2;
+			line-clamp: 2;
 			min-width: 0;
-			white-space: nowrap;
 			overflow: hidden;
-			text-overflow: ellipsis;
 			color: var(--text-muted);
 			font-size: var(--fs-detail);
 		}
 
 		.row[aria-expanded='true'] .meta {
-			white-space: normal;
+			display: block;
+			-webkit-line-clamp: unset;
+			line-clamp: none;
 		}
 
+		/* v47: wrapping inside a cell too, so the two-line clamp (not the cells' nowrap) decides
+		   where a long artist list or album is cut, with its ellipsis. */
 		.meta .cell {
 			display: inline;
+			white-space: normal;
+			overflow-wrap: anywhere;
 		}
 
 		.meta .cell.album::before {
@@ -1238,12 +1329,14 @@
 	/* v42 (F32): a finger needs a 44px target; a mouse keeps the dense row. */
 	@media (pointer: coarse) {
 		.row,
-		.action {
+		.action,
+		.inline-toggle,
+		.when {
 			min-height: 2.75rem;
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.row {
 			grid-template-columns: minmax(0, 1fr) var(--col-lead);
 			grid-template-areas:
@@ -1283,6 +1376,13 @@
 		.facts {
 			flex-wrap: wrap;
 			white-space: normal;
+		}
+	}
+	/* v47: in a forced-colors theme (Windows High Contrast) a bar's fills were dropped to empty
+	   outlines; a reading keeps its own colours, as /stats' charts already do. */
+	@media (forced-colors: active) {
+		.progress {
+			forced-color-adjust: none;
 		}
 	}
 </style>

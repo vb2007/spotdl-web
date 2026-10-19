@@ -466,3 +466,18 @@ here rather than edited into it, so the original record stays readable.
     keeps coming from the browser's *first* language tag even when the matched language is later
     in the list (owner: "if a user has that funky setting it probably wants that behaviour").
 
+- **2026-10-19, v47: owner decisions taken during the polish pass.**
+  - **DESIGN.md is refreshed in place**, not converted to impeccable's 8-section spec: the 9-section
+    layout stays, with YAML token frontmatter added, prior decision records kept and dated v47
+    notes where a rule changed meaning.
+  - **Control labels move to Sans tree-wide** (v42's deferral of F12's last step), with in-world
+    exceptions the owner chose: the console SUBMIT beside the `>` prompt, value choices (24h/7d,
+    mp3), keycaps and counts stay mono.
+  - **A 401 ends the session in one place:** the tab goes to `/login`, which says the session
+    ended; a 5xx or network failure of `/api/auth/me` no longer signs anyone out (a "can't reach
+    the server" screen retries instead).
+  - **Priority and bump are admin-only** (operator detail, like v39 outcome 3); a non-admin's
+    in-flight job offers cancel only. This is presentation only: v47 makes no backend change,
+    so `PATCH /api/jobs/{id}/priority` and `POST /api/jobs/{id}/bump` still accept a job's
+    owner. Enforcing it server-side is logged for v48 (or a later backend slice). Not chosen, so left as they are: "duplicate" → "already
+    have", "disconnect" → "sign out", and reordering `/account`'s preferences.

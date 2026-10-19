@@ -154,6 +154,7 @@
 		const confirmed = await confirmAction({
 			title: m.library_confirm_title(),
 			subject: settings?.library_target_dir,
+			subjectIsAddress: true,
 			body:
 				settings === undefined
 					? m.library_confirm_body_unknown()
@@ -267,6 +268,12 @@
 		source.onerror = () => {
 			linkDown = true;
 			if (source?.readyState !== EventSource.CLOSED || unmounted) return;
+			// v47: a closed stream may be the session ending (its 401 is invisible here, and this
+			// page makes no other request while it waits): /me says which, and a 401 takes the
+			// tab to /login like any other request's would.
+			api.me().catch((err) => {
+				if (err instanceof api.ApiError && err.status === 401) api.sessionEnded();
+			});
 			retryTimer = setTimeout(connect, retryDelay);
 			retryDelay = Math.min(retryDelay * 2, 30000);
 		};
@@ -323,6 +330,11 @@
 				</header>
 				<!-- One alert line for the page: a start that failed, or a report that couldn't be read. -->
 				<p class="form-error" role="alert">{error || reportError}</p>
+				<!-- v47: the first load failure is announced here, a region present from the start
+				     (the visible block below is inserted with its text, which often isn't). -->
+				<p class="sr-only" role="alert">
+					{run === null && loadError ? m.library_load_failed({ error: loadError }) : ''}
+				</p>
 
 				{#if run === null}
 					{#if loadError}
@@ -332,15 +344,19 @@
 								type="button"
 								class="btn small"
 								onclick={() =>
-									loadStatus().catch((err) => {
-										loadError =
-											err instanceof api.ApiError
-												? m.library_retry_failed({
-														error: apiErrorText(err),
-														time: formatTime(new Date())
-													})
-												: m.library_retry_unreachable({ time: formatTime(new Date()) });
-									})}>{m.library_try_again()}</button
+									loadStatus()
+										.catch((err) => {
+											loadError =
+												err instanceof api.ApiError
+													? m.library_retry_failed({
+															error: apiErrorText(err),
+															time: formatTime(new Date())
+														})
+													: m.library_retry_unreachable({ time: formatTime(new Date()) });
+										})
+										// v47: on success this button goes with its block; focus goes to the
+										// section's heading rather than <body>.
+										.finally(() => keepFocus(heading))}>{m.library_try_again()}</button
 							>
 						</p>
 					{:else}
@@ -425,7 +441,7 @@
 								{#each sweepRows as e, i (i)}
 									<li>
 										<span class="file mono">{e.file}</span>
-										<span class="reason">{e.error}</span>
+										<span class="reason" lang="en">{e.error}</span>
 									</li>
 								{/each}
 							</ul>
@@ -439,7 +455,7 @@
 								{#each fileRows as e, i (i)}
 									<li>
 										<span class="file mono">{e.file}</span>
-										<span class="reason"
+										<span class="reason" lang="en"
 											>{e.error}{#if e.times > 1}<span class="times mono">
 													×{formatNumber(e.times)}</span
 												>{/if}</span
@@ -509,8 +525,18 @@
 		color: var(--text-primary);
 	}
 
+	/* v47: "· took 10m 0s" moves to the next line whole, never split from its value. */
 	.took {
 		color: var(--text-muted);
+		white-space: nowrap;
+	}
+
+	/* v47: a count inside the sentence keeps tabular figures but the sentence's own face:
+	   Plex Mono's full-cell comma read "1 ,360" between Sans words. */
+	.status .mono {
+		font-family: inherit;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: normal;
 	}
 
 	.link-lost {
@@ -561,7 +587,9 @@
 		background: var(--line-bright);
 	}
 
+	/* v47: its own space: the leading whitespace collapsed into "missing album×2". */
 	.times {
+		margin-left: var(--space-2);
 		color: var(--text-muted);
 	}
 
@@ -624,6 +652,11 @@
 		border-bottom: 1px solid var(--line);
 	}
 
+	/* v47: the next list's own top rule closes this one; two hairlines doubled up. */
+	.error-list li:last-child {
+		border-bottom: none;
+	}
+
 	.file {
 		font-size: var(--fs-meta);
 		color: var(--text-primary);
@@ -635,7 +668,7 @@
 		color: var(--fail);
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.stage {
 			padding: var(--space-4);
 		}

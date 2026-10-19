@@ -2,7 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
-	import { confirmAction, keepFocus } from '$lib/stores/confirm';
+	import { confirmAction, keepFocus, keepFocusOnHeading } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import WorkerStatus from '$lib/components/WorkerStatus.svelte';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
@@ -122,6 +122,39 @@
 			default_bitrate: settings.default_bitrate,
 			output_template: settings.output_template
 		};
+	}
+
+	// v47: a section whose first read failed says so in one sentence, with its own retry
+	// (it took a reload before), and the save line below stays for save errors.
+	function readOutput() {
+		outputError = '';
+		loadOutputSettings().catch((err) => (outputError = errorText(err)));
+	}
+
+	function readLibrary() {
+		libraryError = '';
+		loadLibrarySettings().catch((err) => (libraryError = errorText(err)));
+	}
+
+	function readAlerts() {
+		alertError = '';
+		loadAlertSettings().catch((err) => (alertError = errorText(err)));
+	}
+
+	// A retry button goes with its block: focus lands on the section's heading (v47).
+	function retryOutput() {
+		readOutput();
+		keepFocusOnHeading('output-heading');
+	}
+
+	function retryLibrary() {
+		readLibrary();
+		keepFocusOnHeading('library-heading');
+	}
+
+	function retryAlerts() {
+		readAlerts();
+		keepFocusOnHeading('alerts-heading');
 	}
 
 	async function loadOutputSettings() {
@@ -479,6 +512,7 @@
 		const confirmed = await confirmAction({
 			title: m.settings_proxy_remove_title(),
 			subject: proxy.url,
+			subjectIsAddress: true,
 			body: m.settings_proxy_remove_body(),
 			confirmLabel: m.settings_proxy_remove_confirm(),
 			cancelLabel: m.settings_proxy_remove_cancel()
@@ -530,9 +564,9 @@
 	onMount(() => {
 		// A non-admin gets the notice and nothing else: no admin request is ever made (F17).
 		if (!isAdmin) return;
-		loadOutputSettings().catch((err) => (outputError = errorText(err)));
-		loadLibrarySettings().catch((err) => (libraryError = errorText(err)));
-		loadAlertSettings().catch((err) => (alertError = errorText(err)));
+		readOutput();
+		readLibrary();
+		readAlerts();
 		loadProxies();
 		const poll = setInterval(refreshProxiesSilently, PROXY_POLL_MS);
 
@@ -542,7 +576,9 @@
 		let frame = 0;
 		const mark = () => {
 			frame = 0;
-			const line = window.innerHeight / 3;
+			// v47: at most 10rem down, so a tall window doesn't mark the next section while the
+			// first is still the one on screen.
+			const line = Math.min(window.innerHeight / 3, 160);
 			const atEnd =
 				window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
 			let current: string = SECTIONS[0].id;
@@ -550,7 +586,10 @@
 				const el = document.getElementById(id);
 				if (el && el.getBoundingClientRect().top <= line) current = id;
 			}
-			activeSection = atEnd && window.scrollY > 0 ? SECTIONS[SECTIONS.length - 1].id : current;
+			// v47: at the top of the page the first section is the one being read, even when the
+			// next one's top already sits above the line (a 900px-tall window marked Output).
+			activeSection =
+				window.scrollY < 8 ? SECTIONS[0].id : atEnd ? SECTIONS[SECTIONS.length - 1].id : current;
 		};
 		const onScroll = () => {
 			if (!frame) frame = requestAnimationFrame(mark);
@@ -569,6 +608,17 @@
 </script>
 
 <!-- v46: a sentence whose machine names (env vars, files, formats) stay code. -->
+<!-- v47: one shape for a section whose first read failed: what, why, and a retry. -->
+{#snippet loadFailed(error: string, retry: () => void)}
+	<!-- Not an alert itself: the section's always-present error line announces it (an alert
+	     inserted together with its text often isn't). -->
+	<div class="load-failed">
+		<p>{m.settings_section_load_failed({ error })}</p>
+		<button type="button" class="btn small" onclick={retry}>{m.settings_proxies_try_again()}</button
+		>
+	</div>
+{/snippet}
+
 {#snippet coded(parts: CodePart[])}{#each parts as part, i (i)}{#if part.code}<code
 				>{part.text}</code
 			>{:else}{part.text}{/if}{/each}{/snippet}
@@ -615,12 +665,16 @@
 					</header>
 
 					{#if outputOptions === null}
-						{#if !outputError}<p class="section-hint">{m.settings_output_loading()}</p>{/if}
+						{#if outputError}
+							{@render loadFailed(outputError, retryOutput)}
+						{:else}
+							<p class="section-hint">{m.settings_output_loading()}</p>
+						{/if}
 					{:else}
 						<form class="grid" onsubmit={onOutputSubmit} novalidate>
 							<div class="form-field">
 								<span class="label" id="format-label">{m.settings_output_format()}</span>
-								<div class="choice-group" role="group" aria-labelledby="format-label">
+								<div class="choice-group values" role="group" aria-labelledby="format-label">
 									{#each outputOptions.formats as fmt (fmt)}
 										<button
 											type="button"
@@ -681,7 +735,13 @@
 							</div>
 						</form>
 					{/if}
-					<p class="form-error" role="alert">{outputError}</p>
+					<p class="form-error" class:sr-only={outputSettings === null} role="alert">
+						{outputSettings !== null
+							? outputError
+							: outputError
+								? m.settings_section_load_failed({ error: outputError })
+								: ''}
+					</p>
 				</section>
 
 				<section id="library" class="panel section" aria-labelledby="library-heading">
@@ -695,7 +755,11 @@
 					</header>
 
 					{#if librarySettings === null}
-						{#if !libraryError}<p class="section-hint">{m.settings_library_loading()}</p>{/if}
+						{#if libraryError}
+							{@render loadFailed(libraryError, retryLibrary)}
+						{:else}
+							<p class="section-hint">{m.settings_library_loading()}</p>
+						{/if}
 					{:else}
 						<form class="grid" onsubmit={onLibrarySubmit} novalidate>
 							{#each LIBRARY_TEXT_FIELDS.slice(0, 2) as field (field.key)}
@@ -773,14 +837,24 @@
 							</div>
 						</form>
 					{/if}
-					<p class="form-error" role="alert">{libraryError}</p>
+					<p class="form-error" class:sr-only={librarySettings === null} role="alert">
+						{librarySettings !== null
+							? libraryError
+							: libraryError
+								? m.settings_section_load_failed({ error: libraryError })
+								: ''}
+					</p>
 				</section>
 
 				<section id="alerts" class="panel section" aria-labelledby="alerts-heading">
 					<header class="section-head">
 						<h2 id="alerts-heading" class="label">{m.settings_alerts_heading()}</h2>
 						{#if alertSettings === null}
-							{#if !alertError}<p class="section-hint">{m.settings_alerts_loading()}</p>{/if}
+							{#if alertError}
+								{@render loadFailed(alertError, retryAlerts)}
+							{:else}
+								<p class="section-hint">{m.settings_alerts_loading()}</p>
+							{/if}
 						{:else if alertSettings.configured}
 							<p class="section-hint">{m.settings_alerts_on_hint()}</p>
 						{:else}
@@ -793,7 +867,7 @@
 					{#if alertSettings !== null}
 						<form class="alert-form" onsubmit={onAlertSubmit} novalidate>
 							<fieldset class="group">
-								<legend class="label">{m.settings_alerts_send_when()}</legend>
+								<legend class="group-title">{m.settings_alerts_send_when()}</legend>
 								<ul class="toggle-list">
 									{#each ALERT_TOGGLES as toggle (toggle.key)}
 										<li class="toggle-row">
@@ -830,7 +904,7 @@
 							</fieldset>
 
 							<fieldset class="group">
-								<legend class="label">{m.settings_alerts_thresholds()}</legend>
+								<legend class="group-title">{m.settings_alerts_thresholds()}</legend>
 								<div class="grid">
 									{#each ALERT_NUMBERS as field (field.key)}
 										<div class="form-field">
@@ -849,7 +923,7 @@
 													aria-invalid={alertFieldErrors[field.key] ? 'true' : undefined}
 													aria-describedby="{field.key}-unit {field.key}-error"
 												/>
-												<span class="unit mono" id="{field.key}-unit">{field.unit()}</span>
+												<span class="unit" id="{field.key}-unit">{field.unit()}</span>
 											</div>
 											<p id="{field.key}-error" class="field-error">
 												{alertFieldErrors[field.key] ?? ''}
@@ -882,7 +956,13 @@
 							<p class="save-state saved" role="status">{alertTestResult}</p>
 						</form>
 					{/if}
-					<p class="form-error" role="alert">{alertError}</p>
+					<p class="form-error" class:sr-only={alertSettings === null} role="alert">
+						{alertSettings !== null
+							? alertError
+							: alertError
+								? m.settings_section_load_failed({ error: alertError })
+								: ''}
+					</p>
 				</section>
 
 				<section id="proxies" class="panel section" aria-labelledby="proxies-heading">
@@ -924,12 +1004,18 @@
 						<p class="section-hint">{m.settings_proxies_loading()}</p>
 					{:else if proxiesLoadError && proxyList.length === 0}
 						<!-- Nothing read: never claim "no proxies" over a failed load. -->
-						<p class="section-hint">
-							{m.settings_proxies_load_failed({ error: proxiesLoadError })}
-							<button type="button" class="btn small" onclick={loadProxies}
-								>{m.settings_proxies_try_again()}</button
+						<!-- Not an alert itself: the sr-only alert below (present from the start) announces it. -->
+						<div class="load-failed">
+							<p>{m.settings_proxies_load_failed({ error: proxiesLoadError })}</p>
+							<button
+								type="button"
+								class="btn small"
+								onclick={() => {
+									loadProxies();
+									keepFocusOnHeading('proxies-heading');
+								}}>{m.settings_proxies_try_again()}</button
 							>
-						</p>
+						</div>
 					{:else if proxyList.length === 0}
 						<p class="section-hint">{m.settings_proxies_empty()}</p>
 					{:else}
@@ -943,12 +1029,12 @@
 												? m.settings_proxy_source_manual()
 												: PROXIES_FILE}</span
 										>
-										<span class="fact mono">
+										<span class="fact">
 											{proxy.consecutive_failures === 0
 												? m.settings_proxy_no_failures()
 												: m.settings_proxy_failures(counted(proxy.consecutive_failures))}
 										</span>
-										<span class="fact mono">
+										<span class="fact">
 											{proxy.last_success_at
 												? m.settings_proxy_last_worked({
 														when: formatTimestamp(proxy.last_success_at)
@@ -960,7 +1046,6 @@
 												><Countdown
 													scheduledAt={proxy.cooldown_until ?? ''}
 													label={m.settings_proxy_resting()}
-													dueLive={false}
 													dueText={m.settings_proxy_rested()}
 												/></span
 											>
@@ -1062,14 +1147,15 @@
 		padding: var(--space-1) var(--space-3);
 		margin-left: -1px;
 		border-left: 2px solid transparent;
-		font-family: var(--font-mono);
 		font-size: var(--fs-detail);
 		color: var(--text-muted);
 		text-decoration: none;
 	}
 
-	.index a:hover {
-		color: var(--text-primary);
+	@media (hover: hover) {
+		.index a:hover {
+			color: var(--text-primary);
+		}
 	}
 
 	/* Where you are: a mark in shape (the rail), not only in tone. Never amber. */
@@ -1097,6 +1183,15 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
+	}
+
+	.load-failed {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2) var(--space-3);
+		font-size: var(--fs-detail);
+		color: var(--fail);
 	}
 
 	.section-hint {
@@ -1140,9 +1235,17 @@
 		gap: var(--space-3);
 	}
 
+	/* v47: a group inside a section is a heading of its own (Sans, body size, medium), as on
+	   /account, not one more uppercase .label like the section's h2 and the field labels. */
 	.group legend {
 		padding: 0;
-		margin-bottom: var(--space-3);
+		margin-bottom: var(--space-2);
+	}
+
+	.group-title {
+		font-size: var(--fs-body);
+		font-weight: var(--fw-medium);
+		color: var(--text-primary);
 	}
 
 	.toggle-list {
@@ -1179,14 +1282,13 @@
 		flex-shrink: 0;
 	}
 
+	/* v47: the unit has a column of its own, so every threshold input ends at the same x
+	   whatever its unit's length ("attempts" / "minutes", Hungarian's longer ones). */
 	.with-unit {
-		display: flex;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 5.5rem;
 		align-items: center;
 		gap: var(--space-2);
-	}
-
-	.with-unit input {
-		flex: 1 1 auto;
 	}
 
 	.unit {
@@ -1277,7 +1379,7 @@
 		color: var(--text-muted);
 	}
 
-	@media (max-width: 1023px) {
+	@media (max-width: 63.9375em) {
 		.main {
 			grid-template-columns: minmax(0, 1fr);
 			gap: var(--space-4);
@@ -1306,7 +1408,7 @@
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.stage {
 			padding: var(--space-4);
 		}

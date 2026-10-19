@@ -27,7 +27,44 @@
 		countText: string;
 	} = $props();
 
-	const { filters } = queue;
+	const { filters, page } = queue;
+
+	// v47 (v39 §4.3): a search, filter or scope change ends in one announced sentence, the
+	// list's size, once its load lands. The visible count changes with every live update
+	// too, so it isn't a live region itself: that would talk over the page all day. Only a
+	// load whose filters differ from the last announced one speaks (a stream reconnect's
+	// resync reloads with the same filters, and the first load isn't a change), and the
+	// region is emptied first so a repeated count is announced again.
+	let announcedCount = $state('');
+	let wasLoading = false;
+	let announcedFor: string | null = null;
+	const FAILED = '\u0000failed';
+	let announceTimer: ReturnType<typeof setTimeout> | undefined;
+	$effect(() => {
+		const loading = $page.loading;
+		const f = $filters;
+		const key = JSON.stringify([
+			f.scope,
+			f.q,
+			f.status,
+			f.state,
+			f.includeArchived,
+			queue.getAllUsers()
+		]);
+		if (wasLoading && !loading) {
+			if (!$page.error && announcedFor !== null && key !== announcedFor) {
+				const text = countText;
+				announcedCount = '';
+				clearTimeout(announceTimer);
+				announceTimer = setTimeout(() => (announcedCount = text), 50);
+			}
+			// A failed load marks nothing as heard: the retry that lands next (same filters, or the
+			// first load's) is announced, and so is every change after it.
+			announcedFor = $page.error ? FAILED : key;
+		}
+		wasLoading = loading;
+	});
+	$effect(() => () => clearTimeout(announceTimer));
 
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -271,6 +308,7 @@
 <div class="queue-head">
 	<h2 id="queue-heading" class="label" tabindex="-1">{m.queuectl_heading()}</h2>
 	<span class="count mono">{countText}</span>
+	<span class="sr-only" role="status">{announcedCount}</span>
 	<div class="log-tools">
 		<button
 			type="button"
@@ -450,10 +488,13 @@
 		justify-content: space-between;
 	}
 
+	/* v47: every control on the find and refine rows shares one height (--control-h), so
+	   segments, the search well, chips and the sort select line up instead of 26-41px. */
 	.search {
 		flex: 1 1 14rem;
 		min-width: 0;
-		padding: var(--space-2) var(--space-3);
+		min-height: var(--control-h);
+		padding: var(--space-1) var(--space-3);
 		color: var(--text-primary);
 		font-family: var(--font-sans);
 	}
@@ -478,10 +519,10 @@
 
 	.sort select {
 		font: inherit;
+		min-height: var(--control-h);
 		padding: var(--space-1) var(--space-2);
 		color: var(--text-primary);
-		font-family: var(--font-mono);
-		font-size: var(--fs-meta);
+		font-size: var(--fs-detail);
 	}
 
 	/* A segmented switch: two options, one pressed, one shared edge. View scope, never
@@ -509,9 +550,11 @@
 	.segmented button {
 		background: var(--bg-2);
 		border: none;
+		min-height: calc(var(--control-h) - 2px);
 		padding: var(--space-1) var(--space-3);
-		font-family: var(--font-mono);
-		font-size: var(--fs-meta);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
 		color: var(--text-muted);
 		cursor: pointer;
 	}
@@ -532,15 +575,19 @@
 		background: var(--bg-2);
 		border: 1px solid var(--line-control);
 		border-radius: 4px;
+		min-height: var(--control-h);
 		padding: var(--space-1) var(--space-3);
-		font-family: var(--font-mono);
-		font-size: var(--fs-meta);
+		font-size: var(--fs-detail);
+		font-weight: var(--fw-medium);
+		line-height: 1.25;
 		color: var(--text-muted);
 		cursor: pointer;
 		white-space: nowrap;
 	}
 
+	/* The count is a reading: it keeps the instrument face (DESIGN.md §3). */
 	.chip .n {
+		font-size: var(--fs-meta);
 		color: var(--text-dim);
 	}
 
@@ -557,14 +604,19 @@
 		color: var(--text-primary);
 	}
 
-	.chip:hover .n {
-		color: var(--text-muted);
+	@media (hover: hover) {
+		.chip:hover .n {
+			color: var(--text-muted);
+		}
 	}
 
-	/* Hover lifts only the text: the fill and floor line stay the pressed state's. */
-	.segmented button:hover:not([aria-pressed='true']),
-	.chip:hover:not([aria-pressed='true']) {
-		color: var(--text-primary);
+	/* Hover lifts only the text: the fill and floor line stay the pressed state's. A
+	   documented exception to the neutral hover (DESIGN.md §6 Filter tabs). */
+	@media (hover: hover) {
+		.segmented button:hover:not([aria-pressed='true']),
+		.chip:hover:not([aria-pressed='true']) {
+			color: var(--text-primary);
+		}
 	}
 
 	/* Destructive-adjacent (it archives all of your settled jobs): outlined in the fail
@@ -575,11 +627,18 @@
 	}
 
 	/* Stays transparent on hover: --fail on the generic --bg-3 hover is only 3.88:1. */
-	.chip.danger:hover,
 	.chip.danger:focus-visible {
 		background: transparent;
 		border-color: var(--fail);
 		color: var(--fail);
+	}
+
+	@media (hover: hover) {
+		.chip.danger:hover {
+			background: transparent;
+			border-color: var(--fail);
+			color: var(--fail);
+		}
 	}
 
 	.chip.dir {
@@ -601,7 +660,7 @@
 		}
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 40em) {
 		.queue-head,
 		.controls {
 			padding-left: var(--space-3);

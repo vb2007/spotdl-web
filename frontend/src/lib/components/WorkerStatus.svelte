@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import * as api from '$lib/api';
 	import { worker } from '$lib/stores/worker';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
@@ -181,6 +181,27 @@
 		}
 	}
 
+	// v47: while the breaker holds a running worker, pause sits in the hold row, otherwise in
+	// the first; a poll that trips or clears the breaker moves it, and focus on it would fall
+	// to <body>. Read before the move, restored after it.
+	let pauseHadFocus = false;
+	$effect.pre(() => {
+		void holdUntil;
+		void paused;
+		pauseHadFocus = untrack(
+			() => toggleButton !== undefined && document.activeElement === toggleButton
+		);
+	});
+	$effect(() => {
+		void holdUntil;
+		void paused;
+		if (!pauseHadFocus) return;
+		pauseHadFocus = false;
+		tick().then(() => {
+			if (document.activeElement === document.body) toggleButton?.focus();
+		});
+	});
+
 	onMount(() => {
 		poll();
 		// No dedicated SSE event exists for worker/breaker state (v10 plan) -- a plain
@@ -205,37 +226,41 @@
 			<p class="state cond-idle">{m.worker_reading()}</p>
 		{/if}
 	{:else}
-		<div class="row">
-			<div class="state-text">
+		<!-- v47: while the breaker holds a running worker, the hold row is the state, and pause
+		     moves into it (the first row used to stand empty beside a lone button). -->
+		{#if paused || !holdUntil}
+			<div class="row">
+				<div class="state-text">
+					{#if paused}
+						<p class="state cond-fail">{m.worker_state_paused()}</p>
+						<p class="note">{m.worker_state_paused_note()}</p>
+					{:else}
+						<p class="state cond-idle">{m.worker_state_running()}</p>
+						<p class="note">{m.worker_state_running_note()}</p>
+					{/if}
+				</div>
 				{#if paused}
-					<p class="state cond-fail">{m.worker_state_paused()}</p>
-					<p class="note">{m.worker_state_paused_note()}</p>
-				{:else if !holdUntil}
-					<p class="state cond-idle">{m.worker_state_running()}</p>
-					<p class="note">{m.worker_state_running_note()}</p>
+					<button
+						bind:this={toggleButton}
+						type="button"
+						class="btn"
+						disabled={busy}
+						onclick={handleResume}>{m.worker_resume()}</button
+					>
+				{:else}
+					<button
+						bind:this={toggleButton}
+						type="button"
+						class="btn"
+						disabled={busy}
+						onclick={handlePause}>{m.worker_pause()}</button
+					>
 				{/if}
 			</div>
-			{#if paused}
-				<button
-					bind:this={toggleButton}
-					type="button"
-					class="btn"
-					disabled={busy}
-					onclick={handleResume}>{m.worker_resume()}</button
-				>
-			{:else}
-				<button
-					bind:this={toggleButton}
-					type="button"
-					class="btn"
-					disabled={busy}
-					onclick={handlePause}>{m.worker_pause()}</button
-				>
-			{/if}
-		</div>
+		{/if}
 
 		{#if holdUntil}
-			<div class="row hold">
+			<div class="row hold" class:alone={!paused}>
 				<div class="state-text">
 					<p class="state cond-waiting">
 						{m.worker_holding_until({ time: clockTime(holdUntil) })}
@@ -243,16 +268,26 @@
 							>· <Countdown
 								scheduledAt={holdUntil}
 								label={paused ? m.worker_countdown_clears() : m.worker_countdown_resumes()}
-								dueLive={false}
 								dueText={m.worker_countdown_due()}
 							/></span
 						>
 					</p>
 					<p class="note">{m.worker_hold_note()}</p>
 				</div>
-				<button type="button" class="btn danger" disabled={busy} onclick={handleRelease}
-					>{m.worker_release()}</button
-				>
+				<div class="buttons">
+					{#if !paused}
+						<button
+							bind:this={toggleButton}
+							type="button"
+							class="btn"
+							disabled={busy}
+							onclick={handlePause}>{m.worker_pause()}</button
+						>
+					{/if}
+					<button type="button" class="btn danger" disabled={busy} onclick={handleRelease}
+						>{m.worker_release()}</button
+					>
+				</div>
 			</div>
 		{/if}
 	{/if}
@@ -287,6 +322,18 @@
 		border-top: 1px solid var(--line);
 	}
 
+	/* The only row (the breaker holds a running worker): no rule above it. */
+	.hold.alone {
+		padding-top: 0;
+		border-top: none;
+	}
+
+	.buttons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
 	.state-text {
 		display: flex;
 		flex-direction: column;
@@ -295,7 +342,6 @@
 	}
 
 	.state {
-		font-family: var(--font-mono);
 		font-size: var(--fs-detail);
 		font-weight: var(--fw-medium);
 	}
