@@ -5312,6 +5312,10 @@ independently-found production bug from the same conversation)
   The server's heartbeat is an SSE comment (`: heartbeat`), which page JavaScript never sees, so
   it can't be a watchdog. `/` treats the window's `offline` event, and two worker polls in a row
   that failed at the network level (a `TypeError`, not an `ApiError`), as the link being down.
+  That doesn't cover a stream the server dropped while the machine slept with the network back
+  on wake (no poll fails, and a quiet stream looks like a dead one): restarting on every return
+  to the tab would wipe the list for a resync each time, so it is left to the browser's own
+  socket timeout (review round 14).
 - **A session-ended handler must navigate before it resets the store.** `/`'s stream and poll
   read a `queue.reset()` while still mounted as an identity change and `window.location.reload()`
   the tab, which lands on `/login` without the "your session ended" state. The layout's

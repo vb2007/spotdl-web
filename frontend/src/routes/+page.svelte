@@ -466,11 +466,13 @@
 	// countdown read it and the pill itself is admin-only. A failed poll keeps the last value.
 	const WORKER_POLL_MS = 5000;
 
-	// v47: an open EventSource can outlive the network under it (a laptop asleep, a Wi-Fi
-	// change): no error, no events, the tell still "linked". The server's heartbeat is an SSE
-	// comment, which a page can't see, so the poll is the watchdog: two polls in a row that
-	// never reached the server (a network failure, not an error answer) mean the link is down
-	// too, and the stream starts over.
+	// v47: an open EventSource can outlive the network under it (a dropped or changed network
+	// while the page runs): no error, no events, the tell still "linked". The server's
+	// heartbeat is an SSE comment, which a page can't see, so the poll is the watchdog: two
+	// polls in a row that never reached the server (a network failure, not an error answer)
+	// mean the link is down too, and the stream starts over. Not covered: a stream the server
+	// dropped while the machine slept, if the network is back on wake (no poll fails, and a
+	// quiet stream looks the same as a dead one); the browser's own socket timeout ends it.
 	let unreachedPolls = 0;
 	// Set by the cleanup: a poll, an offline/online event or a stream callback that settles
 	// after the page is gone must not open a stream nobody owns.

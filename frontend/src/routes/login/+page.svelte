@@ -151,6 +151,7 @@
 				autocomplete="email"
 				required
 				bind:value={email}
+				oninput={() => missing === 'email' && (missing = null)}
 				disabled={submitting}
 				aria-invalid={credentialsRejected || missing === 'email' ? 'true' : undefined}
 				aria-describedby="login-error"
@@ -167,6 +168,7 @@
 				autocomplete="current-password"
 				required
 				bind:value={password}
+				oninput={() => missing === 'password' && (missing = null)}
 				disabled={submitting}
 				aria-invalid={credentialsRejected || missing === 'password' ? 'true' : undefined}
 				aria-describedby="login-error"

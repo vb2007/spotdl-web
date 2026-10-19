@@ -160,9 +160,17 @@
 		}
 	}
 
-	// The button's own ask.
-	function retrySession() {
-		askAndKeepFocus();
+	// The button's own ask. Only a press dims the button: the automatic asks would make it
+	// flash "unavailable" every few seconds while pressing it stays harmless.
+	let pressing = $state(false);
+	async function retrySession() {
+		if (pressing) return;
+		pressing = true;
+		try {
+			await askAndKeepFocus();
+		} finally {
+			pressing = false;
+		}
 	}
 
 	// One loop per outage, keyed to the flag flipping (not to every new `data` object):
@@ -248,7 +256,7 @@
 		<p>{m.layout_unreachable_body()}</p>
 		<!-- aria-disabled, not disabled: the automatic retries would otherwise pull focus off it
 		     every few seconds (a focused button that is disabled drops focus to <body>). -->
-		<button type="button" class="btn" onclick={retrySession} aria-disabled={retrying}
+		<button type="button" class="btn" onclick={retrySession} aria-disabled={pressing}
 			>{m.layout_unreachable_retry()}</button
 		>
 	</main>
