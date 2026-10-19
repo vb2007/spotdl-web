@@ -43,13 +43,15 @@
 		const loading = $page.loading;
 		const f = $filters;
 		const key = JSON.stringify([f.scope, f.q, f.status, f.state, f.includeArchived]);
-		if (wasLoading && !loading && !$page.error) {
-			if (announcedFor !== null && key !== announcedFor) {
+		if (wasLoading && !loading) {
+			if (!$page.error && announcedFor !== null && key !== announcedFor) {
 				const text = countText;
 				announcedCount = '';
 				clearTimeout(announceTimer);
 				announceTimer = setTimeout(() => (announcedCount = text), 50);
 			}
+			// A failed load still settles which filters were asked for (a first load that failed
+			// would otherwise leave every later change unannounced).
 			announcedFor = key;
 		}
 		wasLoading = loading;

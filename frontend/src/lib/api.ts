@@ -627,6 +627,11 @@ export async function logout(): Promise<{ status: string }> {
 		signedOut = true;
 		return answer;
 	} catch (err) {
+		// A 401: there was no session left to end, so this tab is signed out all the same.
+		if (err instanceof ApiError && err.status === 401) {
+			signedOut = true;
+			return { status: 'ok' };
+		}
 		// Still signed in: a later 401 means what it says again.
 		signingOut = false;
 		throw err;

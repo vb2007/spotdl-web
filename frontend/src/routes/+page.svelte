@@ -234,14 +234,14 @@
 	// v47: the form checks the link itself (`novalidate`): the browser's own bubble spoke the
 	// browser's language, sat outside the design, and turned away a link pasted with words or
 	// an emoji around it. The first http(s) address in what was pasted is the one sent.
-	// What the browser's own check let through goes as before: one absolute URL, any scheme
-	// (a `spotify:` URI included). Anything else has its first http(s) link taken out, minus
-	// the sentence punctuation that tends to follow a pasted link.
-	const ABSOLUTE_RE = /^[a-z][a-z0-9+.-]*:\S+$/i;
+	// A `spotify:` URI goes as it is (the browser's own check accepted it). Otherwise the first
+	// http(s) link in what was pasted is sent, minus the sentence punctuation that tends to
+	// follow a pasted link ("…/album/abc." or "(…/album/abc)").
+	const URI_RE = /^spotify:\S+$/i;
 	const LINK_RE = /https?:\/\/[^\s<>"']+/i;
 	function linkIn(text: string): string | undefined {
 		const trimmed = text.trim();
-		if (ABSOLUTE_RE.test(trimmed)) return trimmed;
+		if (URI_RE.test(trimmed)) return trimmed;
 		return LINK_RE.exec(trimmed)?.[0].replace(/[.,;:!?)\]}»”’]+$/, '');
 	}
 
