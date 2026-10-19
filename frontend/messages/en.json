@@ -216,7 +216,6 @@
 	"job_tracks_empty": "No tracks.",
 	"job_tracks_failed": "Couldn't load this job's tracks.",
 	"job_tracks_retry": "try again",
-	"job_tracks_more_failed": "Couldn't load more tracks.",
 	"job_tracks_unreadable": "Nothing could be read from this link, so the job has no tracks.",
 	"job_tracks_label": "Tracks",
 	"job_tracks_loading_more": "loading…",

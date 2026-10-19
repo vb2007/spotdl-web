@@ -238,10 +238,10 @@
 	// which the browser's own check accepted) is preferred wherever it is, then the first
 	// http(s) link; either minus the sentence punctuation that tends to follow a pasted link
 	// ("…/album/abc." or "(…/album/abc)").
-	const SPOTIFY_RE = /https?:\/\/open\.spotify\.com\/[^\s<>"']+|spotify:[a-z]+(?::[A-Za-z0-9]+)+/i;
-	const LINK_RE = /https?:\/\/[^\s<>"']+/i;
+	const SPOTIFY_RE = /https?:\/\/open\.spotify\.com\/[^\s<>"',]+|spotify:[a-z]+(?::[A-Za-z0-9]+)+/i;
+	const LINK_RE = /https?:\/\/[^\s<>"',]+/i;
 	// Two or more links: say so rather than send the first and drop the rest.
-	const ANY_LINK_RE = /https?:\/\/[^\s<>"']+|spotify:[a-z]+(?::[A-Za-z0-9]+)+/gi;
+	const ANY_LINK_RE = /https?:\/\/[^\s<>"',]+|spotify:[a-z]+(?::[A-Za-z0-9]+)+/gi;
 	function linkIn(text: string): string | undefined {
 		const found = SPOTIFY_RE.exec(text)?.[0] ?? LINK_RE.exec(text)?.[0];
 		return found?.replace(/[.,;:!?)\]}»”’]+$/, '');

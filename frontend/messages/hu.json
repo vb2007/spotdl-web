@@ -215,7 +215,6 @@
 	"job_tracks_empty": "Nincs szám.",
 	"job_tracks_failed": "Nem sikerült betölteni a feladat számait.",
 	"job_tracks_retry": "próbáld újra",
-	"job_tracks_more_failed": "Nem sikerült több számot betölteni.",
 	"job_tracks_unreadable": "Ebből a linkből semmit nem sikerült beolvasni, ezért a feladatnak nincsenek számai.",
 	"job_tracks_label": "Számok",
 	"job_tracks_loading_more": "betöltés…",

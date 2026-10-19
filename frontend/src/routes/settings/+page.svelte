@@ -984,6 +984,7 @@
 						<p class="section-hint">{m.settings_proxies_loading()}</p>
 					{:else if proxiesLoadError && proxyList.length === 0}
 						<!-- Nothing read: never claim "no proxies" over a failed load. -->
+						<!-- Not an alert itself: the sr-only alert below (present from the start) announces it. -->
 						<div class="load-failed">
 							<p>{m.settings_proxies_load_failed({ error: proxiesLoadError })}</p>
 							<button

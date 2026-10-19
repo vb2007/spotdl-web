@@ -114,10 +114,22 @@
 				>
 			</button>
 		{/if}
-		<!-- A failed "load more" keeps the rows already loaded; the button above retries. -->
+		<!-- A failed read keeps the rows already on screen: a "load more" (the button above
+		     retries it) or a re-read of the list (a cancel's), which offers its own retry when
+		     there's no next page to load. v47: one sentence for both, since either can fail. -->
 		<p class="hint fail" role="alert">
-			{state.error ? `${m.job_tracks_more_failed()} ${errorText(state.error.err)}` : ''}
+			{state.error ? `${m.job_tracks_failed()} ${errorText(state.error.err)}` : ''}
 		</p>
+		{#if state.error && !state.nextCursor}
+			<button
+				type="button"
+				class="retry stale-retry"
+				onclick={() => {
+					queue.loadExpandedTracks(jobId);
+					keepFocus(rowItemById(jobId));
+				}}>{m.job_tracks_retry()}</button
+			>
+		{/if}
 	{/if}
 </div>
 
@@ -157,6 +169,10 @@
 	.reason {
 		color: var(--text-muted);
 		overflow-wrap: anywhere;
+	}
+
+	.stale-retry {
+		margin: 0 0 var(--space-3) var(--cell-inset);
 	}
 
 	.retry {
