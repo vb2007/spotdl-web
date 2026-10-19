@@ -784,9 +784,11 @@
 		font-size: var(--fs-detail);
 	}
 
+	/* v47: level with the title's first line, not the middle of a wrapped title. */
 	.chevron {
 		justify-self: center;
-		align-self: center;
+		align-self: start;
+		margin-top: calc(0.75lh - 0.2rem);
 		width: 0.4rem;
 		height: 0.4rem;
 		border-right: 1.5px solid var(--text-muted);
@@ -825,7 +827,7 @@
 	}
 
 	.status {
-		font-weight: 500;
+		font-weight: var(--fw-medium);
 	}
 
 	.facts {
@@ -1127,11 +1129,11 @@
 
 	.times {
 		color: var(--text-primary);
-		font-weight: 600;
+		font-weight: var(--fw-strong);
 	}
 
 	.outcome {
-		font-weight: 600;
+		font-weight: var(--fw-strong);
 	}
 
 	.class {
@@ -1335,6 +1337,13 @@
 		.facts {
 			flex-wrap: wrap;
 			white-space: normal;
+		}
+	}
+	/* v47: in a forced-colors theme (Windows High Contrast) a bar's fills were dropped to empty
+	   outlines; a reading keeps its own colours, as /stats' charts already do. */
+	@media (forced-colors: active) {
+		.progress {
+			forced-color-adjust: none;
 		}
 	}
 </style>

@@ -303,7 +303,9 @@
 				</div>
 			{/if}
 			<!-- v42 (F28): see badgeSaysTrack. -->
-			{#if totalTracks !== 1 || !badgeSaysTrack}
+			<!-- v47: a job with no tracks (expanding, or failed before any was read) shows no count:
+			     a lone "—" took a line of its own on a phone, like the bar DESIGN.md §6 already drops. -->
+			{#if totalTracks > 0 && (totalTracks !== 1 || !badgeSaysTrack)}
 				<span class="breakdown mono">{breakdownVisible}</span>
 			{/if}
 		</div>
@@ -452,7 +454,8 @@
 		padding: 0.125rem var(--space-2);
 		border: 1px solid var(--line);
 		border-radius: 3px;
-		font-size: var(--fs-label);
+		/* v47: the track state word's size (it was 11px over a 12px state in the same column). */
+		font-size: var(--fs-meta);
 		letter-spacing: 0.04em;
 	}
 
@@ -735,6 +738,13 @@
 		.row-actions {
 			grid-column: 2;
 			grid-row: auto;
+		}
+	}
+	/* v47: in a forced-colors theme (Windows High Contrast) a bar's fills were dropped to empty
+	   outlines; a reading keeps its own colours, as /stats' charts already do. */
+	@media (forced-colors: active) {
+		.bar {
+			forced-color-adjust: none;
 		}
 	}
 </style>

@@ -186,16 +186,14 @@ test.describe('as the admin', () => {
 		const { admin } = readSeed();
 		await openDashboard(page);
 
-		// The skip link is the first stop and lands in the queue's landmark.
+		// The skip link is the first stop and lands on the queue itself (v47: its heading, past
+		// the submit form, the incoming submissions and the Waterfall).
 		await page.keyboard.press('Tab');
 		await expect(
 			page.getByRole('link', { name: t(m.layout_skip_to_queue), exact: true })
 		).toBeFocused();
 		await page.keyboard.press('Enter');
-		await expect(page.locator('#main')).toBeFocused();
-		await page.keyboard.press('Tab');
-		await expect(page.getByLabel(t(m.dashboard_submit_input_label), { exact: true })).toBeFocused();
-		await leaveField(page);
+		await expect(page.locator('#queue-heading')).toBeFocused();
 
 		await page.keyboard.press('/');
 		await expect(page.locator('#queue-search')).toBeFocused();

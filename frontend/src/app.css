@@ -67,6 +67,9 @@
 	   --fail-dim (1.5:1) is a fill and segment tone, never a control's only edge. */
 	--fail-edge: #b05154;
 
+	/* v47: the dimmed (never blurred) page behind a modal: the confirmation and the help. */
+	--backdrop: rgba(5, 6, 7, 0.72);
+
 	/* Focus (accessibility — keyboard-only nav is a hard requirement, never suppressed) */
 	--focus-ring: #ffd479;
 

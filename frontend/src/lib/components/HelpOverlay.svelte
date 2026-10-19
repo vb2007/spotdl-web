@@ -179,7 +179,7 @@
 
 	/* The confirmation's backdrop: a dimmed page, the map the only thing to read. */
 	.help::backdrop {
-		background: rgba(5, 6, 7, 0.72);
+		background: var(--backdrop);
 	}
 
 	.help[open] {
@@ -246,17 +246,20 @@
 		min-width: 0;
 	}
 
+	/* v47: one grid per group, every entry a subgrid of it, so the meanings start at one x
+	   (each entry sized its own key column, and the meanings drifted 477-505px). */
 	.list {
-		display: flex;
-		flex-direction: column;
+		display: grid;
+		grid-template-columns: minmax(8.5rem, max-content) minmax(0, 1fr);
 		margin: 0;
 	}
 
 	/* Keys left in a fixed track, what they do right, one hairline between entries: the
 	   job list's rhythm at a reading size. */
 	.entry {
+		grid-column: 1 / -1;
 		display: grid;
-		grid-template-columns: minmax(8.5rem, auto) minmax(0, 1fr);
+		grid-template-columns: subgrid;
 		gap: var(--space-3);
 		align-items: baseline;
 		padding: var(--space-2) 0;

@@ -164,7 +164,7 @@
 
 	/* A dimmed page, not a blurred one: the dialog is the only thing to read. */
 	.confirm::backdrop {
-		background: rgba(5, 6, 7, 0.72);
+		background: var(--backdrop);
 	}
 
 	.confirm[open] {

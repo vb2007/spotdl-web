@@ -146,6 +146,14 @@
 	// The skip link: focus the landmark itself (Tab then continues inside it). The temporary
 	// tabindex goes on blur, since a focusable <main> would take focus on every click in it.
 	function skip(event: MouseEvent) {
+		// v47: on `/` "Skip to queue" means the queue: its heading (already focusable), past the
+		// submit form, the incoming submissions and the Waterfall (it landed 13 stops short).
+		const heading = page.route.id === '/' ? document.getElementById('queue-heading') : null;
+		if (heading) {
+			event.preventDefault();
+			heading.focus();
+			return;
+		}
 		const main = document.getElementById('main');
 		if (!main) return;
 		event.preventDefault();

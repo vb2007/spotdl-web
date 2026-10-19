@@ -436,4 +436,11 @@
 			grid-column: 1 / -1;
 		}
 	}
+	/* v47: in a forced-colors theme (Windows High Contrast) a bar's fills were dropped to empty
+	   outlines; a reading keeps its own colours, as /stats' charts already do. */
+	@media (forced-colors: active) {
+		.meter {
+			forced-color-adjust: none;
+		}
+	}
 </style>
