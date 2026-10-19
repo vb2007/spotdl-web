@@ -663,6 +663,16 @@ needed" claim — rather than silently deleted.
   archive (archived hidden) removes a row from the list → *v45*
 - Messages re-render on a language switch only where they're called at render time; one built at
   module scope, in a plain `const` or as a prop default freezes in its first language → *v46*
+- Width breakpoints are `em`, so a larger browser text size moves the layout; `px` ones kept the
+  desktop grid at 200% text and squeezed titles to 0px. Test with CDP `Page.setFontSizes` → *v47*
+- An open `EventSource` can outlive the network silently; `/` watches `offline` and unreached polls
+  (the SSE comment heartbeat is invisible to JS) → *v47*
+- The session-ended handler navigates to `/login` before `queue.reset()`, or `/`'s outlived-check
+  reloads the tab first → *v47*
+- An empty live region in a flex column still takes a gap; take it out of the flow with
+  `position: absolute`, never `display: none` → *v47*
+- `content-visibility: auto` on rows clips focus rings and popups (paint containment) → *v47*
+- A Playwright full-page screenshot drops touch emulation; measure 44px targets first → *v47*
 - The inlang SDK "successfully" compiles zero messages when its plugin fails to load; the plugin
   comes from `node_modules` (never the CDN default) and `check-messages.mjs` counts the output → *v46*
 - Hungarian: a count is a plural message, never `${n} noun`; an inflected noun means one message per
@@ -5288,3 +5298,36 @@ independently-found production bug from the same conversation)
 - **The hidden admin 404s carry no error `code` on purpose** (`require_admin_hidden`, the test-alert
   route): a code would tell them apart from an unknown route's `{"detail": "Not Found"}`, which is
   the point of answering 404. Every other user-facing error is an `app/errors.py` `ApiError`.
+
+### v47 ui-polish gotchas
+
+- **`px` width breakpoints ignore the user's text size** (WCAG 1.4.4). With the browser's default
+  font at 32px a 1024px window kept the desktop row grid while every `rem` column doubled, and job
+  titles measured 0px wide. `em` media queries are relative to the *initial* font size (the
+  browser's setting, not `html { font-size }`), so they move with it. Testing it: setting
+  `html { font-size }` from a page script does **not** exercise em queries; Chromium's
+  `Page.setFontSizes` over CDP (`{ fontSizes: { standard: 32 } }`) does.
+- **An open `EventSource` can outlive the network under it** (laptop sleep, a Wi-Fi change,
+  Playwright's `setOffline`): no `error`, no events, `readyState` OPEN, the tell still "linked".
+  The server's heartbeat is an SSE comment (`: heartbeat`), which page JavaScript never sees, so
+  it can't be a watchdog. `/` treats the window's `offline` event, and two worker polls in a row
+  that failed at the network level (a `TypeError`, not an `ApiError`), as the link being down.
+- **A session-ended handler must navigate before it resets the store.** `/`'s stream and poll
+  read a `queue.reset()` while still mounted as an identity change and `window.location.reload()`
+  the tab, which lands on `/login` without the "your session ended" state. The layout's
+  `onUnauthorized` handler `goto`s `/login` (with `state: { sessionEnded: true }`) first, then
+  resets. `/api/auth/me` is excluded from the global 401 hook: the layout's load owns it.
+- **An empty live region in a flex column still takes a `gap`**, so every panel ended in 16-40px of
+  dead space. Collapsing it with `display: none` stops some screen readers announcing text that
+  arrives later; `position: absolute` plus a 1px clip (app.css's `:empty` rule for `.form-error`,
+  `.save-state`, `.field-error`) takes it out of the flow and keeps it announceable.
+- **`content-visibility: auto` was tried for the 1600-row log and rejected:** it brings paint
+  containment, which clips a row's 3px focus ring and the attempt timeline's absolute-time popup at
+  the row's edge. Paging (50 rows) keeps normal use fast; a fully loaded log is ~28k nodes.
+- **A Playwright full-page screenshot (or an element shot taller than the viewport) drops
+  Chromium's touch emulation**, so `(pointer: coarse)` turns false and none of the 44px rules
+  show in the image. Measure touch targets before any screenshot, or grow the viewport instead.
+- **Fontsource faces are imported by the layout, not linked from `app.html`:** each weight's CSS
+  declares every subset with a `unicode-range`, so a page downloads only latin and (Hungarian's
+  ő, ű) latin-ext. Adding the packages needs the dev `web` container's `--renew-anon-volumes`
+  (v46 entry above).
