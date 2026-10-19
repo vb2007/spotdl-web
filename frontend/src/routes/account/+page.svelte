@@ -267,7 +267,8 @@
 
 				{#if saved === null}
 					{#if loadError}
-						<div class="load-failed" role="alert">
+						<!-- Announced by the always-present error line below, not as an inserted alert. -->
+						<div class="load-failed">
 							<p>{loadError()}</p>
 							<button type="button" class="btn small" onclick={retryRetention}
 								>{m.account_retention_try_again()}</button
@@ -336,7 +337,9 @@
 						</div>
 					</form>
 				{/if}
-				<p class="form-error" role="alert">{error?.()}</p>
+				<p class="form-error" class:sr-only={saved === null && loadError !== null} role="alert">
+					{saved === null && loadError !== null ? loadError() : error?.()}
+				</p>
 			</div>
 
 			<div class="group" role="group" aria-labelledby="keyboard-heading">

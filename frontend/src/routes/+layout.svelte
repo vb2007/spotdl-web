@@ -122,19 +122,26 @@
 	// api restarting, a deploy). That says nothing about the session, so the page waits and
 	// asks again, backing off to 30s, rather than sending a signed-in user to /login.
 	// The first ask is almost at once: the screen can come from a hover preload taken during a
-	// blip that is already over (SvelteKit reuses it on the click).
-	let retryDelayMs = 300;
+	// blip that is already over (SvelteKit reuses it on the click). Each ask has 15s: an api
+	// that hangs rather than refuses (a deploy's half-started container) would otherwise hold
+	// every later ask behind one request for as long as the proxy allows.
+	const ASK_LIMIT_MS = 15_000;
+	const sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
 	let retrying = $state(false);
-	async function retrySession() {
+	async function askAgain(): Promise<void> {
 		if (retrying) return;
 		retrying = true;
 		try {
-			await invalidateAll();
+			await Promise.race([invalidateAll(), sleep(ASK_LIMIT_MS)]);
 		} finally {
 			retrying = false;
 		}
-		// The screen this button was on is gone once the server answers; an invalidation is
-		// no navigation, so afterNavigate won't place focus: the page's h1 takes it (v47).
+	}
+
+	// The button's own ask: the screen it was on is gone once the server answers, and an
+	// invalidation is no navigation, so afterNavigate won't place focus; the page's h1 takes it.
+	async function retrySession() {
+		await askAgain();
 		await tick();
 		if (document.activeElement === document.body || document.activeElement === null) {
 			const heading =
@@ -148,14 +155,25 @@
 			}
 		}
 	}
+
+	// One loop per outage, keyed to the flag flipping (not to every new `data` object):
+	// 300ms, then 2s doubling to 30s, until the screen goes.
+	const isUnreachable = $derived(data.unreachable === true);
 	$effect(() => {
-		if (!data.unreachable) {
-			retryDelayMs = 300;
-			return;
-		}
-		const timer = setTimeout(retrySession, retryDelayMs);
-		retryDelayMs = Math.min(Math.max(retryDelayMs * 2, 2000), 30_000);
-		return () => clearTimeout(timer);
+		if (!isUnreachable) return;
+		let cancelled = false;
+		(async () => {
+			let delay = 300;
+			while (!cancelled) {
+				await sleep(delay);
+				if (cancelled) return;
+				await askAgain();
+				delay = Math.min(Math.max(delay * 2, 2000), 30_000);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	// v45: a route change moves focus to the new page's h1 (or its main), as a full page load

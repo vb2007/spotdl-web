@@ -610,7 +610,9 @@
 <!-- v46: a sentence whose machine names (env vars, files, formats) stay code. -->
 <!-- v47: one shape for a section whose first read failed: what, why, and a retry. -->
 {#snippet loadFailed(error: string, retry: () => void)}
-	<div class="load-failed" role="alert">
+	<!-- Not an alert itself: the section's always-present error line announces it (an alert
+	     inserted together with its text often isn't). -->
+	<div class="load-failed">
 		<p>{m.settings_section_load_failed({ error })}</p>
 		<button type="button" class="btn small" onclick={retry}>{m.settings_proxies_try_again()}</button
 		>
@@ -733,7 +735,13 @@
 							</div>
 						</form>
 					{/if}
-					<p class="form-error" role="alert">{outputSettings !== null ? outputError : ''}</p>
+					<p class="form-error" class:sr-only={outputSettings === null} role="alert">
+						{outputSettings !== null
+							? outputError
+							: outputError
+								? m.settings_section_load_failed({ error: outputError })
+								: ''}
+					</p>
 				</section>
 
 				<section id="library" class="panel section" aria-labelledby="library-heading">
@@ -829,7 +837,13 @@
 							</div>
 						</form>
 					{/if}
-					<p class="form-error" role="alert">{librarySettings !== null ? libraryError : ''}</p>
+					<p class="form-error" class:sr-only={librarySettings === null} role="alert">
+						{librarySettings !== null
+							? libraryError
+							: libraryError
+								? m.settings_section_load_failed({ error: libraryError })
+								: ''}
+					</p>
 				</section>
 
 				<section id="alerts" class="panel section" aria-labelledby="alerts-heading">
@@ -942,7 +956,13 @@
 							<p class="save-state saved" role="status">{alertTestResult}</p>
 						</form>
 					{/if}
-					<p class="form-error" role="alert">{alertSettings !== null ? alertError : ''}</p>
+					<p class="form-error" class:sr-only={alertSettings === null} role="alert">
+						{alertSettings !== null
+							? alertError
+							: alertError
+								? m.settings_section_load_failed({ error: alertError })
+								: ''}
+					</p>
 				</section>
 
 				<section id="proxies" class="panel section" aria-labelledby="proxies-heading">

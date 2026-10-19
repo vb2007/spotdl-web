@@ -477,5 +477,7 @@ here rather than edited into it, so the original record stays readable.
     ended; a 5xx or network failure of `/api/auth/me` no longer signs anyone out (a "can't reach
     the server" screen retries instead).
   - **Priority and bump are admin-only** (operator detail, like v39 outcome 3); a non-admin's
-    in-flight job offers cancel only. Not chosen, so left as they are: "duplicate" → "already
+    in-flight job offers cancel only. This is presentation only: v47 makes no backend change,
+    so `PATCH /api/jobs/{id}/priority` and `POST /api/jobs/{id}/bump` still accept a job's
+    owner. Enforcing it server-side is logged for v48 (or a later backend slice). Not chosen, so left as they are: "duplicate" → "already
     have", "disconnect" → "sign out", and reordering `/account`'s preferences.
