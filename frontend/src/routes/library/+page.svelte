@@ -136,7 +136,8 @@
 		reportError = '';
 	}
 
-	// v43 (F08): a sweep moves real files and archives jobs for every user, so it asks.
+	// v43 (F08): a sweep moves real files and archives jobs, so it asks (v48: only the
+	// admin's own jobs are archived).
 	// One question and its server re-read at a time: a second press meanwhile is ignored.
 	let onStartRunning = false;
 	async function onStart() {
