@@ -319,7 +319,7 @@ kbd {
 /* v47: hover only where a pointer hovers (on touch a tapped button kept it); pressed is the
    same --bg-3 fill, so a tap answers too. */
 @media (hover: hover) {
-	.btn:hover:not(:disabled) {
+	.btn:hover:not(:disabled):not([aria-disabled='true']) {
 		background: var(--bg-3);
 		border-color: var(--text-muted);
 	}
@@ -331,7 +331,8 @@ kbd {
 
 /* Dimmed text, not opacity: an opacity-faded control drops under 4.5:1 (v42's remainder).
    v47: the edge drops to --line too, so a disabled button no longer passes for a live one. */
-.btn:disabled {
+.btn:disabled,
+.btn[aria-disabled='true'] {
 	border-color: var(--line);
 	color: var(--text-dim);
 	cursor: default;

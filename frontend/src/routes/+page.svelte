@@ -384,6 +384,9 @@
 				// else can't tell (a blip): carry on; the layout and next reconnect check again.
 				if (err instanceof api.ApiError && err.status === 401) {
 					stream.close();
+					// A stream that something else replaced meanwhile isn't this page's to retry.
+					if (source !== stream) return;
+					clearTimeout(streamRetryTimer);
 					api.sessionEnded();
 					// If the session turns out to be alive (a stale 401: a sign-in elsewhere), the
 					// layout stays put, so this page keeps trying like any other drop; if it ended,

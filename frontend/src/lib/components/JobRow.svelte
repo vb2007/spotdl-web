@@ -495,7 +495,11 @@
 		line-clamp: none;
 	}
 
+	/* The whole link, never clamped: its tail (the id) is what tells two untitled jobs apart. */
 	.title.address {
+		display: block;
+		-webkit-line-clamp: unset;
+		line-clamp: none;
 		white-space: normal;
 		overflow-wrap: anywhere;
 		font-family: var(--font-mono);

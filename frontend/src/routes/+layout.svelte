@@ -39,7 +39,7 @@
 	// any other route the store is stale and must not light the page. v42: the same holds on
 	// `/` while its stream is down -- the lanes may be stale, so nothing reads as receiving.
 	const live = $derived(
-		page.route.id === '/' && $activeTracks.length > 0 && $streamLink === 'live'
+		page.route.id === '/' && !data.unreachable && $activeTracks.length > 0 && $streamLink === 'live'
 	);
 
 	const signedIn = $derived(data.session != null);
@@ -124,6 +124,7 @@
 	let retryDelayMs = 2000;
 	let retrying = $state(false);
 	async function retrySession() {
+		if (retrying) return;
 		retrying = true;
 		try {
 			await invalidateAll();
@@ -134,8 +135,11 @@
 		// no navigation, so afterNavigate won't place focus: the page's h1 takes it (v47).
 		await tick();
 		if (document.activeElement === document.body || document.activeElement === null) {
-			// i18n-ignore: a selector
-			const heading = document.querySelector<HTMLElement>('main h1');
+			const heading =
+				// i18n-ignore: a selector
+				document.querySelector<HTMLElement>('main h1') ??
+				document.querySelector<HTMLElement>('h1') ??
+				document.querySelector<HTMLElement>('main');
 			if (heading) {
 				if (!heading.hasAttribute('tabindex')) heading.setAttribute('tabindex', '-1');
 				heading.focus();
@@ -213,7 +217,9 @@
 		<span class="label">SPOTDL // WEB</span>
 		<h1 class="page-title">{m.layout_unreachable_title()}</h1>
 		<p>{m.layout_unreachable_body()}</p>
-		<button type="button" class="btn" onclick={retrySession} disabled={retrying}
+		<!-- aria-disabled, not disabled: the automatic retries would otherwise pull focus off it
+		     every few seconds (a focused button that is disabled drops focus to <body>). -->
+		<button type="button" class="btn" onclick={retrySession} aria-disabled={retrying}
 			>{m.layout_unreachable_retry()}</button
 		>
 	</main>
