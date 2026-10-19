@@ -1,10 +1,11 @@
 {
-	"$schema": "sidecar for DESIGN.md — mirrors frontend/src/app.css :root exactly; keep in sync",
+	"$schema": "sidecar for DESIGN.md — mirrors frontend/src/app.css :root exactly (every custom property, same values); keep in sync with app.css and DESIGN.md's frontmatter",
 	"meta": {
 		"world": "ham-radio waterfall / spectrum scope instrument panel",
 		"colorScheme": "dark",
 		"seedKey": "14e20c30",
-		"candidate": 3
+		"candidate": 3,
+		"regenerated": "2026-10-19 (v47, impeccable document)"
 	},
 	"color": {
 		"chassis": {
@@ -15,7 +16,7 @@
 			"line": "#2b3339",
 			"line-bright": "#3a444c",
 			"line-control": "#6a757e",
-			"note": "v42: bg-1 is the raised faceplate (1.17:1 vs bg-0); line is the quiet divider, line-control the >=3:1 border of every control (WCAG 1.4.11)"
+			"note": "v42: bg-1 is the raised faceplate (1.17:1 vs bg-0); line is the quiet divider (v47: also a disabled control's edge), line-control the >=3:1 border of every control (WCAG 1.4.11); bg-3 is every neutral control's hover and pressed fill"
 		},
 		"text": {
 			"primary": "#e8ecee",
@@ -24,11 +25,12 @@
 			"note": "v42: dim reaches 4.5:1 on bg-0/1/2 (5.63/4.83/4.62); signal-dim is never text"
 		},
 		"signal": {
-			"meaning": "live/active only — exclusive, never used as permanent chrome or decoration",
+			"meaning": "live only: something receiving right now with /'s link live; never permanent chrome or decoration (v47: a job row is amber only while one of its tracks downloads or it is expanding, and nothing is amber while the link is down)",
 			"signal": "#ffb02e",
 			"signal-dim": "#7a5a1e",
 			"signal-ink": "#2a1c05",
-			"signal-glow": "rgba(255, 176, 46, 0.35)"
+			"signal-glow": "rgba(255, 176, 46, 0.35)",
+			"note": "signal-ink is defined but consumed nowhere as of v47"
 		},
 		"settled": {
 			"meaning": "completed / no longer needs attention",
@@ -36,7 +38,7 @@
 			"settled-dim": "#2c5347"
 		},
 		"waiting": {
-			"meaning": "patient, scheduled, not alarming — the retry ladder's normal state",
+			"meaning": "patient, scheduled, not alarming — the retry ladder's and the breaker hold's normal state",
 			"waiting": "#7fa8d9",
 			"waiting-dim": "#35485f"
 		},
@@ -45,7 +47,11 @@
 			"fail": "#e5595c",
 			"fail-dim": "#5c2f30",
 			"fail-edge": "#b05154",
-			"note": "v42: fail-edge is a destructive control outline at rest (>=3:1); fail-dim is a fill/segment tone, never a control edge"
+			"note": "v42: fail-edge is a destructive control outline at rest (>=3:1); fail-dim is defined but consumed nowhere as of v47 (never a control's only edge)"
+		},
+		"overlay": {
+			"backdrop": "rgba(5, 6, 7, 0.72)",
+			"note": "v47: the dimmed (never blurred) page behind a modal: the confirmation and the help overlay"
 		},
 		"focus": {
 			"meaning": "keyboard focus ring, never suppressed (hard accessibility requirement)",
@@ -55,9 +61,10 @@
 	"typography": {
 		"families": {
 			"font-mono": "'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
-			"font-sans": "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+			"font-sans": "'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+			"source": "v47: self-hosted via @fontsource/ibm-plex-sans and @fontsource/ibm-plex-mono 5.3.0, weights 400/500/600, imported in routes/+layout.svelte"
 		},
-		"rule": "mono = numbers, timestamps, state tokens, addresses, idents and (until v47) control labels; sans = content, sentences, hints, errors, empty-state copy (v39 F12, narrowed in v42)",
+		"rule": "mono = numbers, counts, timestamps, state tokens, addresses, idents (.label), keycaps, the console SUBMIT, value choices (.choice-group.values); sans = content, sentences, errors, and every control label that is a word (v47: buttons, chips, segments, row actions, nav links at fs-detail medium)",
 		"scale": {
 			"fs-label": "0.6875rem",
 			"fs-meta": "0.75rem",
@@ -65,7 +72,7 @@
 			"fs-body": "0.9375rem",
 			"fs-lead": "1.0625rem",
 			"fs-title": "1.25rem",
-			"note": "v42: fixed rem roles; body is var(--fs-body), so text follows the user setting. v41/v43 files still carry literals (the off-scale ones: the login dial ticks 0.5625rem and one TrackRow 0.875rem) until v43/v47 migrate them"
+			"note": "v42: fixed rem roles; body is var(--fs-body), so text follows the user setting. v47: every font-size in the tree is one of these (plus two `inherit` resets)"
 		},
 		"weights": {
 			"fw-regular": 400,
@@ -82,7 +89,7 @@
 		"space-6": "2rem",
 		"space-7": "3rem",
 		"space-8": "4rem",
-		"note": "space-7/space-8 defined but not yet consumed by any built component"
+		"note": "space-7 is defined and unused; space-8 is used once (the unreachable-server screen, routes/+layout.svelte)"
 	},
 	"rowGrid": {
 		"row-pad-x": "var(--space-4)",
@@ -94,6 +101,10 @@
 		"cell-inset": "calc(var(--space-2) + 1px)",
 		"note": "v41: shared columns of JobRow, TrackRow, the expanded detail and the tracks-scope group header; a nested track list indents by row-nest"
 	},
+	"control": {
+		"control-h": "1.875rem",
+		"note": "v47: the one height of /'s find and refine rows (segments, search well, chips, sort select); a coarse pointer raises it to 2.75rem"
+	},
 	"motion": {
 		"ease-signal": "cubic-bezier(0.16, 1, 0.3, 1)",
 		"dur-fast": "120ms",
@@ -101,15 +112,33 @@
 		"dur-slow": "900ms",
 		"reducedMotion": "all three durations zeroed globally under prefers-reduced-motion; every bespoke @keyframes literal-duration animation additionally needs its own override"
 	},
+	"breakpoints": {
+		"note": "not custom properties (media queries can't read var()); literals in em since v47 (WCAG 1.4.4), equal to the old px at 16px",
+		"confirm-stack": "30em",
+		"phone": "40em",
+		"help-one-column": "47.5em",
+		"rows-fold": "60em",
+		"tablet": "63.9375em",
+		"touch": "(pointer: coarse) -> 2.75rem targets",
+		"hover": "(hover: hover) gates every hover style"
+	},
 	"stateColorMap": {
 		"pending": "cond-idle",
 		"queued": "cond-idle",
-		"downloading": "cond-live",
+		"downloading": "cond-live (cond-idle while /'s link is down)",
 		"completed": "cond-settled",
 		"waiting": "cond-waiting",
 		"lookup_failed": "cond-fail",
-		"failed": "cond-fail",
 		"skipped_duplicate": "cond-settled",
 		"cancelled": "cond-idle"
+	},
+	"jobStatusColorMap": {
+		"expanding": "cond-live while the link is live, else cond-idle",
+		"active": "cond-live only while >=1 track is downloading and the link is live, else cond-idle (v47)",
+		"waiting": "cond-waiting",
+		"settled:complete": "cond-settled",
+		"settled:partial": "cond-fail with a lookup_failed track, else cond-idle (v42)",
+		"cancelled": "cond-idle",
+		"failed": "cond-fail"
 	}
 }
