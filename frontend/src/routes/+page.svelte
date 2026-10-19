@@ -20,6 +20,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
 	import { counted, formatNumber } from '$lib/i18n/format';
+	import { countLinks, linkIn } from '$lib/submitLink';
 
 	const { filters, page, incomingJobs, activeTracks } = queue;
 	const { status: workerStatus } = worker;
@@ -234,21 +235,6 @@
 	// v47: the form checks the link itself (`novalidate`): the browser's own bubble spoke the
 	// browser's language, sat outside the design, and turned away a link pasted with words or
 	// an emoji around it. The first http(s) address in what was pasted is the one sent.
-	// What was pasted may carry words around the link: a Spotify link (or a `spotify:` URI,
-	// which the browser's own check accepted) is preferred wherever it is, then the first
-	// http(s) link; either minus whatever the sentence glued onto its end ("…/album/abc.",
-	// "(…/album/abc)", an emoji).
-	const SPOTIFY_RE = /https?:\/\/open\.spotify\.com\/[^\s<>"',]+|spotify:[a-z]+(?::[A-Za-z0-9]+)+/i;
-	const LINK_RE = /https?:\/\/[^\s<>"',]+/i;
-	// Two or more links: say so rather than send the first and drop the rest.
-	const ANY_LINK_RE = /https?:\/\/[^\s<>"',]+|spotify:[a-z]+(?::[A-Za-z0-9]+)+/gi;
-	function linkIn(text: string): string | undefined {
-		const found = SPOTIFY_RE.exec(text)?.[0] ?? LINK_RE.exec(text)?.[0];
-		// A link ends in an id, a path or a query value: anything else glued on (punctuation, an
-		// emoji, "…") is the sentence's, not the link's.
-		return found?.replace(/[^A-Za-z0-9/=_-]+$/u, '');
-	}
-
 	// v47: the form's own checks mark the field invalid, and a repeated sentence is announced
 	// again (the region is emptied first; the same text twice isn't a change).
 	let submitInvalid = $state(false);
@@ -265,7 +251,7 @@
 		if (!url.trim()) {
 			return showSubmitProblem(m.dashboard_submit_empty());
 		}
-		if ((url.match(ANY_LINK_RE) ?? []).length > 1) {
+		if (countLinks(url) > 1) {
 			return showSubmitProblem(m.dashboard_submit_many_links());
 		}
 		const link = linkIn(url);
