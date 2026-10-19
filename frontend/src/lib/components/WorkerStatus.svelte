@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import * as api from '$lib/api';
 	import { worker } from '$lib/stores/worker';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
@@ -180,6 +180,27 @@
 			readError = errorText(err);
 		}
 	}
+
+	// v47: while the breaker holds a running worker, pause sits in the hold row, otherwise in
+	// the first; a poll that trips or clears the breaker moves it, and focus on it would fall
+	// to <body>. Read before the move, restored after it.
+	let pauseHadFocus = false;
+	$effect.pre(() => {
+		void holdUntil;
+		void paused;
+		pauseHadFocus = untrack(
+			() => toggleButton !== undefined && document.activeElement === toggleButton
+		);
+	});
+	$effect(() => {
+		void holdUntil;
+		void paused;
+		if (!pauseHadFocus) return;
+		pauseHadFocus = false;
+		tick().then(() => {
+			if (document.activeElement === document.body) toggleButton?.focus();
+		});
+	});
 
 	onMount(() => {
 		poll();

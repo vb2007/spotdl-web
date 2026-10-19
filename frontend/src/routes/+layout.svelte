@@ -51,6 +51,8 @@
 	// a `/me` preloaded on hover before that save. Another device's change arrives on reload.
 	let appliedFor: string | null | undefined;
 	$effect(() => {
+		// v47: unreachable says nothing about who is signed in; keep the switch as it is.
+		if (data.unreachable) return;
 		const email = data.session?.email ?? null;
 		if (email === appliedFor) return;
 		appliedFor = email;
@@ -99,7 +101,10 @@
 				// answered after this tab's own sign-out began): only a session /me no longer
 				// knows has ended. Anything but a 401 here can't tell, so the 401 stands.
 				try {
-					await api.me();
+					const now = await api.me();
+					// Alive, but someone else's (the shared cookie changed under this tab): the
+					// page is built for the previous identity, so start over as v42 does.
+					if (now.email !== data.session?.email) window.location.reload();
 					return;
 				} catch {
 					// A 401 confirms it; any other failure can't tell, and the request's 401 stands.

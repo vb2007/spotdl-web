@@ -58,7 +58,7 @@ export const load: LayoutLoad = async ({ url }) => {
 		if (sessionGone) {
 			queue.reset();
 			// v47: only a tab that had a session here says it ended (not a first visit).
-			if (lastSessionEmail !== null) markSessionEnded();
+			if (lastSessionEmail !== null && !api.isSigningOut()) markSessionEnded();
 		}
 		redirect(302, '/login');
 	}

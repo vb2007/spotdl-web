@@ -1279,6 +1279,8 @@
 
 		.row[aria-expanded='true'] .meta {
 			display: block;
+			-webkit-line-clamp: unset;
+			line-clamp: none;
 		}
 
 		.meta .cell {

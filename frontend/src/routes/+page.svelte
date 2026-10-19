@@ -342,6 +342,7 @@
 	}
 
 	function connectStream() {
+		if (unmounted) return;
 		const stream = api.createEventSource(allUsersView);
 		source = stream;
 		// v42: the stream belongs to the session it was opened under. If the store is reset
@@ -384,6 +385,12 @@
 				if (err instanceof api.ApiError && err.status === 401) {
 					stream.close();
 					api.sessionEnded();
+					// If the session turns out to be alive (a stale 401: a sign-in elsewhere), the
+					// layout stays put, so this page keeps trying like any other drop; if it ended,
+					// leaving the page clears the timer.
+					link.set('reconnecting');
+					streamRetryTimer = setTimeout(connectStream, streamRetryDelayMs);
+					streamRetryDelayMs = Math.min(streamRetryDelayMs * 2, 30_000);
 					return;
 				}
 			}
@@ -446,6 +453,9 @@
 	// never reached the server (a network failure, not an error answer) mean the link is down
 	// too, and the stream starts over.
 	let unreachedPolls = 0;
+	// Set by the cleanup: a poll, an offline/online event or a stream callback that settles
+	// after the page is gone must not open a stream nobody owns.
+	let unmounted = false;
 
 	function pollWorker() {
 		if (!loggingOut && queue.getResetCount() !== mountedSession) {
@@ -466,6 +476,7 @@
 
 	/** Drops the current stream and opens a new one now, at the first backoff step. */
 	function restartStream() {
+		if (unmounted) return;
 		link.set('reconnecting');
 		clearTimeout(streamRetryTimer);
 		streamRetryDelayMs = 1000;
@@ -505,6 +516,7 @@
 		document.addEventListener('visibilitychange', onVisible);
 
 		return () => {
+			unmounted = true;
 			window.removeEventListener('offline', onOffline);
 			window.removeEventListener('online', onOnline);
 			document.removeEventListener('visibilitychange', onVisible);

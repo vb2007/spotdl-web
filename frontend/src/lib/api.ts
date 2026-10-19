@@ -604,8 +604,12 @@ export async function login(email: string, password: string): Promise<SessionInf
 	return session;
 }
 
-export function me(): Promise<SessionInfo> {
-	return request('/api/auth/me');
+export async function me(): Promise<SessionInfo> {
+	const session = await request<SessionInfo>('/api/auth/me');
+	// v47: a live session (this tab's sign-out was undone elsewhere, say: a sign-in in another
+	// tab, then Back) means a later 401 is a session ending again.
+	signingOut = false;
+	return session;
 }
 
 export async function logout(): Promise<{ status: string }> {

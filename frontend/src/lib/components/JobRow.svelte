@@ -491,6 +491,8 @@
 	/* Open, the job shows its whole title. */
 	.toggle[aria-expanded='true'] .title {
 		display: block;
+		-webkit-line-clamp: unset;
+		line-clamp: none;
 	}
 
 	.title.address {
