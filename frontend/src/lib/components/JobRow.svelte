@@ -3,7 +3,7 @@
 	import { queue } from '$lib/stores/queue';
 	import { link } from '$lib/stores/link';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
-	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
+	import { failedRowNotices, rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
 	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import type { Job, JobLifecycle, JobSourceType } from '$lib/api';
@@ -132,8 +132,8 @@
 	// inside one, so every count stays readable in the fixed progress column.
 	let breakdownVisible = $derived(keepReadings(breakdown));
 
-	function showNotice(text: string) {
-		showRowNotice(`job:${job.id}`, text);
+	function showNotice(text: string, failed = false) {
+		showRowNotice(`job:${job.id}`, text, failed);
 	}
 
 	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
@@ -193,7 +193,8 @@
 			await queue.cancelJob(job.id);
 		} catch (err) {
 			// A session reset meanwhile: the answer belongs to the previous identity.
-			if (queue.getResetCount() === session) showNotice(errorText(err, m.job_notice_cancel_failed));
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_cancel_failed), true);
 		}
 		// The cancel button is gone with the in-flight controls: land on the row itself.
 		await keepFocus(landing());
@@ -204,7 +205,7 @@
 			await queue.bumpJob(job.id);
 			showNotice(m.job_notice_bumped());
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_bump_failed));
+			showNotice(errorText(err, m.job_notice_bump_failed), true);
 		}
 	}
 
@@ -214,7 +215,7 @@
 		try {
 			await queue.setJobPriority(job.id, priority);
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_priority_failed));
+			showNotice(errorText(err, m.job_notice_priority_failed), true);
 		}
 	}
 
@@ -222,7 +223,7 @@
 		try {
 			await queue.archiveJobs({ jobIds: [job.id] });
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_archive_failed));
+			showNotice(errorText(err, m.job_notice_archive_failed), true);
 		}
 	}
 
@@ -232,9 +233,9 @@
 		cancel: () => showInFlight && (handleCancel(), true),
 		archive: () =>
 			showArchive ? (handleArchive(), true) : job.archived_at !== null && (handleUnarchive(), true),
-		bump: () => showInFlight && (handleBump(), true),
-		priorityUp: () => showInFlight && (stepPriority(1), true),
-		priorityDown: () => showInFlight && (stepPriority(-1), true)
+		bump: () => isAdmin && showInFlight && (handleBump(), true),
+		priorityUp: () => isAdmin && showInFlight && (stepPriority(1), true),
+		priorityDown: () => isAdmin && showInFlight && (stepPriority(-1), true)
 	});
 
 	// One step at a time: the row's priority only moves once the server answers, so a quick
@@ -254,7 +255,7 @@
 		try {
 			await queue.unarchiveJobs([job.id]);
 		} catch (err) {
-			showNotice(errorText(err, m.job_notice_unarchive_failed));
+			showNotice(errorText(err, m.job_notice_unarchive_failed), true);
 		}
 	}
 </script>
@@ -308,7 +309,9 @@
 		</div>
 
 		<div class="row-actions">
-			{#if showInFlight}
+			<!-- v47 (owner's call): priority and bump are the admin's. The queue's order is shared,
+			     operator detail (v39 outcome 3); a non-admin's in-flight job offers cancel only. -->
+			{#if showInFlight && isAdmin}
 				<label class="priority mono">
 					{m.job_priority()}
 					<input
@@ -330,6 +333,8 @@
 					aria-label={m.job_bump_label({ title: job.title })}
 					onclick={handleBump}>{m.job_bump()}</button
 				>
+			{/if}
+			{#if showInFlight}
 				<button
 					type="button"
 					class="action danger"
@@ -357,7 +362,9 @@
 		</div>
 	</div>
 
-	<p class="notice" role="status">{rowNotices.get(`job:${job.id}`) ?? ''}</p>
+	<p class="notice" class:failed={failedRowNotices.has(`job:${job.id}`)} role="status">
+		{rowNotices.get(`job:${job.id}`) ?? ''}
+	</p>
 
 	{#if isOpen}
 		<JobTrackList
@@ -460,16 +467,27 @@
 		margin-left: calc(var(--space-2) - var(--row-gap));
 	}
 
+	/* v47: a long title takes up to two lines before it is cut (one line cut a 110-character
+	   live title at "Live In L…", and the tooltip holding the rest is unreachable by touch
+	   and keyboard). Opening the row shows it whole. */
 	.title {
 		min-width: 0;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font-weight: 500;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow-wrap: anywhere;
+		font-weight: var(--fw-medium);
 	}
 
 	/* The link's tail (the id) is what tells two untitled jobs apart: it wraps rather than
 	   ellipsizing behind a tooltip touch and keyboard can't reach. */
+	/* Open, the job shows its whole title. */
+	.toggle[aria-expanded='true'] .title {
+		display: block;
+	}
+
 	.title.address {
 		white-space: normal;
 		overflow-wrap: anywhere;
@@ -628,6 +646,11 @@
 		padding: 0 var(--row-pad-x) var(--space-2) calc(var(--row-pad-x) + var(--row-nest));
 		color: var(--waiting);
 		font-size: var(--fs-detail);
+	}
+
+	/* v47: a failure reads as one ("Couldn't archive: …"), not in the scheduling blue. */
+	.notice.failed {
+		color: var(--fail);
 	}
 
 	/* Empty, it stays in the accessibility tree (a status region inserted together with

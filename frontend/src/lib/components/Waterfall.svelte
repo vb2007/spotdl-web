@@ -162,13 +162,18 @@
 						class="meter well"
 						role="progressbar"
 						aria-labelledby="lane-title-{track.id}"
-						aria-valuenow={track.progress ?? 0}
+						aria-valuenow={track.progress}
+						aria-valuetext={track.progress === undefined
+							? m.waterfall_progress_unknown()
+							: undefined}
 						aria-valuemin={0}
 						aria-valuemax={100}
 					>
 						<div class="fill" style:transform="scaleX({(track.progress ?? 0) / 100})"></div>
 					</div>
-					<span class="pct mono">{track.progress ?? 0}%</span>
+					<!-- v47: a lane loaded from REST (a reload, a reconnect) has no reading until the
+					     next progress event; it said "0%" for a track that may be 80% in. -->
+					<span class="pct mono">{track.progress === undefined ? '—' : `${track.progress}%`}</span>
 				</li>
 			{/each}
 		</ul>
@@ -326,7 +331,10 @@
 	.lanes.stale .fill {
 		background: var(--line-bright);
 		box-shadow: none;
-		animation: none;
+	}
+
+	.lanes.stale .fill::after {
+		display: none;
 	}
 
 	.lanes.stale .pct {
@@ -335,7 +343,8 @@
 
 	.lane {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 3.5rem;
+		/* v47: the title gets the larger share (it was a third, cut at ~280px of 950). */
+		grid-template-columns: minmax(0, 2fr) minmax(8rem, 1fr) 3.5rem;
 		align-items: center;
 		gap: var(--space-4);
 	}
@@ -369,28 +378,40 @@
 	}
 
 	.fill {
+		position: relative;
+		overflow: hidden;
 		width: 100%;
 		height: 100%;
 		transform-origin: left;
 		background: linear-gradient(90deg, var(--signal-dim), var(--signal));
 		box-shadow: 0 0 8px 0 var(--signal-glow);
 		transition: transform var(--dur-med) var(--ease-signal);
-		background-size: 200% 100%;
+	}
+
+	/* v47 (F33): the shimmer is a sheen moved by transform (compositor only); it animated
+	   background-position, which repainted the lane every frame. */
+	.fill::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+		transform: translateX(-100%);
 		animation: shimmer 2.4s linear infinite;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.fill {
+		.fill::after {
 			animation: none;
+			display: none;
 		}
 	}
 
 	@keyframes shimmer {
 		0% {
-			background-position: 200% 0;
+			transform: translateX(-100%);
 		}
 		100% {
-			background-position: -200% 0;
+			transform: translateX(100%);
 		}
 	}
 

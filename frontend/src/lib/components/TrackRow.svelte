@@ -6,7 +6,7 @@
 	import { worker } from '$lib/stores/worker';
 	import { link } from '$lib/stores/link';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
-	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
+	import { failedRowNotices, rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import { isTypingTarget } from '$lib/keyboard/registry';
@@ -280,8 +280,8 @@
 
 	// Per-row transient feedback (e.g. "held behind the global pause"), kept in the rowNotices
 	// store (v43) so it outlives a remount and is cleared by queue.reset().
-	function showNotice(text: string) {
-		showRowNotice(`track:${track.id}`, text);
+	function showNotice(text: string, failed = false) {
+		showRowNotice(`track:${track.id}`, text, failed);
 	}
 
 	// The pending re-read, cleared when the row is destroyed (a collapsed job, a scope
@@ -383,7 +383,7 @@
 		} catch (err) {
 			// A session reset meanwhile: the answer belongs to the previous identity.
 			if (queue.getResetCount() === session)
-				showNotice(errorText(err, m.track_notice_cancel_failed));
+				showNotice(errorText(err, m.track_notice_cancel_failed), true);
 		}
 		// "cancel track" leaves with the cancellable state: land on the row itself.
 		await keepFocus(landing());
@@ -394,7 +394,7 @@
 			const { breakerHeld } = await queue.retryTrack(track.id, jobId);
 			showNotice(breakerHeld ? m.track_notice_retry_held() : m.track_notice_retry_queued());
 		} catch (err) {
-			showNotice(errorText(err, m.track_notice_retry_failed));
+			showNotice(errorText(err, m.track_notice_retry_failed), true);
 		}
 	}
 
@@ -443,7 +443,7 @@
 		try {
 			await api.checkTrackFile(track.id);
 		} catch (err) {
-			showNotice(errorText(err, m.track_notice_download_failed));
+			showNotice(errorText(err, m.track_notice_download_failed), true);
 			return;
 		}
 		const anchor = document.createElement('a');
@@ -594,7 +594,9 @@
 					{/if}
 				</div>
 			{/if}
-			<p class="notice" role="status">{rowNotices.get(`track:${track.id}`) ?? ''}</p>
+			<p class="notice" class:failed={failedRowNotices.has(`track:${track.id}`)} role="status">
+				{rowNotices.get(`track:${track.id}`) ?? ''}
+			</p>
 
 			{#if isAdmin}
 				<div class="history">
@@ -705,7 +707,13 @@
 	<!-- v43: a collapsed row's own notice (a remount after a list reload collapses it, and the
 	     cancel's outcome must still be seen and heard). Always present, so its text is announced;
 	     while expanded the notice lives in the detail instead. -->
-	<p class="notice collapsed" role="status">{collapsedNotice}</p>
+	<p
+		class="notice collapsed"
+		class:failed={collapsedNotice !== '' && failedRowNotices.has(`track:${track.id}`)}
+		role="status"
+	>
+		{collapsedNotice}
+	</p>
 </li>
 
 <style>
@@ -935,6 +943,11 @@
 	.notice {
 		color: var(--waiting);
 		font-size: var(--fs-detail);
+	}
+
+	/* v47: a failure reads as one ("Couldn't retry: …"), not in the scheduling blue. */
+	.notice.failed {
+		color: var(--fail);
 	}
 
 	/* Empty, it stays in the accessibility tree (a status region inserted together with
@@ -1243,19 +1256,22 @@
 			grid-area: chevron;
 		}
 
+		/* v47: two lines before it is cut, so a several-artist track still shows its album
+		   (one line hid "TRON: Legacy Reconfigured" behind four artists). */
 		.meta {
 			grid-area: meta;
-			display: block;
+			display: -webkit-box;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: 2;
+			line-clamp: 2;
 			min-width: 0;
-			white-space: nowrap;
 			overflow: hidden;
-			text-overflow: ellipsis;
 			color: var(--text-muted);
 			font-size: var(--fs-detail);
 		}
 
 		.row[aria-expanded='true'] .meta {
-			white-space: normal;
+			display: block;
 		}
 
 		.meta .cell {

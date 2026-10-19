@@ -257,6 +257,7 @@
 	"waterfall_clear": "nincs jel — semmi sem töltődik le",
 	"waterfall_unknown_title": "Ismeretlen cím",
 	"waterfall_unknown_artist": "Ismeretlen előadó",
+	"waterfall_progress_unknown": "a haladás még nem ismert",
 	"incoming_source_track": "szám",
 	"incoming_source_album": "album",
 	"incoming_source_playlist": "lejátszási lista",
@@ -377,12 +378,22 @@
 			}
 		}
 	],
+	"dashboard_count_tracks_of": [
+		{
+			"declarations": ["input count", "input shown", "input total"],
+			"selectors": [],
+			"match": {
+				"*": "{shown} / {total} szám"
+			}
+		}
+	],
 	"dashboard_empty_jobs_query": "Egy feladat sem felel meg ennek: „{query}”",
 	"dashboard_empty_jobs_filters": "Egy feladat sem felel meg ezeknek a szűrőknek",
 	"dashboard_empty_tracks_query": "Egy szám sem felel meg ennek: „{query}”",
 	"dashboard_empty_tracks_filters": "Egy szám sem felel meg ezeknek a szűrőknek",
 	"dashboard_submit_empty": "Előbb illessz be egy linket.",
 	"dashboard_submit_failed": "Nem sikerült beküldeni ezt a linket.",
+	"dashboard_submit_not_link": "Ez nem link. Spotify-linket illessz be: https://open.spotify.com/ kezdetű.",
 	"dashboard_title": "spotdl-web — várólista",
 	"dashboard_ident_receiver": "jelvevő",
 	"dashboard_link_live": "kapcsolódva",
@@ -397,6 +408,7 @@
 	"dashboard_disconnect": "lecsatlakozás",
 	"dashboard_submit_form_label": "Link beküldése",
 	"dashboard_submit_placeholder": "illessz be Spotify-linket — szám, album, lejátszási lista vagy előadó",
+	"dashboard_submit_placeholder_short": "illessz be Spotify-linket",
 	"dashboard_submit_input_label": "A beküldendő Spotify-link",
 	"dashboard_submit_sending": "KÜLDÉS…",
 	"dashboard_submit": "BEKÜLDÉS",

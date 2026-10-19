@@ -27,7 +27,18 @@
 		countText: string;
 	} = $props();
 
-	const { filters } = queue;
+	const { filters, page } = queue;
+
+	// v47 (v39 §4.3): a search, filter or scope change ends in one announced sentence, the
+	// list's size, once its load lands. The visible count changes with every live update
+	// too, so it isn't a live region itself: that would talk over the page all day.
+	let announcedCount = $state('');
+	let wasLoading = false;
+	$effect(() => {
+		const loading = $page.loading;
+		if (wasLoading && !loading && !$page.error) announcedCount = countText;
+		wasLoading = loading;
+	});
 
 	let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -271,6 +282,7 @@
 <div class="queue-head">
 	<h2 id="queue-heading" class="label" tabindex="-1">{m.queuectl_heading()}</h2>
 	<span class="count mono">{countText}</span>
+	<span class="sr-only" role="status">{announcedCount}</span>
 	<div class="log-tools">
 		<button
 			type="button"

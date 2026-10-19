@@ -259,6 +259,7 @@
 	"waterfall_clear": "no signal — nothing downloading",
 	"waterfall_unknown_title": "Unknown title",
 	"waterfall_unknown_artist": "Unknown artist",
+	"waterfall_progress_unknown": "progress not read yet",
 	"incoming_source_track": "track",
 	"incoming_source_album": "album",
 	"incoming_source_playlist": "playlist",
@@ -390,12 +391,28 @@
 			}
 		}
 	],
+	"dashboard_count_tracks_of": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"input shown",
+				"input total"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{shown} of {total} track",
+				"countPlural=*": "{shown} of {total} tracks"
+			}
+		}
+	],
 	"dashboard_empty_jobs_query": "No jobs match “{query}”",
 	"dashboard_empty_jobs_filters": "No jobs match these filters",
 	"dashboard_empty_tracks_query": "No tracks match “{query}”",
 	"dashboard_empty_tracks_filters": "No tracks match these filters",
 	"dashboard_submit_empty": "Paste a URL first.",
 	"dashboard_submit_failed": "Could not submit that URL.",
+	"dashboard_submit_not_link": "That isn't a link. Paste a Spotify link: it starts with https://open.spotify.com/.",
 	"dashboard_title": "spotdl-web — queue",
 	"dashboard_ident_receiver": "signal receiver",
 	"dashboard_link_live": "linked",
@@ -410,6 +427,7 @@
 	"dashboard_disconnect": "disconnect",
 	"dashboard_submit_form_label": "Submit a link",
 	"dashboard_submit_placeholder": "paste a Spotify link — track, album, playlist or artist",
+	"dashboard_submit_placeholder_short": "paste a Spotify link",
 	"dashboard_submit_input_label": "Spotify URL to submit",
 	"dashboard_submit_sending": "SENDING…",
 	"dashboard_submit": "SUBMIT",

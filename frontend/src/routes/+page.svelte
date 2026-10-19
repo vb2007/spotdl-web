@@ -58,24 +58,43 @@
 	);
 	// v46: whole phrases per scope, never a noun spliced into a sentence (Hungarian inflects
 	// it), and counts through Intl and plural rules.
-	let countText = $derived(
-		$page.loading
-			? m.dashboard_count_loading()
-			: $page.error
-				? ''
-				: $filters.scope === 'jobs'
-					? m.dashboard_count_jobs({
-							shown: formatNumber($page.items.length),
-							total:
-								$page.totalEstimate >= 1000
-									? m.dashboard_count_cap({ cap: formatNumber(1000) })
-									: formatNumber($page.totalEstimate),
-							count: $page.totalEstimate
-						})
-					: $page.nextCursor
-						? m.dashboard_count_tracks_more(counted($page.items.length))
-						: m.dashboard_count_tracks(counted($page.items.length))
-	);
+	// v47: the exact total, from the same grouped counts the chips show (each is over the
+	// searched set before its own filter, so the selected chips' sum is the list's size).
+	// The capped estimate read "1,662 of 1,000+ jobs" at volume, and tracks only "150+".
+	// `null` while there are no counts to sum (then the jobs head falls back to the estimate).
+	function exactTotal(counts: Record<string, number>, selected: string[]): number | null {
+		const keys = Object.keys(counts);
+		if (keys.length === 0) return null;
+		return (selected.length ? selected : keys).reduce((sum, key) => sum + (counts[key] ?? 0), 0);
+	}
+	let countText = $derived.by(() => {
+		if ($page.loading) return m.dashboard_count_loading();
+		if ($page.error) return '';
+		const shown = $page.items.length;
+		if ($filters.scope === 'jobs') {
+			const exact = exactTotal($page.countsByStatus, $filters.status);
+			const total = Math.max(exact ?? $page.totalEstimate, shown);
+			return m.dashboard_count_jobs({
+				shown: formatNumber(shown),
+				total:
+					exact === null && total >= 1000
+						? m.dashboard_count_cap({ cap: formatNumber(1000) })
+						: formatNumber(total),
+				count: total
+			});
+		}
+		const exact = exactTotal($page.countsByState, $filters.state);
+		if (exact === null)
+			return $page.nextCursor
+				? m.dashboard_count_tracks_more(counted(shown))
+				: m.dashboard_count_tracks(counted(shown));
+		const total = Math.max(exact, shown);
+		return m.dashboard_count_tracks_of({
+			shown: formatNumber(shown),
+			total: formatNumber(total),
+			count: total
+		});
+	});
 	let emptyTitle = $derived.by(() => {
 		const query = $filters.q.trim();
 		if ($filters.scope === 'jobs')
@@ -197,8 +216,23 @@
 	);
 
 	let url = $state('');
+	// v47: a phone's field shows the short placeholder (the long one was cut mid-phrase at 390).
+	let narrow = $state(false);
+	$effect(() => {
+		// i18n-ignore: a media query
+		const query = window.matchMedia('(max-width: 40em)');
+		narrow = query.matches;
+		const update = () => (narrow = query.matches);
+		query.addEventListener('change', update);
+		return () => query.removeEventListener('change', update);
+	});
 	let submitting = $state(false);
 	let submitError = $state('');
+
+	// v47: the form checks the link itself (`novalidate`): the browser's own bubble spoke the
+	// browser's language, sat outside the design, and turned away a link pasted with words or
+	// an emoji around it. The first http(s) address in what was pasted is the one sent.
+	const LINK_RE = /https?:\/\/[^\s<>"']+/i;
 
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -206,13 +240,19 @@
 			submitError = m.dashboard_submit_empty();
 			return;
 		}
+		const link = LINK_RE.exec(url)?.[0];
+		if (!link) {
+			submitError = m.dashboard_submit_not_link();
+			return;
+		}
+		url = link;
 		submitting = true;
 		submitError = '';
 		// A logout while the POST is in flight resets the store; the created job then belongs
 		// to the previous identity and must not land in the next one's overlay (v42 sweep).
 		const session = queue.getResetCount();
 		try {
-			const job = await api.createJob(url.trim());
+			const job = await api.createJob(link);
 			if (queue.getResetCount() !== session) return;
 			queue.addJob(job);
 			url = '';
@@ -513,13 +553,15 @@
 	     a tabindex="-1" container takes focus on any click inside it and resets Tab order. -->
 	<main id="main" class="main">
 		<div class="submit-area">
-			<form class="panel submit" {onsubmit} aria-label={m.dashboard_submit_form_label()}>
+			<form class="panel submit" {onsubmit} novalidate aria-label={m.dashboard_submit_form_label()}>
 				<span class="prompt mono" class:sending={submitting} aria-hidden="true">&gt;</span>
 				<input
 					id="submit-url"
 					class="well"
 					type="url"
-					placeholder={m.dashboard_submit_placeholder()}
+					placeholder={narrow
+						? m.dashboard_submit_placeholder_short()
+						: m.dashboard_submit_placeholder()}
 					bind:value={url}
 					disabled={submitting}
 					aria-label={m.dashboard_submit_input_label()}
@@ -1054,11 +1096,15 @@
 		padding: var(--space-3) var(--row-pad-x) var(--space-2) calc(var(--row-pad-x) + var(--row-nest));
 	}
 
+	/* v47: two lines before it is cut, as a job row's title (JobRow.svelte). */
 	.group-header .title {
 		min-width: 0;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+		overflow-wrap: anywhere;
 		font-weight: var(--fw-medium);
 	}
 
