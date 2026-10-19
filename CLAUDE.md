@@ -53,7 +53,7 @@ release pipeline. No next master is planned; a new one starts with its own `plan
   before searching manually; `graphify update .` after every code-modifying version.
 - **Every version slice bumps the one shared app version**: identical `major.minor.patch`
   (master . slice, e.g. v21 → `2.21.0`) in `backend/pyproject.toml` and `frontend/package.json`,
-  both bumped even if one side changed, plus `uv lock` in `backend/`. CI's `version` job enforces
+  both bumped even if one side changed (a byte-identical image rebuild), plus `uv lock` in `backend/`. CI's `version` job enforces
   it; a PR touching neither `backend/` nor `frontend/` needs no bump and cuts no release. **A new
   required compose variable (`${VAR:?}`)** follows `docs/RELEASE_PIPELINE.md`'s "Adding a required
   env var" checklist and goes under the PR's "Deploy notes" (preflight and CI's drift check fail on it).
@@ -65,8 +65,8 @@ release pipeline. No next master is planned; a new one starts with its own `plan
 Two environments share the physical Postgres server but **never a database**: local dev uses
 **`spotdlwebtest`**, production **`spotdlweb`** (v32). The dev override sets `SPOTDL_ENV=dev` on every
 backend service, and `app/config.py` refuses to boot any of them, `migrate` included, against a
-production database name (`spotdlweb`, also the templates' old `spotdl_web`) or an unparseable URL.
-Never remove the marker or set it in production. Dev uses test identities only, the dev
+production database name (`spotdlweb`, also the templates' `spotdl_web`) or an unparseable URL.
+Never remove the marker or set it in production (any value but `dev` is refused). Dev uses test identities, the dev
 `ADMIN_EMAIL` included; create/reset steps are in `docs/LOCAL_DEV.md`'s "Dedicated dev database".
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
@@ -166,7 +166,7 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
   `test_settings_retention.py`, `test_proxies_router.py`, `test_worker.py`, `test_settings_router.py`
   and `test_stats.py`, **and** `scripts/verify_separation_sse.sh` against a running stack, covering
   **direct-id endpoints**. Non-owner access returns **404, not 403** (admin endpoints answer a
-  non-admin 403, except `/api/admin/stats`'s 404). A module-level frontend store is a data surface
+  non-admin 403, except `/api/admin/stats` and the test-alert send, which 404). A module-level frontend store is a data surface
   too: reset it on logout or identity change (`queue.reset()`), never just re-fetch.
 - **The SSE stream is a data surface.** `publish_*_event` takes the owning user as a **required**
   argument; verify by raw-capturing `curl -N /api/stream`, never via the UI.
