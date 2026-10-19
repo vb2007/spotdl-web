@@ -67,14 +67,47 @@ function write(cache: Cache): void {
 	}
 }
 
-export function rememberProgress(trackId: string, progress: number, attempt: number): void {
+// v47 (F33): the backend streams every tick unthrottled, and each one was a synchronous
+// read, parse and rewrite of the whole cache. Writes are now at most one a second: a tick
+// after a quiet second is written at once, later ones are held and the newest per track
+// goes out on the trailing edge (and when the page is hidden or left), so a reload still
+// finds a recent value. Reads see the held ticks too.
+const WRITE_EVERY_MS = 1000;
+let held: Cache = {};
+let lastWrite = 0;
+let flushTimer: ReturnType<typeof setTimeout> | undefined;
+
+function flush(): void {
+	clearTimeout(flushTimer);
+	flushTimer = undefined;
+	if (Object.keys(held).length === 0) return;
 	const now = Date.now();
 	const cache = read(now);
-	cache[trackId] = { progress, attempt, at: now };
+	Object.assign(cache, held);
+	held = {};
+	lastWrite = now;
 	write(cache);
 }
 
+try {
+	globalThis.addEventListener?.('pagehide', flush);
+	globalThis.document?.addEventListener('visibilitychange', () => {
+		if (globalThis.document.visibilityState === 'hidden') flush();
+	});
+} catch {
+	// No window (a unit test's import): nothing to flush on.
+}
+
+export function rememberProgress(trackId: string, progress: number, attempt: number): void {
+	const now = Date.now();
+	held[trackId] = { progress, attempt, at: now };
+	if (now - lastWrite >= WRITE_EVERY_MS) flush();
+	else if (flushTimer === undefined)
+		flushTimer = setTimeout(flush, WRITE_EVERY_MS - (now - lastWrite));
+}
+
 export function forgetProgress(trackId: string): void {
+	delete held[trackId];
 	const now = Date.now();
 	const cache = read(now);
 	if (!(trackId in cache)) return;
@@ -84,11 +117,15 @@ export function forgetProgress(trackId: string): void {
 
 /** The remembered progress for this exact attempt, or undefined. */
 export function recallProgress(trackId: string, attempt: number): number | undefined {
-	const entry = read(Date.now())[trackId];
+	const entry = held[trackId] ?? read(Date.now())[trackId];
 	return entry && entry.attempt === attempt ? entry.progress : undefined;
 }
 
 export function clearProgress(): void {
+	held = {};
+	lastWrite = 0;
+	clearTimeout(flushTimer);
+	flushTimer = undefined;
 	try {
 		storage()?.removeItem(KEY);
 	} catch {

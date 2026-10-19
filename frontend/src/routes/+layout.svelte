@@ -1,4 +1,14 @@
 <script lang="ts">
+	// v47 (F33): the two families are served from this app (Fontsource, OFL), not Google Fonts:
+	// that stylesheet blocked first paint (444 of 788 ms cold) and sent every visit to a third
+	// party. Each weight's file declares its subsets by unicode-range, so a page downloads only
+	// the ones its text uses (latin, plus latin-ext for Hungarian's ő and ű).
+	import '@fontsource/ibm-plex-sans/400.css';
+	import '@fontsource/ibm-plex-sans/500.css';
+	import '@fontsource/ibm-plex-sans/600.css';
+	import '@fontsource/ibm-plex-mono/400.css';
+	import '@fontsource/ibm-plex-mono/500.css';
+	import '@fontsource/ibm-plex-mono/600.css';
 	import '../app.css';
 	import { tick } from 'svelte';
 	import favicon from '$lib/assets/favicon.svg';
