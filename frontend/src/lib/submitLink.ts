@@ -1,40 +1,37 @@
 // v47: what the submit box sends, out of what was pasted. It replaced the browser's own URL
 // check (`novalidate`), which spoke the browser's language and turned away a link pasted
 // with words or an emoji around it.
+//
+// The link is the whitespace-free token it sits in, from where the link starts: spotdl reads
+// more than a bare link (`<youtube url>|<spotify url>` pins the audio, so a `|` pair is one
+// link), and a token is what the browser's check took whole. Off its end goes whatever a
+// sentence glues on: punctuation, an emoji (with its modifiers, a flag, a keycap). A Spotify
+// link or URI ends at its id (base62) plus a link's optional query, since Hungarian writes a
+// case ending onto a link with a hyphen ("…/album/<id>-t").
 
-// A Spotify link or URI ends at its id (base62), a link plus an optional query: Hungarian
-// writes a case ending onto a link with a hyphen ("…/album/<id>-t"), and that is the
-// sentence's, not the id's. What comes before the id may be anything a username holds (a
-// legacy `/user/<name>/playlist/<id>` or `spotify:user:<name>:playlist:<id>`, a locale's
-// `/intl-hu/`). Brackets and parentheses end any link, so a Markdown link counts as the two
-// it holds.
+const START_RE = /https?:\/\/|spotify:/gi;
 const SPOTIFY_RE =
-	/https?:\/\/open\.spotify\.com\/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9]+(?:\?[A-Za-z0-9=&%_-]*)?|spotify:[a-z]+(?::[^\s:<>"'()[\],]+)*:[A-Za-z0-9]+/i;
-const LINK_RE = /https?:\/\/[^\s<>"'()[\],]+/i;
-const ANY_LINK_RE =
-	/https?:\/\/[^\s<>"'()[\],]+|spotify:[a-z]+(?::[^\s:<>"'()[\],]+)*:[A-Za-z0-9]+/gi;
+	/^(?:https?:\/\/open\.spotify\.com\/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9]+(?:\?[A-Za-z0-9=&%_-]*)?|spotify:[a-z]+(?::[^\s:<>"'()[\],|]+)*:[A-Za-z0-9]+)/i;
+// Anything but a letter, a digit or a character a link ends in.
+const GLUED_RE = /[^\p{L}\p{N}/=_\-&%#~+]+$/u;
 
-/** How many links (or `spotify:` URIs) the text holds. */
+/** How many links the text holds: each start counts, except the second half of a `|` pair. */
 export function countLinks(text: string): number {
-	return (text.match(ANY_LINK_RE) ?? []).length;
+	let count = 0;
+	for (const match of text.matchAll(START_RE)) {
+		if (text[(match.index ?? 0) - 1] !== '|') count += 1;
+	}
+	return count;
 }
 
-// One token that is already a link goes as it is: that is what the browser's check accepted,
-// and spotdl reads more than a bare link (`<youtube url>|<spotify url>` pins the audio; a
-// YouTube playlist id may end in "-"). A lone Spotify link still ends at its id.
-const SINGLE_RE = /^(?:https?:\/\/|spotify:)\S+$/i;
-// What a sentence glues onto the end of another link: punctuation and emoji, never "-".
-const GLUED_RE = /[.,;:!?…"'»”’\p{Extended_Pictographic}\uFE0F]+$/u;
-
-/** The link to send (the form refuses text holding several, so there is one). A single
- * token is sent as it is (a Spotify link cut at its id); out of surrounding words, a Spotify
- * link or URI ends at its id, any other link loses the punctuation or emoji glued on. */
+/** The link to send (the form refuses text holding several, so there is one). */
 export function linkIn(text: string): string | undefined {
-	const trimmed = text.trim();
-	const spotify = SPOTIFY_RE.exec(trimmed);
-	if (SINGLE_RE.test(trimmed)) {
-		return spotify?.index === 0 && !trimmed.includes('|') ? spotify[0] : trimmed;
+	const start = text.search(START_RE);
+	if (start === -1) return undefined;
+	const token = text.slice(start).split(/\s/, 1)[0];
+	if (!token.includes('|')) {
+		const spotify = SPOTIFY_RE.exec(token);
+		if (spotify) return spotify[0];
 	}
-	if (spotify) return spotify[0];
-	return LINK_RE.exec(trimmed)?.[0].replace(GLUED_RE, '');
+	return token.replace(GLUED_RE, '') || undefined;
 }

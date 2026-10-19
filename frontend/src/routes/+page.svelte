@@ -293,7 +293,12 @@
 		} catch (err) {
 			// Still here and still signed in: the reload guard must work again.
 			loggingOut = false;
-			logoutError = m.dashboard_disconnect_failed({ error: errorText(err) });
+			const shown = m.dashboard_disconnect_failed({ error: errorText(err) });
+			logoutError = shown;
+			// It answers one press; it doesn't stay in the masthead for the rest of the visit.
+			setTimeout(() => {
+				if (logoutError === shown) logoutError = '';
+			}, 10_000);
 			return;
 		}
 		// `queue` is a module-level singleton that survives this SPA navigation -- clear it

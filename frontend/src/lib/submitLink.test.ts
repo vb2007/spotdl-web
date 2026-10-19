@@ -55,6 +55,14 @@ describe('v47 submit link', () => {
 		);
 	});
 
+	it('keeps a pinned pair whole inside words, and drops any emoji glued on', () => {
+		const pinned = `https://www.youtube.com/watch?v=dQw4w9WgXcQ|https://open.spotify.com/track/${ID}`;
+		expect(linkIn(`nézd: ${pinned} !`)).toBe(pinned);
+		expect(linkIn('see https://youtube.com/watch?v=abc👍🏽')).toBe('https://youtube.com/watch?v=abc');
+		expect(linkIn('see https://youtube.com/watch?v=abc🇭🇺')).toBe('https://youtube.com/watch?v=abc');
+		expect(linkIn(`${ALBUM}👨‍👩‍👧`)).toBe(ALBUM);
+	});
+
 	it('counts the links, a Markdown link as the two it holds', () => {
 		expect(countLinks(ALBUM)).toBe(1);
 		expect(countLinks(`${ALBUM} ${ALBUM}`)).toBe(2);
