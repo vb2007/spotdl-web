@@ -224,10 +224,16 @@
 	}
 
 	/* v42: a --bg-2 fill no longer reads on the faceplate; hover underlines instead. */
-	.load-more:hover:not([aria-disabled='true']),
 	.load-more:focus-visible {
 		text-decoration: underline;
 		text-underline-offset: 0.2em;
+	}
+
+	@media (hover: hover) {
+		.load-more:hover:not([aria-disabled='true']) {
+			text-decoration: underline;
+			text-underline-offset: 0.2em;
+		}
 	}
 
 	/* v47: dimmed text, not opacity (an opacity-faded control drops under 4.5:1). */

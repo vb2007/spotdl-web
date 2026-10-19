@@ -75,10 +75,16 @@
 		text-underline-offset: 0.3em;
 	}
 
-	.nav-link:hover,
 	.nav-link:focus-visible {
 		color: var(--text-primary);
 		text-decoration-color: currentColor;
+	}
+
+	@media (hover: hover) {
+		.nav-link:hover {
+			color: var(--text-primary);
+			text-decoration-color: currentColor;
+		}
 	}
 
 	/* The page you're on: primary text and no underline, a place rather than a link. */

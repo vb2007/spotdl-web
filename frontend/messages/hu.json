@@ -57,7 +57,7 @@
 	"login_ident_receiver": "JELVEVŐ",
 	"login_heading": "HANGOLÁS",
 	"login_hint": "Jelentkezz be a vb2007.hu-fiókoddal. Belépni csak meghívással lehet.",
-	"login_session_ended": "A munkameneted lejárt. Jelentkezz be újra.",
+	"login_session_ended": "A munkameneted véget ért. Jelentkezz be újra.",
 	"login_email": "E-mail",
 	"login_password": "Jelszó",
 	"login_connect": "kapcsolódás",

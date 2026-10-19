@@ -333,15 +333,19 @@
 								type="button"
 								class="btn small"
 								onclick={() =>
-									loadStatus().catch((err) => {
-										loadError =
-											err instanceof api.ApiError
-												? m.library_retry_failed({
-														error: apiErrorText(err),
-														time: formatTime(new Date())
-													})
-												: m.library_retry_unreachable({ time: formatTime(new Date()) });
-									})}>{m.library_try_again()}</button
+									loadStatus()
+										.catch((err) => {
+											loadError =
+												err instanceof api.ApiError
+													? m.library_retry_failed({
+															error: apiErrorText(err),
+															time: formatTime(new Date())
+														})
+													: m.library_retry_unreachable({ time: formatTime(new Date()) });
+										})
+										// v47: on success this button goes with its block; focus goes to the
+										// section's heading rather than <body>.
+										.finally(() => keepFocus(heading))}>{m.library_try_again()}</button
 							>
 						</p>
 					{:else}

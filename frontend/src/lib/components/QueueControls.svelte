@@ -603,8 +603,10 @@
 		color: var(--text-primary);
 	}
 
-	.chip:hover .n {
-		color: var(--text-muted);
+	@media (hover: hover) {
+		.chip:hover .n {
+			color: var(--text-muted);
+		}
 	}
 
 	/* Hover lifts only the text: the fill and floor line stay the pressed state's. A
@@ -624,11 +626,18 @@
 	}
 
 	/* Stays transparent on hover: --fail on the generic --bg-3 hover is only 3.88:1. */
-	.chip.danger:focus-visible,
-	.chip.danger:hover {
+	.chip.danger:focus-visible {
 		background: transparent;
 		border-color: var(--fail);
 		color: var(--fail);
+	}
+
+	@media (hover: hover) {
+		.chip.danger:hover {
+			background: transparent;
+			border-color: var(--fail);
+			color: var(--fail);
+		}
 	}
 
 	.chip.dir {

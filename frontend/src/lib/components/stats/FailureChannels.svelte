@@ -467,8 +467,10 @@
 		width: max-content;
 	}
 
-	.as-table summary:hover {
-		color: var(--text-primary);
+	@media (hover: hover) {
+		.as-table summary:hover {
+			color: var(--text-primary);
+		}
 	}
 
 	.table-wrap {
@@ -531,10 +533,10 @@
 	}
 	/* v47 (F32): the disclosure is a control: a finger's height on touch. */
 	@media (pointer: coarse) {
+		/* Padding, not display:flex: a summary draws its open/closed marker only as a
+		   list-item. */
 		.as-table summary {
-			display: flex;
-			align-items: center;
-			min-height: 2.75rem;
+			padding-block: 0.75rem;
 		}
 	}
 </style>

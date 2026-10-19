@@ -477,7 +477,11 @@
 				unreachedPolls = 0;
 			})
 			.catch((err) => {
-				if (err instanceof api.ApiError) return;
+				// An error answer reached the server: the run of unreached polls is broken.
+				if (err instanceof api.ApiError) {
+					unreachedPolls = 0;
+					return;
+				}
 				unreachedPolls += 1;
 				if (unreachedPolls >= 2 && get(link) === 'live') restartStream();
 			});
@@ -502,9 +506,11 @@
 		restartStream();
 	}
 
+	// Only a link that is down starts over: an `online` with the stream still live (a VPN or
+	// Wi-Fi handoff that never broke it) would otherwise wipe the list for a resync.
 	function onOnline() {
 		unreachedPolls = 0;
-		restartStream();
+		if (get(link) !== 'live') restartStream();
 	}
 
 	function onVisible() {
@@ -872,10 +878,16 @@
 		text-underline-offset: 0.3em;
 	}
 
-	.nav-link:hover,
 	.nav-link:focus-visible {
 		color: var(--text-primary);
 		text-decoration-color: currentColor;
+	}
+
+	@media (hover: hover) {
+		.nav-link:hover {
+			color: var(--text-primary);
+			text-decoration-color: currentColor;
+		}
 	}
 
 	/* Wraps rather than truncating (the tooltip holding the full name is unreachable by

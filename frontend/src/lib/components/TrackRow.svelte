@@ -1064,7 +1064,6 @@
 		clip-path: inset(50%);
 	}
 
-	.when:hover .abs,
 	.when:focus-visible .abs,
 	.when.pinned .abs {
 		/* Visible, or it clips its own hover bridge below. */
@@ -1082,15 +1081,37 @@
 		color: var(--text-primary);
 	}
 
+	/* v47: hover reveals only where a pointer hovers. On touch a tap pins it (above); a sticky
+	   hover kept it on screen after a second tap had unpinned it. */
+	@media (hover: hover) {
+		.when:hover .abs {
+			/* Visible, or it clips its own hover bridge below. */
+			overflow: visible;
+			left: 0;
+			bottom: calc(100% + var(--space-1));
+			z-index: 1;
+			width: auto;
+			height: auto;
+			clip-path: none;
+			padding: var(--space-1) var(--space-2);
+			background: var(--bg-3);
+			border: 1px solid var(--line-bright);
+			border-radius: 3px;
+			color: var(--text-primary);
+		}
+	}
+
 	/* Bridges the gap down to the button, so the pointer can move onto the tooltip without
 	   losing it (WCAG 1.4.13, hoverable). */
-	.when:hover .abs::after {
-		content: '';
-		position: absolute;
-		left: 0;
-		right: 0;
-		top: 100%;
-		height: calc(var(--space-1) + 2px);
+	@media (hover: hover) {
+		.when:hover .abs::after {
+			content: '';
+			position: absolute;
+			left: 0;
+			right: 0;
+			top: 100%;
+			height: calc(var(--space-1) + 2px);
+		}
 	}
 
 	/* Pinned, the absolute time joins the gutter under the relative one instead of

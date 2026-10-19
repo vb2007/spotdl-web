@@ -986,8 +986,13 @@
 						<!-- Nothing read: never claim "no proxies" over a failed load. -->
 						<div class="load-failed">
 							<p>{m.settings_proxies_load_failed({ error: proxiesLoadError })}</p>
-							<button type="button" class="btn small" onclick={loadProxies}
-								>{m.settings_proxies_try_again()}</button
+							<button
+								type="button"
+								class="btn small"
+								onclick={() => {
+									loadProxies();
+									keepFocusOnHeading('proxies-heading');
+								}}>{m.settings_proxies_try_again()}</button
 							>
 						</div>
 					{:else if proxyList.length === 0}
@@ -1126,8 +1131,10 @@
 		text-decoration: none;
 	}
 
-	.index a:hover {
-		color: var(--text-primary);
+	@media (hover: hover) {
+		.index a:hover {
+			color: var(--text-primary);
+		}
 	}
 
 	/* Where you are: a mark in shape (the rail), not only in tone. Never amber. */
