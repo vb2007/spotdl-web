@@ -60,8 +60,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel
 docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
 ```
 
-If GHCR itself is unreachable, build from source instead of pulling — see the manual
-local-build steps in
+If GHCR itself is unreachable, build from source instead of pulling — see the local-build
+commands in §4 of
 [Upgrading an existing deployment](#upgrading-an-existing-deployment-manual-fallback) below.
 
 ---
@@ -85,6 +85,12 @@ Diff your existing `.env` against `.env.example` and add whatever's new for v12:
 | `DOWNLOADS_DIR` | A real host path, e.g. `/home/vb2007/spotdl` (this host's actual value) — read only by `docker-compose.prod.yml`, see §3 |
 | `LIBRARY_DIR` (v28) | A real host path for the actual music library the sort & move sweep (on `worker-expand` since v34.1; `worker-meta` mounts it too, for `reconcile_disk`) writes into and `web` serves file downloads from read-only — e.g. `/mnt/raid1/media/music` (this host's actual value since 2026-10-11; before that it was the empty test folder `/mnt/raid1/media/test`). `docker-compose.prod.yml`'s `${LIBRARY_DIR:?...}` crash-loops the stack at `up` time if this is unset, by design. See the new "Set up the library directory" step below §3 |
 | `STALE_TRACK_AFTER_SECONDS` | Leave at the `.env.example` default (`1800`) for real production use — see §7's restart-survival test for why you might *temporarily* lower it during verification |
+| `YOUTUBE_PLAYER_CLIENTS` (v31.1) | Optional; `app/config.py` defaults to `android,web,mweb`, the same as `.env.example`. Retune only if a yt-dlp player client starts failing |
+| `MATRIX_HOMESERVER_URL` / `MATRIX_ACCESS_TOKEN` / `MATRIX_ROOM_ID` (v36) | Optional; unset means app alerts are off. See [App alerts](#app-alerts-v36) |
+
+A key a newer version *requires* (`${VAR:?}` in a compose file) is named by the deploy's preflight
+before anything on the host moves; see "A deploy needs a new `.env` variable" under
+[Rollback / recovery](#rollback--recovery-v21-v33).
 
 **No longer needed:** a `frontend/.env` file, and a manual `alembic upgrade head` step —
 both are now automatic (see §4 and §5 below). If you have a leftover `frontend/.env` from
@@ -113,14 +119,14 @@ docker run --rm \
   alpine sh -c 'cp -a /from/. /to/ && echo "copied $(ls /to | wc -l) entries"'
 
 # Non-root containers (v12) run as uid/gid 1000 by default (backend/Dockerfile's
-# APP_UID/APP_GID build args) -- chown to match, or worker-dl/worker-meta will get
-# permission-denied writing new downloads.
+# APP_UID/APP_GID build args) -- chown to match, or worker-dl/worker-meta/worker-expand will
+# get permission-denied writing new downloads.
 sudo chown -R 1000:1000 /home/vb2007/spotdl
 ```
 
 If your deploy user ended up with a different uid than 1000 and you'd rather match that
 than chown the directory, rebuild with `--build-arg APP_UID=<uid> --build-arg
-APP_GID=<gid>` instead — see step 4's build command.
+APP_GID=<gid>` on the backend image instead — see step 4's local-build commands.
 
 **`LIBRARY_DIR` (v28)** is a separate, second bind mount — the real music library
 (`docker-compose.prod.yml` maps it to `/mnt/raid1/media/music` in `worker-meta` and `worker-expand`
@@ -162,12 +168,25 @@ sweep skips an existing destination, and every `unlink` acts on the `/downloads`
 
 ```bash
 cd /mnt/raid1/spotdl-web
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build
+```
+
+(2026-10-19, v48: this used to read `up -d --build`. Since v21 the overlay swaps every service's
+`build:` for a GHCR `image:` at `.env`'s `IMAGE_TAG` (`build: !reset null`), so `--build` builds
+nothing.) **GHCR unreachable?** Build both images locally under the exact tags the overlay
+expects, the same way `publish-deploy.yml`'s `publish` job does, then `up` without `pull`:
+
+```bash
+TAG="$(grep -E '^IMAGE_TAG=' .env | tail -n1 | cut -d= -f2-)"
+docker build -t "ghcr.io/vb2007/spotdl-web-backend:$TAG" ./backend    # + --build-arg APP_UID=/APP_GID= if needed
+docker build -t "ghcr.io/vb2007/spotdl-web-frontend:$TAG" --build-arg PUBLIC_API_BASE_URL= ./frontend
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build
 ```
 
 This is a different invocation from pre-v12 versions in three ways:
-- **`-f docker-compose.prod.yml`** is new — carries resource limits, the downloads bind
-  mount from step 3, and the `web` build arg (see below).
+- **`-f docker-compose.prod.yml`** is new — carries resource limits, the `DOWNLOADS_DIR` and
+  `LIBRARY_DIR` bind mounts from step 3, the GHCR image tags (v21) and the IPv6 network (v29).
 - **`--profile tunnel`** now actually starts `cloudflared` for real, using the
   `CLOUDFLARE_TUNNEL_TOKEN` already sitting in `.env` from earlier testing.
 - You no longer need a separate `frontend/.env` before this — `web`'s `PUBLIC_API_BASE_URL`
@@ -218,7 +237,9 @@ Expect every service `healthy` except `beat` (deliberately has no healthcheck �
 comment in `docker-compose.yml`) and `migrate`/`cloudflared` (one-shot / no healthcheck
 defined). If anything is `unhealthy`, `docker compose logs <service>` — output is now
 structured JSON (v12), so `docker compose logs api | jq .` is worth doing over raw
-scrollback.
+scrollback. Logs only reach back to the last deploy: a deploy recreates every container, and
+each container's log goes with it, so anything older (an alert that never arrived, say) can't be
+reconstructed from the host (v48).
 
 From the host:
 ```bash
@@ -412,7 +433,7 @@ to bring the stack up manually while you investigate.
 
 The pipeline posts to one Matrix room on this host's Synapse: a message for any failed or
 cancelled Publish & Deploy or Release run, and one for every real (release-mode) deploy that
-succeeded. v36's app alerts will reuse the same bot and room. This is a one-time setup, done by
+succeeded. v36's app alerts reuse the same bot and room ([App alerts](#app-alerts-v36) below). This is a one-time setup, done by
 the owner, since it touches the production Synapse. Until the three repository secrets exist,
 the `notify` jobs print a warning and pass, so nothing breaks in the meantime.
 
@@ -486,8 +507,8 @@ MATRIX_ACCESS_TOKEN=<a token for the bot>   # ideally its own device: log in aga
 MATRIX_ROOM_ID=!AbCdEf123:<server>
 ```
 
-then `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d` so the backend
-services pick them up. `worker-meta` logs `alerts: Matrix alerts are on (room ...)` (or `... are
+then `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build`
+so the backend services pick them up. `worker-meta` logs `alerts: Matrix alerts are on (room ...)` (or `... are
 off (<names> unset)`) once at startup. Check the wiring from **/settings → Alerts → Send test
 alert** (admin only). The same panel turns each category off and sets the spike threshold (default
 5 in a row) and window (60 min), the beat-stale threshold (180 s) and the cooldown (60 min: an
@@ -526,6 +547,10 @@ sudo -u postgres psql -c "SHOW hba_file;"
 sudo -u postgres psql -c "CREATE ROLE spotdl_web WITH LOGIN PASSWORD 'changeme';"
 sudo -u postgres psql -c "CREATE DATABASE spotdl_web OWNER spotdl_web;"
 ```
+
+(2026-10-19, v48: this host's real role and database are both **`spotdlweb`**, not the
+`spotdl_web` shown here, in §3's `pg_hba.conf` line and in `.env.example`. Local dev's
+`spotdlwebtest` is owned by the same role. `app/config.py` treats both names as production.)
 
 If you need to change the password later, use `\password <role>` inside an interactive
 `psql` session rather than passing it on the command line — special characters (`!`,
@@ -617,7 +642,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps 
 ```
 
 Only `api` needs recreating — it's the sole service that reads `ALLOWED_EMAILS` at request time
-(the login check); `worker-dl`/`worker-meta`/`beat` don't, so leaving them running avoids
+(the login check); `worker-dl`/`worker-meta`/`worker-expand`/`beat` don't, so leaving them running avoids
 interrupting an in-flight download. The new person's `users` row is created automatically on their
 first successful login (`services.users.get_or_create_user`) — nothing to seed by hand. They are
 never admin unless their address also matches `ADMIN_EMAIL`. Confirm with:
@@ -804,16 +829,21 @@ the stack first):
 
 ```bash
 cd /mnt/raid1/spotdl-web
-docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel down
 LATEST=$(ls -t /mnt/raid1/spotdl-web/backups/*.dump | head -1)   # or a specific older dump
 pg_restore --no-owner --clean --if-exists \
-  --dbname="$(grep -E '^DATABASE_URL=' .env | cut -d= -f2- | sed 's/postgresql+psycopg:/postgresql:/')" \
+  --dbname="$(grep -E '^DATABASE_URL=' .env | tail -n1 | cut -d= -f2- \
+    | sed -e 's/postgresql+psycopg:/postgresql:/' -e 's/host\.docker\.internal/localhost/')" \
   "$LATEST"
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build
 ```
 
-This is also the recovery path if a deploy's Alembic migration needs undoing — see
-[Rollback / recovery](#rollback--recovery-v21-v33) above; migrations are never auto-downgraded.
+(2026-10-19, v48: the URL now also swaps `host.docker.internal` for `localhost`, as
+`pg_backup.sh` does. `.env`'s URL is written for the containers, and the host can't resolve that
+name.) `--clean` only drops what is *in* the dump, so it suits restoring data onto the same schema.
+To undo a deploy's Alembic migration, restore into an **emptied** schema instead, exactly as
+[Rollback / recovery](#rollback--recovery-v21-v33) above describes ("The database is ahead of the
+rollback image"); migrations are never auto-downgraded.
 
 ---
 
@@ -824,7 +854,8 @@ This is also the recovery path if a deploy's Alembic migration needs undoing —
 at risk (a `waiting` track is a pure Postgres row; the v06 retry engine already tested
 this at the unit level). The property that genuinely needed hardening in v12 is a track
 **actively downloading** when the stack goes down, since that's a live process, not just a
-DB row. Test that specifically:
+DB row. Test that specifically. Any `up` on this host carries the production overlay (a bare
+`docker compose up` would pick up the dev-only `docker-compose.override.yml` from the checkout):
 
 ```bash
 # 1. Submit a real track and watch for it to enter `downloading` (via the UI, or:
@@ -837,14 +868,14 @@ print([t.id for t in db.query(Track).filter(Track.state == TrackState.DOWNLOADIN
 
 # 2. While it's genuinely downloading, hard-kill worker-dl (SIGKILL, not the graceful
 #    stop_grace_period path -- this is the actual failure mode being tested):
-docker compose kill worker-dl
-docker compose up -d worker-dl
+docker compose -f docker-compose.yml -f docker-compose.prod.yml kill worker-dl
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-build worker-dl
 
 # 3. Confirm the track does NOT stay stranded in `downloading` forever. It resolves one of
 #    two ways: Celery's task_acks_late redelivers the same task once the broker's
 #    visibility_timeout (3600s) elapses, OR beat's stale-track reclaim sweep resets it to
 #    `waiting` once STALE_TRACK_AFTER_SECONDS elapses (1800s in production; temporarily
-#    export a lower value in .env + `docker compose up -d beat` before this test if you
+#    export a lower value in .env + `up -d --no-build beat` (with the overlay) before this test if you
 #    don't want to wait 30 minutes to observe it -- restore the real value afterward).
 watch -n 5 'docker compose exec api python -c "
 from app.db import SessionLocal
