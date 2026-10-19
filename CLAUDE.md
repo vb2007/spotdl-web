@@ -8,8 +8,6 @@ Rules:
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 
----
-
 ## Project: spotdl-web
 
 A self-hosted web wrapper around the **spotdl** Python library. Users submit Spotify
@@ -20,106 +18,68 @@ YouTube-Music rate limiting as an expected, permanent condition rather than a fa
 That inverts normal web-app priorities — durability beats throughput. A track may legitimately sit
 in the queue for days, and that is correct behavior, not a stall.
 
-**Status:** master v1 (v00–v13), v2 (v14–v22) and v3 (v23–v31.1) are complete, merged, and deployed
-at `spotdl.vb2007.hu`. Current work is **master v4 (v32–v48)**: operational safety (dev DB split,
-deploy rollback), correctness, Matrix alerting + stats, and an impeccable-driven UI/UX overhaul with
-full (Hungarian-QWERTZ-first) keyboard navigation and Hungarian/English i18n. Implementation sessions start from `plan/master-v4/IMPLEMENTATION_PROMPT.md`.
+**Status:** masters v1–v4 (v00–v48) are complete and deployed at `spotdl.vb2007.hu`. No next
+master is planned; a new one starts with its own `plan/master-vN/00-master-plan.md`.
 
 ### Where things are
 
 | What | Where |
 |---|---|
-| Current roadmap + rationale | `plan/master-v4/00-master-plan.md` |
-| Per-version implementation detail | `plan/master-v4/vNN-*.md` (v32–v48); agent prompt template `plan/master-v4/IMPLEMENTATION_PROMPT.md` |
-| Master v1–v3 plans (historical, never edited) | `plan/master-v1/`, `plan/master-v2/`, `plan/master-v3/` |
-| **Accumulated gotchas from v01–v13** | **`docs/GOTCHAS.md`** — indexed by topic; read the relevant section before touching an area |
-| Deploy runbook (Debian host) | `docs/DEPLOYMENT.md` |
-| Local dev runbook | `docs/LOCAL_DEV.md` |
-| CI (self-hosted runner) | `docs/CI_SELF_HOSTED_RUNNER.md` |
-| Release pipeline (versioning, GHCR, deploy automation) | `docs/RELEASE_PIPELINE.md` |
-| Product brief / UX requirements | `PRODUCT.md` |
-| Frontend design system | `frontend/src/DESIGN.md` |
+| Latest roadmap + rationale (and its Amendments) | `plan/master-v4/00-master-plan.md` |
+| Per-version plans (finished masters' are historical, never edited) | `plan/master-vN/vNN-*.md`; agent prompt template `plan/master-v4/IMPLEMENTATION_PROMPT.md` |
+| **Accumulated gotchas, v01–v48** | **`docs/GOTCHAS.md`** — indexed by topic; read the relevant section before touching an area |
+| Deploy runbook (Debian host) / local dev runbook | `docs/DEPLOYMENT.md` / `docs/LOCAL_DEV.md` |
+| CI (self-hosted runner) / release pipeline (versioning, GHCR, deploy, rollback) | `docs/CI_SELF_HOSTED_RUNNER.md` / `docs/RELEASE_PIPELINE.md` |
+| Product brief / frontend design system | `PRODUCT.md` / `frontend/src/DESIGN.md` |
 
-`docs/GOTCHAS.md` is the single most useful file when you hit something surprising. It records
-*why* things are the way they are and the failure modes already paid for. Don't read it end to end —
-use its topic index. Its entries describe the code as of v13; **verify a referenced file or
-function still exists before acting on it**, since v2 changes schema, endpoints, and the frontend.
+`docs/GOTCHAS.md` records *why* things are as they are; use its topic index, never read it end to
+end, and **verify a referenced file or function still exists before acting on it.**
 
 ### Workflow rules (do not deviate without asking)
 
-- **One feature at a time.** Work through `plan/master-vN/vNN-*.md` in order. Never implement two
-  versions in parallel. Subagents work *within* a version, on that version's single concern.
-- **Branch per version**: `dev-<feature-name>`, branched from `main`. Every completed version opens
-  a PR into `main`. A "version" is a feature slice, not a release.
-- **Do not start a version out of order** without asking — the sequencing is deliberate (schema
-  before enforcement, ownership before the API rework, UI last).
+- **One feature at a time.** Work through `plan/master-vN/vNN-*.md` in order; never two versions in
+  parallel, never one out of order (the sequencing is deliberate). Subagents work *within* a
+  version, on its single concern.
+- **Branch per version**: `dev-<feature-name>` from `main`, one PR into `main` per version.
 - **"Done when" is a literal checklist, not a vibe.** Every bullet needs its own concrete evidence
-  (a log line, command output, a file listing) gathered *this session*. Testing one scenario and
-  assuming a differently-shaped one also works is how regressions reach "merge-ready" — this has
-  bitten the project twice (v05's untested album, v11's untested bump endpoint). Re-read the plan's
-  list fresh before saying merge-ready.
+  (a log line, command output, a file listing) gathered *this session*. One scenario passing never
+  proves a differently shaped one (v05's untested album, v11's untested bump endpoint). Re-read the
+  plan's list fresh before saying merge-ready.
 - **A PR isn't merge-ready until every change on it has been re-tested against the real stack** —
-  the local `docker compose` stack, real Postgres, real network. Not just `pytest`. Unit tests pass
-  while a fix still fails against the real dialect or runtime.
-- **Mocked verification is not verification.** If a feature touches the network, a proxy, or the
-  database, at least one real end-to-end run is required before it ships. This includes login:
-  at least one identity must go through the real upstream `vb2007.hu-api`, not only the
-  direct-session-mint fallback (`docs/GOTCHAS.md`'s v15 testing entry) — use the local instance
-  (`host.docker.internal:3000`) if it's running, otherwise the live `https://api.vb2007.hu`
-  (register a fresh test account freely if needed). Only skip this if genuinely neither is
-  reachable, and say so explicitly rather than silently substituting the fallback for all of it.
-- **Context comes from graphify, not exploration agents.** Run `graphify query` / `path` / `explain`
-  before searching manually. Run `graphify update .` after every code-modifying version.
-- **Every version slice bumps the app version.** `backend/pyproject.toml`'s `version` and
-  `frontend/package.json`'s `version` must carry the identical `major.minor.patch` string
-  (`major.minor` = master series . roadmap slice, e.g. v21 → `2.21.0`), and a PR touching
-  `backend/`/`frontend/` isn't merge-ready until it bumps that string — CI's `version` job
-  (`.github/scripts/check_version.py`) enforces both the agreement and the bump. **There is one
-  shared app version, not independent backend/frontend versions**: a PR touching only one side
-  still bumps *both* files to the same new string. The unchanged side's Docker image still gets
-  rebuilt and republished under the new tag by `publish-deploy.yml` — expect a byte-identical
-  rebuild there, not a bug to chase. A PR that touches neither `backend/` nor `frontend/` (docs,
-  workflows, plans) needs no bump at all, and `release.yml`/`publish-deploy.yml` correctly skip
-  cutting a new release or image for it. See `docs/RELEASE_PIPELINE.md` for the release/deploy
-  automation this feeds. **A slice adding a required compose variable (`${VAR:?}`)** follows that
-  doc's "Adding a required env var" checklist and lists the variable under its plan's and PR's
-  "Deploy notes" (v33: the deploy preflight and CI's drift check both fail on a missing one).
-- **Develop locally, deploy to verify.** The local stack is the iteration loop; the Debian host is
-  a final-verification target, not a place to chase build errors one SSH round trip at a time. Only
-  debug there for genuinely host-specific issues (shared Postgres, tunnel/ingress, restart survival).
-  **Minimize SSH access to the host beyond that** — it runs other real production services
-  (Matrix/Synapse, Vaultwarden), not just this app. When a host-side action is genuinely needed,
-  batch it into as few SSH round trips as possible rather than a series of exploratory checks.
-- **Keep this file current — but keep it short.** See "Maintaining this file" at the bottom.
+  the local `docker compose` stack, real Postgres, real network — not just `pytest`.
+- **Mocked verification is not verification.** A feature touching the network, a proxy or the
+  database needs one real end-to-end run. Login included: at least one identity goes through the
+  real upstream `vb2007.hu-api` (local `host.docker.internal:3000` if running, else
+  `https://api.vb2007.hu`; register a fresh test account freely), not only the direct-session-mint
+  fallback (`docs/GOTCHAS.md` v15). Skip only if neither is reachable, and say so explicitly.
+- **Context comes from graphify, not exploration agents.** `graphify query` / `path` / `explain`
+  before searching manually; `graphify update .` after every code-modifying version.
+- **Every version slice bumps the one shared app version**: identical `major.minor.patch`
+  (master . slice, e.g. v21 → `2.21.0`) in `backend/pyproject.toml` and `frontend/package.json`,
+  both bumped even if one side changed, plus `uv lock` in `backend/`. CI's `version` job enforces
+  it; a PR touching neither `backend/` nor `frontend/` needs no bump and cuts no release. **A new
+  required compose variable (`${VAR:?}`)** follows `docs/RELEASE_PIPELINE.md`'s "Adding a required
+  env var" checklist and goes under the PR's "Deploy notes" (preflight and CI's drift check fail on it).
+- **Develop locally, deploy to verify.** Debug on the host only for host-specific issues, and
+  **minimize SSH**: it runs other real services (Matrix/Synapse, Vaultwarden); batch host actions.
 
 ### Development environments
 
-Two environments share the physical Postgres server but **never a database**. **Rule (v32): local
-dev runs against the dedicated dev database `spotdlwebtest`; production keeps `spotdlweb`.** A
-local run that touches production rows is a bug, not a convenience (the shared DB let v31's local
-`worker-meta` prune a real production ledger row). Enforced fail-closed: the dev-only override sets
-`SPOTDL_ENV=dev` on every backend service, and `app/config.py` refuses to boot any of them, `migrate`
-included, if `DATABASE_URL` names a production database or can't be parsed. Never remove the marker
-to get past it, and never set `SPOTDL_ENV` in production (any value but `dev` is refused). Use test identities on dev, including the dev `ADMIN_EMAIL`, never the real admin
-account. Create/reset/rebuild details are in `docs/LOCAL_DEV.md`'s "Dedicated dev database".
+Two environments share the physical Postgres server but **never a database**: local dev uses
+**`spotdlwebtest`**, production **`spotdlweb`** (v32). The dev override sets `SPOTDL_ENV=dev` on every
+backend service, and `app/config.py` refuses to boot any of them, `migrate` included, against a
+production database name or an unparseable URL. Never remove the marker or set it in production.
+Dev uses test identities only, the dev `ADMIN_EMAIL` included.
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
 |---|---|---|
-| Purpose | Day-to-day iteration | Final per-version verification + real deployment |
 | `.env` template | `.env.dev.example` | `.env.example` |
 | Compose invocation | `docker compose up` (override applies — hot reload) | `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build` (the overlay is mandatory) |
-| Postgres | Same server, dev DB `spotdlwebtest`, reached over LAN by its real address | Same server, prod DB `spotdlweb`, reached via `host.docker.internal` |
-| Redis, other containers | Fully local, independent per environment | Fully local, independent per environment |
+| Postgres | Dev DB `spotdlwebtest`, reached over LAN by its real address | Prod DB `spotdlweb`, reached via `host.docker.internal` |
 
-`DATABASE_URL`'s host, database name and role are the genuine differences between the two templates.
-Never copy `host.docker.internal` into the local one (Postgres isn't on the local containers' host),
-a hardcoded LAN IP into the production one, or production's database name into the local one.
+Redis and the other containers are per environment. Never cross the two `DATABASE_URL`s' host or name.
 
----
-
-## Locked decisions
-
-Settled. Don't re-litigate without asking.
+## Locked decisions (settled — don't re-litigate without asking)
 
 | Area | Decision |
 |---|---|
@@ -141,33 +101,30 @@ Settled. Don't re-litigate without asking.
 
 | Area | Decision |
 |---|---|
-| Backward compatibility | **None required.** The DB holds only POC data; destructive migrations are allowed |
 | User identity | Real `users` table, row created on first successful login. `ALLOWED_EMAILS` gates *who may log in*; the table governs *what they own and may do* |
 | Admin | `is_admin` column seeded from `ADMIN_EMAIL` (which must also be in `ALLOWED_EMAILS` — validated at startup) |
 | Data separation | **DB-level only.** Jobs/tracks are per-user; downloaded files stay in one shared library |
 | Dedup under multi-user | Stays global — a track another user already downloaded resolves instantly as `skipped_duplicate`. Never re-fetch the same audio per user |
 | Ownership column | On `jobs` only; tracks inherit via `job_id`. A denormalized copy would be a second source of truth that can drift |
 | Queue fairness | Unchanged: global `jobs.priority DESC, scheduled_at ASC` |
-| Settings split | Output config, proxies and worker controls are **admin-only**; per-user settings (retention) are open to everyone |
+| Settings split | Output config, proxies and worker controls are **admin-only**; per-user settings (retention, keyboard, language, clock) are open to everyone |
 | `LookupError` | Terminal, never auto-retried. Only the UI label changed — "Not found", never "Given up" |
 | Log retention | Soft-archive via `jobs.archived_at`, never hard delete. Per-user threshold |
 | Live view | SSE scoped per user (`spotdl:events:{user_id}`) |
 | Search/sort | Server-side, always. Cursor pagination, not offset |
 
----
-
 ### Master v4 additions
 
 | Area | Decision |
 |---|---|
-| Production data | **No longer disposable.** No API back-compat needed, but a migration that drops/rewrites data says so in its plan and takes a `pg_backup` first |
-| Dev database | Dedicated **`spotdlwebtest`** (already created, local `.env` points at it), mandatory from v32; local dev refuses to boot against the prod DB name (`spotdlweb`; also `spotdl_web`, the templates' name) |
-| Alerts | One Matrix room (host's Synapse, bot token) for pipeline and app alerts; unconfigured = off; an alert never blocks work |
+| Production data | **Not disposable** (v2's "destructive migrations allowed" is over). No API back-compat needed, but a migration that drops/rewrites data says so in its plan and takes a `pg_backup` first |
+| Alerts | One Matrix room (host's Synapse, bot token) for pipeline and app alerts (breaker, failure spike, stale beat, library sweep); unconfigured = off; an alert never blocks work and a failed send is dropped |
 | Rollback | Restores the last healthy `persist=true` release's commit **and** tag together (`.last-good`); if the DB is ahead of it, falls back to the pre-deploy commit + tag when that knows the schema (v33.1); never across a migration the target doesn't know |
-| UI work | Every UI slice goes through the impeccable skill; refinement of the existing world (v39). All monitoring information is kept for the **admin**; from v41 operator detail (breaker pill, full filters, attempt diagnostics) is admin-only and non-admins get a simpler view |
-| Browser tests | Playwright suite run locally against the real stack; no CI browser job (the runner is the prod host) |
-| Keyboard | Full mouse-free operation, bindings designed for **Hungarian QWERTZ** (no AltGr, no `Y`/`Z`, match `event.key`); single-key shortcuts inert in inputs and turn-off-able per user |
-| i18n | `hu` + `en`, full coverage. Signed out the browser decides (`navigator.languages` → `en`); signed in, a language saved on `/account` wins, and its "automatic" choice follows the browser again (no `/login` switch, nothing adopted at sign-in). Formats = UI language + browser region, with a per-user 12h/24h override by the same rules. Backend stays language-neutral (error `code`s); track metadata/raw errors/alerts/logs untranslated |
+| UI work | Every UI slice goes through the impeccable skill; refinement of the existing world (v39). Operator detail (breaker pill, full filters, attempt diagnostics, priority/bump) is admin-only and absent from non-admin DOM; non-admins get a simpler view |
+| Browser tests | Playwright suite run locally against the real stack (desktop, mobile, `hu` projects); no CI browser job (the runner is the prod host) |
+| Keyboard | Full mouse-free operation, bindings designed for **Hungarian QWERTZ** (no AltGr, no `Y`/`Z`, match `event.key`); single-key shortcuts inert in text inputs and turn-off-able per user; every new interactive element is keyboard-reachable |
+| i18n | `hu` + `en`, full coverage, every new string in both message files. Signed out the browser decides (`navigator.languages` → `en`); signed in, a language saved on `/account` wins, and its "automatic" choice follows the browser again. Formats = UI language + browser region, with a per-user 12h/24h override. Backend stays language-neutral (error `code`s); track metadata/raw errors/alerts/logs untranslated |
+| Library sweep scope | A sweep repoints every user's moved tracks but archives only the **sweeping admin's own** settled jobs (v48, F34) |
 
 ## Architecture
 
@@ -177,11 +134,11 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
                                                 │
       ┌─────────────────────────────────────────┼──────────────────────────┐
       │                                         │                          │
-  PostgreSQL                                 Redis                 worker-meta (-Q meta: beat housekeeping)
- (host, source of truth)              (broker + pub/sub)           worker-expand (-Q expand: expansion,
+  PostgreSQL                                 Redis                 worker-meta (-Q meta: beat housekeeping,
+ (host, source of truth)              (broker + pub/sub)            alert sends)
+      │                                         │                  worker-expand (-Q expand: expansion,
       │                                         │                   library sweep; v34.1)
-      │                                         │                  worker-dl  (-Q downloads,
-      │                                         │                   --concurrency=1)
+      │                                         │                  worker-dl  (-Q downloads, --concurrency=1)
       └──── scheduled_at ──── beat (dispatch_due_tracks, every 30s)
 ```
 
@@ -205,55 +162,36 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
 
 ### Master v2 invariants
 
-- **Data separation is a security property.** It fails silently — the UI looks right to everyone
-  until someone spots a stranger's album. Any change to queries, endpoints, or events must re-run
-  the cross-user sweep — `pytest backend/tests/test_ownership.py` (plus the archive/retention/
-  admin-gating cases living alongside their own features in `test_jobs.py`,
-  `test_settings_retention.py`, `test_proxies_router.py`, `test_worker.py`,
-  `test_settings_router.py`) for every REST surface, **and** `scripts/verify_separation_sse.sh`
-  against a running stack for the wire itself (v22) — and must cover **direct-id endpoints**, not
-  just list endpoints. Non-owner access returns **404, not 403**, so an id's existence is never
-  confirmed. A module-level frontend store (e.g. `queue` in `queue.ts`) is itself a data surface
-  too — it must be explicitly reset on logout, not just re-fetched on the next mount, or a same-tab
-  identity switch can flash the previous user's rows (the v22 finding: `queue.reset()`).
-- **The SSE stream is a data surface.** Before v17 it broadcast every user's ids to every client.
-  `publish_*_event` takes the owning user as a **required** argument so a new call site can't
-  silently fall back to broadcasting. Verify by raw-capturing `curl -N /api/stream`
-  (`scripts/verify_separation_sse.sh` automates exactly this), never via the UI.
-- **`downloaded_tracks` is never touched by archiving or retention.** It's the dedup ledger; if
-  archiving dropped a row it would cause a re-download — extra rate-limit exposure, the one thing
-  this app exists to avoid.
-- **A `waiting` job is never archived on age alone.** It's deliberately in a 24h ladder step.
-  Eligibility is measured from the newest track `updated_at`, not `job.created_at`.
+- **Data separation is a security property; it fails silently.** Any change to queries, endpoints
+  or events re-runs `pytest backend/tests/test_ownership.py` plus the gating cases in `test_jobs.py`,
+  `test_settings_retention.py`, `test_proxies_router.py`, `test_worker.py`, `test_settings_router.py`
+  and `test_stats.py`, **and** `scripts/verify_separation_sse.sh` against a running stack, covering
+  **direct-id endpoints**. Non-owner access returns **404, not 403** (admin endpoints answer a
+  non-admin 403, except `/api/admin/stats`'s 404). A module-level frontend store is a data surface
+  too: reset it on logout or identity change (`queue.reset()`), never just re-fetch.
+- **The SSE stream is a data surface.** `publish_*_event` takes the owning user as a **required**
+  argument; verify by raw-capturing `curl -N /api/stream`, never via the UI.
+- **`downloaded_tracks` is never touched by archiving or retention** (a dropped ledger row means a
+  re-download). **A `waiting` job is never archived on age alone**: eligibility is measured from the
+  newest track `updated_at`, not `job.created_at`.
 
 ### Master v3 invariants
 
-- **Nothing is ever deleted on the target library filesystem** (`/mnt/raid1/media/music`). The only
-  deletions the sort & move performs are of the *source copy* on the downloads volume, and only
-  after the file is confirmed present at the target.
-- **Moving a file must repoint `downloaded_tracks.file_path`** in the same transaction.
-  `reconcile_disk()` prunes ledger rows whose file is missing, and a move looks exactly like a
-  deletion — get this wrong and every moved track silently re-downloads.
-- **"Already exists" is folder + filename only** — never content, bitrate or duration. A re-download
-  at a different bitrate still counts as already present.
+- **Nothing is ever deleted on the target library filesystem** (`/mnt/raid1/media/music`). The sort
+  & move deletes only the *source copy* on the downloads volume, after the target is confirmed.
+- **Moving a file must repoint `downloaded_tracks.file_path`** in the same transaction — for every
+  ledger row sharing that file (v48). `reconcile_disk()` prunes rows whose file is missing, and a
+  move looks exactly like a deletion — get this wrong and the track silently re-downloads.
+- **"Already exists" is folder + filename only** — never content, bitrate or duration.
 - **File-download availability keys on the file existing at its recorded path, never on
   `archived_at`.** A retention-archived job still has its file and stays downloadable.
-- **`yt-dlp` floats to latest while everything else stays pinned** — and `yt-dlp-ejs` must float
-  with it (v23.1). They solve YouTube's PO-token challenge together; upgrading only one reproduces
-  the v23 outage.
-- **Proxy escalation does not cover IP-reputation bot-checks.** Proven in v23: when this network's
-  IPv4 was flagged, all five configured proxies failed identically — cheap datacenter IPs get the
-  same treatment. The locked "direct → wait → proxy" ladder is still correct for rate limiting, but
-  it is *not* a universal last resort. v29 adds the other IP family as a rung before proxy.
-- **A proxy setting reaching `download_track` is not proof it reached the network.** Found in v29's
-  session, fixed in v30: since v07, spotdl's own `GlobalConfig` proxy wiring only reaches the
-  `piped`/`bandcamp`/`sliderkz`/lyrics providers, never `youtube-music` — this app's only configured
-  audio provider — so every "proxy" attempt silently went out directly for years. Any future change
-  touching the download path's network layer must verify the real connection destination
-  (`socket.socket.connect` observation, or tcpdump) before trusting that a proxy/family flag changed
-  anything.
-
----
+- **`yt-dlp` and `yt-dlp-ejs` float to latest together** (v23.1, PO tokens); everything else is pinned.
+- **Proxy escalation does not cover IP-reputation bot-checks** (v23); v29 adds the other IP family
+  as a rung before proxy.
+- **A proxy setting reaching `download_track` is not proof it reached the network.** Until v30 every
+  "proxy" attempt went out directly (spotdl's proxy wiring never reached `youtube-music`). Any change
+  to the download path's network layer verifies the real connection destination
+  (`socket.socket.connect` observation, or tcpdump) before trusting a proxy/family flag.
 
 ## Track state machine
 
@@ -274,91 +212,38 @@ any ──> cancelled
   Never gives up. `LADDER_SECONDS` overrides it for testing.
 - **Global circuit breaker**: 5 consecutive breaker-feeding failures (`audio_provider` or
   `no_output`, any track) trip a pause — `30m → 2h → 6h` escalating. Every trip and every manual
-  release starts a fresh streak; escalation resets only on the first success (v40.1: a streak that
-  outlived its trip let one unfetchable track re-trip it forever). While tripped,
-  `dispatch_due_tracks` dispatches nothing. Terminal verdicts and proxy transport failures never
-  feed it.
+  release starts a fresh streak; escalation resets only on the first success (v40.1). While
+  tripped, `dispatch_due_tracks` dispatches nothing. Terminal verdicts and proxy transport failures
+  never feed it.
 - **Proxy escalation**: attempt 1 is always direct. On failure, wait out the ladder delay *first*;
   only the following attempt uses a proxy. A failing proxy gets its own `cooldown_until`. A proxy
   is TCP-probed before use, and a proxied attempt that dies at its proxy doesn't consume the
   track's rung (v40.1).
-- **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`): randomized inter-track delay, applied in
-  `download_track` after the cancel/breaker/dedup gates and before the actual attempt. `MAX_SEC=0`
-  (default) means off; `MIN` must not exceed `MAX` (rejected at startup). The first dial to turn if
-  429s stay frequent. Raising it means also raising `STALE_TRACK_AFTER_SECONDS` — pacing lengthens
-  how long a dispatched batch's tail sits `QUEUED`, and beat's stale-track sweep can't tell "paced"
-  from "stuck".
+- **Pacing hook** (`PACING_MIN_SEC`/`PACING_MAX_SEC`, `MAX_SEC=0` = off): randomized delay before
+  each attempt, the first dial to turn if 429s stay frequent; raising it means also raising
+  `STALE_TRACK_AFTER_SECONDS` (beat's stale sweep can't tell "paced" from "stuck").
 
 ### Job rollup status (v2) — two derived axes, never one stored flag
 
 **Lifecycle**: `expanding` · `failed` (expansion errored, zero tracks) · `cancelled` · `active`
 (≥1 track `pending`/`queued`/`downloading`) · `waiting` (no active, ≥1 `waiting`) · `settled` (all
-terminal).
-
-**Outcome**, only once `settled`: `complete` (all `completed`/`skipped_duplicate`) vs `partial`
-(≥1 `lookup_failed`/`cancelled`).
-
-A 10-track album with 1 `LookupError` is `settled · partial` — "Done — 9 of 10", never "failed"
-(90% succeeded) and never a bare green tick (a real gap hidden). Both axes are derived in SQL from
-per-state counts; a stored column would need updating from every path that touches a track state
-and would be wrong the moment one forgot.
-
----
+terminal). **Outcome**, only once `settled`: `complete` (all `completed`/`skipped_duplicate`) vs
+`partial` (≥1 `lookup_failed`/`cancelled`). A 10-track album with 1 `LookupError` is `settled ·
+partial` — "Done — 9 of 10", never "failed" and never a bare green tick. Both axes are derived in
+SQL from per-state counts; a stored column would be wrong the moment one path forgot to update it.
 
 ## Version roadmap
 
-**Master v1 — complete, merged, deployed.** v00 planning · v01 scaffold · v02 db-schema ·
-v03 auth · v04 url-expansion · v05 downloader · v06 retry-engine · v07 proxy-rotation ·
-v08 live-progress · v09 frontend · v10 queue-controls · v11 priority · v12 deploy-hardening ·
-v13 settings-ui. Detail in `plan/master-v1/`, findings in `docs/GOTCHAS.md`.
-
-**Master v2 — complete, merged, deployed.** v14 v1-audit · v15 v1-gap-fixes · v16 users-schema ·
-v17 multi-user-auth · v18 job-centric-api · v19 archive-retention · v20 job-centric-ui ·
-v21 release-automation (unplanned insertion) · v22 multi-user-hardening. Detail in
-`plan/master-v2/`, findings in `docs/GOTCHAS.md`.
-
-**Master v3 — complete, merged, deployed.** v23 download-reliability (root cause: missing Deno
-runtime, not the yt-dlp pin) · v23.1 followup · v24 attempt-history · v25 username-ui ·
-v26 id3-integrity · v27 file-downloads · v28 library-sort-move · v29 network-path-escalation ·
-v30 proxy-routing-fix · v31 v3-hardening · v31.1 player-client fix (`YOUTUBE_PLAYER_CLIENTS`).
-Detail in `plan/master-v3/`, findings in `docs/GOTCHAS.md`.
-
-**Master v4 — in progress.** Full rationale in `plan/master-v4/00-master-plan.md`. Strictly in order.
-
-| # | Branch | Scope |
-|---|---|---|
-| v32 | `dev-dev-database` | **Mandatory first.** Local dev moves to `spotdlwebtest`; fail-closed guard against booting dev on the prod DB |
-| v33 | `dev-deploy-safety` | Required-var preflight, rollback restores previous commit + tag, `.last-good`, migration guard, Matrix notify, CI drift check. No bump |
-| v34 | `dev-live-hydration` | "Active signal"/incoming jobs vanish on refresh — hydrate both from REST on reload |
-| v35 | `dev-correctness-sweep` | Attempt counting, `network_path` in API, redelivery guard, warning flag, streamed download, `.pyc`, state counts |
-| v36 | `dev-alerting` | Matrix alerts: breaker, failure spikes, stale beat, library sweep |
-| v37 | `dev-e2e-harness` | Committed Playwright suite against the local stack (local-only) |
-| v38 | `dev-moved-file-dedup` | A moved (library-sorted) track never re-downloads and stays downloadable; `worker-dl` sees the library `:ro` |
-| v39 | `dev-ui-audit` | impeccable critique + audit → `v39-ui-audit-report.md`; owner approves direction |
-| v40 | `dev-ambient-field` | Cursor-following background glow |
-| v41 | `dev-track-detail-redesign` | Job/track expanded detail — same information, calmer presentation |
-| v42 | `dev-dashboard-redesign` | Rest of `/`, type scale, panel material, tablet breakpoint |
-| v43 | `dev-secondary-surfaces` | `/settings` `/library` `/account` `/login` + destructive-action confirmations |
-| v44 | `dev-admin-stats` | Admin stats page from `track_attempts` + `breaker_events` |
-| v45 | `dev-keyboard-navigation` | Complete mouse-free operation for **Hungarian QWERTZ** first, help overlay, per-user off switch |
-| v46 | `dev-i18n` | Full Hungarian + English i18n: auto-detected locale, per-user language switch |
-| v47 | `dev-ui-polish` | impeccable polish + harden, re-audit vs v39, regenerate DESIGN.md |
-| v48 | `dev-v4-hardening` | Production close |
-
----
+Masters v1 (v00–v13), v2 (v14–v22), v3 (v23–v31.1) and v4 (v32–v48) are complete. Each one's
+slices are in `plan/master-vN/` (inserted patch slices such as v34.1 or v40.1 in its master plan's
+Amendments), and its findings under per-version headings in `docs/GOTCHAS.md`.
 
 ## Maintaining this file
 
-This file is loaded into **every** session's context. Keep it under ~250 lines. It holds only what
-an agent must know *before* doing anything: rules, locked decisions, invariants, and where to find
-the rest.
-
-- **New findings, bugs, and war stories go in `docs/GOTCHAS.md`**, not here. Add them under a
-  version heading with enough detail to be actionable, and add a one-line entry to that file's
-  topic index.
-- **Change this file only when a rule, locked decision, invariant, or roadmap position changes** —
-  and then edit the existing line rather than appending a new section.
-- **Never append a session summary here.** If something learned this session doesn't change a rule,
-  it belongs in `docs/GOTCHAS.md` or the PR description.
-- When a gotcha turns out to be stale, correct it in place with a dated note rather than deleting
-  it — knowing a past claim was wrong is itself worth keeping.
+Loaded into **every** session's context: keep it under ~250 lines, holding only what an agent must
+know *before* doing anything (rules, locked decisions, invariants, where to find the rest).
+- **New findings and war stories go in `docs/GOTCHAS.md`** under a version heading, with a one-line
+  entry in its topic index. Never append a session summary here.
+- **Change this file only when a rule, locked decision, invariant, or roadmap position changes**,
+  editing the existing line rather than appending a section.
+- Correct a stale gotcha in place with a dated note rather than deleting it.
