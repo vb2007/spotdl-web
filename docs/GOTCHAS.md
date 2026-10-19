@@ -696,6 +696,7 @@ needed" claim — rather than silently deleted.
 
 - A ≤640px column stack inherits flex-basis values meant for the row layout (the toggle's
   `16rem`, the bar's `100%`), which made every job row ~4× taller and hid its bar → *v39.1*
+  (recorded in the v39 section; v39.1 has no section of its own)
 
 **Testing & verification technique**
 - e2e names come from the compiled message files (`t()`); a saved language beats the browser
@@ -5382,7 +5383,8 @@ independently-found production bug from the same conversation)
   before the source is deleted (so neither a crash between rows nor a failed copy can split
   them). One window stays open: a row worker-dl commits between that re-read and the delete is
   still stranded, since the sweep and worker-dl run concurrently. Every count in the report
-  (`total`, `processed`, moved, deleted, quarantined, errors) is a count of files. Real before/after on the dev stack, same running worker for
+  (`total`, `processed`, moved, deleted, quarantined, errors) is a count of files, apart from a
+  whole-sweep `<post-move sync>`/`<sweep>` error row. Real before/after on the dev stack, same running worker for
   "before" (it predated the edit): `main` listed `/downloads/v48-ghost.mp3` twice and left
   `v48-sharedA-2` stranded; the branch listed the ghost once and filed both `v48-sharedB` rows to
   one library file.
