@@ -30,9 +30,9 @@
 			? 0
 			: Math.max(0, run.processed - run.moved - run.skipped_present - run.quarantined)
 	);
-	// v43 (F20): the backend can record one file's error twice (F34a, a v48 fix). The count
-	// stays the backend's own (it matches the sweep's Matrix alert); the list folds identical
-	// rows into one entry marked ×n rather than repeating them.
+	// v43 (F20): the list folds identical rows into one entry marked ×n. Since v48 (F34a) a
+	// sweep handles each file once, so only a report from an older sweep repeats a file; the
+	// count stays the backend's own (it matches the sweep's Matrix alert).
 	const errorRows = $derived(
 		(run?.errors ?? []).reduce<{ file: string; error: string; times: number }[]>((rows, e) => {
 			const same = rows.find((r) => r.file === e.file && r.error === e.error);
