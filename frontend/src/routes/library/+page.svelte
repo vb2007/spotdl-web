@@ -426,7 +426,7 @@
 								{#each sweepRows as e, i (i)}
 									<li>
 										<span class="file mono">{e.file}</span>
-										<span class="reason">{e.error}</span>
+										<span class="reason" lang="en">{e.error}</span>
 									</li>
 								{/each}
 							</ul>
@@ -440,7 +440,7 @@
 								{#each fileRows as e, i (i)}
 									<li>
 										<span class="file mono">{e.file}</span>
-										<span class="reason"
+										<span class="reason" lang="en"
 											>{e.error}{#if e.times > 1}<span class="times mono">
 													×{formatNumber(e.times)}</span
 												>{/if}</span

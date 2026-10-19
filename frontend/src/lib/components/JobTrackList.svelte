@@ -66,7 +66,7 @@
 	{:else if state.items.length === 0}
 		{#if unreadable !== null}
 			<p class="hint">
-				{m.job_tracks_unreadable()} <span class="reason mono">{unreadable}</span>
+				{m.job_tracks_unreadable()} <span class="reason mono" lang="en">{unreadable}</span>
 			</p>
 		{:else}
 			<p class="hint">{m.job_tracks_empty()}</p>

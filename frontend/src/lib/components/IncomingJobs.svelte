@@ -335,7 +335,7 @@
 		<!-- The raw expansion error is operator detail (v39 outcome 3): the admin reads it,
 		     everyone else gets the next step. -->
 		{#if isAdmin && job.error}
-			<span class="reason" title={job.error}>{job.error}</span>
+			<span class="reason" lang="en" title={job.error}>{job.error}</span>
 		{:else if !isAdmin}
 			<span class="reason">{m.incoming_unreadable_hint()}</span>
 		{/if}

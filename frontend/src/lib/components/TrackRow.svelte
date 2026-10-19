@@ -638,6 +638,7 @@
 										{#if message}
 											<p
 												class="message mono"
+												lang="en"
 												class:clamped={!openMessages.has(group.key)}
 												id="msg-{group.key}"
 												{@attach measureClamp(group.key)}
@@ -660,7 +661,7 @@
 										{#if head.warning_message}
 											<p class="note">
 												<span class="note-tag mono">{m.track_note()}</span>
-												<span class="note-text mono">{head.warning_message}</span>
+												<span class="note-text mono" lang="en">{head.warning_message}</span>
 											</p>
 										{/if}
 										{#if run > 1}
@@ -697,7 +698,8 @@
 					{#if lastErrorUnshown && !attemptsLoading}
 						<p class="last-error mono">
 							<span class="key">{m.track_last_error()}</span>
-							{track.last_error}
+							<!-- v47 (WCAG 3.1.2): raw worker text stays English (v46), and says so. -->
+							<span lang="en">{track.last_error}</span>
 						</p>
 					{/if}
 				</div>
