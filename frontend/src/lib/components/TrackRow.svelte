@@ -4,6 +4,7 @@
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { worker } from '$lib/stores/worker';
+	import { link } from '$lib/stores/link';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import Countdown from '$lib/components/Countdown.svelte';
@@ -54,6 +55,13 @@
 		skipped_duplicate: 'cond-settled',
 		cancelled: 'cond-idle'
 	};
+
+	// v47 (F04/F05, DESIGN.md §2): amber is "receiving right now". With `/`'s link down the
+	// row's state came from a snapshot that no longer updates, so a downloading row reads
+	// idle until the link is back, as the Waterfall's lanes and the ambient field already do.
+	let stateCond = $derived(
+		track.state === 'downloading' && $link !== 'live' ? 'cond-idle' : STATE_COND[track.state]
+	);
 
 	// The first thing the expanded view says: what this state means for the listener, in
 	// plain words, with the next step where there is one (F24, F25). v46: message functions,
@@ -493,7 +501,7 @@
 		aria-expanded={expanded}
 		aria-controls={detailId}
 	>
-		<span class="cell state {STATE_COND[track.state]} mono"
+		<span class="cell state {stateCond} mono"
 			>{trackStateLabel(
 				track.state
 			)}{#if track.state === 'downloading' && track.progress !== undefined}<span class="pct"
@@ -515,7 +523,7 @@
 	{#if expanded}
 		<div class="detail" id={detailId}>
 			<div class="strip">
-				<span class="status {STATE_COND[track.state]}">{STATUS_TEXT[track.state]()}</span>
+				<span class="status {stateCond}">{STATUS_TEXT[track.state]()}</span>
 				{#if track.state === 'downloading' && track.progress !== undefined}
 					<span
 						class="progress"
@@ -525,7 +533,11 @@
 						aria-valuemax={100}
 						aria-valuenow={track.progress}
 					>
-						<span class="progress-fill" style:transform="scaleX({track.progress / 100})"></span>
+						<span
+							class="progress-fill"
+							class:stale={$link !== 'live'}
+							style:transform="scaleX({track.progress / 100})"
+						></span>
 					</span>
 					<span class="fact mono">{track.progress}%</span>
 				{/if}
@@ -849,6 +861,10 @@
 		background: var(--signal);
 		transform-origin: left;
 		transition: transform var(--dur-med) var(--ease-signal);
+	}
+
+	.progress-fill.stale {
+		background: var(--line-bright);
 	}
 
 	.actions {

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
+	import { link } from '$lib/stores/link';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import { rowNotices, showRowNotice } from '$lib/stores/rowNotices';
 	import JobTrackList from '$lib/components/JobTrackList.svelte';
@@ -38,10 +39,19 @@
 	let badgeLabel = $derived(jobStatusLabel(statusToken));
 	// v42 (F28): red is for a real gap. A job that is partial only because its owner
 	// cancelled tracks has nothing missing they didn't choose, so it reads muted.
+	// v47 (F04/F05, DESIGN.md §2): amber says something is receiving right now. An active job
+	// is mostly tracks queued behind the one download the worker runs at a time (or held by
+	// the breaker), so it is amber only while one of its own tracks is downloading; and
+	// nothing is while `/`'s link is down, since the row is a snapshot that no longer updates.
+	let receiving = $derived(
+		$link === 'live' && (statusToken === 'expanding' || (job.track_counts.downloading ?? 0) > 0)
+	);
 	let cond = $derived(
 		statusToken === 'settled:partial' && !(job.track_counts.lookup_failed ?? 0)
 			? 'cond-idle'
-			: (JOB_STATUS_COND[statusToken] ?? 'cond-idle')
+			: (statusToken === 'active' || statusToken === 'expanding') && !receiving
+				? 'cond-idle'
+				: (JOB_STATUS_COND[statusToken] ?? 'cond-idle')
 	);
 	// v42 (F28): with no tracks read yet the backend falls back to the link itself; show it
 	// as the address it is, not as a bold title.
@@ -84,13 +94,17 @@
 
 	let segments = $derived.by((): Segment[] => {
 		const c = job.track_counts;
-		const active = (c.pending ?? 0) + (c.queued ?? 0) + (c.downloading ?? 0);
+		// v47: only a downloading track is the live segment; pending and queued are idle, as
+		// their own rows read (DESIGN.md §2's idle condition).
+		const downloading = c.downloading ?? 0;
+		const lined = (c.pending ?? 0) + (c.queued ?? 0);
 		const settled = (c.completed ?? 0) + (c.skipped_duplicate ?? 0);
 		const waiting = c.waiting ?? 0;
 		const fail = c.lookup_failed ?? 0;
 		const idle = c.cancelled ?? 0;
 		return [
-			{ cond: 'cond-live', n: active },
+			{ cond: $link === 'live' ? 'cond-live' : 'cond-idle', n: downloading },
+			{ cond: 'cond-idle', n: lined },
 			{ cond: 'cond-waiting', n: waiting },
 			{ cond: 'cond-settled', n: settled },
 			{ cond: 'cond-fail', n: fail },
