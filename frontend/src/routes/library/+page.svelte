@@ -268,6 +268,12 @@
 		source.onerror = () => {
 			linkDown = true;
 			if (source?.readyState !== EventSource.CLOSED || unmounted) return;
+			// v47: a closed stream may be the session ending (its 401 is invisible here, and this
+			// page makes no other request while it waits): /me says which, and a 401 takes the
+			// tab to /login like any other request's would.
+			api.me().catch((err) => {
+				if (err instanceof api.ApiError && err.status === 401) api.sessionEnded();
+			});
 			retryTimer = setTimeout(connect, retryDelay);
 			retryDelay = Math.min(retryDelay * 2, 30000);
 		};

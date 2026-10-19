@@ -23,6 +23,11 @@ describe('v47 submit link', () => {
 		expect(linkIn(`${shared}.`)).toBe(shared);
 	});
 
+	it('keeps a legacy user playlist link whole', () => {
+		const legacy = 'https://open.spotify.com/user/john.doe_1/playlist/37i9dQZF1DX0XUsuxWHRQd';
+		expect(linkIn(`${legacy}.`)).toBe(legacy);
+	});
+
 	it('keeps every part of a spotify: URI', () => {
 		expect(linkIn('spotify:album:abc123')).toBe('spotify:album:abc123');
 		expect(linkIn('spotify:user:john.doe:playlist:37i9dQZF1DX.')).toBe(

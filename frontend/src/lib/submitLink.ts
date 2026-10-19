@@ -4,11 +4,12 @@
 
 // A Spotify link ends at its id (base62) plus an optional query: Hungarian writes a case
 // ending onto a link with a hyphen ("…/album/<id>-t"), and that is the sentence's, not the
-// id's. A `spotify:` URI (which the browser's check accepted) keeps every part, legacy
+// id's. Path segments before the id may be anything a username holds (a legacy
+// `/user/<name>/playlist/<id>`, a locale's `/intl-hu/`). A `spotify:` URI (which the browser's check accepted) keeps every part, legacy
 // `spotify:user:<name>:playlist:<id>` included. Brackets and parentheses end any link, so a
 // Markdown link counts as the two it holds.
 const SPOTIFY_RE =
-	/https?:\/\/open\.spotify\.com\/(?:[a-z-]+\/)+[A-Za-z0-9]+(?:\?[A-Za-z0-9=&%_-]*)?|spotify:[a-z]+(?::[^\s:<>"'()[\],]+)+/i;
+	/https?:\/\/open\.spotify\.com\/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9]+(?:\?[A-Za-z0-9=&%_-]*)?|spotify:[a-z]+(?::[^\s:<>"'()[\],]+)+/i;
 const LINK_RE = /https?:\/\/[^\s<>"'()[\],]+/i;
 const ANY_LINK_RE = /https?:\/\/[^\s<>"'()[\],]+|spotify:[a-z]+(?::[^\s:<>"'()[\],]+)+/gi;
 
