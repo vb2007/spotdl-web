@@ -406,39 +406,132 @@ def test_sort_library_archives_only_the_sweeping_admins_jobs(db_session, tmp_pat
     assert event_owner_ids == {admin.id}
 
 
-def test_sort_library_files_a_second_ledger_row_sharing_a_moved_file(db_session, tmp_path, monkeypatch):
-    """v48 (F34): two ledger rows (two Spotify ids) can share one downloaded file. Once
-    the first row moves it, the second follows it to the same destination instead of
-    recording "source file missing" -- left behind, its ledger row would point at a
-    deleted path, and reconcile_disk would prune it into a re-download."""
-    _configure(db_session, tmp_path)
-    first = _make_ledger_row(db_session, tmp_path, spotify_track_id="single-cut")
+def _share_file(db_session, first: DownloadedTrack, spotify_track_id: str) -> DownloadedTrack:
+    """A second ledger row on the same downloaded file (a single and its album cut)."""
     second = DownloadedTrack(
-        spotify_track_id="album-cut",
+        spotify_track_id=spotify_track_id,
         file_path=first.file_path,
         format="mp3",
         bitrate="320k",
     )
     db_session.add(second)
     db_session.commit()
+    return second
+
+
+def test_sort_library_files_every_ledger_row_sharing_a_moved_file(db_session, tmp_path, monkeypatch):
+    """v48 (F34): two ledger rows (two Spotify ids) can share one downloaded file. Both
+    follow it to the library, and so do both their tracks; left behind as "source file
+    missing", a row would point at a deleted path and reconcile_disk would prune it into a
+    re-download. The report counts the one file once."""
+    _configure(db_session, tmp_path)
+    owner = _owner(db_session)
+    first = _make_ledger_row(db_session, tmp_path, spotify_track_id="single-cut")
+    second = _share_file(db_session, first, "album-cut")
+    job = Job(
+        user_id=owner.id,
+        source_url="https://open.spotify.com/album/abc",
+        source_type=JobSourceType.ALBUM,
+        state=JobState.EXPANDED,
+    )
+    db_session.add(job)
+    db_session.flush()
+    tracks = [
+        Track(
+            job_id=job.id,
+            spotify_track_id=spotify_track_id,
+            song_json={"name": spotify_track_id},
+            state=TrackState.COMPLETED,
+            output_path=first.file_path,
+        )
+        for spotify_track_id in ("single-cut", "album-cut")
+    ]
+    db_session.add_all(tracks)
+    db_session.commit()
     _capture_progress(monkeypatch)
 
-    _run(monkeypatch, db_session)
+    _run(monkeypatch, db_session, admin_id=owner.id)
 
     dest = str(tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "single-cut.mp3")
     for row in (first, second):
         db_session.refresh(row)
         assert row.in_library is True
         assert row.file_path == dest
+    for track in tracks:
+        db_session.refresh(track)
+        assert track.output_path == dest
+    db_session.refresh(job)
+    assert job.archived_at is not None
 
     run = library_task._get_run(db_session)
     assert run.errors == []
-    assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (2, 2, 1, 1, 0)
+    assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (1, 1, 1, 0, 0)
+
+
+def test_sort_library_quarantines_a_shared_file_once_and_repoints_every_row(
+    db_session, tmp_path, monkeypatch
+):
+    """v48 (F34): the shared file already has a copy in the library. Both rows are
+    repointed to it, and the one source file is quarantined once."""
+    _configure(db_session, tmp_path, quarantine_enabled=True)
+    first = _make_ledger_row(db_session, tmp_path, spotify_track_id="single-cut")
+    second = _share_file(db_session, first, "album-cut")
+    dest = tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "single-cut.mp3"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"the copy already in the library")
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    for row in (first, second):
+        db_session.refresh(row)
+        assert row.in_library is True
+        assert row.file_path == str(dest)
+    assert dest.read_bytes() == b"the copy already in the library"
+    assert len(list((tmp_path / "quarantine").rglob("*.mp3"))) == 1
+
+    run = library_task._get_run(db_session)
+    assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (1, 1, 0, 0, 1)
+
+
+def test_sort_library_leaves_every_row_on_a_shared_file_whose_copy_failed(
+    db_session, tmp_path, monkeypatch
+):
+    """v48 (review): a shared file is decided once. When its copy fails, neither row is
+    retried in the same sweep -- a second attempt that succeeded would delete the source
+    the first row still points at."""
+    _configure(db_session, tmp_path)
+    first = _make_ledger_row(db_session, tmp_path, spotify_track_id="single-cut")
+    second = _share_file(db_session, first, "album-cut")
+    original = first.file_path
+    calls = []
+
+    def _copy_verify(source, dest):
+        calls.append(source)
+        return False
+
+    monkeypatch.setattr(library_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
+    monkeypatch.setattr(library_service, "copy_verify", _copy_verify)
+    _capture_progress(monkeypatch)
+
+    library_task.sort_library(str(uuid.uuid4()))
+
+    assert len(calls) == 1
+    for row in (first, second):
+        db_session.refresh(row)
+        assert row.in_library is False
+        assert row.file_path == original
+    assert (tmp_path / "downloads" / "single-cut.mp3").exists()
+
+    run = library_task._get_run(db_session)
+    assert (run.total, run.processed) == (1, 1)
+    assert len(run.errors) == 1
 
 
 def test_sort_library_lists_a_missing_shared_source_once(db_session, tmp_path, monkeypatch):
     """v48 (F34): two ledger rows sharing one missing file used to list the same path
-    twice in the sweep's error log."""
+    twice in the sweep's error log. The file is one entry, counted once."""
     _configure(db_session, tmp_path)
     missing = str(tmp_path / "downloads" / "ghost.mp3")
     for spotify_track_id in ("ghost-single", "ghost-album"):
@@ -456,7 +549,7 @@ def test_sort_library_lists_a_missing_shared_source_once(db_session, tmp_path, m
     _run(monkeypatch, db_session)
 
     run = library_task._get_run(db_session)
-    assert run.processed == 2
+    assert (run.total, run.processed) == (1, 1)
     assert run.errors == [{"file": missing, "error": "source file missing on disk"}]
 
 

@@ -27,11 +27,16 @@ def _get_run(db) -> LibrarySortRun:
 
 def _record_error(run: LibrarySortRun, file_path: str, message: str) -> None:
     # Reassigned wholesale, never appended in place -- see LibrarySortRun's own
-    # docstring on why (JSONB change tracking). v48 (F34): one row per path -- two ledger
-    # rows sharing one missing source file used to list the same path twice.
-    if any(entry["file"] == file_path for entry in run.errors):
-        return
+    # docstring on why (JSONB change tracking).
     run.errors = [*run.errors, {"file": file_path, "error": message}]
+
+
+def _repoint(rows: list[DownloadedTrack], dest: Path) -> None:
+    """Every ledger row sharing the moved file follows it (v48, F34): a row left on the
+    old path would read as deleted to reconcile_disk and be pruned into a re-download."""
+    for row in rows:
+        row.file_path = str(dest)
+        row.in_library = True
 
 
 def _sync_tracks_and_archive_jobs(db, moved_spotify_ids: set[str], admin_user_id: str) -> None:
@@ -101,48 +106,41 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     folder_template = settings_row.library_folder_template
 
     ledger_rows = db.query(DownloadedTrack).filter(DownloadedTrack.in_library.is_(False)).all()
-    run.total = len(ledger_rows)
+    # v48 (F34): one entry per source *file*, not per ledger row. Two ledger rows (two Spotify
+    # ids, e.g. a single and its album cut) can share one downloaded file. Handled row by row,
+    # the first row moved the file and the second was stranded as "source file missing", its
+    # ledger row left on a deleted path for reconcile_disk to prune into a re-download, and
+    # the error log listed one file twice. Each file is now decided once, every row sharing it
+    # is repointed in the same commit (before the source is ever deleted, so a crash can't
+    # split them), and every count in the report is a count of files.
+    groups: dict[Path, list[DownloadedTrack]] = {}
+    for row in ledger_rows:
+        groups.setdefault(Path(row.file_path), []).append(row)
+    run.total = len(groups)
     db.commit()
     _publish_progress(run, admin_user_id)
 
     moved_spotify_ids: set[str] = set()
-    # Destinations already claimed by an earlier row *in this same sweep* -- distinct
+    # Destinations already claimed by an earlier file *in this same sweep* -- distinct
     # from "already exists" (a file present before this sweep even started, e.g. a
-    # manual library import or an earlier run). Two different spotify_track_ids that
-    # compute the same destination in one sweep are a genuine collision (e.g. an old,
-    # pre-v28-template filename shared by two otherwise-unrelated tracks) and must be
-    # flagged as an error, never silently merged the way a real pre-existing duplicate
-    # is -- merging would repoint the second track's ledger row onto the first track's
-    # file and quarantine/delete the second track's own, actually-different audio.
+    # manual library import or an earlier run). Two different files that compute the same
+    # destination in one sweep are a genuine collision (e.g. an old, pre-v28-template
+    # filename shared by two otherwise-unrelated tracks) and must be flagged as an error,
+    # never silently merged the way a real pre-existing duplicate is -- merging would
+    # repoint the second file's ledger rows onto the first file and quarantine/delete the
+    # second file's own, actually-different audio.
     claimed_destinations: dict[Path, str] = {}
-    # v48 (F34): source path -> where this sweep filed it. Two ledger rows (two Spotify
-    # ids, e.g. a single and its album cut) can share one downloaded file. Once the first
-    # row has moved it, the second must follow it to the same destination: left behind
-    # as "source file missing", its ledger row would point at a deleted path, and
-    # reconcile_disk's prune would turn that into a re-download.
-    filed_sources: dict[Path, Path] = {}
 
-    for row in ledger_rows:
-        source = Path(row.file_path)
+    for source, rows in groups.items():
+        file_path = str(source)
         try:
-            filed_dest = filed_sources.get(source)
-            if filed_dest is not None:
-                row.file_path = str(filed_dest)
-                row.in_library = True
-                db.commit()
-                # Counted as already present: its file is in the library, and nothing
-                # moved for this row.
-                run.skipped_present += 1
-                moved_spotify_ids.add(row.spotify_track_id)
-                continue
-
             if not source.exists():
-                _record_error(run, row.file_path, "source file missing on disk")
+                _record_error(run, file_path, "source file missing on disk")
                 continue
 
             tags = library.read_sort_tags(source)
             if tags is None:
-                _record_error(run, row.file_path, "unsupported or unreadable format for tag read")
+                _record_error(run, file_path, "unsupported or unreadable format for tag read")
                 continue
 
             dest = library.destination_path(target_dir, folder_template, tags, source)
@@ -151,7 +149,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
             if claimant is not None:
                 _record_error(
                     run,
-                    row.file_path,
+                    file_path,
                     f"destination collides with track {claimant} moved earlier in this sweep",
                 )
                 continue
@@ -164,8 +162,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 # quarantine/delete below leaks a redundant source file (recoverable
                 # manually), instead of losing track of the real, already-correct file
                 # the way committing only at the end of the row would.
-                row.file_path = str(dest)
-                row.in_library = True
+                _repoint(rows, dest)
                 db.commit()
                 if quarantine_enabled:
                     library.quarantine(source, quarantine_dir)
@@ -180,7 +177,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                     # mistaken for "already exists" by a later sweep -- see its docstring.
                     _record_error(
                         run,
-                        row.file_path,
+                        file_path,
                         f"copy verification failed; source left intact, corrupt "
                         f"partial copy renamed under {dest.parent}",
                     )
@@ -188,18 +185,16 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 # Same crash-safety ordering as the conflict branch above: the ledger
                 # is repointed and committed to the *verified* copy before the source
                 # is ever deleted.
-                row.file_path = str(dest)
-                row.in_library = True
+                _repoint(rows, dest)
                 db.commit()
                 source.unlink()
                 run.moved += 1
 
-            claimed_destinations[dest] = row.spotify_track_id
-            filed_sources[source] = dest
-            moved_spotify_ids.add(row.spotify_track_id)
+            claimed_destinations[dest] = rows[0].spotify_track_id
+            moved_spotify_ids.update(row.spotify_track_id for row in rows)
         except Exception as exc:
-            logger.exception("library: error processing %s", row.file_path)
-            _record_error(run, row.file_path, str(exc))
+            logger.exception("library: error processing %s", file_path)
+            _record_error(run, file_path, str(exc))
         finally:
             run.processed += 1
             db.commit()
@@ -255,11 +250,12 @@ def _alert_sweep_finished(run: LibrarySortRun, crash: str | None = None) -> None
 def sort_library(admin_user_id: str) -> None:
     """Admin-triggered, on-demand sweep (v28) -- runs on worker-expand's `expand` queue
     since v34.1 (it can run for minutes; on worker-meta it held a slot beat's dispatch
-    needs). Iterates the dedup ledger (one row per unique physical file,
-    never the tracks table -- multiple tracks/users can share the same downloaded_tracks
-    row via dedup), skipping rows already marked in_library by a prior run.
+    needs). Iterates the dedup ledger (never the tracks table -- multiple tracks/users can
+    share the same downloaded_tracks row via dedup), grouped by source file since v48 (two
+    ledger rows can also share one file), skipping rows already marked in_library by a
+    prior run.
 
-    Everything past the per-row loop (which already catches its own exceptions) is
+    Everything past the per-file loop (which already catches its own exceptions) is
     wrapped in a second, outer guard: a crash while loading settings, querying the
     ledger, or elsewhere outside that loop must still reset `run.state` back to IDLE,
     or `POST /api/library/sort`'s 409-if-running gate wedges permanently with no
