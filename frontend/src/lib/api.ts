@@ -451,6 +451,26 @@ export class ApiError extends Error {
 	}
 }
 
+// v47: what a 401 from anything but signing in or out means: the session is gone. The layout
+// registers the one handler (back to /login, saying why), so no page is left showing "Not
+// authenticated" with a retry that can only fail again. `/api/auth/me` is left to its callers:
+// the layout's own load already redirects on it.
+const SESSION_PATHS = new Set(['/api/auth/login', '/api/auth/logout', '/api/auth/me']);
+let unauthorizedHandler: (() => void) | null = null;
+
+/** Registers what a 401 does (the layout's session-ended path); returns the unregister. */
+export function onUnauthorized(handler: () => void): () => void {
+	unauthorizedHandler = handler;
+	return () => {
+		if (unauthorizedHandler === handler) unauthorizedHandler = null;
+	};
+}
+
+/** v47: for a caller that learns of a 401 some other way (an `api.me()` it already catches). */
+export function sessionEnded(): void {
+	unauthorizedHandler?.();
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	const response = await fetch(`${API_BASE}${path}`, {
 		...init,
@@ -481,6 +501,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 			code = response.status >= 500 ? 'server_error' : 'request_failed';
 			params = { status: response.statusText || String(response.status) };
 		}
+		if (response.status === 401 && !SESSION_PATHS.has(path.split('?')[0])) unauthorizedHandler?.();
 		throw new ApiError(response.status, detail, code, params);
 	}
 

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { clearProgress } from '$lib/stores/progressCache';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -16,8 +17,18 @@
 	let passwordInput: HTMLInputElement | undefined = $state();
 	let connectButton: HTMLButtonElement | undefined = $state();
 
+	let emailInput: HTMLInputElement | undefined = $state();
+
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
+		// v47: the form's own check, in the page's language and its error line (`novalidate`:
+		// the browser's bubble spoke the browser's language and sat outside the design).
+		if (!email.trim() || !password) {
+			errorMessage = m.login_error_missing();
+			credentialsRejected = false;
+			(email.trim() ? passwordInput : emailInput)?.focus();
+			return;
+		}
 		submitting = true;
 		errorMessage = '';
 		credentialsRejected = false;
@@ -36,9 +47,11 @@
 			// whoever's actually blocked by a config/network issue, not a bad
 			// credential.
 			credentialsRejected = err instanceof api.ApiError && err.status === 401;
-			errorMessage =
-				err instanceof api.ApiError && err.status === 401
-					? m.login_error_rejected()
+			// v47: a 5xx is the server answering with a problem, not an unreachable one.
+			errorMessage = credentialsRejected
+				? m.login_error_rejected()
+				: err instanceof api.ApiError && err.status >= 500
+					? m.login_error_server()
 					: m.login_error_unreachable();
 			submitting = false;
 			// v43 (F31): after rejected credentials, back to the field to fix; after a server
@@ -68,10 +81,17 @@
 		<span class="label dim">{m.login_ident_receiver()}</span>
 	</div>
 
-	<form class="panel" {onsubmit}>
+	<form class="panel" {onsubmit} novalidate>
 		<div class="dial" aria-hidden="true">
+			<!-- v47: each tick at its own fraction of the dial, the last one at its end. -->
 			{#each Array(21) as _, i (i)}
-				<span class="tick" class:major={i % 5 === 0}>
+				<span
+					class="tick"
+					class:major={i % 5 === 0}
+					class:first={i === 0}
+					class:last={i === 20}
+					style:left="calc((100% - 1px) * {i / 20})"
+				>
 					{#if i % 5 === 0}
 						<span class="freq mono"
 							>{formatNumber(88 + (i / 5) * 4, { minimumFractionDigits: 1 })}</span
@@ -86,11 +106,16 @@
 			<h1 class="mono">{m.login_heading()}</h1>
 			<!-- v43 (F31): which account this wants. -->
 			<p class="hint">{m.login_hint()}</p>
+			<!-- v47: arrived here because the session ended mid-page (a 401), not by signing out. -->
+			{#if page.state.sessionEnded && !errorMessage}
+				<p class="ended" role="status">{m.login_session_ended()}</p>
+			{/if}
 		</div>
 
 		<label class="form-field">
 			<span class="label">{m.login_email()}</span>
 			<input
+				bind:this={emailInput}
 				class="well"
 				type="email"
 				name="email"
@@ -119,7 +144,7 @@
 			/>
 		</label>
 
-		<button type="submit" class="connect" disabled={submitting} bind:this={connectButton}>
+		<button type="submit" class="btn connect" disabled={submitting} bind:this={connectButton}>
 			{submitting ? m.login_connecting() : m.login_connect()}
 		</button>
 
@@ -131,14 +156,16 @@
 </main>
 
 <style>
+	/* v47: anchored near the top, not centred, so the error line growing under the button never
+	   moves the whole card. */
 	.stage {
 		min-height: 100dvh;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		justify-content: center;
+		justify-content: flex-start;
 		gap: var(--space-6);
-		padding: var(--space-5);
+		padding: clamp(var(--space-5), 16vh, 10rem) var(--space-5) var(--space-5);
 	}
 
 	.ident {
@@ -164,16 +191,13 @@
 	.dial {
 		position: relative;
 		height: 2rem;
-		display: flex;
-		align-items: flex-end;
-		gap: 0;
 		border-bottom: 1px solid var(--line);
 		margin-bottom: var(--space-4);
 	}
 
 	.tick {
-		position: relative;
-		flex: 1;
+		position: absolute;
+		bottom: 0;
 		height: 0.5rem;
 		border-left: 1px solid var(--line-bright);
 	}
@@ -183,10 +207,22 @@
 		top: 100%;
 		left: 50%;
 		transform: translateX(-50%);
-		margin-top: 3px;
+		margin-top: var(--space-1);
 		font-size: var(--fs-label);
 		color: var(--text-dim);
 		white-space: nowrap;
+	}
+
+	/* The end labels stay inside the dial instead of overhanging the column. */
+	.tick.first .freq {
+		left: 0;
+		transform: none;
+	}
+
+	.tick.last .freq {
+		left: auto;
+		right: 0;
+		transform: none;
 	}
 
 	.tick.major {
@@ -195,21 +231,34 @@
 	}
 
 	/* F10 (the v40 verdict): at rest the needle is muted chrome with no glow. It takes the
-	   amber and its glow only while sweeping, the one moment the dial is really tuning. */
+	   amber and its glow only while sweeping, the one moment the dial is really tuning.
+	   v47 (F33): it moves by transform, not `left`. The element spans the dial less the
+	   needle's own width, the visible needle is its ::before, and translateX(100%) carries
+	   it to the far end with no layout per frame. */
 	.needle {
 		position: absolute;
 		bottom: -1px;
 		left: 0;
-		width: 2px;
+		width: calc(100% - 2px);
 		height: 1.5rem;
+		pointer-events: none;
+	}
+
+	.needle::before {
+		content: '';
+		position: absolute;
+		inset: 0 auto 0 0;
+		width: 2px;
 		background: var(--text-muted);
-		transform: translateX(0);
 	}
 
 	.needle.sweeping {
+		animation: sweep 1.4s var(--ease-signal) infinite;
+	}
+
+	.needle.sweeping::before {
 		background: var(--signal);
 		box-shadow: 0 0 6px 1px var(--signal-glow);
-		animation: sweep 1.4s var(--ease-signal) infinite;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -221,13 +270,13 @@
 
 	@keyframes sweep {
 		0% {
-			left: 0;
+			transform: translateX(0);
 		}
 		50% {
-			left: calc(100% - 2px);
+			transform: translateX(100%);
 		}
 		100% {
-			left: 0;
+			transform: translateX(0);
 		}
 	}
 
@@ -254,34 +303,24 @@
 		padding: var(--space-3);
 	}
 
+	/* v47: the app's one button, a size up: the form's single action. */
 	.connect {
 		margin-top: var(--space-2);
-		background: var(--bg-2);
-		border: 1px solid var(--line-control);
-		border-radius: 4px;
 		padding: var(--space-3);
-		font-family: var(--font-mono);
-		font-weight: 600;
-		letter-spacing: 0.08em;
-		cursor: pointer;
-		transition: background var(--dur-fast) var(--ease-signal);
-	}
-
-	/* F10: no amber and no halo; focus is the global ring alone. */
-	.connect:hover:not(:disabled) {
-		background: var(--bg-3);
-		border-color: var(--text-muted);
 	}
 
 	.connect:disabled {
-		color: var(--text-dim);
 		cursor: progress;
+	}
+
+	.ended {
+		font-size: var(--fs-detail);
+		color: var(--text-primary);
 	}
 
 	.error {
 		min-height: 1.25rem;
 		color: var(--fail);
 		font-size: var(--fs-detail);
-		text-align: center;
 	}
 </style>

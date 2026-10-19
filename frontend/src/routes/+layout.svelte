@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { tick } from 'svelte';
 	import favicon from '$lib/assets/favicon.svg';
-	import { afterNavigate, goto } from '$app/navigation';
+	import { afterNavigate, goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import AmbientField from '$lib/components/AmbientField.svelte';
@@ -10,6 +10,7 @@
 	import HelpOverlay from '$lib/components/HelpOverlay.svelte';
 	import ChordIndicator from '$lib/components/ChordIndicator.svelte';
 	import { queue } from '$lib/stores/queue';
+	import { onUnauthorized } from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { link as streamLink } from '$lib/stores/link';
 	import {
@@ -73,6 +74,48 @@
 		});
 	});
 
+	// v47: a 401 anywhere means the session ended (expired, revoked, signed out in another
+	// tab). Back to /login, which says why, instead of a page of "Not authenticated" errors
+	// with retries that can only fail. The store is cleared once the page is gone: reset
+	// while `/` is still mounted, its stream and poll would read the reset as an identity
+	// change and reload the tab.
+	let ending = false;
+	$effect(() =>
+		onUnauthorized(async () => {
+			if (ending || page.url.pathname === resolve('/login')) return;
+			ending = true;
+			try {
+				await goto(resolve('/login'), { state: { sessionEnded: true } });
+				queue.reset();
+			} finally {
+				ending = false;
+			}
+		})
+	);
+
+	// v47: the session check itself couldn't get an answer (a 5xx or a network failure: the
+	// api restarting, a deploy). That says nothing about the session, so the page waits and
+	// asks again, backing off to 30s, rather than sending a signed-in user to /login.
+	let retryDelayMs = 2000;
+	let retrying = $state(false);
+	async function retrySession() {
+		retrying = true;
+		try {
+			await invalidateAll();
+		} finally {
+			retrying = false;
+		}
+	}
+	$effect(() => {
+		if (!data.unreachable) {
+			retryDelayMs = 2000;
+			return;
+		}
+		const timer = setTimeout(retrySession, retryDelayMs);
+		retryDelayMs = Math.min(retryDelayMs * 2, 30_000);
+		return () => clearTimeout(timer);
+	});
+
 	// v45: a route change moves focus to the new page's h1 (or its main), as a full page load
 	// would; the first load leaves focus where the browser put it. The page title is announced
 	// by SvelteKit's own route announcer (`#svelte-announcer`), so no second live region here.
@@ -115,7 +158,19 @@
 
 <AmbientField {live} />
 
-{@render children()}
+{#if data.unreachable}
+	<main id="main" class="unreachable">
+		<!-- i18n-ignore: the wordmark is a name, the same in every language. -->
+		<span class="label">SPOTDL // WEB</span>
+		<h1 class="page-title">{m.layout_unreachable_title()}</h1>
+		<p>{m.layout_unreachable_body()}</p>
+		<button type="button" class="btn" onclick={retrySession} disabled={retrying}
+			>{m.layout_unreachable_retry()}</button
+		>
+	</main>
+{:else}
+	{@render children()}
+{/if}
 
 <!-- v43 (F08): the one confirmation every destructive action asks through. -->
 <ConfirmDialog />
@@ -139,6 +194,24 @@
 		color: var(--text-primary);
 		text-decoration: none;
 		transform: translateY(calc(-100% - var(--space-4)));
+	}
+
+	.unreachable {
+		max-width: 32rem;
+		margin: 0 auto;
+		padding: var(--space-8) var(--space-4);
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-3);
+	}
+
+	.unreachable p {
+		color: var(--text-muted);
+	}
+
+	.unreachable .btn {
+		margin-top: var(--space-2);
 	}
 
 	.skip-link:focus-visible,

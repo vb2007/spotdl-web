@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
+	import { get } from 'svelte/store';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -270,7 +271,9 @@
 	// CONNECTING, which never reaches the CLOSED branch below), do one plain REST reload so
 	// the page shows its data or its error instead of "Loading…" indefinitely. The
 	// eventual `onopen` still resyncs as usual.
-	const RESYNC_FALLBACK_MS = 5000;
+	// v47: 2.5s, down from 5s. A healthy stream opens in about 0.3s; with it down, five seconds
+	// of "Loading…" read as a hung page.
+	const RESYNC_FALLBACK_MS = 2500;
 	let awaitingResync = false;
 	let resyncFallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -324,8 +327,14 @@
 					window.location.reload();
 					return;
 				}
-			} catch {
-				// Can't tell (a blip): carry on; the layout and next reconnect check again.
+			} catch (err) {
+				// v47: a 401 is the session ending (the layout takes the tab to /login). Anything
+				// else can't tell (a blip): carry on; the layout and next reconnect check again.
+				if (err instanceof api.ApiError && err.status === 401) {
+					stream.close();
+					api.sessionEnded();
+					return;
+				}
 			}
 			// The stream may have dropped, or been replaced by a scope switch, meanwhile.
 			if (outlived() || !current()) return;
@@ -380,12 +389,53 @@
 	// countdown read it and the pill itself is admin-only. A failed poll keeps the last value.
 	const WORKER_POLL_MS = 5000;
 
+	// v47: an open EventSource can outlive the network under it (a laptop asleep, a Wi-Fi
+	// change): no error, no events, the tell still "linked". The server's heartbeat is an SSE
+	// comment, which a page can't see, so the poll is the watchdog: two polls in a row that
+	// never reached the server (a network failure, not an error answer) mean the link is down
+	// too, and the stream starts over.
+	let unreachedPolls = 0;
+
 	function pollWorker() {
 		if (!loggingOut && queue.getResetCount() !== mountedSession) {
 			window.location.reload();
 			return;
 		}
-		worker.refresh().catch(() => {});
+		worker
+			.refresh()
+			.then(() => {
+				unreachedPolls = 0;
+			})
+			.catch((err) => {
+				if (err instanceof api.ApiError) return;
+				unreachedPolls += 1;
+				if (unreachedPolls >= 2 && get(link) === 'live') restartStream();
+			});
+	}
+
+	/** Drops the current stream and opens a new one now, at the first backoff step. */
+	function restartStream() {
+		link.set('reconnecting');
+		clearTimeout(streamRetryTimer);
+		streamRetryDelayMs = 1000;
+		source?.close();
+		connectStream();
+	}
+
+	// v47: the browser knows when it's offline; the tell says so at once rather than "linked".
+	// Back online, or back to this tab with the link down, it reconnects now instead of
+	// waiting out a backoff of up to 30s.
+	function onOffline() {
+		link.set('reconnecting');
+	}
+
+	function onOnline() {
+		unreachedPolls = 0;
+		restartStream();
+	}
+
+	function onVisible() {
+		if (document.visibilityState === 'visible' && get(link) === 'reconnecting') restartStream();
 	}
 
 	onMount(() => {
@@ -397,8 +447,14 @@
 		connectStream();
 		pollWorker();
 		const workerPoll = setInterval(pollWorker, WORKER_POLL_MS);
+		window.addEventListener('offline', onOffline);
+		window.addEventListener('online', onOnline);
+		document.addEventListener('visibilitychange', onVisible);
 
 		return () => {
+			window.removeEventListener('offline', onOffline);
+			window.removeEventListener('online', onOnline);
+			document.removeEventListener('visibilitychange', onVisible);
 			clearInterval(workerPoll);
 			clearTimeout(streamRetryTimer);
 			clearTimeout(resyncFallbackTimer);

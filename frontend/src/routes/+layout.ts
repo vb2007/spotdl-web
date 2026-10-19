@@ -43,7 +43,12 @@ export const load: LayoutLoad = async ({ url }) => {
 		sessionGone = err instanceof api.ApiError && err.status === 401;
 	}
 
-	if (session === null && !onLoginPage) {
+	// v47: nor does a failed first answer sign anyone out. A 5xx or a network failure (an api
+	// restart, a deploy) used to send a signed-in user to /login, where they stayed after the
+	// api came back. The layout shows "can't reach the server" and retries instead.
+	const unreachable = session === null && !sessionGone && !onLoginPage;
+
+	if (session === null && !onLoginPage && !unreachable) {
 		// `queue` is a module-level singleton that survives this client-side redirect (no
 		// hard reload) -- explicit onLogout isn't the only path here. A session can go
 		// invalid for other reasons (expiry, revocation) and surface through this exact
@@ -62,7 +67,8 @@ export const load: LayoutLoad = async ({ url }) => {
 		lastSessionEmail = session.email;
 	}
 	const identity = session?.email ?? null;
-	if (identity !== localeAppliedFor) {
+	// Unreachable says nothing about who is signed in: keep the language already on screen.
+	if (identity !== localeAppliedFor && !(unreachable && localeAppliedFor !== undefined)) {
 		localeAppliedFor = identity;
 		applyLanguagePreference(session?.language);
 		applyClock(session?.clock);
@@ -71,5 +77,5 @@ export const load: LayoutLoad = async ({ url }) => {
 		redirect(302, '/');
 	}
 
-	return { session };
+	return { session, unreachable };
 };
