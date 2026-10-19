@@ -161,6 +161,11 @@ needed" claim — rather than silently deleted.
 - The dev `web` container's `node_modules` and `src/lib/paraglide` are anonymous volumes: they
   outlive a rebuild, so a dependency change needs `up -d --renew-anon-volumes` → *v46*
 
+- `uvicorn --reload` waits forever for open SSE streams before restarting: edit a backend file
+  while a browser tab (or `curl -N`) holds `/api/stream` and `api` goes unhealthy with
+  "Waiting for connections to close" until `docker compose restart api` → *v48*
+- A deploy recreates every container, so `docker compose logs` on the host only reaches back to
+  the last deploy; anything older (an alert that never arrived) can't be reconstructed → *v48*
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
 - `Secure` cookies work over `http://localhost` in browsers but **not** in `httpx`/`TestClient` —
@@ -404,6 +409,13 @@ needed" claim — rather than silently deleted.
 - Every writer of `breaker_tripped_until` goes through `retry.record_breaker_release`; a direct
   write loses `breaker_events` history rows → *v44*
 
+- Two ledger rows (two Spotify ids) can share one downloaded file; a sweep must file the second
+  row to wherever it filed the first, or it's stranded as "source file missing" and pruned into
+  a re-download. Rows stranded by sweeps before v48 stay stranded (production had 47) → *v48*
+- A library sweep archives only the sweeping admin's own settled jobs; every user's moved
+  tracks are still repointed (owner decision, F34) → *v48*
+- A real production breaker trip (2026-10-18 18:46 UTC) reached `breaker_events` but never the
+  Matrix room; unexplained, and its logs were gone by the next deploy → *v48*
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
   Tunnel closes the connection → *v08*
@@ -680,6 +692,8 @@ needed" claim — rather than silently deleted.
 - Formats = UI language + browser region (`en-HU`); plural messages take a pre-formatted `n`
   (Paraglide's `number` ignores the region) → *v46*
 
+- A ≤640px column stack inherits flex-basis values meant for the row layout (the toggle's
+  `16rem`, the bar's `100%`), which made every job row ~4× taller and hid its bar → *v39.1*
 **Testing & verification technique**
 - e2e names come from the compiled message files (`t()`); a saved language beats the browser
   locale, so setup/teardown clear both identities' language in the DB → *v46*
@@ -903,6 +917,12 @@ needed" claim — rather than silently deleted.
 - Keyboard e2e races: wait for an open job's tracks before `→`, for a reload before `j`, and for
   the URL before reading `h1` after a navigation → *v45*
 
+- `docker compose exec -T` reads the shell's stdin, so inside a `while read` loop it swallows the
+  remaining lines; feed the list into one `exec ... sh -c 'while read ...'` instead → *v48*
+- A Celery worker keeps the code it started with (no hot reload), so a worker started before an
+  edit runs the old code: handy for a real before/after on the same stack, a trap otherwise → *v48*
+- v31's open questions closed on dev: a real album's every `COMPLETED` file exists at its
+  `output_path`, and four real ladder delays matched `LADDER_SECONDS` exactly → *v48*
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
   vanishes from PR checks rather than showing as failed → *v12*
@@ -929,6 +949,9 @@ needed" claim — rather than silently deleted.
   the direct CI equivalent of the in-place-recompile-and-diff technique above, for the newer lock
   format → *v23*
 
+- GitHub answering `429` to the runner's action download kills the job at "Set up job", and the
+  `notify` job needs the same action, so the failure and its alert vanish together (4.40.2 never
+  deployed, and nobody was told) → *v48*
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
   request, always → *v12*
@@ -3581,6 +3604,9 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   here rather than silently dropped; if it recurs under normal (non-test-harness) operation, it's
   worth a dedicated investigation, but not chased further in this version given the `download_track`
   code path itself has ordinary, well-covered failure modes and this doesn't match any of them.
+  *(2026-10-19, v48: closed, not reproduced under normal operation. A real 11-track album on the
+  dev database with normal pacing left every `COMPLETED` track's file at its `output_path`
+  (`stat` inside `worker-dl`, 11/11 present); see the v48 section.)*
 - **Deferred, found by fresh-eyes review**: a tag warning reuses `TrackAttempt.error_message` on a
   `COMPLETED` outcome (per the plan's "reuse the attempt row" instruction), but the only consumer,
   `frontend/src/lib/components/TrackRow.svelte:174-176`, renders *any* non-null `error_message`
@@ -4142,6 +4168,9 @@ a core correctness gap in `download_track` itself, and doc reconciliation)
   investigated to exhaustion given the disproportionate effort already spent versus the bounded,
   non-corrupting consequence (a longer wait before a retry, never a wrong or lost one) — worth
   a look if a future session sees it recur with cleaner reproduction conditions.
+  *(2026-10-19, v48: closed, not reproduced. One real track failing through a dead-proxy
+  `worker-dl` got `scheduled_at` = failure + 5s, 10s, 15s, 20s on its four retries, exactly
+  `LADDER_SECONDS=5,10,15,20,30`; see the v48 section.)*
 - **The deferred idle-in-transaction connection leak (flagged in v23) is real, root-caused, and
   fixed.** `/api/stream` returns a `StreamingResponse`; Starlette doesn't tear down a
   `yield`-based dependency (`Depends(get_db)`) until the *entire* response completes, which for a
@@ -5335,3 +5364,53 @@ independently-found production bug from the same conversation)
   declares every subset with a `unicode-range`, so a page downloads only latin and (Hungarian's
   ő, ű) latin-ext. Adding the packages needs the dev `web` container's `--renew-anon-volumes`
   (v46 entry above).
+
+### v48 v4-hardening gotchas (learned closing out master v4)
+
+- **Two ledger rows can share one downloaded file, and the sweep stranded the second (F34).**
+  spotdl names a file from its metadata, so a single and its album cut (two Spotify ids) can
+  resolve to the same `/downloads/...mp3`, and both ledger rows point at it. The sweep moved the
+  file for the first row; the second then hit `source file missing on disk`, kept its old path,
+  and would be pruned by `reconcile_disk()` into a re-download. The sweep now remembers where it
+  filed each source path and files a later row with the same path to the same destination
+  (counted under "already present"). Real before/after on the dev stack, same running worker
+  for "before" (it predated the edit): `main` listed `/downloads/v48-ghost.mp3` twice and left
+  `v48-sharedA-2` stranded; the branch listed the ghost once and filed both `v48-sharedB` rows to
+  one library file.
+- **Rows stranded before v48 stay stranded.** Production's last sweep (2026-10-18) reported 47
+  "source file missing" errors, and every one of the 47 not-in-library ledger rows has a sibling
+  with the same basename already in the library: earlier sweeps stranded them. The fix only
+  prevents new ones; those rows keep erroring on each sweep until repaired or pruned (a prune
+  means a re-download if that track is requested again).
+- **The error log keeps one row per path.** `_record_error` drops a second entry for a path
+  already listed, so two rows sharing one missing file no longer show it twice.
+- **A sweep archives only the sweeping admin's jobs (owner decision, F34(b)).** It used to archive
+  every user's settled jobs whose tracks it moved, silently. Now every user's `Track.output_path`
+  is still repointed, but only the admin's own jobs are archived (`archive.archive_jobs` is scoped
+  to that one user id), and only the admin gets archive events. Proven on dev: the admin's job was
+  archived, `v37user`'s job kept its repointed track and stayed unarchived. The `/library`
+  confirmation copy (en + hu) says so.
+- **`uvicorn --reload` hangs on open SSE streams.** Editing `app/tasks/library.py` made `api` log
+  "Waiting for connections to close" and stop answering (container `unhealthy`), because an
+  `/api/stream` connection was still open. `docker compose restart api` clears it.
+- **The pipeline record since v33 found two releases that never reached production.** 4.40.2's
+  `deploy` job died at "Set up job" on a GitHub `429` downloading `actions/checkout`, and the
+  `notify` job needs the same action, so it died the same way: no Matrix message, and nobody
+  re-ran it (production stayed on 4.40.1 until 4.41.0, ~30 h later). 4.47.0's `publish` failed on
+  the runner's Docker credential, shared with another repository's concurrent release (its
+  fix, a job-private `DOCKER_CONFIG`, is a separate change); that one did alert.
+- **A real breaker trip never reached the room.** Production tripped on 2026-10-18 at 18:46:47 UTC
+  (5 consecutive `no_output`, then ~460 `held` rows) and released at 19:16:47; `breaker_events`
+  has both rows, but the Matrix room has no trip or release message (its earlier trips, 10-12 to
+  10-14, all alerted). The code path enqueues after the trip's commit and the send expires after
+  300 s on `meta`; why it was lost can't be told: the next deploy (23:18) recreated every
+  container and took the logs with it. Still open.
+- **v31's open questions, closed on dev.** A real 11-track album (Portishead, *Dummy*) completed
+  with normal pacing, and `stat` found all 11 files at their `output_path` inside `worker-dl`.
+  One track sent through a dead-proxy `worker-dl` overlay retried at exactly +5 s, +10 s, +15 s
+  and +20 s (`LADDER_SECONDS=5,10,15,20,30`) before the pool-proxy rung's real "No results found"
+  made it `lookup_failed`. The plan's "v21 empty-`DOWNLOADS_DIR` observation" has no matching entry
+  in this file or the plans; the album run's files in `DOWNLOADS_DIR` are the evidence against it.
+- **Stdin and `docker compose exec -T`.** `while read p; do docker compose exec -T svc stat "$p";
+  done < list` stats only the first path: `exec -T` passes the loop's stdin to the container and
+  consumes the rest. Run the loop inside one `exec ... sh -c 'while read ...' < list`.
