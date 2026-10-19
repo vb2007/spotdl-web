@@ -45,6 +45,9 @@
 		// v47: the form's own check, in the page's language and its error line (`novalidate`:
 		// the browser's bubble spoke the browser's language and sat outside the design).
 		if (!email.trim() || !password) {
+			// Emptied first, so a second press with the same gap is announced again.
+			errorMessage = '';
+			await tick();
 			errorMessage = m.login_error_missing();
 			credentialsRejected = false;
 			missing = email.trim() ? 'password' : 'email';

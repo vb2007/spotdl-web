@@ -617,6 +617,7 @@
 					aria-label={m.dashboard_submit_input_label()}
 					aria-describedby="submit-error"
 					aria-invalid={submitInvalid ? 'true' : undefined}
+					oninput={() => (submitInvalid = false)}
 				/>
 				<button type="submit" class="mono" disabled={submitting}
 					>{submitting ? m.dashboard_submit_sending() : m.dashboard_submit()}</button

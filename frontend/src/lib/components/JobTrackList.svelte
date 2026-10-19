@@ -55,12 +55,17 @@
 <!-- v41: the job's tracks hang off a rail in its chevron column, indented by exactly one
      lead column (F02), on the panel's own surface rather than a darker well. -->
 <div class="job-tracks" id="job-tracks-{jobId}">
+	<!-- v47: the list's one failure announcement, present from the moment the list opens (the
+	     visible lines below are swapped in with their text, which often goes unannounced). -->
+	<p class="sr-only" role="alert">
+		{state?.error ? `${m.job_tracks_failed()} ${errorText(state.error.err)}` : ''}
+	</p>
 	{#if state === undefined || state.loading}
 		<p class="hint">{m.job_tracks_loading()}</p>
 	{:else if state.error && state.items.length === 0}
 		<!-- v47: what failed, the reason, and a way to retry it here (it took a collapse and
 		     re-open before). -->
-		<div class="hint fail" role="alert">
+		<div class="hint fail">
 			<p>{m.job_tracks_failed()} {errorText(state.error.err)}</p>
 			<button
 				type="button"
@@ -95,7 +100,9 @@
 				<TrackRow {track} {jobId} {isAdmin} />
 			{/each}
 		</ul>
-		{#if state.nextCursor}
+		<!-- Not after a failed re-read: the rows above are stale, and a next page would be
+		     appended under them; the re-read's own retry (below) is the way on. -->
+		{#if state.nextCursor && !state.rereadFailed}
 			<!-- aria-disabled, not disabled: disabling the focused button would drop keyboard
 			     focus to the page while the next page loads. -->
 			<button
@@ -117,7 +124,7 @@
 		<!-- A failed read keeps the rows already on screen: a "load more" (the button above
 		     retries it) or a re-read of the list (a cancel's), which offers its own retry. v47:
 		     one sentence for both, since either can fail. -->
-		<p class="hint fail" role="alert">
+		<p class="hint fail">
 			{state.error ? `${m.job_tracks_failed()} ${errorText(state.error.err)}` : ''}
 		</p>
 		{#if state.error && (state.rereadFailed || !state.nextCursor)}
