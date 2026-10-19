@@ -68,8 +68,8 @@ Two environments share the physical Postgres server but **never a database**: lo
 **`spotdlwebtest`**, production **`spotdlweb`** (v32). The dev override sets `SPOTDL_ENV=dev` on every
 backend service, and `app/config.py` refuses to boot any of them, `migrate` included, against a
 production database name (`spotdlweb`, also the templates' `spotdl_web`) or an unparseable URL.
-Never remove the marker or set it in production (any value but `dev` is refused). Dev uses test identities, the dev
-`ADMIN_EMAIL` included; create/reset steps are in `docs/LOCAL_DEV.md`'s "Dedicated dev database".
+Never remove the marker or set it in production (any value but `dev` is refused). Dev uses test identities only, the
+dev `ADMIN_EMAIL` included, never the real admin account; create/reset steps are in `docs/LOCAL_DEV.md`'s "Dedicated dev database".
 
 | | Local dev (`docs/LOCAL_DEV.md`) | Debian host (`docs/DEPLOYMENT.md`) |
 |---|---|---|

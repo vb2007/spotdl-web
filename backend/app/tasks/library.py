@@ -115,7 +115,15 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     quarantine_enabled = settings_row.library_quarantine_enabled
     folder_template = settings_row.library_folder_template
 
-    ledger_rows = db.query(DownloadedTrack).filter(DownloadedTrack.in_library.is_(False)).all()
+    # v48 (review round 4): a fixed order, so which of two colliding files is filed and which
+    # is flagged doesn't depend on how Postgres happens to return the rows -- the earlier
+    # download wins.
+    ledger_rows = (
+        db.query(DownloadedTrack)
+        .filter(DownloadedTrack.in_library.is_(False))
+        .order_by(DownloadedTrack.downloaded_at, DownloadedTrack.spotify_track_id)
+        .all()
+    )
     # v48 (F34): one entry per source *file*, not per ledger row. Two ledger rows (two Spotify
     # ids, e.g. a single and its album cut) can share one downloaded file. Handled row by row,
     # the first row moved the file and the second was stranded as "source file missing", its

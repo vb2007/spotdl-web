@@ -592,6 +592,40 @@ def test_sort_library_still_flags_a_collision_after_a_failed_source_delete(
     assert any("collides" in e["error"] for e in run.errors)
 
 
+def test_sort_library_files_the_older_of_two_colliding_downloads(db_session, tmp_path, monkeypatch):
+    """v48 (review round 4): the ledger is read in a fixed order, so of two different files
+    mapping to one destination the earlier download is filed and the later one flagged,
+    whatever order the database would otherwise return them in."""
+    from datetime import datetime, timedelta, timezone
+
+    _configure(db_session, tmp_path)
+    now = datetime.now(timezone.utc)
+    rows = {}
+    for folder, spotify_track_id, age in (("a", "a-newer", 0), ("b", "z-older", 60)):
+        source = tmp_path / "downloads" / folder / "same-name.mp3"
+        source.parent.mkdir(parents=True)
+        source.write_bytes(f"{spotify_track_id} audio".encode())
+        rows[spotify_track_id] = DownloadedTrack(
+            spotify_track_id=spotify_track_id,
+            file_path=str(source),
+            format="mp3",
+            bitrate="320k",
+            downloaded_at=now - timedelta(minutes=age),
+        )
+        db_session.add(rows[spotify_track_id])
+    db_session.commit()
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    dest = tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "same-name.mp3"
+    db_session.refresh(rows["z-older"])
+    db_session.refresh(rows["a-newer"])
+    assert rows["z-older"].in_library is True
+    assert rows["a-newer"].in_library is False
+    assert dest.read_bytes() == b"z-older audio"
+
+
 def test_sort_library_files_a_row_recorded_on_the_same_file_during_the_sweep(
     db_session, tmp_path, monkeypatch
 ):

@@ -23,8 +23,10 @@
 	const percent = $derived(
 		run !== null && run.total > 0 ? Math.round((run.processed / run.total) * 100) : 0
 	);
-	// The progress event carries no error count, but every processed file is filed one of
-	// three ways or left in place with an error, so the difference is the errors so far.
+	// The progress event carries no error count, but every processed file is either filed one
+	// of three ways or counted as an error, never both (v48: a file filed into the library
+	// whose source then can't be removed counts only as an error), so the difference is the
+	// errors so far.
 	const errorsSoFar = $derived(
 		run === null
 			? 0
