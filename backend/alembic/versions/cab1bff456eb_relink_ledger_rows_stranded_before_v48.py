@@ -13,7 +13,9 @@ prunes into a re-download at the first boot that finds /downloads non-empty. Pro
 
 A row is repaired only when all of these hold, so nothing but that legacy shape is touched:
 - the last sweep listed its path as "source file missing on disk" (a sweep checked the disk),
-- it isn't in the library, and was recorded before that sweep started (not re-downloaded since),
+- it isn't in the library, and no track with its Spotify id completed a download since that
+  sweep started (a re-download writes the file back but keeps the row's `downloaded_at`, so the
+  attempts log is the signal),
 - exactly one in-library ledger file has the same basename (the sweep keeps a source's
   basename, so that's the copy its sibling was filed as; two candidates are left alone).
 The row then points at that library file, like its sibling, and so does every completed or
@@ -21,6 +23,7 @@ skipped-duplicate track still on the old path. No job is archived. Rows that don
 keep erroring, as before. Downgrade leaves the repair in place: the old code reads a
 relinked row like any other in-library row.
 """
+import logging
 from collections import defaultdict
 from pathlib import PurePosixPath
 from typing import Sequence, Union
@@ -37,6 +40,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 _MISSING = "source file missing on disk"
 
+logger = logging.getLogger("alembic.runtime.migration")
+
 # Only the columns this repair reads or writes (portable Core, not the app's models, which
 # move on with later revisions).
 _runs = sa.table("library_sort_runs", sa.column("id"), sa.column("started_at"), sa.column("errors", sa.JSON))
@@ -47,7 +52,10 @@ _ledger = sa.table(
     sa.column("in_library"),
     sa.column("downloaded_at"),
 )
-_tracks = sa.table("tracks", sa.column("spotify_track_id"), sa.column("output_path"), sa.column("state"))
+_tracks = sa.table(
+    "tracks", sa.column("id"), sa.column("spotify_track_id"), sa.column("output_path"), sa.column("state")
+)
+_attempts = sa.table("track_attempts", sa.column("track_id"), sa.column("outcome"), sa.column("finished_at"))
 
 
 def upgrade() -> None:
@@ -63,15 +71,26 @@ def upgrade() -> None:
     for (path,) in bind.execute(sa.select(_ledger.c.file_path).where(_ledger.c.in_library.is_(True))):
         filed_by_name[PurePosixPath(path).name].add(path)
 
+    # Casts: the enum columns are native enums on Postgres, and a bound string parameter won't
+    # compare with them.
+    redownloaded = sa.exists().where(
+        _attempts.c.track_id == _tracks.c.id,
+        _tracks.c.spotify_track_id == _ledger.c.spotify_track_id,
+        sa.cast(_attempts.c.outcome, sa.String) == "completed",
+        _attempts.c.finished_at >= run.started_at,
+    )
     relinked = 0
+    skipped = defaultdict(int)
     for source in missing:
         candidates = filed_by_name.get(PurePosixPath(source).name, set())
         if len(candidates) != 1:
+            skipped["no library copy" if not candidates else "several library copies"] += 1
             continue
         (dest,) = candidates
-        stranded = _ledger.c.file_path == source, _ledger.c.in_library.is_(False), _ledger.c.downloaded_at < run.started_at
+        stranded = _ledger.c.file_path == source, _ledger.c.in_library.is_(False), ~redownloaded
         ids = list(bind.execute(sa.select(_ledger.c.spotify_track_id).where(*stranded)).scalars())
         if not ids:
+            skipped["no stranded row"] += 1
             continue
         bind.execute(sa.update(_ledger).where(*stranded).values(file_path=dest, in_library=True))
         bind.execute(
@@ -79,14 +98,17 @@ def upgrade() -> None:
             .where(
                 _tracks.c.output_path == source,
                 _tracks.c.spotify_track_id.in_(ids),
-                # Cast: tracks.state is a native enum on Postgres, and a bound string
-                # parameter won't compare with it.
                 sa.cast(_tracks.c.state, sa.String).in_(["completed", "skipped_duplicate"]),
             )
             .values(output_path=dest)
         )
         relinked += len(ids)
-    print(f"v48: relinked {relinked} stranded ledger row(s) to their library copy")
+    logger.info(
+        "v48: relinked %d stranded ledger row(s) to their library copy; %d listed path(s) skipped %s",
+        relinked,
+        sum(skipped.values()),
+        dict(skipped),
+    )
 
 
 def downgrade() -> None:

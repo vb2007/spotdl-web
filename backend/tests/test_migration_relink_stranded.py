@@ -17,6 +17,8 @@ from app.models import (
     LibrarySortRun,
     LibrarySortState,
     Track,
+    TrackAttempt,
+    TrackAttemptOutcome,
     TrackState,
     User,
 )
@@ -38,7 +40,7 @@ def _upgrade(db_session):
     db_session.expire_all()
 
 
-def _ledger(db_session, spotify_track_id, file_path, *, in_library=False, downloaded_at=_BEFORE):
+def _ledger(db_session, spotify_track_id, file_path, *, in_library=False):
     db_session.add(
         DownloadedTrack(
             spotify_track_id=spotify_track_id,
@@ -46,7 +48,7 @@ def _ledger(db_session, spotify_track_id, file_path, *, in_library=False, downlo
             format="mp3",
             bitrate="320k",
             in_library=in_library,
-            downloaded_at=downloaded_at,
+            downloaded_at=_BEFORE,
         )
     )
 
@@ -112,9 +114,22 @@ def test_leaves_every_row_outside_the_legacy_shape(db_session):
     _ledger(db_session, "b-filed-1", f"{_LIB}/B - X - (2001)/b.mp3", in_library=True)
     _ledger(db_session, "b-filed-2", f"{_LIB}/B - Y - (2002)/b.mp3", in_library=True)
     _ledger(db_session, "b-listed", "/downloads/b.mp3")
-    # Recorded after the sweep started: downloaded again since, so its file may be back.
+    # Downloaded again since the sweep, so its file is back (the merge keeps the row's old
+    # downloaded_at; the completed attempt is what shows it). A failed attempt doesn't count.
     _ledger(db_session, "c-filed", f"{_LIB}/C - X - (2001)/c.mp3", in_library=True)
-    _ledger(db_session, "c-redownloaded", "/downloads/c.mp3", downloaded_at=_SWEPT_AT + timedelta(hours=1))
+    _ledger(db_session, "c-redownloaded", "/downloads/c.mp3")
+    again = _track(db_session, "c-redownloaded", "/downloads/c.mp3")
+    db_session.flush()
+    for number, outcome in enumerate((TrackAttemptOutcome.FAILED, TrackAttemptOutcome.COMPLETED), 1):
+        db_session.add(
+            TrackAttempt(
+                track_id=again.id,
+                attempt_number=number,
+                started_at=_SWEPT_AT + timedelta(hours=number),
+                finished_at=_SWEPT_AT + timedelta(hours=number, minutes=1),
+                outcome=outcome,
+            )
+        )
     # No library file with that name at all.
     _ledger(db_session, "d-listed", "/downloads/d.mp3")
     _last_sweep(db_session, "/downloads/b.mp3", "/downloads/c.mp3", "/downloads/d.mp3")
@@ -122,6 +137,7 @@ def test_leaves_every_row_outside_the_legacy_shape(db_session):
 
     _upgrade(db_session)
 
+    assert db_session.get(Track, again.id).output_path == "/downloads/c.mp3"
     for spotify_track_id, path in (
         ("a-unlisted", "/downloads/a.mp3"),
         ("b-listed", "/downloads/b.mp3"),
@@ -130,6 +146,41 @@ def test_leaves_every_row_outside_the_legacy_shape(db_session):
     ):
         row = db_session.get(DownloadedTrack, spotify_track_id)
         assert (row.file_path, row.in_library) == (path, False), spotify_track_id
+
+
+def test_relinks_when_the_only_attempt_since_the_sweep_failed(db_session):
+    filed = f"{_LIB}/C - X - (2001)/c.mp3"
+    _ledger(db_session, "c-filed", filed, in_library=True)
+    _ledger(db_session, "c-stranded", "/downloads/c.mp3")
+    retried = _track(db_session, "c-stranded", "/downloads/c.mp3", state=TrackState.WAITING)
+    old = _track(db_session, "c-stranded", "/downloads/c.mp3")
+    db_session.flush()
+    db_session.add_all(
+        [
+            TrackAttempt(
+                track_id=retried.id,
+                attempt_number=1,
+                started_at=_SWEPT_AT + timedelta(hours=1),
+                finished_at=_SWEPT_AT + timedelta(hours=1, minutes=1),
+                outcome=TrackAttemptOutcome.FAILED,
+            ),
+            # Completed, but before the sweep: the download the sweep later found gone.
+            TrackAttempt(
+                track_id=old.id,
+                attempt_number=1,
+                started_at=_BEFORE,
+                finished_at=_BEFORE + timedelta(minutes=1),
+                outcome=TrackAttemptOutcome.COMPLETED,
+            ),
+        ]
+    )
+    _last_sweep(db_session, "/downloads/c.mp3")
+    db_session.commit()
+
+    _upgrade(db_session)
+
+    assert db_session.get(DownloadedTrack, "c-stranded").file_path == filed
+    assert db_session.get(Track, old.id).output_path == filed
 
 
 def test_matches_the_basename_exactly(db_session):

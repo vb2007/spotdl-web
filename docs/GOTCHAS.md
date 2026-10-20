@@ -5417,11 +5417,15 @@ independently-found production bug from the same conversation)
   means a re-download if that track is requested again). _(2026-10-20, owner answer: repaired,
   by one-shot data migration `cab1bff456eb`, which runs after the deploy's pre-deploy
   `pg_backup` and before any worker boots. It relinks a row only if the last sweep listed its
-  path as "source file missing on disk", it was recorded before that sweep started, and exactly
-  one in-library ledger file has its basename (the sweep keeps a source's basename); its
+  path as "source file missing on disk", no track with its Spotify id completed a download since
+  that sweep started (a re-download writes the file back but `db.merge` keeps the row's old
+  `downloaded_at`, so the attempts log is the signal), and exactly one in-library ledger file
+  has its basename (the sweep keeps a source's basename); its
   completed and skipped-duplicate tracks follow. Read-only dry run on production: 47 of 47 rows,
   47 tracks. On dev, a real stranded row's file answered 404, then 200 after `migrate`; a
-  downgrade and re-upgrade relinked 0.)_
+  downgrade and re-upgrade relinked 0. A failed 4.48.0 deploy past `migrate` can't roll back
+  automatically (the database is ahead of 4.47.x); DEPLOYMENT.md's third way out downgrades
+  `alembic_version` only, losslessly.)_
 - **What kept the 47 rows alive was an accident.** `reconcile_disk()` (every worker-meta boot,
   so every deploy) refuses to prune rows under a root that looks unmounted, and an empty
   `/downloads` looks unmounted. Each sweep empties `/downloads`, so the deploys after it skipped

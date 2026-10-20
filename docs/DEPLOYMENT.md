@@ -356,7 +356,7 @@ reverse) is exactly what broke the 2026-09-27 recovery.
 **The database is ahead of the rollback image** (the migration guard refused, v33). The failed
 deploy's `migrate` already upgraded the schema, so the old image's own `migrate` would refuse the
 unknown revision and nothing would start. Alembic downgrades are never run automatically, by
-design. You have two ways out:
+design. You have two ways out, and a third for a data-only revision:
 
 1. **Roll forward (usually better):** fix the failure on a branch and deploy that. The schema
    stays where it is, so no data is lost. Use this whenever the migration itself was fine and
@@ -388,6 +388,18 @@ design. You have two ways out:
    or the restore that follows fails with "permission denied for schema public".
    Then run "Roll back to a known-good version manually" above, using `.last-good`. Its
    `migrate` finds the schema at its own revision and no-ops.
+3. **A data-only revision whose downgrade is a no-op: step `alembic_version` back, then roll
+   back.** Some revisions change no schema and leave data the older code reads fine; v48's
+   `cab1bff456eb` (it relinks ledger rows stranded by pre-v48 sweeps) is one. Then nothing is
+   lost: with the failed deploy's checkout and image still in place, downgrade to the rollback
+   image's head (it only rewrites `alembic_version`), then run "Roll back to a known-good
+   version manually" above, whose guard now passes. A later roll-forward re-runs the revision,
+   which finds nothing left to change.
+   ```bash
+   cd /mnt/raid1/spotdl-web     # still on the failed deploy's commit and IMAGE_TAG
+   docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm --no-deps migrate \
+     alembic downgrade d2f7a9c4e1b8      # v48's cab1bff456eb → the head v4.47.x knows
+   ```
 
    **If a `manual-*` dispatch ran a migration since `.last-good` was written**, the database was
    already ahead of `.last-good` *before* this deploy, so the pre-deploy backup is ahead too and
