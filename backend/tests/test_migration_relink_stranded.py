@@ -183,6 +183,39 @@ def test_relinks_when_the_only_attempt_since_the_sweep_failed(db_session):
     assert db_session.get(Track, old.id).output_path == filed
 
 
+def test_one_ids_re_download_doesnt_block_another_rows_relink(db_session):
+    """The re-download check is per row: a completed attempt for one Spotify id leaves every
+    other stranded row (including a second row on the same source) to be relinked, and a
+    skipped-duplicate track follows like a completed one."""
+    _ledger(db_session, "e-filed", f"{_LIB}/E - X - (2001)/e.mp3", in_library=True)
+    _ledger(db_session, "e-single", "/downloads/e.mp3")
+    _ledger(db_session, "e-album", "/downloads/e.mp3")
+    _ledger(db_session, "f-filed", f"{_LIB}/F - X - (2001)/f.mp3", in_library=True)
+    _ledger(db_session, "f-redownloaded", "/downloads/f.mp3")
+    duplicate = _track(db_session, "e-album", "/downloads/e.mp3", state=TrackState.SKIPPED_DUPLICATE)
+    again = _track(db_session, "f-redownloaded", "/downloads/f.mp3")
+    db_session.flush()
+    db_session.add(
+        TrackAttempt(
+            track_id=again.id,
+            attempt_number=1,
+            started_at=_SWEPT_AT + timedelta(hours=1),
+            finished_at=_SWEPT_AT + timedelta(hours=1, minutes=1),
+            outcome=TrackAttemptOutcome.COMPLETED,
+        )
+    )
+    _last_sweep(db_session, "/downloads/e.mp3", "/downloads/f.mp3")
+    db_session.commit()
+
+    _upgrade(db_session)
+
+    for spotify_track_id in ("e-single", "e-album"):
+        row = db_session.get(DownloadedTrack, spotify_track_id)
+        assert (row.file_path, row.in_library) == (f"{_LIB}/E - X - (2001)/e.mp3", True)
+    assert db_session.get(Track, duplicate.id).output_path == f"{_LIB}/E - X - (2001)/e.mp3"
+    assert db_session.get(DownloadedTrack, "f-redownloaded").in_library is False
+
+
 def test_matches_the_basename_exactly(db_session):
     _ledger(db_session, "near", f"{_LIB}/A - X - (2001)/xa_b.mp3", in_library=True)
     _ledger(db_session, "listed", "/downloads/a_b.mp3")

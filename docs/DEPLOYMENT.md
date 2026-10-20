@@ -391,14 +391,17 @@ design. You have two ways out, and a third for a data-only revision:
 3. **A data-only revision whose downgrade is a no-op: step `alembic_version` back, then roll
    back.** Some revisions change no schema and leave data the older code reads fine; v48's
    `cab1bff456eb` (it relinks ledger rows stranded by pre-v48 sweeps) is one. Then nothing is
-   lost: with the failed deploy's checkout and image still in place, downgrade to the rollback
-   image's head (it only rewrites `alembic_version`), then run "Roll back to a known-good
-   version manually" above, whose guard now passes. A later roll-forward re-runs the revision,
-   which finds nothing left to change.
+   lost: downgrade to the rollback image's head with the failed version's image (only it knows
+   the newer revision; the downgrade only rewrites `alembic_version`), then run "Roll back to a
+   known-good version manually" above, whose guard now passes. `IMAGE_TAG=` on the command line
+   overrides `.env`, so this works whether the checkout is still on the failed deploy or you
+   already moved it to `.last-good` (the guard's exit 3 sends you here). A later roll-forward
+   re-runs the revision, which repairs only what's still in its shape (rows a rolled-back sweep
+   stranded again, say).
    ```bash
-   cd /mnt/raid1/spotdl-web     # still on the failed deploy's commit and IMAGE_TAG
-   docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm --no-deps migrate \
-     alembic downgrade d2f7a9c4e1b8      # v48's cab1bff456eb → the head v4.47.x knows
+   cd /mnt/raid1/spotdl-web
+   IMAGE_TAG=4.48.0 docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm \
+     --no-deps migrate alembic downgrade d2f7a9c4e1b8   # v48's cab1bff456eb → v4.47.x's head
    ```
 
    **If a `manual-*` dispatch ran a migration since `.last-good` was written**, the database was

@@ -453,12 +453,17 @@ def download_track(track_id: str) -> None:
 
             track.state = TrackState.COMPLETED
             track.output_path = str(output_path)
+            # in_library is set, not left out: merge copies only the attributes given, so a row
+            # whose library file went missing and was downloaded again kept in_library=True on
+            # its new /downloads path, and no sweep (which reads only in_library=False) would
+            # ever file it (v48).
             db.merge(
                 DownloadedTrack(
                     spotify_track_id=track.spotify_track_id,
                     file_path=str(output_path),
                     format=output_settings.default_format,
                     bitrate=output_settings.default_bitrate,
+                    in_library=False,
                 )
             )
             if proxy_id is not None:

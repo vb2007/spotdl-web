@@ -415,6 +415,8 @@ needed" claim — rather than silently deleted.
   row to wherever it filed the first, or it's stranded as "source file missing" and pruned into
   a re-download. Rows stranded before v48 (production had 47) are relinked once, by data
   migration `cab1bff456eb` → *v48*
+- `db.merge` copies only the attributes you pass: the download ledger upsert left `in_library`
+  as it was, so a re-downloaded lost library file was never swept again (set it explicitly) → *v48*
 - A Postgres native-enum column won't compare with a bound string parameter (`operator does not
   exist`); a portable migration casts it (`sa.cast(col, sa.String)`), and SQLite tests never
   notice → *v48*
@@ -5410,13 +5412,13 @@ independently-found production bug from the same conversation)
   "before" (it predated the edit): `main` listed `/downloads/v48-ghost.mp3` twice and left
   `v48-sharedA-2` stranded; the branch listed the ghost once and filed both `v48-sharedB` rows to
   one library file.
-- **Rows stranded before v48 stay stranded.** Production's last sweep (2026-10-18) reported 47
+- **Rows stranded before v48 stayed stranded (repaired 2026-10-20, below).** Production's last sweep (2026-10-18) reported 47
   "source file missing" errors, and every one of the 47 not-in-library ledger rows has a sibling
   with the same basename already in the library: earlier sweeps stranded them. The fix only
   prevents new ones; those rows keep erroring on each sweep until repaired or pruned (a prune
   means a re-download if that track is requested again). _(2026-10-20, owner answer: repaired,
   by one-shot data migration `cab1bff456eb`, which runs after the deploy's pre-deploy
-  `pg_backup` and before any worker boots. It relinks a row only if the last sweep listed its
+  `pg_backup` and before the new workers start (the old ones are still up while it runs). It relinks a row only if the last sweep listed its
   path as "source file missing on disk", no track with its Spotify id completed a download since
   that sweep started (a re-download writes the file back but `db.merge` keeps the row's old
   `downloaded_at`, so the attempts log is the signal), and exactly one in-library ledger file
@@ -5432,6 +5434,13 @@ independently-found production bug from the same conversation)
   the stranded rows. The first boot with any new download waiting would have pruned all of them,
   and each track would have re-downloaded when next requested. That is why the repair is a
   migration: every backend service waits for `migrate`, so it lands before `reconcile_disk()`.
+- **A completed download's ledger merge never set `in_library`.** `db.merge` copies only the
+  attributes given, so a row whose library file went missing and was downloaded again kept
+  `in_library=True` on its new `/downloads` path, and no sweep (it reads only `in_library=False`)
+  would ever file it. The merge now sets `in_library=False`. Real on dev: a library row repointed
+  at a missing file, the track resubmitted, a real direct download, and the row read
+  `/downloads/01 - Portishead - Mysterons.mp3`, `in_library=f`; the next sweep filed it (1
+  quarantined, onto the existing library copy).
 - **A first repair relinked at runtime, and the review rejected it.** The sweep and
   `reconcile_disk()` relinked any missing row to the one in-library file with its basename,
   forever. A user who deletes `/downloads/01 - Artist - Intro.mp3` to force a re-download would
