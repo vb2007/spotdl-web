@@ -96,6 +96,31 @@ jobs:
     needs: resolve
     runs-on: self-hosted
     steps:
+      # Every job on this host runs as the same Unix user, so a plain `docker login` writes into
+      # one ~/.docker/config.json shared with every other job, run AND repository whose runner
+      # lives here. 2026-10-19: vb2007.hu-api's deploy logged in and out of ghcr.io between this
+      # job's login and its push, and the push failed `unauthenticated`. Each job therefore gets
+      # its own DOCKER_CONFIG under RUNNER_TEMP: the shared file's settings (current context,
+      # plugins) without any credential, so this job neither reads nor writes anyone's login.
+      - name: Use a job-private Docker config
+        run: |
+          DIR="$RUNNER_TEMP/docker-config"
+          SHARED="${DOCKER_CONFIG:-$HOME/.docker}"
+          rm -rf "$DIR" && mkdir -p "$DIR"
+          if [ -f "$SHARED/config.json" ]; then
+            python3 -c 'import json, sys
+          c = json.load(open(sys.argv[1]))
+          for k in ("auths", "credsStore", "credHelpers"):
+              c.pop(k, None)
+          json.dump(c, open(sys.argv[2], "w"))' "$SHARED/config.json" "$DIR/config.json"
+          fi
+          # Plugins (buildx, compose) and contexts are found only under DOCKER_CONFIG or the
+          # system plugin dirs, so the user-level ones are linked in, read-only in practice.
+          for d in cli-plugins contexts; do
+            if [ -e "$SHARED/$d" ]; then ln -s "$SHARED/$d" "$DIR/$d"; fi
+          done
+          echo "DOCKER_CONFIG=$DIR" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.resolve.outputs.commit }}
@@ -175,18 +200,15 @@ jobs:
           gh release upload "${{ needs.resolve.outputs.release_tag }}" images.json --clobber \
             --repo "${{ github.repository }}"
 
-      # CRITICAL on a persistent self-hosted runner (unlike a GitHub-hosted runner's disposable
-      # VM): `docker login` above writes a credential into this runner's own, shared
-      # ~/.docker/config.json, which survives long after this job's GITHUB_TOKEN expires. A
-      # left-behind stale credential makes Docker send that (now-invalid) token on every future
-      # pull from ghcr.io on this runner -- including the `deploy` job's plain `docker compose
-      # pull` below and completely unrelated future runs -- and the registry answers "denied"
-      # rather than falling back to anonymous access, even for a public image. Found by exactly
-      # that failure during this workflow's own live verification. `if: always()` so a login
-      # that happened before an earlier step failed still gets cleaned up.
+      # The login above lives only in this job's private DOCKER_CONFIG (first step), never in the
+      # runner's shared ~/.docker/config.json, where a credential that outlived its job once made
+      # a later pull of the public images fail `denied` (v21). Still removed explicitly, and
+      # `if: always()` so a login before an earlier failure is cleaned up too.
       - name: Log out of GHCR
         if: always()
-        run: docker logout ghcr.io || true
+        run: |
+          docker logout ghcr.io || true
+          rm -rf "$RUNNER_TEMP/docker-config"
 
   deploy:
     needs: [resolve, publish]
@@ -208,6 +230,33 @@ jobs:
       rollback_detail: ${{ steps.rollback.outputs.detail }}
       backup_path: ${{ steps.backup.outputs.path }}
     steps:
+      # Every job on this host runs as the same Unix user, so a plain `docker login` writes into
+      # one ~/.docker/config.json shared with every other job, run AND repository whose runner
+      # lives here. 2026-10-19: vb2007.hu-api's deploy logged in and out of ghcr.io between this
+      # job's login and its push, and the push failed `unauthenticated`. Each job therefore gets
+      # its own DOCKER_CONFIG under RUNNER_TEMP: the shared file's settings (current context,
+      # plugins) without any credential, so this job neither reads nor writes anyone's login.
+      # Here that means every pull is anonymous, as the public images need (no stale
+      # credential can turn a pull into `denied`, the v21 failure).
+      - name: Use a job-private Docker config
+        run: |
+          DIR="$RUNNER_TEMP/docker-config"
+          SHARED="${DOCKER_CONFIG:-$HOME/.docker}"
+          rm -rf "$DIR" && mkdir -p "$DIR"
+          if [ -f "$SHARED/config.json" ]; then
+            python3 -c 'import json, sys
+          c = json.load(open(sys.argv[1]))
+          for k in ("auths", "credsStore", "credHelpers"):
+              c.pop(k, None)
+          json.dump(c, open(sys.argv[2], "w"))' "$SHARED/config.json" "$DIR/config.json"
+          fi
+          # Plugins (buildx, compose) and contexts are found only under DOCKER_CONFIG or the
+          # system plugin dirs, so the user-level ones are linked in, read-only in practice.
+          for d in cli-plugins contexts; do
+            if [ -e "$SHARED/$d" ]; then ln -s "$SHARED/$d" "$DIR/$d"; fi
+          done
+          echo "DOCKER_CONFIG=$DIR" >> "$GITHUB_ENV"
+
       # This job's own steps below need this PR's scripts (wait_for_stack_health.sh) even on
       # the very first run, before DEPLOY_DIR itself has been updated to carry them -- checked
       # out into the job workspace, separate from DEPLOY_DIR itself.

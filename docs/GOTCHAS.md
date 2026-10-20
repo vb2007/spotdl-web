@@ -98,7 +98,8 @@ needed" claim — rather than silently deleted.
 - Documented deploy-host paths drift from reality; verify against the real host before wiring an
   automated workflow that acts on them → *v21*
 - A persistent self-hosted runner's `docker login` credential outlives the job and poisons later
-  pulls (even of public images) until an explicit `docker logout` → *v21*
+  pulls (even of public images) until an explicit `docker logout` → *v21*; and every repo's
+  runner on the host shares that file, so jobs use a private `DOCKER_CONFIG` (2026-10-19)
 - `host.docker.internal` doesn't resolve from the host's own DNS on Linux — a script meant to run
   on the host itself (not in a container) needs `localhost` instead → *v21*
 - `git checkout --detach` still needs `--force` to survive local drift on a tracked file, even
@@ -3097,6 +3098,17 @@ automated deploy-to-host)
   `~/.docker/config.json` and a manual `docker logout ghcr.io` unblocking the exact same pull)
   before adding an unconditional `docker logout ghcr.io` (`if: always()`) as the `publish`
   job's last step.
+  *2026-10-19: the logout wasn't enough.* Every repository's runner on this host runs as the
+  same Unix user, so the "shared" file is shared with other repos' jobs too, and a
+  logout only cleans up after itself. v47's release `publish` logged in at 12:07:15, then
+  vb2007.hu-api's concurrent release logged in (its own token) and out twice, the last
+  logout at 12:08:06; the push at 12:08:07 failed `unauthorized: unauthenticated: User cannot
+  be authenticated with the token provided`. `publish` and `deploy` now start with a "Use a
+  job-private Docker config" step: `DOCKER_CONFIG=$RUNNER_TEMP/docker-config`, a copy of the
+  shared `config.json` minus `auths`/`credsStore`/`credHelpers`, with `cli-plugins` and
+  `contexts` linked in (plugins are only looked up under `DOCKER_CONFIG` and the system dirs).
+  The login, the push and the deploy's anonymous pulls never touch the shared file. A rerun of
+  a failed `publish` is safe: nothing moved on the host (`deploy` never started).
 - **`pg_backup.sh` (a pre-existing v12 script) had never actually succeeded on this host** —
   it reads `DATABASE_URL` verbatim from `.env`, which is written for the *containers*
   (`host.docker.internal`, resolved via `extra_hosts: host-gateway`). That hostname is **not**
