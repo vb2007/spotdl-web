@@ -502,8 +502,9 @@ here rather than edited into it, so the original record stays readable.
   - **The 47 stranded production ledger rows are repaired, not left** ("do they still error, can
     we run into issues? if yes, don't leave them"). They still errored on every sweep, their
     tracks' files couldn't be downloaded (a 404 in the dev reproduction), and a deploy boot with any download waiting would have pruned
-    them into re-downloads. The sweep and `reconcile_disk()` both relink such a row to the one
-    in-library file with its basename, when that file exists; no manual production write.
+    them into re-downloads. A one-shot data migration (`cab1bff456eb`, after the deploy's
+    pre-deploy `pg_backup`) relinks each row the last sweep listed as missing to the one
+    in-library file with its basename; no manual production write. Read-only dry run: 47 of 47.
   - **v40's ambient glow moves to the Web Animations API** ("using the web animations api won't
     hurt"), so its motion is composited instead of costing a style update per frame; behavior
     unchanged. This closes v40's open "Performance" bullet.

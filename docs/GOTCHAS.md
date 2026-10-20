@@ -413,10 +413,15 @@ needed" claim — rather than silently deleted.
 
 - Two ledger rows (two Spotify ids) can share one downloaded file; a sweep must file the second
   row to wherever it filed the first, or it's stranded as "source file missing" and pruned into
-  a re-download. Rows stranded before v48 (production had 47) are relinked to their library
-  copy by the sweep and by `reconcile_disk()` → *v48*
+  a re-download. Rows stranded before v48 (production had 47) are relinked once, by data
+  migration `cab1bff456eb` → *v48*
+- A Postgres native-enum column won't compare with a bound string parameter (`operator does not
+  exist`); a portable migration casts it (`sa.cast(col, sa.String)`), and SQLite tests never
+  notice → *v48*
 - `reconcile_disk()` skips `/downloads` rows only while `/downloads` is empty, which an emptying
   sweep makes it; the first boot after a new download prunes every row whose file is gone → *v48*
+- Priority and bump are admin-only on the server since v48 (403 before the job lookup, the same
+  for any id), not only hidden in the UI → *v48*
 - A library sweep archives only the sweeping admin's own settled jobs; every user's moved
   tracks are still repointed (owner decision, F34) → *v48*
 - A real production breaker trip (2026-10-18 18:46 UTC) reached `breaker_events` but never the
@@ -5409,20 +5414,26 @@ independently-found production bug from the same conversation)
   "source file missing" errors, and every one of the 47 not-in-library ledger rows has a sibling
   with the same basename already in the library: earlier sweeps stranded them. The fix only
   prevents new ones; those rows keep erroring on each sweep until repaired or pruned (a prune
-  means a re-download if that track is requested again). _(2026-10-20, owner answer: repaired.
-  `dedup.filed_copy` finds the one in-library ledger file with the stranded row's basename (the
-  sweep keeps a source's basename), present on disk under the library root; both the sweep and
-  `reconcile_disk()` relink the row to it instead of erroring or pruning. Two candidates or none
-  on disk leave the old behavior. All 47 production rows have exactly one candidate (read-only
-  query, 2026-10-20). Dev before/after on real stacks: the pre-repair worker errored and the
-  track's file answered 404; after a restart, 1 "already present", 0 errors, the file 200, and a
-  worker-meta boot logged "removed 1 with missing files, relinked 1 to their library copy".)_
+  means a re-download if that track is requested again). _(2026-10-20, owner answer: repaired,
+  by one-shot data migration `cab1bff456eb`, which runs after the deploy's pre-deploy
+  `pg_backup` and before any worker boots. It relinks a row only if the last sweep listed its
+  path as "source file missing on disk", it was recorded before that sweep started, and exactly
+  one in-library ledger file has its basename (the sweep keeps a source's basename); its
+  completed and skipped-duplicate tracks follow. Read-only dry run on production: 47 of 47 rows,
+  47 tracks. On dev, a real stranded row's file answered 404, then 200 after `migrate`; a
+  downgrade and re-upgrade relinked 0.)_
 - **What kept the 47 rows alive was an accident.** `reconcile_disk()` (every worker-meta boot,
   so every deploy) refuses to prune rows under a root that looks unmounted, and an empty
   `/downloads` looks unmounted. Each sweep empties `/downloads`, so the deploys after it skipped
   the stranded rows. The first boot with any new download waiting would have pruned all of them,
-  and each track would have re-downloaded when next requested. That is why the relink is in
-  `reconcile_disk()` too, not only in the sweep.
+  and each track would have re-downloaded when next requested. That is why the repair is a
+  migration: every backend service waits for `migrate`, so it lands before `reconcile_disk()`.
+- **A first repair relinked at runtime, and the review rejected it.** The sweep and
+  `reconcile_disk()` relinked any missing row to the one in-library file with its basename,
+  forever. A user who deletes `/downloads/01 - Artist - Intro.mp3` to force a re-download would
+  have had it linked to another album's `01 - Artist - Intro.mp3` instead, and the sweep's copy
+  had no unmounted-root guard. Every legacy row exists at the moment v48 deploys, so a
+  migration scopes the repair exactly; the runtime code was reverted.
 - **A first fix that deduplicated the error log row by row was wrong.** The blind review found
   that a per-row pass still split shared rows (a failed copy for the first row, then a successful
   one for the second, deleted the source the first still pointed at) and that a per-path error
