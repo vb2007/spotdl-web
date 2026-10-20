@@ -5445,10 +5445,18 @@ independently-found production bug from the same conversation)
   pointer move starts a compositor animation and cancels the previous one, and the glow's position
   is computed from that animation's own `currentTime` and keyframes (reading `getComputedStyle`
   would force a style update). Measured on `/account`: the glide after the pointer stops dropped
-  from 51 main-thread frames to 1 style update, and from 18.7ms to 1.4ms. Continuous movement
-  still costs ~4 one-element style updates per retarget, about the rAF loop's per-frame cost (0.46
-  vs 0.49ms/frame), so "composite only" holds once the pointer stops, not while it moves. Reusing
-  one Animation via `setKeyframes` cost the same.
+  from 51 main-thread frames (rAF, style update, commit each) to one style update and one commit.
+  Continuous movement costs ~4 one-element style updates per retarget, slightly more than the rAF
+  loop (0.56 vs 0.49ms/frame), so "composite only" holds once the pointer stops, not while it
+  moves. Reusing one Animation via `setKeyframes` cost the same.
+- **A new Web Animation's `currentTime` reads 0 until the frame after it's created.** Its start
+  time resolves a frame late, and Chrome dispatches one `pointermove` per frame, so every
+  retarget read the previous glide at keyframe 0 and restarted from the same point: the glow froze
+  while the mouse kept moving (0 px/frame over 117 moves) and stuttered at half that rate. Set
+  `animation.startTime = document.timeline.currentTime` right after `animate()`; then it advanced
+  ~4 px/frame with the old loop's ~v·τ lag. The first trace missed it (its moves came every ~3
+  frames); a fresh-eyes review caught it with per-frame deltas. Likewise `pause()` only takes
+  effect on a rendered frame, which a hidden tab doesn't produce: pin the position instead.
 - **`uvicorn --reload` hangs on open SSE streams.** Editing `app/tasks/library.py` made `api` log
   "Waiting for connections to close" and stop answering (container `unhealthy`), because an
   `/api/stream` connection was still open. `docker compose restart api` clears it.

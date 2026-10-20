@@ -559,13 +559,14 @@ the viewport size comes from a `ResizeObserver`. When the pointer leaves the win
 home; a native drag (which cancels the pointer and fires the same window-leave event) does not
 count as leaving. A touch-type `pointermove` is ignored, so it never chases a tap. While it can
 move, `.glow` carries `will-change: transform`, so its gradient rasterizes once and the glide runs
-on the compositor: after the pointer stops, the glide back to rest costs no main-thread frames (one
-style update when it finishes), and at rest nothing runs. While the pointer keeps moving, each
-retarget costs a few 1-element style updates and a commit, about the same main-thread time as
-v40's rAF loop (0.46 vs 0.49ms per frame, measured on `/account`), with no layout and no repaint. A
-hidden tab pauses the glide where it is. _(2026-10-20, v48: moved from v40's `requestAnimationFrame`
-loop to WAAPI, owner's answer to v40's open performance question; the glide after the last move
-fell from 51 main-thread frames (18.7ms) to one style update (1.4ms).)_
+on the compositor: after the pointer stops, the glide until it settles costs no main-thread frames
+(one style update when it finishes), and at rest nothing runs. While the pointer keeps moving, each
+retarget costs a few 1-element style updates and a commit, slightly more main-thread time than
+v40's rAF loop (0.56 vs 0.49ms per frame, measured on `/account`), with no layout and no repaint.
+A hidden tab pins the glow where it is, and the glide restarts from there on return. _(2026-10-20,
+v48: moved from v40's `requestAnimationFrame` loop to WAAPI, owner's answer to v40's open
+performance question; the glide after the last move fell from 51 main-thread frames to one style
+update and one commit.)_
 
 **Static cases (owner's choice, 2026-10-13): no hover or a coarse pointer, and
 `prefers-reduced-motion: reduce`.** Phones keep the home position with no pointer listener and no

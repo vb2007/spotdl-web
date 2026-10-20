@@ -89,7 +89,10 @@
 		function position(): [number, number] {
 			if (!glide) return [x, y];
 			const { points, duration } = glide;
-			const time = Number(glide.animation.currentTime ?? 0);
+			const current = glide.animation.currentTime;
+			// Cancelled from outside: the glow shows its inline transform again.
+			if (current === null) return [x, y];
+			const time = Number(current);
 			if (time >= duration) return points[points.length - 1];
 			const at = (Math.max(time, 0) / duration) * (points.length - 1);
 			const i = Math.floor(at);
@@ -137,7 +140,7 @@
 			const dx = fromX - targetX;
 			const dy = fromY - targetY;
 			const distance = Math.max(Math.abs(dx), Math.abs(dy));
-			if (distance < SETTLE) {
+			if (distance <= SETTLE) {
 				place(targetX, targetY);
 				return;
 			}
@@ -154,12 +157,21 @@
 				points.map(([px, py]) => ({ transform: `translate3d(${px}px, ${py}px, 0)` })),
 				{ duration, fill: 'forwards' }
 			);
+			// A new animation's start time is otherwise resolved a frame late, so the next
+			// pointermove (one per frame) would read currentTime 0 and restart from `from`: the glow
+			// would freeze while the pointer keeps moving. Pinned to this frame's time, it advances.
+			const now = document.timeline.currentTime;
+			if (now !== null) animation.startTime = now;
 			glide = { animation, points, duration };
 		}
 
-		/** A hidden tab freezes the glide where it is (the next wake resumes from there). */
+		/** A hidden tab pins the glow where it is. pause() would only take effect on the next
+		 * frame, which a hidden tab doesn't render, so the clock would run on. The exponential
+		 * approach has no memory, so the glide restarted on return is the same curve. */
 		function sleep() {
-			glide?.animation.pause();
+			if (!glide) return;
+			const [px, py] = position();
+			place(px, py);
 		}
 
 		function onPointerMove(event: PointerEvent) {

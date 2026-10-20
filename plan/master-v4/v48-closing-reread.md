@@ -21,7 +21,8 @@ the v48 PR and closed on this branch; see the notes under each.)_
   design, so it was accepted only by merging. _(2026-10-20, owner: "using the web animations api
   won't hurt". The glow now runs on WAAPI: the glide after the pointer stops is composite-only
   (51 main-thread frames → 1 style update), while each retarget during continuous movement still
-  costs a few 1-element style updates, about the old per-frame cost. Recorded in DESIGN.md §5 and
+  costs a few 1-element style updates, slightly more than the old per-frame cost (0.56 vs
+  0.49ms/frame). Recorded in DESIGN.md §5 and
   the GOTCHAS v48 section.)_
 - **v47, "prior decision records preserved":** PR #69 folded DESIGN.md's older dated blockquotes
   into prose, losing most of their dates, and asked whether to restore them. No answer is
