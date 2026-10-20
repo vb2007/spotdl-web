@@ -12,15 +12,21 @@ Amendment).
 **Totals:** 172 bullets. 162 evidenced, 6 confirmed in code, 2 superseded, 0 needing a separate
 live check (v48's own runs re-cover the e2e-backed ones: the full strict Playwright suite on all
 three projects, and `scripts/verify_separation_sse.sh`, both green on the v48 branch), and
-**2 gaps**, both waiting on an owner answer rather than on work:
+**2 gaps**, both waiting on an owner answer rather than on work. _(2026-10-20: both answered on
+the v48 PR and closed on this branch; see the notes under each.)_
 
 - **v40, "no style recalculation per frame … only composite work":** PR #59 reported it as partly
   met (a one-element style update plus a commit per frame) and asked the owner to accept that or
   switch to WAAPI. No answer is recorded. The cost is written into DESIGN.md and GOTCHAS as the
-  design, so it was accepted only by merging.
+  design, so it was accepted only by merging. _(2026-10-20, owner: "using the web animations api
+  won't hurt". The glow now runs on WAAPI: the glide after the pointer stops is composite-only
+  (51 main-thread frames → 1 style update), while each retarget during continuous movement still
+  costs a few 1-element style updates, about the old per-frame cost. Recorded in DESIGN.md §5 and
+  the GOTCHAS v48 section.)_
 - **v47, "prior decision records preserved":** PR #69 folded DESIGN.md's older dated blockquotes
   into prose, losing most of their dates, and asked whether to restore them. No answer is
-  recorded.
+  recorded. _(2026-10-20, owner: "Restore the dates." 22 records' dates restored inline from the
+  pre-v47 file (`df36405`); none were unrecoverable.)_
 
 The three sections below were produced by three independent reviewers, one per range.
 

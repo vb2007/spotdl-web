@@ -19,8 +19,13 @@
 	/** Time constant of the follow, in ms: the glow covers ~63% of the remaining distance
 	 * every TAU. Long enough to read as light catching up, short enough not to feel like lag. */
 	const TAU = 180;
-	/** Below this distance (px) the glow snaps to its target and the frame loop stops. */
+	/** Below this distance (px) the glow snaps to its target and the glide ends. */
 	const SETTLE = 0.5;
+	/** Keyframe spacing of a glide, in ms. The compositor interpolates linearly between samples,
+	 * so a glide is the exponential curve as a polyline: at one sample per two 60Hz frames it
+	 * stays within ~0.4% of the distance still to go, invisible in a soft 576px gradient, and a
+	 * retarget stays cheap (fewer keyframes to build per pointer move). */
+	const STEP = 1000 / 30;
 	/** Slate's peak per unit of amber peak. Luminance-equal over --bg-0 is ~1.25, but after
 	 * 8-bit rounding that can land slate one code value brighter than amber at some heights;
 	 * 1.15 keeps slate at or under amber's rendered luminance across the measured range (up to
@@ -50,12 +55,13 @@
 		// The glow's transform is an offset from its CSS home (left 50%, top -10% of the
 		// field), so (0, 0) is home and the viewport size only turns a pointer position into
 		// an offset (and sets the peaks). ResizeObserver hands that size over without a
-		// forced layout, so the frame loop itself never reads layout. One read here seeds it,
+		// forced layout, so moving the glow never reads layout. One read here seeds it,
 		// so a pointer already moving at mount aims right before the first observation lands.
 		// The root's client size excludes a classic scrollbar, matching the fixed field.
 		let width = document.documentElement.clientWidth;
 		let height = document.documentElement.clientHeight;
 
+		/** The glow's resting offset from home while no glide runs (also its inline transform). */
 		let x = 0;
 		let y = 0;
 		let targetX = 0;
@@ -65,15 +71,41 @@
 		/** A native drag (a link, a text selection) is in progress: the browser cancels the
 		 * pointer and sends no pointermove until the drop. */
 		let dragging = false;
-		let frame = 0;
-		/** The previous frame's timestamp; -1 means the loop was just woken. */
-		let last = -1;
+		/** The running (or finished, held) glide: a Web Animation to the target, its keyframes
+		 * sampled from the exponential approach. The compositor plays it, so the main thread does no
+		 * per-frame work; a new target just replaces it. */
+		let glide: { animation: Animation; points: [number, number][]; duration: number } | null = null;
 
 		/** Turns the pointer position into the glow's offset from home. Also re-run on resize:
 		 * home moves with the viewport, so a still pointer would otherwise end up off-centre. */
 		function aim() {
 			targetX = pointer ? pointer.x - width / 2 : 0;
 			targetY = pointer ? pointer.y + height * 0.1 : 0;
+		}
+
+		/** Where the glow is right now. Read off the running glide's own clock and keyframes (the
+		 * same linear interpolation the animation applies), never from computed style, so asking
+		 * forces no style or layout. */
+		function position(): [number, number] {
+			if (!glide) return [x, y];
+			const { points, duration } = glide;
+			const time = Number(glide.animation.currentTime ?? 0);
+			if (time >= duration) return points[points.length - 1];
+			const at = (Math.max(time, 0) / duration) * (points.length - 1);
+			const i = Math.floor(at);
+			const f = at - i;
+			const [x0, y0] = points[i];
+			const [x1, y1] = points[i + 1];
+			return [x0 + (x1 - x0) * f, y0 + (y1 - y0) * f];
+		}
+
+		/** Ends any glide and pins the glow at (nx, ny). */
+		function place(nx: number, ny: number) {
+			glide?.animation.cancel();
+			glide = null;
+			x = nx;
+			y = ny;
+			glow.style.transform = nx || ny ? `translate3d(${nx}px, ${ny}px, 0)` : '';
 		}
 
 		const resize = new ResizeObserver(([entry]) => {
@@ -89,45 +121,45 @@
 			// glow is off home (under the pointer, drifting back, or paused mid-drift in a hidden
 			// tab), shift its offset by the opposite amount before this frame paints, so it stays
 			// where it was on screen instead of lurching sideways. At home it moves with home.
-			if (x !== 0 || y !== 0) {
-				x -= dWidth / 2;
-				y += dHeight * 0.1;
-				glow.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-			}
+			const [px, py] = position();
+			if (px !== 0 || py !== 0) place(px - dWidth / 2, py + dHeight * 0.1);
 			aim();
 			wake();
 		});
 		resize.observe(field);
 
-		function tick(now: number) {
-			// The first frame after a wake has no previous timestamp (and a frame's timestamp can
-			// precede the pointermove that woke it), so it counts as one 60Hz frame. Later
-			// frames clamp dt so a long-throttled frame eases in rather than jumping.
-			const dt = last < 0 ? 1000 / 60 : Math.min(Math.max(now - last, 0), 64);
-			const k = 1 - Math.exp(-dt / TAU);
-			last = now;
-			x += (targetX - x) * k;
-			y += (targetY - y) * k;
-			if (Math.abs(targetX - x) < SETTLE && Math.abs(targetY - y) < SETTLE) {
-				x = targetX;
-				y = targetY;
-				frame = 0;
-			} else {
-				frame = requestAnimationFrame(tick);
-			}
-			glow.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-		}
-
+		/** Starts a glide from wherever the glow is now to the current target. Its keyframes are
+		 * the exponential approach x(t) = target + (x0 − target)·e^(−t/TAU), sampled every STEP
+		 * until both axes are within SETTLE, then the exact target (the snap). */
 		function wake() {
-			if (frame || !following || document.hidden) return;
-			if (x === targetX && y === targetY) return;
-			last = -1;
-			frame = requestAnimationFrame(tick);
+			if (!following || document.hidden) return;
+			const [fromX, fromY] = position();
+			const dx = fromX - targetX;
+			const dy = fromY - targetY;
+			const distance = Math.max(Math.abs(dx), Math.abs(dy));
+			if (distance < SETTLE) {
+				place(targetX, targetY);
+				return;
+			}
+			const duration = TAU * Math.log(distance / SETTLE);
+			const steps = Math.max(1, Math.ceil(duration / STEP));
+			const points: [number, number][] = [];
+			for (let i = 0; i < steps; i++) {
+				const decay = Math.exp(-((i / steps) * duration) / TAU);
+				points.push([targetX + dx * decay, targetY + dy * decay]);
+			}
+			points.push([targetX, targetY]);
+			glide?.animation.cancel();
+			const animation = glow.animate(
+				points.map(([px, py]) => ({ transform: `translate3d(${px}px, ${py}px, 0)` })),
+				{ duration, fill: 'forwards' }
+			);
+			glide = { animation, points, duration };
 		}
 
+		/** A hidden tab freezes the glide where it is (the next wake resumes from there). */
 		function sleep() {
-			cancelAnimationFrame(frame);
-			frame = 0;
+			glide?.animation.pause();
 		}
 
 		function onPointerMove(event: PointerEvent) {
@@ -161,7 +193,7 @@
 		}
 
 		/** Following needs a hovering fine pointer and motion allowed. Otherwise the glow sits
-		 * at home with no pointer listener and no frame loop at all. */
+		 * at home with no pointer listener and no animation at all. */
 		function configure() {
 			const next = finePointer.matches && !reducedMotion.matches;
 			if (next === following) return;
@@ -174,11 +206,10 @@
 				window.removeEventListener('pointermove', onPointerMove);
 				window.removeEventListener('pointerout', onPointerOut);
 				window.removeEventListener('pointercancel', onPointerCancel);
-				sleep();
 				pointer = null;
 				dragging = false;
-				x = y = targetX = targetY = 0;
-				glow.style.transform = '';
+				targetX = targetY = 0;
+				place(0, 0);
 			}
 		}
 
@@ -188,7 +219,7 @@
 		document.addEventListener('visibilitychange', onVisibilityChange);
 
 		return () => {
-			sleep();
+			glide?.animation.cancel();
 			resize.disconnect();
 			finePointer.removeEventListener('change', configure);
 			reducedMotion.removeEventListener('change', configure);
@@ -218,7 +249,7 @@
 	}
 
 	/* About the old body ellipse's footprint (its visible radii were ~540×300px, centred at
-	   50% -10%; these are 576×352px), as an element the frame loop can move by transform
+	   50% -10%; these are 576×352px), as an element a Web Animation can move by transform
 	   alone. */
 	.glow {
 		position: absolute;
@@ -229,9 +260,9 @@
 		margin: -22rem 0 0 -36rem;
 	}
 
-	/* Promoted only while it can move, so the gradient is rasterized once: each frame then
-	   costs a one-element style update and a commit, with no layout and no repaint. A static
-	   field (touch, reduced motion) stays unpromoted. */
+	/* Promoted only while it can move, so the gradient is rasterized once and a glide runs on
+	   the compositor: only starting one costs a one-element style update, with no layout and no
+	   repaint. A static field (touch, reduced motion) stays unpromoted. */
 	.glow.following {
 		will-change: transform;
 	}

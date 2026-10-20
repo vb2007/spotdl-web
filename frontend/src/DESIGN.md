@@ -549,18 +549,23 @@ the page (headers, hints, the `/login` ident). Its home is approximately the old
 composition: a 72×44rem element (1152×704px at the default 16px; it grows with text scaling)
 centred at 50% / −10% of the viewport, so at rest the page reads as it always did, minus the amber.
 
-**Behavior.** With a hovering fine pointer, the glow follows the cursor. `pointermove` only stores
-the latest position, and one `requestAnimationFrame` loop eases toward it (exponential approach,
-τ = 180ms), moving the element by `transform: translate3d()` alone. It snaps and stops when it is
-within 0.5px, and restarts on the next move. When the pointer leaves the window it drifts back
+**Behavior.** With a hovering fine pointer, the glow follows the cursor. Each `pointermove` (and a
+window leave, a resize, a tab returning) starts one Web Animation from wherever the glow is to the
+new target, cancelling the previous one. Its keyframes are the exponential approach (τ = 180ms)
+sampled every 33ms, which stays within ~0.4% of the remaining distance, and it lasts until both
+axes are within 0.5px, then lands exactly on target. The glow's current position is read from the
+animation's own clock and keyframes, never from computed style, so retargeting reads no layout, and
+the viewport size comes from a `ResizeObserver`. When the pointer leaves the window it drifts back
 home; a native drag (which cancels the pointer and fires the same window-leave event) does not
-count as leaving. A touch-type `pointermove` is ignored, so it never chases a tap. The loop reads no
-layout: the viewport size comes from a `ResizeObserver`. While it can move, the `.glow` element
-carries `will-change: transform`, so its gradient rasterizes once. Each frame costs one 1-element
-style update and a commit, with no layout and no repaint: about 0.3ms of main-thread work per frame,
-measured on `/account` (v40 PR). On an idle `/` the same style update also re-samples the Waterfall
-noise floor's 40 animated bars (~0.3ms more). That is the floor for any script-driven transform;
-"composite only" is reachable only for CSS/WAAPI keyframes.
+count as leaving. A touch-type `pointermove` is ignored, so it never chases a tap. While it can
+move, `.glow` carries `will-change: transform`, so its gradient rasterizes once and the glide runs
+on the compositor: after the pointer stops, the glide back to rest costs no main-thread frames (one
+style update when it finishes), and at rest nothing runs. While the pointer keeps moving, each
+retarget costs a few 1-element style updates and a commit, about the same main-thread time as
+v40's rAF loop (0.46 vs 0.49ms per frame, measured on `/account`), with no layout and no repaint. A
+hidden tab pauses the glide where it is. _(2026-10-20, v48: moved from v40's `requestAnimationFrame`
+loop to WAAPI, owner's answer to v40's open performance question; the glide after the last move
+fell from 51 main-thread frames (18.7ms) to one style update (1.4ms).)_
 
 **Static cases (owner's choice, 2026-10-13): no hover or a coarse pointer, and
 `prefers-reduced-motion: reduce`.** Phones keep the home position with no pointer listener and no

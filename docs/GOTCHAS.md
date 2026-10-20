@@ -972,6 +972,8 @@ needed" claim — rather than silently deleted.
 - A rAF loop writing `transform` costs a 1-element style recalc + commit per frame, never zero.
   On an idle `/` every main frame also re-samples the Waterfall noise floor's 40 animated bars
   (~80 elements in the trace's style count), so profile a frame loop on `/account` → *v40*
+- The ambient glow runs on WAAPI since v48: composite-only once the pointer stops, but each
+  retarget while it moves still costs a few 1-element style updates → *v48*
 
 **Reference (not a gotcha)**
 - Upstream `vb2007.hu-api` endpoint shapes, token scheme, and the two constraints they impose →
@@ -5439,6 +5441,14 @@ independently-found production bug from the same conversation)
   lookup, so a non-admin gets the same 403 for their own job, a foreign one, and an unknown id
   (live on dev: 403 `admin_required` ×3, priority unchanged; the admin still 200/404). They left
   `test_ownership.py`'s 404 sweep for a 403 test of their own.
+- **The ambient glow runs on WAAPI, not a rAF loop (owner answer to v40's open question).** Every
+  pointer move starts a compositor animation and cancels the previous one, and the glow's position
+  is computed from that animation's own `currentTime` and keyframes (reading `getComputedStyle`
+  would force a style update). Measured on `/account`: the glide after the pointer stops dropped
+  from 51 main-thread frames to 1 style update, and from 18.7ms to 1.4ms. Continuous movement
+  still costs ~4 one-element style updates per retarget, about the rAF loop's per-frame cost (0.46
+  vs 0.49ms/frame), so "composite only" holds once the pointer stops, not while it moves. Reusing
+  one Animation via `setKeyframes` cost the same.
 - **`uvicorn --reload` hangs on open SSE streams.** Editing `app/tasks/library.py` made `api` log
   "Waiting for connections to close" and stop answering (container `unhealthy`), because an
   `/api/stream` connection was still open. `docker compose restart api` clears it.
