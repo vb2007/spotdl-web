@@ -5430,8 +5430,9 @@ independently-found production bug from the same conversation)
   `alembic_version` only, losslessly.)_
 - **What kept the 47 rows alive was an accident.** `reconcile_disk()` (every worker-meta boot,
   so every deploy) refuses to prune rows under a root that looks unmounted, and an empty
-  `/downloads` looks unmounted. Each sweep empties `/downloads`, so the deploys after it skipped
-  the stranded rows. The first boot with any new download waiting would have pruned all of them,
+  `/downloads` looks unmounted. Each sweep empties `/downloads` (unless it quarantined something:
+  the default quarantine dir is `/downloads/quarantine`, which keeps it non-empty for good), so
+  the deploys after it skipped the stranded rows. The first boot with any new download waiting would have pruned all of them,
   and each track would have re-downloaded when next requested. That is why the repair is a
   migration: every backend service waits for `migrate`, so it lands before `reconcile_disk()`.
 - **A completed download's ledger merge never set `in_library`.** `db.merge` copies only the

@@ -44,7 +44,9 @@ logger = logging.getLogger("alembic.runtime.migration")
 
 # Only the columns this repair reads or writes (portable Core, not the app's models, which
 # move on with later revisions).
-_runs = sa.table("library_sort_runs", sa.column("id"), sa.column("started_at"), sa.column("errors", sa.JSON))
+_runs = sa.table(
+    "library_sort_runs", sa.column("id"), sa.column("state"), sa.column("started_at"), sa.column("errors", sa.JSON)
+)
 _ledger = sa.table(
     "downloaded_tracks",
     sa.column("spotify_track_id"),
@@ -60,9 +62,17 @@ _attempts = sa.table("track_attempts", sa.column("track_id"), sa.column("outcome
 
 def upgrade() -> None:
     bind = op.get_bind()
-    run = bind.execute(sa.select(_runs.c.started_at, _runs.c.errors).where(_runs.c.id == 1)).first()
+    run = bind.execute(
+        sa.select(sa.cast(_runs.c.state, sa.String).label("state"), _runs.c.started_at, _runs.c.errors).where(
+            _runs.c.id == 1
+        )
+    ).first()
     if run is None or run.started_at is None or not run.errors:
         return
+    if run.state == "running":
+        # The old workers are still up while migrate runs: a pre-v48 sweep mid-way can strand
+        # rows after this read, which nothing repairs. Harmless here; worth knowing.
+        logger.warning("v48: a library sweep is running; its errors so far are all this repair sees")
     missing = sorted({entry.get("file") for entry in run.errors if entry.get("error") == _MISSING} - {None})
     if not missing:
         return
