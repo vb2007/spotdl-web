@@ -98,9 +98,14 @@
 		let last = -1;
 		/** A wake (a pointer move, a leave, a resize) came in since the last frame. */
 		let moved = false;
-		/** Frames in a row the loop ran with no wake. */
-		let quiet = 0;
-		/** Set by pin() when it ends a glide mid-way: that frame's time, so the loop resumes from
+		/** The timestamp of the last frame that had a wake. */
+		let wokeAt = 0;
+		/** The loop's last measured frame interval, for resuming from a glide. */
+		let interval = 1000 / 60;
+		/** A wake came in during a glide: the next frame pins the glide where it was one frame
+		 * earlier and steps from there toward the new target, as v40's loop would have. */
+		let repin = false;
+		/** Set by pin() when it ends a glide mid-way: that moment's time, so the loop resumes from
 		 * the glide's clock instead of taking a whole first-frame step on top of it. */
 		let resume = -1;
 
@@ -114,10 +119,10 @@
 		/** Where the glow is right now. Read off the running glide's own clock through the same
 		 * polyline the easing applies, never from computed style, so asking forces no style or
 		 * layout. */
-		function position(): [number, number] {
+		function position(at?: number): [number, number] {
 			if (!glide) return [x, y];
 			const { from, to } = glide;
-			const current = glide.animation.currentTime;
+			const current = at ?? glide.animation.currentTime;
 			// Cancelled from outside: the glow shows its inline transform again.
 			if (current === null) return [x, y];
 			const time = Number(current);
@@ -129,7 +134,7 @@
 			return [from[0] + (to[0] - from[0]) * p, from[1] + (to[1] - from[1]) * p];
 		}
 
-		/** Ends a running glide where it is, so the loop (or a resize) carries on from there. */
+		/** Ends a running glide where it is, so a resize (or a hidden tab) carries on from there. */
 		function pin() {
 			if (!glide) return;
 			const current = glide.animation.currentTime;
@@ -196,22 +201,35 @@
 
 		/** One frame of the follow while the pointer moves, exactly v40's loop. Retargeting a Web
 		 * Animation on every move costs more main-thread time than this step (each new animation
-		 * restyles the glow twice), so the loop runs while moves keep coming, and the third frame
-		 * in a row without one (so slow, sparse moves don't start and cancel a glide each time)
-		 * hands the rest of the approach to a compositor glide. The glide starts from the last
-		 * frame's position, back-dated by this frame's step, so this frame shows exactly what the
-		 * loop would have drawn. */
+		 * restyles the glow twice), so the loop runs while moves keep coming, and once ~50ms (three
+		 * 60Hz frames, at any refresh rate) pass without one, so slow, sparse moves don't start and
+		 * cancel a glide each time, it hands the rest of the approach to a compositor glide. The
+		 * glide starts from the last frame's position, back-dated by this frame's step, so this
+		 * frame shows exactly what the loop would have drawn. */
 		function tick(now: number) {
 			frame = 0;
+			if (repin && glide) {
+				// Where the glide was one frame ago, the frame v40's loop would have stepped from.
+				// Read here, not in the pointermove: inside a frame Chrome's clock may already read
+				// this frame's time, and off a 60Hz display it's only an estimate.
+				const start = Number(glide.animation.startTime);
+				const from = Math.max(now - interval, start);
+				const [px, py] = position(from - start);
+				place(px, py);
+				last = from;
+			}
+			repin = false;
 			// The first frame after a wake from rest has no previous timestamp (and a frame's
 			// timestamp can precede the pointermove that woke it), so it counts as one 60Hz frame;
 			// a wake mid-glide resumes from the glide's own clock instead (pin()). Later frames
 			// clamp dt so a long-throttled frame eases in rather than jumping.
 			const dt = last < 0 ? 1000 / 60 : Math.min(Math.max(now - last, 0), 64);
+			if (dt > 0 && dt < 40) interval = dt;
 			last = now;
-			quiet = moved ? 0 : quiet + 1;
+			if (moved) wokeAt = now;
 			moved = false;
-			if (quiet >= 3 && linearEasing) {
+			// 45, not 50: frame timestamps jitter, and the third 60Hz frame mustn't slip to a fourth.
+			if (now - wokeAt >= 45 && linearEasing) {
 				glideFrom(x, y, now - dt);
 				return;
 			}
@@ -230,10 +248,9 @@
 		function wake() {
 			if (!following || document.hidden) return;
 			moved = true;
-			pin();
+			if (glide) repin = true;
 			if (!frame) {
 				last = resume;
-				quiet = 0;
 				frame = requestAnimationFrame(tick);
 			}
 			resume = -1;

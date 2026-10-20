@@ -981,6 +981,10 @@ needed" claim — rather than silently deleted.
   (~80 elements in the trace's style count), so profile a frame loop on `/account` → *v40*
 - Retargeting a Web Animation on every pointer move costs more than a rAF loop (~1.5×); the
   glow runs the loop while moving and hands off to a back-dated WAAPI glide once moves stop → *v48*
+- A new Web Animation's start time resolves a frame late (`currentTime` 0 meanwhile) and `pause()`
+  needs a rendered frame: set `startTime`, and pin a hidden tab's position yourself → *v48*
+- Outside a frame Chrome's `document.timeline.currentTime` is a 60Hz-grid estimate; read a
+  glide's position at a frame's own timestamp, and probe without a logger rAF → *v48*
 
 **Reference (not a gotcha)**
 - Upstream `vb2007.hu-api` endpoint shapes, token scheme, and the two constraints they impose →
@@ -5471,20 +5475,24 @@ independently-found production bug from the same conversation)
   on every move. At a real mouse's one move per frame that cost 0.90ms/frame against the loop's
   0.59 (each new animation restyles the element about twice, and ~45 keyframes had to be built and
   parsed); two keyframes with one cached `linear()` easing brought it to 0.80, still worse. The
-  hybrid: the loop runs while moves keep coming, and the third frame in a row without one starts
-  a two-keyframe glide from the last frame's position, `startTime` back-dated by the frame's step,
+  hybrid: the loop runs while moves keep coming, and once ~50ms pass without one it starts a
+  two-keyframe glide from the last frame's position, `startTime` back-dated by the frame's step,
   so the hand-off frame matches the loop. Handing off on the first quiet frame made slow input
-  (a move every 2–3 frames) start and cancel a glide each time, +15–23% over the loop. Measured
-  on `/login` against the v40 component (swapped in via `page.route`): the same style-update
-  count while moving, 0.66 vs 0.58ms/frame at one move per frame; after the last move 4 loop
-  frames, ~9 style updates and ~5ms of tasks instead of ~60 frames and ~22ms; at rest nothing.
-- **Resuming a frame loop from a glide must take the glide's clock, not a fresh first frame.**
-  While only a compositor animation runs, Chrome produces no main frames, so a pointermove's
-  `document.timeline.currentTime` already reads the coming frame's time and the glide's position
-  is that frame's. Restarting the loop with v40's "first frame counts as 1/60s" then skipped a
-  frame on every move during a glide (and drifted 40–150px from v40 on 120–240Hz displays, in a
-  math model). The loop now resumes with `last` = that timeline time (dt 0). Probes that run
-  their own rAF logger keep main frames alive and hide this; screencast the composited result.
+  start and cancel a glide each time (+15–23%); counting frames instead of time would do the same
+  on 144–240Hz displays. Measured on `/login` against the v40 component (swapped in via
+  `page.route`): the same style-update count while moving, 2–14% more main-thread time per frame;
+  after the last move 4 loop frames, ~9 style updates and ~5ms of tasks instead of ~60 frames and
+  21–25ms; at rest nothing.
+- **Resuming the loop from a glide: pin it on the next frame, one frame back.** A move during a
+  glide must restart the loop where v40's would have stepped from, the glide's position one frame
+  before the next one. Pinning inside the pointermove read the wrong instant: Chrome's
+  `document.timeline.currentTime` outside a frame is an estimate on a fixed 60Hz grid
+  (`kApproximateFrameTime`), and inside a frame with no rAF pending it already reads that frame's
+  time. Two earlier versions got this wrong in turn (a fresh first-frame step on top of the glide
+  skipped a frame; then dt 0 ignored the new target for a frame, 6–8px off v40 on a 100px
+  retarget). The loop now pins at the start of its next tick, at `now − interval` on the glide's
+  own clock. Probes that run their own rAF logger keep a rAF pending and hide all of this;
+  screencast the composited result with no other rAF on the page.
 - **A new Web Animation's `currentTime` reads 0 until the frame after it's created**, because its
   start time resolves a frame late. A retarget every frame then reads keyframe 0 every time, and
   the first WAAPI version froze while the mouse kept moving (0 px/frame over 117 moves). Set
