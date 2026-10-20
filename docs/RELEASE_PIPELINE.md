@@ -155,6 +155,11 @@ Public means **no `docker login` needed to pull**, anywhere — the host's `depl
 authenticates to read; only `publish` logs in (with the job's own `GITHUB_TOKEN`, no separate
 secret) to push.
 
+Both jobs run with a **job-private `DOCKER_CONFIG`** (`$RUNNER_TEMP/docker-config`, set by their
+first step), never the runner user's `~/.docker/config.json`: other repositories' runners on the
+same host share that file, and their `docker login`/`logout` once broke this pipeline's push
+mid-job (`docs/GOTCHAS.md`, v21 entry, 2026-10-19 note).
+
 ```bash
 docker pull ghcr.io/vb2007/spotdl-web-backend:2.21.0    # a specific release
 docker pull ghcr.io/vb2007/spotdl-web-backend:latest    # whatever release-mode last pushed
