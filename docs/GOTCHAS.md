@@ -413,7 +413,10 @@ needed" claim — rather than silently deleted.
 
 - Two ledger rows (two Spotify ids) can share one downloaded file; a sweep must file the second
   row to wherever it filed the first, or it's stranded as "source file missing" and pruned into
-  a re-download. Rows stranded by sweeps before v48 stay stranded (production had 47) → *v48*
+  a re-download. Rows stranded before v48 (production had 47) are relinked to their library
+  copy by the sweep and by `reconcile_disk()` → *v48*
+- `reconcile_disk()` skips `/downloads` rows only while `/downloads` is empty, which an emptying
+  sweep makes it; the first boot after a new download prunes every row whose file is gone → *v48*
 - A library sweep archives only the sweeping admin's own settled jobs; every user's moved
   tracks are still repointed (owner decision, F34) → *v48*
 - A real production breaker trip (2026-10-18 18:46 UTC) reached `breaker_events` but never the
@@ -5404,7 +5407,20 @@ independently-found production bug from the same conversation)
   "source file missing" errors, and every one of the 47 not-in-library ledger rows has a sibling
   with the same basename already in the library: earlier sweeps stranded them. The fix only
   prevents new ones; those rows keep erroring on each sweep until repaired or pruned (a prune
-  means a re-download if that track is requested again).
+  means a re-download if that track is requested again). _(2026-10-20, owner answer: repaired.
+  `dedup.filed_copy` finds the one in-library ledger file with the stranded row's basename (the
+  sweep keeps a source's basename), present on disk under the library root; both the sweep and
+  `reconcile_disk()` relink the row to it instead of erroring or pruning. Two candidates or none
+  on disk leave the old behavior. All 47 production rows have exactly one candidate (read-only
+  query, 2026-10-20). Dev before/after on real stacks: the pre-repair worker errored and the
+  track's file answered 404; after a restart, 1 "already present", 0 errors, the file 200, and a
+  worker-meta boot logged "removed 1 with missing files, relinked 1 to their library copy".)_
+- **What kept the 47 rows alive was an accident.** `reconcile_disk()` (every worker-meta boot,
+  so every deploy) refuses to prune rows under a root that looks unmounted, and an empty
+  `/downloads` looks unmounted. Each sweep empties `/downloads`, so the deploys after it skipped
+  the stranded rows. The first boot with any new download waiting would have pruned all of them,
+  and each track would have re-downloaded when next requested. That is why the relink is in
+  `reconcile_disk()` too, not only in the sweep.
 - **A first fix that deduplicated the error log row by row was wrong.** The blind review found
   that a per-row pass still split shared rows (a failed copy for the first row, then a successful
   one for the second, deleted the source the first still pointed at) and that a per-path error
@@ -5417,6 +5433,12 @@ independently-found production bug from the same conversation)
   to that one user id), and only the admin gets archive events. Proven on dev: the admin's job was
   archived, `v37user`'s job kept its repointed track and stayed unarchived. The `/library`
   confirmation copy (en + hu) says so.
+- **Priority and bump are admin-only on the server too (owner answer, 2026-10-20).** v47 hid
+  them from non-admins but `PATCH /api/jobs/{id}/priority` and `POST /api/jobs/{id}/bump` still
+  accepted a job's owner. Both now depend on `require_admin`, which answers 403 before the job
+  lookup, so a non-admin gets the same 403 for their own job, a foreign one, and an unknown id
+  (live on dev: 403 `admin_required` ×3, priority unchanged; the admin still 200/404). They left
+  `test_ownership.py`'s 404 sweep for a 403 test of their own.
 - **`uvicorn --reload` hangs on open SSE streams.** Editing `app/tasks/library.py` made `api` log
   "Waiting for connections to close" and stop answering (container `unhealthy`), because an
   `/api/stream` connection was still open. `docker compose restart api` clears it.
