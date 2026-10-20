@@ -19,11 +19,10 @@ the v48 PR and closed on this branch; see the notes under each.)_
   met (a one-element style update plus a commit per frame) and asked the owner to accept that or
   switch to WAAPI. No answer is recorded. The cost is written into DESIGN.md and GOTCHAS as the
   design, so it was accepted only by merging. _(2026-10-20, owner: "using the web animations api
-  won't hurt". The glow now runs on WAAPI: the glide after the pointer stops is composite-only
-  (51 main-thread frames → 1 style update), while each retarget during continuous movement still
-  costs a few 1-element style updates, slightly more than the old per-frame cost (0.56 vs
-  0.49ms/frame). Recorded in DESIGN.md §5 and
-  the GOTCHAS v48 section.)_
+  won't hurt". The glow's glide after the pointer stops now runs on WAAPI (~7 style updates
+  instead of ~60 frames, ~4ms of tasks instead of 20); while it moves it stays v40's loop (0.65 vs
+  0.58ms/frame), because retargeting an animation per move measured 1.5× the loop. Recorded in
+  DESIGN.md §5 and the GOTCHAS v48 section.)_
 - **v47, "prior decision records preserved":** PR #69 folded DESIGN.md's older dated blockquotes
   into prose, losing most of their dates, and asked whether to restore them. No answer is
   recorded. _(2026-10-20, owner: "Restore the dates." 22 records' dates restored inline from the

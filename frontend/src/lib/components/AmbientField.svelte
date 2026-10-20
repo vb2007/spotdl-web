@@ -21,11 +21,24 @@
 	const TAU = 180;
 	/** Below this distance (px) the glow snaps to its target and the glide ends. */
 	const SETTLE = 0.5;
-	/** Keyframe spacing of a glide, in ms. The compositor interpolates linearly between samples,
-	 * so a glide is the exponential curve as a polyline: at one sample per two 60Hz frames it
-	 * stays within ~0.4% of the distance still to go, invisible in a soft 576px gradient, and a
-	 * retarget stays cheap (fewer keyframes to build per pointer move). */
-	const STEP = 1000 / 30;
+	/** How long every glide lasts, in ms: by then the exponential approach is within SETTLE of
+	 * its target from up to 4000px away. One fixed length lets every glide share one easing. */
+	const HORIZON = TAU * Math.log(4000 / SETTLE);
+	/** The glide's sample times, in ms. A glide is two keyframes (from, target) eased by
+	 * EASING, the exponential approach as a `linear()` polyline through these samples: one per
+	 * 60Hz frame for the first 200ms (the frames a retarget during movement actually shows, so
+	 * each lands on a sample, not mid-chord), then one per two frames to 700ms, then 50ms apart,
+	 * where under 2% of the distance is left and a chord's error stays under a pixel. */
+	const SAMPLES = [
+		...Array.from({ length: 12 }, (_, i) => (i * 1000) / 60),
+		...Array.from({ length: 15 }, (_, i) => 200 + (i * 1000) / 30),
+		...Array.from({ length: Math.ceil((HORIZON - 700) / 50) }, (_, i) => 700 + i * 50),
+		HORIZON
+	];
+	/** Progress (0 → 1) at each sample: 1 − e^(−t/TAU), scaled to land exactly on 1 at HORIZON
+	 * (the snap). */
+	const PROGRESS = SAMPLES.map((t) => (1 - Math.exp(-t / TAU)) / (1 - Math.exp(-HORIZON / TAU)));
+	const EASING = `linear(${PROGRESS.map((p, i) => `${+p.toFixed(5)} ${+((SAMPLES[i] / HORIZON) * 100).toFixed(3)}%`).join(', ')})`;
 	/** Slate's peak per unit of amber peak. Luminance-equal over --bg-0 is ~1.25, but after
 	 * 8-bit rounding that can land slate one code value brighter than amber at some heights;
 	 * 1.15 keeps slate at or under amber's rendered luminance across the measured range (up to
@@ -71,10 +84,20 @@
 		/** A native drag (a link, a text selection) is in progress: the browser cancels the
 		 * pointer and sends no pointermove until the drop. */
 		let dragging = false;
-		/** The running (or finished, held) glide: a Web Animation to the target, its keyframes
-		 * sampled from the exponential approach. The compositor plays it, so the main thread does no
-		 * per-frame work; a new target just replaces it. */
-		let glide: { animation: Animation; points: [number, number][]; duration: number } | null = null;
+		/** The running (or finished, held) glide: a two-keyframe Web Animation from where the glow
+		 * was to the target, eased by EASING. The compositor plays it, so the main thread does no
+		 * per-frame work. It takes over once the pointer stops; while it moves, the frame loop
+		 * below runs instead. */
+		let glide: { animation: Animation; from: [number, number]; to: [number, number] } | null = null;
+		/** A browser without CSS linear() easing (Safari before 17.2) never hands off to a glide:
+		 * the frame loop runs to the snap, as in v40. */
+		const linearEasing = CSS.supports('animation-timing-function', 'linear(0, 1)');
+		/** The frame loop while the pointer moves (0 when it isn't scheduled). */
+		let frame = 0;
+		/** The previous frame's timestamp; -1 means the loop was just woken. */
+		let last = -1;
+		/** A wake (a pointer move, a leave, a resize) came in since the last frame. */
+		let moved = false;
 
 		/** Turns the pointer position into the glow's offset from home. Also re-run on resize:
 		 * home moves with the viewport, so a still pointer would otherwise end up off-centre. */
@@ -83,23 +106,22 @@
 			targetY = pointer ? pointer.y + height * 0.1 : 0;
 		}
 
-		/** Where the glow is right now. Read off the running glide's own clock and keyframes (the
-		 * same linear interpolation the animation applies), never from computed style, so asking
-		 * forces no style or layout. */
+		/** Where the glow is right now. Read off the running glide's own clock through the same
+		 * polyline the easing applies, never from computed style, so asking forces no style or
+		 * layout. */
 		function position(): [number, number] {
 			if (!glide) return [x, y];
-			const { points, duration } = glide;
+			const { from, to } = glide;
 			const current = glide.animation.currentTime;
 			// Cancelled from outside: the glow shows its inline transform again.
 			if (current === null) return [x, y];
 			const time = Number(current);
-			if (time >= duration) return points[points.length - 1];
-			const at = (Math.max(time, 0) / duration) * (points.length - 1);
-			const i = Math.floor(at);
-			const f = at - i;
-			const [x0, y0] = points[i];
-			const [x1, y1] = points[i + 1];
-			return [x0 + (x1 - x0) * f, y0 + (y1 - y0) * f];
+			if (time >= HORIZON) return to;
+			let i = 0;
+			while (SAMPLES[i + 1] <= time) i++;
+			const f = Math.max(time - SAMPLES[i], 0) / (SAMPLES[i + 1] - SAMPLES[i]);
+			const p = PROGRESS[i] + (PROGRESS[i + 1] - PROGRESS[i]) * f;
+			return [from[0] + (to[0] - from[0]) * p, from[1] + (to[1] - from[1]) * p];
 		}
 
 		/** Ends any glide and pins the glow at (nx, ny). */
@@ -131,45 +153,79 @@
 		});
 		resize.observe(field);
 
-		/** Starts a glide from wherever the glow is now to the current target. Its keyframes are
-		 * the exponential approach x(t) = target + (x0 − target)·e^(−t/TAU), sampled every STEP
-		 * until both axes are within SETTLE, then the exact target (the snap). */
-		function wake() {
-			if (!following || document.hidden) return;
-			const [fromX, fromY] = position();
-			const dx = fromX - targetX;
-			const dy = fromY - targetY;
-			const distance = Math.max(Math.abs(dx), Math.abs(dy));
-			if (distance <= SETTLE) {
+		/** Starts a glide from (fromX, fromY) to the current target at time `start`: the
+		 * exponential approach x(t) = target + (x0 − target)·e^(−t/TAU), as two keyframes and
+		 * EASING, landing exactly on the target at HORIZON (the snap). */
+		function glideFrom(fromX: number, fromY: number, start: number) {
+			if (Math.max(Math.abs(fromX - targetX), Math.abs(fromY - targetY)) <= SETTLE) {
 				place(targetX, targetY);
 				return;
 			}
-			const duration = TAU * Math.log(distance / SETTLE);
-			const steps = Math.max(1, Math.ceil(duration / STEP));
-			const points: [number, number][] = [];
-			for (let i = 0; i < steps; i++) {
-				const decay = Math.exp(-((i / steps) * duration) / TAU);
-				points.push([targetX + dx * decay, targetY + dy * decay]);
-			}
-			points.push([targetX, targetY]);
 			glide?.animation.cancel();
+			const from: [number, number] = [fromX, fromY];
+			const to: [number, number] = [targetX, targetY];
 			const animation = glow.animate(
-				points.map(([px, py]) => ({ transform: `translate3d(${px}px, ${py}px, 0)` })),
-				{ duration, fill: 'forwards' }
+				[
+					{ transform: `translate3d(${fromX}px, ${fromY}px, 0)` },
+					{ transform: `translate3d(${targetX}px, ${targetY}px, 0)` }
+				],
+				{ duration: HORIZON, easing: EASING, fill: 'forwards' }
 			);
-			// A new animation's start time is otherwise resolved a frame late, so the next
-			// pointermove (one per frame) would read currentTime 0 and restart from `from`: the glow
-			// would freeze while the pointer keeps moving. Pinned to this frame's time, it advances.
-			const now = document.timeline.currentTime;
-			if (now !== null) animation.startTime = now;
-			glide = { animation, points, duration };
+			// Pinned, not left to the browser: an unpinned start time resolves a frame late, which
+			// would hold `from` for a frame.
+			animation.startTime = start;
+			glide = { animation, from, to };
 		}
 
-		/** A hidden tab pins the glow where it is. pause() would only take effect on the next
-		 * frame, which a hidden tab doesn't render, so the clock would run on. The exponential
-		 * approach has no memory, so the glide restarted on return is the same curve. */
+		/** One frame of the follow while the pointer moves, exactly v40's loop. Retargeting a Web
+		 * Animation on every move costs more main-thread time than this step (each new animation
+		 * restyles the glow twice), so the loop runs while moves keep coming, and the first frame
+		 * without one hands the rest of the approach to a compositor glide. The glide starts from
+		 * the last frame's position, back-dated by this frame's step, so this frame shows exactly
+		 * what the loop would have drawn. */
+		function tick(now: number) {
+			frame = 0;
+			// The first frame after a wake has no previous timestamp (and a frame's timestamp can
+			// precede the pointermove that woke it), so it counts as one 60Hz frame. Later
+			// frames clamp dt so a long-throttled frame eases in rather than jumping.
+			const dt = last < 0 ? 1000 / 60 : Math.min(Math.max(now - last, 0), 64);
+			last = now;
+			if (!moved && linearEasing) {
+				glideFrom(x, y, now - dt);
+				return;
+			}
+			moved = false;
+			const k = 1 - Math.exp(-dt / TAU);
+			const nx = x + (targetX - x) * k;
+			const ny = y + (targetY - y) * k;
+			if (Math.abs(targetX - nx) < SETTLE && Math.abs(targetY - ny) < SETTLE) {
+				place(targetX, targetY);
+				return;
+			}
+			place(nx, ny);
+			frame = requestAnimationFrame(tick);
+		}
+
+		/** Follows the current target from wherever the glow is now (mid-glide included). */
+		function wake() {
+			if (!following || document.hidden) return;
+			moved = true;
+			if (glide) {
+				const [px, py] = position();
+				place(px, py);
+			}
+			if (!frame) {
+				last = -1;
+				frame = requestAnimationFrame(tick);
+			}
+		}
+
+		/** A hidden tab stops the loop and pins the glow where it is. A glide's pause() would only
+		 * take effect on the next frame, which a hidden tab doesn't render, so its clock would run
+		 * on. The approach has no memory, so following again on return is the same curve. */
 		function sleep() {
-			if (!glide) return;
+			cancelAnimationFrame(frame);
+			frame = 0;
 			const [px, py] = position();
 			place(px, py);
 		}
@@ -221,6 +277,8 @@
 				pointer = null;
 				dragging = false;
 				targetX = targetY = 0;
+				cancelAnimationFrame(frame);
+				frame = 0;
 				place(0, 0);
 			}
 		}
@@ -231,6 +289,7 @@
 		document.addEventListener('visibilitychange', onVisibilityChange);
 
 		return () => {
+			cancelAnimationFrame(frame);
 			glide?.animation.cancel();
 			resize.disconnect();
 			finePointer.removeEventListener('change', configure);

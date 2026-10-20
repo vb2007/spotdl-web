@@ -549,24 +549,26 @@ the page (headers, hints, the `/login` ident). Its home is approximately the old
 composition: a 72×44rem element (1152×704px at the default 16px; it grows with text scaling)
 centred at 50% / −10% of the viewport, so at rest the page reads as it always did, minus the amber.
 
-**Behavior.** With a hovering fine pointer, the glow follows the cursor. Each `pointermove` (and a
-window leave, a resize, a tab returning) starts one Web Animation from wherever the glow is to the
-new target, cancelling the previous one. Its keyframes are the exponential approach (τ = 180ms)
-sampled every 33ms, which stays within ~0.4% of the remaining distance, and it lasts until both
-axes are within 0.5px, then lands exactly on target. The glow's current position is read from the
-animation's own clock and keyframes, never from computed style, so retargeting reads no layout, and
-the viewport size comes from a `ResizeObserver`. When the pointer leaves the window it drifts back
-home; a native drag (which cancels the pointer and fires the same window-leave event) does not
-count as leaving. A touch-type `pointermove` is ignored, so it never chases a tap. While it can
-move, `.glow` carries `will-change: transform`, so its gradient rasterizes once and the glide runs
-on the compositor: after the pointer stops, the glide until it settles costs no main-thread frames
-(one style update when it finishes), and at rest nothing runs. While the pointer keeps moving, each
-retarget costs a few 1-element style updates and a commit, slightly more main-thread time than
-v40's rAF loop (0.56 vs 0.49ms per frame, measured on `/account`), with no layout and no repaint.
-A hidden tab pins the glow where it is, and the glide restarts from there on return. _(2026-10-20,
-v48: moved from v40's `requestAnimationFrame` loop to WAAPI, owner's answer to v40's open
-performance question; the glide after the last move fell from 51 main-thread frames to one style
-update and one commit.)_
+**Behavior.** With a hovering fine pointer, the glow follows the cursor: an exponential approach
+(τ = 180ms) toward it. While the pointer moves, `pointermove` only stores the latest position, and
+one `requestAnimationFrame` loop eases toward it, moving the element by `transform: translate3d()`
+alone; the first frame after a wake counts as one 60Hz frame. On the first frame with no new move,
+the loop hands the rest of the approach to one compositor animation (two keyframes and a `linear()`
+easing tracing the same curve, landing exactly on target after 1.6s), back-dated by that frame's
+step so the hand-off frame shows what the loop would have drawn; a move during the glide reads its
+position from the animation's own clock (never computed style) and resumes the loop from there. A
+browser without `linear()` (Safari before 17.2) keeps the loop to the 0.5px snap. When the pointer
+leaves the window it drifts back home; a native drag (which cancels the pointer and fires the same
+window-leave event) does not count as leaving. A touch-type `pointermove` is ignored, so it never
+chases a tap. Nothing reads layout: the viewport size comes from a `ResizeObserver`. While it can
+move, `.glow` carries `will-change: transform`, so its gradient rasterizes once. While moving, each
+frame costs one 1-element style update and a commit, with no layout and no repaint (0.65 vs v40's
+0.58ms of main-thread time per frame at one move per frame, measured on `/login`). After the
+pointer stops, the glide to rest costs about 7 style updates instead of v40's ~60 frames (about
+4ms of tasks instead of 20). A hidden tab stops the loop and pins the glow where it is. _(2026-10-20,
+v48: the after-stop glide moved to WAAPI, owner's answer to v40's open performance question. A
+first version ran every retarget as a Web Animation too; at real mouse rates that cost 1.5× the
+loop while moving, so moving stayed on the loop.)_
 
 **Static cases (owner's choice, 2026-10-13): no hover or a coarse pointer, and
 `prefers-reduced-motion: reduce`.** Phones keep the home position with no pointer listener and no

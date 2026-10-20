@@ -977,8 +977,8 @@ needed" claim — rather than silently deleted.
 - A rAF loop writing `transform` costs a 1-element style recalc + commit per frame, never zero.
   On an idle `/` every main frame also re-samples the Waterfall noise floor's 40 animated bars
   (~80 elements in the trace's style count), so profile a frame loop on `/account` → *v40*
-- The ambient glow runs on WAAPI since v48: composite-only once the pointer stops, but each
-  retarget while it moves still costs a few 1-element style updates → *v48*
+- Retargeting a Web Animation on every pointer move costs more than a rAF loop (~1.5×); the
+  glow runs the loop while moving and hands off to a back-dated WAAPI glide once moves stop → *v48*
 
 **Reference (not a gotcha)**
 - Upstream `vb2007.hu-api` endpoint shapes, token scheme, and the two constraints they impose →
@@ -5456,22 +5456,24 @@ independently-found production bug from the same conversation)
   lookup, so a non-admin gets the same 403 for their own job, a foreign one, and an unknown id
   (live on dev: 403 `admin_required` ×3, priority unchanged; the admin still 200/404). They left
   `test_ownership.py`'s 404 sweep for a 403 test of their own.
-- **The ambient glow runs on WAAPI, not a rAF loop (owner answer to v40's open question).** Every
-  pointer move starts a compositor animation and cancels the previous one, and the glow's position
-  is computed from that animation's own `currentTime` and keyframes (reading `getComputedStyle`
-  would force a style update). Measured on `/account`: the glide after the pointer stops dropped
-  from 51 main-thread frames (rAF, style update, commit each) to one style update and one commit.
-  Continuous movement costs ~4 one-element style updates per retarget, slightly more than the rAF
-  loop (0.56 vs 0.49ms/frame), so "composite only" holds once the pointer stops, not while it
-  moves. Reusing one Animation via `setKeyframes` cost the same.
-- **A new Web Animation's `currentTime` reads 0 until the frame after it's created.** Its start
-  time resolves a frame late, and Chrome dispatches one `pointermove` per frame, so every
-  retarget read the previous glide at keyframe 0 and restarted from the same point: the glow froze
-  while the mouse kept moving (0 px/frame over 117 moves) and stuttered at half that rate. Set
-  `animation.startTime = document.timeline.currentTime` right after `animate()`; then it advanced
-  ~4 px/frame with the old loop's ~v·τ lag. The first trace missed it (its moves came every ~3
-  frames); a fresh-eyes review caught it with per-frame deltas. Likewise `pause()` only takes
-  effect on a rendered frame, which a hidden tab doesn't produce: pin the position instead.
+- **The ambient glow's glide runs on WAAPI once the pointer stops (owner answer to v40's open
+  question), and stays a rAF loop while it moves.** The first version retargeted a Web Animation
+  on every move. At a real mouse's one move per frame that cost 0.90ms/frame against the loop's
+  0.59 (each new animation restyles the element about twice, and ~45 keyframes had to be built and
+  parsed); two keyframes with one cached `linear()` easing brought it to 0.80, still worse. The
+  hybrid: the loop runs while moves keep coming, and the first frame without one starts a
+  two-keyframe glide from the last frame's position, `startTime` back-dated by the frame's step,
+  so the hand-off frame matches the loop exactly (the paths agree within 0.2px). Measured on
+  `/login` against the v40 component (swapped in via `page.route`): moving 0.65 vs 0.58ms/frame,
+  the same style-update count; after the last move ~7 style updates and ~4ms of tasks instead of
+  59 frames and ~20ms; at rest nothing.
+- **A new Web Animation's `currentTime` reads 0 until the frame after it's created**, because its
+  start time resolves a frame late. A retarget every frame then reads keyframe 0 every time, and
+  the first WAAPI version froze while the mouse kept moving (0 px/frame over 117 moves). Set
+  `startTime` yourself. Likewise `pause()` only takes effect on a rendered frame, which a hidden
+  tab doesn't produce: pin the position instead. Probe at real rates: a `page.mouse.move` loop
+  with waits sends ~20 moves/s, far below a mouse; CDP `Input.dispatchMouseEvent` at a 16ms
+  interval gives one per frame (headless input lands between frames, a real mouse's in-frame).
 - **`uvicorn --reload` hangs on open SSE streams.** Editing `app/tasks/library.py` made `api` log
   "Waiting for connections to close" and stop answering (container `unhealthy`), because an
   `/api/stream` connection was still open. `docker compose restart api` clears it.
