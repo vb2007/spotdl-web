@@ -560,7 +560,7 @@ step so the hand-off frame shows what the loop would have drawn. A move or a lea
 ends it on the next frame, at the position it had one frame earlier (read from the animation's own
 clock, never computed style), and the loop steps from there as v40's would have; a resize or a
 hidden tab ends it at once. A glide within 0.5px of its target counts as at rest, as v40's loop
-had snapped by then. Screencasts match v40's path within their 0.5px resolution, and between
+had snapped by then. Screencasts match v40's path within about 1px, and between
 `linear()` samples a long glide can drift up to ~0.09% of its distance. A
 browser without `linear()` (Safari before 17.2) keeps the loop to the 0.5px snap. When the pointer
 leaves the window it drifts back home; a native drag (which cancels the pointer and fires the same

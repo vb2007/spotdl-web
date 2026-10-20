@@ -155,8 +155,8 @@
 				place(glide.to[0], glide.to[1]);
 				return;
 			}
-			// Mid-glide the timeline already reads the coming frame's time, which the glide's
-			// position reflects: the loop's next step must start from it (dt 0), not add a frame.
+			// The loop resumes from this moment on the glide's clock (a resize runs inside the
+			// frame, where the timeline reads that frame's time), not with a fresh first frame.
 			const now = document.timeline.currentTime;
 			resume = now !== null ? Number(now) : -1;
 			place(at[0], at[1]);
@@ -244,7 +244,8 @@
 			repin = false;
 			// The first frame after a wake from rest has no previous timestamp (and a frame's
 			// timestamp can precede the pointermove that woke it), so it counts as one 60Hz frame;
-			// a wake mid-glide resumes from the glide's own clock instead (pin()). Later frames
+			// a wake mid-glide resumes from the glide's own clock instead (the repin above, or
+			// pin() for a resize). Later frames
 			// clamp dt so a long-throttled frame eases in rather than jumping.
 			const dt = last < 0 ? 1000 / 60 : Math.min(Math.max(now - last, 0), 64);
 			if (measured && dt > 0 && dt < 40) {
