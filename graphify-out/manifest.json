@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1792477401.6750946,
-    "ast_hash": "64528bb03f486c167a733b449a264508",
+    "mtime": 1792480403.943869,
+    "ast_hash": "2bc76c59c8c75c102842e7ceeeeba836",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792477820.4296572,
-    "ast_hash": "eb8118981ed79ee1eeb6e3d56c6df77c",
+    "mtime": 1792479760.7512033,
+    "ast_hash": "7bfcf3b67c21b57ae1edd81b69ccb0ca",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1300,8 +1300,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/AmbientField.svelte": {
-    "mtime": 1792477049.344691,
-    "ast_hash": "5010d8debb6259b3a2b50f6c057476fc",
+    "mtime": 1792480403.9432433,
+    "ast_hash": "38c784f258ef4f88a63663ade3cc99b9",
     "semantic_hash": ""
   },
   "master-v4-pipeline-issues.md": {
@@ -1660,8 +1660,8 @@
     "semantic_hash": ""
   },
   "plan/master-v4/v48-closing-reread.md": {
-    "mtime": 1792477401.6770976,
-    "ast_hash": "b0f9403954d77a33ea489b25d3202d69",
+    "mtime": 1792478660.4500616,
+    "ast_hash": "1e6097895afb8c442d8aecfe747b92ef",
     "semantic_hash": ""
   },
   "backend/alembic/versions/cab1bff456eb_relink_ledger_rows_stranded_before_v48.py": {
