@@ -98,6 +98,11 @@
 		let last = -1;
 		/** A wake (a pointer move, a leave, a resize) came in since the last frame. */
 		let moved = false;
+		/** Frames in a row the loop ran with no wake. */
+		let quiet = 0;
+		/** Set by pin() when it ends a glide mid-way: that frame's time, so the loop resumes from
+		 * the glide's clock instead of taking a whole first-frame step on top of it. */
+		let resume = -1;
 
 		/** Turns the pointer position into the glow's offset from home. Also re-run on resize:
 		 * home moves with the viewport, so a still pointer would otherwise end up off-centre. */
@@ -124,6 +129,18 @@
 			return [from[0] + (to[0] - from[0]) * p, from[1] + (to[1] - from[1]) * p];
 		}
 
+		/** Ends a running glide where it is, so the loop (or a resize) carries on from there. */
+		function pin() {
+			if (!glide) return;
+			const current = glide.animation.currentTime;
+			// Mid-glide the timeline already reads the coming frame's time, which the glide's
+			// position reflects: the loop's next step must start from it (dt 0), not add a frame.
+			const now = document.timeline.currentTime;
+			resume = current !== null && Number(current) < HORIZON && now !== null ? Number(now) : -1;
+			const [px, py] = position();
+			place(px, py);
+		}
+
 		/** Ends any glide and pins the glow at (nx, ny). */
 		function place(nx: number, ny: number) {
 			glide?.animation.cancel();
@@ -146,8 +163,8 @@
 			// glow is off home (under the pointer, drifting back, or paused mid-drift in a hidden
 			// tab), shift its offset by the opposite amount before this frame paints, so it stays
 			// where it was on screen instead of lurching sideways. At home it moves with home.
-			const [px, py] = position();
-			if (px !== 0 || py !== 0) place(px - dWidth / 2, py + dHeight * 0.1);
+			pin();
+			if (x !== 0 || y !== 0) place(x - dWidth / 2, y + dHeight * 0.1);
 			aim();
 			wake();
 		});
@@ -179,22 +196,25 @@
 
 		/** One frame of the follow while the pointer moves, exactly v40's loop. Retargeting a Web
 		 * Animation on every move costs more main-thread time than this step (each new animation
-		 * restyles the glow twice), so the loop runs while moves keep coming, and the first frame
-		 * without one hands the rest of the approach to a compositor glide. The glide starts from
-		 * the last frame's position, back-dated by this frame's step, so this frame shows exactly
-		 * what the loop would have drawn. */
+		 * restyles the glow twice), so the loop runs while moves keep coming, and the third frame
+		 * in a row without one (so slow, sparse moves don't start and cancel a glide each time)
+		 * hands the rest of the approach to a compositor glide. The glide starts from the last
+		 * frame's position, back-dated by this frame's step, so this frame shows exactly what the
+		 * loop would have drawn. */
 		function tick(now: number) {
 			frame = 0;
-			// The first frame after a wake has no previous timestamp (and a frame's timestamp can
-			// precede the pointermove that woke it), so it counts as one 60Hz frame. Later
-			// frames clamp dt so a long-throttled frame eases in rather than jumping.
+			// The first frame after a wake from rest has no previous timestamp (and a frame's
+			// timestamp can precede the pointermove that woke it), so it counts as one 60Hz frame;
+			// a wake mid-glide resumes from the glide's own clock instead (pin()). Later frames
+			// clamp dt so a long-throttled frame eases in rather than jumping.
 			const dt = last < 0 ? 1000 / 60 : Math.min(Math.max(now - last, 0), 64);
 			last = now;
-			if (!moved && linearEasing) {
+			quiet = moved ? 0 : quiet + 1;
+			moved = false;
+			if (quiet >= 3 && linearEasing) {
 				glideFrom(x, y, now - dt);
 				return;
 			}
-			moved = false;
 			const k = 1 - Math.exp(-dt / TAU);
 			const nx = x + (targetX - x) * k;
 			const ny = y + (targetY - y) * k;
@@ -210,14 +230,13 @@
 		function wake() {
 			if (!following || document.hidden) return;
 			moved = true;
-			if (glide) {
-				const [px, py] = position();
-				place(px, py);
-			}
+			pin();
 			if (!frame) {
-				last = -1;
+				last = resume;
+				quiet = 0;
 				frame = requestAnimationFrame(tick);
 			}
+			resume = -1;
 		}
 
 		/** A hidden tab stops the loop and pins the glow where it is. A glide's pause() would only

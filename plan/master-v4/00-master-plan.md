@@ -506,8 +506,8 @@ here rather than edited into it, so the original record stays readable.
     pre-deploy `pg_backup`) relinks each row the last sweep listed as missing to the one
     in-library file with its basename; no manual production write. Read-only dry run: 47 of 47.
   - **v40's ambient glow moves to the Web Animations API** ("using the web animations api won't
-    hurt") for the glide after the pointer stops, which is now composited (~7 style updates
-    instead of ~60 frames). While the pointer moves it stays v40's loop: retargeting an
+    hurt") for the glide after the pointer stops, which is now composited (4 loop frames and ~9
+    style updates instead of ~60 frames). While the pointer moves it stays v40's loop: retargeting an
     animation per move measured 1.5× the loop's cost. Behavior unchanged. This closes v40's open
     "Performance" bullet.
   - **DESIGN.md's dropped decision dates are restored** (v47's regeneration had folded them into

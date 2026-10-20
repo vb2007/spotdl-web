@@ -5470,12 +5470,20 @@ independently-found production bug from the same conversation)
   on every move. At a real mouse's one move per frame that cost 0.90ms/frame against the loop's
   0.59 (each new animation restyles the element about twice, and ~45 keyframes had to be built and
   parsed); two keyframes with one cached `linear()` easing brought it to 0.80, still worse. The
-  hybrid: the loop runs while moves keep coming, and the first frame without one starts a
-  two-keyframe glide from the last frame's position, `startTime` back-dated by the frame's step,
-  so the hand-off frame matches the loop exactly (the paths agree within 0.2px). Measured on
-  `/login` against the v40 component (swapped in via `page.route`): moving 0.65 vs 0.58ms/frame,
-  the same style-update count; after the last move ~7 style updates and ~4ms of tasks instead of
-  59 frames and ~20ms; at rest nothing.
+  hybrid: the loop runs while moves keep coming, and the third frame in a row without one starts
+  a two-keyframe glide from the last frame's position, `startTime` back-dated by the frame's step,
+  so the hand-off frame matches the loop. Handing off on the first quiet frame made slow input
+  (a move every 2–3 frames) start and cancel a glide each time, +15–23% over the loop. Measured
+  on `/login` against the v40 component (swapped in via `page.route`): the same style-update
+  count while moving, 0.66 vs 0.58ms/frame at one move per frame; after the last move 4 loop
+  frames, ~9 style updates and ~5ms of tasks instead of ~60 frames and ~22ms; at rest nothing.
+- **Resuming a frame loop from a glide must take the glide's clock, not a fresh first frame.**
+  While only a compositor animation runs, Chrome produces no main frames, so a pointermove's
+  `document.timeline.currentTime` already reads the coming frame's time and the glide's position
+  is that frame's. Restarting the loop with v40's "first frame counts as 1/60s" then skipped a
+  frame on every move during a glide (and drifted 40–150px from v40 on 120–240Hz displays, in a
+  math model). The loop now resumes with `last` = that timeline time (dt 0). Probes that run
+  their own rAF logger keep main frames alive and hide this; screencast the composited result.
 - **A new Web Animation's `currentTime` reads 0 until the frame after it's created**, because its
   start time resolves a frame late. A retarget every frame then reads keyframe 0 every time, and
   the first WAAPI version froze while the mouse kept moving (0 px/frame over 117 moves). Set

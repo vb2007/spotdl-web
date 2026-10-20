@@ -552,20 +552,22 @@ centred at 50% / −10% of the viewport, so at rest the page reads as it always 
 **Behavior.** With a hovering fine pointer, the glow follows the cursor: an exponential approach
 (τ = 180ms) toward it. While the pointer moves, `pointermove` only stores the latest position, and
 one `requestAnimationFrame` loop eases toward it, moving the element by `transform: translate3d()`
-alone; the first frame after a wake counts as one 60Hz frame. On the first frame with no new move,
-the loop hands the rest of the approach to one compositor animation (two keyframes and a `linear()`
+alone; the first frame after a wake counts as one 60Hz frame. On the third frame in a row with no
+new move, the loop hands the rest of the approach to one compositor animation (two keyframes and a `linear()`
 easing tracing the same curve, landing exactly on target after 1.6s), back-dated by that frame's
 step so the hand-off frame shows what the loop would have drawn; a move during the glide reads its
-position from the animation's own clock (never computed style) and resumes the loop from there. A
+position from the animation's own clock (never computed style) and resumes the loop from that
+frame's time, so the composited path matches v40's frame for frame (within 0.5px). A
 browser without `linear()` (Safari before 17.2) keeps the loop to the 0.5px snap. When the pointer
 leaves the window it drifts back home; a native drag (which cancels the pointer and fires the same
 window-leave event) does not count as leaving. A touch-type `pointermove` is ignored, so it never
 chases a tap. Nothing reads layout: the viewport size comes from a `ResizeObserver`. While it can
 move, `.glow` carries `will-change: transform`, so its gradient rasterizes once. While moving, each
-frame costs one 1-element style update and a commit, with no layout and no repaint (0.65 vs v40's
-0.58ms of main-thread time per frame at one move per frame, measured on `/login`). After the
-pointer stops, the glide to rest costs about 7 style updates instead of v40's ~60 frames (about
-4ms of tasks instead of 20). A hidden tab stops the loop and pins the glow where it is. _(2026-10-20,
+frame costs one 1-element style update and a commit, with no layout and no repaint: the same
+style-update count as v40, and 0.66 vs 0.58ms of main-thread time per frame at one move per frame
+(0.58 vs 0.55 at one every two frames), measured on `/login`. After the pointer stops, the rest of
+the approach costs 4 loop frames and about 9 style updates instead of v40's ~60 frames (about 5ms
+of tasks instead of 22). A hidden tab stops the loop and pins the glow where it is. _(2026-10-20,
 v48: the after-stop glide moved to WAAPI, owner's answer to v40's open performance question. A
 first version ran every retarget as a Web Animation too; at real mouse rates that cost 1.5× the
 loop while moving, so moving stayed on the loop.)_
