@@ -556,11 +556,12 @@ alone; the first frame after a wake counts as one 60Hz frame. Once ~50ms (three 
 any refresh rate) pass without a move, the loop hands the rest of the approach to one compositor
 animation (two keyframes and a `linear()`
 easing tracing the same curve, landing exactly on target after 1.6s), back-dated by that frame's
-step so the hand-off frame shows what the loop would have drawn. A move during the glide ends it on
-the next frame, at the position it had one frame earlier (read from the animation's own clock,
-never computed style), and the loop steps from there as v40's would have; screencasts match v40's
-path within their 0.5px resolution, and between `linear()` samples a long glide can drift up to
-~0.09% of its distance. A
+step so the hand-off frame shows what the loop would have drawn. A move or a leave during the glide
+ends it on the next frame, at the position it had one frame earlier (read from the animation's own
+clock, never computed style), and the loop steps from there as v40's would have; a resize or a
+hidden tab ends it at once. A glide within 0.5px of its target counts as at rest, as v40's loop
+had snapped by then. Screencasts match v40's path within their 0.5px resolution, and between
+`linear()` samples a long glide can drift up to ~0.09% of its distance. A
 browser without `linear()` (Safari before 17.2) keeps the loop to the 0.5px snap. When the pointer
 leaves the window it drifts back home; a native drag (which cancels the pointer and fires the same
 window-leave event) does not count as leaving. A touch-type `pointermove` is ignored, so it never

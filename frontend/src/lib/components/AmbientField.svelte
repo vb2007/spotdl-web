@@ -100,8 +100,13 @@
 		let moved = false;
 		/** The timestamp of the last frame that had a wake. */
 		let wokeAt = 0;
-		/** The loop's last measured frame interval, for resuming from a glide. */
+		/** The display's frame interval for resuming from a glide: the shortest of the loop's last
+		 * three measured frames, so one dropped frame doesn't stretch it. */
 		let interval = 1000 / 60;
+		const recent: number[] = [];
+		/** `last` is a real frame's timestamp (not a wake's synthetic start), so its dt is a
+		 * measurement. */
+		let measured = false;
 		/** A wake came in during a glide: the next frame pins the glide where it was one frame
 		 * earlier and steps from there toward the new target, as v40's loop would have. */
 		let repin = false;
@@ -134,16 +139,27 @@
 			return [from[0] + (to[0] - from[0]) * p, from[1] + (to[1] - from[1]) * p];
 		}
 
-		/** Ends a running glide where it is, so a resize (or a hidden tab) carries on from there. */
+		/** Whether a glide position is within SETTLE of the glide's target: where v40's loop had
+		 * already snapped and stopped, while the glide runs on to HORIZON. */
+		function settled([px, py]: [number, number]): boolean {
+			return !!glide && Math.abs(glide.to[0] - px) < SETTLE && Math.abs(glide.to[1] - py) < SETTLE;
+		}
+
+		/** Ends a running glide where it is, so a resize (or a hidden tab) carries on from there.
+		 * Within SETTLE of its target it counts as at rest, exactly on the target, as in v40. */
 		function pin() {
 			if (!glide) return;
-			const current = glide.animation.currentTime;
+			const at = position();
+			if (settled(at)) {
+				resume = -1;
+				place(glide.to[0], glide.to[1]);
+				return;
+			}
 			// Mid-glide the timeline already reads the coming frame's time, which the glide's
 			// position reflects: the loop's next step must start from it (dt 0), not add a frame.
 			const now = document.timeline.currentTime;
-			resume = current !== null && Number(current) < HORIZON && now !== null ? Number(now) : -1;
-			const [px, py] = position();
-			place(px, py);
+			resume = now !== null ? Number(now) : -1;
+			place(at[0], at[1]);
 		}
 
 		/** Ends any glide and pins the glow at (nx, ny). */
@@ -214,9 +230,16 @@
 				// this frame's time, and off a 60Hz display it's only an estimate.
 				const start = Number(glide.animation.startTime);
 				const from = Math.max(now - interval, start);
-				const [px, py] = position(from - start);
-				place(px, py);
-				last = from;
+				const at = position(from - start);
+				if (settled(at)) {
+					// v40 was at rest by then: a wake from rest, whose first frame counts as 1/60s.
+					place(glide.to[0], glide.to[1]);
+					last = -1;
+				} else {
+					place(at[0], at[1]);
+					last = from;
+				}
+				measured = false;
 			}
 			repin = false;
 			// The first frame after a wake from rest has no previous timestamp (and a frame's
@@ -224,8 +247,13 @@
 			// a wake mid-glide resumes from the glide's own clock instead (pin()). Later frames
 			// clamp dt so a long-throttled frame eases in rather than jumping.
 			const dt = last < 0 ? 1000 / 60 : Math.min(Math.max(now - last, 0), 64);
-			if (dt > 0 && dt < 40) interval = dt;
+			if (measured && dt > 0 && dt < 40) {
+				recent.push(dt);
+				if (recent.length > 3) recent.shift();
+				interval = Math.min(...recent);
+			}
 			last = now;
+			measured = true;
 			if (moved) wokeAt = now;
 			moved = false;
 			// 45, not 50: frame timestamps jitter, and the third 60Hz frame mustn't slip to a fourth.
@@ -251,6 +279,7 @@
 			if (glide) repin = true;
 			if (!frame) {
 				last = resume;
+				measured = false;
 				frame = requestAnimationFrame(tick);
 			}
 			resume = -1;
@@ -262,8 +291,8 @@
 		function sleep() {
 			cancelAnimationFrame(frame);
 			frame = 0;
-			const [px, py] = position();
-			place(px, py);
+			pin();
+			resume = -1;
 		}
 
 		function onPointerMove(event: PointerEvent) {

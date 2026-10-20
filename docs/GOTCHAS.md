@@ -5491,8 +5491,12 @@ independently-found production bug from the same conversation)
   time. Two earlier versions got this wrong in turn (a fresh first-frame step on top of the glide
   skipped a frame; then dt 0 ignored the new target for a frame, 6–8px off v40 on a 100px
   retarget). The loop now pins at the start of its next tick, at `now − interval` on the glide's
-  own clock. Probes that run their own rAF logger keep a rAF pending and hide all of this;
-  screencast the composited result with no other rAF on the page.
+  own clock (`interval` is the shortest of the last three real loop frames, so one dropped frame
+  doesn't stretch it). And the glide runs on to its fixed 1.6s end after v40 would have snapped:
+  a pin within 0.5px of the target must count as at rest, or a resize ~1.2–1.6s after a leave
+  drifted the glow dW/2 px instead of moving it with home. Probes that run their own rAF logger
+  keep a rAF pending and hide all of this; screencast the composited result with no other rAF on
+  the page.
 - **A new Web Animation's `currentTime` reads 0 until the frame after it's created**, because its
   start time resolves a frame late. A retarget every frame then reads keyframe 0 every time, and
   the first WAAPI version froze while the mouse kept moving (0 px/frame over 117 moves). Set
