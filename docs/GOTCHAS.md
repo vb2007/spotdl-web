@@ -162,6 +162,12 @@ needed" claim — rather than silently deleted.
 - The dev `web` container's `node_modules` and `src/lib/paraglide` are anonymous volumes: they
   outlive a rebuild, so a dependency change needs `up -d --renew-anon-volumes` → *v46*
 
+- `uvicorn --reload` waits forever for open SSE streams before restarting: edit a backend file
+  while a browser tab (or `curl -N`) holds `/api/stream` and `api` goes unhealthy with
+  "Waiting for connections to close" until `docker compose restart api` → *v48*
+- A deploy recreates every container, so `docker compose logs` on the host only reaches back to
+  the last deploy; anything older (an alert that never arrived) can't be reconstructed → *v48*
+
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
 - `Secure` cookies work over `http://localhost` in browsers but **not** in `httpx`/`TestClient` —
@@ -404,6 +410,24 @@ needed" claim — rather than silently deleted.
   `exec uvicorn` → *v32*
 - Every writer of `breaker_tripped_until` goes through `retry.record_breaker_release`; a direct
   write loses `breaker_events` history rows → *v44*
+
+- Two ledger rows (two Spotify ids) can share one downloaded file; a sweep must file the second
+  row to wherever it filed the first, or it's stranded as "source file missing" and pruned into
+  a re-download. Rows stranded before v48 (production had 47) are relinked once, by data
+  migration `cab1bff456eb` → *v48*
+- `db.merge` copies only the attributes you pass: the download ledger upsert left `in_library`
+  as it was, so a re-downloaded lost library file was never swept again (set it explicitly) → *v48*
+- A Postgres native-enum column won't compare with a bound string parameter (`operator does not
+  exist`); a portable migration casts it (`sa.cast(col, sa.String)`), and SQLite tests never
+  notice → *v48*
+- `reconcile_disk()` skips `/downloads` rows only while `/downloads` is empty, which an emptying
+  sweep makes it; the first boot after a new download prunes every row whose file is gone → *v48*
+- Priority and bump are admin-only on the server since v48 (403 before the job lookup, the same
+  for any id), not only hidden in the UI → *v48*
+- A library sweep archives only the sweeping admin's own settled jobs; every user's moved
+  tracks are still repointed (owner decision, F34) → *v48*
+- A real production breaker trip (2026-10-18 18:46 UTC) reached `breaker_events` but never the
+  Matrix room; unexplained, and its logs were gone by the next deploy → *v48*
 
 **Live progress & SSE**
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
@@ -681,6 +705,10 @@ needed" claim — rather than silently deleted.
 - Formats = UI language + browser region (`en-HU`); plural messages take a pre-formatted `n`
   (Paraglide's `number` ignores the region) → *v46*
 
+- A ≤640px column stack inherits flex-basis values meant for the row layout (the toggle's
+  `16rem`, the bar's `100%`), which made every job row ~4× taller and hid its bar → *v39.1*
+  (recorded in the v39 section; v39.1 has no section of its own)
+
 **Testing & verification technique**
 - e2e names come from the compiled message files (`t()`); a saved language beats the browser
   locale, so setup/teardown clear both identities' language in the DB → *v46*
@@ -904,6 +932,13 @@ needed" claim — rather than silently deleted.
 - Keyboard e2e races: wait for an open job's tracks before `→`, for a reload before `j`, and for
   the URL before reading `h1` after a navigation → *v45*
 
+- `docker compose exec -T` reads the shell's stdin, so inside a `while read` loop it swallows the
+  remaining lines; feed the list into one `exec ... sh -c 'while read ...'` instead → *v48*
+- A Celery worker keeps the code it started with (no hot reload), so a worker started before an
+  edit runs the old code: handy for a real before/after on the same stack, a trap otherwise → *v48*
+- v31's open questions closed on dev: a real album's every `COMPLETED` file exists at its
+  `output_path`, and four real ladder delays matched `LADDER_SECONDS` exactly → *v48*
+
 **CI**
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
   vanishes from PR checks rather than showing as failed → *v12*
@@ -930,6 +965,10 @@ needed" claim — rather than silently deleted.
   the direct CI equivalent of the in-place-recompile-and-diff technique above, for the newer lock
   format → *v23*
 
+- GitHub answering `429` to the runner's action download kills the job at "Set up job", and the
+  `notify` job needs the same action, so the failure and its alert vanish together (4.40.2 never
+  deployed, and nobody was told) → *v48*
+
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
   request, always → *v12*
@@ -940,6 +979,12 @@ needed" claim — rather than silently deleted.
 - A rAF loop writing `transform` costs a 1-element style recalc + commit per frame, never zero.
   On an idle `/` every main frame also re-samples the Waterfall noise floor's 40 animated bars
   (~80 elements in the trace's style count), so profile a frame loop on `/account` → *v40*
+- Retargeting a Web Animation on every pointer move costs more than a rAF loop (~1.5×); the
+  glow runs the loop while moving and hands off to a back-dated WAAPI glide once moves stop → *v48*
+- A new Web Animation's start time resolves a frame late (`currentTime` 0 meanwhile) and `pause()`
+  needs a rendered frame: set `startTime`, and pin a hidden tab's position yourself → *v48*
+- Outside a frame Chrome's `document.timeline.currentTime` is a 60Hz-grid estimate; read a
+  glide's position at a frame's own timestamp, and probe without a logger rAF → *v48*
 
 **Reference (not a gotcha)**
 - Upstream `vb2007.hu-api` endpoint shapes, token scheme, and the two constraints they impose →
@@ -3593,6 +3638,9 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   here rather than silently dropped; if it recurs under normal (non-test-harness) operation, it's
   worth a dedicated investigation, but not chased further in this version given the `download_track`
   code path itself has ordinary, well-covered failure modes and this doesn't match any of them.
+  *(2026-10-19, v48: closed, not reproduced under normal operation. A real 11-track album on the
+  dev database with normal pacing left every `COMPLETED` track's file at its `output_path`
+  (`stat` inside `worker-dl`, 11/11 present); see the v48 section.)*
 - **Deferred, found by fresh-eyes review**: a tag warning reuses `TrackAttempt.error_message` on a
   `COMPLETED` outcome (per the plan's "reuse the attempt row" instruction), but the only consumer,
   `frontend/src/lib/components/TrackRow.svelte:174-176`, renders *any* non-null `error_message`
@@ -4154,6 +4202,9 @@ a core correctness gap in `download_track` itself, and doc reconciliation)
   investigated to exhaustion given the disproportionate effort already spent versus the bounded,
   non-corrupting consequence (a longer wait before a retry, never a wrong or lost one) — worth
   a look if a future session sees it recur with cleaner reproduction conditions.
+  *(2026-10-19, v48: closed, not reproduced. One real track failing through a dead-proxy
+  `worker-dl` got `scheduled_at` = failure + 5s, 10s, 15s, 20s on its four retries, exactly
+  `LADDER_SECONDS=5,10,15,20,30`; see the v48 section.)*
 - **The deferred idle-in-transaction connection leak (flagged in v23) is real, root-caused, and
   fixed.** `/api/stream` returns a `StreamingResponse`; Starlette doesn't tear down a
   `yield`-based dependency (`Depends(get_db)`) until the *entire* response completes, which for a
@@ -5347,3 +5398,133 @@ independently-found production bug from the same conversation)
   declares every subset with a `unicode-range`, so a page downloads only latin and (Hungarian's
   ő, ű) latin-ext. Adding the packages needs the dev `web` container's `--renew-anon-volumes`
   (v46 entry above).
+
+### v48 v4-hardening gotchas (learned closing out master v4)
+
+- **Two ledger rows can share one downloaded file, and the sweep stranded the second (F34).**
+  spotdl names a file from its metadata, so a single and its album cut (two Spotify ids) can
+  resolve to the same `/downloads/...mp3`, and both ledger rows point at it. The sweep moved the
+  file for the first row; the second then hit `source file missing on disk`, kept its old path,
+  and would be pruned by `reconcile_disk()` into a re-download. The sweep now groups the ledger
+  by source file: each file is decided once, and every row sharing it (re-read just before the
+  repoint, so a row worker-dl recorded mid-sweep is included) is repointed in the same commit
+  before the source is deleted (so neither a crash between rows nor a failed copy can split
+  them). One window stays open: a row worker-dl commits between that re-read and the delete is
+  still stranded, since the sweep and worker-dl run concurrently. Every count in the report
+  (`total`, `processed`, moved, deleted, quarantined, errors) is a count of files, apart from a
+  whole-sweep `<post-move sync>`/`<sweep>` error row. Real before/after on the dev stack, same running worker for
+  "before" (it predated the edit): `main` listed `/downloads/v48-ghost.mp3` twice and left
+  `v48-sharedA-2` stranded; the branch listed the ghost once and filed both `v48-sharedB` rows to
+  one library file.
+- **Rows stranded before v48 stayed stranded (repaired 2026-10-20, below).** Production's last sweep (2026-10-18) reported 47
+  "source file missing" errors, and every one of the 47 not-in-library ledger rows has a sibling
+  with the same basename already in the library: earlier sweeps stranded them. The fix only
+  prevents new ones; those rows keep erroring on each sweep until repaired or pruned (a prune
+  means a re-download if that track is requested again). _(2026-10-20, owner answer: repaired,
+  by one-shot data migration `cab1bff456eb`, which runs after the deploy's pre-deploy
+  `pg_backup` and before the new workers start (the old ones are still up while it runs). It relinks a row only if the last sweep listed its
+  path as "source file missing on disk", no track with its Spotify id completed a download since
+  that sweep started (a re-download writes the file back but `db.merge` keeps the row's old
+  `downloaded_at`, so the attempts log is the signal), and exactly one in-library ledger file
+  has its basename (the sweep keeps a source's basename); its
+  completed and skipped-duplicate tracks follow. Read-only dry run on production: 47 of 47 rows,
+  47 tracks. On dev, a real stranded row's file answered 404, then 200 after `migrate`; a
+  downgrade and re-upgrade relinked 0. A failed 4.48.0 deploy past `migrate` can't roll back
+  automatically (the database is ahead of 4.47.x); DEPLOYMENT.md's third way out downgrades
+  `alembic_version` only, losslessly.)_
+- **What kept the 47 rows alive was an accident.** `reconcile_disk()` (every worker-meta boot,
+  so every deploy) refuses to prune rows under a root that looks unmounted, and an empty
+  `/downloads` looks unmounted. Each sweep empties `/downloads` (unless it quarantined something:
+  the default quarantine dir is `/downloads/quarantine`, which keeps it non-empty for good), so
+  the deploys after it skipped the stranded rows. The first boot with any new download waiting would have pruned all of them,
+  and each track would have re-downloaded when next requested. That is why the repair is a
+  migration: every backend service waits for `migrate`, so it lands before `reconcile_disk()`.
+- **A completed download's ledger merge never set `in_library`.** `db.merge` copies only the
+  attributes given, so a row whose library file went missing and was downloaded again kept
+  `in_library=True` on its new `/downloads` path, and no sweep (it reads only `in_library=False`)
+  would ever file it. The merge now sets `in_library=False`. Real on dev: a library row repointed
+  at a missing file, the track resubmitted, a real direct download, and the row read
+  `/downloads/01 - Portishead - Mysterons.mp3`, `in_library=f`; the next sweep filed it (1
+  quarantined, onto the existing library copy).
+- **A first repair relinked at runtime, and the review rejected it.** The sweep and
+  `reconcile_disk()` relinked any missing row to the one in-library file with its basename,
+  forever. A user who deletes `/downloads/01 - Artist - Intro.mp3` to force a re-download would
+  have had it linked to another album's `01 - Artist - Intro.mp3` instead, and the sweep's copy
+  had no unmounted-root guard. Every legacy row exists at the moment v48 deploys, so a
+  migration scopes the repair exactly; the runtime code was reverted.
+- **A first fix that deduplicated the error log row by row was wrong.** The blind review found
+  that a per-row pass still split shared rows (a failed copy for the first row, then a successful
+  one for the second, deleted the source the first still pointed at) and that a per-path error
+  list disagreed with the per-row live count `/library` derives (`processed − moved − deleted −
+  quarantined`). Grouping by file fixes the cause; the error list is one entry per file because
+  each file is processed once.
+- **A sweep archives only the sweeping admin's jobs (owner decision, F34(b)).** It used to archive
+  every user's settled jobs whose tracks it moved, silently. Now every user's `Track.output_path`
+  is still repointed, but only the admin's own jobs are archived (`archive.archive_jobs` is scoped
+  to that one user id), and only the admin gets archive events. Proven on dev: the admin's job was
+  archived, `v37user`'s job kept its repointed track and stayed unarchived. The `/library`
+  confirmation copy (en + hu) says so.
+- **Priority and bump are admin-only on the server too (owner answer, 2026-10-20).** v47 hid
+  them from non-admins but `PATCH /api/jobs/{id}/priority` and `POST /api/jobs/{id}/bump` still
+  accepted a job's owner. Both now depend on `require_admin`, which answers 403 before the job
+  lookup, so a non-admin gets the same 403 for their own job, a foreign one, and an unknown id
+  (live on dev: 403 `admin_required` ×3, priority unchanged; the admin still 200/404). They left
+  `test_ownership.py`'s 404 sweep for a 403 test of their own.
+- **The ambient glow's glide runs on WAAPI once the pointer stops (owner answer to v40's open
+  question), and stays a rAF loop while it moves.** The first version retargeted a Web Animation
+  on every move. At a real mouse's one move per frame that cost 0.90ms/frame against the loop's
+  0.59 (each new animation restyles the element about twice, and ~45 keyframes had to be built and
+  parsed); two keyframes with one cached `linear()` easing brought it to 0.80, still worse. The
+  hybrid: the loop runs while moves keep coming, and once ~50ms pass without one it starts a
+  two-keyframe glide from the last frame's position, `startTime` back-dated by the frame's step,
+  so the hand-off frame matches the loop. Handing off on the first quiet frame made slow input
+  start and cancel a glide each time (+15–23%); counting frames instead of time would do the same
+  on 144–240Hz displays. Measured on `/login` against the v40 component (swapped in via
+  `page.route`): the same style-update count while moving, 2–14% more main-thread time per frame;
+  after the last move 4 loop frames, ~9 style updates and ~5ms of tasks instead of ~60 frames and
+  21–25ms; at rest nothing.
+- **Resuming the loop from a glide: pin it on the next frame, one frame back.** A move during a
+  glide must restart the loop where v40's would have stepped from, the glide's position one frame
+  before the next one. Pinning inside the pointermove read the wrong instant: Chrome's
+  `document.timeline.currentTime` outside a frame is an estimate on a fixed 60Hz grid
+  (`kApproximateFrameTime`), and inside a frame with no rAF pending it already reads that frame's
+  time. Two earlier versions got this wrong in turn (a fresh first-frame step on top of the glide
+  skipped a frame; then dt 0 ignored the new target for a frame, 6–8px off v40 on a 100px
+  retarget). The loop now pins at the start of its next tick, at `now − interval` on the glide's
+  own clock (`interval` is the shortest of the last three real loop frames, so one dropped frame
+  doesn't stretch it). And the glide runs on to its fixed 1.6s end after v40 would have snapped:
+  a pin within 0.5px of the target must count as at rest, or a resize ~1.2–1.6s after a leave
+  drifted the glow dW/2 px instead of moving it with home. Probes that run their own rAF logger
+  keep a rAF pending and hide all of this; screencast the composited result with no other rAF on
+  the page.
+- **A new Web Animation's `currentTime` reads 0 until the frame after it's created**, because its
+  start time resolves a frame late. A retarget every frame then reads keyframe 0 every time, and
+  the first WAAPI version froze while the mouse kept moving (0 px/frame over 117 moves). Set
+  `startTime` yourself. Likewise `pause()` only takes effect on a rendered frame, which a hidden
+  tab doesn't produce: pin the position instead. Probe at real rates: a `page.mouse.move` loop
+  with waits sends ~20 moves/s, far below a mouse; CDP `Input.dispatchMouseEvent` at a 16ms
+  interval gives one per frame (headless input lands between frames, a real mouse's in-frame).
+- **`uvicorn --reload` hangs on open SSE streams.** Editing `app/tasks/library.py` made `api` log
+  "Waiting for connections to close" and stop answering (container `unhealthy`), because an
+  `/api/stream` connection was still open. `docker compose restart api` clears it.
+- **The pipeline record since v33 found two releases that never reached production.** 4.40.2's
+  `deploy` job died at "Set up job" on a GitHub `429` downloading `actions/checkout`, and the
+  `notify` job needs the same action, so it died the same way: no Matrix message, and nobody
+  re-ran it (production stayed on 4.40.1 until 4.41.0, ~30 h later). 4.47.0's `publish` failed on
+  the runner's Docker credential, shared with another repository's concurrent release (its
+  fix, a job-private `DOCKER_CONFIG`, is a separate change); that one did alert.
+- **A real breaker trip never reached the room.** Production tripped on 2026-10-18 at 18:46:47 UTC
+  (5 consecutive `no_output`, then ~460 `held` rows) and released at 19:16:47; `breaker_events`
+  has both rows, but the Matrix room has no trip or release message (its earlier trips, 10-12 to
+  10-14, all alerted). The code path enqueues after the trip's commit and the send expires after
+  300 s on `meta`; why it was lost can't be told: the next deploy (23:18) recreated every
+  container and took the logs with it. Still open.
+- **v31's open questions, closed on dev.** A real 11-track album (Portishead, *Dummy*) completed
+  with normal pacing, and `stat` found all 11 files at their `output_path` inside `worker-dl`.
+  One track sent through a dead-proxy `worker-dl` overlay retried at exactly +5 s, +10 s, +15 s
+  and +20 s (`LADDER_SECONDS=5,10,15,20,30`) before the pool-proxy rung's real "No results found"
+  made it `lookup_failed`. The plan's "v21 empty-`DOWNLOADS_DIR` observation" has no matching entry
+  in this file or the plans; the album run's files in `DOWNLOADS_DIR` are the evidence against it.
+- **Stdin and `docker compose exec -T`.** `while read p; do docker compose exec -T svc stat "$p";
+  done < list` stats only the first path: `exec -T` passes the loop's stdin to the container and
+  consumes the rest. Run the loop inside one `exec ... sh -c 'while read ...' < list`.

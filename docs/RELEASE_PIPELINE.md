@@ -14,7 +14,9 @@ Every version slice bumps **both** `backend/pyproject.toml`'s `version` and
 `frontend/package.json`'s `version` to the same `major.minor.patch` string —
 `major.minor` = `master series . roadmap slice` (e.g. this slice, v21, ships `2.21.0`), `patch` =
 a fix on top of an already-shipped slice. `backend/pyproject.toml` is the canonical source;
-`frontend/package.json` must always agree.
+`frontend/package.json` must always agree. `backend/uv.lock` records the backend's version too, so a
+bump also needs `uv lock` in `backend/`: CI's `deps-sync` job (`uv lock --check`) fails a PR whose
+lock still names the old version.
 
 `.github/scripts/check_version.py` (stdlib-only, no dependencies needed) is the single parser for
 both files — every workflow that needs the version calls it rather than re-deriving it, so there's
@@ -48,14 +50,14 @@ already-published and already-deployed idempotency checks skip everything else �
 no host change. `ci.yml`'s `version` job passing on a docs-only diff with no bump was confirmed
 live on PR #24; the full skip-the-whole-chain behavior on merge is the same idempotency path
 already verified during v21's own pre-merge and post-merge testing (see the Idempotency section
-above).
+below).
 
 ---
 
 ## The chain
 
 ```
-ci.yml              on: push (main), pull_request, workflow_dispatch
+ci.yml              on: push (main), pull_request, workflow_dispatch, schedule (daily; never releases)
    │
    │  workflow_run: completed && success && event == 'push' && head_branch == 'main'
    ▼
@@ -352,8 +354,15 @@ deduplicated by the homeserver, while a re-run (a new attempt) posts again, on p
 | `publish-deploy.yml` | a release-mode deploy succeeded and wasn't idempotency-skipped | version, release tag, run URL |
 | `release.yml` | the `release` job failed or was cancelled | workflow, version tag, run URL |
 
-So silence means "nothing happened", never "maybe it failed". A skipped run (a docs-only merge)
-sends nothing. Messages never contain `.env` content.
+So silence is meant to mean "nothing happened", never "maybe it failed" (two exceptions below: a
+failure GitHub causes before any step runs, and an outage of the alert channel itself). A skipped
+run (a docs-only merge) sends nothing. Messages never contain `.env` content.
+
+The running app's own alerts (v36: breaker, failure spikes, stale beat, library sweeps) use the
+same bot and room, configured in the host's `.env` rather than these secrets; see
+`docs/DEPLOYMENT.md`, "App alerts (v36)". A `notify` job needs the runner to download its
+actions like any other job, so a GitHub-side failure at "Set up job" (a `429` on the action
+download, as on 4.40.2's run) takes out the deploy and its own message together (v48).
 
 **Secrets**, as repository secrets (Settings → Secrets and variables → Actions):
 `MATRIX_HOMESERVER_URL`, `MATRIX_ACCESS_TOKEN`, `MATRIX_ROOM_ID`. Setting up the bot and the

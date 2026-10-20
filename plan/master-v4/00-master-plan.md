@@ -481,3 +481,36 @@ here rather than edited into it, so the original record stays readable.
     so `PATCH /api/jobs/{id}/priority` and `POST /api/jobs/{id}/bump` still accept a job's
     owner. Enforcing it server-side is logged for v48 (or a later backend slice). Not chosen, so left as they are: "duplicate" → "already
     have", "disconnect" → "sign out", and reordering `/account`'s preferences.
+
+- **2026-10-19, v48: owner decisions on F34 (task 7), and what the close found.**
+  - **A library sweep archives only the sweeping admin's own settled jobs** (owner's choice over
+    "keep it and show the count"). Every user's moved tracks are still repointed; another user's
+    job stays unarchived for that user and their retention. The `/library` confirmation (en + hu)
+    says so. CLAUDE.md records it under the v4 decisions.
+  - **Ledger rows sharing a moved file follow it** (owner's choice over "deduplicate the log
+    only"). The sweep groups the ledger by source file, repoints every row on a file in one commit
+    before the source is touched, and reports per file, so a path appears once in the error log.
+  - **Found, not fixed in v48** (pending the owner): production holds 47 ledger rows stranded by
+    pre-v48 sweeps (each has a same-named sibling already in the library); the 2026-10-18 breaker
+    trip produced no Matrix alert and can't be root-caused (logs gone); 4.40.2 never deployed and
+    its `notify` died with it on a GitHub 429. The backend gaps v43/v47 logged for "v48's close"
+    (unconditional `cancel_job`, no single-track GET, used-proxy delete 500, unbounded
+    `retention_days`, server-side priority/bump) aren't v4 regressions, so they stay logged for a
+    future master, per v48's "Out of scope".
+
+- **2026-10-20, v48: owner answers to the PR's four questions.**
+  - **The 47 stranded production ledger rows are repaired, not left** ("do they still error, can
+    we run into issues? if yes, don't leave them"). They still errored on every sweep, their
+    tracks' files couldn't be downloaded (a 404 in the dev reproduction), and a deploy boot with any download waiting would have pruned
+    them into re-downloads. A one-shot data migration (`cab1bff456eb`, after the deploy's
+    pre-deploy `pg_backup`) relinks each row the last sweep listed as missing to the one
+    in-library file with its basename; no manual production write. Read-only dry run: 47 of 47.
+  - **v40's ambient glow moves to the Web Animations API** ("using the web animations api won't
+    hurt") for the glide after the pointer stops, which is now composited (4 loop frames and ~9
+    style updates instead of ~60 frames). While the pointer moves it stays v40's loop: retargeting an
+    animation per move measured 1.5× the loop's cost. Behavior unchanged. This closes v40's open
+    "Performance" bullet.
+  - **DESIGN.md's dropped decision dates are restored** (v47's regeneration had folded them into
+    prose), which closes v47's "prior decision records preserved" bullet.
+  - **Priority and bump are enforced server-side** (admin-only, 403 for any non-admin), taken
+    out of the logged backend gaps above; the rest of that list stays for a future master.

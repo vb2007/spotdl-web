@@ -31,7 +31,7 @@ retry ladder shouldn't take literal days.
 
 `worker-meta` bind-mounts `./proxies.txt` (see `docker-compose.override.yml`), so a file needs
 to exist at the project root before `docker compose up` or Docker creates an empty directory
-there instead (silently breaking `sync_from_file()` — see v07 gotchas in `CLAUDE.md`):
+there instead (silently breaking `sync_from_file()` — see the v07 gotchas in `docs/GOTCHAS.md`):
 
 ```bash
 cp proxies.txt.example proxies.txt
@@ -111,7 +111,10 @@ own words) — `docker-compose.override.yml` already wires a throwaway local sta
 this, gitignored the same way `./downloads` is:
 
 ```yaml
-worker-meta:
+worker-expand:      # v34.1: the sort sweep itself runs here
+  volumes: !override
+    - ./test-library:/mnt/raid1/media/music
+worker-meta:        # boot-time reconcile_disk() checks ledger rows that point into the library
   volumes: !override
     - ./test-library:/mnt/raid1/media/music
 worker-dl:          # v38: the dedup gate must see moved files
@@ -134,9 +137,12 @@ curl -b <admin cookie jar> -X PATCH http://localhost:8000/api/settings/library \
 ```
 
 Download a track, `POST /api/library/sort` as admin, and confirm the file landed under
-`./test-library/<Artist> - <Album> - (<Year>)/` on the host, the `downloaded_tracks` row's
-`file_path` was repointed, and `GET /api/tracks/{id}/file` still serves it afterward (v31 proved
-this exact sequence — see `docs/GOTCHAS.md`'s v31 section).
+`./test-library/<Artist> - <Album> - (<Year>)/` on the host, every `downloaded_tracks` row
+pointing at that file had its `file_path` repointed (v48: two ledger rows, say a single and its
+album cut, can share one file), and `GET /api/tracks/{id}/file` still serves it afterward (v31
+proved this exact sequence — see `docs/GOTCHAS.md`'s v31 section). The sweep archives only the
+sweeping admin's own settled jobs among those it moved (v48); another user's job keeps its
+repointed track and stays unarchived.
 
 ## 6. When a version is ready
 
@@ -224,7 +230,7 @@ the v39–v47 UI rework, so run it before calling any frontend change done.
 
 ```bash
 cd frontend
-npm run test:e2e            # the baseline specs, desktop (1280×800) and mobile (390×844)
+npm run test:e2e            # the baseline specs, desktop (1280×800) and mobile (390×844), plus the hu project
 npm run test:e2e:network    # opt-in: the one @network spec, a real YouTube download
 E2E_STRICT=1 npm run test:e2e   # v43: fail, never skip, spec 12's tests that step aside on a busy stack
 ```
@@ -260,15 +266,19 @@ plain HTTP on `localhost`. If another dev server listens on `[::1]:5173`, it cap
 **Writing specs:** select by role, label and accessible name (`getByRole`, `getByLabel`), never
 by CSS class. The v40–v43 restyles must not rewrite the suite. If an element has no accessible
 name, give it one in the component: that's an accessibility fix, not a test hack. Every project
-pins `locale: 'en-US'`, because accessible names are text. v46 adds its own `hu` project rather
-than changing these. Specs are named `*.e2e.ts` so vitest's default `*.spec.ts`/`*.test.ts`
+pins its locale, because accessible names are text: `desktop` and `mobile` run at `en-US`, and
+v46's `hu` project (desktop viewport, `hu-HU`) runs only the keyboard spec (14) and the Hungarian
+smoke (15), reading names from the same message files the app renders. Spec 16 (i18n) drives its
+own per-locale contexts and runs on `desktop` only. Specs are named `*.e2e.ts` so vitest's default `*.spec.ts`/`*.test.ts`
 include never picks them up.
 
 **Why local-only, with no CI browser job:** the self-hosted CI runner *is* the production host,
 which also runs real services (Matrix/Synapse, Vaultwarden). Browsers and test traffic don't
 belong there. The suite also needs the dev stack's database, ledger files and two upstream test
 accounts, none of which exist on the runner. CI still lints and typechecks `e2e/` (`npm run lint`,
-`npm run check`). Running it is part of each UI version's local checks.
+`npm run check`). Since v46 both also run `scripts/check-messages.mjs` (`en.json`/`hu.json` hold
+the same keys with the same inputs), and `lint` adds `scripts/scan-literals.mjs` (no hard-coded
+user-visible string outside the message files). Running it is part of each UI version's local checks.
 
 ## Troubleshooting
 
@@ -279,3 +289,6 @@ accounts, none of which exist on the runner. CI still lints and typechecks `e2e/
 | Stack was working, comes back broken after `docker compose down && up` with no config changes | Check `docker compose config` for the resolved service definitions before assuming it's a code regression — compose-file merge behavior is a common source of surprises that look like app bugs | |
 | `migrate` exits at boot (and api/workers/beat never start, since they wait on it) with `SPOTDL_ENV=dev but DATABASE_URL points at the production database …` or `… can't be parsed` / `… names no database` (v32) | The local `.env`'s `DATABASE_URL` points at production's database, or is malformed. The dev guard refuses rather than risk production rows | Point `DATABASE_URL` at `spotdlwebtest` (see [Dedicated dev database](#dedicated-dev-database)). Never remove `SPOTDL_ENV` from the override to get past it |
 | `migrate` fails at boot (api/workers/beat never start) with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | Either `ADMIN_EMAIL` is unset in `.env`, or it's set but not also present in `ALLOWED_EMAILS` — both are required at startup, by design | Add `ADMIN_EMAIL=you@example.com` to `.env` and make sure that same address is also in `ALLOWED_EMAILS` |
+| After editing a backend file, `api` stops answering and goes `unhealthy`, logging `Waiting for connections to close` (v48) | `uvicorn --reload` waits for every open connection before restarting, and an `/api/stream` SSE connection (a browser tab, a `curl -N`, a Playwright run) never closes on its own | `docker compose restart api` |
+| A backend change works through `api` but a task still runs the old code | Celery workers and `beat` don't hot-reload: they keep the Python they imported at boot, even with the source bind-mounted | `docker compose restart worker-dl worker-meta worker-expand beat` (whichever run the changed code) |
+| A frontend dependency change doesn't show up in `web`, even after `docker compose build web` (v46) | `web`'s `node_modules` and compiled `src/lib/paraglide` are anonymous volumes (`docker-compose.override.yml`), and they outlive an image rebuild | `docker compose build web && docker compose up -d --renew-anon-volumes web` |

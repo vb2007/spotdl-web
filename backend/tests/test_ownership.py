@@ -73,8 +73,6 @@ _DIRECT_ID_CASES = [
     ("POST", "/api/tracks/{track_id}/retry"),
     ("GET", "/api/tracks/{track_id}/attempts"),
     ("GET", "/api/tracks/{track_id}/file"),
-    ("PATCH", "/api/jobs/{job_id}/priority"),
-    ("POST", "/api/jobs/{job_id}/bump"),
 ]
 
 
@@ -107,7 +105,22 @@ def test_direct_id_endpoint_200s_for_the_real_owner(client, db_session, make_use
     job = _make_job(db_session, owner)
 
     assert _as(client, owner_cookie).get(f"/api/jobs/{job.id}").status_code == 200
-    assert _as(client, owner_cookie).post(f"/api/jobs/{job.id}/bump").status_code == 200
+    assert _as(client, owner_cookie).get(f"/api/jobs/{job.id}/tracks").status_code == 200
+
+
+@pytest.mark.parametrize("who", ["owner", "stranger"])
+def test_priority_endpoints_403_for_every_non_admin(who, client, db_session, make_user, session_cookie):
+    """v48: priority and bump are admin-only, so they left the 404 sweep above. A non-admin
+    gets the same 403 on their own job and on someone else's, so the answer still confirms
+    nothing about a foreign job."""
+    owner = make_user("owner@example.com")
+    cookie = session_cookie("owner@example.com" if who == "owner" else "stranger@example.com")
+    job = _make_job(db_session, owner)
+
+    patched = _as(client, cookie).patch(f"/api/jobs/{job.id}/priority", json={"priority": 1})
+    bumped = _as(client, cookie).post(f"/api/jobs/{job.id}/bump")
+
+    assert (patched.status_code, bumped.status_code) == (403, 403)
 
 
 def test_admin_has_full_read_and_write_access_to_a_foreign_job(client, db_session, make_user, session_cookie):

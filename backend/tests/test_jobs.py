@@ -230,47 +230,72 @@ def test_cancel_unknown_job_returns_404(authenticated_client, db_session):
     assert response.status_code == 404
 
 
-def test_set_job_priority_sets_exact_value(authenticated_client, db_session, monkeypatch):
+def test_set_job_priority_sets_exact_value(admin_client, db_session, monkeypatch):
     _stub_expand_job(monkeypatch)
 
-    job_id = authenticated_client.post(
+    job_id = admin_client.post(
         "/api/jobs", json={"url": "https://open.spotify.com/track/abc"}
     ).json()["id"]
 
-    response = authenticated_client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 7})
+    response = admin_client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 7})
 
     assert response.status_code == 200
     assert response.json()["priority"] == 7
     assert db_session.get(Job, uuid.UUID(job_id)).priority == 7
 
 
-def test_set_priority_on_unknown_job_returns_404(authenticated_client, db_session):
-    response = authenticated_client.patch(f"/api/jobs/{uuid.uuid4()}/priority", json={"priority": 1})
+def test_set_priority_on_unknown_job_returns_404(admin_client, db_session):
+    response = admin_client.patch(f"/api/jobs/{uuid.uuid4()}/priority", json={"priority": 1})
     assert response.status_code == 404
 
 
-def test_bump_job_sets_priority_above_current_max(authenticated_client, db_session, monkeypatch):
+def test_bump_job_sets_priority_above_current_max(admin_client, db_session, monkeypatch):
     _stub_expand_job(monkeypatch)
 
-    first_id = authenticated_client.post(
+    first_id = admin_client.post(
         "/api/jobs", json={"url": "https://open.spotify.com/track/a"}
     ).json()["id"]
-    second_id = authenticated_client.post(
+    second_id = admin_client.post(
         "/api/jobs", json={"url": "https://open.spotify.com/track/b"}
     ).json()["id"]
     db_session.get(Job, uuid.UUID(first_id)).priority = 3
     db_session.commit()
 
-    response = authenticated_client.post(f"/api/jobs/{second_id}/bump")
+    response = admin_client.post(f"/api/jobs/{second_id}/bump")
 
     assert response.status_code == 200
     assert response.json()["priority"] == 4
     assert db_session.get(Job, uuid.UUID(second_id)).priority == 4
 
 
-def test_bump_unknown_job_returns_404(authenticated_client, db_session):
-    response = authenticated_client.post(f"/api/jobs/{uuid.uuid4()}/bump")
+def test_bump_unknown_job_returns_404(admin_client, db_session):
+    response = admin_client.post(f"/api/jobs/{uuid.uuid4()}/bump")
     assert response.status_code == 404
+
+
+def test_priority_endpoints_403_for_a_non_admin_owner(authenticated_client, db_session, monkeypatch):
+    """v48 (owner decision): priority and bump are admin-only on the server too, not only
+    hidden in the UI -- even on the caller's own job."""
+    _stub_expand_job(monkeypatch)
+    job_id = authenticated_client.post(
+        "/api/jobs", json={"url": "https://open.spotify.com/track/abc"}
+    ).json()["id"]
+
+    patched = authenticated_client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 7})
+    bumped = authenticated_client.post(f"/api/jobs/{job_id}/bump")
+
+    for response in (patched, bumped):
+        assert response.status_code == 403
+        assert response.json()["code"] == "admin_required"
+    assert db_session.get(Job, uuid.UUID(job_id)).priority == 0
+
+
+def test_priority_endpoints_403_for_a_non_admin_whatever_the_id(authenticated_client):
+    """The admin check runs before the lookup: an unknown id answers the same 403, so a
+    non-admin learns nothing about which jobs exist."""
+    job_id = uuid.uuid4()
+    assert authenticated_client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 1}).status_code == 403
+    assert authenticated_client.post(f"/api/jobs/{job_id}/bump").status_code == 403
 
 
 def test_priority_endpoints_require_session(client):

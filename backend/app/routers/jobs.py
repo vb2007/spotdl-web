@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.errors import ApiError
 from app.models import Job, JobSourceType, JobState, Track, TrackState, User
-from app.routers.auth import require_session
+from app.routers.auth import require_admin, require_session
 from app.services import archive, events, job_listing, rollup, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
@@ -279,8 +279,11 @@ def set_job_priority(
     job_id: uuid.UUID,
     payload: SetPriorityRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(require_session),
+    user: User = Depends(require_admin),
 ) -> dict:
+    """Admin-only (v48, owner decision): priority reorders everyone's queue, so it is an
+    operator control, not a job owner's. A non-admin gets require_admin's 403 before the
+    job is looked up, the same answer for any id, so no job's existence is confirmed."""
     job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
     job.priority = payload.priority
     db.commit()
@@ -293,13 +296,14 @@ def set_job_priority(
 def bump_job(
     job_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_session),
+    user: User = Depends(require_admin),
 ) -> dict:
     """Moves this job to the front of the dispatch order — sets its priority one above
     the current highest, which is the only "move to front" interaction actually needed
     day-to-day (per the v11 plan) rather than a full manual ranking scheme. The max is
     global, not scoped to the caller: queue fairness is a locked, global decision for
-    v2 (no per-user slots), so "front" means front of everyone's queue."""
+    v2 (no per-user slots), so "front" means front of everyone's queue -- which is why
+    it is admin-only, like set_job_priority (v48)."""
     job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
     max_priority = db.query(func.max(Job.priority)).scalar() or 0
     job.priority = max_priority + 1

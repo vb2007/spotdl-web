@@ -69,6 +69,22 @@ retention setting) has shipped since v09/v20 — deployed and in real use at `sp
   display everywhere email used to; a compact live status pill on the dashboard shows worker
   health to every user, with the actual pause/resume control moved to admin-only `/settings`.
 - Constraint: keyboard-only navigation must work for every interactive element in the UI.
+  **Met in master v4 (v45, carried through v46–v47):** the whole app runs without a mouse. The
+  bindings are designed for the Hungarian QWERTZ layout first: nothing needs AltGr, `Y`/`Z` are
+  never bound, keys match on `event.key`, and an AltGr (Ctrl+Alt) chord never fires a shortcut.
+  `h` opens a help overlay listing exactly the shortcuts that work on the current page, and
+  `/account` has a per-user switch that turns single-key shortcuts off (Tab, arrows, Enter and Esc
+  keep working). Single keys are inert while typing in a text field. Playwright's keyboard journeys
+  (spec 14, including an emulated Hungarian QWERTZ pass) guard it; the owner did the real
+  Hungarian-layout pass.
+- Confirmed (master v4, v46): the interface is fully available in **Hungarian and English**.
+  Signed out, the browser's language preference decides (anything not Hungarian gets English);
+  signed in, a language saved on `/account` wins, and its "automatic" choice follows the browser
+  again. Dates and numbers follow the interface language with the browser's region, with a
+  per-user 12-hour/24-hour override. Hungarian copy is informal (tegező) and keeps the radio
+  metaphor. Track metadata, raw error text, alerts and logs stay untranslated; the backend answers
+  with stable error codes that the frontend translates. Both message files must carry identical
+  keys (`npm run lint` checks it).
 - Terminology: a "job" is one submitted URL; a "track" is one individual song being downloaded.
 
 ## Brand Commitments
@@ -79,7 +95,7 @@ identity exists yet.
 ## Evidence on Hand
 
 No curated screenshots or demo content compiled here — the real, running UI at
-`spotdl.vb2007.hu` and `frontend/src/DESIGN.md` (updated through v31) are the source of truth for
+`spotdl.vb2007.hu` and `frontend/src/DESIGN.md` (refreshed in v47) are the source of truth for
 what's actually built. Future design work must not fabricate testimonials, sample libraries, or
 usage data.
 
@@ -99,4 +115,7 @@ usage data.
 ## Accessibility & Inclusion
 
 Keyboard-only navigation is a required, explicitly confirmed standard — every interactive element
-in the eventual UI must be fully operable without a mouse.
+must be fully operable without a mouse. Met since v45, Hungarian QWERTZ first (see Users &
+Purpose above); any new interactive element must be keyboard-reachable and, if it gets a key,
+registered in the shortcut registry. The UI is bilingual (Hungarian/English, v46), and v42–v43
+raised the text and control contrast tokens to WCAG AA (4.5:1 text, 3:1 control borders).

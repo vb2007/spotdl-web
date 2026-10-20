@@ -23,16 +23,18 @@
 	const percent = $derived(
 		run !== null && run.total > 0 ? Math.round((run.processed / run.total) * 100) : 0
 	);
-	// The progress event carries no error count, but every processed file is filed one of
-	// three ways or left in place with an error, so the difference is the errors so far.
+	// The progress event carries no error count, but every processed file is either filed one
+	// of three ways or counted as an error, never both (v48: a file filed into the library
+	// whose source then can't be removed counts only as an error), so the difference is the
+	// errors so far.
 	const errorsSoFar = $derived(
 		run === null
 			? 0
 			: Math.max(0, run.processed - run.moved - run.skipped_present - run.quarantined)
 	);
-	// v43 (F20): the backend can record one file's error twice (F34a, a v48 fix). The count
-	// stays the backend's own (it matches the sweep's Matrix alert); the list folds identical
-	// rows into one entry marked ×n rather than repeating them.
+	// v43 (F20): the list folds identical rows into one entry marked ×n. Since v48 (F34a) a
+	// sweep handles each file once, so only a report from an older sweep repeats a file; the
+	// count stays the backend's own (it matches the sweep's Matrix alert).
 	const errorRows = $derived(
 		(run?.errors ?? []).reduce<{ file: string; error: string; times: number }[]>((rows, e) => {
 			const same = rows.find((r) => r.file === e.file && r.error === e.error);
@@ -136,7 +138,8 @@
 		reportError = '';
 	}
 
-	// v43 (F08): a sweep moves real files and archives jobs for every user, so it asks.
+	// v43 (F08): a sweep moves real files and archives jobs, so it asks (v48: only the
+	// admin's own jobs are archived).
 	// One question and its server re-read at a time: a second press meanwhile is ignored.
 	let onStartRunning = false;
 	async function onStart() {

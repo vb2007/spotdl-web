@@ -136,7 +136,10 @@ including the few the frontmatter leaves out because nothing consumes them.
 
 Status: living document. Update in the same PR as any change to a token, a state-colour mapping,
 or a named rule. Per-version notes (`> **vNN (date):** …`) are kept where a rule changed meaning,
-so the reason for the current rule stays readable.
+so the reason for the current rule stays readable. An inline attribution to a pre-v47 decision
+carries the date that decision was recorded, e.g. (v42, 2026-10-15). _(2026-10-20, v48: v47's
+regeneration folded the dated v41–v46 notes into this prose and dropped most dates; they are
+restored inline from the pre-v47 file, owner's answer on the v48 PR.)_
 
 ## 1. World and thesis
 
@@ -199,19 +202,20 @@ Dark-only (`color-scheme: dark`); no light theme exists or is planned.
 `--text-dim` reaches 4.5:1 on every surface it sits on (`--bg-0` 5.63, `--bg-1` 4.83, `--bg-2`
 4.62). That puts it close to `--text-muted` (6.48 / 5.55 / 5.31), so the two read apart by role
 (size, case and tracking: `.label`), not by luminance. `--text-muted` stays put because
-`AmbientField.svelte`'s slate tone is calibrated against it (§6). (v42, F09/A2: `--text-dim` was
-`#566068` and failed WCAG 1.4.3 everywhere, 2.15–3.05:1.)
+`AmbientField.svelte`'s slate tone is calibrated against it (§6). (v42, 2026-10-15, F09/A2:
+`--text-dim` was `#566068` and failed WCAG 1.4.3 everywhere, 2.15–3.05:1.)
 
 `--signal-dim` is never text: it was 3.09:1 as link hover on four routes, so links hover to
-`--text-primary` (v42).
+`--text-primary` (v42, 2026-10-15, F09/A2).
 
 A destructive control's outline at rest (clear log, a job's cancel, cancel track, `.btn.danger`) is
-`--fail-edge` (3.87 / 3.32 / 3.17 on `--bg-0/1/2`), never `--fail-dim` (1.5:1, v42).
+`--fail-edge` (3.87 / 3.32 / 3.17 on `--bg-0/1/2`), never `--fail-dim` (1.5:1; v42, 2026-10-15,
+F09/A2).
 
-State toggles were removed in v43 (F30): a proxy's state is a word ("switched on" in `--settled`,
-"switched off" in `--text-muted`) beside a plain `.btn` naming the action, and a switched-off row is
-no longer faded with `opacity: 0.6`; its address drops to `--text-muted`. The worker's state is a
-sentence beside "pause/resume downloads".
+State toggles were removed in v43 (2026-10-16, F30): a proxy's state is a word ("switched on" in
+`--settled`, "switched off" in `--text-muted`) beside a plain `.btn` naming the action, and a
+switched-off row is no longer faded with `opacity: 0.6`; its address drops to `--text-muted`. The
+worker's state is a sentence beside "pause/resume downloads".
 
 ### Signal-condition colors — the semantic core of the system
 
@@ -251,8 +255,8 @@ sidecar; a new use must still fit the rules above.
 
 **Decided 2026-10-13 by the owner (v40): the rule above stands unamended.** Amber marks something
 receiving _right now_, and nothing else. The v39 audit (F10) found it leaking onto about ten
-permanent chrome sites. Each got a verdict in v40; v40 applied the first row, v42 (`/`) and v43 (the
-other routes) applied the rest without re-deciding them. All are applied.
+permanent chrome sites. Each got a verdict in v40; v40 applied the first row, v42 (`/`, 2026-10-15)
+and v43 (the other routes, 2026-10-16) applied the rest without re-deciding them. All are applied.
 
 | Site (F10)                                     | Verdict (shipped)                                                                                                                                      |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -346,10 +350,10 @@ surface, not a fluid display ramp):
 
 Weights: `--fw-regular` 400, `--fw-medium` 500, `--fw-strong` 600. Every `font-size` in the tree is
 one of these tokens; the only other values are two `font-size: inherit` resets (`/settings`,
-`/stats`). v43 migrated the secondary routes and v41's rows (the login dial's 9px ticks became
-`--fs-label`, TrackRow's 14px artist line `--fs-detail`); v47 migrated the rest, including the
-remaining literal weights, and set a job's badge at `--fs-meta` like the track state word. Don't add
-a size between the steps.
+`/stats`). v43 (2026-10-16) migrated the secondary routes and v41's rows (the login dial's 9px ticks
+became `--fs-label`, TrackRow's 14px artist line `--fs-detail`); v47 migrated the rest, including
+the remaining literal weights, and set a job's badge at `--fs-meta` like the track state word. Don't
+add a size between the steps.
 
 `.mono` utility class adds `font-variant-numeric: tabular-nums` and `letter-spacing: 0.01em` —
 **any new numeric/timestamp display should use `.mono`, not a bare font-family override**, to get
@@ -452,12 +456,13 @@ interaction idiom:
 
 The one shared surface convention: `--bg-1`, `1px solid var(--line)`, `border-radius: 6px`, and a
 machined top bevel (`inset 0 1px 0 rgba(255,255,255,.055)`), a 1px dark lower edge
-(`0 1px 0 rgba(0,0,0,.6)`) and a short offset drop shadow (`0 6px 12px -7px rgba(0,0,0,.8)`). Every
-panel-like surface in the tree (login form, submit bar, Waterfall, the queue, every secondary
-route's sections, the confirmation and help dialogs) uses this class rather than a locally
-redeclared surface style. The shadow is the `--shadow-plate` token (v47), which the `g` chord
-readout and `/stats`' crosshair readout share (the readout had its own wider, softer shadow); a
-`.well`'s inset is `--shadow-well`, and the live meter's moving sheen is `--sheen`.
+(`0 1px 0 rgba(0,0,0,.6)`) and a short offset drop shadow (`0 6px 12px -7px rgba(0,0,0,.8)`) (v42,
+2026-10-15; see the Decided note below). Every panel-like surface in the tree (login form, submit
+bar, Waterfall, the queue, every secondary route's sections, the confirmation and help dialogs) uses
+this class rather than a locally redeclared surface style. The shadow is the `--shadow-plate` token
+(v47), which the `g` chord readout and `/stats`' crosshair readout share (the readout had its own
+wider, softer shadow); a `.well`'s inset is `--shadow-well`, and the live meter's moving sheen is
+`--sheen`.
 
 History, kept because it is why the material is what it is: the intended "matte charcoal chassis"
 — a perceptible plate, distinct from a flat SaaS card — was never made perceptible across two
@@ -485,10 +490,10 @@ proof that "live" is reserved, not just a colour-token comment. **Any future pan
 signal "something in me is currently active" should use this same neutral→signal-dim
 border-colour swap, not a persistent accent border.**
 
-A third edge state (v42, F04): while the breaker holds and nothing of this session's is receiving,
-the edge is `--waiting-dim`: a hold is a scheduled, self-clearing condition, the waiting colour's
-meaning. A pause keeps the neutral edge: it isn't scheduled (it holds until a human resumes it,
-which is why the admin's pill shows it red).
+A third edge state (v42, 2026-10-15, F04): while the breaker holds and nothing of this session's is
+receiving, the edge is `--waiting-dim`: a hold is a scheduled, self-clearing condition, the waiting
+colour's meaning. A pause keeps the neutral edge: it isn't scheduled (it holds until a human resumes
+it, which is why the admin's pill shows it red).
 
 ### Waterfall idle status and the link tell (v42, F04/F05; v47)
 
@@ -544,18 +549,32 @@ the page (headers, hints, the `/login` ident). Its home is approximately the old
 composition: a 72×44rem element (1152×704px at the default 16px; it grows with text scaling)
 centred at 50% / −10% of the viewport, so at rest the page reads as it always did, minus the amber.
 
-**Behavior.** With a hovering fine pointer, the glow follows the cursor. `pointermove` only stores
-the latest position, and one `requestAnimationFrame` loop eases toward it (exponential approach,
-τ = 180ms), moving the element by `transform: translate3d()` alone. It snaps and stops when it is
-within 0.5px, and restarts on the next move. When the pointer leaves the window it drifts back
-home; a native drag (which cancels the pointer and fires the same window-leave event) does not
-count as leaving. A touch-type `pointermove` is ignored, so it never chases a tap. The loop reads no
-layout: the viewport size comes from a `ResizeObserver`. While it can move, the `.glow` element
-carries `will-change: transform`, so its gradient rasterizes once. Each frame costs one 1-element
-style update and a commit, with no layout and no repaint: about 0.3ms of main-thread work per frame,
-measured on `/account` (v40 PR). On an idle `/` the same style update also re-samples the Waterfall
-noise floor's 40 animated bars (~0.3ms more). That is the floor for any script-driven transform;
-"composite only" is reachable only for CSS/WAAPI keyframes.
+**Behavior.** With a hovering fine pointer, the glow follows the cursor: an exponential approach
+(τ = 180ms) toward it. While the pointer moves, `pointermove` only stores the latest position, and
+one `requestAnimationFrame` loop eases toward it, moving the element by `transform: translate3d()`
+alone; the first frame after a wake counts as one 60Hz frame. Once ~50ms (three 60Hz frames, at
+any refresh rate) pass without a move, the loop hands the rest of the approach to one compositor
+animation (two keyframes and a `linear()`
+easing tracing the same curve, landing exactly on target after 1.6s), back-dated by that frame's
+step so the hand-off frame shows what the loop would have drawn. A move or a leave during the glide
+ends it on the next frame, at the position it had one frame earlier (read from the animation's own
+clock, never computed style), and the loop steps from there as v40's would have; a resize or a
+hidden tab ends it at once. A glide within 0.5px of its target counts as at rest, as v40's loop
+had snapped by then. Screencasts match v40's path within about 1px, and between
+`linear()` samples a long glide can drift up to ~0.09% of its distance. A
+browser without `linear()` (Safari before 17.2) keeps the loop to the 0.5px snap. When the pointer
+leaves the window it drifts back home; a native drag (which cancels the pointer and fires the same
+window-leave event) does not count as leaving. A touch-type `pointermove` is ignored, so it never
+chases a tap. Nothing reads layout: the viewport size comes from a `ResizeObserver`. While it can
+move, `.glow` carries `will-change: transform`, so its gradient rasterizes once. While moving, each
+frame costs one 1-element style update and a commit, with no layout and no repaint: the same
+style-update count as v40, and 2–14% more main-thread time per frame (0.69 vs 0.67ms at one move
+per frame, 0.50 vs 0.44ms at one per 50ms), measured on `/login`. After the pointer stops, the
+rest of the approach costs 4 loop frames and about 9 style updates instead of v40's ~60 frames
+(about 5ms of tasks instead of 21–25). A hidden tab stops the loop and pins the glow where it is. _(2026-10-20,
+v48: the after-stop glide moved to WAAPI, owner's answer to v40's open performance question. A
+first version ran every retarget as a Web Animation too; at real mouse rates that cost 1.5× the
+loop while moving, so moving stayed on the loop.)_
 
 **Static cases (owner's choice, 2026-10-13): no hover or a coarse pointer, and
 `prefers-reduced-motion: reduce`.** Phones keep the home position with no pointer listener and no
@@ -591,16 +610,17 @@ budget (dithering) costs more than it buys.
 ### Worker status: the admin pill and `/settings`' worker control (`WorkerStatusPill.svelte`, `WorkerStatus.svelte`, `stores/worker.ts`)
 
 **The pill** (`WorkerStatusPill.svelte`) is operator detail, so `/` renders it for the admin only
-(absent from a non-admin's DOM; they get the Waterfall's plain status line) (v42, F06/F07, v39
-outcome 3). It is a `role="status"` pill in the masthead, beside the nav — **not** between the
-submit form and the queue, where the old full panel competed with the Waterfall for space above the
-fold (v25's reason for splitting it out). Three states: **worker ready** (`cond-idle`), **breaker
-holding · clears in …** (waiting blue: it is expected and self-heals) and **receiver paused**
-(`--fail`: it holds until a human resumes it). The default is `cond-idle`, not `--signal`: a
-"nothing's wrong" pill on every page load is exactly the near-permanent chrome §2 keeps amber out
-of. The live region is one `sr-only` sentence per state, never the per-second countdown. The 5s
-worker poll lives on the page, which every user needs (the Waterfall and TrackRow's breaker-aware
-countdown read the store); there is still no SSE event for worker/breaker state.
+(absent from a non-admin's DOM; they get the Waterfall's plain status line) (v42, 2026-10-15,
+F06/F07, v39 outcome 3). It is a `role="status"` pill in the masthead, beside the nav — **not**
+between the submit form and the queue, where the old full panel competed with the Waterfall for
+space above the fold (v25's reason for splitting it out). Three states: **worker ready**
+(`cond-idle`), **breaker holding · clears in …** (waiting blue: it is expected and self-heals) and
+**receiver paused** (`--fail`: it holds until a human resumes it). The default is `cond-idle`, not
+`--signal`: a "nothing's wrong" pill on every page load is exactly the near-permanent chrome §2
+keeps amber out of. The live region is one `sr-only` sentence per state, never the per-second
+countdown. The 5s worker poll lives on the page, which every user needs (the Waterfall and
+TrackRow's breaker-aware countdown read the store); there is still no SSE event for worker/breaker
+state.
 
 > **Superseded history (v25 → v42, kept for the record; dated 2026-10-19 in v47):** v25's pill
 > rendered for every user, with `cond-fail` (red) "breaker tripped" + a live `Countdown`,
@@ -609,12 +629,12 @@ countdown read the store); there is still no SSE event for worker/breaker state.
 > pill admin-only and moved the breaker to the waiting blue (above); only "paused" is still red.
 
 **Worker control** (`WorkerStatus.svelte`) renders on `/settings` for the admin only (no `isAdmin`
-prop; a non-admin gets the admin-only notice instead) (v43, F17/F30/A4). The state is a sentence:
-**Downloads running** (muted), **Downloads paused** (`--fail`, it needs a human) and, beside either,
-**Holding until 23:20 · resumes in …** (waiting blue, the countdown `aria-hidden`; one `sr-only`
-status sentence per state). The buttons name their action: pause/resume downloads and, while
-holding, **release now** (`.btn.danger`). Pause and release ask first; resume doesn't. When the
-breaker holds a running worker, the hold row carries pause too (v47). "Receiver power" and the
+prop; a non-admin gets the admin-only notice instead) (v43, 2026-10-16, F17/F30/A4). The state is a
+sentence: **Downloads running** (muted), **Downloads paused** (`--fail`, it needs a human) and,
+beside either, **Holding until 23:20 · resumes in …** (waiting blue, the countdown `aria-hidden`;
+one `sr-only` status sentence per state). The buttons name their action: pause/resume downloads and,
+while holding, **release now** (`.btn.danger`). Pause and release ask first; resume doesn't. When
+the breaker holds a running worker, the hold row carries pause too (v47). "Receiver power" and the
 `aria-pressed` toggle are gone (v43). Server-side `require_admin` is the real enforcement.
 
 **Identity.** v25 threads a `username` (nullable, from the upstream `GET /user`) through
@@ -634,17 +654,17 @@ They cover exactly eight states (v16 removed `TrackState.FAILED` by migration): 
 idle; downloading → live (only while the link is live, §2 v47); completed, skipped_duplicate →
 settled; waiting → waiting; lookup_failed → fail; cancelled → idle.
 
-The words are the state-filter chips' words (v41, F21, owner's call): pending, queued, downloading,
-completed, waiting, not found, duplicate, cancelled, so a state reads the same on a chip and on a
-row and no label truncates in the state column (F13). The in-world voice stays on idents and
-moments. In Hungarian (v46): sorban áll, indulásra kész, letöltés alatt, letöltve, várakozik, nem
-található, már megvan, megszakítva. History: v20 renamed `lookup_failed`'s copy from "no signal —
-given up" to "no signal — not found", because the state was never "given up" (it is terminal and
-never auto-retried); v41 then dropped the in-world phrases for the chip words.
+The words are the state-filter chips' words (v41, 2026-10-14, F21, owner's call): pending, queued,
+downloading, completed, waiting, not found, duplicate, cancelled, so a state reads the same on a
+chip and on a row and no label truncates in the state column (F13). The in-world voice stays on
+idents and moments. In Hungarian (v46, 2026-10-18): sorban áll, indulásra kész, letöltés alatt,
+letöltve, várakozik, nem található, már megvan, megszakítva. History: v20 renamed `lookup_failed`'s
+copy from "no signal — given up" to "no signal — not found", because the state was never "given up"
+(it is terminal and never auto-retried); v41 then dropped the in-world phrases for the chip words.
 
-One deliberate exception, the owner's choice (v42): a non-admin's tracks scope has a single **in
-progress** chip standing for pending, queued and downloading (v39 outcome 3), while the rows keep
-the exact state word. The chip is a grouping of row words, not a fourth word.
+One deliberate exception, the owner's choice (v42, 2026-10-15): a non-admin's tracks scope has a
+single **in progress** chip standing for pending, queued and downloading (v39 outcome 3), while the
+rows keep the exact state word. The chip is a grouping of row words, not a fourth word.
 
 ### Job status → colour/label mapping (`JobRow.svelte`)
 
@@ -660,13 +680,13 @@ can't drift: "done — partial" for `settled:partial`, never "failed" or "partia
 - `settled:partial` maps to `cond-fail` only when the job has a `lookup_failed` track: a genuinely
   terminal state with a real gap, the bucket `lookup_failed` occupies at the track level, never
   `cond-waiting` (§2 reserves that for recoverable backoff). A job partial only because its owner
-  cancelled tracks has no gap they didn't choose, so it reads `cond-idle` (v42, F28).
+  cancelled tracks has no gap they didn't choose, so it reads `cond-idle` (v42, 2026-10-15, F28).
 - A job whose title is still its link (nothing read yet) shows the link as an address (mono, muted,
-  regular weight), not a bold title (v42, F28).
+  regular weight), not a bold title (v42, 2026-10-15, F28).
 - A one-track job shows no separate count line, since the badge and bar already say it (the bar's
   accessible name still carries the count), except where the badge doesn't name its track's own
   bucket (a partial job, one cancelled after its track completed, a stale row): colour alone mustn't
-  say it (WCAG 1.4.1) (v42). A job with no tracks shows no lone "—" count (v47).
+  say it (WCAG 1.4.1) (v42, 2026-10-15, F28). A job with no tracks shows no lone "—" count (v47).
 - The badge is `--fs-meta`, the same 12px as a track's state word (v47).
 
 ### Segmented job progress bar (`JobRow.svelte`, v20)
@@ -695,17 +715,17 @@ The admin-only sort-and-move sweep has its own route rather than a modal or an i
 "Library sort & move" section, which links out to `/library` to run it, the same config-vs-live
 split `/settings` vs `/` already establishes, rather than a third pattern for one feature.
 
-Three states (v43, F20). _No sweep yet_ says so. _Running_ reads "Sweeping · 8 of 136 files" over
-the `--signal-dim` bar, with the four counts updating live (errors so far are the processed files
-not filed any of the three ways, since the progress event carries no error count) and a
-waiting-blue "Live updates lost" line while the stream reconnects. _Finished_ reads "Last sweep
-finished <date> · took <n>s"; its bar is `--settled-dim`, not amber. The report is four labelled
-numbers (moved, duplicates deleted, duplicates quarantined, errors: the backend counts a duplicate
-as one or the other, by the quarantine setting), number first at `--fs-title`, errors in `--fail`
-only when non-zero. Failed files are listed under "Not filed" with recovery copy, identical rows
-folded into one entry marked × n (the count stays the backend's, matching the sweep's alert); their
-raw error text carries `lang="en"` (v47). The fill is `transform: scaleX()` on `--dur-med`, and the
-bar is named "Sweep progress".
+Three states (v43, 2026-10-16, F20). _No sweep yet_ says so. _Running_ reads "Sweeping · 8 of 136
+files" over the `--signal-dim` bar, with the four counts updating live (errors so far are the
+processed files not filed any of the three ways, since the progress event carries no error count)
+and a waiting-blue "Live updates lost" line while the stream reconnects. _Finished_ reads "Last
+sweep finished <date> · took <n>s"; its bar is `--settled-dim`, not amber. The report is four
+labelled numbers (moved, duplicates deleted, duplicates quarantined, errors: the backend counts a
+duplicate as one or the other, by the quarantine setting), number first at `--fs-title`, errors in
+`--fail` only when non-zero. Failed files are listed under "Not filed" with recovery copy, identical
+rows folded into one entry marked × n (the count stays the backend's, matching the sweep's alert);
+their raw error text carries `lang="en"` (v47). The fill is `transform: scaleX()` on `--dur-med`,
+and the bar is named "Sweep progress".
 
 Why `--signal-dim` and not `--signal` while running: the same carve-out v20 established for
 "something is genuinely happening, but not _this session's own active track_" (the hero border and
@@ -743,14 +763,15 @@ call, v47): a non-admin's in-flight job offers cancel only.
 
 ### Sort (`QueueControls.svelte`)
 
-Five equal-weight sort chips were a large part of "cluttered" (v42, F11), so sort is a native
-`<select>` (a `.well`, labelled "sort") plus one direction button ("Reverse sort order (now
+Five equal-weight sort chips were a large part of "cluttered" (v42, 2026-10-15, F11), so sort is a
+native `<select>` (a `.well`, labelled "sort") plus one direction button ("Reverse sort order (now
 ascending/descending)", ↑/↓). A different field starts descending; the button flips. Fields differ
 by scope (`created_at`/`title`/`status`/`track_count`/`next_retry` for jobs,
 `created_at`/`title`/`state` for tracks), since the two endpoints' `sort=` parameters genuinely
 differ. `next_retry` is offered to the admin only: it orders by the retry ladder, operator detail
 (v39 outcome 3). History: v20's sort was a button group with `aria-pressed` and a ▲/▼ glyph, chosen
-over a `<table>`'s clickable `<th>` because this app has never used table markup for its dense lists.
+over a `<table>`'s clickable `<th>` because this app has never used table markup for its dense
+lists.
 
 ### Search box (`QueueControls.svelte`, v20)
 
@@ -767,7 +788,7 @@ buttons, the pressed idiom below. Neither represents a live condition, so neithe
 amber must never represent (v17's reason, when its pressed state was a `--line-bright` border
 instead of the filter tabs' then-amber one). The two don't interact. The page starts from the queue
 store's own mine/all-users scope, which outlives the page, so returning from `/settings` keeps "all
-users" instead of showing "mine" over all-users data (v42).
+users" instead of showing "mine" over all-users data (v42, 2026-10-15).
 
 ### Filter tabs (chips)
 
@@ -781,10 +802,10 @@ small `.label` before the chips names what the counts count (**jobs** or **track
 chip's "waiting 1" isn't read against a row's "8 waiting". One chip may stand for several tokens
 (the non-admin's **in progress**, above). Pressed is `--bg-3` with a `--text-muted` edge, primary
 text and a 2px `--text-muted` floor line (segments and `.choice-group` too); hover only lifts the
-text, so a hovered option never passes for the selected one (v42, F11/F21/F32). The focus ring is
-drawn inside the segment (`outline-offset: -3px`, v45): outside, it spilled over the neighbouring
-segment and read as marking both. While a pressed segment has focus, the ring covers its floor line;
-the fill and primary text still mark it pressed.
+text, so a hovered option never passes for the selected one (v42, 2026-10-15, F11/F21/F32). The
+focus ring is drawn inside the segment (`outline-offset: -3px`, v45): outside, it spilled over the
+neighbouring segment and read as marking both. While a pressed segment has focus, the ring covers
+its floor line; the fill and primary text still mark it pressed.
 
 ### Attempt-history fan-out (`TrackRow.svelte`)
 
@@ -792,17 +813,17 @@ Each track row is itself a `<button>` (not a row with a separate expand icon) ca
 `aria-expanded`, `aria-controls` and a trailing chevron level with the title's first line (v41
 F22; v47). **This row-as-button disclosure is the convention for any future expandable list row.**
 
-The detail is the row's own grid, two columns (v41): a status strip first (the state in plain
-words, the next-try countdown, which follows the breaker's clear when that's later (F04), and, for
-the admin, attempts / failed / last path), then one action area (retry now · download · cancel
+The detail is the row's own grid, two columns (v41, 2026-10-14): a status strip first (the state in
+plain words, the next-try countdown, which follows the breaker's clear when that's later (F04), and,
+for the admin, attempts / failed / last path), then one action area (retry now · download · cancel
 track, the destructive one set apart and outlined in `--fail-edge`), then, **admin only**, the
 attempt timeline: newest first, the time in the state column's gutter (absolute time on hover,
 focus, or a click that pins it), consecutive identical readings collapsed into one × n entry that
-opens on demand, raw errors clamped to three lines with "show full message" and always selectable.
-A non-admin's expanded track shows the status and actions only; the history's markup never renders
-and its request is never made (master plan amendment, v39 outcome 3). History is fetched on open and
-cached until the track's state or counts change. (v20's detail was plain mono text: attempt count,
-a `Countdown` and `last_error` in `--fail`; v41 replaced it.)
+opens on demand, raw errors clamped to three lines with "show full message" and always selectable. A
+non-admin's expanded track shows the status and actions only; the history's markup never renders and
+its request is never made (master plan amendment, v39 outcome 3). History is fetched on open and
+cached until the track's state or counts change. (v20's detail was plain mono text: attempt count, a
+`Countdown` and `last_error` in `--fail`; v41 replaced it.)
 
 ### File-download action (`TrackRow.svelte`, v27)
 
@@ -825,12 +846,13 @@ A job row can't reuse the row-as-`<button>` pattern unmodified: it has other rea
 (priority, bump, cancel, archive) beside the toggle, and nesting a `<button>`/`<input>` in a
 `<button>` is invalid HTML. So the toggle is its own `<button>` wrapping only non-interactive
 content (chevron, badge, title, type, owner), and the actions are siblings, never inside it (v20).
-The toggle has no `aria-label`, so its name is what it shows (v41, F16), plus `aria-controls` to the
-track list. Expanding renders `JobTrackList.svelte` (a paginated `TrackRow` list for that job),
-fetched on first expand, never eagerly. Expansion state lives in `stores/queue.ts`'s `expanded` map
-(keyed by job id), so it survives a filter/search change. The row sits on the row grid (§4), and the
-open job's tracks hang off a 1px rail in its chevron column, indented by `--row-nest`, on the
-panel's own surface rather than v20's darker `--bg-0` well (v41, F02).
+The toggle has no `aria-label`, so its name is what it shows (v41, 2026-10-14, F16), plus
+`aria-controls` to the track list. Expanding renders `JobTrackList.svelte` (a paginated `TrackRow`
+list for that job), fetched on first expand, never eagerly. Expansion state lives in
+`stores/queue.ts`'s `expanded` map (keyed by job id), so it survives a filter/search change. The row
+sits on the row grid (§4), and the open job's tracks hang off a 1px rail in its chevron column,
+indented by `--row-nest`, on the panel's own surface rather than v20's darker `--bg-0` well (v41,
+2026-10-14, F02).
 
 ### Page breakpoints (v42, F15/F37; em since v47)
 
@@ -860,10 +882,10 @@ toggles and time pins too (they were WCAG 2.5.8's 24px).
 
 ### Mobile stacked layout (`TrackRow.svelte`, `JobRow.svelte`, phone band)
 
-A phone job row is grid rows (v41): chevron · badge · type (and owner) on the first line, the title
-on the second (two lines, v47), then the bar with its breakdown and the actions, all on the column
-the nested tracks indent to. A phone track row is state, title, then "artist · album" as one muted
-line (wrapping to two, v47), with the chevron at the right.
+A phone job row is grid rows (v41, 2026-10-14): chevron · badge · type (and owner) on the first
+line, the title on the second (two lines, v47), then the bar with its breakdown and the actions, all
+on the column the nested tracks indent to. A phone track row is state, title, then "artist · album"
+as one muted line (wrapping to two, v47), with the chevron at the right.
 
 **Rejected designs worth restating so they aren't re-attempted** (from v09's `QueueTable`):
 squeezing all columns proportionally became unreadable, and pairing cells onto shared sub-columns
@@ -1009,14 +1031,15 @@ a needle that sweeps only while connecting) is a one-off flourish scoped to the 
 reusable component, no shared token beyond §2/§3/§4. Do not generalize it into a shared "Dial"
 component unless a second real use case appears; it exists to make "signing in" itself read as
 tuning in a receiver, matching the THESIS. At rest the needle is `--text-muted` with no glow; it
-takes `--signal` and its glow only while connecting (v43). It moves by `transform` (v47).
+takes `--signal` and its glow only while connecting (v43, 2026-10-16, F10/F31). It moves by
+`transform` (v47).
 
 The stage is anchored near the top, not centred, so the error line growing under the button never
 moves the card (v47). The connect button is a `.btn` (Sans, v47). Under it one line says which
 account to use ("Sign in with your vb2007.hu account. Access is by invitation."). The fields are
 checked by the page itself (`novalidate`, v47). A failed sign-in puts focus back on the password
 (selected), with one `role="alert"` line. There is no language switch: signed out, `/login` speaks
-the browser's language (owner's rule on PR #68, v46).
+the browser's language (owner's rule on PR #68, v46, 2026-10-18).
 
 ### Error / status text
 
@@ -1112,11 +1135,11 @@ files' keys or inputs (`scripts/check-messages.mjs`). The deliberate exceptions 
 `i18n-ignore` comment with their reason: the `SPOTDL // WEB` wordmark, CSS selectors, the proxy
 format, and the English `detail` behind a client-side error code.
 
-**Which language** (owner's rule, PR #68). Signed out, always the browser's: the first of its
-languages that is `hu` or `en`, else English. Signed in, a language the user saved on `/account`
-wins, else the browser's again. So someone who prefers English on a Hungarian browser sees Hungarian
-on `/login` and English once signed in. Nothing is stored in the browser and nothing is adopted at
-sign-in. `<html lang>` follows it, and a switch re-renders in place (no reload).
+**Which language** (owner's rule, PR #68, 2026-10-18). Signed out, always the browser's: the first
+of its languages that is `hu` or `en`, else English. Signed in, a language the user saved on
+`/account` wins, else the browser's again. So someone who prefers English on a Hungarian browser
+sees Hungarian on `/login` and English once signed in. Nothing is stored in the browser and nothing
+is adopted at sign-in. `<html lang>` follows it, and a switch re-renders in place (no reload).
 
 **The switches** are on `/account` only, in Preferences, each a `.choice-group` saved to the profile
 the moment the server has it, with the shortcut switch's `role="status"` save line. **Language** is

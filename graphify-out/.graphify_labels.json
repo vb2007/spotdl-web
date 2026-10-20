@@ -263,11 +263,17 @@
   "261": "LibrarySortRun",
   "262": "_capture_enqueue",
   "263": "_NonClosingSession",
+  "264": "dedup.py",
   "265": "sent",
+  "266": "failure_spike",
   "267": "a7d3c9e5f2b4_add_user_keyboard_shortcuts.py",
   "268": "Architecture",
-  "270": "_event_stream",
+  "269": "test_library_task.py",
+  "270": "_run_sweep",
+  "271": "AppSettings",
   "272": "d2f7a9c4e1b8_add_user_clock.py",
-  "273": ".__init__",
-  "274": "Architecture"
+  "273": "06-admin-pages.e2e.ts",
+  "274": "test_app_settings.py",
+  "277": "TrackAttempt",
+  "279": ".__init__"
 }

@@ -230,6 +230,36 @@ def test_download_track_holds_a_moved_track_when_the_library_root_is_not_mounted
     assert captured[-1][0][3] == TrackState.WAITING.value
 
 
+def test_download_track_re_download_of_a_lost_library_file_is_left_for_the_sweep(
+    db_session, monkeypatch, tmp_path
+):
+    """v48: a ledger row whose library copy went missing is downloaded again into /downloads.
+    The row must read not-in-library again, or the sweep (which reads only in_library=False)
+    never files the new copy."""
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="abc123",
+            file_path="/library/gone/01 - Artist - Song A.mp3",
+            format="mp3",
+            bitrate="320k",
+            in_library=True,
+        )
+    )
+    db_session.commit()
+    output_path = tmp_path / "song-a.mp3"
+    output_path.write_bytes(b"fake audio bytes")
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader())
+    monkeypatch.setattr(downloads, "download_one", lambda song, downloader: (song, output_path))
+
+    download_task.download_track(str(track.id))
+
+    ledger_row = db_session.get(DownloadedTrack, "abc123")
+    assert (ledger_row.file_path, ledger_row.in_library) == (str(output_path), False)
+
+
 def test_download_track_success_marks_completed_and_upserts_ledger(db_session, monkeypatch, tmp_path):
     track = _make_track(db_session)
     _patch_common(monkeypatch, db_session)
