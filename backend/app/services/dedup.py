@@ -70,6 +70,31 @@ def is_already_downloaded(spotify_track_id: str) -> Path | None:
         db.close()
 
 
+def filed_copy(db, path: Path, library_root: Path) -> Path | None:
+    """The library file a missing ledger path was already filed as, if exactly one can be
+    told (v48, F34 repair). Before v48 a sweep moved a shared file (two ledger rows, e.g. a
+    single and its album cut) for its first row and stranded the second on the deleted
+    source path: an error on every later sweep, a track whose file can't be downloaded, and
+    a row reconcile_disk would prune into a re-download. The sweep's destination keeps the
+    source's basename, so that file is the one in-library ledger file with the same name.
+    Two candidates, or one missing on disk or outside the library, is not "exactly one"."""
+    candidates = {
+        Path(candidate)
+        for (candidate,) in db.query(DownloadedTrack.file_path)
+        .filter(
+            DownloadedTrack.in_library.is_(True),
+            DownloadedTrack.file_path.endswith(f"/{path.name}", autoescape=True),
+        )
+        .distinct()
+    }
+    if len(candidates) != 1:
+        return None
+    (candidate,) = candidates
+    if not candidate.is_relative_to(library_root) or not candidate.exists():
+        return None
+    return candidate
+
+
 def _mount_looks_missing(root: Path) -> bool:
     return not root.is_dir() or not any(root.iterdir())
 
@@ -123,6 +148,7 @@ def reconcile_disk() -> None:
             )
 
         removed = 0
+        relinked = 0
         skipped = 0
         for row in rows:
             path = Path(row.file_path)
@@ -152,13 +178,23 @@ def reconcile_disk() -> None:
                 ):
                     skipped += 1
                     continue
+                # v48: a row an earlier sweep stranded on its shared file's deleted source
+                # follows the library copy that file became instead of being dropped.
+                filed = None if library_missing else filed_copy(db, fresh, library_root)
+                if filed is not None:
+                    row.file_path = str(filed)
+                    row.in_library = True
+                    relinked += 1
+                    continue
                 db.delete(row)
                 removed += 1
         db.commit()
         logger.info(
-            "reconcile_disk: checked %d ledger rows, removed %d with missing files%s",
+            "reconcile_disk: checked %d ledger rows, removed %d with missing files, "
+            "relinked %d to their library copy%s",
             len(rows),
             removed,
+            relinked,
             f" ({skipped} skipped, root looked unmounted)" if skipped else "",
         )
     finally:

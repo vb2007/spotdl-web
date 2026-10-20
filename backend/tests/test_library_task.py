@@ -1,4 +1,7 @@
 import uuid
+from pathlib import Path
+
+import pytest
 
 from app.models import (
     DownloadedTrack,
@@ -755,6 +758,135 @@ def test_sort_library_lists_a_missing_shared_source_once(db_session, tmp_path, m
     run = library_task._get_run(db_session)
     assert (run.total, run.processed) == (1, 1)
     assert run.errors == [{"file": missing, "error": "source file missing on disk"}]
+
+
+def _strand(db_session, tmp_path, *, filed_at=None) -> tuple[DownloadedTrack, DownloadedTrack]:
+    """A pre-v48 sweep's leftovers: the shared file's first row filed into the library, the
+    second still on the deleted downloads path."""
+    filed = filed_at or tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "shared.mp3"
+    filed.parent.mkdir(parents=True, exist_ok=True)
+    filed.write_bytes(b"the real audio bytes")
+    first = DownloadedTrack(
+        spotify_track_id="single-cut", file_path=str(filed), format="mp3", bitrate="320k", in_library=True
+    )
+    second = DownloadedTrack(
+        spotify_track_id="album-cut",
+        file_path=str(tmp_path / "downloads" / "shared.mp3"),
+        format="mp3",
+        bitrate="320k",
+    )
+    db_session.add_all([first, second])
+    db_session.commit()
+    return first, second
+
+
+def test_sort_library_relinks_a_row_stranded_by_an_earlier_sweep(db_session, tmp_path, monkeypatch):
+    """v48 (F34 repair): a row an earlier sweep stranded on its shared file's deleted source
+    path is filed to the library copy that file became, and so is its track."""
+    _configure(db_session, tmp_path)
+    owner = _owner(db_session)
+    first, stranded = _strand(db_session, tmp_path)
+    job = Job(
+        user_id=owner.id,
+        source_url="https://open.spotify.com/album/abc",
+        source_type=JobSourceType.ALBUM,
+        state=JobState.EXPANDED,
+    )
+    db_session.add(job)
+    db_session.flush()
+    track = Track(
+        job_id=job.id,
+        spotify_track_id="album-cut",
+        song_json={"name": "album-cut"},
+        state=TrackState.COMPLETED,
+        output_path=stranded.file_path,
+    )
+    db_session.add(track)
+    db_session.commit()
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session, admin_id=owner.id)
+
+    db_session.refresh(stranded)
+    db_session.refresh(track)
+    assert stranded.in_library is True
+    assert stranded.file_path == first.file_path
+    assert track.output_path == first.file_path
+    assert Path(first.file_path).read_bytes() == b"the real audio bytes"
+
+    run = library_task._get_run(db_session)
+    assert run.errors == []
+    assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (1, 1, 0, 1, 0)
+
+
+def test_sort_library_leaves_a_stranded_row_whose_name_two_library_files_share(
+    db_session, tmp_path, monkeypatch
+):
+    """Two library files with the stranded row's name: which one it was can't be told, so
+    the row keeps its "source file missing" error."""
+    _configure(db_session, tmp_path)
+    _, stranded = _strand(db_session, tmp_path)
+    other = tmp_path / "library" / "Daft Punk - Homework - (1997)" / "shared.mp3"
+    other.parent.mkdir(parents=True)
+    other.write_bytes(b"other audio")
+    db_session.add(
+        DownloadedTrack(spotify_track_id="other", file_path=str(other), format="mp3", bitrate="320k", in_library=True)
+    )
+    db_session.commit()
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    db_session.refresh(stranded)
+    assert stranded.in_library is False
+    assert stranded.file_path == str(tmp_path / "downloads" / "shared.mp3")
+    run = library_task._get_run(db_session)
+    assert run.errors == [{"file": stranded.file_path, "error": "source file missing on disk"}]
+    assert run.skipped_present == 0
+
+
+@pytest.mark.parametrize("case", ["not on disk", "outside the library"])
+def test_sort_library_leaves_a_stranded_row_without_a_filed_copy(db_session, tmp_path, monkeypatch, case):
+    _configure(db_session, tmp_path)
+    if case == "outside the library":
+        _, stranded = _strand(db_session, tmp_path, filed_at=tmp_path / "elsewhere" / "shared.mp3")
+    else:
+        first, stranded = _strand(db_session, tmp_path)
+        Path(first.file_path).unlink()
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    db_session.refresh(stranded)
+    assert stranded.in_library is False
+    run = library_task._get_run(db_session)
+    assert run.errors == [{"file": stranded.file_path, "error": "source file missing on disk"}]
+
+
+def test_sort_library_relink_matches_the_name_exactly(db_session, tmp_path, monkeypatch):
+    """The name is matched literally: `_` and `%` in it are not SQL wildcards."""
+    _configure(db_session, tmp_path)
+    near = tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "aXb.mp3"
+    near.parent.mkdir(parents=True)
+    near.write_bytes(b"audio")
+    db_session.add_all(
+        [
+            DownloadedTrack(spotify_track_id="near", file_path=str(near), format="mp3", bitrate="320k", in_library=True),
+            DownloadedTrack(
+                spotify_track_id="stranded",
+                file_path=str(tmp_path / "downloads" / "a_b.mp3"),
+                format="mp3",
+                bitrate="320k",
+            ),
+        ]
+    )
+    db_session.commit()
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    run = library_task._get_run(db_session)
+    assert run.errors == [{"file": str(tmp_path / "downloads" / "a_b.mp3"), "error": "source file missing on disk"}]
 
 
 def test_sort_library_resets_to_idle_when_sync_and_archive_raises(db_session, tmp_path, monkeypatch):
