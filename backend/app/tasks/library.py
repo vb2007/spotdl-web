@@ -5,7 +5,7 @@ from pathlib import Path
 
 from app.db import SessionLocal
 from app.models import DownloadedTrack, LibrarySortRun, LibrarySortState, Track, TrackState
-from app.services import alerts, app_settings, archive, dedup, events, library
+from app.services import alerts, app_settings, archive, events, library
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -161,18 +161,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
         file_path = str(source)
         try:
             if not source.exists():
-                # v48: a row an earlier sweep stranded on its shared file's deleted source.
-                filed = dedup.filed_copy(db, source, target_dir)
-                if filed is None:
-                    _record_error(run, file_path, "source file missing on disk")
-                    continue
-                # Already in the library, so counted as "already present". The destination
-                # isn't claimed: it existed before this sweep, so a later source mapping
-                # there is the usual "already exists", not a collision.
-                rows = _repoint(db, rows, source, filed)
-                db.commit()
-                moved_spotify_ids.update(row.spotify_track_id for row in rows)
-                run.skipped_present += 1
+                _record_error(run, file_path, "source file missing on disk")
                 continue
 
             tags = library.read_sort_tags(source)
