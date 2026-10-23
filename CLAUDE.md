@@ -73,8 +73,8 @@ dev `ADMIN_EMAIL` included, never the real admin account; create/reset steps are
 | Compose invocation | `docker compose up` (override applies — hot reload) | `scripts/agent_stack.sh <slot> up` (adds `docker-compose.agent.yml`; ports `800<slot>`/`517<3+slot>`; `worker-dl` only under the `realdl` lock) | `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build` (the overlay is mandatory) |
 | Postgres | Dev DB `spotdlwebtest`, reached over LAN by its real address | Its own `postgres` container (production's major), DB `spotdlweb_s<slot>`, never the LAN server | Prod DB `spotdlweb`, reached via `host.docker.internal` |
 
-Redis and the other containers are per environment. The two `DATABASE_URL`s differ in host, database
-name and role; never copy one's into the other.
+Redis and the other containers are per environment. The `DATABASE_URL`s differ in host, database
+name and role; never copy one's into another.
 
 ## Locked decisions (settled — don't re-litigate without asking)
 

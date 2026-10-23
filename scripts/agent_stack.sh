@@ -107,13 +107,15 @@ refuse_production_env() {
 # A slot belongs to the worktree that started it until it's taken down there: its containers
 # carry that worktree in Compose's working_dir label, and its database volume in our own label.
 refuse_foreign_slot() {
-	local dir volume_dir
+	local dir volume_dir dirs
+	dirs="$(docker ps -a --filter "label=com.docker.compose.project=$PROJECT" \
+		--format '{{.Label "com.docker.compose.project.working_dir"}}')" ||
+		die "docker ps failed: can't check who owns slot $SLOT"
 	while IFS= read -r dir; do
 		if [ -n "$dir" ] && [ "$dir" != "$ROOT" ]; then
 			die "slot $SLOT ($PROJECT) is in use by another worktree: $dir. Take it down there (scripts/agent_stack.sh $SLOT down), or pick another slot."
 		fi
-	done < <(docker ps -a --filter "label=com.docker.compose.project=$PROJECT" \
-		--format '{{.Label "com.docker.compose.project.working_dir"}}' | sort -u)
+	done <<<"$dirs"
 	volume_dir="$(docker volume inspect "${PROJECT}_pgdata" \
 		--format '{{index .Labels "spotdlweb.worktree"}}' 2>/dev/null || true)"
 	if [ -n "$volume_dir" ] && [ "$volume_dir" != "$ROOT" ]; then
@@ -175,6 +177,12 @@ write_env_agent() {
 		if grep -qxF -- "$ROOT" <<<"$previous_dirs"; then
 			die "this worktree's stack is slot $previous's and still exists: scripts/agent_stack.sh $previous down first"
 		fi
+		local previous_volume_dir
+		previous_volume_dir="$(docker volume inspect "spotdlweb-s${previous}_pgdata" \
+			--format '{{index .Labels "spotdlweb.worktree"}}' 2>/dev/null || true)"
+		if [ "$previous_volume_dir" = "$ROOT" ]; then
+			die "this worktree still owns slot $previous's database volume, and no other worktree could take that slot: scripts/agent_stack.sh $previous down --volumes first"
+		fi
 		# The stored password is slot $previous's; a volume this slot kept was made with its own.
 		if docker volume inspect "${PROJECT}_pgdata" >/dev/null 2>&1; then
 			die "slot $SLOT still has a database volume from before, with a password .env.agent no longer holds: drop it with scripts/agent_stack.sh $SLOT down --volumes (after env for slot $SLOT fails, use docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data)"
@@ -199,7 +207,8 @@ write_env_agent() {
 	if [ -n "$pg_port" ] && { ! [[ "$pg_port" =~ ^[1-9][0-9]{0,4}$ ]] || [ "$pg_port" -gt 65535 ]; }; then
 		die "PG_PORT must be a port number (1-65535), got '$pg_port'"
 	fi
-	if [ -n "$extra_emails" ] && ! [[ "$extra_emails" =~ ^[^[:space:],=@]+@[^[:space:],=@]+(,[^[:space:],=@]+@[^[:space:],=@]+)*$ ]]; then
+	# A plain character set: anything else could break the dotenv line or be interpolated ($).
+	if [ -n "$extra_emails" ] && ! [[ "$extra_emails" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+(,[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)*$ ]]; then
 		die "AGENT_EXTRA_EMAILS must be comma-separated addresses, got '$extra_emails'"
 	fi
 	emails="v5s${SLOT}admin@example.com,v5s${SLOT}user@example.com${extra_emails:+,$extra_emails}"
@@ -291,9 +300,13 @@ stack_running() {
 # Every started service healthy (beat has no healthcheck: running), migrate exited 0. worker-dl
 # isn't part of `up`: it runs only under a realdl lock, which watches it itself.
 wait_healthy() {
-	local deadline=$((SECONDS + 420)) pending line service state health exit_code
+	local deadline=$((SECONDS + 420)) pending line name service state health exit_code rows
 	while :; do
 		pending=""
+		# Captured first, so a failing `ps` stops here instead of reading as "nothing pending".
+		rows="$(dc ps -a --format '{{.Name}} {{.Service}} {{.State}} {{if .Health}}{{.Health}}{{else}}-{{end}} {{.ExitCode}}')" ||
+			die "docker compose ps failed for slot $SLOT"
+		[ -n "$rows" ] || pending=" (no containers yet)"
 		while read -r name service state health exit_code; do
 			[ -n "$service" ] && [ "$service" != worker-dl ] || continue
 			# A one-off `docker compose run` container isn't part of the stack.
@@ -307,7 +320,7 @@ wait_healthy() {
 				die "$service is $state${health:+ ($health)}: scripts/agent_stack.sh $SLOT logs $service"
 			fi
 			pending="$pending $service"
-		done < <(dc ps -a --format '{{.Name}} {{.Service}} {{.State}} {{if .Health}}{{.Health}}{{else}}-{{end}} {{.ExitCode}}')
+		done <<<"$rows"
 		[ -n "$pending" ] || return 0
 		[ "$SECONDS" -lt "$deadline" ] || die "not healthy in time, still waiting on:$pending"
 		sleep 5
@@ -341,18 +354,26 @@ REALDL_HELD=""
 
 release_realdl() {
 	if [ -n "$REALDL_HELD" ]; then
-		# A second Ctrl-C (or a SIGTERM) mustn't cut the cleanup short: worker-dl can take up to
-		# its stop_grace_period to finish a download. Ignoring them here protects bash only (the
-		# Go docker CLI re-enables SIGINT), so the removal runs in a session of its own, which the
+		# Nothing may cut the cleanup short. errexit off, and SIGPIPE ignored: with the terminal
+		# closed or a `| tee` reader gone, the first message would otherwise end the shell before
+		# worker-dl is removed. A second Ctrl-C (or a SIGTERM) waits too: worker-dl can take up to
+		# its stop_grace_period to finish a download. Ignoring them protects bash only (the Go
+		# docker CLI re-enables SIGINT), so the removal runs in a session of its own, which the
 		# terminal's Ctrl-C doesn't reach.
-		trap '' INT TERM HUP
+		set +e
+		trap '' INT TERM HUP PIPE
 		echo "agent_stack: stopping worker-dl and releasing the realdl lock" >&2
 		# Removed, not just stopped: an exited worker-dl container would sit in `ps -a` as if
-		# it had crashed.
+		# it had crashed. Its output goes to a file first: written straight to a dead stderr, the
+		# docker CLI itself dies of SIGPIPE before removing anything.
+		local log="$ROOT/.agent-stack/realdl-cleanup.log"
+		mkdir -p "${log%/*}"
 		if COMPOSE_PROFILES=realdl setsid --wait docker compose --project-directory "$ROOT" \
-			rm --stop --force worker-dl </dev/null >&2 9>&-; then
+			rm --stop --force worker-dl </dev/null >"$log" 2>&1 9>&-; then
+			cat "$log" >&2
 			: >"$REALDL_LOCK"
 		else
+			cat "$log" >&2
 			# The lock frees anyway when this process exits; the next acquire_realdl refuses
 			# while this worker-dl still runs.
 			echo "agent_stack: worker-dl didn't stop: scripts/agent_stack.sh $SLOT down" >&2
@@ -391,6 +412,10 @@ acquire_realdl() {
 	trap 'exit 130' INT
 	trap 'exit 143' TERM
 	trap 'exit 129' HUP
+	# A message to a stderr whose reader is gone (`| tee` killed by the same Ctrl-C) would kill
+	# bash with SIGPIPE, and a signal death skips the EXIT trap, so worker-dl would stay up. With
+	# SIGPIPE ignored the write just fails, errexit exits, and the cleanup runs.
+	trap '' PIPE
 	printf 'slot %s (%s, %s), pid %s, since %s: %s\n' "$SLOT" "$PROJECT" "$ROOT" "$$" \
 		"$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$purpose" >"$REALDL_LOCK"
 	echo "agent_stack: realdl lock taken; starting worker-dl" >&2
@@ -432,17 +457,25 @@ process_tree() {
 
 stop_locked_child() {
 	LOCKED_SIGNAL=$1
+	[ -n "$LOCKED_CHILD" ] || return 0
 	# shellcheck disable=SC2046 # one pid per word
 	kill -TERM $(process_tree "$LOCKED_CHILD") 2>/dev/null || true
 }
 
 run_locked() {
 	local status=0
-	"$@" <&0 9>&- &
-	LOCKED_CHILD=$!
+	# Traps first: a signal between the launch and the trap would otherwise exit without ever
+	# signalling the command just started.
 	trap 'stop_locked_child 130' INT
 	trap 'stop_locked_child 143' TERM
 	trap 'stop_locked_child 129' HUP
+	# The command gets SIGPIPE back (a pipeline in it behaves as usual).
+	(
+		trap - PIPE
+		exec "$@"
+	) <&0 9>&- &
+	LOCKED_CHILD=$!
+	[ -z "$LOCKED_SIGNAL" ] || stop_locked_child "$LOCKED_SIGNAL"
 	# A trapped signal ends `wait` early: wait again until the child has really exited.
 	while :; do
 		status=0
@@ -460,10 +493,12 @@ run_locked() {
 # Tracks that would really download once worker-dl runs: not finished, and not in the ledger.
 # Beat keeps re-dispatching them while worker-dl is off (its stale-track reclaim), so their
 # messages wait in the slot's Redis.
+# A job still expanding counts too: its tracks don't exist yet, and could be anything.
 pending_downloads() {
 	dc exec -T postgres psql -U "$PG_USER" -d "$(env_value "$ENV_AGENT" AGENT_PG_DB)" -Atc \
-		"select count(*) from tracks t where t.state in ('pending', 'queued', 'downloading', 'waiting')
-		 and not exists (select 1 from downloaded_tracks d where d.spotify_track_id = t.spotify_track_id)"
+		"select (select count(*) from tracks t where t.state in ('pending', 'queued', 'downloading', 'waiting')
+		         and not exists (select 1 from downloaded_tracks d where d.spotify_track_id = t.spotify_track_id))
+		      + (select count(*) from jobs where state = 'expanding')"
 }
 
 # --- e2e fixture ---------------------------------------------------------------------------------
@@ -520,7 +555,7 @@ down)
 		# .env.agent is gone (git clean, say): Compose can't render the slot without it, so
 		# remove by label. refuse_foreign_slot has already checked the slot is this worktree's.
 		echo "agent_stack: no $ENV_AGENT: removing slot $SLOT's containers by label" >&2
-		docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" | xargs -r docker rm -f >/dev/null
+		docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" | xargs -r docker rm -fv >/dev/null
 		docker network rm "${PROJECT}_default" >/dev/null 2>&1 || true
 		if [ "${1:-}" = --volumes ] || [ "${1:-}" = -v ]; then
 			docker volume rm "${PROJECT}_pgdata" "${PROJECT}_redis-data" >/dev/null 2>&1 || true
@@ -570,7 +605,10 @@ run)
 	[ $# -ge 1 ] || die "usage: scripts/agent_stack.sh $SLOT run <command...>"
 	# Naming a profiled service enables its profile: `run docker compose up worker-dl` would start
 	# it without the lock.
-	if [[ " $* " == *" worker-dl "* ]] && [[ " $* " =~ \ (up|start|restart|create|run)\  ]]; then
+	# A best-effort guard (a script that starts it unseen gets through); the stray checks are the
+	# backstop.
+	if [[ "$*" == *realdl* || "$*" == *COMPOSE_PROFILES* ]] ||
+		{ [[ " $* " == *" worker-dl "* ]] && [[ " $* " =~ \ (up|start|restart|create|run)\  ]]; }; then
 		die "worker-dl runs only under the realdl lock: scripts/agent_stack.sh $SLOT realdl <command>"
 	fi
 	require_env_agent
@@ -592,7 +630,7 @@ e2e)
 		die "frontend/src/lib/paraglide isn't compiled on the host: run npm ci && npm run check in frontend/ first"
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"
 	backlog="$(pending_downloads)"
-	[ "$backlog" = 0 ] || die "slot $SLOT has $backlog unfinished track(s) outside the ledger, which worker-dl would really download during the suite: cancel their jobs first (or run them with realdl)"
+	[ "$backlog" = 0 ] || die "slot $SLOT has $backlog unfinished track(s) outside the ledger or job(s) still expanding, which worker-dl could really download during the suite: cancel those jobs first (or run them with realdl)"
 	acquire_realdl "e2e"
 	seed_fixture
 	run_locked npm --prefix "$ROOT/frontend" run test:e2e -- "$@"
@@ -603,7 +641,7 @@ realdl)
 	export_compose_env
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"
 	backlog="$(pending_downloads)"
-	[ "$backlog" = 0 ] || echo "agent_stack: note: $backlog unfinished track(s) outside the ledger will download once worker-dl starts" >&2
+	[ "$backlog" = 0 ] || echo "agent_stack: note: $backlog unfinished track(s) outside the ledger or expanding job(s) may download once worker-dl starts" >&2
 	acquire_realdl "$*"
 	run_locked "$@"
 	;;

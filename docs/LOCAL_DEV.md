@@ -320,7 +320,9 @@ service refuses to start. The script refuses:
   hold a per-slot lock, `/tmp/spotdl-web-slot<slot>.lock`, so two worktrees can't claim one free
   slot at once);
 - a worktree whose `.env` names a production database (`spotdlweb`, `spotdl_web`);
-- `up worker-dl`, or `run` with a command that would start it (`run docker compose up worker-dl`).
+- `up worker-dl`, and (best effort) `run` with a command that names `worker-dl` with a starting verb,
+  `realdl` or `COMPOSE_PROFILES`;
+- switching a worktree to another slot while it still owns its old slot's database volume.
 
 **What `.env.agent` holds.** `env` derives it from the worktree's `.env`, gitignored, mode 600:
 
@@ -396,9 +398,10 @@ releases the lock, however the command ends:
   and then cleans up; a second Ctrl-C during the cleanup doesn't cut it short (the removal runs in
   its own session), and `worker-dl` runs under an init (`init: true`), so it stops at once even
   when interrupted in its first seconds;
-- the command doesn't inherit the lock, so if the script itself is killed outright, the lock frees
-  while that slot's `worker-dl` may still run, and every other slot's `realdl` refuses (both before
-  starting its own `worker-dl` and again once it answers) until
+- the command doesn't inherit the lock, so if the script itself is killed outright (SIGKILL, which
+  nothing can trap), the lock frees while the command and that slot's `worker-dl` may still run;
+  every other slot's `realdl` refuses (both before starting its own `worker-dl` and again once it
+  answers) until
   it's gone (`scripts/agent_stack.sh <slot> down` there).
 
 A second `realdl` from any slot fails at once, naming the holder: wait and retry, never start
@@ -409,7 +412,7 @@ really downloads once `worker-dl` runs: beat keeps re-dispatching it into the sl
 **e2e on a slot.** The suite needs `worker-dl` (every seeded job settles there as a duplicate, and
 setup and teardown ask the worker itself what it's running), so `e2e` runs under the realdl
 lock too, although a default run makes no network attempt; it refuses to start while the slot
-has unfinished tracks outside the ledger (above), which would. The suite was written against the owner's
+has unfinished tracks outside the ledger or a job still expanding (above), which could. The suite was written against the owner's
 long-lived dev database, so before it runs, `seed` (`scripts/agent_seed.py`, idempotent) recreates
 what a fresh slot lacks:
 

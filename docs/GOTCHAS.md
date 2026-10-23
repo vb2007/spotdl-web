@@ -189,6 +189,8 @@ needed" claim — rather than silently deleted.
 - `pg_isready` without `-h` passes against the image's socket-only init server → *v50*
 - Celery as PID 1 drops SIGTERM until its handlers exist: a `worker-dl` stopped in its first
   seconds waits out the 300 s grace period (slot overlay: `init: true`) → *v50*
+- A cleanup that writes to a dead stderr (closed terminal, a `| tee` killed by the same Ctrl-C)
+  dies of SIGPIPE before it acts, bash's own messages and the docker CLI's alike → *v50*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -5753,3 +5755,10 @@ independently-found production bug from the same conversation)
   SIGTERM to the command it started; `realdl sh -c 'sleep 299'` left the `sleep` running (a
   background child of a non-interactive shell starts with SIGINT ignored, so the terminal's Ctrl-C
   didn't reach it either). It now signals the command's whole process tree, on SIGHUP too.
+- **A dead stderr kills the cleanup, twice over.** With `realdl … 2>&1 | tee log` and Ctrl-C, `tee`
+  dies too. Bash then took SIGPIPE writing its own job report ("Terminated"), and a signal death
+  skips the EXIT trap, so `worker-dl` stayed up with the lock free. With SIGPIPE ignored in bash,
+  the docker CLI inherited a broken stderr and died of SIGPIPE itself (Go raises it on a failed
+  write to fd 2) before removing the container. The script now ignores SIGPIPE while it holds the
+  lock (the command gets the default back), turns errexit off in the cleanup, and sends the
+  removal's output to `.agent-stack/realdl-cleanup.log` before copying it to stderr.
