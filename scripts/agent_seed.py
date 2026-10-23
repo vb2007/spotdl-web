@@ -3,20 +3,23 @@
 The Playwright suite was written against the owner's long-lived dev database, and leans on what
 it has accumulated: ledger rows (with files) for every track a default run submits, so each job
 resolves as a duplicate and never downloads, and the e2e admin's history. A slot's database
-starts empty, so this recreates both, idempotently. Run inside the slot's `worker-meta` (it has
-the database and both file roots mounted), never against any other stack:
-
-    docker compose exec -T worker-meta python - < scripts/agent_seed.py
+starts empty, so this recreates both, idempotently. Run it with `scripts/agent_stack.sh <slot>
+seed`, which pipes it into the slot's `worker-meta` (it has the database and both file roots
+mounted). It refuses any database but a slot's (`spotdlweb_s1`..`spotdlweb_s4`), so it never
+writes fixtures into the owner's `spotdlwebtest`.
 
 Stand-in files are one-second silent MP3s: "already exists" is folder + filename only, so a
 stand-in counts as present. Every row it creates says "agent fixture" in its path or URL.
 """
 
+import re
 import subprocess
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.engine import make_url
 
 from app.config import get_settings
 from app.db import SessionLocal
@@ -88,8 +91,11 @@ def stand_in(path: Path, title: str) -> None:
     )
 
 
-db = SessionLocal()
 settings = get_settings()
+database = make_url(settings.database_url).database or ""
+if settings.spotdl_env != "dev" or not re.fullmatch(r"spotdlweb_s[1-4]", database):
+    sys.exit(f"agent_seed: refusing database {database!r}: only an agent slot's (spotdlweb_s1-4)")
+db = SessionLocal()
 library = Path(app_settings.get_library_settings(db).library_target_dir) / FIXTURE_DIR
 downloads = Path(settings.download_output_dir) / FIXTURE_DIR
 ledger = [(i, downloads) for i in SUBMITTED] + [(i, library) for i in MOVED]
@@ -115,7 +121,9 @@ if db.query(Job).filter(Job.user_id == admin.id, Job.source_url.like("%/agentfix
 else:
     start = datetime.now(timezone.utc) - timedelta(days=30)
 
-    def add_job(n, kind, titles, *, track_state=TrackState.SKIPPED_DUPLICATE, list_name=None):
+    def add_job(
+        n, kind, titles, *, track_state=TrackState.SKIPPED_DUPLICATE, list_name=None, attempts=0
+    ):
         created = start + timedelta(minutes=n)
         job = Job(
             user_id=admin.id,
@@ -138,6 +146,9 @@ else:
                 song_json=song,
                 state=track_state,
                 created_at=created + timedelta(seconds=i),
+                # As attempts.record_attempt leaves a first-try success (v35): one attempt made,
+                # no failure (attempt_count is the ladder's failure count).
+                attempts_made=attempts,
             )
             db.add(track)
             tracks.append(track)
@@ -155,6 +166,7 @@ else:
         JobSourceType.TRACK,
         ["Network path fixture"],
         track_state=TrackState.COMPLETED,
+        attempts=1,
     )
     finished = start + timedelta(minutes=1, seconds=30)
     for n in range(2, HISTORY_JOBS + 2):

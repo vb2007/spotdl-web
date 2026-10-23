@@ -177,7 +177,11 @@ needed" claim — rather than silently deleted.
 - Chromium aborts every in-flight request with `ERR_NETWORK_CHANGED` when the host's interfaces
   churn (another stack's crash-looping containers): an e2e failure on a blank page is that → *v50*
 - Bash reads a script as it runs it: editing (or rebasing) `scripts/agent_stack.sh` under a running
-  `realdl`/`e2e` would execute whatever lands at its offset, so the script runs from `main` → *v50*
+  `realdl`/`e2e` would execute whatever lands at its offset, so it runs from a `main()` function → *v50*
+- Postgres's Alpine image sorts text by codepoint (musl); production's Debian 18.6 uses glibc
+  `en_US.UTF-8`, so a slot runs `postgres:18.6-bookworm` → *v50*
+- Cookies ignore ports: two stacks on `localhost` in one browser profile overwrite each other's
+  session cookie → *v50*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -5701,3 +5705,15 @@ independently-found production bug from the same conversation)
 - **The v32 guard's message names the owner's database.** A slot pointed at a production name
   refuses on all six backend services, but the advice reads "point DATABASE_URL at
   spotdlwebtest", which a slot never uses. Its fix is `agent_stack.sh <slot> env`.
+- **The Alpine Postgres image collates differently from production.** The first slot overlay used
+  `postgres:18.6-alpine`; `ORDER BY` over `('b','B','a','_z','Z')` gave `B Z _z a b` there (musl:
+  codepoint order). `spotdlwebtest` and `spotdlweb` are `en_US.UTF-8` with the libc provider on
+  Debian (glibc), which sorts case- and punctuation-insensitively first. Server-side sorts and
+  cursor pagination over text would then pass on a slot in an order production never produces.
+  Slots run `postgres:18.6-bookworm`; switching an existing slot's image needs `down --volumes`
+  (an index built under one collation is wrong under another).
+- **Cookies are not port-scoped.** `SPOTDL_SESSION` is a host-only cookie on `localhost`, and a
+  browser sends it to every port there: logging in to a slot on `localhost:5174` replaces the
+  owner's `localhost:5173` session, and each stack rejects the other's token. Playwright's
+  contexts are separate jars, so the suite is unaffected; a person needs one browser profile per
+  stack.

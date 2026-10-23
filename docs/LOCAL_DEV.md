@@ -292,6 +292,7 @@ brings up its own **slot stack** beside the owner's default one, through one scr
 scripts/agent_stack.sh <slot> env      # write .env.agent from the worktree's .env
 scripts/agent_stack.sh <slot> up       # build, start and wait until healthy (writes .env.agent if missing)
 scripts/agent_stack.sh <slot> ps|logs|psql
+scripts/agent_stack.sh <slot> run <cmd...>     # <cmd> aimed at the slot (its compose project, files, ports)
 scripts/agent_stack.sh <slot> pytest [args]    # the backend suite, inside the slot's api container
 scripts/agent_stack.sh <slot> e2e [args]       # the full Playwright suite against the slot
 scripts/agent_stack.sh <slot> realdl <cmd...>  # worker-dl on, under the host-wide lock, for <cmd>
@@ -315,7 +316,8 @@ worktree, and a worktree whose `.env` names a production database (`spotdlweb`, 
 **What `.env.agent` holds.** `env` derives it from the worktree's `.env`, gitignored, mode 600:
 
 - the slot's `COMPOSE_PROJECT_NAME`, `API_PORT`, `WEB_PORT`, `FRONTEND_ORIGINS` and `SPOTDL_ENV=dev`;
-- its database (`AGENT_PG_*`, and a `DATABASE_URL` pointing at `postgres:5432/spotdlweb_s<slot>`);
+- its database (`AGENT_PG_DB`, `AGENT_PG_USER`, `AGENT_PG_PASSWORD`; the overlay builds every
+  backend service's `DATABASE_URL` from them, so `.env.agent` carries none);
 - fresh random `REDIS_PASSWORD`, `SESSION_SECRET` and Postgres password (kept by later `env` runs,
   since the database volume was initialised with that password);
 - the slot's test identities only: `ALLOWED_EMAILS=v5s<slot>admin@example.com,v5s<slot>user@example.com`,
@@ -330,8 +332,9 @@ docker-compose.override.yml -f docker-compose.agent.yml` (exported as `COMPOSE_P
 `COMPOSE_FILE` and `COMPOSE_ENV_FILES`, so the e2e suite's own `docker compose` calls hit the slot
 too). `docker-compose.agent.yml` is never part of a production invocation. It:
 
-- adds a `postgres` service on production's major version (18.6, read from `spotdlwebtest`'s
-  `SELECT version()`), with a named volume and a healthcheck, and no host port unless `.env.agent`
+- adds a `postgres` service matching production (18.6 on Debian, so glibc's `en_US.UTF-8`
+  collation, read from `spotdlwebtest` on the same server; Alpine's musl sorts text differently),
+  with a named volume and a healthcheck, and no host port unless `.env.agent`
   has `PG_PORT` (`PG_PORT=55431 scripts/agent_stack.sh 1 env`, then `up`);
 - points every backend service's `DATABASE_URL` at it and makes them wait for its healthcheck;
   `migrate` builds the schema on first `up`, as on the owner's stack;
@@ -348,14 +351,26 @@ relative to the worktree (`up` creates them, so Docker doesn't create them root-
 plain alphanumeric username (§4):
 
 ```bash
+SLOT=1
 for role in admin user; do
   curl -sS -X POST https://api.vb2007.hu/auth/register -H 'Content-Type: application/json' \
-    -d "{\"username\":\"v5s1$role\",\"email\":\"v5s1$role@example.com\",\"password\":\"<a fresh password>\"}"
+    -d "{\"username\":\"v5s${SLOT}$role\",\"email\":\"v5s${SLOT}$role@example.com\",\"password\":\"<a fresh password>\"}"
 done
 ```
 
-Then put them in `frontend/e2e/.env.e2e.s<slot>` (same keys as `.env.e2e.example`, gitignored);
-`e2e` reads that file, never `frontend/e2e/.env.e2e`.
+Then put them in `frontend/e2e/.env.e2e.s<slot>` (same keys as `.env.e2e.example`, gitignored).
+`e2e` exports that file's keys, so they win over a `frontend/e2e/.env.e2e` in the worktree, but
+the suite still reads that file for any key the slot file lacks: keep the slot file complete, or
+the worktree free of `.env.e2e`.
+
+In a browser, use one profile (or private window) per stack: cookies aren't scoped by port, so
+the session cookie of `localhost:5174` and the owner's `localhost:5173` overwrite each other, and
+each stack then answers the other's token with 401.
+
+**Other commands against the slot.** Anything that should hit the slot rather than the owner's
+stack runs under `run`, which exports the same `COMPOSE_*` variables and `API_PORT`/`WEB_PORT`:
+`scripts/agent_stack.sh 1 run scripts/verify_separation_sse.sh` (its default base URL follows
+`API_PORT`), `scripts/agent_stack.sh 1 run docker compose exec api sh`.
 
 **Real YouTube traffic: the realdl lock.** At most one stack on this machine talks to YouTube at
 a time. `realdl <cmd…>` takes `flock -n /tmp/spotdl-web-realdl.lock`, writes its holder (slot,
