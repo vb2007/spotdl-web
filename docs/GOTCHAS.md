@@ -5758,8 +5758,10 @@ independently-found production bug from the same conversation)
   background child of a non-interactive shell starts with SIGINT ignored, so the terminal's Ctrl-C
   didn't reach it either). It now signals the command's whole process tree, on SIGHUP too.
 - **A dead stderr kills the cleanup, twice over.** With `realdl … 2>&1 | tee log` and Ctrl-C, `tee`
-  dies too. Bash then took SIGPIPE writing its own job report ("Terminated"), and a signal death
-  skips the EXIT trap, so `worker-dl` stayed up with the lock free. With SIGPIPE ignored in bash,
+  dies too. Bash then took SIGPIPE writing to it, and its EXIT trap (which bash 5.3 does run after
+  a fatal signal) took another on its own first message, before removing anything, so `worker-dl`
+  stayed up with the lock free. (Corrected 2026-10-24 in review: an earlier version of this entry
+  said a signal death skips the EXIT trap.) With SIGPIPE ignored in bash,
   the docker CLI inherited a broken stderr and died of SIGPIPE itself (Go raises it on a failed
   write to fd 2) before removing the container. The script now ignores SIGPIPE while it holds the
   lock (the command gets the default back), turns errexit off in the cleanup, and sends the

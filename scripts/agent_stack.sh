@@ -124,6 +124,7 @@ refuse_foreign_slot() {
 		die "docker ps failed: can't check who owns slot $SLOT"
 	while IFS= read -r dir; do
 		if [ -n "$dir" ] && [ "$dir" != "$ROOT" ]; then
+			[ -d "$dir" ] || die "slot $SLOT ($PROJECT) was left up by a worktree that no longer exists ($dir). Clear it with: docker ps -aq --filter label=com.docker.compose.project=$PROJECT | xargs -r docker rm -fv; docker network rm ${PROJECT}_default; docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data"
 			die "slot $SLOT ($PROJECT) is in use by another worktree: $dir. Take it down there (scripts/agent_stack.sh $SLOT down), or pick another slot."
 		fi
 	done <<<"$dirs"
@@ -394,9 +395,12 @@ release_realdl() {
 
 # Any slot's worker-dl running outside the lock (an interrupted cleanup, a hand-started one).
 stray_worker_dl() {
-	docker ps --filter label=com.docker.compose.service=worker-dl \
-		--format '{{.Label "com.docker.compose.project"}} {{.Names}}' |
-		grep -E '^spotdlweb-s[1-4] ' | grep -v "^$PROJECT " || true
+	local running
+	# Captured first: a failing docker ps must not read as "no stray" (this is the backstop).
+	running="$(docker ps --filter label=com.docker.compose.service=worker-dl \
+		--format '{{.Label "com.docker.compose.project"}} {{.Names}}')" ||
+		die "docker ps failed: can't check for another slot's worker-dl"
+	grep -E '^spotdlweb-s[1-4] ' <<<"$running" | grep -v "^$PROJECT " || true
 }
 
 # Takes the host-wide lock (or fails naming its holder), then starts worker-dl and waits until
@@ -422,8 +426,8 @@ acquire_realdl() {
 	trap 'exit 143' TERM
 	trap 'exit 129' HUP
 	# A message to a stderr whose reader is gone (`| tee` killed by the same Ctrl-C) would kill
-	# bash with SIGPIPE, and a signal death skips the EXIT trap, so worker-dl would stay up. With
-	# SIGPIPE ignored the write just fails, errexit exits, and the cleanup runs.
+	# bash with SIGPIPE, and the EXIT trap's own first message would kill it again, before
+	# worker-dl is removed. With SIGPIPE ignored the write just fails and the cleanup carries on.
 	trap '' PIPE
 	printf 'slot %s (%s, %s), pid %s, since %s: %s\n' "$SLOT" "$PROJECT" "$ROOT" "$$" \
 		"$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$purpose" >"$REALDL_LOCK"
@@ -502,12 +506,25 @@ run_locked() {
 # Tracks that would really download once worker-dl runs: not finished, and not in the ledger.
 # Beat keeps re-dispatching them while worker-dl is off (its stale-track reclaim), so their
 # messages wait in the slot's Redis.
-# A job still expanding counts too: its tracks don't exist yet, and could be anything.
+# Asked of the dedup gate itself (in worker-meta, which mounts both file roots): a ledger row
+# whose file is gone is a download too. A job still expanding counts as well: its tracks don't
+# exist yet, and could be anything.
 pending_downloads() {
-	dc exec -T postgres psql -U "$PG_USER" -d "$(env_value "$ENV_AGENT" AGENT_PG_DB)" -Atc \
-		"select (select count(*) from tracks t where t.state in ('pending', 'queued', 'downloading', 'waiting')
-		         and not exists (select 1 from downloaded_tracks d where d.spotify_track_id = t.spotify_track_id))
-		      + (select count(*) from jobs where state = 'expanding')"
+	dc exec -T worker-meta python -c '
+from sqlalchemy import text
+from app.db import SessionLocal
+from app.services.dedup import LedgerRootUnavailable, is_already_downloaded
+def downloads(spotify_id):
+    try:
+        return is_already_downloaded(spotify_id) is None
+    except LedgerRootUnavailable:
+        return False  # held, never downloaded
+db = SessionLocal()
+ids = db.execute(text("select spotify_track_id from tracks where state in (:a, :b, :c, :d)"),
+                 {"a": "pending", "b": "queued", "c": "downloading", "d": "waiting"}).scalars().all()
+expanding = db.execute(text("select count(*) from jobs where state = :s"), {"s": "expanding"}).scalar()
+print(sum(1 for i in ids if downloads(i)) + expanding)
+' 2>/dev/null | tail -n 1
 }
 
 # --- e2e fixture ---------------------------------------------------------------------------------
@@ -522,9 +539,22 @@ seed_fixture() {
 
 # The slot's e2e identities: frontend/e2e/.env.e2e.s<slot> (gitignored), exported so it wins
 # over a frontend/e2e/.env.e2e copied in from elsewhere (loadE2eEnv never overrides).
+# A slot's upstream accounts outlive the slice that registered them (the next one in the slot
+# can't register the same address again), so their file is kept in the repository's common git
+# directory too, which every worktree shares and no worktree removal deletes.
 load_e2e_credentials() {
-	local file="$ROOT/frontend/e2e/.env.e2e.s$SLOT" key value
-	[ -f "$file" ] || die "no $file: copy frontend/e2e/.env.e2e.example there and fill in slot $SLOT's two test identities (docs/LOCAL_DEV.md, 'Parallel agent stacks')"
+	local file="$ROOT/frontend/e2e/.env.e2e.s$SLOT" key value store
+	store="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)/agent-stack/e2e.s$SLOT.env"
+	if [ -f "$file" ]; then
+		if [ ! -f "$store" ]; then
+			(umask 077 && mkdir -p "${store%/*}" && cp "$file" "$store")
+			echo "agent_stack: saved slot $SLOT's e2e identities to $store for later worktrees" >&2
+		fi
+	elif [ -f "$store" ]; then
+		file="$store"
+	else
+		die "no $file: register slot $SLOT's two test identities, then copy frontend/e2e/.env.e2e.example there and fill them in (docs/LOCAL_DEV.md, 'Parallel agent stacks')"
+	fi
 	while IFS= read -r line || [ -n "$line" ]; do
 		[[ "$line" =~ ^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]] || continue
 		key="${BASH_REMATCH[2]}"

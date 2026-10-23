@@ -373,6 +373,10 @@ done
 ```
 
 Then put them in `frontend/e2e/.env.e2e.s<slot>` (same keys as `.env.e2e.example`, gitignored).
+The first `e2e` also saves that file as `<git common dir>/agent-stack/e2e.s<slot>.env` (the main
+checkout's `.git/agent-stack/`, shared by every worktree), and a later worktree without its own
+file uses that one: the next slice in the slot can't register the same addresses again. Slots
+1 and 2's identities were registered and saved during v50.
 `e2e` exports that file's keys, so they win over a `frontend/e2e/.env.e2e` in the worktree, but
 the suite still reads that file for any key the slot file lacks: keep the slot file complete, or
 the worktree free of `.env.e2e`.
@@ -440,7 +444,9 @@ and Redis volumes stay, so `up` comes back with the same data. `down --volumes` 
 the next `up` builds a fresh database. A slot's database volume is labelled with its worktree, so
 the next slice to use the slot can't silently inherit it: drop it with `down --volumes` from the
 old worktree, or `docker volume rm spotdlweb-s<slot>_pgdata spotdlweb-s<slot>_redis-data` once that
-worktree is gone (only the database volume carries the label; the Redis one holds the old queue). If a
+worktree is gone (only the database volume carries the label; the Redis one holds the old queue). A
+slot left up by a worktree that was removed without `down` is refused with the `docker` commands
+that clear it. If a
 worktree lost its `.env.agent`, `down [--volumes]` still works there: it removes the slot by its
 compose labels instead.
 
