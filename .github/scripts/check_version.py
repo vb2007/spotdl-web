@@ -8,8 +8,8 @@ installed, so it can't assume tomllib/packaging/anything beyond the interpreter 
 Usage:
     check_version.py            # just check backend/frontend agree on a valid semver
     check_version.py <base-ref> # also fail if backend/ or frontend/ changed since <base-ref>
-                                 # without the version changing (path-aware: a docs-only diff
-                                 # is not forced to bump)
+                                 # without the version rising above <base-ref>'s (path-aware:
+                                 # a docs-only diff is not forced to bump)
 
 Prints the resolved version to stdout on success — release.yml reuses this as the single
 source of the version string rather than a second, possibly-disagreeing parser.
@@ -41,6 +41,17 @@ def read_frontend_version(text: str, source: str) -> str:
     if not version:
         raise SystemExit(f'check_version: no "version" key found in {source}')
     return version
+
+
+def semver_tuple(version: str) -> tuple[int, int, int]:
+    """`major.minor.patch` as a tuple of ints, so versions compare numerically (5.10.0 > 5.9.0),
+    with the stdlib alone. Callers check SEMVER_RE first."""
+    major, minor, patch = (int(part) for part in version.split("."))
+    return major, minor, patch
+
+
+def is_strictly_greater(version: str, base_version: str) -> bool:
+    return semver_tuple(version) > semver_tuple(base_version)
 
 
 def git_show(ref: str, rel_path: str) -> str | None:
@@ -102,6 +113,21 @@ def main() -> int:
                     f"({version}) is unchanged since {base}. Bump backend/pyproject.toml and "
                     f"frontend/package.json to the same new version before this PR is "
                     f"merge-ready (see CLAUDE.md's versioning rule).",
+                    file=sys.stderr,
+                )
+                return 1
+            # v50: and it must rise. Parallel slices merge in any order, so a branch can carry
+            # a version main has already passed; releasing it would cut a tag that goes
+            # backwards.
+            if (
+                base_version
+                and SEMVER_RE.match(base_version)
+                and not is_strictly_greater(version, base_version)
+            ):
+                print(
+                    f"check_version: the version ({version}) is lower than {base}'s "
+                    f"({base_version}). It must be strictly greater: {base} moved past this "
+                    f"slice, so rebase onto it and ask the owner for the version to use.",
                     file=sys.stderr,
                 )
                 return 1

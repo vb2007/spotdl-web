@@ -50,6 +50,9 @@
 # would otherwise index (2,000+ nodes) for the same reason.
 /frontend/src/lib/paraglide/
 
+# v50: bytecode from running .github/scripts/test_check_version.py
+/.github/scripts/__pycache__/
+
 # backend
 backend/__pycache__/
 backend/**/__pycache__/
