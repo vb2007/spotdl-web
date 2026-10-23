@@ -14,6 +14,9 @@ name: Nightly
     - cron: "17 4 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   # v23: builds the real image and reads back what actually landed inside it, rather than
   # trusting that backend/Dockerfile's `uv pip install --upgrade yt-dlp yt-dlp-ejs` step ran

@@ -90,7 +90,7 @@ passes, `plan` says `release=false`, and `release` and `deploy` show as skipped 
 `workflow_run` trigger fires on **every** completion of the workflow it names, whatever its
 event or branch: every PR's CI run, every scheduled run and every dispatch fired Release, which
 then skipped itself. A skipped run still *completes*, so it fired Publish & Deploy, which skipped
-too. Of the last 1000 runs before v49, Release was 160 skipped of 212 and Publish & Deploy 158
+too. Of the last 1000 runs when v49 was planned, Release was 160 skipped of 212 and Publish & Deploy 158
 of 228. Calling the workflows from one run (`uses:` on a job, `workflow_call` in the callee)
 keeps both reasons the chain was built for, without that noise:
 
@@ -157,7 +157,11 @@ checks below cover a **re-run** of a run whose release or deploy already happene
 between two runs carrying the same version. In **release mode**:
 
 - `release`: the tag already exists on the remote → nothing is created; the job still succeeds
-  and outputs the tag.
+  and outputs the tag. It also outputs `owned`: whether that tag points at **this run's**
+  commit. A re-run finds its own tag (`owned=true`, the deploy goes ahead). A second run carrying
+  the same version (a bump, then an unbumped merge whose `plan` ran before the first one's
+  release) finds the first run's tag (`owned=false`), and its `deploy` job is skipped: it never
+  publishes or deploys its own commit under a tag that points elsewhere.
 - `publish`: `docker manifest inspect ghcr.io/vb2007/spotdl-web-{backend,frontend}:$VERSION` both
   succeed → already published, skip the build/push.
 - `deploy`: the host's `.env` already has `IMAGE_TAG=$VERSION` **and**
@@ -471,7 +475,9 @@ exactly what broke v28's deploy and its rollback on 2026-09-27. The checklist:
   already done, so only the deploy runs again, in release mode with the same commit and tag: it
   also records `.last-good`, and a clean re-run of an already-correctly-deployed version is a
   no-op. Don't wait for the next merge to pick it up: a merge whose version is already tagged
-  deploys nothing. A fresh dispatch (`gh workflow run "Publish & Deploy" -f ref=main`) works
+  deploys nothing. A re-run uses the workflow files of the run's own commit and is possible for
+  30 days, so when the fix is in the pipeline itself (`.github/`), ship it with a version bump
+  (a patch slice): that release deploys with the fixed workflow. A fresh dispatch (`gh workflow run "Publish & Deploy" -f ref=main`) works
   too, but it's a `manual-*` deploy: it never skips and never updates `.last-good`.
 - **Re-run a failed release**: re-run that "Release & Deploy" run's failed jobs the same way; the
   deploy follows it in the same run. Dispatching "Release & Deploy" on `main` works too (the

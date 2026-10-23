@@ -985,6 +985,8 @@ needed" claim — rather than silently deleted.
   renamed test copy of `ci.yml` still woke `main`'s Release. Test copies get their own file → *v49*
 - `git ls-remote … | grep` under the default `bash -e` (no pipefail) hides a failed remote read;
   read it in an assignment first → *v49*
+- A merge's release can find its version already tagged by another run: deploy only when the tag
+  points at this run's commit (`owned`) → *v49*
 
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
@@ -5556,7 +5558,8 @@ independently-found production bug from the same conversation)
   the named workflow completes, whatever its event or branch, so every PR's CI run, every
   scheduled run and every dispatch started a Release run whose only job skipped itself. A
   skipped run still *completes*, so it fired Publish & Deploy, which skipped too: 161 of 214
-  Release runs and 159 of 230 Publish & Deploy runs in the history were these. The listener
+  Release runs and 159 of 230 Publish & Deploy runs in the whole history at v49 (160/212 and
+  158/228 in the planning count) were these. The listener
   matches the upstream by workflow *name*, and GitHub names a run by the default branch's
   workflow at that file path: a scratch copy of `ci.yml` renamed on a test branch still ran as
   "CI" and woke `main`'s Release. Give a test copy its own file path.
@@ -5572,7 +5575,8 @@ independently-found production bug from the same conversation)
   no group anywhere; the one self-hosted runner already serializes every job, and the deploy's
   version guard turns an older release arriving last into a successful no-op. A second runner
   would need another, non-cancelling lock.
-- **The one runner takes queued jobs first-in, first-out across all runs.** A merge's `plan`,
+- **The one runner takes queued jobs roughly first-in, first-out across all runs** (observed,
+  not guaranteed). A merge's `plan`,
   `release` and `deploy` each become ready only after the previous stage finishes, so each of
   them queues behind every job of every run started meanwhile (other merges' and PRs' checks).
   A burst of merges therefore interleaves stage by stage, and a release can wait behind a whole
@@ -5596,7 +5600,14 @@ independently-found production bug from the same conversation)
   `run:` step with `curl`: the URL and the token reach curl on stdin (`--config -`), never its
   command line; secrets are whitespace-trimmed first, since a pasted trailing newline breaks
   curl's config file and reads as "no response".
+- **Two runs can carry the same untagged version** (a bump, then an unbumped merge whose `plan`
+  runs before the first release). The second run's release finds the tag and succeeds, so a
+  deploy gated only on "release succeeded" would ship the second commit under the first
+  commit's tag. `release.yml` outputs `owned` (the tag points at this run's commit), and the
+  deploy runs only when it's true.
 - **A failed deploy is no longer retried by the next merge.** Before v49 every Release
   completion (an unbumped merge's included) fired Publish & Deploy, which retried a failed
   deploy. Now the deploy runs only after a release in the same run, so a failed one waits for
-  `gh run rerun <id> --failed`; the notice says so by arriving at all.
+  `gh run rerun <id> --failed`; the notice says so by arriving at all. A re-run uses the run's own
+  commit's workflow files (and expires after 30 days), so a pipeline-only fix ships with a
+  version bump to get a release-mode deploy.

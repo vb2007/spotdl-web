@@ -76,10 +76,12 @@ jobs:
       commit: ${{ github.sha }}
     secrets: inherit
 
-  # Only after a release in this same run (skipped with it otherwise). Release mode: persists the
-  # new IMAGE_TAG and `.last-good`, exactly as the old merge-driven path did.
+  # Only after a release in this same run (skipped with it otherwise), and only when that tag is
+  # this run's commit (`owned`, see release.yml). Release mode: persists the new IMAGE_TAG and
+  # `.last-good`, exactly as the old merge-driven path did.
   deploy:
     needs: release
+    if: needs.release.outputs.owned == 'true'
     permissions:
       contents: write
       packages: write
@@ -144,8 +146,9 @@ jobs:
               # The checks, the plan or the release failed: the deploy never started.
               rollback="not needed, nothing was deployed"
             elif [ -n "$DEPLOY_VERSION" ] && [ "$PUBLISHED" != "true" ]; then
-              # The deploy's outputs did come back (resolve's version), without publish's.
-              rollback="not needed, the images weren't published, so the host wasn't touched"
+              # The deploy's outputs did come back (resolve's version), without publish's: the
+              # publish job didn't finish (images may be partly pushed), so the host job never ran.
+              rollback="not needed, publish didn't finish, so the host deploy never started"
             else
               # No note at all: the deploy job never reported (runner died, host rebooted, or
               # GitHub failed it at "Set up job"), or no output came back. Don't guess.
