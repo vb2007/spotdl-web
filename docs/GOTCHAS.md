@@ -191,6 +191,8 @@ needed" claim — rather than silently deleted.
   seconds waits out the 300 s grace period (slot overlay: `init: true`) → *v50*
 - A cleanup that writes to a dead stderr (closed terminal, a `| tee` killed by the same Ctrl-C)
   dies of SIGPIPE before it acts, bash's own messages and the docker CLI's alike → *v50*
+- `agent_stack.sh` reads a `.env`'s `DATABASE_URL` with SQLAlchemy's URL grammar (path and
+  `?dbname=`), not a string cut: a cut let `?`-in-password, `%77` or socket URLs past it → *v50*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -5762,3 +5764,10 @@ independently-found production bug from the same conversation)
   write to fd 2) before removing the container. The script now ignores SIGPIPE while it holds the
   lock (the command gets the default back), turns errexit off in the cleanup, and sends the
   removal's output to `.agent-stack/realdl-cleanup.log` before copying it to stderr.
+- **The script's production-`.env` check is SQLAlchemy's URL grammar, not a string cut.** Its first
+  parse cut at the first `?` and took the last `/` segment, so a `?` in a password, a trailing `/`
+  or space, `%77` or a socket URL (`postgresql:///spotdlweb?host=…`) named "production" past it,
+  and `env`/`up` would then have commented out that checkout's `DATABASE_URL`. It now matches
+  `sqlalchemy.engine.url._parse_url`'s pattern (what app/config.py's guard uses), checks both the
+  path and `?dbname=`, percent-decoded and case-folded, and refuses a URL it can't parse. The
+  main-checkout refusal fails closed too (a `git rev-parse` error refuses).

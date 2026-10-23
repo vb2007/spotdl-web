@@ -89,18 +89,29 @@ env_value() {
 # its .env): nothing here may run there.
 refuse_production_env() {
 	[ -f "$ENV_FILE" ] || return 0
-	local url name prod
+	local url path query name dbname prod
 	url="$(env_value "$ENV_FILE" DATABASE_URL)"
 	[ -n "$url" ] || return 0
-	name="${url%%\?*}"
-	name="${name##*/}"
-	# A `?dbname=` query parameter overrides the path, as for libpq.
-	if [[ "$url" =~ [?\&]dbname=([^\&]*) ]]; then name="${BASH_REMATCH[1]}"; fi
-	name="${name,,}"
-	for prod in "${PRODUCTION_DATABASE_NAMES[@]}"; do
-		if [ "$name" = "$prod" ]; then
-			die "$ENV_FILE names the production database ($name). Refusing: agent stacks never run from a production checkout (copy the owner's dev .env instead)."
-		fi
+	# SQLAlchemy's own URL pattern (sqlalchemy.engine.url._parse_url, which app/config.py's guard
+	# relies on): scheme, optional user:password@, host, port, /database, ?query.
+	local re='^[A-Za-z0-9_+]+://(([^:/]*)(:([^@]*))?@)?((\[[^/?]+\])|([^/:?]+))?(:([^/?]*))?(/([^?]*))?(\?(.*))?'
+	[[ "$url" =~ $re ]] ||
+		die "$ENV_FILE's DATABASE_URL can't be parsed: refusing (app/config.py would too)"
+	path="${BASH_REMATCH[11]}"
+	query="${BASH_REMATCH[13]}"
+	if [[ "&$query" =~ \&dbname=([^\&]*) ]]; then dbname="${BASH_REMATCH[1]}"; else dbname=""; fi
+	# Either name, percent-decoded, trimmed and case-folded, refuses (a superset of the guard's).
+	for name in "$path" "$dbname"; do
+		name="$(printf '%b' "${name//%/\\x}")"
+		name="${name%/}"
+		name="${name#"${name%%[![:space:]]*}"}"
+		name="${name%"${name##*[![:space:]]}"}"
+		name="${name,,}"
+		for prod in "${PRODUCTION_DATABASE_NAMES[@]}"; do
+			if [ "$name" = "$prod" ]; then
+				die "$ENV_FILE names the production database ($name). Refusing: agent stacks never run from a production checkout (copy the owner's dev .env instead)."
+			fi
+		done
 	done
 }
 
@@ -127,8 +138,10 @@ refuse_foreign_slot() {
 # ./test-library to the owner's stack): a slot runs only from a linked worktree of its own.
 refuse_main_checkout() {
 	local git_dir common_dir
-	git_dir="$(git -C "$ROOT" rev-parse --path-format=absolute --git-dir 2>/dev/null)" || return 0
-	common_dir="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)"
+	# Fails closed: a slot runs only from a worktree git can vouch for.
+	git_dir="$(git -C "$ROOT" rev-parse --path-format=absolute --git-dir 2>/dev/null)" &&
+		common_dir="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" ||
+		die "can't tell whether $ROOT is a linked git worktree (git rev-parse failed): refusing"
 	[ "$git_dir" != "$common_dir" ] ||
 		die "$ROOT is the main checkout: run slots from a worktree of your own (git worktree add, docs/LOCAL_DEV.md 'Parallel agent stacks')"
 }
@@ -144,10 +157,6 @@ lock_slot() {
 	esac
 }
 
-refuse_production_env
-refuse_main_checkout
-lock_slot
-refuse_foreign_slot
 
 # --- .env.agent ---------------------------------------------------------------------------------
 
@@ -274,9 +283,8 @@ export_compose_env() {
 		mkdir -p "$(dirname "$PG_PORT_OVERLAY")"
 		printf 'services:\n  postgres:\n    ports:\n      - "127.0.0.1:%s:5432"\n' "$pg_port" >"$PG_PORT_OVERLAY"
 		files="$files:$PG_PORT_OVERLAY"
-	else
-		rm -f "$PG_PORT_OVERLAY"
 	fi
+	# Never deleted here: a realdl or e2e still running in this worktree may list it.
 	# Compose prefers the shell's variables over COMPOSE_ENV_FILES: one left exported by a caller
 	# (an AGENT_SLOT of another slot, a REDIS_PASSWORD) would override .env.agent's.
 	unset AGENT_SLOT AGENT_WORKTREE AGENT_PG_DB AGENT_PG_USER AGENT_PG_PASSWORD REDIS_PASSWORD \
@@ -353,6 +361,7 @@ return_frontend_files() {
 REALDL_HELD=""
 
 release_realdl() {
+	trap '' INT TERM HUP PIPE
 	if [ -n "$REALDL_HELD" ]; then
 		# Nothing may cut the cleanup short. errexit off, and SIGPIPE ignored: with the terminal
 		# closed or a `| tee` reader gone, the first message would otherwise end the shell before
@@ -530,6 +539,11 @@ load_e2e_credentials() {
 # A function, called on the last line: bash reads a script as it runs it, so a long `realdl` or
 # `e2e` would otherwise execute whatever a concurrent edit or `git rebase` put at its offset.
 main() {
+# Inside main, like everything that can wait (lock_slot's flock): see the comment above.
+refuse_production_env
+refuse_main_checkout
+lock_slot
+refuse_foreign_slot
 case "$CMD" in
 env)
 	write_env_agent
@@ -631,8 +645,10 @@ e2e)
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"
 	backlog="$(pending_downloads)"
 	[ "$backlog" = 0 ] || die "slot $SLOT has $backlog unfinished track(s) outside the ledger or job(s) still expanding, which worker-dl could really download during the suite: cancel those jobs first (or run them with realdl)"
-	acquire_realdl "e2e"
+	# Before worker-dl starts: a queued fixture track whose stand-in is gone must be back on disk
+	# before anything can dispatch it.
 	seed_fixture
+	acquire_realdl "e2e"
 	run_locked npm --prefix "$ROOT/frontend" run test:e2e -- "$@"
 	;;
 realdl)
