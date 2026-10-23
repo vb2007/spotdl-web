@@ -18,6 +18,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.engine import make_url
 
@@ -96,6 +97,10 @@ database = make_url(settings.database_url).database or ""
 if settings.spotdl_env != "dev" or not re.fullmatch(r"spotdlweb_s[1-4]", database):
     sys.exit(f"agent_seed: refusing database {database!r}: only an agent slot's (spotdlweb_s1-4)")
 db = SessionLocal()
+# What the connection really reached (a `?dbname=` in the URL would override its path).
+connected = db.execute(text("select current_database()")).scalar()
+if connected != database:
+    sys.exit(f"agent_seed: refusing: the URL names {database!r} but connects to {connected!r}")
 library = Path(app_settings.get_library_settings(db).library_target_dir) / FIXTURE_DIR
 downloads = Path(settings.download_output_dir) / FIXTURE_DIR
 ledger = [(i, downloads) for i in SUBMITTED] + [(i, library) for i in MOVED]

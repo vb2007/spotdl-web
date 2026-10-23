@@ -49,7 +49,9 @@ services:
     # No host port: `agent_stack.sh <slot> psql` goes through the container. A PG_PORT in
     # .env.agent adds a loopback one (agent_stack.sh writes that overlay itself).
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      # Over TCP: on a fresh volume the image's init runs a temporary server on the unix socket
+      # only, which would pass a socket check while `migrate` still can't connect.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -115,8 +117,11 @@ networks:
         - subnet: "fd00:dead:beef:${AGENT_SLOT:?run scripts/agent_stack.sh <slot> env}::/64"
 
 volumes:
+  # Both name the worktree that owns the slot's data: agent_stack.sh refuses to reuse them from
+  # another one (a later slice in the same slot starts from a fresh database and an empty queue).
   pgdata:
-    # Names the worktree that owns the slot's database: agent_stack.sh refuses to reuse it from
-    # another one (a later slice in the same slot starts from a fresh database).
+    labels:
+      spotdlweb.worktree: ${AGENT_WORKTREE:?run scripts/agent_stack.sh <slot> env}
+  redis-data:
     labels:
       spotdlweb.worktree: ${AGENT_WORKTREE:?run scripts/agent_stack.sh <slot> env}
