@@ -9,7 +9,7 @@ permissions:
   contents: read
 jobs:
   checks:
-    uses: ./.github/workflows/ci.yml
+    uses: ./.github/workflows/ci-scratch.yml
   plan:
     needs: checks
     runs-on: self-hosted
