@@ -26,8 +26,8 @@ otherwise.
 ## Automated deployment (v21+)
 
 Every merge into `main` (that bumped the version — see `CLAUDE.md`'s versioning rule) flows
-through three chained GitHub Actions workflows, running on the self-hosted runner on this same
-host: **CI → Release → Publish & Deploy**. The last of those pulls the freshly-published
+through one GitHub Actions run, "Release & Deploy", on the self-hosted runner on this same
+host: **checks → release → publish & deploy** as jobs of that run (v49). The last of those pulls the freshly-published
 `ghcr.io/vb2007/spotdl-web-backend`/`-frontend` images onto `/mnt/raid1/spotdl-web` and
 restarts the stack, with a pre-migration `pg_backup.sh` run and automatic rollback if the new
 stack doesn't come up healthy. Full pipeline detail, GHCR package layout, idempotency, and
@@ -447,8 +447,8 @@ to bring the stack up manually while you investigate.
 ## Matrix alert bot (v33)
 
 The pipeline posts to one Matrix room on this host's Synapse: a message for any failed or
-cancelled Publish & Deploy or Release run, and one for every real (release-mode) deploy that
-succeeded. v36's app alerts reuse the same bot and room ([App alerts](#app-alerts-v36) below). This is a one-time setup, done by
+cancelled "Release & Deploy" run, manual "Publish & Deploy" dispatch or "Nightly" run, and one
+for every real (release-mode) deploy that succeeded (v49). v36's app alerts reuse the same bot and room ([App alerts](#app-alerts-v36) below). This is a one-time setup, done by
 the owner, since it touches the production Synapse. Until the three repository secrets exist,
 the `notify` jobs print a warning and pass, so nothing breaks in the meantime.
 

@@ -85,8 +85,7 @@ jobs:
       #
       # The mode comes from the inputs, never `github.event_name`: called from "Release & Deploy"
       # that is the caller's event, `workflow_dispatch` included when the chain is dispatched.
-      # v49: `latest` only goes on the newest release. Nothing cancels a run on `main` any more,
-      # so in a burst of merges an older run can publish after a newer one.
+      # `latest` is pushed only if this is still the newest release at push time (`publish`).
       - name: Compute version, image tags, and persistence mode
         id: info
         env:
@@ -106,15 +105,8 @@ jobs:
               echo "::error::Release tag $RELEASE_TAG doesn't match version $VERSION at $COMMIT."
               exit 1
             fi
-            NEWEST="$( { git ls-remote --tags --refs origin 'refs/tags/v*' | sed 's|.*refs/tags/||'; echo "$RELEASE_TAG"; } \
-              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
-            if [ "$NEWEST" = "$RELEASE_TAG" ]; then
-              echo "image_tags=$VERSION,latest" >> "$GITHUB_OUTPUT"
-            else
-              echo "image_tags=$VERSION" >> "$GITHUB_OUTPUT"
-              echo "Not tagging latest: $NEWEST is newer than $RELEASE_TAG."
-            fi
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "image_tags=$VERSION,latest" >> "$GITHUB_OUTPUT"
             echo "persist=true" >> "$GITHUB_OUTPUT"
             echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           fi
@@ -200,11 +192,23 @@ jobs:
             --label org.opencontainers.image.revision="${{ needs.resolve.outputs.commit }}" \
             ./frontend
 
+      # v49: `latest` only while this is still the newest `v*` tag on the remote, checked right
+      # before its push. Nothing cancels a run on `main` any more, so in a burst of merges an
+      # older run can publish after a newer one. Release mode only (manual tags have no `latest`).
       - name: Push images
         if: steps.check.outputs.skip == 'false'
         run: |
           IFS=',' read -ra tags <<< "${{ needs.resolve.outputs.image_tags }}"
           for t in "${tags[@]}"; do
+            if [ "$t" = "latest" ]; then
+              TAGS="$(git ls-remote --tags --refs origin 'refs/tags/v*')"
+              NEWEST="$( { printf '%s\n' "$TAGS" | sed 's|.*refs/tags/||'; echo "${{ needs.resolve.outputs.release_tag }}"; } \
+                | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
+              if [ "$NEWEST" != "${{ needs.resolve.outputs.release_tag }}" ]; then
+                echo "Not pushing latest: $NEWEST is newer than ${{ needs.resolve.outputs.release_tag }}."
+                continue
+              fi
+            fi
             docker push "$BACKEND_IMAGE:$t"
             docker push "$FRONTEND_IMAGE:$t"
           done
@@ -820,15 +824,20 @@ jobs:
           # and the token reach curl on stdin (`--config -`), never its command line, and nothing
           # prints them; `-s` without `-S`, since curl's error text names the host. Cloudflare in
           # front of Synapse refuses a request without an explicit User-Agent (v33).
-          if [ -z "$MATRIX_HOMESERVER_URL" ] || [ -z "$MATRIX_ACCESS_TOKEN" ] || [ -z "$MATRIX_ROOM_ID" ]; then
+          # Whitespace trimmed (a secret pasted with a newline breaks curl's config file), and a
+          # whitespace-only value counts as unset. `tr` reads the token on stdin, not argv.
+          homeserver="$(printf '%s' "$MATRIX_HOMESERVER_URL" | tr -d '[:space:]')"
+          homeserver="${homeserver%/}"
+          token="$(printf '%s' "$MATRIX_ACCESS_TOKEN" | tr -d '[:space:]')"
+          room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
+          if [ -z "$homeserver" ] || [ -z "$token" ] || [ -z "$room" ]; then
             echo "::warning::Matrix notification skipped: MATRIX_* not configured (repository secrets; see docs/DEPLOYMENT.md, 'Matrix alert bot')."
             exit 0
           fi
-          room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
           python3 -c 'import json, sys; print(json.dumps({"msgtype": "m.text", "body": sys.stdin.read().strip()}))' \
             < "$RUNNER_TEMP/message.txt" > "$RUNNER_TEMP/matrix.json"
           code="$(printf 'url = "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"\nheader = "Authorization: Bearer %s"\n' \
-              "${MATRIX_HOMESERVER_URL%/}" "$room" "$MATRIX_TXN_ID" "$MATRIX_ACCESS_TOKEN" \
+              "$homeserver" "$room" "$MATRIX_TXN_ID" "$token" \
             | curl -s --config - -X PUT --max-time 30 \
                 -H 'Content-Type: application/json' -A 'spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)' \
                 --data-binary "@$RUNNER_TEMP/matrix.json" -o "$RUNNER_TEMP/matrix.out" -w '%{http_code}')" || true

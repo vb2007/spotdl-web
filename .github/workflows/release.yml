@@ -62,17 +62,20 @@ jobs:
       # already been released.
       # v49: also whether this is the newest version released so far. Nothing cancels a run on
       # `main` any more, so in a burst of merges an older run's release can come after a newer
-      # one's; it must not take the "Latest" badge from it.
+      # one's; it must not take the "Latest" badge from it. The remote's tags are read in an
+      # assignment of their own, so a failed `ls-remote` fails the step (under `bash -e` without
+      # pipefail, a pipeline would hide it).
       - name: Check whether this version was already released
         id: tag-check
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+          TAGS="$(git ls-remote --tags --refs origin 'refs/tags/v*')"
+          if printf '%s\n' "$TAGS" | sed 's|.*refs/tags/||' | grep -qxF "$TAG"; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
-          NEWEST="$( { git ls-remote --tags --refs origin 'refs/tags/v*' | sed 's|.*refs/tags/||'; echo "$TAG"; } \
+          NEWEST="$( { printf '%s\n' "$TAGS" | sed 's|.*refs/tags/||'; echo "$TAG"; } \
             | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
           if [ "$NEWEST" = "$TAG" ]; then echo "latest=true" >> "$GITHUB_OUTPUT"; else echo "latest=false" >> "$GITHUB_OUTPUT"; fi
 

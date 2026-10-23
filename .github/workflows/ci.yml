@@ -247,8 +247,9 @@ jobs:
     outputs:
       failed: ${{ steps.failed.outputs.failed }}
     steps:
-      # First, before the checkout: a GitHub-side failure downloading an action (v48's 429)
-      # mustn't take the list of failed checks down with it.
+      # First, before the checkout and the artifact download, so a failure in either still
+      # leaves the list. (A GitHub-side failure downloading an action, v48's 429, fails the job
+      # at "Set up job", before any step: the notice then names "checks" without the check.)
       - name: List the failed checks
         id: failed
         run: |

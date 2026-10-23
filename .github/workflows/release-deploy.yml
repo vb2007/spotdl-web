@@ -41,14 +41,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Against the remote: a fresh checkout has no tags to list locally.
+      # Only `main` is ever released: a dispatch from another branch ("Use workflow from") would
+      # otherwise tag, publish `latest` and persist-deploy an unmerged commit, and the real merge
+      # of that version would then find its tag taken. Fails loudly rather than skipping.
+      # Tags are read from the remote (a fresh checkout has none locally), in an assignment of
+      # their own: under `bash -e` without pipefail, a failed `ls-remote | grep` would read as
+      # "no tag yet".
       - name: Decide what to release
         id: plan
         run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Release & Deploy releases main only (this run is on $GITHUB_REF). To try a branch on the host, dispatch Publish & Deploy with -f ref=<branch>."
+            exit 1
+          fi
           VERSION="$(python3 .github/scripts/check_version.py)"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q .; then
+          TAGS="$(git ls-remote --tags --refs origin "refs/tags/v$VERSION")"
+          if [ -n "$TAGS" ]; then
             echo "release=false" >> "$GITHUB_OUTPUT"
             echo "v$VERSION is already released: nothing to release or deploy." | tee -a "$GITHUB_STEP_SUMMARY"
           else
@@ -108,6 +118,7 @@ jobs:
           DEPLOY_RESULT: ${{ needs.deploy.result }}
           TAG: ${{ needs.release.outputs.tag || needs.plan.outputs.tag }}
           VERSION: ${{ needs.deploy.outputs.version || needs.plan.outputs.version }}
+          DEPLOY_VERSION: ${{ needs.deploy.outputs.version }}
           PUBLISHED: ${{ needs.deploy.outputs.published }}
           ROLLBACK_NOTE: ${{ needs.deploy.outputs.rollback_note }}
         run: |
@@ -132,11 +143,12 @@ jobs:
             elif [ "$DEPLOY_RESULT" = "skipped" ]; then
               # The checks, the plan or the release failed: the deploy never started.
               rollback="not needed, nothing was deployed"
-            elif [ "$PUBLISHED" != "true" ]; then
+            elif [ -n "$DEPLOY_VERSION" ] && [ "$PUBLISHED" != "true" ]; then
+              # The deploy's outputs did come back (resolve's version), without publish's.
               rollback="not needed, the images weren't published, so the host wasn't touched"
             else
               # No note at all: the deploy job never reported (runner died, host rebooted, or
-              # GitHub failed it at "Set up job"). Don't guess.
+              # GitHub failed it at "Set up job"), or no output came back. Don't guess.
               rollback="UNKNOWN, the deploy job reported nothing. Check the host"
             fi
             {
@@ -157,15 +169,20 @@ jobs:
           # and the token reach curl on stdin (`--config -`), never its command line, and nothing
           # prints them; `-s` without `-S`, since curl's error text names the host. Cloudflare in
           # front of Synapse refuses a request without an explicit User-Agent (v33).
-          if [ -z "$MATRIX_HOMESERVER_URL" ] || [ -z "$MATRIX_ACCESS_TOKEN" ] || [ -z "$MATRIX_ROOM_ID" ]; then
+          # Whitespace trimmed (a secret pasted with a newline breaks curl's config file), and a
+          # whitespace-only value counts as unset. `tr` reads the token on stdin, not argv.
+          homeserver="$(printf '%s' "$MATRIX_HOMESERVER_URL" | tr -d '[:space:]')"
+          homeserver="${homeserver%/}"
+          token="$(printf '%s' "$MATRIX_ACCESS_TOKEN" | tr -d '[:space:]')"
+          room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
+          if [ -z "$homeserver" ] || [ -z "$token" ] || [ -z "$room" ]; then
             echo "::warning::Matrix notification skipped: MATRIX_* not configured (repository secrets; see docs/DEPLOYMENT.md, 'Matrix alert bot')."
             exit 0
           fi
-          room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
           python3 -c 'import json, sys; print(json.dumps({"msgtype": "m.text", "body": sys.stdin.read().strip()}))' \
             < "$RUNNER_TEMP/message.txt" > "$RUNNER_TEMP/matrix.json"
           code="$(printf 'url = "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"\nheader = "Authorization: Bearer %s"\n' \
-              "${MATRIX_HOMESERVER_URL%/}" "$room" "$MATRIX_TXN_ID" "$MATRIX_ACCESS_TOKEN" \
+              "$homeserver" "$room" "$MATRIX_TXN_ID" "$token" \
             | curl -s --config - -X PUT --max-time 30 \
                 -H 'Content-Type: application/json' -A 'spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)' \
                 --data-binary "@$RUNNER_TEMP/matrix.json" -o "$RUNNER_TEMP/matrix.out" -w '%{http_code}')" || true

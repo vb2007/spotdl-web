@@ -76,7 +76,7 @@ release-deploy.yml   "Release & Deploy" (one run, jobs ordered by `needs:`)
    ├─ deploy    uses: publish-deploy.yml   only after a release in this run
    │              ├─ resolve -> commit, version, image tags, persist (release mode)
    │              ├─ publish -> docker build + push both images to GHCR, images.json on the release
-   │              └─ deploy  -> required-var preflight -> stale guard -> pg_backup -> checkout on
+   │              └─ deploy  -> stale guard -> required-var preflight -> pg_backup -> checkout on
    │                            the host -> pull -> up -d -> health gate -> .last-good
    │                            -> on failure: migration guard -> roll back commit + tag together
    └─ notify    one curl to Matrix: any failed or cancelled job (named), or a real deploy
@@ -127,7 +127,7 @@ which is the caller's event when it's called.
 |---|---|---|
 | Trigger | the `deploy` job of "Release & Deploy", right after its release | `-f ref=<branch/tag/sha>`, any time |
 | `version` | `check_version.py` at the release's commit, which must equal its tag without the `v` | `manual-<short-sha>` |
-| Image tags pushed | `$version`, plus `latest` when no newer `v*` tag exists (v49) | `$version` only — **never `latest`** |
+| Image tags pushed | `$version`, plus `latest` unless a newer `v*` tag exists at push time (v49) | `$version` only — **never `latest`** |
 | `persist` | `true` — becomes the host's new baseline `IMAGE_TAG` | `false` |
 | Skip if already done | yes (see Idempotency) | never — every dispatch always builds + deploys fresh |
 
@@ -184,9 +184,12 @@ hurting each other:
   as a **successful no-op**, with one line in the job summary ("Not deployed: X is older than
   the production baseline Y"). Nothing on the host moves, `.last-good` stays, and no notice is
   sent.
-- **`latest` and the "Latest" release badge go to the newest version only.** `release` and
-  `resolve` compare against every `v*` tag on the remote, so an older run finishing last doesn't
-  take either from the newer one.
+- **`latest` and the "Latest" release badge go to the newest version only.** `release` (before
+  creating the release) and `publish` (right before pushing `latest`) compare against every `v*`
+  tag on the remote, so an older run finishing last doesn't take either from the newer one.
+- **Only `main` is released.** `plan` fails a "Release & Deploy" dispatched from any other
+  branch, so an unmerged commit can't take a version's tag (and with it, the real merge's
+  release). Try a branch on the host with a manual "Publish & Deploy" instead.
 
 ---
 

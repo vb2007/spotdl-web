@@ -99,15 +99,20 @@ jobs:
           # and the token reach curl on stdin (`--config -`), never its command line, and nothing
           # prints them; `-s` without `-S`, since curl's error text names the host. Cloudflare in
           # front of Synapse refuses a request without an explicit User-Agent (v33).
-          if [ -z "$MATRIX_HOMESERVER_URL" ] || [ -z "$MATRIX_ACCESS_TOKEN" ] || [ -z "$MATRIX_ROOM_ID" ]; then
+          # Whitespace trimmed (a secret pasted with a newline breaks curl's config file), and a
+          # whitespace-only value counts as unset. `tr` reads the token on stdin, not argv.
+          homeserver="$(printf '%s' "$MATRIX_HOMESERVER_URL" | tr -d '[:space:]')"
+          homeserver="${homeserver%/}"
+          token="$(printf '%s' "$MATRIX_ACCESS_TOKEN" | tr -d '[:space:]')"
+          room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
+          if [ -z "$homeserver" ] || [ -z "$token" ] || [ -z "$room" ]; then
             echo "::warning::Matrix notification skipped: MATRIX_* not configured (repository secrets; see docs/DEPLOYMENT.md, 'Matrix alert bot')."
             exit 0
           fi
-          room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
           python3 -c 'import json, sys; print(json.dumps({"msgtype": "m.text", "body": sys.stdin.read().strip()}))' \
             < "$RUNNER_TEMP/message.txt" > "$RUNNER_TEMP/matrix.json"
           code="$(printf 'url = "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"\nheader = "Authorization: Bearer %s"\n' \
-              "${MATRIX_HOMESERVER_URL%/}" "$room" "$MATRIX_TXN_ID" "$MATRIX_ACCESS_TOKEN" \
+              "$homeserver" "$room" "$MATRIX_TXN_ID" "$token" \
             | curl -s --config - -X PUT --max-time 30 \
                 -H 'Content-Type: application/json' -A 'spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)' \
                 --data-binary "@$RUNNER_TEMP/matrix.json" -o "$RUNNER_TEMP/matrix.out" -w '%{http_code}')" || true
