@@ -320,11 +320,13 @@ acquire_realdl() {
 		holder="$(cat "$REALDL_LOCK" 2>/dev/null || true)"
 		die "the realdl lock ($REALDL_LOCK) is held by ${holder:-another process (holder not recorded yet)}. Only one stack talks to YouTube at a time: wait and retry."
 	fi
+	# Before the cleanup trap: refusing here leaves this slot's (stopped) worker-dl alone, and the
+	# lock frees as the script exits.
+	holder="$(stray_worker_dl)"
+	[ -z "$holder" ] || die "another slot's worker-dl runs without the lock ($holder): take it down there first"
 	REALDL_HELD=1
 	trap release_realdl EXIT
 	trap 'exit 130' INT TERM
-	holder="$(stray_worker_dl)"
-	[ -z "$holder" ] || die "another slot's worker-dl runs without the lock ($holder): take it down there first"
 	printf 'slot %s (%s, %s), pid %s, since %s: %s\n' "$SLOT" "$PROJECT" "$ROOT" "$$" \
 		"$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$purpose" >"$REALDL_LOCK"
 	echo "agent_stack: realdl lock taken; starting worker-dl" >&2
