@@ -72,14 +72,15 @@ WEB_PORT=$((5173 + SLOT))
 PG_DB="spotdlweb_s$SLOT"
 PG_USER=spotdlweb
 
-# A value from a dotenv file (the last assignment wins, as in Compose), quotes and an unquoted
-# value's inline ` # comment` stripped.
+# A value from a dotenv file (the last assignment wins, as in Compose): a quoted value up to its
+# closing quote, an unquoted one without its inline ` # comment`.
 env_value() {
 	local file=$1 key=$2
 	[ -f "$file" ] || return 0
 	sed -n "s/^[[:space:]]*\(export[[:space:]]\{1,\}\)\{0,1\}${key}[[:space:]]*=\(.*\)$/\2/p" "$file" |
-		tail -n 1 | sed -e 's/^[[:space:]]*//' -e "/^[\"']/!s/[[:space:]]#.*$//" -e 's/[[:space:]]*$//' \
-		-e "s/^\"\(.*\)\"$/\1/" -e "s/^'\(.*\)'$/\1/"
+		tail -n 1 | sed -e 's/^[[:space:]]*//' -e 'ta' -e ':a' \
+		-e "s/^\"\([^\"]*\)\".*$/\1/;t" -e "s/^'\([^']*\)'.*$/\1/;t" \
+		-e 's/[[:space:]]#.*$//' -e 's/[[:space:]]*$//'
 }
 
 # --- Refusals, checked before any command ---------------------------------------------------
@@ -198,6 +199,9 @@ write_env_agent() {
 	if [ -n "$pg_port" ] && { ! [[ "$pg_port" =~ ^[1-9][0-9]{0,4}$ ]] || [ "$pg_port" -gt 65535 ]; }; then
 		die "PG_PORT must be a port number (1-65535), got '$pg_port'"
 	fi
+	if [ -n "$extra_emails" ] && ! [[ "$extra_emails" =~ ^[^[:space:],=@]+@[^[:space:],=@]+(,[^[:space:],=@]+@[^[:space:],=@]+)*$ ]]; then
+		die "AGENT_EXTRA_EMAILS must be comma-separated addresses, got '$extra_emails'"
+	fi
 	emails="v5s${SLOT}admin@example.com,v5s${SLOT}user@example.com${extra_emails:+,$extra_emails}"
 
 	tmp="$(mktemp "$ROOT/.env.agent.XXXXXX")"
@@ -245,7 +249,7 @@ require_env_agent() {
 	[ -f "$ENV_AGENT" ] || die "no $ENV_AGENT yet: run scripts/agent_stack.sh $SLOT env (or up)"
 	local slot
 	slot="$(env_value "$ENV_AGENT" AGENT_SLOT)"
-	[ "$slot" = "$SLOT" ] || die "$ENV_AGENT is slot ${slot:-?}'s, not slot $SLOT's: run scripts/agent_stack.sh $SLOT env to switch this worktree"
+	[ "$slot" = "$SLOT" ] || die "this worktree is slot ${slot:-?}'s, not slot $SLOT's: to switch, scripts/agent_stack.sh ${slot:-<old slot>} down, then scripts/agent_stack.sh $SLOT env"
 	[ "$(env_value "$ENV_AGENT" AGENT_WORKTREE)" = "$ROOT" ] || die "$ENV_AGENT was written for another worktree: run scripts/agent_stack.sh $SLOT env here"
 }
 
@@ -341,7 +345,7 @@ release_realdl() {
 		# its stop_grace_period to finish a download. Ignoring them here protects bash only (the
 		# Go docker CLI re-enables SIGINT), so the removal runs in a session of its own, which the
 		# terminal's Ctrl-C doesn't reach.
-		trap '' INT TERM
+		trap '' INT TERM HUP
 		echo "agent_stack: stopping worker-dl and releasing the realdl lock" >&2
 		# Removed, not just stopped: an exited worker-dl container would sit in `ps -a` as if
 		# it had crashed.
@@ -386,6 +390,7 @@ acquire_realdl() {
 	trap release_realdl EXIT
 	trap 'exit 130' INT
 	trap 'exit 143' TERM
+	trap 'exit 129' HUP
 	printf 'slot %s (%s, %s), pid %s, since %s: %s\n' "$SLOT" "$PROJECT" "$ROOT" "$$" \
 		"$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$purpose" >"$REALDL_LOCK"
 	echo "agent_stack: realdl lock taken; starting worker-dl" >&2
@@ -399,6 +404,10 @@ acquire_realdl() {
 		[ "$SECONDS" -lt "$deadline" ] || die "worker-dl didn't answer a ping in time: scripts/agent_stack.sh $SLOT logs worker-dl"
 		sleep 5
 	done
+	# Again, now that this one runs: another slot's may have started meanwhile (a /tmp that isn't
+	# shared, a hand-started one), and the two would talk to YouTube at once.
+	holder="$(stray_worker_dl)"
+	[ -z "$holder" ] || die "another slot's worker-dl started meanwhile ($holder): stopping this one"
 	echo "agent_stack: worker-dl is up" >&2
 	export COMPOSE_PROFILES=realdl
 }
@@ -410,12 +419,30 @@ acquire_realdl() {
 # slot's worker-dl still runs. Stdin stays the caller's.
 LOCKED_CHILD=""
 LOCKED_SIGNAL=""
+
+# A process and all its descendants (they started with SIGINT ignored, and a wrapper like
+# `sh -c` doesn't pass a TERM on), deepest first.
+process_tree() {
+	local child
+	for child in $(ps -o pid= --ppid "$1" 2>/dev/null); do
+		process_tree "$child"
+	done
+	echo "$1"
+}
+
+stop_locked_child() {
+	LOCKED_SIGNAL=$1
+	# shellcheck disable=SC2046 # one pid per word
+	kill -TERM $(process_tree "$LOCKED_CHILD") 2>/dev/null || true
+}
+
 run_locked() {
 	local status=0
 	"$@" <&0 9>&- &
 	LOCKED_CHILD=$!
-	trap 'LOCKED_SIGNAL=130; kill -TERM "$LOCKED_CHILD" 2>/dev/null || true' INT
-	trap 'LOCKED_SIGNAL=143; kill -TERM "$LOCKED_CHILD" 2>/dev/null || true' TERM
+	trap 'stop_locked_child 130' INT
+	trap 'stop_locked_child 143' TERM
+	trap 'stop_locked_child 129' HUP
 	# A trapped signal ends `wait` early: wait again until the child has really exited.
 	while :; do
 		status=0
@@ -425,6 +452,7 @@ run_locked() {
 	LOCKED_CHILD=""
 	trap 'exit 130' INT
 	trap 'exit 143' TERM
+	trap 'exit 129' HUP
 	[ -z "$LOCKED_SIGNAL" ] || exit "$LOCKED_SIGNAL"
 	return "$status"
 }
@@ -454,8 +482,8 @@ load_e2e_credentials() {
 	local file="$ROOT/frontend/e2e/.env.e2e.s$SLOT" key value
 	[ -f "$file" ] || die "no $file: copy frontend/e2e/.env.e2e.example there and fill in slot $SLOT's two test identities (docs/LOCAL_DEV.md, 'Parallel agent stacks')"
 	while IFS= read -r line || [ -n "$line" ]; do
-		[[ "$line" =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]] || continue
-		key="${BASH_REMATCH[1]}"
+		[[ "$line" =~ ^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]] || continue
+		key="${BASH_REMATCH[2]}"
 		value="$(env_value "$file" "$key")"
 		export "$key=$value"
 	done <"$file"
@@ -472,9 +500,10 @@ env)
 	write_env_agent
 	;;
 up)
-	[ -f "$ENV_AGENT" ] || write_env_agent
+	# Rewritten on every up (secrets, PG_PORT and extra emails kept), so a changed .env or a
+	# PG_PORT=… given to up takes effect.
+	write_env_agent
 	require_env_agent
-	disable_env_database
 	export_compose_env
 	for arg in "$@"; do
 		[ "$arg" != worker-dl ] || die "worker-dl runs only under the realdl lock: scripts/agent_stack.sh $SLOT realdl <command>"
@@ -534,11 +563,16 @@ pytest)
 	asyncio_pin="pytest-asyncio==$(lock_version pytest-asyncio)"
 	dc exec -T api sh -c "[ -x /tmp/pytest-venv/bin/pytest ] || { python -m venv --system-site-packages /tmp/pytest-venv && uv pip install --quiet --python /tmp/pytest-venv/bin/python '$pytest_pin' '$asyncio_pin'; }"
 	if [ -t 0 ] && [ -t 1 ]; then tty_flag=(); else tty_flag=(-T); fi
-	dc exec "${tty_flag[@]}" -w /app api env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp PYTHONDONTWRITEBYTECODE=1 \
+	dc exec "${tty_flag[@]}" -w /src api env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp PYTHONDONTWRITEBYTECODE=1 \
 		/tmp/pytest-venv/bin/python -m pytest -p no:cacheprovider "$@"
 	;;
 run)
 	[ $# -ge 1 ] || die "usage: scripts/agent_stack.sh $SLOT run <command...>"
+	# Naming a profiled service enables its profile: `run docker compose up worker-dl` would start
+	# it without the lock.
+	if [[ " $* " == *" worker-dl "* ]] && [[ " $* " =~ \ (up|start|restart|create|run)\  ]]; then
+		die "worker-dl runs only under the realdl lock: scripts/agent_stack.sh $SLOT realdl <command>"
+	fi
 	require_env_agent
 	export_compose_env
 	"$@"
@@ -567,9 +601,10 @@ realdl)
 	[ $# -ge 1 ] || die "usage: scripts/agent_stack.sh $SLOT realdl <command...>"
 	require_env_agent
 	export_compose_env
-	acquire_realdl "$*"
+	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"
 	backlog="$(pending_downloads)"
-	[ "$backlog" = 0 ] || echo "agent_stack: note: $backlog unfinished track(s) outside the ledger will download now" >&2
+	[ "$backlog" = 0 ] || echo "agent_stack: note: $backlog unfinished track(s) outside the ledger will download once worker-dl starts" >&2
+	acquire_realdl "$*"
 	run_locked "$@"
 	;;
 *)

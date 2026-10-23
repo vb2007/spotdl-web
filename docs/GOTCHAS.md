@@ -187,6 +187,8 @@ needed" claim — rather than silently deleted.
 - `trap '' INT` doesn't protect a `docker compose` child (Go re-enables SIGINT); bash defers a
   trapped SIGTERM until the foreground child exits → *v50*
 - `pg_isready` without `-h` passes against the image's socket-only init server → *v50*
+- Celery as PID 1 drops SIGTERM until its handlers exist: a `worker-dl` stopped in its first
+  seconds waits out the 300 s grace period (slot overlay: `init: true`) → *v50*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -5741,3 +5743,13 @@ independently-found production bug from the same conversation)
 - **`pg_isready` without `-h` checks the unix socket.** On a fresh volume the image's init runs a
   temporary server on the socket only; a socket probe passes while TCP clients (`migrate`) still
   get "connection refused". The slot healthcheck probes `-h 127.0.0.1`.
+- **Celery as PID 1 ignores an early SIGTERM.** A process running as PID 1 gets no default signal
+  actions, so until celery has installed its own handlers a SIGTERM does nothing, and `docker stop`
+  waits out `stop_grace_period` (300 s for `worker-dl`) before SIGKILL. A `realdl` interrupted
+  during `worker-dl`'s first seconds sat in its cleanup for the full five minutes. The slot overlay
+  gives `worker-dl` `init: true` (tini as PID 1 passes the signal on, and celery, not yet handling
+  it, simply exits); production's `worker-dl` is unchanged.
+- **A `wait`-based signal forward reaches only the direct child.** The first `run_locked` sent
+  SIGTERM to the command it started; `realdl sh -c 'sleep 299'` left the `sleep` running (a
+  background child of a non-interactive shell starts with SIGINT ignored, so the terminal's Ctrl-C
+  didn't reach it either). It now signals the command's whole process tree, on SIGHUP too.

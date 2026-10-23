@@ -74,16 +74,20 @@ services:
       - .env.agent
     environment: *agent-env
     depends_on: *agent-depends
-    # `agent_stack.sh <slot> pytest` runs the suite in this container, against the worktree's
-    # tests (the image has none) and pytest config (the image's copy is the one it was built with).
+    # `agent_stack.sh <slot> pytest` runs the suite in this container from the worktree's whole
+    # backend (the image has no tests). A directory, not single files: git replaces a file by
+    # rename, and a single-file bind keeps the old inode until the container is recreated. Outside
+    # /app, so `uvicorn --reload` (watching /app) doesn't restart on a test edit.
     volumes:
-      - ./backend/tests:/app/tests:ro
-      - ./backend/pyproject.toml:/app/pyproject.toml:ro
+      - ./backend:/src:ro
 
   # Off unless asked for: only `agent_stack.sh <slot> realdl|e2e` start it, under the host-wide
   # lock /tmp/spotdl-web-realdl.lock, so at most one agent stack ever talks to YouTube.
   worker-dl:
     profiles: ["realdl"]
+    # tini as PID 1: celery started as PID 1 drops SIGTERM until it has installed its handlers, so
+    # a realdl interrupted in worker-dl's first seconds waited out the full 300 s grace period.
+    init: true
     env_file: !override
       - .env.agent
     environment: *agent-env

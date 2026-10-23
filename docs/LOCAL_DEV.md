@@ -290,7 +290,7 @@ brings up its own **slot stack** beside the owner's default one, through one scr
 
 ```bash
 scripts/agent_stack.sh <slot> env      # write .env.agent from the worktree's .env
-scripts/agent_stack.sh <slot> up       # build, start and wait until healthy (writes .env.agent if missing)
+scripts/agent_stack.sh <slot> up       # (re)write .env.agent, build, start, wait until healthy
 scripts/agent_stack.sh <slot> ps|logs|psql
 scripts/agent_stack.sh <slot> run <cmd...>     # <cmd> aimed at the slot (its compose project, files, ports)
 scripts/agent_stack.sh <slot> pytest [args]    # the backend suite, inside the slot's api container
@@ -320,7 +320,7 @@ service refuses to start. The script refuses:
   hold a per-slot lock, `/tmp/spotdl-web-slot<slot>.lock`, so two worktrees can't claim one free
   slot at once);
 - a worktree whose `.env` names a production database (`spotdlweb`, `spotdl_web`);
-- `up worker-dl`.
+- `up worker-dl`, or `run` with a command that would start it (`run docker compose up worker-dl`).
 
 **What `.env.agent` holds.** `env` derives it from the worktree's `.env`, gitignored, mode 600:
 
@@ -333,7 +333,7 @@ service refuses to start. The script refuses:
   `ADMIN_EMAIL=v5s<slot>admin@example.com` (`AGENT_EXTRA_EMAILS=a@example.com,…` before `env` adds more);
 - copied from `.env`, only engine and download tuning plus the upstream login: `UPSTREAM_AUTH_BASE_URL`
   (the real `vb2007.hu-api`), `SPOTIFY_CLIENT_*`, `LADDER_SECONDS`, `STALE_TRACK_AFTER_SECONDS`, pacing,
-  format and bitrate, `PROXY_FILE`, `COOKIE_FILE`, `YOUTUBE_PLAYER_CLIENTS`. Never `.env`'s
+  format, bitrate and `DOWNLOAD_OUTPUT_DIR`, `PROXY_FILE`, `COOKIE_FILE`, `YOUTUBE_PLAYER_CLIENTS`. Never `.env`'s
   identities, Matrix token, tunnel token or database.
 
 **The overlay.** `up` runs `docker compose --env-file .env.agent -f docker-compose.yml -f
@@ -344,7 +344,7 @@ too). `docker-compose.agent.yml` is never part of a production invocation. It:
 - adds a `postgres` service matching production (18.6 on Debian, so glibc's `en_US.UTF-8`
   collation, read from `spotdlwebtest` on the same server; Alpine's musl sorts text differently),
   with a named volume and a healthcheck, and no host port unless `.env.agent`
-  has `PG_PORT` (`PG_PORT=55431 scripts/agent_stack.sh 1 env`, then `up`);
+  has `PG_PORT` (`PG_PORT=55431 scripts/agent_stack.sh 1 up`; `PG_PORT= … up` removes it);
 - points every backend service's `DATABASE_URL` at it and makes them wait for its healthcheck;
   `migrate` builds the schema on first `up`, as on the owner's stack;
 - reads `.env.agent` instead of `.env` in every backend container;
@@ -392,16 +392,19 @@ writes its holder (slot, worktree, pid, start time, command) into the file, rebu
 `worker-dl`, waits until it answers a ping, runs the command, then removes `worker-dl` and
 releases the lock, however the command ends:
 
-- Ctrl-C or SIGTERM to the script ends the command (as SIGTERM) and then cleans up; a second
-  Ctrl-C during the cleanup doesn't cut it short (the removal runs in its own session);
+- Ctrl-C, SIGTERM or SIGHUP to the script ends the command and everything it started (as SIGTERM)
+  and then cleans up; a second Ctrl-C during the cleanup doesn't cut it short (the removal runs in
+  its own session), and `worker-dl` runs under an init (`init: true`), so it stops at once even
+  when interrupted in its first seconds;
 - the command doesn't inherit the lock, so if the script itself is killed outright, the lock frees
-  while that slot's `worker-dl` may still run, and every other slot's `realdl` refuses until
+  while that slot's `worker-dl` may still run, and every other slot's `realdl` refuses (both before
+  starting its own `worker-dl` and again once it answers) until
   it's gone (`scripts/agent_stack.sh <slot> down` there).
 
 A second `realdl` from any slot fails at once, naming the holder: wait and retry, never start
 `worker-dl` by hand. A track whose job is unfinished and whose Spotify id isn't in the ledger
 really downloads once `worker-dl` runs: beat keeps re-dispatching it into the slot's Redis while
-`worker-dl` is off (its stale-track reclaim). `realdl` says how many there are as it starts.
+`worker-dl` is off (its stale-track reclaim). `realdl` says how many there are before it starts `worker-dl`.
 
 **e2e on a slot.** The suite needs `worker-dl` (every seeded job settles there as a duplicate, and
 setup and teardown ask the worker itself what it's running), so `e2e` runs under the realdl
@@ -425,8 +428,8 @@ runs from the worktree's
 `npx playwright install chromium` there once) with
 `E2E_BASE_URL=http://localhost:<web port>`.
 
-**`pytest`** runs the backend suite inside the slot's `api` container, against the worktree's
-`backend/tests` and `pyproject.toml` (the overlay mounts both), with pytest pinned to `uv.lock`'s
+**`pytest`** runs the backend suite inside the slot's `api` container, from the worktree's
+`backend/` (the overlay mounts it read-only at `/src`), with pytest pinned to `uv.lock`'s
 versions and a clean environment, as on the host.
 
 **Teardown and reset.** `down` stops and removes the slot (`worker-dl` included); the database
