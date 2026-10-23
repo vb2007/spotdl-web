@@ -1,33 +1,16 @@
-name: Publish & Deploy
-
-# The publish and deploy steps of the release pipeline (see docs/RELEASE_PIPELINE.md for the full
-# chain and rationale) — builds + pushes both container images to GHCR, then pulls them onto the
-# production host and restarts the stack.
-#
-# Two independent ways in:
-#   - `workflow_call` from release-deploy.yml ("Release & Deploy"), the normal, merge-driven path
-#     (v49): the job right after that run's release job, given the exact commit and the tag it
-#     cut. Builds `:$VERSION` (+ `:latest` when it's the newest release) and persists as the
-#     host's new baseline IMAGE_TAG. Before v49 this was chained onto the Release workflow by a
-#     workflow-completion trigger, which also fired (and skipped itself) after every Release run
-#     that had nothing to deploy, and had to look the release up again (`gh release view`).
-#   - `workflow_dispatch` — deploy any branch/tag/commit manually, e.g. to try a branch on the
-#     real host before its PR is even merged. Builds a throwaway `manual-<short-sha>` tag
-#     (never `latest`, so it can never become what a plain `docker compose pull` gets by
-#     default) and always builds + deploys fresh — none of the skip/idempotency logic below
-#     applies to it, since every dispatch is an explicit, on-demand request.
-"on":
+# SCRATCH COPY for v49 verification; never merged.
+name: Publish & Deploy (scratch)
+'on':
   workflow_call:
     inputs:
       commit:
-        description: "The exact commit to publish and deploy (the release's commit)"
+        description: The exact commit to publish and deploy (the release's commit)
         required: true
         type: string
       release_tag:
-        description: "The release tag the caller's release job cut for it (vX.Y.Z)"
+        description: The release tag the caller's release job cut for it (vX.Y.Z)
         required: true
         type: string
-    # For release-deploy.yml's `notify`: this file's own `notify` only runs for a dispatch.
     outputs:
       version:
         value: ${{ jobs.resolve.outputs.version }}
@@ -40,27 +23,16 @@ name: Publish & Deploy
   workflow_dispatch:
     inputs:
       ref:
-        description: "Branch, tag, or commit SHA to build and deploy"
+        description: Branch, tag, or commit SHA to build and deploy
         required: true
-        default: "main"
-
-# v49: no `concurrency` group. GitHub keeps one running and one *pending* run per group and
-# cancels the older pending one, so a group could cancel a deploy that was waiting its turn
-# (docs/GOTCHAS.md, v33 and v49). Deploys never overlap anyway: there is one self-hosted runner,
-# so two jobs never run at once, and the deploy job's version guard turns a release older than
-# the production baseline into a no-op. A second runner would need another, non-cancelling lock.
-
+        default: main
 permissions:
   contents: write
   packages: write
-
 env:
   BACKEND_IMAGE: ghcr.io/vb2007/spotdl-web-backend
   FRONTEND_IMAGE: ghcr.io/vb2007/spotdl-web-frontend
-
 jobs:
-  # Picks the mode and computes everything the later jobs need, so `publish`/`deploy` never
-  # have to branch on github.event_name themselves.
   resolve:
     runs-on: self-hosted
     outputs:
@@ -70,191 +42,62 @@ jobs:
       persist: ${{ steps.info.outputs.persist }}
       release_tag: ${{ steps.info.outputs.release_tag }}
     steps:
-      # Resolves whatever `ref` is (branch, tag, or commit) to a real checkout. `fetch-depth: 0`
-      # so the exact commit SHA below is always resolvable, regardless of how deep in a
-      # branch's history it is. Release mode is the caller's exact commit, never a lookup (v49).
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.commit || inputs.ref }}
-          fetch-depth: 0
-
-      # Everything downstream keys off the resolved COMMIT SHA, not the human-readable ref --
-      # `git checkout --detach <branch-name>` in the deploy job below can't reliably DWIM a
-      # bare branch name to `origin/<branch-name>` the way plain `git checkout <branch-name>`
-      # does, so passing an unambiguous SHA sidesteps that entirely.
-      #
-      # The mode comes from the inputs, never `github.event_name`: called from "Release & Deploy"
-      # that is the caller's event, `workflow_dispatch` included when the chain is dispatched.
-      # v49: `latest` only goes on the newest release. Nothing cancels a run on `main` any more,
-      # so in a burst of merges an older run can publish after a newer one.
-      - name: Compute version, image tags, and persistence mode
-        id: info
-        env:
-          RELEASE_COMMIT: ${{ inputs.commit }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-        run: |
-          COMMIT="$(git rev-parse HEAD)"
-          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
-          if [ -z "$RELEASE_COMMIT" ]; then
-            VERSION="manual-$(git rev-parse --short HEAD)"
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-            echo "image_tags=$VERSION" >> "$GITHUB_OUTPUT"
-            echo "persist=false" >> "$GITHUB_OUTPUT"
-          else
-            VERSION="$(python3 .github/scripts/check_version.py)"
-            if [ "$RELEASE_TAG" != "v$VERSION" ]; then
-              echo "::error::Release tag $RELEASE_TAG doesn't match version $VERSION at $COMMIT."
-              exit 1
-            fi
-            NEWEST="$( { git ls-remote --tags --refs origin 'refs/tags/v*' | sed 's|.*refs/tags/||'; echo "$RELEASE_TAG"; } \
-              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
-            if [ "$NEWEST" = "$RELEASE_TAG" ]; then
-              echo "image_tags=$VERSION,latest" >> "$GITHUB_OUTPUT"
-            else
-              echo "image_tags=$VERSION" >> "$GITHUB_OUTPUT"
-              echo "Not tagging latest: $NEWEST is newer than $RELEASE_TAG."
-            fi
-            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-            echo "persist=true" >> "$GITHUB_OUTPUT"
-            echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+    - uses: actions/checkout@v7
+      with:
+        ref: ${{ inputs.commit || inputs.ref }}
+        fetch-depth: 0
+    - name: Compute version, image tags, and persistence mode
+      id: info
+      env:
+        RELEASE_COMMIT: ${{ inputs.commit }}
+        RELEASE_TAG: ${{ inputs.release_tag }}
+      run: |
+        COMMIT="$(git rev-parse HEAD)"
+        echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+        if [ -z "$RELEASE_COMMIT" ]; then
+          VERSION="manual-$(git rev-parse --short HEAD)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "image_tags=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "persist=false" >> "$GITHUB_OUTPUT"
+        else
+          VERSION="$(python3 .github/scripts/check_version.py)"
+          if [ "$RELEASE_TAG" != "v$VERSION" ]; then
+            echo "::error::Release tag $RELEASE_TAG doesn't match version $VERSION at $COMMIT."
+            exit 1
           fi
-
+          NEWEST="$( { git ls-remote --tags --refs origin 'refs/tags/scratch-v*' | sed 's|.*refs/tags/scratch-||'; echo "$RELEASE_TAG"; } \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
+          if [ "$NEWEST" = "$RELEASE_TAG" ]; then
+            echo "image_tags=$VERSION,latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_tags=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "Not tagging latest: $NEWEST is newer than $RELEASE_TAG."
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "persist=true" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+        fi
   publish:
     needs: resolve
     runs-on: self-hosted
-    # v49: read by release-deploy.yml's `notify`, through this workflow's `published` output.
     outputs:
       done: ${{ steps.done.outputs.done }}
     steps:
-      # Every job on this host runs as the same Unix user, so a plain `docker login` writes into
-      # one ~/.docker/config.json shared with every other job, run AND repository whose runner
-      # lives here. 2026-10-19: vb2007.hu-api's deploy logged in and out of ghcr.io between this
-      # job's login and its push, and the push failed `unauthenticated`. Each job therefore gets
-      # its own DOCKER_CONFIG under RUNNER_TEMP: the shared file's settings (current context,
-      # plugins) without any credential, so this job neither reads nor writes anyone's login.
-      - name: Use a job-private Docker config
-        run: |
-          DIR="$RUNNER_TEMP/docker-config"
-          SHARED="${DOCKER_CONFIG:-$HOME/.docker}"
-          rm -rf "$DIR" && mkdir -p "$DIR"
-          if [ -f "$SHARED/config.json" ]; then
-            python3 -c 'import json, sys
-          c = json.load(open(sys.argv[1]))
-          for k in ("auths", "credsStore", "credHelpers"):
-              c.pop(k, None)
-          json.dump(c, open(sys.argv[2], "w"))' "$SHARED/config.json" "$DIR/config.json"
-          fi
-          # Plugins (buildx, compose) and contexts are found only under DOCKER_CONFIG or the
-          # system plugin dirs, so the user-level ones are linked in, read-only in practice.
-          for d in cli-plugins contexts; do
-            if [ -e "$SHARED/$d" ]; then ln -s "$SHARED/$d" "$DIR/$d"; fi
-          done
-          echo "DOCKER_CONFIG=$DIR" >> "$GITHUB_ENV"
-
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.resolve.outputs.commit }}
-
-      # Plain `docker build` + `docker push`, not `buildx --push` -- the default builder can't
-      # push directly, and building locally first means the deploy job's later `pull` resolves
-      # straight from layers already on this same machine/runner.
-      - name: Check whether this version is already published
-        id: check
-        run: |
-          if [ "${{ needs.resolve.outputs.persist }}" = "true" ] \
-             && docker manifest inspect "$BACKEND_IMAGE:${{ needs.resolve.outputs.version }}" >/dev/null 2>&1 \
-             && docker manifest inspect "$FRONTEND_IMAGE:${{ needs.resolve.outputs.version }}" >/dev/null 2>&1; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Log in to GHCR
-        if: steps.check.outputs.skip == 'false'
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-      - name: Build backend image
-        if: steps.check.outputs.skip == 'false'
-        run: |
-          args=()
-          IFS=',' read -ra tags <<< "${{ needs.resolve.outputs.image_tags }}"
-          for t in "${tags[@]}"; do args+=(-t "$BACKEND_IMAGE:$t"); done
-          docker build "${args[@]}" \
-            --label org.opencontainers.image.source="https://github.com/${{ github.repository }}" \
-            --label org.opencontainers.image.version="${{ needs.resolve.outputs.version }}" \
-            --label org.opencontainers.image.revision="${{ needs.resolve.outputs.commit }}" \
-            ./backend
-
-      - name: Build frontend image
-        if: steps.check.outputs.skip == 'false'
-        run: |
-          args=()
-          IFS=',' read -ra tags <<< "${{ needs.resolve.outputs.image_tags }}"
-          for t in "${tags[@]}"; do args+=(-t "$FRONTEND_IMAGE:$t"); done
-          # Empty PUBLIC_API_BASE_URL = same-origin, matching docker-compose.yml's existing
-          # build arg default (see frontend/nginx.conf's /api/ proxy).
-          docker build "${args[@]}" \
-            --build-arg PUBLIC_API_BASE_URL= \
-            --label org.opencontainers.image.source="https://github.com/${{ github.repository }}" \
-            --label org.opencontainers.image.version="${{ needs.resolve.outputs.version }}" \
-            --label org.opencontainers.image.revision="${{ needs.resolve.outputs.commit }}" \
-            ./frontend
-
-      - name: Push images
-        if: steps.check.outputs.skip == 'false'
-        run: |
-          IFS=',' read -ra tags <<< "${{ needs.resolve.outputs.image_tags }}"
-          for t in "${tags[@]}"; do
-            docker push "$BACKEND_IMAGE:$t"
-            docker push "$FRONTEND_IMAGE:$t"
-          done
-
-      # The digests don't exist until the images are actually pushed, so this has to happen
-      # here, not in release.yml. Manual-mode runs have no release to attach to, and an
-      # already-published skip has nothing new to record -- both are skipped.
-      - name: Record image digests on the release
-        if: steps.check.outputs.skip == 'false' && needs.resolve.outputs.persist == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          BACKEND_DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$BACKEND_IMAGE:${{ needs.resolve.outputs.version }}")"
-          FRONTEND_DIGEST="$(docker inspect --format='{{index .RepoDigests 0}}' "$FRONTEND_IMAGE:${{ needs.resolve.outputs.version }}")"
-          cat > images.json <<EOF
-          {
-            "version": "${{ needs.resolve.outputs.version }}",
-            "commit": "${{ needs.resolve.outputs.commit }}",
-            "backend": "$BACKEND_DIGEST",
-            "frontend": "$FRONTEND_DIGEST"
-          }
-          EOF
-          gh release upload "${{ needs.resolve.outputs.release_tag }}" images.json --clobber \
-            --repo "${{ github.repository }}"
-
-      # The login above lives only in this job's private DOCKER_CONFIG (first step), never in the
-      # runner's shared ~/.docker/config.json, where a credential that outlived its job once made
-      # a later pull of the public images fail `denied` (v21). Still removed explicitly, and
-      # `if: always()` so a login before an earlier failure is cleaned up too.
-      - name: Log out of GHCR
-        if: always()
-        run: |
-          docker logout ghcr.io || true
-          rm -rf "$RUNNER_TEMP/docker-config"
-
-      - name: Mark the images published
-        id: done
-        run: echo "done=true" >> "$GITHUB_OUTPUT"
-
+    - name: STUB publish
+      run: |
+        echo "STUB docker build + push: commit=${{ needs.resolve.outputs.commit }} tags=${{ needs.resolve.outputs.image_tags }} version=${{ needs.resolve.outputs.version }} persist=${{ needs.resolve.outputs.persist }} release_tag=${{ needs.resolve.outputs.release_tag }}"
+    - name: Mark the images published
+      id: done
+      run: |
+        echo "done=true" >> "$GITHUB_OUTPUT"
   deploy:
-    needs: [resolve, publish]
+    needs:
+    - resolve
+    - publish
     runs-on: self-hosted
-    # v33: 40, not 25. A failing deploy can now spend 420s in the health gate AND up to 420s in
-    # the rollback's own wait, plus pulls and the guard; a timeout mid-rollback would leave the
-    # host half rolled back.
     timeout-minutes: 40
     env:
-      DEPLOY_DIR: /mnt/raid1/spotdl-web
-    # Read by the `notify` job below, and by release-deploy.yml's (through this workflow's
-    # outputs). Outputs are kept even when this job fails.
+      DEPLOY_DIR: /tmp/spotdl-web-ci-chain-scratch
     outputs:
       skipped: ${{ steps.skip.outputs.skip || 'false' }}
       rollback_note: ${{ steps.note.outputs.note }}
@@ -266,575 +109,255 @@ jobs:
       rollback_detail: ${{ steps.rollback.outputs.detail }}
       backup_path: ${{ steps.backup.outputs.path }}
     steps:
-      # Every job on this host runs as the same Unix user, so a plain `docker login` writes into
-      # one ~/.docker/config.json shared with every other job, run AND repository whose runner
-      # lives here. 2026-10-19: vb2007.hu-api's deploy logged in and out of ghcr.io between this
-      # job's login and its push, and the push failed `unauthenticated`. Each job therefore gets
-      # its own DOCKER_CONFIG under RUNNER_TEMP: the shared file's settings (current context,
-      # plugins) without any credential, so this job neither reads nor writes anyone's login.
-      # Here that means every pull is anonymous, as the public images need (no stale
-      # credential can turn a pull into `denied`, the v21 failure).
-      - name: Use a job-private Docker config
-        run: |
-          DIR="$RUNNER_TEMP/docker-config"
-          SHARED="${DOCKER_CONFIG:-$HOME/.docker}"
-          rm -rf "$DIR" && mkdir -p "$DIR"
-          if [ -f "$SHARED/config.json" ]; then
-            python3 -c 'import json, sys
-          c = json.load(open(sys.argv[1]))
-          for k in ("auths", "credsStore", "credHelpers"):
-              c.pop(k, None)
-          json.dump(c, open(sys.argv[2], "w"))' "$SHARED/config.json" "$DIR/config.json"
-          fi
-          # Plugins (buildx, compose) and contexts are found only under DOCKER_CONFIG or the
-          # system plugin dirs, so the user-level ones are linked in, read-only in practice.
-          for d in cli-plugins contexts; do
-            if [ -e "$SHARED/$d" ]; then ln -s "$SHARED/$d" "$DIR/$d"; fi
-          done
-          echo "DOCKER_CONFIG=$DIR" >> "$GITHUB_ENV"
-
-      # This job's own steps below need this PR's scripts (wait_for_stack_health.sh) even on
-      # the very first run, before DEPLOY_DIR itself has been updated to carry them -- checked
-      # out into the job workspace, separate from DEPLOY_DIR itself.
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.resolve.outputs.commit }}
-
-      # v33: the pipeline's own tools (check_required_env.py, migration_guard.sh) come from the
-      # commit this workflow file is running from, not the ref being deployed: a dispatch of a
-      # pre-v33 tag would otherwise have no such scripts, and fail its preflight (or refuse its
-      # rollback) for that reason alone. Release mode runs from main, so it's always current.
-      - name: Check out the pipeline's own scripts
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.sha }}
-          path: .pipeline
-          sparse-checkout: .github/scripts
-
-      - name: Preflight
-        run: |
-          test -d "$DEPLOY_DIR/.git" || { echo "::error::$DEPLOY_DIR is not a git checkout"; exit 1; }
-          test -f "$DEPLOY_DIR/.env" || { echo "::error::$DEPLOY_DIR/.env is missing"; exit 1; }
-          test -f "$DEPLOY_DIR/proxies.txt" || { echo "::error::$DEPLOY_DIR/proxies.txt is missing"; exit 1; }
-
-      # v33: records, before anything moves, both what is running now (`current_tag`, used by
-      # the skip check) and what a rollback returns to (`tag` + `commit`, together). The
-      # rollback target is `.last-good`, written only after a healthy release-mode deploy, so a
-      # throwaway `manual-*` dispatch tag can never become the baseline (it did on 2026-09-27).
-      # `.env` + the checkout's HEAD is the fallback for the first deploy after v33 lands, when
-      # `.last-good` doesn't exist yet.
-      - name: Record the current deployment and the rollback target
-        id: prev
-        run: |
-          CURRENT_TAG="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.env" | tail -n1 | cut -d= -f2- || true)"
-          HEAD_COMMIT="$(git -C "$DEPLOY_DIR" rev-parse HEAD)"
-          echo "current_tag=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
-          echo "current_commit=$HEAD_COMMIT" >> "$GITHUB_OUTPUT"
-          # v33.1: whether what's running now is healthy AND really is CURRENT_TAG, a
-          # precondition for the rollback's fallback to it. Instant (timeout 0), verdict only.
-          # The checkout's own health script, since its compose files are the ones in effect
-          # (a newer script may list a service the old files don't have).
-          HEALTH_SCRIPT="$DEPLOY_DIR/.github/scripts/wait_for_stack_health.sh"
-          [ -f "$HEALTH_SCRIPT" ] || HEALTH_SCRIPT=.github/scripts/wait_for_stack_health.sh
-          RUNNING_IMAGE="$(cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-            ps --format '{{.Image}}' api 2>/dev/null || true)"
-          # ...and was built from HEAD: both build modes stamp org.opencontainers.image.revision,
-          # so a checkout moved without restarting the stack doesn't pass for a matched pair.
-          API_ID="$(cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml \
-            ps -q api 2>/dev/null | head -n1 || true)"
-          RUNNING_REV=""
-          if [ -n "$API_ID" ]; then
-            RUNNING_REV="$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
-              "$API_ID" 2>/dev/null || true)"
-          fi
-          if [ -n "$CURRENT_TAG" ] && [ "${RUNNING_IMAGE##*:}" = "$CURRENT_TAG" ] \
-             && [ "$RUNNING_REV" = "$HEAD_COMMIT" ] \
-             && bash "$HEALTH_SCRIPT" "$DEPLOY_DIR" 0 >/dev/null 2>&1; then
-            echo "current_healthy=true" >> "$GITHUB_OUTPUT"
-            echo "Running stack:        healthy"
-          else
-            echo "current_healthy=false" >> "$GITHUB_OUTPUT"
-            echo "Running stack:        not healthy, or not IMAGE_TAG=${CURRENT_TAG:-(none)} built from HEAD (api image: ${RUNNING_IMAGE:-none}, revision: ${RUNNING_REV:-unknown})"
-          fi
-          echo "Deploy checkout HEAD: $HEAD_COMMIT"
-          echo "Deployed IMAGE_TAG:   ${CURRENT_TAG:-(none)}"
-          if [ -f "$DEPLOY_DIR/.last-good" ]; then
-            TAG="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.last-good" | tail -n1 | cut -d= -f2- || true)"
-            COMMIT="$(grep -E '^COMMIT=' "$DEPLOY_DIR/.last-good" | tail -n1 | cut -d= -f2- || true)"
-            SOURCE=.last-good
-          else
-            TAG="$CURRENT_TAG"
-            COMMIT="$HEAD_COMMIT"
-            SOURCE=".env + checkout HEAD (no .last-good yet)"
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
-          echo "Rollback target:      IMAGE_TAG=${TAG:-(none)} commit=${COMMIT:-(none)} from $SOURCE"
-
-      # v33: the 2026-09-27 incident started with a new `${VAR:?}` in the new commit's compose
-      # files that the host's .env didn't have; `pull` only found out after the checkout and
-      # IMAGE_TAG had already moved. This reads the new commit's compose files out of git into a
-      # temp dir, without touching the deploy checkout, and validates them against the real
-      # .env first. Nothing here prints a .env value: check_required_env.py prints only names,
-      # and `config --quiet` writes nothing to stdout (its full output would hold secrets).
-      # v49: nothing cancels a run on `main` any more, so in a burst of merges an older run's
-      # deploy can come after a newer one's (the one runner takes jobs roughly, not strictly, in
-      # order). A release older than the production baseline (`.last-good`, written only by a
-      # healthy release-mode deploy) is a successful no-op: nothing on the host moves, and
-      # `.last-good` stays on the newer version. Release mode only; a dispatch always deploys.
-      - name: Skip a release older than the production baseline
-        id: stale
-        if: needs.resolve.outputs.persist == 'true'
-        env:
-          VERSION: ${{ needs.resolve.outputs.version }}
-        run: |
-          BASELINE=""
-          if [ -f "$DEPLOY_DIR/.last-good" ]; then
-            BASELINE="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.last-good" | tail -n1 | cut -d= -f2- || true)"
-          fi
-          if printf '%s\n' "$BASELINE" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+' \
-             && [ "$VERSION" != "$BASELINE" ] \
-             && [ "$(printf '%s\n%s\n' "$VERSION" "$BASELINE" | sort -V | head -n1)" = "$VERSION" ]; then
-            echo "stale=true" >> "$GITHUB_OUTPUT"
-            echo "Not deployed: $VERSION is older than the production baseline $BASELINE (.last-good), so this run is a no-op." \
-              | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "stale=false" >> "$GITHUB_OUTPUT"
-            echo "Production baseline: ${BASELINE:-(none)}; deploying $VERSION."
-          fi
-
-      - name: Preflight required variables against the host .env
-        if: steps.stale.outputs.stale != 'true'
-        env:
-          COMMIT: ${{ needs.resolve.outputs.commit }}
-        run: |
-          git -C "$DEPLOY_DIR" fetch origin --tags --prune
-          TMP="$(mktemp -d)"
-          trap 'rm -rf "$TMP"' EXIT
-          for f in docker-compose.yml docker-compose.prod.yml; do
-            git -C "$DEPLOY_DIR" show "$COMMIT:$f" > "$TMP/$f"
-          done
-
-          if ! python3 .pipeline/.github/scripts/check_required_env.py --require-value \
-               --env-file "$DEPLOY_DIR/.env" \
-               --hint "Add each to $DEPLOY_DIR/.env, see docs/DEPLOYMENT.md (and docs/RELEASE_PIPELINE.md, 'Adding a required env var'). Nothing on the host was changed." \
-               "$TMP/docker-compose.yml" "$TMP/docker-compose.prod.yml"; then
-            echo "::error::Preflight: the new commit needs .env variables the host doesn't have (names listed above). Nothing on the host was changed."
-            exit 1
-          fi
-
-          # Belt and braces for everything else a render can trip on. stderr is the only output,
-          # and compose does echo .env content in some errors (a bad value, a malformed line), so
-          # it goes through redact_env.py, which masks every .env value, before the log.
-          if ! docker compose --project-directory "$DEPLOY_DIR" \
-               -f "$TMP/docker-compose.yml" -f "$TMP/docker-compose.prod.yml" --profile tunnel \
-               config --quiet 2> "$TMP/config.err"; then
-            python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" < "$TMP/config.err"
-            echo "::error::Preflight: the new commit's compose files don't render against the host .env (redacted error above). Nothing on the host was changed."
-            exit 1
-          fi
-          echo "Preflight: the new commit's compose files render against $DEPLOY_DIR/.env"
-
-      # Release mode only: a re-run of a deploy that already landed finds the same VERSION
-      # deployed. A manual dispatch always proceeds -- see the workflow header. A stale release
-      # (above) skips too.
-      - name: Skip if this version is already deployed and healthy
-        id: skip
-        if: needs.resolve.outputs.persist == 'true'
-        run: |
-          if [ "${{ steps.stale.outputs.stale }}" = "true" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          elif [ "${{ steps.prev.outputs.current_tag }}" = "${{ needs.resolve.outputs.version }}" ] \
-             && bash .github/scripts/wait_for_stack_health.sh "$DEPLOY_DIR" 0; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      # Runs the CURRENTLY deployed pg_backup.sh (whatever version is in DEPLOY_DIR right now),
-      # before DEPLOY_DIR is switched to the new ref below -- must happen before anything can
-      # touch the schema, in both modes (a manual dispatch can still carry a pending migration).
-      # v33: the dump's path is kept as an output, since a rollback the migration guard refuses
-      # has to hand it to the human.
-      - name: Back up Postgres before migrating
-        id: backup
-        if: steps.skip.outputs.skip != 'true'
-        run: |
-          "$DEPLOY_DIR/scripts/pg_backup.sh" | tee "$RUNNER_TEMP/pg_backup.log"
-          echo "path=$(sed -n 's/^pg_backup: dumping to //p' "$RUNNER_TEMP/pg_backup.log" | tail -n1)" >> "$GITHUB_OUTPUT"
-
-      - name: Update the deploy checkout and bring the stack up
-        id: deploy
-        if: steps.skip.outputs.skip != 'true'
-        run: |
-          cd "$DEPLOY_DIR"
-          # No fetch here (v33): the preflight fetched moments ago, and keeping this step's
-          # first command a host mutation means "this step started" really means "the host
-          # moved", which is what triggers the rollback below.
-          # --force: discards any local drift on TRACKED files (e.g. a hand-edited script) so
-          # the checkout always lands exactly on the resolved commit rather than aborting with
-          # "local changes would be overwritten" -- found by a real hand-edited file blocking
-          # this exact step during v21's own verification.
-          git checkout --detach --force "${{ needs.resolve.outputs.commit }}"
-          git reset --hard "${{ needs.resolve.outputs.commit }}"
-          # NOT -fdx: .env and proxies.txt are gitignored -- -x would delete the host's real
-          # secrets and proxy pool along with any stray build artifacts. `-e /.last-good` on
-          # top of its .gitignore entry, so even a dispatch of a pre-v33 ref keeps it.
-          git clean -fd -e /.last-good
-
-          if grep -q '^IMAGE_TAG=' .env; then
-            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${{ needs.resolve.outputs.version }}/" .env
-          else
-            echo "IMAGE_TAG=${{ needs.resolve.outputs.version }}" >> .env
-          fi
-
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel \
-            up -d --no-build --remove-orphans
-
-      - name: Wait for the stack to become healthy
-        id: health
-        if: steps.skip.outputs.skip != 'true'
-        run: bash .github/scripts/wait_for_stack_health.sh "$DEPLOY_DIR" 420
-
-      # Code rollback only -- Alembic migrations are never downgraded automatically (too risky
-      # unattended); the pre-deploy pg_backup above is the recovery path for a bad migration.
-      #
-      # v33: returns to the previous commit AND tag together. Before, it reset only IMAGE_TAG
-      # and re-ran `up` in the NEW checkout, against the same compose file that had just failed
-      # (2026-09-27: both directions died on the same missing variable). Only runs once the
-      # deploy step has actually started moving the host; a preflight or backup failure left
-      # nothing to roll back. A run cancelled by hand rolls back too, since a cancel mid-`up`
-      # leaves the host half-deployed. (Whether GitHub also runs this after a job-level
-      # `timeout-minutes` cut is not verified; the generous timeout is there so it never has to.) `result` is for the notify job:
-      # not-started (stopped before moving anything), refused (the database is ahead),
-      # guard-error (the guard couldn't tell, so nothing was started), failed (broke after the
-      # checkout began), succeeded.
-      - name: Roll back to the previous commit and image on failure
-        id: rollback
-        if: >-
-          (failure() || cancelled()) && steps.health.outcome != 'success' &&
-          (steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure' ||
-           steps.deploy.outcome == 'cancelled')
-        env:
-          PREV_TAG: ${{ steps.prev.outputs.tag }}
-          PREV_COMMIT: ${{ steps.prev.outputs.commit }}
-          CUR_TAG: ${{ steps.prev.outputs.current_tag }}
-          CUR_COMMIT: ${{ steps.prev.outputs.current_commit }}
-          CUR_HEALTHY: ${{ steps.prev.outputs.current_healthy }}
-          NEW_TAG: ${{ needs.resolve.outputs.version }}
-          BACKUP_PATH: ${{ steps.backup.outputs.path }}
-        run: |
-          # not-started until the checkout below begins moving the host; failed after that.
-          echo "result=not-started" >> "$GITHUB_OUTPUT"
-          echo "Pre-deploy pg_backup: ${BACKUP_PATH:-(path not recorded)}"
-          if [ -z "$PREV_TAG" ] || [ -z "$PREV_COMMIT" ]; then
-            echo "::error::No previous IMAGE_TAG/commit was recorded (first-ever automated deploy) -- nothing to roll back to. See docs/RELEASE_PIPELINE.md for manual recovery."
-            exit 1
-          fi
-
-          # A cancel mid-`up` stops compose, not the new `migrate` container: let a migration
-          # still in flight finish (or die) first, or the guard reads a revision that's about
-          # to change under it.
-          # Fails closed: still running after 5 minutes, or unknown, means no guard and no
-          # rollback, rather than one that kills a migration mid-flight.
-          state=unknown
-          for _ in $(seq 60); do
-            state="$(docker compose -f "$DEPLOY_DIR/docker-compose.yml" -f "$DEPLOY_DIR/docker-compose.prod.yml" \
-              --project-directory "$DEPLOY_DIR" ps -a --format '{{.State}}' migrate 2>/dev/null)" || state=unknown
-            # grep, not `=`: more than one migrate container (a leftover one-off) is several lines.
-            printf '%s\n' "$state" | grep -qx running || break
-            echo "Waiting for the new migrate container to exit before the guard..."
-            sleep 5
-          done
-          if printf '%s\n' "$state" | grep -qx running || [ "$state" = "unknown" ]; then
-            state="$(printf '%s' "$state" | tr '\n' ' ')"
-            echo "result=guard-error" >> "$GITHUB_OUTPUT"
-            echo "::error::Rollback not attempted: the new migrate container is ${state} (a migration may still be in flight), so nothing was started. Pre-deploy pg_backup: ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>}."
-            exit 1
-          fi
-
-          # Migration guard first, before anything moves: a target's compose files out of git,
-          # with its tag, exactly as that stack would start. Its stderr (compose's) goes through
-          # the redactor: these files were never preflighted against today's .env. Its stdout is
-          # only revision ids and its own messages. Sets guard_rc (0 safe, 3 database ahead).
-          TMP="$(mktemp -d)"
-          trap 'rm -rf "$TMP"' EXIT
-          guard() {
-            local dir
-            dir="$(mktemp -d -p "$TMP")"
-            guard_rc=0
-            for f in docker-compose.yml docker-compose.prod.yml; do
-              # Unreadable target = "couldn't check" (1), not a step abort.
-              git -C "$DEPLOY_DIR" show "$2:$f" > "$dir/$f" || { guard_rc=1; return 0; }
-            done
-            IMAGE_TAG="$1" \
-              GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $dir/docker-compose.yml -f $dir/docker-compose.prod.yml --profile tunnel" \
-              bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" \
-              2> "$dir/guard.err" || guard_rc=$?
-            # `|| true`: a redactor failure (it prints nothing then) mustn't abort a rollback
-            # the guard has just cleared.
-            python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" < "$dir/guard.err" >&2 || true
-          }
-          ALSO_AHEAD=""
-          guard "$PREV_TAG" "$PREV_COMMIT"
-
-          # v33.1: the database is ahead of .last-good (a manual-* dispatch migrated it since
-          # the last release, say). Rather than leave the failed deploy running, try the version
-          # that was running just before this deploy: it ran on this schema minutes ago. Only on
-          # a refusal (3), never on a guard error; only if that version was healthy before this
-          # run and isn't the very build that just failed (a re-run of a failed deploy would
-          # otherwise "roll back" onto itself). "Same build" is the tag: the same commit under
-          # another tag is another image (yt-dlp floats), while a re-pulled tag is overwritten. .last-good itself is left alone, so a throwaway
-          # tag still never becomes the baseline. The goal is the least downtime.
-          echo "fallback=false" >> "$GITHUB_OUTPUT"
-          if [ "$guard_rc" -eq 3 ] && [ -n "$CUR_TAG" ] && [ -n "$CUR_COMMIT" ] \
-             && { [ "$CUR_TAG" != "$PREV_TAG" ] || [ "$CUR_COMMIT" != "$PREV_COMMIT" ]; } \
-             && [ "$CUR_HEALTHY" = "true" ] \
-             && [ "$CUR_TAG" != "$NEW_TAG" ]; then
-            echo "::warning::The database is ahead of $PREV_TAG (.last-good). Trying the pre-deploy version instead: IMAGE_TAG=$CUR_TAG commit=$CUR_COMMIT"
-            guard "$CUR_TAG" "$CUR_COMMIT"
-            if [ "$guard_rc" -eq 0 ]; then
-              echo "Falling back to the pre-deploy version: the database is ahead of $PREV_TAG but known to $CUR_TAG."
-              echo "::notice::The migration_guard error above (database ahead of $PREV_TAG) is superseded: rolling back to the pre-deploy version $CUR_TAG instead. No backup restore is needed."
-              PREV_TAG="$CUR_TAG"
-              PREV_COMMIT="$CUR_COMMIT"
-              echo "fallback=true" >> "$GITHUB_OUTPUT"
+    - name: Use a job-private Docker config
+      run: |
+        DIR="$RUNNER_TEMP/docker-config"
+        SHARED="${DOCKER_CONFIG:-$HOME/.docker}"
+        rm -rf "$DIR" && mkdir -p "$DIR"
+        if [ -f "$SHARED/config.json" ]; then
+          python3 -c 'import json, sys
+        c = json.load(open(sys.argv[1]))
+        for k in ("auths", "credsStore", "credHelpers"):
+            c.pop(k, None)
+        json.dump(c, open(sys.argv[2], "w"))' "$SHARED/config.json" "$DIR/config.json"
+        fi
+        # Plugins (buildx, compose) and contexts are found only under DOCKER_CONFIG or the
+        # system plugin dirs, so the user-level ones are linked in, read-only in practice.
+        for d in cli-plugins contexts; do
+          if [ -e "$SHARED/$d" ]; then ln -s "$SHARED/$d" "$DIR/$d"; fi
+        done
+        echo "DOCKER_CONFIG=$DIR" >> "$GITHUB_ENV"
+    - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.resolve.outputs.commit }}
+    - name: Check out the pipeline's own scripts
+      uses: actions/checkout@v7
+      with:
+        ref: ${{ github.sha }}
+        path: .pipeline
+        sparse-checkout: .github/scripts
+    - name: Preflight
+      run: |
+        mkdir -p "$DEPLOY_DIR"; echo "STUB preflight of $DEPLOY_DIR"
+    - name: Record the current deployment and the rollback target
+      id: prev
+      run: |
+        CURRENT_TAG="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.env" 2>/dev/null | tail -n1 | cut -d= -f2- || true)"
+        echo "current_tag=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
+        echo "current_commit=stub" >> "$GITHUB_OUTPUT"
+        echo "current_healthy=true" >> "$GITHUB_OUTPUT"
+        TAG="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.last-good" 2>/dev/null | tail -n1 | cut -d= -f2- || true)"
+        echo "tag=${TAG:-$CURRENT_TAG}" >> "$GITHUB_OUTPUT"
+        echo "commit=stub" >> "$GITHUB_OUTPUT"
+        echo "STUB record: IMAGE_TAG=${CURRENT_TAG:-(none)} .last-good=${TAG:-(none)}"
+    - name: Skip a release older than the production baseline
+      id: stale
+      if: needs.resolve.outputs.persist == 'true'
+      env:
+        VERSION: ${{ needs.resolve.outputs.version }}
+      run: |
+        BASELINE=""
+        if [ -f "$DEPLOY_DIR/.last-good" ]; then
+          BASELINE="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.last-good" | tail -n1 | cut -d= -f2- || true)"
+        fi
+        if printf '%s\n' "$BASELINE" | grep -Eqx '[0-9]+\.[0-9]+\.[0-9]+' \
+           && [ "$VERSION" != "$BASELINE" ] \
+           && [ "$(printf '%s\n%s\n' "$VERSION" "$BASELINE" | sort -V | head -n1)" = "$VERSION" ]; then
+          echo "stale=true" >> "$GITHUB_OUTPUT"
+          echo "Not deployed: $VERSION is older than the production baseline $BASELINE (.last-good), so this run is a no-op." \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+        else
+          echo "stale=false" >> "$GITHUB_OUTPUT"
+          echo "Production baseline: ${BASELINE:-(none)}; deploying $VERSION."
+        fi
+    - name: Preflight required variables against the host .env
+      if: steps.stale.outputs.stale != 'true'
+      env:
+        COMMIT: ${{ needs.resolve.outputs.commit }}
+      run: |
+        echo "STUB required-variable preflight for ${{ needs.resolve.outputs.commit }}"
+    - name: Skip if this version is already deployed and healthy
+      id: skip
+      if: needs.resolve.outputs.persist == 'true'
+      run: |
+        if [ "${{ steps.stale.outputs.stale }}" = "true" ]; then
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        elif [ "${{ steps.prev.outputs.current_tag }}" = "${{ needs.resolve.outputs.version }}" ] \
+           && true; then
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+        fi
+    - name: Back up Postgres before migrating
+      id: backup
+      if: steps.skip.outputs.skip != 'true'
+      run: |
+        echo "STUB pg_backup"; echo "path=/stub/backup.sql.gz" >> "$GITHUB_OUTPUT"
+    - name: Update the deploy checkout and bring the stack up
+      id: deploy
+      if: steps.skip.outputs.skip != 'true'
+      run: |
+        echo "STUB deploy: commit=${{ needs.resolve.outputs.commit }} version=${{ needs.resolve.outputs.version }} persist=${{ needs.resolve.outputs.persist }}"
+        echo "$(date -u +%FT%TZ) run=${{ github.run_id }} deployed ${{ needs.resolve.outputs.version }} (${{ needs.resolve.outputs.commit }})" >> "$DEPLOY_DIR/deploys.log"
+        printf 'IMAGE_TAG=%s\n' "${{ needs.resolve.outputs.version }}" > "$DEPLOY_DIR/.env"
+    - name: Wait for the stack to become healthy
+      id: health
+      if: steps.skip.outputs.skip != 'true'
+      run: |
+        if [ -f .scratch-fail-health ]; then echo "STUB health gate: failing on purpose (.scratch-fail-health)"; exit 1; fi
+        echo "STUB health gate: healthy"
+    - name: Roll back to the previous commit and image on failure
+      id: rollback
+      if: |-
+        (failure() || cancelled()) && steps.health.outcome != 'success' && (steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure' ||
+         steps.deploy.outcome == 'cancelled')
+      env:
+        PREV_TAG: ${{ steps.prev.outputs.tag }}
+        PREV_COMMIT: ${{ steps.prev.outputs.commit }}
+        CUR_TAG: ${{ steps.prev.outputs.current_tag }}
+        CUR_COMMIT: ${{ steps.prev.outputs.current_commit }}
+        CUR_HEALTHY: ${{ steps.prev.outputs.current_healthy }}
+        NEW_TAG: ${{ needs.resolve.outputs.version }}
+        BACKUP_PATH: ${{ steps.backup.outputs.path }}
+      run: |
+        echo "STUB rollback to IMAGE_TAG=$PREV_TAG"
+        echo "result=succeeded" >> "$GITHUB_OUTPUT"
+        echo "fallback=false" >> "$GITHUB_OUTPUT"
+        echo "target=$PREV_TAG" >> "$GITHUB_OUTPUT"
+        exit 1
+    - name: Record last-known-good
+      if: success() && needs.resolve.outputs.persist == 'true' && steps.stale.outputs.stale != 'true'
+      env:
+        COMMIT: ${{ needs.resolve.outputs.commit }}
+      run: |
+        printf 'IMAGE_TAG=%s\nCOMMIT=%s\n' "${{ needs.resolve.outputs.version }}" "$COMMIT" > "$DEPLOY_DIR/.last-good"
+        echo "Wrote $DEPLOY_DIR/.last-good (stub):"; cat "$DEPLOY_DIR/.last-good"
+    - name: Prune old images and build cache
+      if: steps.skip.outputs.skip != 'true' && success()
+      run: |
+        echo "STUB prune"
+    - name: Describe the rollback for the notice
+      id: note
+      if: always()
+      env:
+        ROLLBACK: ${{ steps.rollback.outputs.result }}
+        ROLLBACK_TAG: ${{ steps.rollback.outputs.target || steps.prev.outputs.tag }}
+        ROLLBACK_FALLBACK: ${{ steps.rollback.outputs.fallback }}
+        ROLLBACK_DETAIL: ${{ steps.rollback.outputs.detail }}
+        BACKUP_PATH: ${{ steps.backup.outputs.path }}
+        DEPLOY_STEP: ${{ steps.deploy.outcome }}
+        HEALTH: ${{ steps.health.outcome }}
+      run: |
+        case "$ROLLBACK" in
+          succeeded)
+            if [ "$ROLLBACK_FALLBACK" = "true" ]; then
+              rollback="succeeded, back on ${ROLLBACK_TAG}: the pre-deploy version, since the database is ahead of .last-good"
             else
-              # .last-good's verdict stands: the database is ahead of it, and the fallback
-              # isn't usable either way.
-              [ "$guard_rc" -eq 3 ] \
-                && ALSO_AHEAD=", and of the pre-deploy version $CUR_TAG too (so this deploy's migrate moved it: the pre-deploy backup matches $CUR_TAG @ $CUR_COMMIT)" \
-                || ALSO_AHEAD=" (the pre-deploy version $CUR_TAG @ $CUR_COMMIT couldn't be checked; it may still be compatible)"
-              guard_rc=3
+              rollback="succeeded, back on ${ROLLBACK_TAG}"
             fi
-          elif [ "$guard_rc" -eq 3 ] && [ -n "$CUR_TAG" ] \
-               && { [ "$CUR_TAG" != "$PREV_TAG" ] || [ "$CUR_COMMIT" != "$PREV_COMMIT" ]; }; then
-            # Only when there was a distinct pre-deploy version to consider (the usual case,
-            # pre-deploy == .last-good, needs no explanation).
-            if [ "$CUR_HEALTHY" != "true" ]; then
-              ALSO_AHEAD=" (no fallback: the pre-deploy version $CUR_TAG @ $CUR_COMMIT wasn't healthy, or wasn't what was running, before this run; this run's backup may be ahead of .last-good too)"
+            ;;
+          refused)
+            if [ -n "$ROLLBACK_DETAIL" ]; then
+              # The detail changes the right recovery (the backup may be ahead of
+              # .last-good too), so point at the docs rather than give generic advice.
+              rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}${ROLLBACK_DETAIL}. Recovery depends on that detail: docs/DEPLOYMENT.md, 'The database is ahead of the rollback image'. Pre-deploy pg_backup: ${BACKUP_PATH:-path in the run log}"
             else
-              ALSO_AHEAD=" (no fallback: the pre-deploy version $CUR_TAG @ $CUR_COMMIT is the build that just failed)"
+              rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup (${BACKUP_PATH:-path in the run log}) or roll forward"
             fi
-          fi
-          echo "detail=$ALSO_AHEAD" >> "$GITHUB_OUTPUT"
-          echo "target=$PREV_TAG" >> "$GITHUB_OUTPUT"
-
-          if [ "$guard_rc" -eq 3 ]; then
-            echo "result=refused" >> "$GITHUB_OUTPUT"
-            echo "::error::Rollback refused: the database is ahead of $PREV_TAG$ALSO_AHEAD. The failed deploy's checkout and containers are left as they are. Restore the pre-deploy pg_backup at ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>} or roll forward; see docs/DEPLOYMENT.md, 'Rollback / recovery'."
-            exit 1
-          elif [ "$guard_rc" -ne 0 ]; then
-            echo "result=guard-error" >> "$GITHUB_OUTPUT"
-            echo "::error::Rollback not attempted: the migration guard couldn't compare revisions (exit $guard_rc, see above), so the old stack was not started. The failed deploy's checkout and containers are left as they are. Pre-deploy pg_backup: ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>}."
-            exit 1
-          fi
-
-          echo "Rolling back to commit $PREV_COMMIT, IMAGE_TAG=$PREV_TAG"
-          echo "result=failed" >> "$GITHUB_OUTPUT"
-          cd "$DEPLOY_DIR"
-          git checkout --detach --force "$PREV_COMMIT"
-          git reset --hard "$PREV_COMMIT"
-          git clean -fd -e /.last-good
-          if grep -q '^IMAGE_TAG=' .env; then
-            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=$PREV_TAG/" .env
-          else
-            echo "IMAGE_TAG=$PREV_TAG" >> .env
-          fi
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel \
-            up -d --no-build --remove-orphans
-          # The previous commit's own health script: its compose files are the ones in effect.
-          bash "$DEPLOY_DIR/.github/scripts/wait_for_stack_health.sh" "$DEPLOY_DIR" 420
-          echo "result=succeeded" >> "$GITHUB_OUTPUT"
-          echo "Rollback succeeded: commit $(git rev-parse HEAD), IMAGE_TAG=$PREV_TAG"
-          exit 1
-
-      # v33: the durable rollback baseline. Only a healthy release-mode deploy writes it (a
-      # `manual-*` dispatch never does), including an idempotency-skipped run, whose skip check
-      # just confirmed this same version healthy, but never a stale one (v49), which would move
-      # the baseline back. Only when the checkout is actually on the
-      # release's own commit: the skip check compares tags, not commits, and a tag paired with
-      # some other commit is exactly the mismatch this file exists to prevent. Gitignored, so
-      # `git clean -fd` leaves it; written via rename so a crash can't leave half a file.
-      - name: Record last-known-good
-        if: success() && needs.resolve.outputs.persist == 'true' && steps.stale.outputs.stale != 'true'
-        env:
-          COMMIT: ${{ needs.resolve.outputs.commit }}
-        run: |
-          HEAD_COMMIT="$(git -C "$DEPLOY_DIR" rev-parse HEAD)"
-          if [ "$HEAD_COMMIT" != "$COMMIT" ]; then
-            echo "::warning::.last-good not updated: the deploy checkout is at $HEAD_COMMIT, not the release's $COMMIT."
-            exit 0
-          fi
-          printf 'IMAGE_TAG=%s\nCOMMIT=%s\n' "${{ needs.resolve.outputs.version }}" \
-            "$HEAD_COMMIT" > "$DEPLOY_DIR/.last-good.tmp"
-          mv "$DEPLOY_DIR/.last-good.tmp" "$DEPLOY_DIR/.last-good"
-          echo "Wrote $DEPLOY_DIR/.last-good:"
-          cat "$DEPLOY_DIR/.last-good"
-
-      # v33: housekeeping on an already-healthy deploy, so a prune error is a warning, not a
-      # failed run (which would also send a false "deploy failed" alert).
-      - name: Prune old images and build cache
-        if: steps.skip.outputs.skip != 'true' && success()
-        run: |
-          docker image prune -f || echo "::warning::docker image prune failed"
-          docker builder prune -f --keep-storage 5GB || echo "::warning::docker builder prune failed"
-
-      # v49: the notice's "Rollback:" line, composed here, where every step's outcome is known, so
-      # this file's `notify` (a dispatch) and release-deploy.yml's (the chain) send the same text.
-      # It stays empty only when the job never got this far (the runner died): the notify jobs
-      # say so.
-      - name: Describe the rollback for the notice
-        id: note
-        if: always()
-        env:
-          ROLLBACK: ${{ steps.rollback.outputs.result }}
-          ROLLBACK_TAG: ${{ steps.rollback.outputs.target || steps.prev.outputs.tag }}
-          ROLLBACK_FALLBACK: ${{ steps.rollback.outputs.fallback }}
-          ROLLBACK_DETAIL: ${{ steps.rollback.outputs.detail }}
-          BACKUP_PATH: ${{ steps.backup.outputs.path }}
-          DEPLOY_STEP: ${{ steps.deploy.outcome }}
-          HEALTH: ${{ steps.health.outcome }}
-        run: |
-          case "$ROLLBACK" in
-            succeeded)
-              if [ "$ROLLBACK_FALLBACK" = "true" ]; then
-                rollback="succeeded, back on ${ROLLBACK_TAG}: the pre-deploy version, since the database is ahead of .last-good"
-              else
-                rollback="succeeded, back on ${ROLLBACK_TAG}"
-              fi
-              ;;
-            refused)
-              if [ -n "$ROLLBACK_DETAIL" ]; then
-                # The detail changes the right recovery (the backup may be ahead of
-                # .last-good too), so point at the docs rather than give generic advice.
-                rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}${ROLLBACK_DETAIL}. Recovery depends on that detail: docs/DEPLOYMENT.md, 'The database is ahead of the rollback image'. Pre-deploy pg_backup: ${BACKUP_PATH:-path in the run log}"
-              else
-                rollback="REFUSED: the database is ahead of ${ROLLBACK_TAG}. Restore the pre-deploy pg_backup (${BACKUP_PATH:-path in the run log}) or roll forward"
-              fi
-              ;;
-            guard-error) rollback="NOT STARTED: the migration guard couldn't compare revisions, so the old stack was left alone. See the run log" ;;
-            not-started) rollback="NOT STARTED: the rollback stopped before moving anything (see the run log); the failed deploy is still in place" ;;
-            failed)
-              # if/else, not `$([ … ] && echo …)`: under -e a false test in a substitution
-              # fails the whole assignment, and the message would never be sent.
-              if [ "$ROLLBACK_FALLBACK" = "true" ]; then
-                rollback="FAILED rolling back to ${ROLLBACK_TAG} (the pre-deploy version), the stack may be down"
-              else
-                rollback="FAILED rolling back to ${ROLLBACK_TAG}, the stack may be down"
-              fi
-              ;;
-            *)
-              if [ "$DEPLOY_STEP" = "success" ] && [ "$HEALTH" = "success" ]; then
-                rollback="not needed, the new version passed its health gate (a later step failed, see the run)"
-              elif [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ] || [ "$DEPLOY_STEP" = "cancelled" ]; then
-                rollback="not attempted, the host may be mid-deploy"
-              else
-                rollback="not needed, nothing on the host was changed"
-              fi
-              ;;
-          esac
-          echo "note=$rollback" >> "$GITHUB_OUTPUT"
-
-      # Also echoed to the log (tee), so a run's end state is evidence without SSH. HEAD, the
-      # IMAGE_TAG line and .last-good aren't secret; compose's own output is redacted.
-      - name: Summary
-        if: always()
-        run: |
-          {
-            echo "## Deploy"
-            echo "- version: \`${{ needs.resolve.outputs.version }}\`"
-            echo "- mode: ${{ needs.resolve.outputs.persist == 'true' && 'release' || 'manual dispatch' }}"
-            echo "- skipped: ${{ steps.skip.outputs.skip || 'false' }}"
-            echo "- rollback: ${{ steps.rollback.outputs.result || 'not attempted' }}"
-            echo "- deploy checkout HEAD: \`$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || echo unknown)\`"
-            echo "- .env: \`$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.env" 2>/dev/null | tail -n1 || true)\`"
-            echo "- .last-good: \`$(tr '\n' ' ' 2>/dev/null < "$DEPLOY_DIR/.last-good" || echo absent)\`"
-            echo
-            echo '```'
-            # stdout (the container list) as is; stderr, the diagnostic when ps fails, through
-            # the redactor, since a .env compose can't parse gets echoed back in the error.
-            (cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml ps \
-              2> "$RUNNER_TEMP/summary-ps.err") || true
-            python3 .pipeline/.github/scripts/redact_env.py "$DEPLOY_DIR/.env" \
-              < "$RUNNER_TEMP/summary-ps.err" 2>&1 || true
-            echo '```'
-          } | tee -a "$GITHUB_STEP_SUMMARY"
-
-  # v33: nobody was told on 2026-09-27. One Matrix message for any failed or cancelled run (a
-  # successful one was announced only in release mode), so silence means "nothing happened",
-  # never "maybe it failed".
-  # v49: a dispatch only. Called from "Release & Deploy", that run's own `notify` sends the
-  # notice (from this workflow's outputs), so it never arrives twice. One `run:` step, no `uses:`
-  # (no checkout): a GitHub-side failure on an action download (v48's 429, which took 4.40.2's
-  # deploy and its notice down together) can't stop this job, since it downloads nothing.
+            ;;
+          guard-error) rollback="NOT STARTED: the migration guard couldn't compare revisions, so the old stack was left alone. See the run log" ;;
+          not-started) rollback="NOT STARTED: the rollback stopped before moving anything (see the run log); the failed deploy is still in place" ;;
+          failed)
+            # if/else, not `$([ … ] && echo …)`: under -e a false test in a substitution
+            # fails the whole assignment, and the message would never be sent.
+            if [ "$ROLLBACK_FALLBACK" = "true" ]; then
+              rollback="FAILED rolling back to ${ROLLBACK_TAG} (the pre-deploy version), the stack may be down"
+            else
+              rollback="FAILED rolling back to ${ROLLBACK_TAG}, the stack may be down"
+            fi
+            ;;
+          *)
+            if [ "$DEPLOY_STEP" = "success" ] && [ "$HEALTH" = "success" ]; then
+              rollback="not needed, the new version passed its health gate (a later step failed, see the run)"
+            elif [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ] || [ "$DEPLOY_STEP" = "cancelled" ]; then
+              rollback="not attempted, the host may be mid-deploy"
+            else
+              rollback="not needed, nothing on the host was changed"
+            fi
+            ;;
+        esac
+        echo "note=$rollback" >> "$GITHUB_OUTPUT"
+    - name: Summary
+      if: always()
+      run: |
+        { echo "## Deploy (scratch stub)"; echo "- version: ${{ needs.resolve.outputs.version }}"; echo "- mode: ${{ needs.resolve.outputs.persist == 'true' && 'release' || 'manual dispatch' }}"; echo "- skipped: ${{ steps.skip.outputs.skip || 'false' }}"; echo "- stale: ${{ steps.stale.outputs.stale || 'n/a' }}"; echo "- .env: $(cat "$DEPLOY_DIR/.env" 2>/dev/null)"; echo "- .last-good: $(tr '\n' ' ' < "$DEPLOY_DIR/.last-good" 2>/dev/null)"; echo "- deploys.log:"; echo '```'; cat "$DEPLOY_DIR/deploys.log" 2>/dev/null; echo '```'; } | tee -a "$GITHUB_STEP_SUMMARY"
   notify:
-    needs: [resolve, publish, deploy]
+    needs:
+    - resolve
+    - publish
+    - deploy
     runs-on: self-hosted
-    if: >-
-      always() && !inputs.commit &&
-      (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
+    if: always() && !inputs.commit && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))
     steps:
-      - name: Send the Matrix notification
-        env:
-          MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
-          MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
-          MATRIX_ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
-          MATRIX_TXN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          WORKFLOW: ${{ github.workflow }}
-          RESOLVE_RESULT: ${{ needs.resolve.result }}
-          PUBLISH_RESULT: ${{ needs.publish.result }}
-          DEPLOY_RESULT: ${{ needs.deploy.result }}
-          VERSION: ${{ needs.resolve.outputs.version }}
-          ROLLBACK_NOTE: ${{ needs.deploy.outputs.rollback_note }}
-        run: |
-          failed=""
-          for pair in "resolve=$RESOLVE_RESULT" "publish=$PUBLISH_RESULT" "deploy=$DEPLOY_RESULT"; do
-            case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*} (${pair#*=})" ;; esac
-          done
-          if [ -n "$ROLLBACK_NOTE" ]; then
-            rollback="$ROLLBACK_NOTE"
-          elif [ "$DEPLOY_RESULT" = "skipped" ]; then
-            rollback="not needed, nothing on the host was changed"
-          else
-            # No note at all: the deploy job never reported (runner died, host rebooted, or
-            # GitHub failed it at "Set up job"). Don't guess.
-            rollback="UNKNOWN, the deploy job reported nothing. Check the host"
-          fi
-          {
-            echo "❌ spotdl-web: $WORKFLOW failed"
-            echo "Failed job(s):$failed"
-            echo "Release: none (version ${VERSION:-unresolved}, manual dispatch)"
-            echo "Rollback: $rollback"
-            echo "Run: $RUN_URL"
-          } > "$RUNNER_TEMP/message.txt"
-          cat "$RUNNER_TEMP/message.txt"
+    - name: Send the Matrix notification
+      env:
+        MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
+        MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+        MATRIX_ROOM_ID: ${{ vars.SCRATCH_MATRIX_ROOM_ID }}
+        MATRIX_TXN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        WORKFLOW: ${{ github.workflow }}
+        RESOLVE_RESULT: ${{ needs.resolve.result }}
+        PUBLISH_RESULT: ${{ needs.publish.result }}
+        DEPLOY_RESULT: ${{ needs.deploy.result }}
+        VERSION: ${{ needs.resolve.outputs.version }}
+        ROLLBACK_NOTE: ${{ needs.deploy.outputs.rollback_note }}
+      run: |
+        failed=""
+        for pair in "resolve=$RESOLVE_RESULT" "publish=$PUBLISH_RESULT" "deploy=$DEPLOY_RESULT"; do
+          case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*} (${pair#*=})" ;; esac
+        done
+        if [ -n "$ROLLBACK_NOTE" ]; then
+          rollback="$ROLLBACK_NOTE"
+        elif [ "$DEPLOY_RESULT" = "skipped" ]; then
+          rollback="not needed, nothing on the host was changed"
+        else
+          # No note at all: the deploy job never reported (runner died, host rebooted, or
+          # GitHub failed it at "Set up job"). Don't guess.
+          rollback="UNKNOWN, the deploy job reported nothing. Check the host"
+        fi
+        {
+          echo "❌ spotdl-web: $WORKFLOW failed"
+          echo "Failed job(s):$failed"
+          echo "Release: none (version ${VERSION:-unresolved}, manual dispatch)"
+          echo "Rollback: $rollback"
+          echo "Run: $RUN_URL"
+        } > "$RUNNER_TEMP/message.txt"
+        cat "$RUNNER_TEMP/message.txt"
 
-          # Matrix sender, kept identical in nightly.yml, release-deploy.yml and publish-deploy.yml
-          # (no checkout, so no shared script). PUT {homeserver}/_matrix/client/v3/rooms/{room}/
-          # send/m.room.message/{txn}: the txn makes a retried request idempotent, and a re-run
-          # (a new attempt) posts again, on purpose. Unconfigured (a secret empty) means alerts
-          # are off, and a failed send is only a warning (v33.1): neither turns a run red. The URL
-          # and the token reach curl on stdin (`--config -`), never its command line, and nothing
-          # prints them; `-s` without `-S`, since curl's error text names the host. Cloudflare in
-          # front of Synapse refuses a request without an explicit User-Agent (v33).
-          if [ -z "$MATRIX_HOMESERVER_URL" ] || [ -z "$MATRIX_ACCESS_TOKEN" ] || [ -z "$MATRIX_ROOM_ID" ]; then
-            echo "::warning::Matrix notification skipped: MATRIX_* not configured (repository secrets; see docs/DEPLOYMENT.md, 'Matrix alert bot')."
-            exit 0
-          fi
-          room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
-          python3 -c 'import json, sys; print(json.dumps({"msgtype": "m.text", "body": sys.stdin.read().strip()}))' \
-            < "$RUNNER_TEMP/message.txt" > "$RUNNER_TEMP/matrix.json"
-          code="$(printf 'url = "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"\nheader = "Authorization: Bearer %s"\n' \
-              "${MATRIX_HOMESERVER_URL%/}" "$room" "$MATRIX_TXN_ID" "$MATRIX_ACCESS_TOKEN" \
-            | curl -s --config - -X PUT --max-time 30 \
-                -H 'Content-Type: application/json' -A 'spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)' \
-                --data-binary "@$RUNNER_TEMP/matrix.json" -o "$RUNNER_TEMP/matrix.out" -w '%{http_code}')" || true
-          case "$code" in
-            2??) echo "Matrix notification sent (HTTP $code)" ;;
-            ""|000) echo "::warning::Matrix notification failed: no response (connection error or timeout)" ;;
-            # Matrix error bodies are {"errcode", "error"}: the errcode is safe and the only useful part.
-            *) echo "::warning::Matrix notification failed: HTTP $code $(grep -o '"errcode": *"[A-Z_]*"' "$RUNNER_TEMP/matrix.out" | head -n1)" ;;
-          esac
+        # Matrix sender, kept identical in nightly.yml, release-deploy.yml and publish-deploy.yml
+        # (no checkout, so no shared script). PUT {homeserver}/_matrix/client/v3/rooms/{room}/
+        # send/m.room.message/{txn}: the txn makes a retried request idempotent, and a re-run
+        # (a new attempt) posts again, on purpose. Unconfigured (a secret empty) means alerts
+        # are off, and a failed send is only a warning (v33.1): neither turns a run red. The URL
+        # and the token reach curl on stdin (`--config -`), never its command line, and nothing
+        # prints them; `-s` without `-S`, since curl's error text names the host. Cloudflare in
+        # front of Synapse refuses a request without an explicit User-Agent (v33).
+        if [ -z "$MATRIX_HOMESERVER_URL" ] || [ -z "$MATRIX_ACCESS_TOKEN" ] || [ -z "$MATRIX_ROOM_ID" ]; then
+          echo "::warning::Matrix notification skipped: MATRIX_* not configured (repository secrets; see docs/DEPLOYMENT.md, 'Matrix alert bot')."
+          exit 0
+        fi
+        room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
+        python3 -c 'import json, sys; print(json.dumps({"msgtype": "m.text", "body": sys.stdin.read().strip()}))' \
+          < "$RUNNER_TEMP/message.txt" > "$RUNNER_TEMP/matrix.json"
+        code="$(printf 'url = "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"\nheader = "Authorization: Bearer %s"\n' \
+            "${MATRIX_HOMESERVER_URL%/}" "$room" "$MATRIX_TXN_ID" "$MATRIX_ACCESS_TOKEN" \
+          | curl -s --config - -X PUT --max-time 30 \
+              -H 'Content-Type: application/json' -A 'spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)' \
+              --data-binary "@$RUNNER_TEMP/matrix.json" -o "$RUNNER_TEMP/matrix.out" -w '%{http_code}')" || true
+        case "$code" in
+          2??) echo "Matrix notification sent (HTTP $code)" ;;
+          ""|000) echo "::warning::Matrix notification failed: no response (connection error or timeout)" ;;
+          # Matrix error bodies are {"errcode", "error"}: the errcode is safe and the only useful part.
+          *) echo "::warning::Matrix notification failed: HTTP $code $(grep -o '"errcode": *"[A-Z_]*"' "$RUNNER_TEMP/matrix.out" | head -n1)" ;;
+        esac

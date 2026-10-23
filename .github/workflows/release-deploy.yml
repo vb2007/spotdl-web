@@ -1,36 +1,15 @@
-name: Release & Deploy
-
-# v49: everything a push to `main` sets off, in one run (see docs/RELEASE_PIPELINE.md, "The
-# chain"): the checks, then the release when the version has no tag yet, then the deploy of that
-# release, then one Matrix notice. Each stage is a job of this run, calling the workflow that
-# does the work (`workflow_call`), so `needs:` orders them and the default GITHUB_TOKEN is enough.
-#
-# This replaces a chain of workflow-completion triggers (CI, then Release, then Publish &
-# Deploy). Those fired on *every* completion of the workflow before them, PRs and the schedule
-# included, and left a run behind that only skipped itself; a skipped run completes too, so the
-# next link fired as well. Here a merge that changes nothing releasable is still one run: the
-# checks pass, and `release`/`deploy` show as skipped jobs inside it. No other run is created.
-#
-# Nothing cancels: no `concurrency` group here or in the called workflows. A second merge's run
-# queues behind the first on the one self-hosted runner; it never cancels it mid-release. The
-# deploy job's version guard covers an older run finishing after a newer one.
-#
-# `workflow_dispatch` re-runs the whole chain on `main`. With the version already released, that
-# is the checks only; re-run a failed run's jobs to retry its release or deploy.
-"on":
+# SCRATCH COPY for v49 verification; never merged.
+name: Release & Deploy (scratch)
+'on':
   push:
-    branches: [main]
-  workflow_dispatch:
-
+    branches:
+    - ci-chain-scratch
+  workflow_dispatch: null
 permissions:
   contents: read
-
 jobs:
   checks:
     uses: ./.github/workflows/ci.yml
-
-  # Reads the version at this commit and decides whether its tag still has to be cut. Kept small:
-  # v61 adds an `extension` output beside `release`.
   plan:
     needs: checks
     runs-on: self-hosted
@@ -39,23 +18,20 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
     steps:
-      - uses: actions/checkout@v7
-
-      # Against the remote: a fresh checkout has no tags to list locally.
-      - name: Decide what to release
-        id: plan
-        run: |
-          VERSION="$(python3 .github/scripts/check_version.py)"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q .; then
-            echo "release=false" >> "$GITHUB_OUTPUT"
-            echo "v$VERSION is already released: nothing to release or deploy." | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "release=true" >> "$GITHUB_OUTPUT"
-            echo "v$VERSION has no tag yet: releasing and deploying it." | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
-
+    - uses: actions/checkout@v7
+    - name: Decide what to release
+      id: plan
+      run: |
+        VERSION="$(python3 .github/scripts/check_version.py)"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+        if git ls-remote --tags origin "refs/tags/scratch-v$VERSION" | grep -q .; then
+          echo "release=false" >> "$GITHUB_OUTPUT"
+          echo "v$VERSION is already released: nothing to release or deploy." | tee -a "$GITHUB_STEP_SUMMARY"
+        else
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "v$VERSION has no tag yet: releasing and deploying it." | tee -a "$GITHUB_STEP_SUMMARY"
+        fi
   release:
     needs: plan
     if: needs.plan.outputs.release == 'true'
@@ -65,9 +41,6 @@ jobs:
     with:
       commit: ${{ github.sha }}
     secrets: inherit
-
-  # Only after a release in this same run (skipped with it otherwise). Release mode: persists the
-  # new IMAGE_TAG and `.last-good`, exactly as the old merge-driven path did.
   deploy:
     needs: release
     permissions:
@@ -78,100 +51,98 @@ jobs:
       commit: ${{ github.sha }}
       release_tag: ${{ needs.release.outputs.tag }}
     secrets: inherit
-
-  # One notice for the whole run: any failed or cancelled job, named, and every real deploy
-  # (release mode, not idempotency-skipped or stale) that succeeded, so silence means "nothing
-  # happened", never "maybe it failed" (v33). One `run:` step, no `uses:` (no checkout): a
-  # GitHub-side failure on an action download (v48's 429, which took 4.40.2's deploy and its
-  # notice down together) can't stop this job, since it downloads nothing.
   notify:
-    needs: [checks, plan, release, deploy]
+    needs:
+    - checks
+    - plan
+    - release
+    - deploy
     runs-on: self-hosted
-    if: >-
+    if: |-
       always() && (
         contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') ||
         (needs.deploy.result == 'success' && needs.deploy.outputs.skipped != 'true')
       )
     steps:
-      - name: Send the Matrix notification
-        env:
-          MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
-          MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
-          MATRIX_ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
-          MATRIX_TXN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          WORKFLOW: ${{ github.workflow }}
-          CHECKS_RESULT: ${{ needs.checks.result }}
-          FAILED_CHECKS: ${{ needs.checks.outputs.failed }}
-          PLAN_RESULT: ${{ needs.plan.result }}
-          RELEASE_RESULT: ${{ needs.release.result }}
-          DEPLOY_RESULT: ${{ needs.deploy.result }}
-          TAG: ${{ needs.release.outputs.tag || needs.plan.outputs.tag }}
-          VERSION: ${{ needs.deploy.outputs.version || needs.plan.outputs.version }}
-          PUBLISHED: ${{ needs.deploy.outputs.published }}
-          ROLLBACK_NOTE: ${{ needs.deploy.outputs.rollback_note }}
-        run: |
-          failed=""
-          for pair in "checks=$CHECKS_RESULT" "plan=$PLAN_RESULT" "release=$RELEASE_RESULT" "deploy=$DEPLOY_RESULT"; do
-            case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*} (${pair#*=})" ;; esac
-          done
-          # Name the check itself (ci.yml's `failed` output), e.g. "checks: pytest (failure)".
-          if [ -n "$FAILED_CHECKS" ]; then failed="${failed/checks (/checks: $FAILED_CHECKS (}"; fi
-          release="${TAG:-unresolved} (version ${VERSION:-unresolved})"
+    - name: Send the Matrix notification
+      env:
+        MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
+        MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+        MATRIX_ROOM_ID: ${{ vars.SCRATCH_MATRIX_ROOM_ID }}
+        MATRIX_TXN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        WORKFLOW: ${{ github.workflow }}
+        CHECKS_RESULT: ${{ needs.checks.result }}
+        FAILED_CHECKS: ${{ needs.checks.outputs.failed }}
+        PLAN_RESULT: ${{ needs.plan.result }}
+        RELEASE_RESULT: ${{ needs.release.result }}
+        DEPLOY_RESULT: ${{ needs.deploy.result }}
+        TAG: ${{ needs.release.outputs.tag || needs.plan.outputs.tag }}
+        VERSION: ${{ needs.deploy.outputs.version || needs.plan.outputs.version }}
+        PUBLISHED: ${{ needs.deploy.outputs.published }}
+        ROLLBACK_NOTE: ${{ needs.deploy.outputs.rollback_note }}
+      run: |
+        failed=""
+        for pair in "checks=$CHECKS_RESULT" "plan=$PLAN_RESULT" "release=$RELEASE_RESULT" "deploy=$DEPLOY_RESULT"; do
+          case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*} (${pair#*=})" ;; esac
+        done
+        # Name the check itself (ci.yml's `failed` output), e.g. "checks: pytest (failure)".
+        if [ -n "$FAILED_CHECKS" ]; then failed="${failed/checks (/checks: $FAILED_CHECKS (}"; fi
+        release="${TAG:-unresolved} (version ${VERSION:-unresolved})"
 
-          if [ -z "$failed" ]; then
-            {
-              echo "✅ spotdl-web deployed ${VERSION} to production"
-              echo "Workflow: $WORKFLOW"
-              echo "Release: $release"
-              echo "Run: $RUN_URL"
-            } > "$RUNNER_TEMP/message.txt"
+        if [ -z "$failed" ]; then
+          {
+            echo "✅ spotdl-web deployed ${VERSION} to production"
+            echo "Workflow: $WORKFLOW"
+            echo "Release: $release"
+            echo "Run: $RUN_URL"
+          } > "$RUNNER_TEMP/message.txt"
+        else
+          if [ -n "$ROLLBACK_NOTE" ]; then
+            rollback="$ROLLBACK_NOTE"
+          elif [ "$DEPLOY_RESULT" = "skipped" ]; then
+            # The checks, the plan or the release failed: the deploy never started.
+            rollback="not needed, nothing was deployed"
+          elif [ "$PUBLISHED" != "true" ]; then
+            rollback="not needed, the images weren't published, so the host wasn't touched"
           else
-            if [ -n "$ROLLBACK_NOTE" ]; then
-              rollback="$ROLLBACK_NOTE"
-            elif [ "$DEPLOY_RESULT" = "skipped" ]; then
-              # The checks, the plan or the release failed: the deploy never started.
-              rollback="not needed, nothing was deployed"
-            elif [ "$PUBLISHED" != "true" ]; then
-              rollback="not needed, the images weren't published, so the host wasn't touched"
-            else
-              # No note at all: the deploy job never reported (runner died, host rebooted, or
-              # GitHub failed it at "Set up job"). Don't guess.
-              rollback="UNKNOWN, the deploy job reported nothing. Check the host"
-            fi
-            {
-              echo "❌ spotdl-web: $WORKFLOW failed"
-              echo "Failed job(s):$failed"
-              echo "Release: $release"
-              echo "Rollback: $rollback"
-              echo "Run: $RUN_URL"
-            } > "$RUNNER_TEMP/message.txt"
+            # No note at all: the deploy job never reported (runner died, host rebooted, or
+            # GitHub failed it at "Set up job"). Don't guess.
+            rollback="UNKNOWN, the deploy job reported nothing. Check the host"
           fi
-          cat "$RUNNER_TEMP/message.txt"
+          {
+            echo "❌ spotdl-web: $WORKFLOW failed"
+            echo "Failed job(s):$failed"
+            echo "Release: $release"
+            echo "Rollback: $rollback"
+            echo "Run: $RUN_URL"
+          } > "$RUNNER_TEMP/message.txt"
+        fi
+        cat "$RUNNER_TEMP/message.txt"
 
-          # Matrix sender, kept identical in nightly.yml, release-deploy.yml and publish-deploy.yml
-          # (no checkout, so no shared script). PUT {homeserver}/_matrix/client/v3/rooms/{room}/
-          # send/m.room.message/{txn}: the txn makes a retried request idempotent, and a re-run
-          # (a new attempt) posts again, on purpose. Unconfigured (a secret empty) means alerts
-          # are off, and a failed send is only a warning (v33.1): neither turns a run red. The URL
-          # and the token reach curl on stdin (`--config -`), never its command line, and nothing
-          # prints them; `-s` without `-S`, since curl's error text names the host. Cloudflare in
-          # front of Synapse refuses a request without an explicit User-Agent (v33).
-          if [ -z "$MATRIX_HOMESERVER_URL" ] || [ -z "$MATRIX_ACCESS_TOKEN" ] || [ -z "$MATRIX_ROOM_ID" ]; then
-            echo "::warning::Matrix notification skipped: MATRIX_* not configured (repository secrets; see docs/DEPLOYMENT.md, 'Matrix alert bot')."
-            exit 0
-          fi
-          room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
-          python3 -c 'import json, sys; print(json.dumps({"msgtype": "m.text", "body": sys.stdin.read().strip()}))' \
-            < "$RUNNER_TEMP/message.txt" > "$RUNNER_TEMP/matrix.json"
-          code="$(printf 'url = "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"\nheader = "Authorization: Bearer %s"\n' \
-              "${MATRIX_HOMESERVER_URL%/}" "$room" "$MATRIX_TXN_ID" "$MATRIX_ACCESS_TOKEN" \
-            | curl -s --config - -X PUT --max-time 30 \
-                -H 'Content-Type: application/json' -A 'spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)' \
-                --data-binary "@$RUNNER_TEMP/matrix.json" -o "$RUNNER_TEMP/matrix.out" -w '%{http_code}')" || true
-          case "$code" in
-            2??) echo "Matrix notification sent (HTTP $code)" ;;
-            ""|000) echo "::warning::Matrix notification failed: no response (connection error or timeout)" ;;
-            # Matrix error bodies are {"errcode", "error"}: the errcode is safe and the only useful part.
-            *) echo "::warning::Matrix notification failed: HTTP $code $(grep -o '"errcode": *"[A-Z_]*"' "$RUNNER_TEMP/matrix.out" | head -n1)" ;;
-          esac
+        # Matrix sender, kept identical in nightly.yml, release-deploy.yml and publish-deploy.yml
+        # (no checkout, so no shared script). PUT {homeserver}/_matrix/client/v3/rooms/{room}/
+        # send/m.room.message/{txn}: the txn makes a retried request idempotent, and a re-run
+        # (a new attempt) posts again, on purpose. Unconfigured (a secret empty) means alerts
+        # are off, and a failed send is only a warning (v33.1): neither turns a run red. The URL
+        # and the token reach curl on stdin (`--config -`), never its command line, and nothing
+        # prints them; `-s` without `-S`, since curl's error text names the host. Cloudflare in
+        # front of Synapse refuses a request without an explicit User-Agent (v33).
+        if [ -z "$MATRIX_HOMESERVER_URL" ] || [ -z "$MATRIX_ACCESS_TOKEN" ] || [ -z "$MATRIX_ROOM_ID" ]; then
+          echo "::warning::Matrix notification skipped: MATRIX_* not configured (repository secrets; see docs/DEPLOYMENT.md, 'Matrix alert bot')."
+          exit 0
+        fi
+        room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
+        python3 -c 'import json, sys; print(json.dumps({"msgtype": "m.text", "body": sys.stdin.read().strip()}))' \
+          < "$RUNNER_TEMP/message.txt" > "$RUNNER_TEMP/matrix.json"
+        code="$(printf 'url = "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"\nheader = "Authorization: Bearer %s"\n' \
+            "${MATRIX_HOMESERVER_URL%/}" "$room" "$MATRIX_TXN_ID" "$MATRIX_ACCESS_TOKEN" \
+          | curl -s --config - -X PUT --max-time 30 \
+              -H 'Content-Type: application/json' -A 'spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)' \
+              --data-binary "@$RUNNER_TEMP/matrix.json" -o "$RUNNER_TEMP/matrix.out" -w '%{http_code}')" || true
+        case "$code" in
+          2??) echo "Matrix notification sent (HTTP $code)" ;;
+          ""|000) echo "::warning::Matrix notification failed: no response (connection error or timeout)" ;;
+          # Matrix error bodies are {"errcode", "error"}: the errcode is safe and the only useful part.
+          *) echo "::warning::Matrix notification failed: HTTP $code $(grep -o '"errcode": *"[A-Z_]*"' "$RUNNER_TEMP/matrix.out" | head -n1)" ;;
+        esac

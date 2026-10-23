@@ -1,119 +1,90 @@
-name: Nightly
-
-# v49: the one check that needs a schedule, split out of ci.yml so the daily run no longer
-# re-runs the whole suite on an unchanged `main` (and, chained on its completion, spawned two
-# empty Release / Publish & Deploy runs behind it). `workflow_dispatch` runs it on demand.
-#
-# v23: yt-dlp deliberately floats to latest at build time (backend/Dockerfile) rather
-# than being pinned in requirements.txt like everything else — pinning it produced the
-# outage this version fixed (docs/GOTCHAS.md's v23 entry). This is the safety net for
-# when that build-time float step silently installs something stale (e.g. a transient
-# PyPI outage mid-build), independent of whether anyone happens to open a PR that week.
-"on":
+# SCRATCH COPY for v49 verification; never merged.
+name: Nightly (scratch)
+'on':
   schedule:
-    - cron: "17 4 * * *"
-  workflow_dispatch:
-
+  - cron: 17 4 * * *
+  workflow_dispatch: null
 jobs:
-  # v23: builds the real image and reads back what actually landed inside it, rather than
-  # trusting that backend/Dockerfile's `uv pip install --upgrade yt-dlp yt-dlp-ejs` step ran
-  # correctly, since a silent failure there (e.g. PyPI unreachable mid-build) would otherwise
-  # look identical to a healthy build from the outside. v23.1 extends this to yt-dlp-ejs too —
-  # it upgrades alongside yt-dlp in that same Dockerfile step now, and a version drift
-  # between the two is exactly what reproduces the v23 outage under a different name (see
-  # docs/GOTCHAS.md's spotdl-library entry).
   yt-dlp-freshness:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Build backend image
-        run: docker build -t spotdl-web-yt-dlp-freshness-check ./backend
-
-      - name: Compare built image's yt-dlp version against PyPI's latest
-        id: yt-dlp
-        continue-on-error: true
-        run: |
-          BUILT=$(docker run --rm spotdl-web-yt-dlp-freshness-check python -c "from importlib.metadata import version; print(version('yt-dlp'))")
-          LATEST=$(curl -sf https://pypi.org/pypi/yt-dlp/json | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
-          echo "Built image yt-dlp version: $BUILT"
-          echo "PyPI latest yt-dlp version: $LATEST"
-          if [ "$BUILT" != "$LATEST" ]; then
-            echo "::error::Built image's yt-dlp ($BUILT) does not match PyPI's latest ($LATEST) -- backend/Dockerfile's float step may have failed at build time."
-            exit 1
-          fi
-
-      # A separate step (not folded into the one above) so a yt-dlp-ejs-only drift is
-      # never masked by the first step's exit -- `continue-on-error` on both plus the
-      # explicit fan-in below is what lets this job report *both* mismatches from one run
-      # instead of stopping at the first.
-      - name: Compare built image's yt-dlp-ejs version against PyPI's latest
-        id: yt-dlp-ejs
-        continue-on-error: true
-        run: |
-          BUILT=$(docker run --rm spotdl-web-yt-dlp-freshness-check python -c "from importlib.metadata import version; print(version('yt-dlp-ejs'))")
-          LATEST=$(curl -sf https://pypi.org/pypi/yt-dlp-ejs/json | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
-          echo "Built image yt-dlp-ejs version: $BUILT"
-          echo "PyPI latest yt-dlp-ejs version: $LATEST"
-          if [ "$BUILT" != "$LATEST" ]; then
-            echo "::error::Built image's yt-dlp-ejs ($BUILT) does not match PyPI's latest ($LATEST) -- backend/Dockerfile's float step may have failed at build time."
-            exit 1
-          fi
-
-      - name: Fail if either version check failed
-        if: steps.yt-dlp.outcome == 'failure' || steps.yt-dlp-ejs.outcome == 'failure'
-        run: exit 1
-
-  # v49: a stale yt-dlp is exactly what nobody notices until downloads start failing, so a red
-  # nightly posts to the pipeline's Matrix room. One `run:` step, no `uses:` (no checkout): the
-  # runner downloads nothing for this job, so a GitHub-side failure on an action download (v48's
-  # 429) can't take the notice down with the job it reports on.
+    - uses: actions/checkout@v7
+    - name: Build backend image
+      run: docker build -t spotdl-web-yt-dlp-freshness-check ./backend
+    - name: Compare built image's yt-dlp version against PyPI's latest
+      id: yt-dlp
+      continue-on-error: true
+      run: |
+        BUILT=$(docker run --rm spotdl-web-yt-dlp-freshness-check python -c "from importlib.metadata import version; print(version('yt-dlp'))")
+        LATEST=$(curl -sf https://pypi.org/pypi/yt-dlp/json | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
+        echo "Built image yt-dlp version: $BUILT"
+        echo "PyPI latest yt-dlp version: $LATEST"
+        if [ "$BUILT" != "$LATEST" ]; then
+          echo "::error::Built image's yt-dlp ($BUILT) does not match PyPI's latest ($LATEST) -- backend/Dockerfile's float step may have failed at build time."
+          exit 1
+        fi
+    - name: Compare built image's yt-dlp-ejs version against PyPI's latest
+      id: yt-dlp-ejs
+      continue-on-error: true
+      run: |
+        BUILT=$(docker run --rm spotdl-web-yt-dlp-freshness-check python -c "from importlib.metadata import version; print(version('yt-dlp-ejs'))")
+        LATEST=$(curl -sf https://pypi.org/pypi/yt-dlp-ejs/json | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
+        echo "Built image yt-dlp-ejs version: $BUILT"
+        echo "PyPI latest yt-dlp-ejs version: $LATEST"
+        if [ "$BUILT" != "$LATEST" ]; then
+          echo "::error::Built image's yt-dlp-ejs ($BUILT) does not match PyPI's latest ($LATEST) -- backend/Dockerfile's float step may have failed at build time."
+          exit 1
+        fi
+    - name: Fail if either version check failed
+      if: steps.yt-dlp.outcome == 'failure' || steps.yt-dlp-ejs.outcome == 'failure'
+      run: exit 1
   notify:
-    needs: [yt-dlp-freshness]
+    needs:
+    - yt-dlp-freshness
     runs-on: self-hosted
     if: always() && (needs.yt-dlp-freshness.result == 'failure' || needs.yt-dlp-freshness.result == 'cancelled')
     steps:
-      - name: Send the Matrix notification
-        env:
-          MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
-          MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
-          MATRIX_ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
-          MATRIX_TXN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          WORKFLOW: ${{ github.workflow }}
-          RESULT: ${{ needs.yt-dlp-freshness.result }}
-        run: |
-          {
-            echo "❌ spotdl-web: $WORKFLOW failed"
-            echo "Failed job(s): yt-dlp-freshness ($RESULT)"
-            echo "The backend image's yt-dlp or yt-dlp-ejs isn't PyPI's latest (or the check couldn't run): see the run."
-            echo "Run: $RUN_URL"
-          } > "$RUNNER_TEMP/message.txt"
-          cat "$RUNNER_TEMP/message.txt"
+    - name: Send the Matrix notification
+      env:
+        MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
+        MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
+        MATRIX_ROOM_ID: ${{ vars.SCRATCH_MATRIX_ROOM_ID }}
+        MATRIX_TXN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        WORKFLOW: ${{ github.workflow }}
+        RESULT: ${{ needs.yt-dlp-freshness.result }}
+      run: |
+        {
+          echo "❌ spotdl-web: $WORKFLOW failed"
+          echo "Failed job(s): yt-dlp-freshness ($RESULT)"
+          echo "The backend image's yt-dlp or yt-dlp-ejs isn't PyPI's latest (or the check couldn't run): see the run."
+          echo "Run: $RUN_URL"
+        } > "$RUNNER_TEMP/message.txt"
+        cat "$RUNNER_TEMP/message.txt"
 
-          # Matrix sender, kept identical in nightly.yml, release-deploy.yml and publish-deploy.yml
-          # (no checkout, so no shared script). PUT {homeserver}/_matrix/client/v3/rooms/{room}/
-          # send/m.room.message/{txn}: the txn makes a retried request idempotent, and a re-run
-          # (a new attempt) posts again, on purpose. Unconfigured (a secret empty) means alerts
-          # are off, and a failed send is only a warning (v33.1): neither turns a run red. The URL
-          # and the token reach curl on stdin (`--config -`), never its command line, and nothing
-          # prints them; `-s` without `-S`, since curl's error text names the host. Cloudflare in
-          # front of Synapse refuses a request without an explicit User-Agent (v33).
-          if [ -z "$MATRIX_HOMESERVER_URL" ] || [ -z "$MATRIX_ACCESS_TOKEN" ] || [ -z "$MATRIX_ROOM_ID" ]; then
-            echo "::warning::Matrix notification skipped: MATRIX_* not configured (repository secrets; see docs/DEPLOYMENT.md, 'Matrix alert bot')."
-            exit 0
-          fi
-          room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
-          python3 -c 'import json, sys; print(json.dumps({"msgtype": "m.text", "body": sys.stdin.read().strip()}))' \
-            < "$RUNNER_TEMP/message.txt" > "$RUNNER_TEMP/matrix.json"
-          code="$(printf 'url = "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"\nheader = "Authorization: Bearer %s"\n' \
-              "${MATRIX_HOMESERVER_URL%/}" "$room" "$MATRIX_TXN_ID" "$MATRIX_ACCESS_TOKEN" \
-            | curl -s --config - -X PUT --max-time 30 \
-                -H 'Content-Type: application/json' -A 'spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)' \
-                --data-binary "@$RUNNER_TEMP/matrix.json" -o "$RUNNER_TEMP/matrix.out" -w '%{http_code}')" || true
-          case "$code" in
-            2??) echo "Matrix notification sent (HTTP $code)" ;;
-            ""|000) echo "::warning::Matrix notification failed: no response (connection error or timeout)" ;;
-            # Matrix error bodies are {"errcode", "error"}: the errcode is safe and the only useful part.
-            *) echo "::warning::Matrix notification failed: HTTP $code $(grep -o '"errcode": *"[A-Z_]*"' "$RUNNER_TEMP/matrix.out" | head -n1)" ;;
-          esac
+        # Matrix sender, kept identical in nightly.yml, release-deploy.yml and publish-deploy.yml
+        # (no checkout, so no shared script). PUT {homeserver}/_matrix/client/v3/rooms/{room}/
+        # send/m.room.message/{txn}: the txn makes a retried request idempotent, and a re-run
+        # (a new attempt) posts again, on purpose. Unconfigured (a secret empty) means alerts
+        # are off, and a failed send is only a warning (v33.1): neither turns a run red. The URL
+        # and the token reach curl on stdin (`--config -`), never its command line, and nothing
+        # prints them; `-s` without `-S`, since curl's error text names the host. Cloudflare in
+        # front of Synapse refuses a request without an explicit User-Agent (v33).
+        if [ -z "$MATRIX_HOMESERVER_URL" ] || [ -z "$MATRIX_ACCESS_TOKEN" ] || [ -z "$MATRIX_ROOM_ID" ]; then
+          echo "::warning::Matrix notification skipped: MATRIX_* not configured (repository secrets; see docs/DEPLOYMENT.md, 'Matrix alert bot')."
+          exit 0
+        fi
+        room="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["MATRIX_ROOM_ID"].strip(), safe=""))')"
+        python3 -c 'import json, sys; print(json.dumps({"msgtype": "m.text", "body": sys.stdin.read().strip()}))' \
+          < "$RUNNER_TEMP/message.txt" > "$RUNNER_TEMP/matrix.json"
+        code="$(printf 'url = "%s/_matrix/client/v3/rooms/%s/send/m.room.message/%s"\nheader = "Authorization: Bearer %s"\n' \
+            "${MATRIX_HOMESERVER_URL%/}" "$room" "$MATRIX_TXN_ID" "$MATRIX_ACCESS_TOKEN" \
+          | curl -s --config - -X PUT --max-time 30 \
+              -H 'Content-Type: application/json' -A 'spotdl-web-pipeline/1 (+https://github.com/vb2007/spotdl-web)' \
+              --data-binary "@$RUNNER_TEMP/matrix.json" -o "$RUNNER_TEMP/matrix.out" -w '%{http_code}')" || true
+        case "$code" in
+          2??) echo "Matrix notification sent (HTTP $code)" ;;
+          ""|000) echo "::warning::Matrix notification failed: no response (connection error or timeout)" ;;
+          # Matrix error bodies are {"errcode", "error"}: the errcode is safe and the only useful part.
+          *) echo "::warning::Matrix notification failed: HTTP $code $(grep -o '"errcode": *"[A-Z_]*"' "$RUNNER_TEMP/matrix.out" | head -n1)" ;;
+        esac

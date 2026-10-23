@@ -1,121 +1,75 @@
-name: Release
-
-# Cuts a versioned GitHub release with a generated changelog + deploy assets — the release step
-# of the pipeline (see docs/RELEASE_PIPELINE.md for the full chain diagram and rationale).
-#
-# v49: called in-run by release-deploy.yml ("Release & Deploy", on every push to `main`), after
-# its checks passed and only when the version's tag doesn't exist yet. The caller passes the exact
-# commit, so this never has to guess which one CI tested. It used to be chained onto CI by a
-# workflow-completion trigger, which fired on every CI completion (PRs, the schedule, dispatches)
-# and left a skipped run behind each time, and that skipped run completing fired Publish & Deploy
-# in turn. Calling it from the same run keeps both of the old reasons for chaining, without the
-# noise:
-#   - it can't race CI: `needs:` orders it after the checks in the same run;
-#   - no personal access token: a release created with GITHUB_TOKEN doesn't fire other
-#     workflows, but nothing has to be fired, since the deploy is the next job of the same run.
-# `workflow_dispatch` is kept: it cuts the release of `main`'s current version on demand, but it
-# deploys nothing (re-run or dispatch "Release & Deploy" for the whole chain; see
-# docs/RELEASE_PIPELINE.md, "Manual recovery levers"). No `concurrency` group (v49): a pending
-# run in a group is cancelled by the next one, and the tag-exists check below already makes a
-# second release of the same version a no-op.
-"on":
+# SCRATCH COPY for v49 verification; never merged.
+name: Release (scratch)
+'on':
   workflow_call:
     inputs:
       commit:
-        description: "The exact commit to release (the caller's tested push commit)"
+        description: The exact commit to release (the caller's tested push commit)
         required: true
         type: string
     outputs:
       tag:
-        description: "The release tag (vX.Y.Z)"
+        description: The release tag (vX.Y.Z)
         value: ${{ jobs.release.outputs.tag }}
-  workflow_dispatch:
-
+  workflow_dispatch: null
 permissions:
   contents: write
-
 jobs:
   release:
     runs-on: self-hosted
     outputs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
-      # Called: the commit the caller tested. Dispatched: `main`, resolved to its commit here, so
-      # the tag below targets exactly what was checked out.
-      - name: Check out the commit to release
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.commit || 'main' }}
-          fetch-depth: 0
-
-      - name: Resolve version
-        id: version
-        run: |
-          VERSION="$(python3 .github/scripts/check_version.py)"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      # Checked against the remote, not a local `git tag -l` (the reference this borrows its
-      # shape from, vb2007.hu-api's gh-release.yml, uses the latter) -- this is a fresh
-      # checkout every run, so a local tag list would always be empty regardless of what's
-      # already been released.
-      # v49: also whether this is the newest version released so far. Nothing cancels a run on
-      # `main` any more, so in a burst of merges an older run's release can come after a newer
-      # one's; it must not take the "Latest" badge from it.
-      - name: Check whether this version was already released
-        id: tag-check
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
+    - name: Check out the commit to release
+      uses: actions/checkout@v7
+      with:
+        ref: ${{ inputs.commit || 'main' }}
+        fetch-depth: 0
+    - name: Resolve version
+      id: version
+      run: |
+        VERSION="$(python3 .github/scripts/check_version.py)"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+        echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+    - name: Check whether this version was already released
+      id: tag-check
+      run: |
+        TAG="${{ steps.version.outputs.tag }}"
+        if git ls-remote --tags origin "refs/tags/scratch-$TAG" | grep -q .; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+        fi
+        NEWEST="$( { git ls-remote --tags --refs origin 'refs/tags/scratch-v*' | sed 's|.*refs/tags/scratch-||'; echo "$TAG"; } \
+          | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
+        if [ "$NEWEST" = "$TAG" ]; then echo "latest=true" >> "$GITHUB_OUTPUT"; else echo "latest=false" >> "$GITHUB_OUTPUT"; fi
+    - name: Build deploy bundle
+      if: steps.tag-check.outputs.exists == 'false'
+      run: |
+        BUNDLE="spotdl-web-${{ steps.version.outputs.version }}-deploy.tar.gz"
+        tar czf "$BUNDLE" \
+          docker-compose.yml docker-compose.prod.yml \
+          .env.example proxies.txt.example scripts/
+        echo "BUNDLE_PATH=$BUNDLE" >> "$GITHUB_ENV"
+    - name: Copy backend requirements.txt
+      if: steps.tag-check.outputs.exists == 'false'
+      run: cp backend/requirements.txt "requirements-${{ steps.version.outputs.version }}.txt"
+    - name: Create GitHub release
+      if: steps.tag-check.outputs.exists == 'false'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "STUB gh release create ${{ steps.version.outputs.tag }} --target ${{ steps.version.outputs.commit }} --latest=${{ steps.tag-check.outputs.latest }} (inputs.commit=${{ inputs.commit }})"
+        git tag "scratch-${{ steps.version.outputs.tag }}" "${{ steps.version.outputs.commit }}"
+        git push origin "scratch-${{ steps.version.outputs.tag }}"
+    - name: Summary
+      run: |
+        {
+          echo "## Release ${{ steps.version.outputs.tag }}"
+          if [ "${{ steps.tag-check.outputs.exists }}" = "true" ]; then
+            echo "Already released -- skipped (no version bump since the last release)."
           else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Created with deploy bundle + requirements.txt. \`images.json\` follows from Publish & Deploy."
           fi
-          NEWEST="$( { git ls-remote --tags --refs origin 'refs/tags/v*' | sed 's|.*refs/tags/||'; echo "$TAG"; } \
-            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
-          if [ "$NEWEST" = "$TAG" ]; then echo "latest=true" >> "$GITHUB_OUTPUT"; else echo "latest=false" >> "$GITHUB_OUTPUT"; fi
-
-      # Self-sufficient deploy bundle: everything needed to run the published images without
-      # cloning the repo. Built even when the release will be skipped below is wasted work, so
-      # this (and everything after it) is gated on tag-check.
-      - name: Build deploy bundle
-        if: steps.tag-check.outputs.exists == 'false'
-        run: |
-          BUNDLE="spotdl-web-${{ steps.version.outputs.version }}-deploy.tar.gz"
-          tar czf "$BUNDLE" \
-            docker-compose.yml docker-compose.prod.yml \
-            .env.example proxies.txt.example scripts/
-          echo "BUNDLE_PATH=$BUNDLE" >> "$GITHUB_ENV"
-
-      - name: Copy backend requirements.txt
-        if: steps.tag-check.outputs.exists == 'false'
-        run: cp backend/requirements.txt "requirements-${{ steps.version.outputs.version }}.txt"
-
-      - name: Create GitHub release
-        if: steps.tag-check.outputs.exists == 'false'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${{ steps.version.outputs.tag }}" \
-            --title "${{ steps.version.outputs.tag }}" \
-            --generate-notes \
-            --latest=${{ steps.tag-check.outputs.latest }} \
-            --target "${{ steps.version.outputs.commit }}" \
-            "$BUNDLE_PATH" \
-            "requirements-${{ steps.version.outputs.version }}.txt"
-
-      # images.json (exact GHCR digests) is uploaded later by publish-deploy.yml's `publish`
-      # job (the next job of the same "Release & Deploy" run) -- the digests don't exist until
-      # those images are actually pushed, which can only happen after this release (and its tag)
-      # exists.
-      - name: Summary
-        run: |
-          {
-            echo "## Release ${{ steps.version.outputs.tag }}"
-            if [ "${{ steps.tag-check.outputs.exists }}" = "true" ]; then
-              echo "Already released -- skipped (no version bump since the last release)."
-            else
-              echo "Created with deploy bundle + requirements.txt. \`images.json\` follows from Publish & Deploy."
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+        } >> "$GITHUB_STEP_SUMMARY"

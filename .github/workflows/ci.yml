@@ -1,422 +1,207 @@
-name: CI
-
-# Runs on the self-hosted runner on the Debian 12 production host (see
-# docs/CI_SELF_HOSTED_RUNNER.md) — the same hardware/OS the app deploys to, not a GitHub-hosted
-# runner. `pull_request` covers every PR regardless of target branch (this project only ever PRs
-# into `main`); `workflow_dispatch` lets the runner setup itself be smoke-tested on demand.
-#
-# One workflow file, one PR-checks group, for every static check a PR needs (backend tests,
-# compose/nginx config validation, frontend build) — kept together rather than split across
-# files since they all gate the exact same triggers and none is meaningfully independent of
-# "does this PR's code work." `compose-config` and `frontend` were briefly their own
-# `deploy-checks.yml` (added alongside v12) before being folded in here.
-#
-# v49: no `push` and no `schedule` here any more. A push to `main` runs these same checks as the
-# first job of "Release & Deploy" (release-deploy.yml, through `workflow_call`), so the release
-# and the deploy follow them in the same run instead of being chained on by a
-# workflow-completion trigger. The daily yt-dlp freshness check moved to nightly.yml, so the
-# schedule no longer re-runs the whole suite on an unchanged `main`. Called that way, `github.*` is the caller's context
-# (`github.event_name` is `push`, or `workflow_dispatch` for a manual re-run of the chain), which
-# the `version` and `deps-sync` steps below already handle.
-#
-# No `concurrency` group either (v49): every PR push gets one complete run, never a cancelled one.
-"on":
+# SCRATCH COPY for v49 verification; never merged.
+name: CI (scratch)
+'on':
   pull_request:
-  workflow_dispatch:
+    branches:
+    - ci-chain-scratch
+  workflow_dispatch: null
   workflow_call:
     outputs:
       failed:
-        description: "The checks that failed or were cancelled, space-separated (empty when all passed)"
+        description: The checks that failed or were cancelled, space-separated (empty when all passed)
         value: ${{ jobs.summary.outputs.failed }}
-
 jobs:
-  # v21: standing requirement — backend/pyproject.toml and frontend/package.json must always
-  # carry the identical version, and any diff touching backend/ or frontend/ must bump it (a
-  # docs-only PR is exempt — see .github/scripts/check_version.py's path-aware check). This is
-  # the CI-enforced half of that rule; release.yml reads the same script's stdout as the single
-  # source of the version string for the tag it cuts, so there's no second parser to drift.
-  # `fetch-depth: 0` is required here, not just nice-to-have -- the script diffs against
-  # `origin/<base>`, which a shallow checkout wouldn't have.
   version:
     runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Check backend/frontend version agreement and bump
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            python3 .github/scripts/check_version.py "origin/${{ github.base_ref }}"
-          else
-            python3 .github/scripts/check_version.py
-          fi
-
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - name: Check backend/frontend version agreement and bump
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          python3 .github/scripts/check_version.py "origin/${{ github.base_ref }}"
+        else
+          python3 .github/scripts/check_version.py
+        fi
   pytest:
     runs-on: self-hosted
     defaults:
       run:
         working-directory: backend
     steps:
-      # v7 targets Node 24 natively - v4 was flagged deprecated (targets Node 20, forced to run
-      # on 24 anyway) on this workflow's first real runs. Verified v7.0.1's action.yml directly
-      # (`runs: using: node24`) rather than assuming from the version bump alone.
-      - uses: actions/checkout@v7
-
-      # actions/setup-python's downloadable builds are keyed to specific GitHub-hosted OS
-      # images (Ubuntu/Windows/macOS) - there is no "Debian 12" entry in its manifest, so it
-      # fails outright on a bare Debian self-hosted runner:
-      #   ##[error]The version '3.12' with architecture 'x64' was not found for Debian 12.
-      # (confirmed by the first real run of this workflow). uv's own Python management
-      # downloads a portable, distro-agnostic CPython build instead (the same
-      # python-build-standalone project pyenv/rye use), so it works regardless of which
-      # Linux distro the runner host is on - no apt-level Python 3.12 package needs to exist
-      # for this distro at all. See docs/CI_SELF_HOSTED_RUNNER.md for the full explanation.
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      # Fresh venv every run (cheap with uv, and this is a persistent self-hosted disk, not an
-      # ephemeral hosted runner) — avoids dependency drift accumulating across job runs. Plain
-      # `pip install .` can't see pyproject.toml's [tool.uv] override-dependencies (needed
-      # because spotdl hard-pins fastapi/uvicorn for its own unused bundled web UI — see
-      # CLAUDE.md's v04 gotchas), so this needs uv's resolver, matching backend/Dockerfile.
-      #
-      # No actions/cache step needed for the interpreter or downloaded packages: uv already
-      # caches both under $HOME (~/.local/share/uv/python, ~/.cache/uv by default), and unlike
-      # a GitHub-hosted runner's disposable VM, this self-hosted runner's $HOME persists across
-      # runs — verified with two consecutive real runs (docs/CI_SELF_HOSTED_RUNNER.md has the
-      # exact before/after log lines). `--clear` above only recreates the workspace-local
-      # `.venv` (already wiped by actions/checkout's `git clean` every run regardless), not
-      # uv's own cache — a future Python/dependency version bump just adds new version-keyed
-      # cache entries alongside the old ones rather than invalidating anything.
-      # `report` (pytest-html, pytest-excel) is a separate optional-dependencies group from
-      # `dev` in pyproject.toml specifically so local `uv pip install ".[dev]"` doesn't drag in
-      # pandas/numpy/openpyxl just to run pytest — only this CI job needs it.
-      - name: Install Python 3.12 and dependencies
-        run: |
-          uv python install 3.12
-          uv venv --clear --python 3.12 .venv
-          uv pip install --python .venv/bin/python ".[dev,report]"
-
-      # No Postgres/Redis/ffmpeg service needed here — every test uses an in-memory SQLite
-      # engine and mocks any real spotdl/network call (see docs/CI_SELF_HOSTED_RUNNER.md for
-      # why, and what to add if a future test needs a real service).
-      #
-      # v22's cross-user data-separation sweep (CLAUDE.md's "Data separation is a security
-      # property" invariant) runs here as an ordinary part of this suite for every REST
-      # surface — backend/tests/test_ownership.py, plus the archive/retention/admin-gating
-      # cases in test_jobs.py/test_settings_retention.py/test_proxies_router.py/
-      # test_worker.py/test_settings_router.py — since all of it is fixture-driven, no live
-      # stack needed. The one piece deliberately NOT run here: the SSE stream is real Redis
-      # pub/sub served over a real running process, so there is no fixture substitute for
-      # "does the wire itself ever carry another user's ids" — that's
-      # scripts/verify_separation_sse.sh, manual/real-stack-only by necessity, not a silent
-      # coverage gap.
-      #
-      # Generates three human-readable report formats alongside the terminal output: a
-      # self-contained HTML page, an ODS spreadsheet, and junit XML (the machine-readable input
-      # the summary job below turns into a job summary). `.ods` rather than `.xlsx` -
-      # pytest-excel writes via pandas' to_excel(), which auto-selects the write engine from
-      # the file extension (odfpy for .ods, see pyproject.toml's `report` extra); verified this
-      # produces a genuine OpenDocument Spreadsheet (`file report.ods` -> "OpenDocument
-      # Spreadsheet", re-read with pandas(engine="odf")) rather than an xlsx file with the
-      # wrong extension. Deliberately not `-x` / fail-fast — a partial report covering only the
-      # first failure defeats the point of a report.
-      - name: Run pytest
-        run: |
-          mkdir -p test-reports
-          .venv/bin/pytest -v \
-            --junit-xml=test-reports/junit.xml \
-            --html=test-reports/report.html --self-contained-html \
-            --excel-report=test-reports/report.ods
-
-      # Three separate artifacts, one per file, instead of one zip bundling all three -
-      # `archive: false` uploads the raw file as-is (the artifact's displayed name becomes the
-      # file's own name, ignoring `name:`); only a single file is allowed per artifact when
-      # `archive: false`, which is exactly the point here. `if: always()` on each - a test
-      # *failure* is exactly when the report is most worth having; only a failure to even
-      # produce the files (e.g. the install step itself breaking) should skip these, which
-      # if-no-files-found: warn turns into a visible warning instead of a second, confusing
-      # failure on top of whatever broke upstream.
-      - name: Upload junit.xml
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: backend/test-reports/junit.xml
-          if-no-files-found: warn
-          retention-days: 14
-          archive: false
-
-      - name: Upload report.html
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: backend/test-reports/report.html
-          if-no-files-found: warn
-          retention-days: 14
-          archive: false
-
-      - name: Upload report.ods
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          path: backend/test-reports/report.ods
-          if-no-files-found: warn
-          retention-days: 14
-          archive: false
-
-  # v23: requirements.txt is a committed lock file regenerated by hand
-  # (`uv pip compile pyproject.toml -o requirements.txt`) whenever pyproject.toml's
-  # dependencies change, and backend/Dockerfile installs from requirements.txt, not
-  # pyproject.toml directly — nothing enforced the two staying in sync until now, so a
-  # dependency change could ship without ever reaching the built image. `backend/uv.lock`
-  # (tracked as of v23) is checked the same way, via uv's own built-in staleness check.
-  # Only does real work when one of these three files actually changed — they can only
-  # drift relative to each other when one of them does, so a PR/push touching none of
-  # them can't introduce new drift (the same reasoning check_version.py's path-aware
-  # check already applies to the version-bump requirement above). Gated at the job's own
-  # steps, not a top-level `paths:` trigger, since `version`/`pytest`/etc. must still run
-  # on every PR/push regardless of this file set.
+    - uses: actions/checkout@v7
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+    - name: Install Python 3.12 and dependencies
+      run: |
+        uv python install 3.12
+        uv venv --clear --python 3.12 .venv
+        uv pip install --python .venv/bin/python ".[dev,report]"
+    - name: Run pytest
+      run: |
+        mkdir -p test-reports
+        .venv/bin/pytest -v \
+          --junit-xml=test-reports/junit.xml \
+          --html=test-reports/report.html --self-contained-html \
+          --excel-report=test-reports/report.ods
+    - name: Upload junit.xml
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        path: backend/test-reports/junit.xml
+        if-no-files-found: warn
+        retention-days: 14
+        archive: false
+    - name: Upload report.html
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        path: backend/test-reports/report.html
+        if-no-files-found: warn
+        retention-days: 14
+        archive: false
+    - name: Upload report.ods
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        path: backend/test-reports/report.ods
+        if-no-files-found: warn
+        retention-days: 14
+        archive: false
   deps-sync:
     runs-on: self-hosted
     defaults:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      # workflow_dispatch (and anything else) has no natural "base" to diff against, so
-      # it always runs for real — same "manual means you want the real check" reasoning
-      # as nightly.yml's yt-dlp-freshness.
-      - name: Check whether dependency files changed
-        id: changed
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            base="origin/${{ github.base_ref }}"
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            base="${{ github.event.before }}"
-          else
-            echo "relevant=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if git diff --name-only "$base"...HEAD -- pyproject.toml requirements.txt uv.lock | grep -q .; then
-            echo "relevant=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "relevant=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Install uv
-        if: steps.changed.outputs.relevant == 'true'
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-      - name: Check uv.lock is up to date with pyproject.toml
-        if: steps.changed.outputs.relevant == 'true'
-        run: uv lock --check
-
-      - name: Check requirements.txt matches pyproject.toml
-        if: steps.changed.outputs.relevant == 'true'
-        # Must recompile in place (same -o path), not into a scratch file: uv treats an
-        # existing output file's already-pinned versions as a preference baseline (kept
-        # unless they no longer satisfy pyproject.toml's constraints), matching exactly
-        # what a human runs to regenerate this file. Recompiling into a fresh path skips
-        # that baseline and does a from-scratch resolve, which picks up every unrelated
-        # transitive package's routine upstream patch release since this was last locked
-        # -- a real, observed false positive on effectively every run, not a hypothetical.
-        run: |
-          cp requirements.txt requirements.txt.orig
-          uv pip compile pyproject.toml -o requirements.txt
-          diff requirements.txt.orig requirements.txt
-
-  # v21.1: fans in from every check, not just `pytest` — before this, `version`/
-  # `compose-config`/`frontend` were siblings with no downstream node, so the run's Summary
-  # page only ever showed backend results even once those three jobs existed (visible as two
-  # disconnected components in the Actions dependency graph). `needs` lists all four so the
-  # graph reads as one pipeline, and the summary reports on all of them, not only pytest's.
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - name: Check whether dependency files changed
+      id: changed
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          base="origin/${{ github.base_ref }}"
+        elif [ "${{ github.event_name }}" = "push" ]; then
+          base="${{ github.event.before }}"
+        else
+          echo "relevant=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        if git diff --name-only "$base"...HEAD -- pyproject.toml requirements.txt uv.lock | grep -q .; then
+          echo "relevant=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "relevant=false" >> "$GITHUB_OUTPUT"
+        fi
+    - name: Install uv
+      if: steps.changed.outputs.relevant == 'true'
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+    - name: Check uv.lock is up to date with pyproject.toml
+      if: steps.changed.outputs.relevant == 'true'
+      run: uv lock --check
+    - name: Check requirements.txt matches pyproject.toml
+      if: steps.changed.outputs.relevant == 'true'
+      run: |
+        cp requirements.txt requirements.txt.orig
+        uv pip compile pyproject.toml -o requirements.txt
+        diff requirements.txt.orig requirements.txt
   summary:
-    needs: [version, pytest, compose-config, frontend, deps-sync]
+    needs:
+    - version
+    - pytest
+    - compose-config
+    - frontend
+    - deps-sync
     if: always()
     runs-on: self-hosted
-    # v49: read by release-deploy.yml's `notify` (through this workflow's `failed` output), so a
-    # notice names the check that failed, not just "checks".
     outputs:
       failed: ${{ steps.failed.outputs.failed }}
     steps:
-      # First, before the checkout: a GitHub-side failure downloading an action (v48's 429)
-      # mustn't take the list of failed checks down with it.
-      - name: List the failed checks
-        id: failed
-        run: |
-          failed=""
-          for pair in "version=${{ needs.version.result }}" "pytest=${{ needs.pytest.result }}" \
-                      "compose-config=${{ needs['compose-config'].result }}" \
-                      "frontend=${{ needs.frontend.result }}" "deps-sync=${{ needs['deps-sync'].result }}"; do
-            case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*}" ;; esac
-          done
-          echo "failed=${failed# }" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/checkout@v7
-
-      # v8 targets Node 24 natively - same reasoning as the checkout/upload-artifact bumps
-      # above, verified the same way (action.yml directly). `pattern: "*"` +
-      # `merge-multiple: true` grabs all three separately-uploaded artifacts (junit.xml,
-      # report.html, report.ods) into one flat directory rather than naming each individually -
-      # avoids keeping upload/download steps in sync by artifact name. `continue-on-error`:
-      # `pytest` may have been cancelled or failed before uploading anything at all (as
-      # opposed to failing tests, which still upload) — a missing artifact here shouldn't
-      # take down the summary for the other three jobs' results.
-      - uses: actions/download-artifact@v8
-        continue-on-error: true
-        with:
-          pattern: "*"
-          path: test-reports
-          merge-multiple: true
-
-      # One table for all four checks first — this is the part that didn't exist before
-      # v21.1, and is what makes the graph's fan-in actually mean something on the Summary
-      # page. `needs.<job>.result` reads each sibling's own conclusion regardless of whether
-      # it produced an artifact; bracket syntax for `compose-config` since GitHub Actions
-      # expressions parse a bare hyphen in dot-notation as subtraction, not an identifier
-      # character.
-      - name: Publish combined CI summary
-        run: |
-          {
-            echo "## CI summary"
-            echo
-            echo "| Check | Result |"
-            echo "|---|---|"
-            echo "| version | ${{ needs.version.result }} |"
-            echo "| pytest | ${{ needs.pytest.result }} |"
-            echo "| compose-config | ${{ needs['compose-config'].result }} |"
-            echo "| frontend | ${{ needs.frontend.result }} |"
-            echo "| deps-sync | ${{ needs['deps-sync'].result }} |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      # Renders junit.xml as a markdown table directly on the run's summary page — visible
-      # without downloading anything, complementing the downloadable HTML/Excel artifacts from
-      # the pytest job. Stdlib-only script (.github/scripts/junit_to_summary.py), so this job
-      # doesn't need the backend venv at all, just whatever python3 the runner already has.
-      #
-      # `|| true`: the script exits 1 when tests failed (useful running it standalone), but
-      # that must not fail *this* job - the pytest job above is already the authoritative
-      # pass/fail signal; this one's job is purely "did the summary get published".
-      - name: Publish backend test detail
-        run: python3 .github/scripts/junit_to_summary.py test-reports/junit.xml >> "$GITHUB_STEP_SUMMARY" || true
-
+    - name: List the failed checks
+      id: failed
+      run: |
+        failed=""
+        for pair in "version=${{ needs.version.result }}" "pytest=${{ needs.pytest.result }}" \
+                    "compose-config=${{ needs['compose-config'].result }}" \
+                    "frontend=${{ needs.frontend.result }}" "deps-sync=${{ needs['deps-sync'].result }}"; do
+          case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*}" ;; esac
+        done
+        echo "failed=${failed# }" >> "$GITHUB_OUTPUT"
+    - uses: actions/checkout@v7
+    - uses: actions/download-artifact@v8
+      continue-on-error: true
+      with:
+        pattern: '*'
+        path: test-reports
+        merge-multiple: true
+    - name: Publish combined CI summary
+      run: |
+        {
+          echo "## CI summary"
+          echo
+          echo "| Check | Result |"
+          echo "|---|---|"
+          echo "| version | ${{ needs.version.result }} |"
+          echo "| pytest | ${{ needs.pytest.result }} |"
+          echo "| compose-config | ${{ needs['compose-config'].result }} |"
+          echo "| frontend | ${{ needs.frontend.result }} |"
+          echo "| deps-sync | ${{ needs['deps-sync'].result }} |"
+        } >> "$GITHUB_STEP_SUMMARY"
+    - name: Publish backend test detail
+      run: python3 .github/scripts/junit_to_summary.py test-reports/junit.xml >> "$GITHUB_STEP_SUMMARY" || true
   compose-config:
     runs-on: self-hosted
-    # Static validation only — this never runs `up`/`build`/`pull`. Every step here is
-    # deliberately read-only against Docker: `docker compose ... config` only renders and
-    # validates the merged YAML, it never creates a container, network, or volume. Any of
-    # those other subcommands would collide with the real running production stack on this
-    # same self-hosted host (same project name, same default ports) — see CLAUDE.md's v12
-    # notes.
-    #
-    # Placeholder values only, purely to satisfy Compose-level ${VAR} interpolation for a
-    # static `config` render — none of these are ever used to actually start anything. The
-    # job-level env below covers DOWNLOADS_DIR/REDIS_PASSWORD/CLOUDFLARE_TUNNEL_TOKEN, and
-    # every other interpolated variable (v28's required LIBRARY_DIR, for one) resolves from
-    # the placeholder .env copied from .env.example below, which Compose reads for
-    # interpolation too. `${IMAGE_TAG:-latest}` (v21) needs neither, its default resolves it.
-    # v33 corrected this comment: it used to claim those three were the only interpolated
-    # variables, which stopped being true at v28. The drift check below is what now keeps
-    # .env.example honest, since this placeholder copy would otherwise hide a missing key
-    # only until the real host's .env lacked it.
     env:
       DOWNLOADS_DIR: /tmp/ci-placeholder-downloads
       REDIS_PASSWORD: ci-placeholder
       CLOUDFLARE_TUNNEL_TOKEN: ci-placeholder
     steps:
-      - uses: actions/checkout@v7
-
-      # v33: every `${VAR:?}` (a variable Compose refuses to render without) must have a key
-      # in the template the matching environment is built from, so a version that adds one
-      # can't merge without documenting it: v28's LIBRARY_DIR reached the host's .env only
-      # after two failed deploys. Runs before the placeholder copy below, against the
-      # templates themselves, and names each missing key.
-      - name: Check every required compose variable has a key in its .env template
-        run: |
-          python3 .github/scripts/check_required_env.py --env-file .env.example \
-            --hint "Add each to .env.example (and the host's .env), see docs/RELEASE_PIPELINE.md, 'Adding a required env var'." \
-            docker-compose.yml docker-compose.prod.yml
-          python3 .github/scripts/check_required_env.py --env-file .env.dev.example \
-            --hint "Add each to .env.dev.example, see docs/RELEASE_PIPELINE.md, 'Adding a required env var'." \
-            docker-compose.yml docker-compose.override.yml
-
-      # `env_file: .env` on the x-backend anchor needs an actual .env file on disk for
-      # `docker compose config` to even parse successfully. CI's checkout never has a real
-      # .env (gitignored), so without this step `config` fails immediately with "env file
-      # ... not found", before ever reaching the interpolation it's actually meant to
-      # validate. Nothing in this job starts a real container, so the values are
-      # placeholders, but they are read: Compose interpolates from this file too, which is
-      # where LIBRARY_DIR (v28) resolves from (corrected in v33; this used to say only the
-      # file's existence mattered).
-      - name: "Create placeholder .env (file must exist for env_file: .env to resolve)"
-        run: cp .env.example .env
-
-      - name: Validate dev compose (base + override, the real local-dev invocation)
-        run: docker compose -f docker-compose.yml -f docker-compose.override.yml config --quiet
-
-      - name: Validate prod compose (base + prod overlay, the real deploy invocation)
-        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel config --quiet
-
-      - name: Validate nginx config syntax
-        # frontend/nginx.conf is authored by hand (not generated), so a plain syntax check
-        # against the real nginx binary the image ships catches a typo before it reaches
-        # the host as a crash-looping `web` container.
-        run: |
-          docker run --rm \
-            -v "$PWD/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
-            nginx:1.27-alpine nginx -t
-
+    - uses: actions/checkout@v7
+    - name: Check every required compose variable has a key in its .env template
+      run: |
+        python3 .github/scripts/check_required_env.py --env-file .env.example \
+          --hint "Add each to .env.example (and the host's .env), see docs/RELEASE_PIPELINE.md, 'Adding a required env var'." \
+          docker-compose.yml docker-compose.prod.yml
+        python3 .github/scripts/check_required_env.py --env-file .env.dev.example \
+          --hint "Add each to .env.dev.example, see docs/RELEASE_PIPELINE.md, 'Adding a required env var'." \
+          docker-compose.yml docker-compose.override.yml
+    - name: 'Create placeholder .env (file must exist for env_file: .env to resolve)'
+      run: cp .env.example .env
+    - name: Validate dev compose (base + override, the real local-dev invocation)
+      run: docker compose -f docker-compose.yml -f docker-compose.override.yml config --quiet
+    - name: Validate prod compose (base + prod overlay, the real deploy invocation)
+      run: docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel config --quiet
+    - name: Validate nginx config syntax
+      run: |
+        docker run --rm \
+          -v "$PWD/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+          nginx:1.27-alpine nginx -t
   frontend:
     runs-on: self-hosted
     defaults:
       run:
         working-directory: frontend
-    # Matches the v12 default (frontend/Dockerfile's ARG default, docker-compose.yml's
-    # build.args) — same-origin, no absolute PUBLIC_API_BASE_URL needed. Must be set at
-    # the job level, not just on the `Build` step: `npm run check` runs `svelte-kit sync`
-    # first, which generates `$env/static/public`'s module exports from whatever
-    # PUBLIC_* env vars are present *at that moment* — a missing key emits no export at
-    # all, so `check`'s own `import { PUBLIC_API_BASE_URL }` in src/lib/api.ts fails
-    # before `Build` (which had the var) ever runs. Caught by this job's own first real
-    # run, not anticipated in advance.
     env:
-      PUBLIC_API_BASE_URL: ""
+      PUBLIC_API_BASE_URL: ''
     steps:
-      - uses: actions/checkout@v7
-
-      # v7 targets Node 24 natively, same as actions/checkout above — v4 was flagged
-      # deprecated (targets Node 20, forced to run on 24 anyway) on this job's first real
-      # run. Verified v7.0.0's action.yml directly (`runs: using: node24`) rather than
-      # assuming from the version bump alone, same verification standard as every other
-      # action version in this file.
-      - uses: actions/setup-node@v7
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint (prettier --check + eslint)
-        run: npm run lint
-
-      - name: Type-check (svelte-check)
-        run: npm run check
-
-      - name: Unit tests (vitest)
-        run: npm run test:unit
-
-      - name: Build
-        # This is also the exact config that would have caught the pre-fix `new URL('')`
-        # crash in resolveApiBase() (src/lib/api.ts) had this job existed before that fix
-        # landed.
-        run: npm run build
+    - uses: actions/checkout@v7
+    - uses: actions/setup-node@v7
+      with:
+        node-version: '22'
+        cache: npm
+        cache-dependency-path: frontend/package-lock.json
+    - name: Install dependencies
+      run: npm ci
+    - name: Lint (prettier --check + eslint)
+      run: npm run lint
+    - name: Type-check (svelte-check)
+      run: npm run check
+    - name: Unit tests (vitest)
+      run: npm run test:unit
+    - name: Build
+      run: npm run build
