@@ -313,60 +313,14 @@ acquire_realdl() {
 	export COMPOSE_PROFILES=realdl
 }
 
-# --- e2e fixture --------------------------------------------------------------------------------
+# --- e2e fixture ---------------------------------------------------------------------------------
 
-# A fresh slot database has an empty dedup ledger, and the e2e suite needs some: the tracks in
-# frontend/e2e/support/stack.ts's LEDGER_TRACKS (every default-run job resolves as a duplicate,
-# never a download), and spec 9's two tracks the library sort moved. Each gets a ledger row
-# filed in the slot's library (./test-library) and a one-second silent stand-in file there.
-# Idempotent; a row whose file exists is left alone.
+# A fresh slot database has none of what the e2e suite leans on from the owner's long-lived dev
+# database: ledger rows for every track a default run submits, and the e2e admin's history.
+# scripts/agent_seed.py recreates both, idempotently.
 seed_fixture() {
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"
-	dc exec -T worker-meta python - <<'PY'
-import subprocess
-from pathlib import Path
-
-from sqlalchemy.dialects.postgresql import insert
-
-from app.db import SessionLocal
-from app.models import DownloadedTrack
-from app.services import app_settings
-
-# stack.ts's LEDGER_TRACKS, then spec 9's two moved tracks (not in LEDGER_TRACKS).
-FIXTURE = {
-    "69kOkLUCkxIZYexIgSG8rq": "Get Lucky",
-    "2KHRENHQzTIQ001nlP9Gdc": "Contact",
-    "79koEJRtKOOGJ0VSAF3FMk": "Motherboard",
-    "0k1xMUwn9sb7bZiqdT9ygx": "Beyond",
-    "0DiWol3AO6WpXZgp0goxAV": "One More Time",
-    "5W3cjX2J3tjhG8zb6u0qHn": "Harder, Better, Faster, Stronger",
-}
-
-db = SessionLocal()
-folder = Path(app_settings.get_library_settings(db).library_target_dir) / "Daft Punk" / "agent fixture"
-folder.mkdir(parents=True, exist_ok=True)
-for spotify_id, title in FIXTURE.items():
-    row = db.get(DownloadedTrack, spotify_id)
-    if row is not None and Path(row.file_path).is_file():
-        print(f"seed: {spotify_id} already in the ledger ({row.file_path})")
-        continue
-    path = folder / f"Daft Punk - {title}.mp3"
-    if not path.is_file():
-        subprocess.run(
-            ["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
-             "-t", "1", "-c:a", "libmp3lame", "-b:a", "128k",
-             "-metadata", f"title={title}", "-metadata", "artist=Daft Punk", str(path)],
-            check=True,
-        )
-    values = {"file_path": str(path), "format": "mp3", "bitrate": "128k", "in_library": True}
-    db.execute(
-        insert(DownloadedTrack)
-        .values(spotify_track_id=spotify_id, **values)
-        .on_conflict_do_update(index_elements=["spotify_track_id"], set_=values)
-    )
-    print(f"seed: {spotify_id} -> {path}")
-db.commit()
-PY
+	dc exec -T worker-meta python - <"$ROOT/scripts/agent_seed.py"
 }
 
 # The slot's e2e identities: frontend/e2e/.env.e2e.s<slot> (gitignored), exported so it wins
@@ -385,6 +339,9 @@ load_e2e_credentials() {
 
 # --- Commands -----------------------------------------------------------------------------------
 
+# A function, called on the last line: bash reads a script as it runs it, so a long `realdl` or
+# `e2e` would otherwise execute whatever a concurrent edit or `git rebase` put at its offset.
+main() {
 case "$CMD" in
 env)
 	write_env_agent
@@ -467,3 +424,7 @@ realdl)
 	usage
 	;;
 esac
+}
+
+# One line, so bash has read all of it before main runs.
+main "$@"; exit
