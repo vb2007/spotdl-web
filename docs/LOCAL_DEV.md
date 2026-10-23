@@ -356,13 +356,16 @@ Everything else is already per slot: the project name prefixes every container, 
 named volume (Redis's data included), and `./downloads`, `./test-library` and `./proxies.txt` are
 relative to the worktree (`up` creates them, so Docker doesn't create them root-owned).
 
-**Logins.** Each slot logs in through the real upstream. Register its two identities once, with a
-plain alphanumeric username (§4):
+**Logins.** Each slot logs in through the real upstream its `.env.agent` names
+(`UPSTREAM_AUTH_BASE_URL`, copied from `.env`). Register its two identities there once, with a
+plain alphanumeric username (§4). From the host, a `host.docker.internal:3000` upstream is
+`localhost:3000`:
 
 ```bash
 SLOT=1
+UPSTREAM="$(sed -n 's/^UPSTREAM_AUTH_BASE_URL=//p' .env.agent | sed 's/host\.docker\.internal/localhost/')"
 for role in admin user; do
-  curl -sS -X POST https://api.vb2007.hu/auth/register -H 'Content-Type: application/json' \
+  curl -sS -X POST "$UPSTREAM/auth/register" -H 'Content-Type: application/json' \
     -d "{\"username\":\"v5s${SLOT}$role\",\"email\":\"v5s${SLOT}$role@example.com\",\"password\":\"<a fresh password>\"}"
 done
 ```
@@ -431,7 +434,9 @@ and Redis volumes stay, so `up` comes back with the same data. `down --volumes` 
 the next `up` builds a fresh database. A slot's database volume is labelled with its worktree, so
 the next slice to use the slot can't silently inherit it: drop it with `down --volumes` from the
 old worktree, or `docker volume rm spotdlweb-s<slot>_pgdata spotdlweb-s<slot>_redis-data` once that
-worktree is gone (only the database volume carries the label; the Redis one holds the old queue).
+worktree is gone (only the database volume carries the label; the Redis one holds the old queue). If a
+worktree lost its `.env.agent`, `down [--volumes]` still works there: it removes the slot by its
+compose labels instead.
 
 **Known rough edge.** The dev `web` container runs Vite as root and writes `.svelte-kit/` and
 `project.inlang`'s cache into the worktree root-owned. `up` hands those back to you once, but a

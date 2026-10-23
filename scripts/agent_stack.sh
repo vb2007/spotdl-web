@@ -264,6 +264,10 @@ export_compose_env() {
 	else
 		rm -f "$PG_PORT_OVERLAY"
 	fi
+	# Compose prefers the shell's variables over COMPOSE_ENV_FILES: one left exported by a caller
+	# (an AGENT_SLOT of another slot, a REDIS_PASSWORD) would override .env.agent's.
+	unset AGENT_SLOT AGENT_WORKTREE AGENT_PG_DB AGENT_PG_USER AGENT_PG_PASSWORD REDIS_PASSWORD \
+		CLOUDFLARE_TUNNEL_TOKEN IMAGE_TAG DOWNLOADS_DIR LIBRARY_DIR
 	export COMPOSE_PROJECT_NAME="$PROJECT"
 	export COMPOSE_FILE="$files"
 	export COMPOSE_ENV_FILES="$ENV_AGENT"
@@ -286,18 +290,20 @@ wait_healthy() {
 	local deadline=$((SECONDS + 420)) pending line service state health exit_code
 	while :; do
 		pending=""
-		while read -r service state health exit_code; do
+		while read -r name service state health exit_code; do
 			[ -n "$service" ] && [ "$service" != worker-dl ] || continue
+			# A one-off `docker compose run` container isn't part of the stack.
+			[[ "$name" != *-run-* ]] || continue
 			if [ "$service" = migrate ]; then
 				[ "$state" = exited ] && [ "$exit_code" = 0 ] && continue
 				[ "$state" = exited ] && die "migrate exited $exit_code: scripts/agent_stack.sh $SLOT logs migrate"
 			elif [ "$state" = running ] && { [ "$health" = healthy ] || [ "$health" = "-" ]; }; then
 				continue
-			elif [ "$state" = exited ] || [ "$health" = unhealthy ]; then
+			elif [ "$state" = exited ] || [ "$state" = restarting ] || [ "$health" = unhealthy ]; then
 				die "$service is $state${health:+ ($health)}: scripts/agent_stack.sh $SLOT logs $service"
 			fi
 			pending="$pending $service"
-		done < <(dc ps -a --format '{{.Service}} {{.State}} {{if .Health}}{{.Health}}{{else}}-{{end}} {{.ExitCode}}')
+		done < <(dc ps -a --format '{{.Name}} {{.Service}} {{.State}} {{if .Health}}{{.Health}}{{else}}-{{end}} {{.ExitCode}}')
 		[ -n "$pending" ] || return 0
 		[ "$SECONDS" -lt "$deadline" ] || die "not healthy in time, still waiting on:$pending"
 		sleep 5
@@ -364,6 +370,9 @@ stray_worker_dl() {
 acquire_realdl() {
 	local purpose=$1 holder deadline
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"
+	# 600: the holder line records the command, which may carry a credential.
+	(umask 077 && : >>"$REALDL_LOCK")
+	chmod 600 "$REALDL_LOCK" 2>/dev/null || true
 	exec 9>>"$REALDL_LOCK"
 	if ! flock -n 9; then
 		holder="$(cat "$REALDL_LOCK" 2>/dev/null || true)"
@@ -478,6 +487,18 @@ up)
 	echo "agent_stack: slot $SLOT is up: web http://localhost:$WEB_PORT, api http://localhost:$API_PORT"
 	;;
 down)
+	if [ ! -f "$ENV_AGENT" ]; then
+		# .env.agent is gone (git clean, say): Compose can't render the slot without it, so
+		# remove by label. refuse_foreign_slot has already checked the slot is this worktree's.
+		echo "agent_stack: no $ENV_AGENT: removing slot $SLOT's containers by label" >&2
+		docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" | xargs -r docker rm -f >/dev/null
+		docker network rm "${PROJECT}_default" >/dev/null 2>&1 || true
+		if [ "${1:-}" = --volumes ] || [ "${1:-}" = -v ]; then
+			docker volume rm "${PROJECT}_pgdata" "${PROJECT}_redis-data" >/dev/null 2>&1 || true
+			echo "agent_stack: removed ${PROJECT}_pgdata and ${PROJECT}_redis-data" >&2
+		fi
+		return 0
+	fi
 	require_env_agent
 	export_compose_env
 	COMPOSE_PROFILES=realdl dc down --remove-orphans "$@"
@@ -512,7 +533,7 @@ pytest)
 	pytest_pin="pytest==$(lock_version pytest)"
 	asyncio_pin="pytest-asyncio==$(lock_version pytest-asyncio)"
 	dc exec -T api sh -c "[ -x /tmp/pytest-venv/bin/pytest ] || { python -m venv --system-site-packages /tmp/pytest-venv && uv pip install --quiet --python /tmp/pytest-venv/bin/python '$pytest_pin' '$asyncio_pin'; }"
-	if [ -t 1 ]; then tty_flag=(); else tty_flag=(-T); fi
+	if [ -t 0 ] && [ -t 1 ]; then tty_flag=(); else tty_flag=(-T); fi
 	dc exec "${tty_flag[@]}" -w /app api env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp PYTHONDONTWRITEBYTECODE=1 \
 		/tmp/pytest-venv/bin/python -m pytest -p no:cacheprovider "$@"
 	;;
