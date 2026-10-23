@@ -28,8 +28,8 @@ from app.models.user import User
 from app.services import app_settings
 from app.services.users import get_or_create_user, normalize_email
 
-# Ledger hits the specs submit: LEDGER_TRACKS (support/stack.ts), CANCEL_TRACKS (spec 12),
-# HELD_TRACKS and NEIGHBOUR_TRACK (spec 14). Filed (`in_library`), so a library sweep leaves
+# Ledger hits the specs submit: LEDGER_TRACKS (support/stack.ts), CANCEL_TRACKS and
+# SUBMISSION_TRACKS (spec 12), HELD_TRACKS and NEIGHBOUR_TRACK (spec 14). Filed (`in_library`), so a library sweep leaves
 # them alone and spec 12's sweep doesn't step aside, but kept under /downloads: spec 9 takes the
 # first two in-library files under the library root by id, and these ids sort first.
 SUBMITTED = [
@@ -44,6 +44,8 @@ SUBMITTED = [
     "098ttCNmncrO4YvqWUNMvn",
     "186hvCTyrni4KT9nwIQ7zS",
     "2LD2gT7gwAurzdQDQtILds",
+    "08mG3Y1vljYA6bvDt4Wqkj",
+    "2SiXAy7TuUkycRVbbWDEpo",
 ]
 # Spec 9's two tracks the library sort moved: filed under the library root.
 MOVED = ["0DiWol3AO6WpXZgp0goxAV", "5W3cjX2J3tjhG8zb6u0qHn"]
@@ -51,7 +53,9 @@ FIXTURE_DIR = "agent fixture"
 # The admin's history, which the owner's long-lived dev database has and a fresh slot doesn't:
 # spec 14 pages through three pages of jobs (50 each), opens a job of twelve or more tracks,
 # and spec 3 needs a track whose attempt recorded a network path. Archived, so the dashboard
-# shows them only with "show archived".
+# shows them only with "show archived". The album and the network-path job are the oldest, as on
+# the owner's database: spec 14 waits for its search to list the album, and a row already on the
+# first unfiltered page would satisfy that wait before the search's own re-render removes it.
 HISTORY_JOBS = 120
 ALBUM_TRACKS = 14
 HISTORY_URL = "https://open.spotify.com/{kind}/agentfixture{n:04d}"
@@ -140,21 +144,21 @@ else:
         db.flush()
         return tracks
 
-    for n in range(HISTORY_JOBS):
-        add_job(n, JobSourceType.TRACK, [f"History fixture {n:03d}"])
     add_job(
-        HISTORY_JOBS,
+        0,
         JobSourceType.ALBUM,
         [f"Album fixture track {i:02d}" for i in range(1, ALBUM_TRACKS + 1)],
         list_name="Album fixture",
     )
     (track,) = add_job(
-        HISTORY_JOBS + 1,
+        1,
         JobSourceType.TRACK,
         ["Network path fixture"],
         track_state=TrackState.COMPLETED,
     )
-    finished = start + timedelta(minutes=HISTORY_JOBS + 1, seconds=30)
+    finished = start + timedelta(minutes=1, seconds=30)
+    for n in range(2, HISTORY_JOBS + 2):
+        add_job(n, JobSourceType.TRACK, [f"History fixture {n:03d}"])
     db.add(
         TrackAttempt(
             track_id=track.id,

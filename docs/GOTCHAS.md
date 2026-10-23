@@ -5667,8 +5667,8 @@ independently-found production bug from the same conversation)
   realdl lock like a real download does, although a default run makes no network attempt
   (teardown proves it).
 - **The e2e suite leans on the owner's dev history, not only `LEDGER_TRACKS`.** On a fresh slot
-  database the first run failed 21 tests: specs 12 and 14 submit seven more ledger tracks
-  (`CANCEL_TRACKS`, `HELD_TRACKS`, `NEIGHBOUR_TRACK`), spec 14 wants "an admin job with twelve or
+  database the first run failed 21 tests: specs 12 and 14 submit nine more ledger tracks
+  (`CANCEL_TRACKS`, `SUBMISSION_TRACKS`, `HELD_TRACKS`, `NEIGHBOUR_TRACK`), spec 14 wants "an admin job with twelve or
   more tracks" and three pages of 50 jobs, and spec 3 an admin track whose attempt recorded a
   network path ("run `npm run test:e2e:network` once"). `scripts/agent_seed.py` recreates all of
   it (stand-in files are one-second silent MP3s: dedup is folder + filename only, so they count

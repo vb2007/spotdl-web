@@ -372,7 +372,8 @@ long-lived dev database, so before it runs, `seed` (`scripts/agent_seed.py`, ide
 what a fresh slot lacks:
 
 - a ledger row and a one-second silent stand-in file for every track a default run submits
-  (`LEDGER_TRACKS` in `frontend/e2e/support/stack.ts`, spec 12's `CANCEL_TRACKS`, spec 14's
+  (`LEDGER_TRACKS` in `frontend/e2e/support/stack.ts`, spec 12's `CANCEL_TRACKS` and
+  `SUBMISSION_TRACKS`, spec 14's
   `HELD_TRACKS` and `NEIGHBOUR_TRACK`), under `./downloads/agent fixture/`, plus spec 9's two
   tracks the library sort moved, under `./test-library/agent fixture/`;
 - the e2e admin's history: 120 archived jobs (spec 14 pages through three pages of 50), a 14-track
