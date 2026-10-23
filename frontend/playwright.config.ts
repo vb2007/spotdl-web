@@ -6,7 +6,9 @@ loadE2eEnv();
 // v37: the suite drives the real local stack (`docker compose up`, the dev database, the real
 // backend and network) -- nothing here starts a server or mocks an API. Local-only by design:
 // the CI runner is the production host (docs/LOCAL_DEV.md, "Browser end-to-end suite").
-const baseURL = process.env.E2E_BASE_URL || 'http://localhost:5173';
+// v50: without E2E_BASE_URL it follows WEB_PORT, the stack's published web port (an agent
+// slot's, scripts/agent_stack.sh), and is the owner's 5173 without either.
+const baseURL = process.env.E2E_BASE_URL || `http://localhost:${process.env.WEB_PORT || 5173}`;
 // Setup's ledger preflight and teardown's zero-download check read the local compose stack, so
 // the browser must drive that same stack: never a deployed origin.
 if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(baseURL).hostname)) {

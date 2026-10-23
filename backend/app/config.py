@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from typing import Annotated
 
@@ -94,9 +95,13 @@ class Settings(BaseSettings):
     # container's published port directly). A list because local dev is reachable as both
     # localhost and 127.0.0.1 (different origins to a browser even though they're the same
     # machine); the default covers both. Production sets this to the real Cloudflare
-    # Tunnel hostname (see .env.example).
+    # Tunnel hostname (see .env.example). v50: the default follows WEB_PORT, the published web
+    # port (an agent slot's 5174-5177, scripts/agent_stack.sh), and is 5173 without it.
     frontend_origins: Annotated[list[str], NoDecode] = Field(
-        default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"],
+        default_factory=lambda: [
+            f"http://{host}:{os.environ.get('WEB_PORT') or '5173'}"
+            for host in ("localhost", "127.0.0.1")
+        ],
         alias="FRONTEND_ORIGINS",
     )
 
