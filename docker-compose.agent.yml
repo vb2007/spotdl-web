@@ -33,11 +33,13 @@ x-agent-depends: &agent-depends
 
 services:
   postgres:
-    # Production's major version, read once from the owner's spotdlwebtest (same server as
-    # production) with `SELECT version()` on 2026-10-23: PostgreSQL 18.6. The 18 image keeps
-    # its data under /var/lib/postgresql/18/docker and refuses a volume mounted at the old
-    # /var/lib/postgresql/data, so the volume goes on /var/lib/postgresql.
-    image: postgres:18.6-alpine
+    # Production's version, read once from the owner's spotdlwebtest (same server as
+    # production) on 2026-10-23: PostgreSQL 18.6 on Debian, databases en_US.UTF-8 with the libc
+    # provider. Debian-based for glibc's collation: Alpine's musl sorts text in codepoint order,
+    # so a server-side sort or cursor page would come out differently from production. The 18
+    # image keeps its data under /var/lib/postgresql/18/docker and refuses a volume mounted at
+    # the old /var/lib/postgresql/data, so the volume goes on /var/lib/postgresql.
+    image: postgres:18.6-bookworm
     environment:
       POSTGRES_DB: ${AGENT_PG_DB:?run scripts/agent_stack.sh <slot> env}
       POSTGRES_USER: ${AGENT_PG_USER:?run scripts/agent_stack.sh <slot> env}
@@ -71,7 +73,7 @@ services:
     environment: *agent-env
     depends_on: *agent-depends
     # `agent_stack.sh <slot> pytest` runs the suite in this container, against the worktree's
-    # tests and pytest config (the image has neither).
+    # tests (the image has none) and pytest config (the image's copy is the one it was built with).
     volumes:
       - ./backend/tests:/app/tests:ro
       - ./backend/pyproject.toml:/app/pyproject.toml:ro
