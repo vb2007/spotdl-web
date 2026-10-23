@@ -247,11 +247,22 @@ wait_healthy() {
 	done
 }
 
-# Bind-mount sources must exist before `up`, or Docker creates them root-owned (and a
-# directory, for proxies.txt) where the uid-1000 workers can't write.
+# Bind-mount sources and the dev `web` container's anonymous-volume mountpoints must exist
+# before `up`, or Docker creates them root-owned (and a directory, for proxies.txt): the uid-1000
+# workers couldn't write ./downloads, and a host `npm ci` couldn't fill frontend/node_modules.
 prepare_mounts() {
-	mkdir -p "$ROOT/downloads" "$ROOT/test-library"
+	mkdir -p "$ROOT/downloads" "$ROOT/test-library" "$ROOT/frontend/node_modules" \
+		"$ROOT/frontend/src/lib/paraglide"
 	[ -e "$ROOT/proxies.txt" ] || : >"$ROOT/proxies.txt"
+}
+
+# The dev `web` container runs Vite as root, which writes .svelte-kit/ and project.inlang's cache
+# into the worktree root-owned, and then host-side `npm run check`/`lint` fail with EACCES
+# (docs/GOTCHAS.md, v44). A fresh worktree hits that on its first `up`, so hand them back.
+# (Vite keeps writing as root afterwards; v52 owns the lasting fix.)
+return_frontend_files() {
+	# Not into the container's own node_modules and compiled messages (anonymous volumes).
+	dc exec -T web sh -c "find /app \\( -path /app/node_modules -o -path /app/src/lib/paraglide \\) -prune -o -user 0 -exec chown $(id -u):$(id -g) {} +" || true
 }
 
 # --- realdl lock --------------------------------------------------------------------------------
@@ -380,6 +391,7 @@ up)
 	dc up -d --build "$@"
 	echo "agent_stack: waiting for slot $SLOT to be healthy"
 	wait_healthy
+	return_frontend_files
 	echo "agent_stack: slot $SLOT is up: web http://localhost:$WEB_PORT, api http://localhost:$API_PORT"
 	;;
 down)
