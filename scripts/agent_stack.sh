@@ -224,13 +224,14 @@ stack_running() {
 	[ -n "$(dc ps --status running -q api 2>/dev/null)" ]
 }
 
-# Every started service healthy (beat has no healthcheck: running), migrate exited 0.
+# Every started service healthy (beat has no healthcheck: running), migrate exited 0. worker-dl
+# isn't part of `up`: it runs only under a realdl lock, which watches it itself.
 wait_healthy() {
 	local deadline=$((SECONDS + 420)) pending line service state health exit_code
 	while :; do
 		pending=""
 		while read -r service state health exit_code; do
-			[ -n "$service" ] || continue
+			[ -n "$service" ] && [ "$service" != worker-dl ] || continue
 			if [ "$service" = migrate ]; then
 				[ "$state" = exited ] && [ "$exit_code" = 0 ] && continue
 				[ "$state" = exited ] && die "migrate exited $exit_code: scripts/agent_stack.sh $SLOT logs migrate"
@@ -254,6 +255,9 @@ prepare_mounts() {
 	mkdir -p "$ROOT/downloads" "$ROOT/test-library" "$ROOT/frontend/node_modules" \
 		"$ROOT/frontend/src/lib/paraglide"
 	[ -e "$ROOT/proxies.txt" ] || : >"$ROOT/proxies.txt"
+	# $env/static/public needs PUBLIC_API_BASE_URL declared (empty: same-origin), for Vite in the
+	# container and `npm run check` on the host alike. The template's value is the dev one.
+	[ -e "$ROOT/frontend/.env" ] || cp "$ROOT/frontend/.env.example" "$ROOT/frontend/.env"
 }
 
 # The dev `web` container runs Vite as root, which writes .svelte-kit/ and project.inlang's cache
@@ -272,7 +276,9 @@ REALDL_HELD=""
 release_realdl() {
 	if [ -n "$REALDL_HELD" ]; then
 		echo "agent_stack: stopping worker-dl and releasing the realdl lock" >&2
-		COMPOSE_PROFILES=realdl dc stop worker-dl >&2 || true
+		# Removed, not just stopped: an exited worker-dl container would sit in `ps -a` as if
+		# it had crashed.
+		COMPOSE_PROFILES=realdl dc rm --stop --force worker-dl >&2 || true
 		: >"$REALDL_LOCK"
 		flock -u 9
 		REALDL_HELD=""
@@ -442,6 +448,10 @@ e2e)
 	require_env_agent
 	export_compose_env
 	load_e2e_credentials
+	# The specs import the compiled messages from the host side; the web container's copy is
+	# its own (an anonymous volume).
+	[ -f "$ROOT/frontend/src/lib/paraglide/messages.js" ] ||
+		die "frontend/src/lib/paraglide isn't compiled on the host: run npm ci && npm run check in frontend/ first"
 	acquire_realdl "e2e"
 	seed_fixture
 	(cd "$ROOT/frontend" && npm run test:e2e -- "$@")
