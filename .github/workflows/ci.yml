@@ -10,22 +10,24 @@ name: CI
 # files since they all gate the exact same triggers and none is meaningfully independent of
 # "does this PR's code work." `compose-config` and `frontend` were briefly their own
 # `deploy-checks.yml` (added alongside v12) before being folded in here.
+#
+# v49: no `push` and no `schedule` here any more. A push to `main` runs these same checks as the
+# first job of "Release & Deploy" (release-deploy.yml, through `workflow_call`), so the release
+# and the deploy follow them in the same run instead of being chained on by a
+# workflow-completion trigger. The daily yt-dlp freshness check moved to nightly.yml, so the
+# schedule no longer re-runs the whole suite on an unchanged `main`. Called that way, `github.*` is the caller's context
+# (`github.event_name` is `push`, or `workflow_dispatch` for a manual re-run of the chain), which
+# the `version` and `deps-sync` steps below already handle.
+#
+# No `concurrency` group either (v49): every PR push gets one complete run, never a cancelled one.
 "on":
   pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
-  # v23: yt-dlp deliberately floats to latest at build time (backend/Dockerfile) rather
-  # than being pinned in requirements.txt like everything else — pinning it produced the
-  # outage this version fixed (docs/GOTCHAS.md's v23 entry). This is the safety net for
-  # when that build-time float step silently installs something stale (e.g. a transient
-  # PyPI outage mid-build), independent of whether anyone happens to open a PR that week.
-  schedule:
-    - cron: "17 4 * * *"
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
+    outputs:
+      failed:
+        description: "The checks that failed or were cancelled, space-separated (empty when all passed)"
+        value: ${{ jobs.summary.outputs.failed }}
 
 jobs:
   # v21: standing requirement — backend/pyproject.toml and frontend/package.json must always
@@ -189,7 +191,7 @@ jobs:
 
       # workflow_dispatch (and anything else) has no natural "base" to diff against, so
       # it always runs for real — same "manual means you want the real check" reasoning
-      # as yt-dlp-freshness below.
+      # as nightly.yml's yt-dlp-freshness.
       - name: Check whether dependency files changed
         id: changed
         run: |
@@ -231,58 +233,6 @@ jobs:
           uv pip compile pyproject.toml -o requirements.txt
           diff requirements.txt.orig requirements.txt
 
-  # v23: standalone (not part of the `summary` fan-in below) since it never gates a PR —
-  # it only ever runs on the daily schedule above or a manual dispatch. Builds the real
-  # image and reads back what actually landed inside it, rather than trusting that
-  # backend/Dockerfile's `uv pip install --upgrade yt-dlp yt-dlp-ejs` step ran correctly,
-  # since a silent failure there (e.g. PyPI unreachable mid-build) would otherwise look
-  # identical to a healthy build from the outside. v23.1 extends this to yt-dlp-ejs too —
-  # it upgrades alongside yt-dlp in that same Dockerfile step now, and a version drift
-  # between the two is exactly what reproduces the v23 outage under a different name (see
-  # docs/GOTCHAS.md's spotdl-library entry).
-  yt-dlp-freshness:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Build backend image
-        run: docker build -t spotdl-web-yt-dlp-freshness-check ./backend
-
-      - name: Compare built image's yt-dlp version against PyPI's latest
-        id: yt-dlp
-        continue-on-error: true
-        run: |
-          BUILT=$(docker run --rm spotdl-web-yt-dlp-freshness-check python -c "from importlib.metadata import version; print(version('yt-dlp'))")
-          LATEST=$(curl -sf https://pypi.org/pypi/yt-dlp/json | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
-          echo "Built image yt-dlp version: $BUILT"
-          echo "PyPI latest yt-dlp version: $LATEST"
-          if [ "$BUILT" != "$LATEST" ]; then
-            echo "::error::Built image's yt-dlp ($BUILT) does not match PyPI's latest ($LATEST) -- backend/Dockerfile's float step may have failed at build time."
-            exit 1
-          fi
-
-      # A separate step (not folded into the one above) so a yt-dlp-ejs-only drift is
-      # never masked by the first step's exit -- `continue-on-error` on both plus the
-      # explicit fan-in below is what lets this job report *both* mismatches from one run
-      # instead of stopping at the first.
-      - name: Compare built image's yt-dlp-ejs version against PyPI's latest
-        id: yt-dlp-ejs
-        continue-on-error: true
-        run: |
-          BUILT=$(docker run --rm spotdl-web-yt-dlp-freshness-check python -c "from importlib.metadata import version; print(version('yt-dlp-ejs'))")
-          LATEST=$(curl -sf https://pypi.org/pypi/yt-dlp-ejs/json | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
-          echo "Built image yt-dlp-ejs version: $BUILT"
-          echo "PyPI latest yt-dlp-ejs version: $LATEST"
-          if [ "$BUILT" != "$LATEST" ]; then
-            echo "::error::Built image's yt-dlp-ejs ($BUILT) does not match PyPI's latest ($LATEST) -- backend/Dockerfile's float step may have failed at build time."
-            exit 1
-          fi
-
-      - name: Fail if either version check failed
-        if: steps.yt-dlp.outcome == 'failure' || steps.yt-dlp-ejs.outcome == 'failure'
-        run: exit 1
-
   # v21.1: fans in from every check, not just `pytest` — before this, `version`/
   # `compose-config`/`frontend` were siblings with no downstream node, so the run's Summary
   # page only ever showed backend results even once those three jobs existed (visible as two
@@ -292,7 +242,24 @@ jobs:
     needs: [version, pytest, compose-config, frontend, deps-sync]
     if: always()
     runs-on: self-hosted
+    # v49: read by release-deploy.yml's `notify` (through this workflow's `failed` output), so a
+    # notice names the check that failed, not just "checks".
+    outputs:
+      failed: ${{ steps.failed.outputs.failed }}
     steps:
+      # First, before the checkout: a GitHub-side failure downloading an action (v48's 429)
+      # mustn't take the list of failed checks down with it.
+      - name: List the failed checks
+        id: failed
+        run: |
+          failed=""
+          for pair in "version=${{ needs.version.result }}" "pytest=${{ needs.pytest.result }}" \
+                      "compose-config=${{ needs['compose-config'].result }}" \
+                      "frontend=${{ needs.frontend.result }}" "deps-sync=${{ needs['deps-sync'].result }}"; do
+            case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*}" ;; esac
+          done
+          echo "failed=${failed# }" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v7
 
       # v8 targets Node 24 natively - same reasoning as the checkout/upload-artifact bumps
