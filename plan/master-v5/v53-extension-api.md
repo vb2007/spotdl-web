@@ -1,13 +1,13 @@
-# v52 — Extension API (keys, cascades, allowlist, rate limits)
+# v53 — Extension API (keys, cascades, allowlist, rate limits)
 
 Branch: `dev-extension-api` → PR into `main`
-Version: `5.52.0`
+Version: `5.53.0`
 Wave / slot: 1 / 3
-Depends on: v49
+Depends on: v50
 
 ## Scope
 
-Everything the Firefox extension (v57) needs from the backend. This is the **contract** v57 builds
+Everything the Firefox extension (v58) needs from the backend. This is the **contract** v58 builds
 on, so it lands a wave earlier. Today there's cookie-only auth (`routers/auth.py:15,25-35`), no
 API keys, no rate limits, and job create accepts any text as a `SEARCH` job
 (`routers/jobs.py:44-54`).
@@ -24,7 +24,7 @@ fallback.
      the same profile.
    - Record the result in GOTCHAS for: plain HTTP on 127.0.0.1, the HTTPS production origin
      (read-only `me` call with a test identity), and Total Cookie Protection on and off.
-   - v57's cookie path depends on this answer. If cookies don't flow, v57 still ships with keys
+   - v58's cookie path depends on this answer. If cookies don't flow, v58 still ships with keys
      only, and this is recorded as such.
 2. **Per-user API keys.**
    - New `api_keys` table: `id`, `user_id` FK (cascade on user delete), `label`, `prefix`
@@ -88,7 +88,7 @@ fallback.
 
 ## Out of scope
 
-The extension itself (v57). Key scopes beyond "submit + me". OAuth.
+The extension itself (v58). Key scopes beyond "submit + me". OAuth.
 
 ## Deploy notes
 
@@ -126,4 +126,4 @@ A new migration (additive, no data rewrite). New **optional** env vars for rate 
 - [ ] The `/account` keys section works keyboard-only in en and hu, with impeccable output and
       screenshots recorded. The e2e spec has been added.
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass. Both version files read
-      `5.52.0`. `uv lock` is in sync. `graphify update .` has been run.
+      `5.53.0`. `uv lock` is in sync. `graphify update .` has been run.

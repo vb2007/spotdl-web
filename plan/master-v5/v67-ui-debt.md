@@ -1,7 +1,7 @@
-# v66 — UI Debt & New-Surface Audit (impeccable)
+# v67 — UI Debt & New-Surface Audit (impeccable)
 
 Branch: `dev-ui-debt` → PR into `main`
-Version: `5.66.0`
+Version: `5.67.0`
 Wave / slot: 5 / 1
 Depends on: waves 0–4 merged
 
@@ -9,14 +9,14 @@ Depends on: waves 0–4 merged
 
 Ledger items **U2, U3, U5–U13**: UI gaps v39's audit and v47's polish logged but didn't close
 (DESIGN.md §8's open entries, #69's lists). Plus an **impeccable critique and audit of every
-surface master v5 added**: `/account`'s API keys section (v52), the others view (v53), the sweep
-cancel (v56), alert history (v58), `+error` (v61), the watch, retry and export controls
-(v62/v63), `/share` and install (v64), notifications and my stats (v65). All of it goes
+surface master v5 added**: `/account`'s API keys section (v53), the others view (v54), the sweep
+cancel (v57), alert history (v59), `+error` (v62), the watch, retry and export controls
+(v63/v64), `/share` and install (v65), notifications and my stats (v66). All of it goes
 **strictly through the impeccable skill** (`critique`/`audit` first, then the sub-commands its
 findings call for), as a **refinement** of the existing world (v39's approved direction), not a
 redesign.
 
-v67 (same wave) owns list virtualization and the job/track list container. v66 must **not** touch
+v68 (same wave) owns list virtualization and the job/track list container. v67 must **not** touch
 the list rendering in `+page.svelte`/`JobTrackList.svelte`, or the roving-focus code.
 
 ## Items
@@ -48,7 +48,7 @@ the list rendering in `+page.svelte`/`JobTrackList.svelte`, or the roving-focus 
 - **U12:** resolve the `/stats` surface brief's `## Unresolved` section, so no `Unresolved` remains
   in `frontend/src/.impeccable/surfaces/`.
 - **U13:** re-verify the 320px admin view's horizontal scroll (#58). Fix if still present.
-- **New-surface audit:** run impeccable `critique` and `audit` on each v52–v65 surface, desktop and
+- **New-surface audit:** run impeccable `critique` and `audit` on each v53–v66 surface, desktop and
   mobile, en and hu. Fix findings within refinement scope. Log anything larger in the PR's
   "Found, not fixed".
 - Close the matching DESIGN.md §8 entries with dated notes. Keep the known-gaps convention.
@@ -61,7 +61,7 @@ behavior), `frontend/src/lib/components/{JobRow,TrackRow,QueueControls,AmbientFi
 `frontend/design-tokens.json` (wherever it lives), `frontend/src/DESIGN.md`,
 `frontend/src/.impeccable/**`, the Paraglide config (U8), message JSONs (hotspot).
 **Not:** `routes/+page.svelte`'s list rendering, `JobTrackList.svelte`, `lib/keyboard/lists.ts`
-(v67).
+(v68).
 
 ## Done when
 
@@ -85,4 +85,4 @@ behavior), `frontend/src/lib/components/{JobRow,TrackRow,QueueControls,AmbientFi
 - [ ] Full e2e is green on desktop, mobile and `hu`, including v45's keyboard journeys and the
       Hungarian QWERTZ emulation.
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass. Both version files read
-      `5.66.0`. `uv lock` is in sync. `graphify update .` has been run.
+      `5.67.0`. `uv lock` is in sync. `graphify update .` has been run.

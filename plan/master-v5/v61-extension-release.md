@@ -1,10 +1,10 @@
-# v60 — Extension Release Pipeline
+# v61 — Extension Release Pipeline
 
 Branch: `dev-extension-release` → PR into `main`
 Version: **app version not bumped** (touches `extension/`, `.github/`, docs). The extension bumps
 to `1.0.1` (or `1.1.0`) in `extension/manifest.json` to exercise its own pipeline.
 Wave / slot: 3 / 3
-Depends on: v57
+Depends on: v58
 
 ## Scope
 
@@ -28,13 +28,16 @@ checks the extension never had (`ci.yml` lints only `frontend/`, and `check_vers
      never needs to match.
    - Add tests for the script.
 3. **The signing and release workflow** (new `.github/workflows/extension-release.yml`).
-   - Triggered on `main` when `extension/manifest.json`'s version changed, after CI passes. Same
-     `workflow_run` pattern as `release.yml`.
+   - A `workflow_call` workflow (plus `workflow_dispatch`), **called from v49's "Release & Deploy"
+     run** as its own job after `checks`, gated in that run's `plan` job on
+     `extension/manifest.json`'s version having risen. No own `push` trigger and no
+     `workflow_run`, so a merge without an extension bump creates no extension run at all.
    - Runs `web-ext sign --channel unlisted --api-key "$AMO_JWT_ISSUER" --api-secret "$AMO_JWT_SECRET"`.
    - Creates a GitHub release `extension-v<ver>` with the signed `.xpi` and an `updates.json` (the
      Firefox update manifest format, listing each version's XPI URL and the min version).
-   - Concurrency group, so two releases never race. Matrix notify on failure, reusing v59's
-     curl-only `notify` pattern.
+   - Two extension releases never race, without a cancelling concurrency group (v49's rule: the
+     single runner serializes, and a version already released is a successful no-op). Its failure
+     reaches "Release & Deploy"'s curl-only `notify` (v49).
    - If the AMO secrets are missing, the job **fails with a clear message**. A missing signing key
      is a real failure, unlike missing Matrix config.
 4. **Auto-update.**
@@ -51,14 +54,15 @@ checks the extension never had (`ci.yml` lints only `frontend/`, and `check_vers
 ## Files owned
 
 `extension/manifest.json` (version and `update_url` only), `extension/package.json` scripts if
-any, `.github/workflows/ci.yml` (the new `extension` job and the summary entry only; v59 owns the
-rest of `ci.yml` in the same wave, so keep to separate jobs), new
+any, `.github/workflows/ci.yml` (the new `extension` job and the summary entry only; v60 owns the
+rest of `ci.yml` in the same wave, so keep to separate jobs), `.github/workflows/release-deploy.yml`
+(the `plan` job's extension output and the `extension-release` job only; v60 owns the rest), new
 `.github/workflows/extension-release.yml`, `.github/scripts/check_version.py` (plus its tests),
 `docs/EXTENSION.md`, `docs/RELEASE_PIPELINE.md` (one paragraph).
 
 ## Out of scope
 
-Listing on AMO publicly. Chrome. Changing extension behavior (v57).
+Listing on AMO publicly. Chrome. Changing extension behavior (v58).
 
 ## Deploy notes
 

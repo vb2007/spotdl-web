@@ -1,9 +1,9 @@
-# v61 — Frontend Store & Navigation Fixes
+# v62 — Frontend Store & Navigation Fixes
 
 Branch: `dev-frontend-store-fixes` → PR into `main`
-Version: `5.61.0`
+Version: `5.62.0`
 Wave / slot: 3 / 4
-Depends on: v53 (the store's `view`), v55 (the single-track GET, the breaker flag)
+Depends on: v54 (the store's `view`), v56 (the single-track GET, the breaker flag)
 
 ## Scope
 
@@ -37,7 +37,7 @@ stops matching the active filter stays until reload. Don't "fix" that.
   - Keyboard-complete. The shortcut chords (`g s`, etc.) go through the same guard.
 - **F7. One `/account` save model.**
   - Today two models coexist (auto-save toggles vs a save button). Pick one with impeccable's
-    `clarify`, then apply it consistently to retention, keyboard, language, clock and v52's
+    `clarify`, then apply it consistently to retention, keyboard, language, clock and v53's
     keys section.
   - Record the rule in DESIGN.md.
 - **F8. Clear log is disabled when there's nothing to clear** (no settled jobs in the current
@@ -48,7 +48,7 @@ stops matching the active filter stays until reload. Don't "fix" that.
   - The existing poll stays as a fallback.
 - **F10. A stale progress cache after a re-run.** The progress cache keys on `attempt_count`,
   which a re-run doesn't always bump. Key it on the attempt id or the latest attempt's
-  `started_at` instead (v54 may change counting; rebase onto it).
+  `started_at` instead (v55 may change counting; rebase onto it).
 
 ## Files owned
 
@@ -61,7 +61,7 @@ JSONs (hotspot), unit tests (`queue.test.ts`) and e2e specs.
 
 ## Out of scope
 
-List virtualization (v67). Visual redesigns beyond F5/F7 (v66). Dropping non-matching rows (owner:
+List virtualization (v68). Visual redesigns beyond F5/F7 (v67). Dropping non-matching rows (owner:
 keep).
 
 ## Done when
@@ -87,4 +87,4 @@ keep).
 - [ ] **F10:** a re-run track shows fresh progress (unit test plus a live check).
 - [ ] Full e2e is green on desktop, mobile and `hu`.
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass. Both version files read
-      `5.61.0`. `uv lock` is in sync. `graphify update .` has been run.
+      `5.62.0`. `uv lock` is in sync. `graphify update .` has been run.

@@ -18,7 +18,7 @@ YouTube-Music rate limiting as an expected, permanent condition rather than a fa
 That inverts normal web-app priorities — durability beats throughput. A track may legitimately sit
 in the queue for days, and that is correct behavior, not a stall.
 
-**Status:** masters v1–v4 (v00–v48) are complete and shipping to `spotdl.vb2007.hu`. **Master v5 (v49–v68)
+**Status:** masters v1–v4 (v00–v48) are complete and shipping to `spotdl.vb2007.hu`. **Master v5 (v49–v69)
 is in progress**: close every open gotcha, a Firefox extension, an admin "others" view, new features.
 
 ### Where things are
@@ -34,9 +34,9 @@ is in progress**: close every open gotcha, a Firefox extension, an admin "others
 
 ### Workflow rules (do not deviate without asking)
 
-- **One feature per agent, in order.** Never one out of order (the sequencing is deliberate). From v5,
-  up to 4 slices of the **same wave** run in parallel, each in its own worktree and slot stack, per the
-  master plan's parallel model and rebase protocol (v49 first, alone). Subagents work *within* a slice.
+- **One feature per agent, in order.** Never one out of order (the sequencing is deliberate). From v5, up
+  to 4 slices of the **same wave** run in parallel, each in its own worktree and slot stack, per the master
+  plan's parallel model and rebase protocol (wave 0: v49 ∥ v50, v49 merged first). Subagents stay in a slice.
 - **Branch per version**: `dev-<feature-name>` from `main`, one PR into `main` per version (a
   "version" is a feature slice, not a release).
 - **"Done when" is a literal checklist.** Every bullet needs its own concrete evidence gathered *this
@@ -237,7 +237,7 @@ terminal). **Outcome**, only once `settled`: `complete` (all `completed`/`skippe
 
 ## Version roadmap
 
-Masters v1–v4 (v00–v48) are complete; master v5 (v49–v68, waves 0–6) is in progress. Slices live in
+Masters v1–v4 (v00–v48) are complete; master v5 (v49–v69, waves 0–6) is in progress. Slices live in
 `plan/master-vN/` (patch slices in that master's Amendments); findings in `docs/GOTCHAS.md`.
 
 ## Maintaining this file

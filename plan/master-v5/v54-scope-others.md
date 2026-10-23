@@ -1,9 +1,9 @@
-# v53 — Admin "Other Users" View
+# v54 — Admin "Other Users" View
 
 Branch: `dev-scope-others` → PR into `main`
-Version: `5.53.0`
+Version: `5.54.0`
 Wave / slot: 1 / 4
-Depends on: v49
+Depends on: v50
 
 ## Scope
 
@@ -63,14 +63,14 @@ permanent, so it's fixed here.
 
 ## Files owned
 
-`backend/app/routers/{jobs,tracks}.py` (the list endpoints' `view` param only; v52 owns create),
+`backend/app/routers/{jobs,tracks}.py` (the list endpoints' `view` param only; v53 owns create),
 `backend/app/routers/stream.py`, `backend/app/services/{job_listing,track_listing}.py`,
 `frontend/src/lib/stores/queue.ts`, `frontend/src/lib/api.ts` (list/stream params),
 `frontend/src/routes/+page.svelte`, `frontend/src/lib/components/{QueueControls,IncomingJobs,JobRow,Waterfall,AmbientField}.svelte`
 (scope/amber bits only), `frontend/src/lib/keyboard/bindings.ts`, `frontend/src/DESIGN.md`,
 message JSONs (hotspot), and the tests named below.
 
-`routers/jobs.py` is also touched by v52 (create only). Keep the edits in separate functions; the
+`routers/jobs.py` is also touched by v53 (create only). Keep the edits in separate functions; the
 rebase protocol resolves the rest.
 
 ## Out of scope
@@ -103,4 +103,4 @@ Per-view stats. A per-user picker ("show user X"). Changing which jobs a sweep a
       flash of the other view's rows (the e2e spec extended).
 - [ ] Full e2e is green on desktop, mobile and `hu`, with a new others-view spec.
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass. Both version files read
-      `5.53.0`. `uv lock` is in sync. `graphify update .` has been run.
+      `5.54.0`. `uv lock` is in sync. `graphify update .` has been run.

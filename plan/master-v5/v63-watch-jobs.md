@@ -1,9 +1,9 @@
-# v62 — Watched Playlists & Artists, Job-Level Re-run
+# v63 — Watched Playlists & Artists, Job-Level Re-run
 
 Branch: `dev-watch-jobs` → PR into `main`
-Version: `5.62.0`
+Version: `5.63.0`
 Wave / slot: 4 / 1
-Depends on: waves 0–3 merged (v55's expansion outbox marker in particular)
+Depends on: waves 0–3 merged (v56's expansion outbox marker in particular)
 
 ## Scope
 
@@ -39,7 +39,7 @@ everything, over however long it takes. This version adds:
 - **Re-run now:** `POST /api/jobs/{id}/reexpand` (owner/admin, non-owner 404) runs the same thing
   immediately. One at a time per job (409 `reexpand_running`).
 - **Retry all failed:** `POST /api/jobs/{id}/retry-failed` re-dispatches every `waiting` track
-  through the same rules as single retry, including v55's non-admin once-per-step rule, applied
+  through the same rules as single retry, including v56's non-admin once-per-step rule, applied
   per track. Admin-only extra: `?include_not_found=true` resets `lookup_failed` tracks to `queued`
   for one more attempt. That's an explicit override of the "terminal" rule, so it's admin-only,
   behind `ConfirmDialog`, and recorded in attempt history as `manual_override`.
@@ -51,7 +51,7 @@ everything, over however long it takes. This version adds:
   en/hu, keyboard bindings registered (Hungarian QWERTZ rules; proposed `w` = toggle watch,
   `Shift+R` = retry failed, checked against the registry), and the help overlay updates
   automatically.
-- **Alerts:** none by default (a watched job finding new tracks isn't an operator event). v65's
+- **Alerts:** none by default (a watched job finding new tracks isn't an operator event). v66's
   personal notifications may announce it.
 
 ## Files owned
@@ -59,13 +59,13 @@ everything, over however long it takes. This version adds:
 `backend/app/tasks/expand.py` (re-expand mode), `backend/app/tasks/beat.py` (the watched-job
 selection only), `backend/app/routers/jobs.py` (new endpoints), `backend/app/services/expansion.py`,
 `backend/app/models/job.py`, a migration, `frontend/src/lib/components/JobRow.svelte` (watch and
-retry controls; v63 adds an export control in the same wave, so keep to separate, clearly
+retry controls; v64 adds an export control in the same wave, so keep to separate, clearly
 delimited blocks), `frontend/src/lib/api.ts`, `frontend/src/lib/keyboard/bindings.ts`, message
 JSONs (hotspot), tests.
 
 ## Out of scope
 
-Removing tracks that disappeared from a playlist. Watching albums. Notifications (v65).
+Removing tracks that disappeared from a playlist. Watching albums. Notifications (v66).
 
 ## Deploy notes
 
@@ -92,4 +92,4 @@ A migration adding three nullable columns (additive).
 - [ ] The UI works keyboard-only; en/hu screenshots; impeccable output recorded. An e2e spec
       covers watch and retry-failed.
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass. Both version files read
-      `5.62.0`. `uv lock` is in sync. `graphify update .` has been run.
+      `5.63.0`. `uv lock` is in sync. `graphify update .` has been run.

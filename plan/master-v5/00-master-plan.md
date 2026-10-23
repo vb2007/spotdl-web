@@ -2,7 +2,7 @@
 
 > This is the master v5 roadmap, approved by the owner and committed **verbatim** as the project's
 > permanent record, with the same treatment masters v1–v4 got. Individual version plans
-> (`plan/master-v5/v49-*.md` … `v68-*.md`) expand the roadmap below. `IMPLEMENTATION_PROMPT.md`
+> (`plan/master-v5/v49-*.md` … `v69-*.md`) expand the roadmap below. `IMPLEMENTATION_PROMPT.md`
 > in this folder is the template prompt for every v5 implementation agent. `CLAUDE.md` carries
 > the durable summary. Master v1–v4 plans are never edited again. Where this plan corrects one of
 > them, it says so here.
@@ -31,7 +31,13 @@ known-broken behind. It has four parts:
 
 **New for v5: parallel implementation.** Up to **4 agents work side by side**, each in its own git
 worktree with its own Docker stack and its own local Postgres. That takes infrastructure the repo
-doesn't have yet (v49), and a protocol for keeping parallel branches mergeable (below).
+doesn't have yet (v50), and a protocol for keeping parallel branches mergeable (below).
+
+**First, a clean pipeline (v49, added before this plan was merged).** The CI → Release → Publish &
+Deploy chain runs on `workflow_run`, so every CI run (PR, schedule, dispatch) spawns two empty,
+skipped runs, and a run on `main` can be cancelled by the next merge. Twenty more slice merges would
+multiply that noise and that risk, so v49 makes every workflow run only when it has work to do,
+before any other slice merges.
 
 ---
 
@@ -43,6 +49,7 @@ Read from the repo, GitHub and CI this session (2026-10-23, `main` at `df712e2`)
 |---|---|
 | **Fixed host ports, so two stacks can't coexist** | `docker-compose.yml:70` `127.0.0.1:8000:8000`, `:240` `127.0.0.1:5173:80`, `docker-compose.override.yml:123` `127.0.0.1:5173:5173`. No `COMPOSE_PROJECT_NAME` handling |
 | **Dev Postgres is a single LAN database** | `.env.dev.example:18` → `192.168.100.200:5432/spotdlwebtest`. Branch-local Alembic migrations from parallel agents would break each other's stacks |
+| **The CI chain spawns empty runs** | `release.yml:18` and `publish-deploy.yml:16` fire on `workflow_run` for *every* CI/Release completion and then skip themselves (`release.yml:39`, `publish-deploy.yml:44`): of the last 1000 runs, Release is 160 skipped / 212 and Publish & Deploy 158 skipped / 228. `ci.yml:26-28` cancels in progress on `main` too. Leftover workflows "Deploy checks" (file deleted, last run 2026-08-04) and "Backend tests" still list. One runner (`vbServer`); a CI run takes 4–9 min |
 | **The version check allows going backwards** | `.github/scripts/check_version.py:92-104` fails only when `version == base_version`, never when it's lower |
 | **CI pytest runs on SQLite** | `ci.yml:101-103`: "every test uses an in-memory SQLite engine". `FOR UPDATE` and native-enum casts are untestable (GOTCHAS v34.1, v35) |
 | **Cookie-only auth, no API tokens, no rate limits** | `routers/auth.py:15,25-35,98-106` (`SPOTDL_SESSION`, `httponly`, `secure`, `samesite=lax`). No limiter anywhere in `backend/app` |
@@ -57,40 +64,40 @@ Read from the repo, GitHub and CI this session (2026-10-23, `main` at `df712e2`)
 ## Open-items ledger
 
 Every unfixed item found this session. **Slice** is where it gets fixed. "Accepted" items keep a
-written reason and are re-confirmed by v68. Sources: GOTCHAS line numbers, PR numbers, and plan
+written reason and are re-confirmed by v69. Sources: GOTCHAS line numbers, PR numbers, and plan
 files.
 
-### Download / retry engine → v54 unless noted
+### Download / retry engine → v55 unless noted
 
 | # | Item | Source | Slice |
 |---|---|---|---|
-| E1 | Broker error inside `expand_job`'s enqueue loop strands the remaining tracks in `pending` | GOTCHAS:4537, #48 | **v55** |
-| E2 | The stale-track reclaim `UPDATE … WHERE id IN (snapshot)` doesn't re-check `state`, so a just-completed track is reset | GOTCHAS:4639, #51; `tasks/beat.py:55-58` | v54 |
-| E3 | Reclaiming a still-running download counts one network attempt twice | GOTCHAS:4639 | v54 |
-| E4 | A track reclaimed during the pacing sleep still downloads | #51; `download.py:237` | v54 |
-| E5 | The `DOWNLOADING` write is unconditional, so a cancel or reclaim landing just before it is lost | #51, #60; `download.py:308` | v54 |
-| E6 | A mid-download cancel publishes its event before the attempt row, with no counters | GOTCHAS:4645, #62 | v54 |
-| E7 | One DB transaction idles for the whole download, and the completed row's `updated_at` is the start time | GOTCHAS:4649 | v54 |
-| E8 | spotdl's own "file already exists" skip is recorded as a `completed direct-ipv4` network attempt | GOTCHAS:4649, #53 | v54 |
-| E9 | A completed track keeps its old `last_error`/`last_error_type` | GOTCHAS:4650 | v54 |
-| E10 | `lookup_failed` keeps a stale `scheduled_at` | v40.1:92 | v54 |
-| E11 | Breaker hold writes one `held` row per track per tick (about 460 rows in one 2026-10-18 trip) | GOTCHAS:5516 | v54 |
-| E12 | The forced IPv6 rung costs a whole ladder wait where IPv6 isn't routable | GOTCHAS:3925 | v54 (was accepted; a cheap routability probe makes it fixable) |
+| E1 | Broker error inside `expand_job`'s enqueue loop strands the remaining tracks in `pending` | GOTCHAS:4537, #48 | **v56** |
+| E2 | The stale-track reclaim `UPDATE … WHERE id IN (snapshot)` doesn't re-check `state`, so a just-completed track is reset | GOTCHAS:4639, #51; `tasks/beat.py:55-58` | v55 |
+| E3 | Reclaiming a still-running download counts one network attempt twice | GOTCHAS:4639 | v55 |
+| E4 | A track reclaimed during the pacing sleep still downloads | #51; `download.py:237` | v55 |
+| E5 | The `DOWNLOADING` write is unconditional, so a cancel or reclaim landing just before it is lost | #51, #60; `download.py:308` | v55 |
+| E6 | A mid-download cancel publishes its event before the attempt row, with no counters | GOTCHAS:4645, #62 | v55 |
+| E7 | One DB transaction idles for the whole download, and the completed row's `updated_at` is the start time | GOTCHAS:4649 | v55 |
+| E8 | spotdl's own "file already exists" skip is recorded as a `completed direct-ipv4` network attempt | GOTCHAS:4649, #53 | v55 |
+| E9 | A completed track keeps its old `last_error`/`last_error_type` | GOTCHAS:4650 | v55 |
+| E10 | `lookup_failed` keeps a stale `scheduled_at` | v40.1:92 | v55 |
+| E11 | Breaker hold writes one `held` row per track per tick (about 460 rows in one 2026-10-18 trip) | GOTCHAS:5516 | v55 |
+| E12 | The forced IPv6 rung costs a whole ladder wait where IPv6 isn't routable | GOTCHAS:3925 | v55 (was accepted; a cheap routability probe makes it fixable) |
 
-### API / state integrity → v55 unless noted
+### API / state integrity → v56 unless noted
 
 | # | Item | Source | Slice |
 |---|---|---|---|
-| A1 | `cancel_job` sets `CANCELLED` regardless of current state | #64, #69, #70; `jobs.py:236-262` | v55 |
-| A2 | Job cancel turns `lookup_failed` tracks into `cancelled`, and `DELETE /api/tracks/{id}` allows it too, though the UI never offers it | `jobs.py:21-24`, `tracks.py:21` | v55 |
-| A3 | No single-track GET; the UI re-reads up to 1000 tracks instead | #64; `TrackRow.svelte:347-354` | v55 |
-| A4 | Deleting a manual proxy any attempt used returns 500 (FK has no `ondelete`) | #64; `track.py:79`, `track_attempt.py:84` | v55 |
-| A5 | `retention_days` has no server upper bound, and a huge value breaks the sweep | #64; `settings.py:266` | v55 |
-| A6 | Admin endpoints answer 403 vs 404 inconsistently | #52; CLAUDE.md v2 invariants | v55 |
-| A7 | The API has no "breaker active" flag, so the UI trusts the client clock | #63 | v55 |
-| A8 | A non-admin "retry now" skips the backoff ladder (owner decision recorded in v55) | #69 | v55 |
+| A1 | `cancel_job` sets `CANCELLED` regardless of current state | #64, #69, #70; `jobs.py:236-262` | v56 |
+| A2 | Job cancel turns `lookup_failed` tracks into `cancelled`, and `DELETE /api/tracks/{id}` allows it too, though the UI never offers it | `jobs.py:21-24`, `tracks.py:21` | v56 |
+| A3 | No single-track GET; the UI re-reads up to 1000 tracks instead | #64; `TrackRow.svelte:347-354` | v56 |
+| A4 | Deleting a manual proxy any attempt used returns 500 (FK has no `ondelete`) | #64; `track.py:79`, `track_attempt.py:84` | v56 |
+| A5 | `retention_days` has no server upper bound, and a huge value breaks the sweep | #64; `settings.py:266` | v56 |
+| A6 | Admin endpoints answer 403 vs 404 inconsistently | #52; CLAUDE.md v2 invariants | v56 |
+| A7 | The API has no "breaker active" flag, so the UI trusts the client clock | #63 | v56 |
+| A8 | A non-admin "retry now" skips the backoff ladder (owner decision recorded in v56) | #69 | v56 |
 
-### Library / dedup → v56
+### Library / dedup → v57
 
 | # | Item | Source |
 |---|---|---|
@@ -101,81 +108,85 @@ files.
 | L5 | A ledger row pointing at a hand-deleted file holds its track forever while `/downloads` is empty | GOTCHAS:4870 |
 | L6 | Dedup guards only the *current* library roots | #55 |
 | L7 | Disk-full partial copy could be adopted as an existing library file | #36 (re-verify against v31's `copy_verify` fix; close with evidence if already covered) |
-| L8 | Six dev rows had duplicate files in `./downloads`, never investigated | #55 (investigate on a v56 stack; fix or record) |
+| L8 | Six dev rows had duplicate files in `./downloads`, never investigated | #55 (investigate on a v57 stack; fix or record) |
 
-### Alerts / observability → v58 unless noted
-
-| # | Item | Source | Slice |
-|---|---|---|---|
-| O1 | A real breaker trip on 2026-10-18 never reached Matrix, root cause unknown | GOTCHAS:5516, #70 | v58 |
-| O2 | Alert sends are fire-and-forget (`retry=False`, `expires=300`, shared `meta` queue) and nothing records them | `services/alerts.py:88,272-278` | v58 |
-| O3 | Container logs don't survive a deploy (json-file, recreated containers) | GOTCHAS:428; `docker-compose.yml:22-25` | **v59** |
-| O4 | Alerting category 5 ("worker down") skipped | #52 | v58 |
-| O5 | A Redis outage logs a traceback every 60s | GOTCHAS:4696 | v58 |
-| O6 | No alert history UI (out of scope in v36) | v36 | v58 |
-
-### Pipeline / CI → v59 unless noted
+### Alerts / observability → v59 unless noted
 
 | # | Item | Source | Slice |
 |---|---|---|---|
-| P1 | `notify` starts with `actions/checkout`, so a GitHub 429 killed deploy *and* notice together (4.40.2 undeployed for about 30h) | run 38581543804; `publish-deploy.yml:656`, `release.yml:130` | v59 |
-| P2 | The self-hosted runner sometimes never acquires scheduled jobs, so the daily cron is red | runs 10-04, 10-10, 10-13, 10-15 | v59 |
-| P3 | A release changing `networks:` likely hits `guard-error` with no rollback | #44 | v59 |
-| P4 | Whether `cancelled()` rollback runs after a `timeout-minutes` cut is unverified | #44 | v59 |
-| P5 | A transient dockerd error in the health gate fails it at once | #44 | v59 |
-| P6 | `wait_for_stack_health.sh` prints compose stderr unredacted on its error path | #44 | v59 |
-| P7 | A dispatch from a pre-v33 workflow copy deletes `.last-good` | #44 | v59 |
-| P8 | The pre-deploy health probe has a 0 timeout, so a slow-but-healthy stack disables the fallback | #45 | v59 |
-| P9 | `check_version.py` allows the version to go backwards | this session | **v49** |
-| P10 | CI pytest on SQLite only | `ci.yml:101` | **v50** |
+| O1 | A real breaker trip on 2026-10-18 never reached Matrix, root cause unknown | GOTCHAS:5516, #70 | v59 |
+| O2 | Alert sends are fire-and-forget (`retry=False`, `expires=300`, shared `meta` queue) and nothing records them | `services/alerts.py:88,272-278` | v59 |
+| O3 | Container logs don't survive a deploy (json-file, recreated containers) | GOTCHAS:428; `docker-compose.yml:22-25` | **v60** |
+| O4 | Alerting category 5 ("worker down") skipped | #52 | v59 |
+| O5 | A Redis outage logs a traceback every 60s | GOTCHAS:4696 | v59 |
+| O6 | No alert history UI (out of scope in v36) | v36 | v59 |
 
-### Frontend behavior → v61 unless noted
+### Pipeline / CI → v60 unless noted
 
 | # | Item | Source | Slice |
 |---|---|---|---|
-| F1 | A job off the loaded page can't move its status chip until reload | v40.2:40 | v61 |
-| F2 | "Load more" in the same second as a status change moves a chip twice | v40.2:43, #61 | v61 |
-| F3 | `refreshJobRow` treats any error as "gone" and drops the row | #61 | v61 |
-| F4 | An SSE stream dropped by laptop sleep waits for the socket timeout | #69 | v61 |
-| F5 | No `+error.svelte` | #68 | v61 |
-| F6 | `/settings` and `/account` drop unsaved edits on navigation | #69 | v61 |
-| F7 | `/account` mixes two save models | #69 | v61 |
-| F8 | "Clear log" is enabled on an empty queue | #69 | v61 |
-| F9 | Cross-tab identity change detected by poll, not push | #63 | v61 |
-| F10 | Stale progress cache after a re-run that doesn't bump `attempt_count` | #49 | v61 |
+| P1 | `notify` starts with `actions/checkout`, so a GitHub 429 killed deploy *and* notice together (4.40.2 undeployed for about 30h) | run 38581543804; `publish-deploy.yml:656`, `release.yml:130` | **v49** |
+| P2 | The self-hosted runner sometimes never acquires scheduled jobs, so the daily cron is red | runs 10-04, 10-10, 10-13, 10-15 | v60 |
+| P3 | A release changing `networks:` likely hits `guard-error` with no rollback | #44 | v60 |
+| P4 | Whether `cancelled()` rollback runs after a `timeout-minutes` cut is unverified | #44 | v60 |
+| P5 | A transient dockerd error in the health gate fails it at once | #44 | v60 |
+| P6 | `wait_for_stack_health.sh` prints compose stderr unredacted on its error path | #44 | v60 |
+| P7 | A dispatch from a pre-v33 workflow copy deletes `.last-good` | #44 | v60 |
+| P8 | The pre-deploy health probe has a 0 timeout, so a slow-but-healthy stack disables the fallback | #45 | v60 |
+| P9 | `check_version.py` allows the version to go backwards | this session | **v50** |
+| P10 | CI pytest on SQLite only | `ci.yml:101` | **v51** |
+| P11 | Every CI completion fires Release, and every Release completion fires Publish & Deploy, through `workflow_run`; both skip themselves, so the run list is mostly empty runs | 160/212 and 158/228 skipped (`gh run list -L 1000`); owner screenshots 2026-10-23 | **v49** |
+| P12 | The deleted "Deploy checks" and "Backend tests" workflows still list in the Actions sidebar (their old runs keep them alive) | `gh workflow list` | **v49** |
+| P13 | `cancel-in-progress: true` applies to `main` too, so a second merge can cancel the first merge's run mid-release | `ci.yml:26-28` | **v49** |
+| P14 | The daily schedule re-runs the full suite on unchanged `main` (starting about 5h late) and spawns two more empty runs, when only the yt-dlp freshness check needs a schedule | `ci.yml:23,243`; run times 09:19–09:52 UTC for a `04:17` cron | **v49** |
 
-### UI debt (impeccable) → v66 unless noted
-
-| # | Item | Source | Slice |
-|---|---|---|---|
-| U1 | Admin all-users view warms the page amber from others' downloads (DESIGN §8.3) | #59, #69 | **v53** |
-| U2 | `/settings` about 4000px tall on a phone (§8.4) | #69 | v66 |
-| U3 | Tracks scope repeats titles (§8.5) | #69 | v66 |
-| U4 | 1600-row log is about 28k DOM nodes (§8.6) | #69 | **v67** |
-| U5 | Every phone job row carries a full archive button | #69 | v66 |
-| U6 | Copy: "done — partial" on a one-track not-found job, Hungarian "indulásra kész" reads "done", ambiguous "no signal" | #69 | v66 |
-| U7 | Unused tokens (`--signal-ink`, `--fail-dim`, `--space-7`) | #69 | v66 |
-| U8 | Both languages ship in one 30KB chunk | #69 | v66 |
-| U9 | English error text inside Hungarian pages not fully `lang="en"` (WCAG 3.1.2) | #68 | v66 |
-| U10 | The stats chart crosshair is pointer-only | #65 | v66 |
-| U11 | A drag released outside the window can strand the glow | #59 | v66 |
-| U12 | The `/stats` surface brief still has `## Unresolved` | `frontend/src/.impeccable/surfaces/frontend-src-routes-stats-page-svelte.md:39` | v66 |
-| U13 | 320px admin view 27px horizontal scroll | #58 (re-verify; may be fixed) | v66 |
-
-### Dev loop / tests → v51 unless noted
+### Frontend behavior → v62 unless noted
 
 | # | Item | Source | Slice |
 |---|---|---|---|
-| D1 | `uvicorn --reload` hangs while an SSE stream is open | GOTCHAS:5507 | v51 |
-| D2 | Celery workers don't hot-reload | GOTCHAS:337 | v51 |
-| D3 | A long-running Vite stops opening the confirmation dialog; root-owned `.svelte-kit/types` | GOTCHAS:679, :5244 | v51 |
-| D4 | Dependency changes need `up -d --renew-anon-volumes` | GOTCHAS:150 | v51 |
-| D5 | e2e spec 12 "start sweep" flaky (2/19); spec 14 load-more once; `retries: 0` | #68, v48 closing re-read | v51 |
-| D6 | `localhost:5173` can resolve to another server on `[::1]` | #64 | v51 (and v49's per-slot ports) |
-| D7 | `svelte-kit sync` mid-suite breaks spec 1; spec 3 needs a prior network pass | #53, #55 | v51 |
-| D8 | Fixed races (`FOR UPDATE`, reclaim, enum compares) have no realistic test | GOTCHAS:4535 | **v50** |
+| F1 | A job off the loaded page can't move its status chip until reload | v40.2:40 | v62 |
+| F2 | "Load more" in the same second as a status change moves a chip twice | v40.2:43, #61 | v62 |
+| F3 | `refreshJobRow` treats any error as "gone" and drops the row | #61 | v62 |
+| F4 | An SSE stream dropped by laptop sleep waits for the socket timeout | #69 | v62 |
+| F5 | No `+error.svelte` | #68 | v62 |
+| F6 | `/settings` and `/account` drop unsaved edits on navigation | #69 | v62 |
+| F7 | `/account` mixes two save models | #69 | v62 |
+| F8 | "Clear log" is enabled on an empty queue | #69 | v62 |
+| F9 | Cross-tab identity change detected by poll, not push | #63 | v62 |
+| F10 | Stale progress cache after a re-run that doesn't bump `attempt_count` | #49 | v62 |
 
-### Docs drift → v59
+### UI debt (impeccable) → v67 unless noted
+
+| # | Item | Source | Slice |
+|---|---|---|---|
+| U1 | Admin all-users view warms the page amber from others' downloads (DESIGN §8.3) | #59, #69 | **v54** |
+| U2 | `/settings` about 4000px tall on a phone (§8.4) | #69 | v67 |
+| U3 | Tracks scope repeats titles (§8.5) | #69 | v67 |
+| U4 | 1600-row log is about 28k DOM nodes (§8.6) | #69 | **v68** |
+| U5 | Every phone job row carries a full archive button | #69 | v67 |
+| U6 | Copy: "done — partial" on a one-track not-found job, Hungarian "indulásra kész" reads "done", ambiguous "no signal" | #69 | v67 |
+| U7 | Unused tokens (`--signal-ink`, `--fail-dim`, `--space-7`) | #69 | v67 |
+| U8 | Both languages ship in one 30KB chunk | #69 | v67 |
+| U9 | English error text inside Hungarian pages not fully `lang="en"` (WCAG 3.1.2) | #68 | v67 |
+| U10 | The stats chart crosshair is pointer-only | #65 | v67 |
+| U11 | A drag released outside the window can strand the glow | #59 | v67 |
+| U12 | The `/stats` surface brief still has `## Unresolved` | `frontend/src/.impeccable/surfaces/frontend-src-routes-stats-page-svelte.md:39` | v67 |
+| U13 | 320px admin view 27px horizontal scroll | #58 (re-verify; may be fixed) | v67 |
+
+### Dev loop / tests → v52 unless noted
+
+| # | Item | Source | Slice |
+|---|---|---|---|
+| D1 | `uvicorn --reload` hangs while an SSE stream is open | GOTCHAS:5507 | v52 |
+| D2 | Celery workers don't hot-reload | GOTCHAS:337 | v52 |
+| D3 | A long-running Vite stops opening the confirmation dialog; root-owned `.svelte-kit/types` | GOTCHAS:679, :5244 | v52 |
+| D4 | Dependency changes need `up -d --renew-anon-volumes` | GOTCHAS:150 | v52 |
+| D5 | e2e spec 12 "start sweep" flaky (2/19); spec 14 load-more once; `retries: 0` | #68, v48 closing re-read | v52 |
+| D6 | `localhost:5173` can resolve to another server on `[::1]` | #64 | v52 (and v50's per-slot ports) |
+| D7 | `svelte-kit sync` mid-suite breaks spec 1; spec 3 needs a prior network pass | #53, #55 | v52 |
+| D8 | Fixed races (`FOR UPDATE`, reclaim, enum compares) have no realistic test | GOTCHAS:4535 | **v51** |
+
+### Docs drift → v60
 
 | # | Item | Source |
 |---|---|---|
@@ -212,10 +223,11 @@ files.
 | Parallel implementation | Up to **4 agents at once**, grouped into **waves**. A wave starts only after every slice of earlier waves is merged. Each slice has a fixed **slot** (1–4) and a declared **"Files owned"** list. Two same-wave slices never own the same file, apart from the shared hotspots below |
 | Agent environment | Each agent has its own **git worktree** (never the shared main checkout) and its own **compose project** with its **own local Postgres container**, created and owned by the agent (owner decision). The LAN `spotdlwebtest` stays the owner's interactive dev DB. Agents don't use it |
 | Real YouTube traffic from agents | `worker-dl` is **off by default** in agent stacks. A real download needs the host-wide lock `/tmp/spotdl-web-realdl.lock`, so at most one agent stack ever talks to YouTube, the same exposure as one dev stack |
-| Shared hotspots | `frontend/messages/{en,hu}.json`, `docs/GOTCHAS.md`, `graphify-out/`, the Alembic head, `CLAUDE.md`, plus the per-wave co-owned files each plan declares (wave 1: `routers/jobs.py` create vs list params; wave 2: v56's single `dedup` call site in `tasks/download.py`; wave 3: `ci.yml`, where v59 and v60 own separate jobs; wave 4: `JobRow.svelte`'s delimited v62/v63 blocks and `/account`'s v64/v65 blocks). These are resolved by the **rebase protocol**, never avoided by skipping a needed edit |
-| Merge order | The owner merges a wave in ascending slice order. CI rejects a version that isn't strictly greater than `main`'s (v49) |
+| Shared hotspots | `frontend/messages/{en,hu}.json`, `docs/GOTCHAS.md`, `graphify-out/`, the Alembic head, `CLAUDE.md`, plus the per-wave co-owned files each plan declares (wave 1: `routers/jobs.py` create vs list params; wave 2: v57's single `dedup` call site in `tasks/download.py`; wave 3: `ci.yml` and `release-deploy.yml`, where v60 and v61 own separate jobs; wave 4: `JobRow.svelte`'s delimited v63/v64 blocks and `/account`'s v65/v66 blocks). These are resolved by the **rebase protocol**, never avoided by skipping a needed edit |
+| CI chain | No `workflow_run` anywhere (v49): PRs run "CI"; a push to `main` runs one "Release & Deploy" run that calls the checks, the release and the deploy in-run; the schedule runs only "Nightly". Nothing cancels, and nothing creates a run that only skips |
+| Merge order | The owner merges a wave in ascending slice order. CI rejects a version that isn't strictly greater than `main`'s (v50) |
 | Production data | Still not disposable. A migration that drops or rewrites data says so and takes a `pg_backup` first |
-| Firefox extension | Lives in `extension/`, Manifest V3, Firefox-only. It has its **own semver** in `extension/manifest.json`, independent of the app version, and CI forces a bump when `extension/` changes (v60). Distributed as an AMO-signed **unlisted** XPI on a GitHub release, with a self-hosted `update_url` |
+| Firefox extension | Lives in `extension/`, Manifest V3, Firefox-only. It has its **own semver** in `extension/manifest.json`, independent of the app version, and CI forces a bump when `extension/` changes (v61). Distributed as an AMO-signed **unlisted** XPI on a GitHub release, with a self-hosted `update_url` |
 | Extension auth | **The existing session cookie first** (seamless when logged in to the app in the same Firefox). Only if that fails, a per-user **API key** from `/account`. Keys can only submit jobs and read their own submission status. They never unlock admin endpoints or any other surface |
 | Extension submissions | Server-side allowlist: `open.spotify.com` track/album/artist/playlist URLs only (no `SEARCH`) for key-authenticated and extension-origin requests. Cascades (track → album/artist, album → artist) are resolved **server-side** from Spotify metadata, never scraped from the DOM |
 | Admin scope | `view = mine \| all \| others`, admin-only. A non-admin is always `mine`. The `all_users` parameter stays as an alias for `all` |
@@ -225,11 +237,17 @@ files.
 
 ## Parallel execution model
 
-### Why v49 is serial and first
+### Wave 0: why v49 and v50 come first
 
-Today two stacks on one machine collide on host ports `8000`/`5173`. They would share one dev
-database whose Alembic head every branch moves, and four `worker-dl`s would quadruple YouTube
-exposure from one IP. **v49 builds the isolation**, and no other slice starts before it is merged.
+- **v49 cleans the CI chain**, so every later slice's PR and merge produce exactly the runs that do
+  work, and a merge burst at the end of a wave can't cancel a release. It touches only `.github/`
+  and docs and needs **no local stack**.
+- **v50 builds the isolation.** Today two stacks on one machine collide on host ports
+  `8000`/`5173`. They would share one dev database whose Alembic head every branch moves, and four
+  `worker-dl`s would quadruple YouTube exposure from one IP. It runs on the owner's **default dev
+  stack**, since the slot tooling doesn't exist yet.
+- The two share no file, so they run **in parallel**. **v49 is merged first**; v50 rebases onto it.
+  No other slice starts before both are merged.
 
 ### Slots
 
@@ -241,19 +259,19 @@ exposure from one IP. **v49 builds the isolation**, and no other slice starts be
 | 4 | `spotdlweb-s4` | 8004 | 5177 | same pattern |
 | (owner) | default | 8000 | 5173 | LAN `spotdlwebtest` |
 
-`scripts/agent_stack.sh <slot> up|down|env|psql|realdl` (built in v49) is the single entry point.
+`scripts/agent_stack.sh <slot> up|down|env|psql|realdl` (built in v50) is the single entry point.
 
 ### Waves
 
 | Wave | Slices (slot) | Theme | Depends on |
 |---|---|---|---|
-| 0 | v49 (1) | Parallel stacks | — |
-| 1 | v50 (1) · v51 (2) · v52 (3) · v53 (4) | Test infra, dev loop, extension API, others view | wave 0 |
-| 2 | v54 (1) · v55 (2) · v56 (3) · v57 (4) | Engine races, API gaps, library hardening, the extension | wave 1 (v57 needs v52) |
-| 3 | v58 (1) · v59 (2) · v60 (3) · v61 (4) | Alert delivery, pipeline resilience, extension release, frontend store fixes | wave 2 (v60 needs v57) |
-| 4 | v62 (1) · v63 (2) · v64 (3) · v65 (4) | Watch jobs, export, PWA/share, personal notifications | wave 3 |
-| 5 | v66 (1) · v67 (2) | UI debt (impeccable), list virtualization | wave 4 |
-| 6 | v68 (1) | Hardening close | wave 5 |
+| 0 | v49 (—, no stack) · v50 (default stack) | CI chain, parallel stacks | — (v49 merged first) |
+| 1 | v51 (1) · v52 (2) · v53 (3) · v54 (4) | Test infra, dev loop, extension API, others view | wave 0 |
+| 2 | v55 (1) · v56 (2) · v57 (3) · v58 (4) | Engine races, API gaps, library hardening, the extension | wave 1 (v58 needs v53) |
+| 3 | v59 (1) · v60 (2) · v61 (3) · v62 (4) | Alert delivery, pipeline resilience, extension release, frontend store fixes | wave 2 (v61 needs v58) |
+| 4 | v63 (1) · v64 (2) · v65 (3) · v66 (4) | Watch jobs, export, PWA/share, personal notifications | wave 3 |
+| 5 | v67 (1) · v68 (2) | UI debt (impeccable), list virtualization | wave 4 |
+| 6 | v69 (1) | Hardening close | wave 5 |
 
 ### Rebase protocol (every agent, before the final push and again if `main` moves while the PR is open)
 
@@ -275,81 +293,88 @@ exposure from one IP. **v49 builds the isolation**, and no other slice starts be
 
 | # | Wave | Branch | Scope |
 |---|---|---|---|
-| **v49** | 0 | `dev-parallel-stacks` | Env-driven ports and project name; opt-in `docker-compose.agent.yml` with a local Postgres per project; `scripts/agent_stack.sh`; `worker-dl` behind a `realdl` profile plus the host-wide lock; strict-greater version check; docs |
-| **v50** | 1 | `dev-pytest-postgres` | pytest on real Postgres in CI (service container) and locally (slot DB); race-test helpers; port the SQLite-only "lock was requested" tests to real concurrency |
-| **v51** | 1 | `dev-dev-loop` | D1–D7: SSE-safe API reload, Celery autoreload, Vite/`.svelte-kit` hygiene, anon-volume renew, e2e flake fixes and retry policy |
-| **v52** | 1 | `dev-extension-api` | API keys (hashed, `/account` UI), Bearer auth on submit + `/api/auth/me` only, server-side cascades, Spotify-URL allowlist, rate limits on login/submit, "already queued / in library" hint, cookie-from-extension spike |
-| **v53** | 1 | `dev-scope-others` | `view=mine\|all\|others` end to end (REST, counts, hydration, SSE filter, store, control, keyboard, i18n), plus U1 |
-| **v54** | 2 | `dev-engine-races` | E2–E12 |
-| **v55** | 2 | `dev-api-gaps` | A1–A8, E1 |
-| **v56** | 2 | `dev-library-hardening` | L1–L8 |
-| **v57** | 2 | `dev-firefox-extension` | `extension/`: icons on tracks/albums/artists/playlists, an in-page cascade menu, cookie-then-key submit, options/popup, en/hu, fixture tests, a real `web-ext run` pass |
-| **v58** | 3 | `dev-alert-delivery` | O1, O2, O4, O5, O6: reproduce the lost alert, a Postgres alert outbox with retries, worker-down, log throttling, alert history on `/stats` |
-| **v59** | 3 | `dev-pipeline-resilience` | P1–P8, O3, X1–X4. Workflows, compose logging and docs only, so no bump |
-| **v60** | 3 | `dev-extension-release` | AMO unlisted signing, a GitHub release with the XPI, `updates.json`, CI lint/tests, extension version check, install docs |
-| **v61** | 3 | `dev-frontend-store-fixes` | F1–F10 |
-| **v62** | 4 | `dev-watch-jobs` | Watched playlist/artist jobs (scheduled re-expand, new tracks only), "re-run expansion", "retry all failed" |
-| **v63** | 4 | `dev-job-export` | Streamed zip of a job's present files, plus an `.m3u8` |
-| **v64** | 4 | `dev-pwa-share-target` | Installable PWA, a Web Share Target → `/share`, a login round-trip |
-| **v65** | 4 | `dev-personal-notifications` | Browser notifications when own jobs settle; a non-admin "my stats" |
-| **v66** | 5 | `dev-ui-debt` | U2, U3, U5–U13, plus an impeccable audit of every surface v52–v65 added |
-| **v67** | 5 | `dev-log-virtualization` | U4: virtualized job/track lists that keep keyboard, focus, live patching and load-more intact |
-| **v68** | 6 | `dev-v5-hardening` | The production close: the cross-user sweep over every new surface, the full e2e plus an extension pass, a production smoke, ledger re-confirmation, docs, the closing re-read |
+| **v49** | 0 | `dev-ci-chain` | P1, P11–P14: no `workflow_run`; "CI" on PRs, one in-run "Release & Deploy" on `main` (checks → release → deploy → curl-only notify), "Nightly" for the yt-dlp check; nothing cancels; delete the skipped and leftover-workflow run history. Workflows and docs only, so no bump |
+| **v50** | 0 | `dev-parallel-stacks` | Env-driven ports and project name; opt-in `docker-compose.agent.yml` with a local Postgres per project; `scripts/agent_stack.sh`; `worker-dl` behind a `realdl` profile plus the host-wide lock; strict-greater version check; docs |
+| **v51** | 1 | `dev-pytest-postgres` | pytest on real Postgres in CI (service container) and locally (slot DB); race-test helpers; port the SQLite-only "lock was requested" tests to real concurrency |
+| **v52** | 1 | `dev-dev-loop` | D1–D7: SSE-safe API reload, Celery autoreload, Vite/`.svelte-kit` hygiene, anon-volume renew, e2e flake fixes and retry policy |
+| **v53** | 1 | `dev-extension-api` | API keys (hashed, `/account` UI), Bearer auth on submit + `/api/auth/me` only, server-side cascades, Spotify-URL allowlist, rate limits on login/submit, "already queued / in library" hint, cookie-from-extension spike |
+| **v54** | 1 | `dev-scope-others` | `view=mine\|all\|others` end to end (REST, counts, hydration, SSE filter, store, control, keyboard, i18n), plus U1 |
+| **v55** | 2 | `dev-engine-races` | E2–E12 |
+| **v56** | 2 | `dev-api-gaps` | A1–A8, E1 |
+| **v57** | 2 | `dev-library-hardening` | L1–L8 |
+| **v58** | 2 | `dev-firefox-extension` | `extension/`: icons on tracks/albums/artists/playlists, an in-page cascade menu, cookie-then-key submit, options/popup, en/hu, fixture tests, a real `web-ext run` pass |
+| **v59** | 3 | `dev-alert-delivery` | O1, O2, O4, O5, O6: reproduce the lost alert, a Postgres alert outbox with retries, worker-down, log throttling, alert history on `/stats` |
+| **v60** | 3 | `dev-pipeline-resilience` | P1–P8, O3, X1–X4. Workflows, compose logging and docs only, so no bump |
+| **v61** | 3 | `dev-extension-release` | AMO unlisted signing, a GitHub release with the XPI, `updates.json`, CI lint/tests, extension version check, install docs |
+| **v62** | 3 | `dev-frontend-store-fixes` | F1–F10 |
+| **v63** | 4 | `dev-watch-jobs` | Watched playlist/artist jobs (scheduled re-expand, new tracks only), "re-run expansion", "retry all failed" |
+| **v64** | 4 | `dev-job-export` | Streamed zip of a job's present files, plus an `.m3u8` |
+| **v65** | 4 | `dev-pwa-share-target` | Installable PWA, a Web Share Target → `/share`, a login round-trip |
+| **v66** | 4 | `dev-personal-notifications` | Browser notifications when own jobs settle; a non-admin "my stats" |
+| **v67** | 5 | `dev-ui-debt` | U2, U3, U5–U13, plus an impeccable audit of every surface v53–v66 added |
+| **v68** | 5 | `dev-log-virtualization` | U4: virtualized job/track lists that keep keyboard, focus, live patching and load-more intact |
+| **v69** | 6 | `dev-v5-hardening` | The production close: the cross-user sweep over every new surface, the full e2e plus an extension pass, a production smoke, ledger re-confirmation, docs, the closing re-read |
 
 ### Why this order
 
-- **v49 first**, because nothing parallel can run without it.
+- **v49 and v50 first:** a clean pipeline for every later merge, and the isolation nothing parallel
+  can run without. v49 merges first, because each later slice's precondition is a green
+  "Release & Deploy" run on `main`.
 - **Wave 1 is the foundation for later waves:**
-  - v50 gives v54/v55/v56 real Postgres to prove their race fixes against;
-  - v51 removes the dev-loop friction four agents would hit four times over;
-  - v52 is the contract v57 builds on;
-  - v53 is self-contained and settles the queue store before v61 changes it again.
-- **Wave 2 is correctness plus the extension.** v54, v55 and v56 split the backend by module
-  (download/beat · routers/expand · library/dedup). v57 lives entirely in `extension/`.
-- **Wave 3** separates delivery and ops (v58 backend alerts, v59 workflows and docs, v60 extension
-  CI) from the frontend store (v61).
+  - v51 gives v55/v56/v57 real Postgres to prove their race fixes against;
+  - v52 removes the dev-loop friction four agents would hit four times over;
+  - v53 is the contract v58 builds on;
+  - v54 is self-contained and settles the queue store before v62 changes it again.
+- **Wave 2 is correctness plus the extension.** v55, v56 and v57 split the backend by module
+  (download/beat · routers/expand · library/dedup). v58 lives entirely in `extension/`.
+- **Wave 3** separates delivery and ops (v59 backend alerts, v60 workflows and docs, v61 extension
+  CI) from the frontend store (v62).
 - **Wave 4's features** come after the fixes, so they're built on a correct engine and store.
 - **Wave 5's UI work comes last**, so impeccable audits the final surfaces. Virtualization
   rebuilds the list once everything that renders into it exists.
-- **v68 closes**, as v13, v22, v31 and v48 did.
+- **v69 closes**, as v13, v22, v31 and v48 did.
 
 ---
 
 ## Critical interactions to design around
 
-- **v49's overlay vs the v32 guard.** Agent DBs are local and named per slot (for example
+- **v49's chain vs later workflow edits.** v51 (the `pytest` job), v60 (notify internals, health
+  gate) and v61 (extension release) all edit workflows after v49. None may reintroduce
+  `workflow_run`, a `cancel-in-progress` on `main`, or a workflow that starts only to skip. v61's
+  signing runs as a job of "Release & Deploy", gated on the extension version rising.
+- **v50's overlay vs the v32 guard.** Agent DBs are local and named per slot (for example
   `spotdlweb_s1`). The guard keeps refusing production names. The overlay must **never** be
   applicable in production: prod's compose invocation never includes it, and `SPOTDL_ENV=dev`
   stays mandatory.
-- **v52's API keys vs data separation.** A key authenticates as its user, so every query stays
+- **v53's API keys vs data separation.** A key authenticates as its user, so every query stays
   owner-scoped. A key on any admin endpoint answers as a non-admin would, even when the key's user
   is an admin. Admin power needs the cookie session. The key itself is a secret: hashed at rest,
   shown once, never logged (`redact` covers it).
-- **v52's cookie path vs CSRF.** If the spike shows the extension's background fetch carries
+- **v53's cookie path vs CSRF.** If the spike shows the extension's background fetch carries
   `SPOTDL_SESSION`, then a cross-site POST becomes possible in principle from *any* extension the
   user installs. Mitigation: extension-origin submissions must send an `X-Spotdl-Client:
   extension` header (a non-simple header forces CORS preflight from web pages, which the API
   doesn't allow cross-origin), and they're limited to the job-create allowlist.
-- **v53 vs v61 vs v67 in `queue.ts`.** Three slices in three different waves touch the store.
+- **v54 vs v62 vs v68 in `queue.ts`.** Three slices in three different waves touch the store.
   Each later one rebases onto the merged earlier one; the waves exist for exactly this.
-- **v54 and v55 vs `tasks/`.** v54 owns `tasks/download.py` and `tasks/beat.py` (reclaim). v55 owns
-  `tasks/expand.py`. v58 later touches `beat.py`'s alert watchdog; different function, a later
+- **v55 and v56 vs `tasks/`.** v55 owns `tasks/download.py` and `tasks/beat.py` (reclaim). v56 owns
+  `tasks/expand.py`. v59 later touches `beat.py`'s alert watchdog; different function, a later
   wave.
-- **v56's sweep cancel vs the ledger invariants.** A cancelled sweep stops between files, never
+- **v57's sweep cancel vs the ledger invariants.** A cancelled sweep stops between files, never
   mid-file. Every file already moved keeps its repointed ledger row (the master-v3 invariant).
-- **v57's DOM injection vs Spotify's DOM changing.** Selectors come from `data-testid`/ARIA
+- **v58's DOM injection vs Spotify's DOM changing.** Selectors come from `data-testid`/ARIA
   wherever possible, and are isolated in one `selectors.js` with fixture tests. A selector miss
   degrades to "no icon", never a page error. The `/track/`, `/album/`, `/artist/`, `/playlist/`
   link in or near the element is the identity source, never text.
-- **v62's watched jobs vs dedup and the breaker.** Re-expansion queues only tracks not already in
+- **v63's watched jobs vs dedup and the breaker.** Re-expansion queues only tracks not already in
   the job or the ledger. While the breaker is tripped, a re-expansion may run (metadata only), but
   its new tracks wait like any other.
-- **v63's zip vs file availability.** Membership is keyed on the file existing at its recorded
+- **v64's zip vs file availability.** Membership is keyed on the file existing at its recorded
   path, the same rule as v27. Archived jobs stay exportable. Streaming must not hold a DB
   transaction open.
-- **v64's share target vs auth.** A share opens `/share?url=…`. If the user isn't logged in, the
+- **v65's share target vs auth.** A share opens `/share?url=…`. If the user isn't logged in, the
   URL survives the login round-trip, and only an allowlisted Spotify URL is ever submitted.
-- **v66/v67 vs v45's keyboard model and v37's e2e selectors.** Virtualization must keep the roving
+- **v67/v68 vs v45's keyboard model and v37's e2e selectors.** Virtualization must keep the roving
   tabindex by row **id**, `End`/`Shift+G` load-more, and focus restoration. Off-screen rows don't
   exist in the DOM, so selectors and the help overlay can't assume they do.
 
@@ -367,7 +392,8 @@ exposure from one IP. **v49 builds the isolation**, and no other slice starts be
 - **Frontend:** `frontend/src/lib/stores/queue.ts`, `frontend/src/lib/api.ts`,
   `frontend/src/lib/components/*`, `frontend/src/routes/**`, `frontend/messages/*.json`,
   `frontend/src/lib/keyboard/bindings.ts`, `frontend/nginx.conf`
-- **Pipeline:** `.github/workflows/{ci,release,publish-deploy}.yml`, `.github/scripts/*`
+- **Pipeline:** `.github/workflows/{ci,release,publish-deploy}.yml`, new
+  `.github/workflows/{release-deploy,nightly}.yml` (v49), `.github/scripts/*`
 - **Extension:** new `extension/` (manifest, background, content, options, popup, `_locales`,
   tests), a new workflow for signing
 
@@ -385,19 +411,23 @@ The standing rules apply to every slice: a real stack (now the agent's own slot 
 Postgres, the real network, and each Done-when bullet evidenced individually this session.
 v5-specific:
 
-1. **v49 proves isolation by running two slot stacks at once.** Both stay healthy, their databases
+0. **v49 proves the chain on a scratch branch** (stubbed publish/deploy): one run per PR push, one
+   successful "Release & Deploy" per `main` push even in a 3-push burst, none skipped or cancelled,
+   and a notice that survives an unavailable checkout. The run history is cleaned (counts before
+   and after).
+1. **v50 proves isolation by running two slot stacks at once.** Both stay healthy, their databases
    are independent, a migration applied on one is absent on the other, and the realdl lock refuses
    a second holder.
-2. **Race fixes (v54–v56) are proven on real Postgres** with v50's concurrency helpers, never only
+2. **Race fixes (v55–v57) are proven on real Postgres** with v51's concurrency helpers, never only
    with a mocked "lock requested" assertion.
-3. **The extension (v57) is proven in real Firefox on real `open.spotify.com`** (`web-ext run`):
+3. **The extension (v58) is proven in real Firefox on real `open.spotify.com`** (`web-ext run`):
    - every target type gets an icon;
    - every cascade queues the right job on the slot stack;
    - the cookie path and the key fallback each work once, with the cookie path verified
      empirically, not assumed.
-4. **v60 proves the signed XPI installs in release Firefox** and auto-updates from `updates.json`.
-5. **Every new read path re-runs the cross-user sweep:** v52 keys, v53 others view, v62 watched
-   jobs, v63 export, v64 share, v65 my-stats.
+4. **v61 proves the signed XPI installs in release Firefox** and auto-updates from `updates.json`.
+5. **Every new read path re-runs the cross-user sweep:** v53 keys, v54 others view, v63 watched
+   jobs, v64 export, v65 share, v66 my-stats.
 6. **UI slices** keep using impeccable, and keep the e2e suite green on desktop, mobile and `hu`.
 
 ---
@@ -405,7 +435,7 @@ v5-specific:
 ## Owner housekeeping (not agent work)
 
 These came up in PR deploy notes and were never confirmed as done. They're tracked here so
-they don't get lost. v68 asks about each.
+they don't get lost. v69 asks about each.
 
 - [ ] Dismiss the two GitGuardian false-positive incidents (#52, commit `1bbb4cd`).
 - [ ] Confirm production `.env` has `MATRIX_*` set (app alerts are off otherwise) (#52).
@@ -413,7 +443,7 @@ they don't get lost. v68 asks about each.
 - [ ] Remove `v48smoke@example.com` from production `ALLOWED_EMAILS` (#70).
 - [ ] Disable the dead file-sourced proxies in `/settings` (#60).
 - [ ] Add the AMO API credentials (`AMO_JWT_ISSUER`, `AMO_JWT_SECRET`) as repository secrets
-      before v60.
+      before v61.
 - [ ] vb2007.hu-api still shares `~/.docker/config.json` on the runner (#71). That fix belongs in
       the other repo.
 - [x] Delete the untracked root notes `master-v4-pipeline-issues.md`/`workflow-logs.txt`. Done

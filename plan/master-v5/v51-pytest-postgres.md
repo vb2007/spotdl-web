@@ -1,9 +1,9 @@
-# v50 — pytest on Real Postgres
+# v51 — pytest on Real Postgres
 
 Branch: `dev-pytest-postgres` → PR into `main`
-Version: `5.50.0`
+Version: `5.51.0`
 Wave / slot: 1 / 1
-Depends on: v49
+Depends on: v50
 
 ## Scope
 
@@ -11,14 +11,14 @@ Ledger items **P10** and **D8**.
 
 Every backend test runs on in-memory SQLite (`ci.yml:101-103`). SQLite ignores `FOR UPDATE`, has
 no native enums, and compares differently. Several fixed races are therefore "proven" only by
-asserting that a lock was *requested* (GOTCHAS:4535, D8). Wave 2 (v54–v56) is mostly race fixes.
+asserting that a lock was *requested* (GOTCHAS:4535, D8). Wave 2 (v55–v57) is mostly race fixes.
 They need a real database to prove anything. This slice makes Postgres the test database,
 in CI and locally.
 
 ## Tasks
 
 1. **The CI `pytest` job gets a Postgres service container**, on the same major version as
-   production (v49 pins it). It runs on the self-hosted runner, which has Docker.
+   production (v50 pins it). It runs on the self-hosted runner, which has Docker.
    - Use a job-scoped container with **no fixed host port**, so concurrent CI jobs can't collide.
    - Before adding it, check the runner's Docker setup (#71's job-private `DOCKER_CONFIG`).
      Document what's needed in `docs/CI_SELF_HOSTED_RUNNER.md`.
@@ -55,7 +55,7 @@ pytest paragraph).
 
 ## Out of scope
 
-Fixing any race this exposes. That's v54/v55/v56. Record it as a failing `xfail(strict=True)` test
+Fixing any race this exposes. That's v55/v56/v57. Record it as a failing `xfail(strict=True)` test
 naming the owning slice, so the owning slice turns it green.
 
 ## Done when
@@ -72,5 +72,5 @@ naming the owning slice, so the owning slice turns it green.
 - [ ] Any newly exposed race is an `xfail(strict=True)` naming its owning slice (listed in the
       PR), or there are none.
 - [ ] Suite duration before and after is recorded, within the documented budget.
-- [ ] `npm run lint`, `npm run check` and `npm run build` pass. Both version files read `5.50.0`.
+- [ ] `npm run lint`, `npm run check` and `npm run build` pass. Both version files read `5.51.0`.
       `uv lock` is in sync. `graphify update .` has been run.

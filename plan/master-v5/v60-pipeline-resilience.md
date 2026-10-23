@@ -1,17 +1,16 @@
-# v59 — Pipeline Resilience, Persistent Logs & Docs Drift
+# v60 — Pipeline Resilience, Persistent Logs & Docs Drift
 
 Branch: `dev-pipeline-resilience` → PR into `main`
 Version: **no bump.** The slice touches `.github/`, compose logging, scripts and docs, never
-`backend/` or `frontend/`. If it must touch either, bump both to `5.59.0` and say why.
+`backend/` or `frontend/`. If it must touch either, bump both to `5.60.0` and say why.
 Wave / slot: 3 / 2
 Depends on: wave 2 merged
 
 ## Scope
 
-Ledger items **P1–P8**, **O3** and **X1–X4**. The v33 pipeline works, but its failure paths still
-have holes:
+Ledger items **P2–P8**, **O3** and **X1–X4** (P1, the 429-proof notice, moved to v49). The v33
+pipeline works, and v49 rebuilt its chain, but its failure paths still have holes:
 
-- a GitHub 429 killed a deploy *and* its notice together;
 - the single self-hosted runner sometimes never acquires the daily cron;
 - logs vanish on every deploy, which is why O1 couldn't be root-caused.
 
@@ -19,17 +18,13 @@ The docs also still describe older realities.
 
 ## Items
 
-- **P1: a 429-proof failure notice.**
-  - `notify` in `publish-deploy.yml:656` and `release.yml:130` starts with `actions/checkout`. If
-    the action download fails, nothing is sent.
-  - Rewrite `notify` to need **no action download**: an inline `run:` step using `curl` with the
-    secrets, and no `uses:`.
-  - Also add a last-resort notice inside the `deploy` job itself (an `if: failure()` step, again
-    `curl`-only), so a job that dies early still reports.
-  - Prove it by making `actions/checkout` unavailable in a scratch dispatch (e.g. a deliberately
-    invalid action ref in a scratch workflow copy). The notice still arrives.
+- **Work on v49's layout.** The workflows were restructured in v49 (no `workflow_run`; "Release &
+  Deploy" calls `release.yml` and `publish-deploy.yml` in-run; "Nightly" holds the schedule). Every
+  line reference in this plan and in the ledger predates that: re-locate it, never trust it. Keep
+  v49's rules: no `workflow_run`, no `cancel-in-progress` on `main`, no run that only skips, and
+  `notify` stays `curl`-only.
 - **P2: runner starvation of scheduled CI.**
-  - The daily `17 4 * * *` jobs sometimes get "not acquired by Runner".
+  - The daily `17 4 * * *` jobs (now "Nightly", v49) sometimes get "not acquired by Runner".
   - Diagnose from the runner's own logs on the host, in **one batched SSH round trip**. Likely
     causes: the runner is busy, or offline during a host task.
   - Fix it: move the cron off the host's busy window, add `concurrency`, and/or a lightweight
@@ -58,7 +53,7 @@ The docs also still describe older realities.
   - Provide a `scripts/prod_logs.sh` that reads the last N hours across a restart.
 - **X1:** `README.md`: current status (masters v1–v4 complete, v5 in progress), what the app is,
   links to the docs. It points at `plan/master-v5/` and must not repeat CLAUDE.md.
-- **X2:** `docs/GOTCHAS.md`: fix the title and caveat (it covers v01–v68+). The index stays.
+- **X2:** `docs/GOTCHAS.md`: fix the title and caveat (it covers v01–v69+). The index stays.
 - **X3:** `.env.example:10` and `docs/DEPLOYMENT.md` (`:562-587`, backup filenames `:365,374,795`)
   use the real production DB name `spotdlweb`. Check against the host `.env`'s **name only**, in
   the same batched SSH trip as P2.
@@ -67,14 +62,15 @@ The docs also still describe older realities.
 
 ## Files owned
 
-`.github/workflows/{publish-deploy,release,ci}.yml`, `.github/scripts/*` (except
-`check_version.py`, which v49 and v60 own), `docker-compose.prod.yml` (logging only), new
+`.github/workflows/{publish-deploy,release,release-deploy,nightly,ci}.yml` (v61 owns its own
+jobs in `ci.yml` and `release-deploy.yml`), `.github/scripts/*` (except
+`check_version.py`, which v50 and v61 own), `docker-compose.prod.yml` (logging only), new
 `scripts/prod_logs.sh`, `README.md`, `docs/{GOTCHAS,DEPLOYMENT,RELEASE_PIPELINE,CI_SELF_HOSTED_RUNNER}.md`,
 `.env.example`.
 
 ## Out of scope
 
-Alert delivery inside the app (v58). Extension workflows (v60, which adds its own workflow file;
+Alert delivery inside the app (v59). Extension workflows (v61, which adds its own workflow file;
 coordinate via separate files).
 
 ## Deploy notes
@@ -84,8 +80,8 @@ aren't migrated.
 
 ## Done when
 
-- [ ] **P1:** a scratch dispatch whose checkout step is made to fail still delivers the Matrix
-      notice (run link plus room screenshot). `notify` contains no `uses:` (grep).
+- [ ] v49's rules still hold: `grep -r workflow_run .github/` is empty, no `cancel-in-progress`
+      applies to `main`, and every `notify` has no `uses:` (grep output).
 - [ ] **P2:** the root cause is recorded (runner log excerpt from the single SSH trip) and the fix
       is in place. A forced "not acquired" (runner stopped briefly during a scheduled test
       dispatch) produces the distinct notice, or a re-dispatch.

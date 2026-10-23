@@ -1,9 +1,9 @@
-# v51 — Dev Loop & E2E Stability
+# v52 — Dev Loop & E2E Stability
 
 Branch: `dev-dev-loop` → PR into `main`
-Version: `5.51.0`
+Version: `5.52.0`
 Wave / slot: 1 / 2
-Depends on: v49
+Depends on: v50
 
 ## Scope
 
@@ -40,7 +40,7 @@ parallel agents would each hit every one of them, so they're worth fixing at the
     failure with a trace (`trace: 'retain-on-failure'`). Agents need diagnosable failures, not
     silent retries.
 - **D6: `localhost:5173` resolving to another server on `[::1]`** (#64). E2E and docs use
-  `127.0.0.1:<slot port>` explicitly, building on v49's slot ports.
+  `127.0.0.1:<slot port>` explicitly, building on v50's slot ports.
 - **D7.**
   - `svelte-kit sync` mid-suite breaks spec 1: isolate generated files from a running suite, or
     have the suite fail fast with a clear message.
@@ -49,7 +49,7 @@ parallel agents would each hit every one of them, so they're worth fixing at the
 ## Files owned
 
 `docker-compose.override.yml` (worker/api/web commands, user and volumes; **not** ports, which
-v49 owns and has merged), `frontend/Dockerfile` dev stage if any, `frontend/playwright.config.ts`
+v50 owns and has merged), `frontend/Dockerfile` dev stage if any, `frontend/playwright.config.ts`
 (retries/trace only), `frontend/e2e/**` (flaky specs and setup), the component behind D3's dialog
 (`frontend/src/lib/components/ConfirmDialog.svelte`), `backend/app/routers/stream.py` (shutdown behavior only),
 `docs/LOCAL_DEV.md`, `docs/GOTCHAS.md`.
@@ -77,4 +77,4 @@ Feature changes; production compose (no diff in prod `config`).
       failure.
 - [ ] Full e2e is green on desktop, mobile and `hu` against the slot stack.
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass. Both version files read
-      `5.51.0`. `uv lock` is in sync. `graphify update .` has been run.
+      `5.52.0`. `uv lock` is in sync. `graphify update .` has been run.

@@ -1,7 +1,7 @@
-# v63 — Job Export (zip + M3U)
+# v64 — Job Export (zip + M3U)
 
 Branch: `dev-job-export` → PR into `main`
-Version: `5.63.0`
+Version: `5.64.0`
 Wave / slot: 4 / 2
 Depends on: waves 0–3 merged
 
@@ -15,7 +15,7 @@ come out of the app in one action.
 
 - **`GET /api/jobs/{id}/export.zip`** (owner or admin, non-owner 404).
   - **Membership rule** (the v27/v38 rule): a track is included only if its file **exists at its
-    recorded path** (downloads volume or any known library root, via v56's root handling). It's
+    recorded path** (downloads volume or any known library root, via v57's root handling). It's
     never keyed on `archived_at`, so an archived job stays exportable.
   - Tracks without a file are listed in a `MISSING.txt` inside the zip, rather than silently
     omitted.
@@ -44,7 +44,7 @@ come out of the app in one action.
 ## Files owned
 
 New `backend/app/routers/export.py` (or endpoints in `jobs.py` if graphify shows that's the
-convention; if so, keep them in a delimited block, since v62 also edits `jobs.py`), new
+convention; if so, keep them in a delimited block, since v63 also edits `jobs.py`), new
 `backend/app/services/export.py`, `backend/pyproject.toml` (one dependency), `frontend/nginx.conf`
 (one location), `frontend/src/lib/components/JobRow.svelte` (export block only),
 `frontend/src/lib/api.ts`, message JSONs (hotspot), tests.
@@ -75,4 +75,4 @@ Transcoding. Exporting multiple jobs at once. Background-built archives.
 - [ ] The UI works keyboard-only; en/hu; impeccable output recorded. An e2e spec has been added
       (zip checksum of a small job).
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass, and `nginx -t` passes.
-      Both version files read `5.63.0`. `uv lock` is in sync. `graphify update .` has been run.
+      Both version files read `5.64.0`. `uv lock` is in sync. `graphify update .` has been run.

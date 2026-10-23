@@ -1,9 +1,9 @@
-# v58 — Durable Alert Delivery
+# v59 — Durable Alert Delivery
 
 Branch: `dev-alert-delivery` → PR into `main`
-Version: `5.58.0`
+Version: `5.59.0`
 Wave / slot: 3 / 1
-Depends on: v54 (beat.py reclaim edits merged), v50
+Depends on: v55 (beat.py reclaim edits merged), v51
 
 ## Scope
 
@@ -14,7 +14,7 @@ Ledger items **O1, O2, O4, O5, O6**. A real production breaker trip on 2026-10-1
 - `retry=False`, `expires=300`, on the shared `meta` queue (`services/alerts.py:88,272-278`);
 - nothing records whether one was sent, failed or got suppressed.
 
-This version makes alert delivery durable and visible. O3 (logs surviving deploys) is v59.
+This version makes alert delivery durable and visible. O3 (logs surviving deploys) is v60.
 
 ## Tasks
 
@@ -88,4 +88,4 @@ A new table (additive). No new required env vars.
       endpoint (pytest). Screenshots in en/hu; impeccable output recorded.
 - [ ] Every alert body in the outbox is redacted (test with a credential-bearing proxy error).
 - [ ] `pytest`, `npm run lint`, `npm run check`, `npm run build` and e2e pass. Both version files
-      read `5.58.0`. `uv lock` is in sync. `graphify update .` has been run.
+      read `5.59.0`. `uv lock` is in sync. `graphify update .` has been run.

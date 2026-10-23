@@ -8,7 +8,7 @@ four sessions run at once, one per slot of the current wave (see
 ---
 
 ```
-VERSION: v50
+VERSION: v49
 ```
 
 You are implementing **exactly one** spotdl-web version slice: the one named on the `VERSION`
@@ -32,6 +32,11 @@ Everything you need derives from `VERSION`:
 - **Preconditions.** Every slice of earlier waves, and everything in your "Depends on", must
   already be merged into `origin/main`. Check `git log origin/main` and the PR list. If not,
   **stop and ask**.
+- **A clean pipeline is a precondition too** (from v51 on). The latest "Release & Deploy" run on
+  `main` must be green, and no Release or Publish & Deploy run was created beside it (`gh run list
+  --branch main -L 10`). If not, **stop and tell the owner**. v50 runs alongside v49, so it checks
+  this when it rebases onto merged v49, and records v49's own merge run in its PR: the checks ran,
+  and no other run was created.
 - **Implement this version's plan only.** Don't start another slice. Don't fold in adjacent fixes
   or "while I'm here" improvements. Log them in the PR under "Found, not fixed".
 - **Stay inside your plan's "Files owned" list.** Another agent owns the rest of this wave's files.
@@ -76,10 +81,14 @@ cd /home/vb2007/code/spotdl-web-wt/<Branch>
 
 ## 3. Your own development stack
 
-**v49 itself** runs before the slot tooling exists: use the default dev stack (`docker compose up`,
-ports 8000/5173, the owner's LAN `spotdlwebtest`), and nothing else runs in parallel with it.
+**Wave 0 runs before the slot tooling exists.**
+- **v49 runs no local stack at all.** It changes only `.github/` and docs and verifies on the
+  self-hosted runner, through the scratch branch its plan describes. Don't start any compose stack,
+  since v50 needs the default ports.
+- **v50** uses the default dev stack (`docker compose up`, ports 8000/5173, the owner's LAN
+  `spotdlwebtest`). It's the only stack running in wave 0.
 
-**Every slice from v50 on** brings up **its own** stack. It never uses the default stack, the LAN
+**Every slice from v51 on** brings up **its own** stack. It never uses the default stack, the LAN
 `spotdlwebtest`, or another slot's stack:
 
 ```
@@ -101,7 +110,7 @@ scripts/agent_stack.sh <slot> ps|logs|psql
   running, else `https://api.vb2007.hu`; register per-slot accounts such as
   `v5s<slot>admin@…`/`v5s<slot>user@…` freely). Use the direct-session-mint fallback only if
   neither is reachable, and say so explicitly.
-- **Matrix:** alerts stay unconfigured in your stack unless your plan needs them (v58). Then use
+- **Matrix:** alerts stay unconfigured in your stack unless your plan needs them (v59). Then use
   the dev room named in the plan, never production's.
 - **Minimize SSH to the production host.** It runs other real services. Develop and verify on your
   stack. When a host action is genuinely needed, batch it into as few round trips as possible.
@@ -113,7 +122,7 @@ scripts/agent_stack.sh <slot> ps|logs|psql
 
 - Small logical steps, **each its own commit**, with a traceable message
   `<VERSION>: <what this step does>`. For multi-item slices use the plan's labels
-  (`v54: (E2) reclaim UPDATE re-checks state`). Never one squash commit.
+  (`v56: (E2) reclaim UPDATE re-checks state`). Never one squash commit.
 - Follow the surrounding code's style. Reuse the helpers the master plan's "Reuse rather than
   rewrite" list names.
 - Keep every CLAUDE.md invariant: no Celery `eta`/`countdown`; `worker-dl --concurrency=1`;
@@ -144,14 +153,14 @@ scripts/agent_stack.sh <slot> ps|logs|psql
   `backend/` and commit it as `<VERSION>: sync uv.lock with the version bump to <version>`.
 - Slices whose header says "no bump" (they touch neither `backend/` nor `frontend/`) don't bump the
   app. Extension slices bump `extension/manifest.json` as their plan says.
-- `python3 .github/scripts/check_version.py origin/main` must pass locally. From v49 on it also
+- `python3 .github/scripts/check_version.py origin/main` must pass locally. From v50 on it also
   requires the version to be **strictly greater** than `main`'s.
 
 ## 6. Checks, all of them, against your own stack
 
 Run every applicable one, and paste the summarized output into the PR.
 
-- **Backend:** `pytest`, the full suite. From v50 on it runs against Postgres: use
+- **Backend:** `pytest`, the full suite. From v51 on it runs against Postgres: use
   `scripts/agent_stack.sh <slot> pytest`. Run the cross-user sweep
   (`pytest backend/tests/test_ownership.py` plus the gating suites CLAUDE.md lists) whenever
   queries, endpoints or events changed.
@@ -253,6 +262,9 @@ Follow `00-master-plan.md`'s "Rebase protocol" exactly:
 ## 11. Pull request
 
 - Push your branch and open **one PR into `main`**, titled `<VERSION>: <slice title>`.
+- **Push in batches, never once per commit.** Push when you open the PR, once per finished review
+  round, and after each rebase. CI never cancels a superseded run (v49), so every push costs a full
+  run on the one shared runner, queued behind the other agents' PRs.
 - The body follows the established format (PRs #36, #40, #70):
   - **Summary:** what changed and why, with the ledger item ids it closes.
   - **Per-bullet evidence:** every "Done when" bullet, verbatim, each followed by its evidence.

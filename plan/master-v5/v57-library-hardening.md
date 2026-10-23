@@ -1,9 +1,9 @@
-# v56 — Library Sweep & Dedup Hardening
+# v57 — Library Sweep & Dedup Hardening
 
 Branch: `dev-library-hardening` → PR into `main`
-Version: `5.56.0`
+Version: `5.57.0`
 Wave / slot: 2 / 3
-Depends on: v50
+Depends on: v51
 
 ## Scope
 
@@ -36,7 +36,7 @@ library.
   - worker-dl commits a ledger row between the sweep's re-read and its delete of the source file.
   - Serialize per file: a Postgres advisory lock keyed on the file path hash (or the ledger
     `spotify_id`), taken by both the sweep's move and worker-dl's ledger upsert for the same file.
-  - Prove it with a v50 race test.
+  - Prove it with a v51 race test.
 - **L4. The reconcile "unmounted" check.**
   - `reconcile_disk` treats an empty `/downloads` as "unmounted" and skips pruning, so the 47 rows
     survived only by accident.
@@ -64,15 +64,15 @@ library.
 
 `backend/app/services/{library,dedup}.py`, `backend/app/tasks/library.py`,
 `backend/app/routers/library.py`, `backend/app/routers/settings.py` (the library-settings
-validation only; v55 owns retention), `frontend/src/routes/library/+page.svelte`,
+validation only; v56 owns retention), `frontend/src/routes/library/+page.svelte`,
 `frontend/src/routes/settings/+page.svelte` (library-settings errors only), migration if needed,
 message JSONs (hotspot), tests. L5's change in `tasks/download.py` is a single call into
-`dedup.py`. Coordinate it with v54 (same wave) by keeping it to that call site.
+`dedup.py`. Coordinate it with v55 (same wave) by keeping it to that call site.
 
 ## Deploy notes
 
 The mount sentinel files get created in production's downloads and library roots on first boot of
-5.56.0. Verify after deploy that `reconcile_disk` logs "sentinel present" for both.
+5.57.0. Verify after deploy that `reconcile_disk` logs "sentinel present" for both.
 
 ## Done when
 
@@ -95,4 +95,4 @@ The mount sentinel files get created in production's downloads and library roots
 - [ ] Master-v3 invariant check: the before and after inventory of the test-library target across
       every test run shows zero deletions.
 - [ ] `pytest`, `npm run lint`, `npm run check`, `npm run build` and e2e pass. Both version files
-      read `5.56.0`. `uv lock` is in sync. `graphify update .` has been run.
+      read `5.57.0`. `uv lock` is in sync. `graphify update .` has been run.

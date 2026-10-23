@@ -1,16 +1,16 @@
-# v54 — Download Engine Races & Bookkeeping
+# v55 — Download Engine Races & Bookkeeping
 
 Branch: `dev-engine-races` → PR into `main`
-Version: `5.54.0`
+Version: `5.55.0`
 Wave / slot: 2 / 1
-Depends on: v50 (real-Postgres race tests)
+Depends on: v51 (real-Postgres race tests)
 
 ## Scope
 
 Ledger items **E2–E12**: the download task's and beat's remaining races, plus attempt-bookkeeping
 inaccuracies, each found and deferred across v34–v48. Every race fix is **proven on real Postgres**
-with v50's concurrency helpers, never with a "lock was requested" assertion. Each item is its own
-commit (`v54: (E2) …`).
+with v51's concurrency helpers, never with a "lock was requested" assertion. Each item is its own
+commit (`v55: (E2) …`).
 
 ## Items
 
@@ -59,16 +59,16 @@ commit (`v54: (E2) …`).
 ## Files owned
 
 `backend/app/tasks/download.py`, `backend/app/tasks/beat.py` (the reclaim and dispatch functions
-only; v58 owns the alert watchdog bits later), `backend/app/services/{retry,attempts,network_path,downloads}.py`,
+only; v59 owns the alert watchdog bits later), `backend/app/services/{retry,attempts,network_path,downloads}.py`,
 `backend/app/models/track_attempt.py`, one Alembic migration (if E11 needs it), tests.
 
 ## Out of scope
 
-`expand.py` (v55). The library and dedup reconcile (v56). Alerting (v58).
+`expand.py` (v56). The library and dedup reconcile (v57). Alerting (v59).
 
 ## Done when
 
-- [ ] Each of E2, E4 and E5 has a **real-Postgres concurrency test** (v50 helpers) that fails with
+- [ ] Each of E2, E4 and E5 has a **real-Postgres concurrency test** (v51 helpers) that fails with
       the fix reverted (shown) and passes with it.
 - [ ] **E3:** a reclaim of a live download followed by its real completion yields exactly one
       counted network attempt (test, plus a DB query from a real run with a lowered
@@ -89,4 +89,4 @@ only; v58 owns the alert watchdog bits later), `backend/app/services/{retry,atte
       mock plus a real check on a v6-capable host if available; say which).
 - [ ] The ladder is unchanged: v35's ladder-pinning tests pass unmodified.
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass. Both version files read
-      `5.54.0`. `uv lock` is in sync. `graphify update .` has been run.
+      `5.55.0`. `uv lock` is in sync. `graphify update .` has been run.

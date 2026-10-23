@@ -1,10 +1,10 @@
-# v57 — Firefox Extension
+# v58 — Firefox Extension
 
 Branch: `dev-firefox-extension` → PR into `main`
 Version: **app version not bumped** (the slice touches only `extension/`, plus docs). The
 extension's own version starts at `1.0.0` in `extension/manifest.json`.
 Wave / slot: 2 / 4
-Depends on: v52 (API keys, `/api/auth/me`, cascades, allowlist, the cookie spike verdict)
+Depends on: v53 (API keys, `/api/auth/me`, cascades, allowlist, the cookie spike verdict)
 
 ## Scope
 
@@ -16,7 +16,7 @@ version builds a small, functional **Firefox extension** in this repo:
 - **Right-clicking the icon** (or its keyboard equivalent) opens a menu with **cascades**: a track
   offers *this track / whole album / whole artist*; an album offers *this album / whole artist*.
 
-Signing and distribution are v60. This slice ships an extension that runs unsigned via
+Signing and distribution are v61. This slice ships an extension that runs unsigned via
 `web-ext run` / `about:debugging`.
 
 ## Design
@@ -45,7 +45,7 @@ Signing and distribution are v60. This slice ships an extension that runs unsign
   - **The icon** is a real `<button>` with an `aria-label` (en/hu), sized and coloured to sit
     quietly in Spotify's UI (a small spotdl glyph), and visible on hover/focus of the row plus
     always on headers. Tab-reachable.
-  - **States:** idle → sending → queued ✓ / already queued / in library / error. These map v52's
+  - **States:** idle → sending → queued ✓ / already queued / in library / error. These map v53's
     `hint`s and error codes to localized text, shown in a small non-modal toast near the icon.
   - **Cascade menu:** on `contextmenu` over the icon, `preventDefault` and show an in-page menu
     (`role="menu"`, arrow keys, Enter, Esc, focus returns to the icon).
@@ -55,14 +55,14 @@ Signing and distribution are v60. This slice ships an extension that runs unsign
       - track: this track · whole album · whole artist;
       - album: this album · whole artist;
       - artist and playlist: just "download".
-    - Multi-artist → v52's 409 candidates → a submenu to pick the artist.
+    - Multi-artist → v53's 409 candidates → a submenu to pick the artist.
 - **Background script:** owns all network I/O. Content scripts message it, and never fetch the app
   directly (page CORS would apply).
   1. **Cookie first:** `fetch(appOrigin + '/api/jobs', {method:'POST', credentials:'include',
      headers:{'Content-Type':'application/json','X-Spotdl-Client':'extension/<ver>'}, body})`.
   2. On 401: if a key is stored, retry with `Authorization: Bearer`. Otherwise the toast says
      "Log in to spotdl in this browser, or add an API key" and opens the options page.
-  3. The approach follows v52's spike verdict. If cookies proved not to flow, skip step 1
+  3. The approach follows v53's spike verdict. If cookies proved not to flow, skip step 1
      entirely, and say so in the options page copy.
 - **Options page:**
   - App URL (default `https://spotdl.vb2007.hu`, validated by `GET /api/auth/me`);
@@ -93,9 +93,9 @@ works), message JSONs: none (the extension has its own `_locales`).
 
 ## Out of scope
 
-- Signing, the XPI release, auto-update and CI jobs (v60).
+- Signing, the XPI release, auto-update and CI jobs (v61).
 - Chrome support.
-- Any backend change: if the contract is missing something, stop and raise it. v52 owns it.
+- Any backend change: if the contract is missing something, stop and raise it. v53 owns it.
 - Spotify desktop app (not a browser page).
 
 ## Done when
@@ -115,7 +115,7 @@ works), message JSONs: none (the extension has its own `_locales`).
       menu, which arrows, Enter and Esc operate (screen recording or a step log). No AltGr is
       needed on Hungarian QWERTZ.
 - [ ] **Auth:**
-  - the cookie path works when logged in, if v52's spike said cookies flow (shown);
+  - the cookie path works when logged in, if v53's spike said cookies flow (shown);
   - after logging out of the app, a click asks for login or a key;
   - with a key set, the same click succeeds via Bearer (the app's key `last_used_at` advances).
 - [ ] **Hints and errors render localized:** already queued, in library, rate limited, and the
@@ -127,6 +127,6 @@ works), message JSONs: none (the extension has its own `_locales`).
       check, passes.
 - [ ] Privacy: a network capture during the real run shows the extension contacting only the app
       origin.
-- [ ] `docs/EXTENSION.md` is written. A GOTCHAS v57 entry (selectors, cookie behavior). `graphify
+- [ ] `docs/EXTENSION.md` is written. A GOTCHAS v58 entry (selectors, cookie behavior). `graphify
       update .` has been run. The app version is **unchanged** (`check_version.py` passes with no
       bump, since only `extension/` and `docs/` changed).

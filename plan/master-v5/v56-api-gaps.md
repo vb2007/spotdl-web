@@ -1,9 +1,9 @@
-# v55 — API Gaps & Expansion Recovery
+# v56 — API Gaps & Expansion Recovery
 
 Branch: `dev-api-gaps` → PR into `main`
-Version: `5.55.0`
+Version: `5.56.0`
 Wave / slot: 2 / 2
-Depends on: v50
+Depends on: v51
 
 ## Scope
 
@@ -55,13 +55,13 @@ Ledger items **A1–A8** (API and state-integrity gaps v43–v48 left "for a fut
 
 ## Files owned
 
-`backend/app/routers/{jobs,tracks,proxies,settings,worker}.py` (the endpoints named above; v52's
-create and v53's list-param edits are already merged), `backend/app/tasks/expand.py`,
+`backend/app/routers/{jobs,tracks,proxies,settings,worker}.py` (the endpoints named above; v53's
+create and v54's list-param edits are already merged), `backend/app/tasks/expand.py`,
 `backend/app/models/{track,track_attempt}.py` (the FK only), new `backend/app/services/track_states.py`,
 one Alembic migration, `frontend/src/lib/components/{TrackRow,JobRow,WorkerStatusPill,WorkerStatus}.svelte`
 (the bits named above), `frontend/src/lib/api.ts`, message JSONs (hotspot), tests.
 
-v54 owns `tasks/download.py` and `beat.py`. E1 needs `dispatch_due_tracks` to see the new marker.
+v55 owns `tasks/download.py` and `beat.py`. E1 needs `dispatch_due_tracks` to see the new marker.
 If that requires editing `beat.py`, coordinate by keeping the change to the dispatch query's
 `WHERE` clause and noting it in the PR. The rebase protocol handles the merge.
 
@@ -73,7 +73,7 @@ usual.
 ## Done when
 
 - [ ] **A1:** cancelling a settled job returns 409 with its state, and the job is unchanged. A
-      concurrent cancel vs a completing last track is a real-Postgres race test (v50 helpers).
+      concurrent cancel vs a completing last track is a real-Postgres race test (v51 helpers).
 - [ ] **A2:** one shared state set. A job cancel leaves `lookup_failed` tracks unchanged, and
       `DELETE` on a `lookup_failed` track returns 409 (pytest plus a real call).
 - [ ] **A3:** `GET /api/tracks/{id}` works for the owner and admin and returns 404 for a non-owner
@@ -93,4 +93,4 @@ usual.
       duplicates (DB plus worker logs on the slot stack).
 - [ ] `pytest backend/tests/test_ownership.py` plus `scripts/verify_separation_sse.sh` pass.
 - [ ] `pytest`, `npm run lint`, `npm run check`, `npm run build` and e2e pass. Both version files
-      read `5.55.0`. `uv lock` is in sync. `graphify update .` has been run.
+      read `5.56.0`. `uv lock` is in sync. `graphify update .` has been run.

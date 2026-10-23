@@ -1,7 +1,7 @@
-# v67 — Virtualized Job & Track Lists
+# v68 — Virtualized Job & Track Lists
 
 Branch: `dev-log-virtualization` → PR into `main`
-Version: `5.67.0`
+Version: `5.68.0`
 Wave / slot: 5 / 2
 Depends on: waves 0–4 merged
 
@@ -9,7 +9,7 @@ Depends on: waves 0–4 merged
 
 Ledger item **U4** (DESIGN §8.6): a fully loaded 1600-row log is about 28k DOM nodes. That was
 accepted in v47 because "virtualizing is the real fix and out of polish scope". The lists keep
-growing (watched jobs, v62). This version virtualizes the job list, the tracks-scope list and an
+growing (watched jobs, v63). This version virtualizes the job list, the tracks-scope list and an
 expanded job's track list, **without breaking anything built on them**:
 
 - v45's roving tabindex (by row **id**), `Home`/`End`/`Shift+G` with load-more, and focus
@@ -46,7 +46,7 @@ expanded job's track list, **without breaking anything built on them**:
 `frontend/src/routes/+page.svelte` (list rendering only), `frontend/src/lib/components/JobTrackList.svelte`,
 new `frontend/src/lib/components/VirtualList.svelte` (or similar), `frontend/src/lib/keyboard/lists.ts`,
 `frontend/src/lib/stores/queue.ts` (only if a windowing hook is needed), `frontend/e2e/**` (new
-specs and seeding), `frontend/src/DESIGN.md` (§8.6 note only; v66 owns the rest of the file in the
+specs and seeding), `frontend/src/DESIGN.md` (§8.6 note only; v67 owns the rest of the file in the
 same wave, so keep to that section).
 
 ## Done when
@@ -68,4 +68,4 @@ same wave, so keep to that section).
 - [ ] Below the threshold, the DOM is unchanged from main (snapshot of row markup).
 - [ ] Full e2e is green on desktop, mobile and `hu`, plus the new specs.
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass. Both version files read
-      `5.67.0`. `uv lock` is in sync. `graphify update .` has been run.
+      `5.68.0`. `uv lock` is in sync. `graphify update .` has been run.

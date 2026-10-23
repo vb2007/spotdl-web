@@ -1,9 +1,9 @@
-# v49 — Parallel Agent Stacks
+# v50 — Parallel Agent Stacks
 
 Branch: `dev-parallel-stacks` → PR into `main`
-Version: `5.49.0`
-Wave / slot: **0 / 1. Serial: nothing else in master v5 starts until this is merged.**
-Depends on: —
+Version: `5.50.0`
+Wave / slot: **0, alongside v49 (default dev stack). No wave-1 slice starts until both are merged.**
+Depends on: — (v49 runs in parallel and merges first; rebase onto it before the final push)
 
 ## Scope
 
@@ -21,7 +21,7 @@ This slice builds the isolation. Per the owner's decision, each agent stack gets
 Postgres container on the local machine**, created and owned by the agent, with no dependency on
 the LAN server.
 
-Because v49 runs before the slot tooling exists, its own agent uses the default dev stack. Its
+Because v50 runs before the slot tooling exists, its own agent uses the default dev stack. Its
 verification runs the new slot stacks it creates.
 
 ## Tasks
@@ -57,7 +57,7 @@ verification runs the new slot stacks it creates.
    - `up`: `docker compose --env-file .env.agent -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.agent.yml up -d`, then waits for health.
    - `down [--volumes]`, `ps`, `logs`, `psql`, `e2e` (runs `npm run test:e2e` with
      `E2E_BASE_URL` set to the slot's web port), `pytest [args]` (runs the backend suite inside the
-     slot's `api` container; v50 later points it at a throwaway test DB on the slot's Postgres).
+     slot's `api` container; v51 later points it at a throwaway test DB on the slot's Postgres).
    - `realdl <cmd…>`: takes `flock -n /tmp/spotdl-web-realdl.lock`, starts `worker-dl`, runs the
      given command, then stops `worker-dl` and releases the lock. If another slot holds it, fail
      with that slot's name (write the holder into the lock file).
@@ -77,7 +77,7 @@ verification runs the new slot stacks it creates.
      the realdl lock, teardown, and resetting a slot DB (`down --volumes`).
    - `CLAUDE.md`'s dev-environment table gains an "Agent slot" column (editing lines, staying
      ≤250).
-   - A GOTCHAS v49 entry.
+   - A GOTCHAS v50 entry.
 
 ## Files owned
 
@@ -91,7 +91,7 @@ verification runs the new slot stacks it creates.
 
 - Any change to production compose behavior. `docker compose -f docker-compose.yml -f docker-compose.prod.yml config` must be identical before and after.
 - Running the owner's default stack against a local Postgres. The LAN `spotdlwebtest` stays theirs.
-- CI changes beyond `check_version.py` (v50 handles pytest).
+- CI changes beyond `check_version.py` (v51 handles pytest).
 
 ## Deploy notes
 
@@ -118,6 +118,9 @@ None. Production config output is unchanged (this is proven, not assumed).
       is up**.
 - [ ] `check_version.py` fails for an equal and a lower version, and passes for a higher one
       (script tests plus one real run against `origin/main`).
-- [ ] Docs updated (diff). `CLAUDE.md` ≤ 250 lines. A GOTCHAS v49 entry and an index line.
+- [ ] Docs updated (diff). `CLAUDE.md` ≤ 250 lines. A GOTCHAS v50 entry and an index line.
+- [ ] Rebased onto merged v49. v49's own merge run on `main` is recorded: the checks ran, and no
+      Release or Publish & Deploy run was created beside it (`gh run list --branch main`). After
+      the rebase, this PR's CI ran once per push, none cancelled.
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass. Both version files read
-      `5.49.0`. `uv lock` is in sync. `graphify update .` has been run.
+      `5.50.0`. `uv lock` is in sync. `graphify update .` has been run.

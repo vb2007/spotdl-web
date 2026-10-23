@@ -1,13 +1,13 @@
-# v64 — Installable PWA & Share Target
+# v65 — Installable PWA & Share Target
 
 Branch: `dev-pwa-share-target` → PR into `main`
-Version: `5.64.0`
+Version: `5.65.0`
 Wave / slot: 4 / 3
-Depends on: v52 (Spotify URL allowlist and normalization), waves 0–3 merged
+Depends on: v53 (Spotify URL allowlist and normalization), waves 0–3 merged
 
 ## Scope
 
-The extension (v57) solves split-tab copy-paste on desktop Firefox. On a **phone**, the same
+The extension (v58) solves split-tab copy-paste on desktop Firefox. On a **phone**, the same
 friction is sharing a song from the Spotify app. This version makes spotdl-web an **installable
 PWA** with a **Web Share Target**: Spotify app → Share → spotdl → queued.
 
@@ -29,7 +29,7 @@ PWA** with a **Web Share Target**: Spotify app → Share → spotdl → queued.
   - New route with the SvelteKit `ssr`/`prerender` exports **and** its own nginx `location` (the
     CLAUDE.md invariant).
   - Extracts the first Spotify URL from `url`, `text` or `title`, normalized with the same rules
-    as v52's allowlist (reuse the server's validation by submitting; the client only extracts).
+    as v53's allowlist (reuse the server's validation by submitting; the client only extracts).
   - **Logged in:** shows what will be queued (type and id) with "Queue it" focused, so a single tap
     or Enter confirms. **No silent auto-submit**: a share is user-initiated, but one confirm
     prevents accidental queues. On success, a toast and a link to the job.
@@ -47,13 +47,13 @@ PWA** with a **Web Share Target**: Spotify app → Share → spotdl → queued.
 New `frontend/static/manifest.webmanifest` and icons, new `frontend/src/service-worker.ts`,
 `frontend/src/app.html` (manifest link and theme-color), new `frontend/src/routes/share/+page.svelte`
 and `+page.ts`, `frontend/src/routes/login/+page.svelte` (`next` handling only),
-`frontend/src/routes/account/+page.svelte` (install entry only; v65 touches account too, so keep
+`frontend/src/routes/account/+page.svelte` (install entry only; v66 touches account too, so keep
 blocks separate), `frontend/nginx.conf` (`/share` location, SW cache header), message JSONs
 (hotspot), tests.
 
 ## Out of scope
 
-Push notifications (v65 uses the Notification API in-page, not push). Offline queueing of shares.
+Push notifications (v66 uses the Notification API in-page, not push). Offline queueing of shares.
 Native apps.
 
 ## Done when
@@ -76,4 +76,4 @@ Native apps.
 - [ ] impeccable output and en/hu mobile screenshots recorded. The e2e spec covers `/share`
       logged-in and logged-out.
 - [ ] `pytest`, `npm run lint`, `npm run check` and `npm run build` pass, and `nginx -t` passes.
-      Both version files read `5.64.0`. `uv lock` is in sync. `graphify update .` has been run.
+      Both version files read `5.65.0`. `uv lock` is in sync. `graphify update .` has been run.
