@@ -167,6 +167,17 @@ needed" claim — rather than silently deleted.
   "Waiting for connections to close" until `docker compose restart api` → *v48*
 - A deploy recreates every container, so `docker compose logs` on the host only reaches back to
   the last deploy; anything older (an alert that never arrived) can't be reconstructed → *v48*
+- Two stacks on one machine collide on more than ports: the dev override pins the network's IPv6
+  subnet, Postgres 18's image refuses the old `/var/lib/postgresql/data` volume path, and a
+  fresh worktree's bind-mount sources get created root-owned; `scripts/agent_stack.sh` handles
+  each → *v50*
+- An agent slot's e2e run needs `worker-dl` (seeds settle there) and the owner's dev history
+  (ledger rows, three pages of admin jobs, an album, a network-path attempt); it runs under the
+  realdl lock after `scripts/agent_seed.py` recreates them → *v50*
+- Chromium aborts every in-flight request with `ERR_NETWORK_CHANGED` when the host's interfaces
+  churn (another stack's crash-looping containers): an e2e failure on a blank page is that → *v50*
+- Bash reads a script as it runs it: editing (or rebasing) `scripts/agent_stack.sh` under a running
+  `realdl`/`e2e` would execute whatever lands at its offset, so the script runs from `main` → *v50*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -5625,3 +5636,68 @@ independently-found production bug from the same conversation)
   `gh run rerun <id> --failed`; the notice says so by arriving at all. A re-run uses the run's own
   commit's workflow files (and expires after 30 days), so a workflow-side fix reaches the
   current release with a `redeploy` dispatch instead.
+
+### v50 parallel-stacks gotchas (learned building the agent slot stacks)
+
+- **Ports were the obvious collision, not the only one.** A second dev stack on the same machine
+  also fails on:
+  - the network: `docker-compose.override.yml` pins the dev network's IPv6 subnet
+    (`fd00:dead:beef::/64`), and Docker won't create a second network with the same subnet.
+    `docker-compose.agent.yml` gives each slot `fd00:dead:beef:<slot>::/64` (an `!override` on
+    `ipam.config`, a list);
+  - the bind-mount sources: in a fresh worktree `./downloads`, `./test-library`, `./proxies.txt`
+    and the `web` container's anonymous-volume mountpoints (`frontend/node_modules`,
+    `frontend/src/lib/paraglide`) don't exist, so Docker creates them root-owned (`proxies.txt`
+    as a directory). The uid-1000 workers then can't write `./downloads`, and a host `npm ci`
+    fails with `EACCES`. `agent_stack.sh up` creates them first, and copies
+    `frontend/.env.example` to `frontend/.env`, without which `npm run check` (and Vite) can't
+    resolve `PUBLIC_API_BASE_URL` from `$env/static/public`.
+- **Postgres 18's image moved its data directory.** `PGDATA` is
+  `/var/lib/postgresql/18/docker`, and the image refuses a volume mounted at the old
+  `/var/lib/postgresql/data`. The slot volume goes on `/var/lib/postgresql`. 18.6 is production's
+  version (`SELECT version()` on `spotdlwebtest`, the same server, 2026-10-23).
+- **`env_file: .env` would leak the owner's identities into a slot.** Interpolation follows
+  `--env-file`, but every backend container still loads the anchor's `env_file: .env`, so a slot
+  would carry the owner's `ALLOWED_EMAILS` (the real admin included) and Matrix token. The overlay
+  replaces it with `.env.agent` (`env_file: !override`), and builds `DATABASE_URL` itself from the
+  slot's `AGENT_PG_*` values.
+- **The e2e suite can't run without `worker-dl`.** Seeded jobs settle as `skipped_duplicate`
+  inside `download_track`, and setup and teardown ask `worker-dl` (`celery inspect`, the dedup
+  check) what it would download and what it's running. So `agent_stack.sh <slot> e2e` takes the
+  realdl lock like a real download does, although a default run makes no network attempt
+  (teardown proves it).
+- **The e2e suite leans on the owner's dev history, not only `LEDGER_TRACKS`.** On a fresh slot
+  database the first run failed 21 tests: specs 12 and 14 submit seven more ledger tracks
+  (`CANCEL_TRACKS`, `HELD_TRACKS`, `NEIGHBOUR_TRACK`), spec 14 wants "an admin job with twelve or
+  more tracks" and three pages of 50 jobs, and spec 3 an admin track whose attempt recorded a
+  network path ("run `npm run test:e2e:network` once"). `scripts/agent_seed.py` recreates all of
+  it (stand-in files are one-second silent MP3s: dedup is folder + filename only, so they count
+  as present). One ordering trap: spec 9 takes the first two in-library ledger files *under the
+  library root*, ordered by Spotify id, and spec 14's `098tt…` sorts before every other id. So
+  the submitted-track rows are filed (`in_library`, which a library sweep skips, so spec 12's
+  sweep has nothing to move) but kept under `/downloads`, and only spec 9's two sit in the
+  library.
+- **`ERR_NETWORK_CHANGED` from another stack.** Specs 10 and 11 once failed on a blank page: the
+  trace showed every module request aborted with `net::ERR_NETWORK_CHANGED`. Chromium cancels all
+  in-flight requests, loopback ones included, when it sees the host's interfaces change. It
+  happened while slot 2's six backend containers were crash-looping (the v32 guard test), each
+  restart adding and removing a veth (the journal also shows this host's VPN agent reacting to
+  every one). That's the likely trigger, not a proven one: single restarts and 25 back-to-back
+  `docker run`s didn't reproduce it. Another agent's crash loop can fail your run; re-run (v52
+  owns retries).
+- **Bash reads a script while running it.** An edit to `agent_stack.sh` while a long `realdl` or
+  `e2e` from it was running would have run whatever text landed at bash's saved offset once the
+  child command returned (a rebase that touches the file does the same). The commands now run
+  from a `main` function, called on the script's last line, so the whole file is parsed first.
+- **`docker compose ps -a` lists a stopped profile service.** After `realdl` stopped `worker-dl`,
+  the exited container stayed in `ps -a` although its profile wasn't active, and `up`'s health
+  wait read it as crashed. `realdl` now removes it (`rm --stop --force`) on release.
+- **Healthchecks pass in seconds, not after `interval`.** Docker 25+ probes every 5 s during
+  `start_period` (the default `start_interval`), so the workers' 120 s `interval` doesn't delay a
+  fresh stack's health: a slot is healthy about 15 s after its containers start.
+- **Tracks dispatched while `worker-dl` is off wait in the slot's Redis.** Beat keeps dispatching
+  due tracks to the `downloads` queue, and they run on the next `realdl`. Cancel a slot's
+  unwanted jobs before taking the lock.
+- **The v32 guard's message names the owner's database.** A slot pointed at a production name
+  refuses on all six backend services, but the advice reads "point DATABASE_URL at
+  spotdlwebtest", which a slot never uses. Its fix is `agent_stack.sh <slot> env`.
