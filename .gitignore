@@ -8,6 +8,12 @@
 # env
 .env
 !.env.example
+# v50: an agent slot's generated env (scripts/agent_stack.sh) and its generated PG_PORT overlay
+/.env.agent
+/.env.agent.*
+/.agent-stack/
+# v50: a slot's e2e identities (also covered by frontend/.gitignore's `.env.*`)
+/frontend/e2e/.env.e2e.s*
 
 # local dev: bind-mounted download output (see docker-compose.override.yml)
 /downloads/
