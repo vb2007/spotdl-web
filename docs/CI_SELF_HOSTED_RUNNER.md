@@ -187,9 +187,39 @@ deployed app — don't reach for either preemptively while the suite doesn't nee
 
 ## 6. What the workflows actually run
 
-As of v21 there are **three** workflow files, chained rather than independently triggered — see
-`docs/RELEASE_PIPELINE.md` for the full chain diagram and design rationale. This section covers
-what each one does mechanically on the runner; that doc covers *why* they're wired the way they are.
+Since v49 there are **five** workflow files. Each event starts exactly one run: a PR runs "CI",
+a push to `main` runs "Release & Deploy" (which calls `ci.yml`, `release.yml` and
+`publish-deploy.yml` as jobs of that same run), and the schedule runs "Nightly". Before v49 the
+three files were chained by workflow-completion triggers (`workflow_run`), and every CI run left
+two empty, skipped runs behind. See `docs/RELEASE_PIPELINE.md` for the full chain diagram and
+design rationale. This section covers what each one does mechanically on the runner; that doc
+covers *why* they're wired the way they are.
+
+### What queues on the one runner, and why nothing cancels (v49)
+
+There is **one** runner (`vbServer`), so it runs one job at a time, from every workflow and
+every PR alike. A CI run is five check jobs plus `summary` and takes 4–9 minutes; a merge's
+"Release & Deploy" adds `plan`, the release, `resolve`/`publish`/`deploy` and `notify` on top.
+Jobs wait in GitHub's queue and the runner takes them roughly in the order they became ready, so
+two runs started close together interleave job by job.
+
+Nothing cancels anything:
+
+- **No `concurrency` group in any workflow.** `cancel-in-progress` on `main` let a second merge
+  cancel the first merge's run mid-release (P13). And even with `cancel-in-progress: false`,
+  GitHub keeps only one *pending* run or job per group and cancels the older one, so a group
+  would still cancel a waiting deploy or PR run (`docs/GOTCHAS.md`, v33 and v49).
+- **Every PR push gets one complete run.** That costs runner time, so agents push in batches
+  (`plan/master-v5/IMPLEMENTATION_PROMPT.md`): when the PR opens, once per review round, and
+  after each rebase. A superseded PR run is never cancelled, so cancel it by hand from the
+  Actions UI if it's clearly wasted.
+- **Two merges in a row run in full, both of them.** Their deploys can't overlap (one runner),
+  and if the older one's deploy happens to run last, its version guard turns it into a no-op
+  instead of downgrading production (`docs/RELEASE_PIPELINE.md`, "No cancelling, no stale
+  deploys").
+
+A second runner would change this: two deploys could then run at once against the one host.
+Adding one needs a non-cancelling lock around the deploy job first.
 
 ### `ci.yml` — "CI"
 
@@ -199,11 +229,11 @@ right below is exactly the "rather than standing up a separate workflow preempti
 section already gave; worth listening to it next time before re-learning it.)
 
 - Triggers on every pull request (any target branch — this project only ever PRs into `main`),
-  every push to `main`, and manual `workflow_dispatch` (useful for smoke-testing the runner setup
-  itself without opening a PR). `push` to `main` is also what `release.yml` chains off of via
-  `workflow_run`.
-- `concurrency` cancels a still-running job for the same ref if a new commit supersedes it, so
-  pushing twice to the same PR doesn't queue two redundant runs.
+  manual `workflow_dispatch` (useful for smoke-testing the runner setup itself without opening a
+  PR), and `workflow_call` (v49): "Release & Deploy" runs these same checks as its first job on
+  every push to `main`. No `push` and no `schedule` trigger any more.
+- No `concurrency` group (v49): every PR push gets its own complete run (see "What queues on the
+  one runner" above).
 - **`version` job** (v21): runs `.github/scripts/check_version.py`, hard-failing on drift between
   `backend/pyproject.toml` and `frontend/package.json`, or (on a `pull_request`, comparing against
   `origin/<base-ref>`) when the diff touches `backend/`/`frontend/` without bumping the version —
@@ -224,7 +254,9 @@ section already gave; worth listening to it next time before re-learning it.)
   (`.github/scripts/junit_to_summary.py`, stdlib-only — this job doesn't set up the backend venv
   at all). Its own pass/fail status only reflects whether the summary was published, not whether
   any of the four checks passed — each already reports its own conclusion on the PR's checks
-  list; this job's job is purely to make the Summary page match that.
+  list; this job's job is purely to make the Summary page match that. Since v49 its first step
+  also lists the failed checks as the workflow's `failed` output, which "Release & Deploy"'s
+  notice names.
 - **`compose-config` job** (v12): static-only validation of `docker-compose.yml` merged against
   both `docker-compose.override.yml` (the real local-dev invocation) and
   `docker-compose.prod.yml` (the real deploy invocation), plus a syntax check of
@@ -241,29 +273,45 @@ section already gave; worth listening to it next time before re-learning it.)
   `$env/static/public`'s exports from whatever `PUBLIC_*` vars exist at that moment), not just
   the later `Build` step.
 
-### `release.yml` — "Release" (v21)
+### `release-deploy.yml` — "Release & Deploy" (v49)
 
-Chains off `ci.yml` via `workflow_run` (only proceeds on a successful run that was itself
-triggered by a real `push` to `main`) plus its own `workflow_dispatch` for cutting a release on
-demand. One job: resolve the version via `check_version.py` → check whether `vX.Y.Z` is already
-tagged on the remote (`git ls-remote --tags origin`, not a local `git tag -l` — this is a fresh
-checkout every run) → if not, build a deploy bundle (`docker-compose*.yml`, `.env.example`,
+Runs on every push to `main`, plus `workflow_dispatch` (the whole chain again on `main`). Jobs,
+in order: `checks` (calls `ci.yml`) → `plan` (reads the version with `check_version.py` and
+checks with `git ls-remote --tags origin` whether `vX.Y.Z` is already tagged) → `release` (calls
+`release.yml`, only when the tag is missing) → `deploy` (calls `publish-deploy.yml`, only after
+a release in the same run) → `notify` (one `curl` to Matrix on any failed job, or after a real
+deploy). A merge with no version bump is one run whose `release` and `deploy` show as skipped
+jobs.
+
+### `release.yml` — "Release" (v21, callable since v49)
+
+Called by "Release & Deploy" with the exact commit to release, plus its own `workflow_dispatch`
+for cutting a release of `main` on demand (it deploys nothing; see `docs/RELEASE_PIPELINE.md`).
+One job: resolve the version via `check_version.py` → check whether `vX.Y.Z` is already tagged
+on the remote (`git ls-remote --tags origin`, not a local `git tag -l` — this is a fresh checkout
+every run) → if not, build a deploy bundle (`docker-compose*.yml`, `.env.example`,
 `proxies.txt.example`, `scripts/`) and `backend/requirements.txt`, then
-`gh release create --generate-notes --latest --target <commit>`. Skips everything past the
-tag-exists check on an unbumped merge (e.g. docs-only) — the run still concludes `success`, which
-is what lets `publish-deploy.yml` chain off it regardless.
+`gh release create --generate-notes --latest=<newest?> --target <commit>` ("Latest" only when no
+newer `v*` tag exists, v49).
 
-### `publish-deploy.yml` — "Publish & Deploy" (v21)
+### `publish-deploy.yml` — "Publish & Deploy" (v21, callable since v49)
 
-Chains off `release.yml` via `workflow_run`, plus `workflow_dispatch` (`ref` input — branch, tag,
-or commit) for deploying anything to the host on demand, ahead of a PR merging. Three jobs:
-`resolve` (picks release-mode vs. manual-mode and computes the version/image tags/persist flag),
-`publish` (builds + pushes `ghcr.io/vb2007/spotdl-web-{backend,frontend}`, needs `docker` group
-membership — see the reality note in the Security section above for why `vb2007` already has it),
-and `deploy` (updates `/mnt/raid1/spotdl-web` in place, pre-migration `pg_backup.sh`, health gate
-via `.github/scripts/wait_for_stack_health.sh`, automatic rollback on failure). Full mechanics,
+Called by "Release & Deploy" with the release's commit and tag, plus `workflow_dispatch` (`ref`
+input — branch, tag, or commit) for deploying anything to the host on demand, ahead of a PR
+merging. Four jobs: `resolve` (picks release-mode vs. manual-mode and computes the version/image
+tags/persist flag), `publish` (builds + pushes `ghcr.io/vb2007/spotdl-web-{backend,frontend}`,
+needs `docker` group membership — see the reality note in the Security section above for why
+`vb2007` already has it), `deploy` (updates `/mnt/raid1/spotdl-web` in place, pre-migration
+`pg_backup.sh`, health gate via `.github/scripts/wait_for_stack_health.sh`, automatic rollback on
+failure), and `notify` (a dispatch only; called, the caller's `notify` reports). Full mechanics,
 idempotency rules, and every manual-recovery lever are in **`docs/RELEASE_PIPELINE.md`** — this
 doc intentionally doesn't duplicate that level of detail.
+
+### `nightly.yml` — "Nightly" (v49)
+
+The daily `17 4 * * *` schedule, plus `workflow_dispatch`. One job, `yt-dlp-freshness` (moved
+unchanged from `ci.yml`): builds the backend image and compares the `yt-dlp` and `yt-dlp-ejs` it
+actually got against PyPI's latest. A failure posts a Matrix notice (`notify`, `curl` only).
 
 Only the backend has real *tests* today (the frontend job above is lint/typecheck/build, not a
 test runner — `frontend/package.json` has no test script as of v09) — extend `pytest` with a
