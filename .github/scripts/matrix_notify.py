@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Sends one plain-text message to the pipeline's Matrix room (v33).
 
-Used by the `notify` jobs in publish-deploy.yml and release.yml. Matrix client-server API:
+v49: no workflow uses it any more (each `notify` job now sends with an inline `curl`, so it needs
+no checkout); it stays as the manual test of the bot setup in docs/DEPLOYMENT.md. Matrix
+client-server API:
 ``PUT {homeserver}/_matrix/client/v3/rooms/{room}/send/m.room.message/{txn}``, with the bot's
 access token as a Bearer header. The transaction id makes the send idempotent: a retried request
 with the same ``txn`` is deduplicated by the homeserver instead of posting twice, so callers pass
