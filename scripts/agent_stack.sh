@@ -113,14 +113,11 @@ refuse_foreign_slot() {
 		fi
 	done < <(docker ps -a --filter "label=com.docker.compose.project=$PROJECT" \
 		--format '{{.Label "com.docker.compose.project.working_dir"}}' | sort -u)
-	local volume
-	for volume in pgdata redis-data; do
-		volume_dir="$(docker volume inspect "${PROJECT}_$volume" \
-			--format '{{index .Labels "spotdlweb.worktree"}}' 2>/dev/null || true)"
-		if [ -n "$volume_dir" ] && [ "$volume_dir" != "$ROOT" ]; then
-			die "slot $SLOT's volume ${PROJECT}_$volume belongs to another worktree: $volume_dir. Drop it there (scripts/agent_stack.sh $SLOT down --volumes), or, if that worktree is gone, docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data."
-		fi
-	done
+	volume_dir="$(docker volume inspect "${PROJECT}_pgdata" \
+		--format '{{index .Labels "spotdlweb.worktree"}}' 2>/dev/null || true)"
+	if [ -n "$volume_dir" ] && [ "$volume_dir" != "$ROOT" ]; then
+		die "slot $SLOT's database volume ${PROJECT}_pgdata belongs to another worktree: $volume_dir. Drop it there (scripts/agent_stack.sh $SLOT down --volumes), or, if that worktree is gone, docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data (Redis's queue goes with it)."
+	fi
 }
 
 # The shared main checkout belongs to the owner and other sessions (and its ./downloads and

@@ -182,6 +182,11 @@ needed" claim — rather than silently deleted.
   `en_US.UTF-8`, so a slot runs `postgres:18.6-bookworm` → *v50*
 - Cookies ignore ports: two stacks on `localhost` in one browser profile overwrite each other's
   session cookie → *v50*
+- Labelling an existing named volume makes Compose ask "Recreate (data will be lost)?" on a
+  terminal (silently skipped without one) → *v50*
+- `trap '' INT` doesn't protect a `docker compose` child (Go re-enables SIGINT); bash defers a
+  trapped SIGTERM until the foreground child exits → *v50*
+- `pg_isready` without `-h` passes against the image's socket-only init server → *v50*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -5700,8 +5705,10 @@ independently-found production bug from the same conversation)
   `start_period` (the default `start_interval`), so the workers' 120 s `interval` doesn't delay a
   fresh stack's health: a slot is healthy about 15 s after its containers start.
 - **Tracks dispatched while `worker-dl` is off wait in the slot's Redis.** Beat keeps dispatching
-  due tracks to the `downloads` queue, and they run on the next `realdl`. Cancel a slot's
-  unwanted jobs before taking the lock.
+  due tracks to the `downloads` queue, and its stale-track reclaim (`beat._reclaim_stale_tracks`)
+  re-dispatches them every `STALE_TRACK_AFTER_SECONDS`, so duplicate messages pile up. They run on
+  the next `realdl` (or `e2e`), for real if the track isn't in the ledger. `e2e` therefore refuses
+  while such tracks exist, and `realdl` counts them as it starts.
 - **The v32 guard's message names the owner's database.** A slot pointed at a production name
   refuses on all six backend services, but the advice reads "point DATABASE_URL at
   spotdlwebtest", which a slot never uses. Its fix is `agent_stack.sh <slot> env`.
@@ -5717,3 +5724,20 @@ independently-found production bug from the same conversation)
   owner's `localhost:5173` session, and each stack rejects the other's token. Playwright's
   contexts are separate jars, so the suite is unaffected; a person needs one browser profile per
   stack.
+- **Changing a named volume's config makes Compose ask to recreate it, on a terminal only.** v50's
+  first round labelled the base file's `redis-data` volume in the overlay. An existing slot then
+  printed `Volume "spotdlweb-s1_redis-data" exists but doesn't match configuration in compose
+  file. Recreate (data will be lost)? [y/N]` on every `up` run from a terminal, and an interactive
+  `realdl` hung on it; without a TTY Compose went ahead silently, so scripted runs never showed
+  it. Only `pgdata` carries the worktree label, as it has since that volume was first created.
+- **Ignoring SIGINT in bash doesn't protect a `docker compose` child.** `trap '' INT` is inherited
+  as "ignored", but the Go docker CLI re-enables SIGINT, so a second Ctrl-C during the realdl
+  cleanup aborted `docker compose rm` and left `worker-dl` running with the lock free. The removal
+  now runs under `setsid --wait`, out of the terminal's process group.
+- **Bash defers a trapped SIGTERM until its foreground child exits.** `kill <agent_stack pid>`
+  during `realdl <hour-long command>` did nothing until the command ended. The command now runs in
+  the background with `wait`, so the trap fires at once and passes SIGTERM on (a background child
+  of a non-interactive shell starts with SIGINT ignored, so SIGINT isn't forwarded as is).
+- **`pg_isready` without `-h` checks the unix socket.** On a fresh volume the image's init runs a
+  temporary server on the socket only; a socket probe passes while TCP clients (`migrate`) still
+  get "connection refused". The slot healthcheck probes `-h 127.0.0.1`.

@@ -309,9 +309,18 @@ scripts/agent_stack.sh <slot> down [--volumes]
 
 **Setting one up.** In a fresh worktree (`git worktree add -b <branch> ../spotdl-web-wt/<branch>
 origin/main`), copy the owner's dev `.env` in (`cp ../../spotdl-web/.env .`), then `up` (it also
-creates `frontend/.env` from its template, which `$env/static/public` needs). The script
-refuses a slot other than 1–4, a slot whose containers or database volume belong to another
-worktree, and a worktree whose `.env` names a production database (`spotdlweb`, `spotdl_web`).
+creates `frontend/.env` from its template, which `$env/static/public` needs). `env` and `up` also
+comment out the copied `.env`'s `DATABASE_URL`: the worktree's own plain `docker compose up` would
+otherwise run the branch's migrations on the owner's `spotdlwebtest`, and without it every backend
+service refuses to start. The script refuses:
+
+- a slot other than 1–4;
+- the shared main checkout (a slot runs only from a linked worktree);
+- a slot whose containers or database volume belong to another worktree (`env`, `up` and `down`
+  hold a per-slot lock, `/tmp/spotdl-web-slot<slot>.lock`, so two worktrees can't claim one free
+  slot at once);
+- a worktree whose `.env` names a production database (`spotdlweb`, `spotdl_web`);
+- `up worker-dl`.
 
 **What `.env.agent` holds.** `env` derives it from the worktree's `.env`, gitignored, mode 600:
 
@@ -372,17 +381,29 @@ stack runs under `run`, which exports the same `COMPOSE_*` variables and `API_PO
 `scripts/agent_stack.sh 1 run scripts/verify_separation_sse.sh` (its default base URL follows
 `API_PORT`), `scripts/agent_stack.sh 1 run docker compose exec api sh`.
 
-**Real YouTube traffic: the realdl lock.** At most one stack on this machine talks to YouTube at
-a time. `realdl <cmd…>` takes `flock -n /tmp/spotdl-web-realdl.lock`, writes its holder (slot,
-worktree, pid, start time, command) into the file, starts `worker-dl`, waits until it answers a
-ping, runs the command, then stops `worker-dl` and releases the lock, however the command ends. A
-second `realdl` from any slot fails at once, naming the holder: wait and retry, never start
-`worker-dl` by hand. Tracks dispatched while `worker-dl` is off wait in the slot's Redis queue
-and run on the next `realdl`.
+**Real YouTube traffic: the realdl lock.** At most one *agent* stack on this machine talks to
+YouTube at a time (the owner's default stack keeps its own `worker-dl`, outside the lock: the
+agents together add one dev stack's exposure). `realdl <cmd…>` takes
+`flock -n /tmp/spotdl-web-realdl.lock`, refuses while any other slot's `worker-dl` still runs,
+writes its holder (slot, worktree, pid, start time, command) into the file, rebuilds and starts
+`worker-dl`, waits until it answers a ping, runs the command, then removes `worker-dl` and
+releases the lock, however the command ends:
+
+- Ctrl-C or SIGTERM to the script ends the command (as SIGTERM) and then cleans up; a second
+  Ctrl-C during the cleanup doesn't cut it short (the removal runs in its own session);
+- the command doesn't inherit the lock, so if the script itself is killed outright, the lock frees
+  while that slot's `worker-dl` may still run, and every other slot's `realdl` refuses until
+  it's gone (`scripts/agent_stack.sh <slot> down` there).
+
+A second `realdl` from any slot fails at once, naming the holder: wait and retry, never start
+`worker-dl` by hand. A track whose job is unfinished and whose Spotify id isn't in the ledger
+really downloads once `worker-dl` runs: beat keeps re-dispatching it into the slot's Redis while
+`worker-dl` is off (its stale-track reclaim). `realdl` says how many there are as it starts.
 
 **e2e on a slot.** The suite needs `worker-dl` (every seeded job settles there as a duplicate, and
 setup and teardown ask the worker itself what it's running), so `e2e` runs under the realdl
-lock too, although a default run never downloads. The suite was written against the owner's
+lock too, although a default run makes no network attempt; it refuses to start while the slot
+has unfinished tracks outside the ledger (above), which would. The suite was written against the owner's
 long-lived dev database, so before it runs, `seed` (`scripts/agent_seed.py`, idempotent) recreates
 what a fresh slot lacks:
 
@@ -409,7 +430,8 @@ versions and a clean environment, as on the host.
 and Redis volumes stay, so `up` comes back with the same data. `down --volumes` drops them, and
 the next `up` builds a fresh database. A slot's database volume is labelled with its worktree, so
 the next slice to use the slot can't silently inherit it: drop it with `down --volumes` from the
-old worktree, or `docker volume rm spotdlweb-s<slot>_pgdata` once that worktree is gone.
+old worktree, or `docker volume rm spotdlweb-s<slot>_pgdata spotdlweb-s<slot>_redis-data` once that
+worktree is gone (only the database volume carries the label; the Redis one holds the old queue).
 
 **Known rough edge.** The dev `web` container runs Vite as root and writes `.svelte-kit/` and
 `project.inlang`'s cache into the worktree root-owned. `up` hands those back to you once, but a

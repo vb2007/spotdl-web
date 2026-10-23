@@ -117,11 +117,10 @@ networks:
         - subnet: "fd00:dead:beef:${AGENT_SLOT:?run scripts/agent_stack.sh <slot> env}::/64"
 
 volumes:
-  # Both name the worktree that owns the slot's data: agent_stack.sh refuses to reuse them from
-  # another one (a later slice in the same slot starts from a fresh database and an empty queue).
   pgdata:
-    labels:
-      spotdlweb.worktree: ${AGENT_WORKTREE:?run scripts/agent_stack.sh <slot> env}
-  redis-data:
+    # Names the worktree that owns the slot's database: agent_stack.sh refuses to reuse it from
+    # another one (a later slice in the same slot starts from a fresh database). Only this
+    # volume: labelling the base file's redis-data too would change an existing slot's volume
+    # config, and Compose then asks on a terminal whether to recreate it (losing its data).
     labels:
       spotdlweb.worktree: ${AGENT_WORKTREE:?run scripts/agent_stack.sh <slot> env}
