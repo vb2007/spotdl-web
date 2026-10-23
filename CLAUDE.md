@@ -18,15 +18,15 @@ YouTube-Music rate limiting as an expected, permanent condition rather than a fa
 That inverts normal web-app priorities — durability beats throughput. A track may legitimately sit
 in the queue for days, and that is correct behavior, not a stall.
 
-**Status:** masters v1–v4 (v00–v48) are complete, shipping to `spotdl.vb2007.hu` through the release
-pipeline. No next master is planned; one starts with its own `plan/master-vN/00-master-plan.md`.
+**Status:** masters v1–v4 (v00–v48) are complete and shipping to `spotdl.vb2007.hu`. **Master v5 (v49–v68)
+is in progress**: close every open gotcha, a Firefox extension, an admin "others" view, new features.
 
 ### Where things are
 
 | What | Where |
 |---|---|
-| Latest roadmap + rationale (and its Amendments) | `plan/master-v4/00-master-plan.md` |
-| Per-version plans (finished masters' are historical, never edited) | `plan/master-vN/vNN-*.md`; agent prompt template `plan/master-v4/IMPLEMENTATION_PROMPT.md` |
+| Current roadmap, open-items ledger, waves (and its Amendments) | `plan/master-v5/00-master-plan.md` |
+| Per-version plans (finished masters' are historical, never edited) | `plan/master-vN/vNN-*.md`; agent prompt template `plan/master-v5/IMPLEMENTATION_PROMPT.md` |
 | **Accumulated gotchas, v01–v48** | **`docs/GOTCHAS.md`** — read the relevant section (via its topic index, never end to end) before touching an area, and verify a referenced file or function still exists before acting on it |
 | Deploy runbook (Debian host) / local dev runbook | `docs/DEPLOYMENT.md` / `docs/LOCAL_DEV.md` |
 | CI (self-hosted runner) / release pipeline (versioning, GHCR, deploy, rollback) | `docs/CI_SELF_HOSTED_RUNNER.md` / `docs/RELEASE_PIPELINE.md` |
@@ -34,33 +34,29 @@ pipeline. No next master is planned; one starts with its own `plan/master-vN/00-
 
 ### Workflow rules (do not deviate without asking)
 
-- **One feature at a time.** Work through `plan/master-vN/vNN-*.md` in order; never two versions in
-  parallel, never one out of order (the sequencing is deliberate). Subagents work *within* a
-  version, on its single concern.
+- **One feature per agent, in order.** Never one out of order (the sequencing is deliberate). From v5,
+  up to 4 slices of the **same wave** run in parallel, each in its own worktree and slot stack, per the
+  master plan's parallel model and rebase protocol (v49 first, alone). Subagents work *within* a slice.
 - **Branch per version**: `dev-<feature-name>` from `main`, one PR into `main` per version (a
   "version" is a feature slice, not a release).
-- **"Done when" is a literal checklist, not a vibe.** Every bullet needs its own concrete evidence
-  (a log line, command output, a file listing) gathered *this session*. One scenario passing never
-  proves a differently shaped one (v05's untested album, v11's untested bump endpoint). Re-read the
-  plan's list fresh before saying merge-ready.
-- **A PR isn't merge-ready until every change on it has been re-tested against the real stack** —
-  the local `docker compose` stack, real Postgres, real network — not just `pytest` (unit tests pass
-  while a fix still fails against the real dialect or runtime).
+- **"Done when" is a literal checklist.** Every bullet needs its own concrete evidence gathered *this
+  session*; one scenario passing never proves a differently shaped one (v05's album, v11's bump
+  endpoint). Re-read the plan's list fresh before saying merge-ready.
+- **A PR isn't merge-ready until every change is re-tested against the real stack** (local compose,
+  real Postgres, real network), not just `pytest`: unit tests pass while a fix fails on the real runtime.
 - **Mocked verification is not verification.** A feature touching the network, a proxy or the
   database needs one real end-to-end run. Login included: at least one identity goes through the
   real upstream `vb2007.hu-api` (local `host.docker.internal:3000` if running, else
   `https://api.vb2007.hu`; register a fresh test account freely), not only the direct-session-mint
   fallback (`docs/GOTCHAS.md` v15). Skip only if neither is reachable, and say so explicitly.
-- **Context comes from graphify, not exploration agents.** `graphify query` / `path` / `explain`
-  before searching manually; `graphify update .` after every code-modifying version.
-- **Every version slice bumps the one shared app version**: identical `major.minor.patch`
-  (master . slice, e.g. v21 → `2.21.0`) in `backend/pyproject.toml` and `frontend/package.json`,
-  both bumped even if one side changed (a byte-identical image rebuild), plus `uv lock` in `backend/`. CI's `version` job enforces
-  it; a PR touching neither `backend/` nor `frontend/` needs no bump and cuts no release. **A new
+- **Context comes from graphify, not exploration agents** (`query`/`path`/`explain` first; `update .` after code changes).
+- **Every version slice bumps the one shared app version**: identical `major.minor.patch` (master .
+  slice, e.g. v21 → `2.21.0`) in `backend/pyproject.toml` and `frontend/package.json`, both bumped even if
+  one side changed, plus `uv lock`; CI's `version` job enforces it (a PR touching neither needs no bump,
+  cuts no release; `extension/` has its own version). **A new
   required compose variable (`${VAR:?}`)** follows `docs/RELEASE_PIPELINE.md`'s "Adding a required
   env var" checklist and goes under the PR's "Deploy notes" (preflight and CI's drift check fail on it).
-- **Develop locally, deploy to verify.** Debug on the host only for host-specific issues, and
-  **minimize SSH**: it runs other real services (Matrix/Synapse, Vaultwarden); batch host actions.
+- **Develop locally, deploy to verify; minimize SSH** (the host runs Matrix/Synapse, Vaultwarden); batch host actions.
 
 ### Development environments
 
@@ -127,6 +123,14 @@ name and role; never copy one's into the other.
 | i18n | `hu` + `en`, full coverage, every new string in both message files. Signed out the browser decides (`navigator.languages` → `en`); signed in, a language saved on `/account` wins, and its "automatic" choice follows the browser again (no `/login` switch, nothing adopted at sign-in). Formats = UI language + browser region, with a per-user 12h/24h override by the same rules. Backend stays language-neutral (error `code`s); track metadata/raw errors/alerts/logs untranslated |
 | Library sweep scope | A sweep repoints every user's moved tracks but archives only the **sweeping admin's own** settled jobs (v48, F34) |
 
+### Master v5 additions
+
+| Area | Decision |
+|---|---|
+| Parallel agents | ≤4 per wave, own worktree + compose project + **local Postgres container** each (never the LAN DB); `worker-dl` only under the host-wide realdl lock; owner merges a wave in slice order; version must rise |
+| Firefox extension | `extension/`, MV3, own semver (`manifest.json`), AMO-signed unlisted XPI; session cookie first, per-user API key fallback; keys only submit + `me`, never admin; Spotify-URL allowlist, cascades resolved server-side |
+| Admin scope | `view = mine \| all \| others` (admin only; `all_users` = alias of `all`) |
+
 ## Architecture
 
 ```
@@ -188,12 +192,9 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
 - **File-download availability keys on the file existing at its recorded path, never on
   `archived_at`.** A retention-archived job still has its file and stays downloadable.
 - **`yt-dlp` and `yt-dlp-ejs` float to latest together** (v23.1, PO tokens); everything else is pinned.
-- **Proxy escalation does not cover IP-reputation bot-checks** (v23); v29 adds the other IP family
-  as a rung before proxy.
-- **A proxy setting reaching `download_track` is not proof it reached the network.** Until v30 every
-  "proxy" attempt went out directly (spotdl's proxy wiring never reached `youtube-music`). Any change
-  to the download path's network layer verifies the real connection destination
-  (`socket.socket.connect` observation, or tcpdump) before trusting a proxy/family flag.
+- **Proxy escalation does not cover IP-reputation bot-checks** (v23; v29 adds the other IP family as a
+  rung). **A proxy/family flag reaching `download_track` is not proof it reached the network** (until v30
+  every "proxy" attempt went out directly): verify the real destination (`socket.connect`/tcpdump).
 
 ## Track state machine
 
@@ -236,9 +237,8 @@ terminal). **Outcome**, only once `settled`: `complete` (all `completed`/`skippe
 
 ## Version roadmap
 
-Masters v1 (v00–v13), v2 (v14–v22), v3 (v23–v31.1) and v4 (v32–v48) are complete. Each one's
-slices are in `plan/master-vN/` (inserted patch slices such as v34.1 or v40.1 in its master plan's
-Amendments), and its findings under per-version headings in `docs/GOTCHAS.md`.
+Masters v1–v4 (v00–v48) are complete; master v5 (v49–v68, waves 0–6) is in progress. Slices live in
+`plan/master-vN/` (patch slices in that master's Amendments); findings in `docs/GOTCHAS.md`.
 
 ## Maintaining this file
 
