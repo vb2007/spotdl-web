@@ -367,10 +367,20 @@ and run on the next `realdl`.
 
 **e2e on a slot.** The suite needs `worker-dl` (every seeded job settles there as a duplicate, and
 setup and teardown ask the worker itself what it's running), so `e2e` runs under the realdl
-lock too, although a default run never downloads. Before the suite it seeds the slot's ledger
-(`seed`, idempotent): `LEDGER_TRACKS` from `frontend/e2e/support/stack.ts` plus spec 9's two moved
-tracks, as ledger rows filed in the slot's library with one-second silent stand-in files under
-`./test-library/Daft Punk/agent fixture/`. Then `npm run test:e2e` runs from the worktree's
+lock too, although a default run never downloads. The suite was written against the owner's
+long-lived dev database, so before it runs, `seed` (`scripts/agent_seed.py`, idempotent) recreates
+what a fresh slot lacks:
+
+- a ledger row and a one-second silent stand-in file for every track a default run submits
+  (`LEDGER_TRACKS` in `frontend/e2e/support/stack.ts`, spec 12's `CANCEL_TRACKS`, spec 14's
+  `HELD_TRACKS` and `NEIGHBOUR_TRACK`), under `./downloads/agent fixture/`, plus spec 9's two
+  tracks the library sort moved, under `./test-library/agent fixture/`;
+- the e2e admin's history: 120 archived jobs (spec 14 pages through three pages of 50), a 14-track
+  album (spec 14's twelve-or-more-track job) and a track whose attempt recorded a network path
+  (spec 3; on the owner's stack an earlier `@network` pass leaves one).
+
+A new spec that leans on more of the owner's data needs that data added to the seed too. Then `npm run test:e2e`
+runs from the worktree's
 `frontend/` (run `npm ci`, `npm run check`, which compiles the messages the specs import, and
 `npx playwright install chromium` there once) with
 `E2E_BASE_URL=http://localhost:<web port>`.

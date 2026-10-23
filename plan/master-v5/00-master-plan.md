@@ -463,3 +463,13 @@ here.
   `gh workflow run "Release & Deploy" -f redeploy=true`: on `main`, with the version already
   tagged, `plan` skips the release and the deploy runs on the tag's commit in release mode. The
   `plan` job gains `redeploy`/`commit` outputs beside `release` (v61 still adds `extension`).
+- **2026-10-23, v50: a slot's e2e run needs a seeded history, and `worker-dl`.** The plan expected
+  slot verification to lean on "tracks already present". The Playwright suite leans on much more
+  of the owner's long-lived `spotdlwebtest`: ledger rows for every track a default run submits,
+  three pages of admin jobs, a twelve-track album and a network-path attempt. A fresh slot
+  database has none of it. v50 adds `scripts/agent_seed.py` (run by `agent_stack.sh <slot> seed`,
+  and by `e2e` before the suite), which recreates it with stand-in files. The suite also needs
+  `worker-dl` running (seeded jobs settle there, and setup and teardown query it), so
+  `agent_stack.sh <slot> e2e` holds the realdl lock for the run: e2e runs on different slots are
+  serialized, though a default run makes no network attempt. A spec that comes to lean on more
+  dev data must extend the seed.
