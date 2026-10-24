@@ -984,6 +984,9 @@ needed" claim — rather than silently deleted.
 - The `pytest` job's Postgres is a service container the runner pulls with the shared
   `~/.docker/config.json`, before any step (a job-private `DOCKER_CONFIG` can't reach it);
   published on `127.0.0.1::5432`, trust auth → *v51*
+- The `job` context (a service's mapped port) is unavailable in a job-level `env:`: the file fails
+  to parse and GitHub shows a 0-second failed **`push`** run, not a PR check; `actionlint` (in
+  Docker, `rhysd/actionlint`) catches it locally → *v51*
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
   vanishes from PR checks rather than showing as failed → *v12*
 - `docker compose config` needs a real `.env` on disk, separate from `${VAR}` interpolation → *v12*
@@ -5840,3 +5843,10 @@ independently-found production bug from the same conversation)
   (`docs/CI_SELF_HOSTED_RUNNER.md`, section 5).
 - **A credentialed URL literal in a workflow is a GitGuardian finding** (v44), so the CI Postgres
   runs with `POSTGRES_HOST_AUTH_METHOD=trust`, published on loopback only.
+- **`${{ job.services.<id>.ports[...] }}` only works from the steps on.** The first push had it in
+  the `pytest` job's `env:`, where only `github`, `inputs`, `matrix`, `needs`, `secrets`,
+  `strategy` and `vars` exist. GitHub rejected the whole file: the PR got a 0-second failed run
+  listed under the **`push`** event (ci.yml has no `push` trigger at all), "likely failed because
+  of a workflow file issue", and no check on the PR. `docker run --rm -v "$PWD:/repo:ro" --workdir
+  /repo rhysd/actionlint:1.7.7 -shellcheck=` reports it before a push (`context "job" is not
+  allowed here`). It moved to the "Run pytest" step's `env:`.
