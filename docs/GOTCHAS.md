@@ -193,6 +193,8 @@ needed" claim — rather than silently deleted.
   dies of SIGPIPE before it acts, bash's own messages and the docker CLI's alike → *v50*
 - `agent_stack.sh` reads a `.env`'s `DATABASE_URL` with SQLAlchemy's URL grammar (path and
   `?dbname=`), not a string cut: a cut let `?`-in-password, `%77` or socket URLs past it → *v50*
+- `--profile '*'` enables every profiled service, `worker-dl` and `cloudflared` included: a guard on
+  service names alone misses it → *v50*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -5772,4 +5774,12 @@ independently-found production bug from the same conversation)
   and `env`/`up` would then have commented out that checkout's `DATABASE_URL`. It now matches
   `sqlalchemy.engine.url._parse_url`'s pattern (what app/config.py's guard uses), checks both the
   path and `?dbname=`, percent-decoded and case-folded, and refuses a URL it can't parse. The
-  main-checkout refusal fails closed too (a `git rev-parse` error refuses).
+  main-checkout refusal fails closed too (a `git rev-parse` error refuses). (Corrected 2026-10-24:
+  it checked only the first `dbname=`, and Compose interpolates `.env`, so `?dbname=x&dbname=spotdlweb`
+  and `/${PGDB}` got past it. It now checks every `dbname=` and refuses a URL with a `$`.)
+- **`docker compose --profile '*'` enables every profiled service.** The `run` guard looked for
+  `worker-dl` next to a starting verb, `realdl` and `COMPOSE_PROFILES`, so
+  `run docker compose --profile '*' up -d` started `worker-dl` (and `cloudflared`) outside the lock.
+  It now refuses any `--profile`. The same `run docker compose up` had also skipped the mount
+  preparation, so Docker created `proxies.txt` as a root-owned directory, which a later `up`
+  accepted because it tested `-e`: `run` prepares the mounts now, and both refuse a non-file.
