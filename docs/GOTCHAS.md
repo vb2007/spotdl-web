@@ -988,7 +988,8 @@ needed" claim — rather than silently deleted.
 - A merge's release can find its version already tagged by another run: deploy only when the tag
   points at this run's commit (`owned`) → *v49*
 - An unbumped merge deploys nothing now; `gh workflow run "Release & Deploy" -f redeploy=true`
-  puts the current release back (after a `manual-*` dispatch, or for a pipeline-only fix) → *v49*
+  puts the current release back (after a `manual-*` dispatch, or for a workflow-side fix; the
+  health script and compose files still come from the tag) → *v49*
 
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
@@ -5613,12 +5614,14 @@ independently-found production bug from the same conversation)
 - **A merge without a new version no longer deploys anything.** Before v49 every merge re-deployed
   the latest release, which also replaced a `manual-*` dispatch and shipped pipeline-only
   fixes. The owner's lever for both is a `redeploy` input on the "Release & Deploy" dispatch: the
-  tag's commit, deployed in release mode with `main`'s workflow files. And re-run a failed run's
+  tag's commit, deployed in release mode with `main`'s workflow files and `.pipeline` scripts.
+  What the deploy checks out (compose files, `wait_for_stack_health.sh`) is still the tag's, so a
+  fix there needs a version bump, as before v49. And re-run a failed run's
   *failed* jobs only: "Re-run all jobs" re-runs `plan`, finds the tag, and ends green with
   nothing deployed.
 - **A failed deploy is no longer retried by the next merge.** Before v49 every Release
   completion (an unbumped merge's included) fired Publish & Deploy, which retried a failed
   deploy. Now the deploy runs only after a release in the same run, so a failed one waits for
   `gh run rerun <id> --failed`; the notice says so by arriving at all. A re-run uses the run's own
-  commit's workflow files (and expires after 30 days), so a pipeline-only fix reaches the
+  commit's workflow files (and expires after 30 days), so a workflow-side fix reaches the
   current release with a `redeploy` dispatch instead.

@@ -459,7 +459,7 @@ here.
 - **2026-10-24, v49: a `redeploy` input on "Release & Deploy" (owner's decision).** With the chain
   in-run, a merge deploys only the release it cuts, so an unbumped merge no longer re-deploys the
   current release. Before v49 it did, which put the release back after a `manual-*` dispatch and
-  shipped pipeline-only fixes. The owner chose to keep both through
+  shipped workflow-side fixes. The owner chose to keep both through
   `gh workflow run "Release & Deploy" -f redeploy=true`: on `main`, with the version already
   tagged, `plan` skips the release and the deploy runs on the tag's commit in release mode. The
   `plan` job gains `redeploy`/`commit` outputs beside `release` (v61 still adds `extension`).

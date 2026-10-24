@@ -126,7 +126,7 @@ which is the caller's event when it's called.
 
 | | Release mode (`workflow_call`) | Manual mode (`workflow_dispatch`) |
 |---|---|---|
-| Trigger | the `deploy` job of "Release & Deploy", right after its release | `-f ref=<branch/tag/sha>`, any time |
+| Trigger | the `deploy` job of "Release & Deploy", right after its release (or a `redeploy` dispatch) | `-f ref=<branch/tag/sha>`, any time |
 | `version` | `check_version.py` at the release's commit, which must equal its tag without the `v` | `manual-<short-sha>` |
 | Image tags pushed | `$version`, plus `latest` unless a newer `v*` tag exists at push time (v49) | `$version` only — **never `latest`** |
 | `persist` | `true` — becomes the host's new baseline `IMAGE_TAG` | `false` |
@@ -162,7 +162,8 @@ check never suppresses the release-mode deploy that replaces it.
 ## Idempotency
 
 The `plan` job of "Release & Deploy" only calls the release when `vVERSION` isn't tagged yet, and
-the deploy only runs after that release, so an unbumped merge never reaches either. The skip
+the deploy only runs after that release (or for a `redeploy` dispatch), so an unbumped merge
+never reaches either. The skip
 checks below cover a **re-run** of a run whose release or deploy already happened, and a race
 between two runs carrying the same version. In **release mode**:
 
@@ -430,9 +431,11 @@ manual test in `docs/DEPLOYMENT.md`, "Matrix alert bot".
 One run sends at most one notice. Called from "Release & Deploy", `publish-deploy.yml`'s own
 `notify` stays skipped; the caller's reads the deploy's outputs (`version`, `published`,
 `skipped`, `rollback_note`) instead. The rollback line comes from the deploy job itself
-(step 14 above), so both senders word it the same. With no rollback line at all, the notice says
-the deploy job reported nothing (the runner died, or GitHub failed the job before its first
-step): check the host. A standalone "Release" dispatch has no notice (v49): the person who
+(step 14 above), so both senders word it the same. Without a rollback line, the chain's notice
+falls back on the other outputs: no `version` means `resolve` didn't finish (nothing was built
+or deployed), no `published` means `publish` didn't finish (the host deploy never started), and
+otherwise the deploy job reported nothing (the runner died, or GitHub failed the job before its
+first step): check the host. A standalone "Release" dispatch has no notice (v49): the person who
 dispatched it is watching it, and the automatic path is covered by "Release & Deploy".
 
 So silence is meant to mean "nothing happened", never "maybe it failed" (one exception below: an
@@ -488,14 +491,19 @@ exactly what broke v28's deploy and its rollback on 2026-09-27. The checklist:
   now finds the tag, so the run ends green with nothing deployed and no notice. Don't wait for
   the next merge to pick it up either: a merge whose version is already tagged deploys nothing.
   A re-run uses the workflow files of the run's own commit and is possible for 30 days; when
-  the fix is in the pipeline itself (`.github/`, no version bump), use the redeploy below.
+  the fix is in the workflow files or the `.pipeline` scripts (no version bump), use the
+  redeploy below.
 - **Redeploy the current release** (v49, the owner's lever):
   `gh workflow run "Release & Deploy" --repo vb2007/spotdl-web -f redeploy=true`. On `main`,
   with the version already tagged, `plan` skips the release and the `deploy` job deploys the
   **tag's commit** in release mode (preflight, backup, health gate, rollback, `.last-good`, the
-  ✅ notice), using the workflow files of `main`'s head. It's the way to put the release back
-  after a `manual-*` dispatch, and to ship a pipeline-only fix to the current release. A host
-  already on that version and healthy is skipped (and its `.last-good` recorded). Without a tag
+  ✅ notice). Only the workflow files and the deploy's `.pipeline` scripts
+  (`check_required_env.py`, `migration_guard.sh`, `redact_env.py`) come from `main`'s head.
+  What the deploy checks out (the compose files, `wait_for_stack_health.sh`) is the tag's, and
+  `pg_backup.sh` is the host's, so a fix to those still needs a version bump. It's the way to put the release back after a `manual-*` dispatch, and to ship a
+  workflow-side fix to the current release. A host already on that version and healthy is
+  skipped (and `.last-good` recorded, when the host checkout is on the tag's commit; otherwise
+  it only warns). `main`'s checks must pass first, so a red `main` blocks it. Without a tag
   yet, the input changes nothing: the run releases and deploys as a merge would. A fresh
   `gh workflow run "Publish & Deploy" -f ref=main` works too, but it's a `manual-*` deploy: it
   never skips and never updates `.last-good`.

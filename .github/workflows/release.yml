@@ -97,7 +97,7 @@ jobs:
             echo "owned=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          REMOTE="$(git ls-remote origin "refs/tags/$TAG" "refs/tags/$TAG^{}")"
+          REMOTE="$(git ls-remote --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}")"
           # An annotated tag's `^{}` line names its commit; a lightweight tag's own line does.
           TAG_COMMIT="$(printf '%s\n' "$REMOTE" | awk '$2 ~ /\^\{\}$/ {print $1}')"
           [ -n "$TAG_COMMIT" ] || TAG_COMMIT="$(printf '%s\n' "$REMOTE" | awk 'NR == 1 {print $1}')"

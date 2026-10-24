@@ -17,9 +17,10 @@ name: Release & Deploy
 #
 # `workflow_dispatch` re-runs the whole chain on `main`. With the version already released, that
 # is the checks only, unless `redeploy` is set (the owner's lever, v49): then it deploys the
-# current version's release again in release mode, with this run's workflow files. That puts a
-# release back after a `manual-*` dispatch, and ships a pipeline-only fix (no version bump) to
-# the current release. Re-run a failed run's *failed* jobs to retry its release or deploy.
+# current version's release again in release mode. That puts a release back after a `manual-*`
+# dispatch. The workflow files and the deploy's `.pipeline` scripts (check_required_env.py,
+# migration_guard.sh, redact_env.py) come from `main`'s head; everything the deploy checks out
+# (compose files, wait_for_stack_health.sh) is the tag's, so a fix there still needs a bump. Re-run a failed run's *failed* jobs to retry its release or deploy.
 "on":
   push:
     branches: [main]
@@ -70,7 +71,9 @@ jobs:
           VERSION="$(python3 .github/scripts/check_version.py)"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          REMOTE="$(git ls-remote origin "refs/tags/v$VERSION" "refs/tags/v$VERSION^{}")"
+          # `--tags`: patterns match ref-name tails, so without it a branch named
+          # `x/refs/tags/vX` would pass for the tag.
+          REMOTE="$(git ls-remote --tags origin "refs/tags/v$VERSION" "refs/tags/v$VERSION^{}")"
           if [ -z "$REMOTE" ]; then
             echo "release=true" >> "$GITHUB_OUTPUT"
             echo "v$VERSION has no tag yet: releasing it." | tee -a "$GITHUB_STEP_SUMMARY"
@@ -79,6 +82,10 @@ jobs:
             # tag's `^{}` line names its commit; a lightweight tag's own line does.
             COMMIT="$(printf '%s\n' "$REMOTE" | awk '$2 ~ /\^\{\}$/ {print $1}')"
             [ -n "$COMMIT" ] || COMMIT="$(printf '%s\n' "$REMOTE" | awk 'NR == 1 {print $1}')"
+            if ! printf '%s\n' "$COMMIT" | grep -Eqx '[0-9a-f]{40}'; then
+              echo "::error::Couldn't resolve v$VERSION's commit for the redeploy (got '$COMMIT')."
+              exit 1
+            fi
             echo "release=false" >> "$GITHUB_OUTPUT"
             echo "redeploy=true" >> "$GITHUB_OUTPUT"
             echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
@@ -101,12 +108,13 @@ jobs:
   # After a release in this same run, and only when that tag is this run's commit (`owned`, see
   # release.yml); or, for a `redeploy` dispatch, the existing release's commit. Skipped
   # otherwise. Release mode: persists the new IMAGE_TAG and `.last-good`, exactly as the old
-  # merge-driven path did. `always()` only so a skipped `release` (the redeploy case) doesn't
-  # skip it; the plan must have succeeded either way.
+  # merge-driven path did. `!cancelled()` (not `always()`) only so a skipped `release` (the
+  # redeploy case) doesn't skip it, while a cancelled run still stops it; the plan must have
+  # succeeded either way.
   deploy:
     needs: [plan, release]
     if: >-
-      always() && needs.plan.result == 'success' && (
+      !cancelled() && needs.plan.result == 'success' && (
         (needs.release.result == 'success' && needs.release.outputs.owned == 'true') ||
         (needs.release.result == 'skipped' && needs.plan.outputs.redeploy == 'true')
       )
