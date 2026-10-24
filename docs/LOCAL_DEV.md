@@ -375,8 +375,8 @@ done
 Then put them in `frontend/e2e/.env.e2e.s<slot>` (same keys as `.env.e2e.example`, gitignored).
 The first `e2e` also saves that file as `<git common dir>/agent-stack/e2e.s<slot>.env` (the main
 checkout's `.git/agent-stack/`, shared by every worktree), and a later worktree without its own
-file uses that one: the next slice in the slot can't register the same addresses again. Slots
-1 and 2's identities were registered and saved during v50.
+file uses that one: the next slice in the slot can't register the same addresses again. All four
+slots' identities were registered and saved during v50, so a slot's first agent needs no setup.
 `e2e` exports that file's keys, so they win over a `frontend/e2e/.env.e2e` in the worktree, but
 the suite still reads that file for any key the slot file lacks: keep the slot file complete, or
 the worktree free of `.env.e2e`.
