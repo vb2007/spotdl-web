@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.errors import ApiError, api_error_handler
 from app.routers import admin, auth, health, jobs, library, proxies, settings, stream, tracks, worker
+from app.routers import account_keys
 
 app = FastAPI(title="spotdl-web")
 # v46: an ApiError answers with its stable `code` beside `detail` (app/errors.py).
@@ -24,6 +25,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(account_keys.router)
 app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(jobs.router)
