@@ -5868,6 +5868,12 @@ independently-found production bug from the same conversation)
   `release_all` reports it. And `env -i NAME=value` put the password in `env`'s argv for an
   instant (an execve trace caught it): `agent_stack.sh` builds the clean environment with
   `os.execve` instead.
+- **Round 4 of the blind review:** `?port=` in the query overrides the URL's port in the psycopg
+  dialect, so `127.0.0.1:55432/x_test?port=5432` got past the "loopback, but not 5432" rule (the
+  production-server check still held); `port` joined the refused query keys. And the suite read
+  timestamps in the server's own TimeZone: against a server in `Europe/Budapest`, 15 tests failed
+  (their `.replace(tzinfo=timezone.utc)` shifted the instant). The run's database is created with
+  `ALTER DATABASE ... SET timezone TO 'UTC'`.
 - **Fixture teardown order matters for race tests.** `committed_db` depends on `monkeypatch`, so
   it tears down (releasing parked threads) while the test's stubs are still in place.
 - **Alembic from Python, without the ini.** `command.upgrade(Config("alembic.ini"), ...)` runs

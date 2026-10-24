@@ -457,7 +457,7 @@ never SQLite:
   40 bytes), names a production one (`app/config.py`'s v32 guard: `spotdlweb`, `spotdl_web`),
   names a server other than a slot's `postgres` or a loopback one (`localhost`, `127.0.0.1`,
   `::1`) on an explicit port other than 5432 (on the production host, loopback's 5432 is
-  production's own Postgres), picks the database or server with `?dbname=`/`?service=`/`?host=`/`?hostaddr=`, or
+  production's own Postgres), picks the database or server with `?dbname=`/`?service=`/`?host=`/`?hostaddr=`/`?port=`, or
   needs %-escaping (Alembic's config reads `%` as interpolation, and would crash printing the
   URL, password included).
   Then, connected, it refuses a server that holds `spotdlweb`, `spotdl_web` or `spotdlwebtest`:
@@ -477,7 +477,11 @@ never SQLite:
   before `monkeypatch` undoes the test's stubs), so a failed race test can't leave a parked
   transaction blocking the next one, or resume one with the real publish. A `db_session` test
   that opens a connection of its own (an unpatched `SessionLocal`) fails: it would read past the
-  test's rows and commit outside the rollback.
+  test's rows and commit outside the rollback. (It watches `app.db`'s engine; an engine a test
+  builds itself, like the alerts watchdog's, isn't covered.)
+- The run's database is set to `timezone = 'UTC'`, so every session reads timestamps in UTC
+  whatever the server's own setting: several tests compare aware datetimes, and 15 of them failed
+  against a disposable server running in `Europe/Budapest` before that.
 - A race the move to Postgres exposes, or that a real-connection test reproduces before its
   owning slice fixes it, is an `xfail(strict=True)` naming that slice: the stale-track reclaim's
   E2 is one, for v55 (`test_beat_task.py`).
