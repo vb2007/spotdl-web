@@ -60,7 +60,7 @@ def test_create_shows_the_key_once_and_lists_it_by_prefix_only(authenticated_cli
     assert raw not in (row.hash, row.prefix, row.label)
 
 
-@pytest.mark.parametrize("label", ["", "   ", "x" * (api_keys.LABEL_MAX_LENGTH + 1)])
+@pytest.mark.parametrize("label", ["", "   ", "x" * (api_keys.LABEL_MAX_LENGTH + 1), "a\u0000b", "tab\there"])
 def test_create_refuses_a_blank_or_long_label(authenticated_client, label):
     response = authenticated_client.post("/api/account/api-keys", json={"label": label})
     assert response.status_code == 422

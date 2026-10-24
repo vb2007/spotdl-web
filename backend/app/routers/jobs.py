@@ -29,7 +29,8 @@ _CANCELLABLE_TRACK_STATES = [
 class CreateJobRequest(BaseModel):
     url: str
     # v53: queue the link's album or artist instead (spotify_urls.resolve_cascade).
-    cascade: Literal["album", "artist"] | None = None
+    # Checked in the handler, so a bad value answers with a stable code (v46's rule).
+    cascade: str | None = None
 
 
 class SetPriorityRequest(BaseModel):
@@ -70,7 +71,7 @@ def _resolve_cascade(ref: spotify_urls.SpotifyRef, cascade: str) -> spotify_urls
         raise ApiError(
             422,
             "cascade_invalid",
-            f"A {ref.type} link has no {cascade} to queue",
+            f"{'An' if ref.type in ('album', 'artist') else 'A'} {ref.type} link has no {cascade} to queue",
             {"cascade": cascade, "type": ref.type, "reason": exc.reason},
         ) from None
     except spotify_urls.CascadeNotFound:
@@ -143,6 +144,16 @@ def create_job(
     duplicate)."""
     user = principal.user
     rate_limit.hit_job_create(user.id, principal.api_key.id if principal.api_key else None)
+    if payload.cascade is not None and payload.cascade not in spotify_urls.CASCADE_SOURCES:
+        raise ApiError(
+            422,
+            "cascade_invalid",
+            "A cascade is \"album\" or \"artist\"",
+            {"cascade": payload.cascade, "reason": "unknown"},
+        )
+    if "\x00" in payload.url:
+        # Postgres text can't hold a NUL byte: the query would fail as a 500.
+        raise ApiError(422, "request_invalid", "The link holds a NUL character")
 
     restricted = principal.api_key is not None or CLIENT_HEADER.lower() in request.headers
     ref = spotify_urls.parse(payload.url)
@@ -161,6 +172,10 @@ def create_job(
     else:
         source_url, source_type = payload.url, _classify_source_type(payload.url)
 
+    # Two identical submits at once (an extension's double send) would both find nothing and
+    # both create: the user's row serializes them (Postgres; SQLite, the unit tests', has one
+    # writer anyway), held until this request commits.
+    db.query(User.id).filter(User.id == user.id).with_for_update().one()
     existing = _unfinished_job(db, user.id, source_url)
     if existing is not None:
         response.status_code = 200

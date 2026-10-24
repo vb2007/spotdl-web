@@ -46,7 +46,8 @@ def _generate() -> tuple[str, str]:
 def normalize_label(label: str) -> str | None:
     """The label as stored, or None when it's empty or too long once trimmed."""
     label = label.strip()
-    if not label or len(label) > LABEL_MAX_LENGTH:
+    # Control characters too: a NUL can't be stored in Postgres text at all (a 500).
+    if not label or len(label) > LABEL_MAX_LENGTH or any(ord(c) < 32 or ord(c) == 127 for c in label):
         return None
     return label
 

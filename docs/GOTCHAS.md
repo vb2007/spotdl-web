@@ -5973,8 +5973,12 @@ independently-found production bug from the same conversation)
 - **`hint: "already_queued"` answers 200 with the existing job, and creates nothing.** Owner-scoped,
   canonical URL, an unarchived job still `expanding` or with a `pending`/`queued`/`downloading`/
   `waiting` track. A settled, failed or cancelled job doesn't count, so re-submitting a finished
-  link still re-runs it (dedup then settles it at once). Two simultaneous identical submits can
-  both create: the check is a hint, not a lock. The web UI (the dashboard form and the incoming
+  link still re-runs it (dedup then settles it at once). Two simultaneous identical submits
+  both created at first (the live review's 6 parallel posts made three jobs); the create now locks
+  the user's row (`FOR UPDATE`) before the check, so they serialize: one 201, five 200. An
+  `expanding` job counts only for its first hour (a lost expansion would otherwise answer every
+  re-submit forever, and a key can't cancel it). A `spotify:` URI the web UI submits is stored as
+  typed (cookie requests keep today's behavior), so it never matches an `https` link's job. The web UI (the dashboard form and the incoming
   overlay's "try again") shows a notice for it instead of adding the returned job a second time,
   since that job is already on the page.
 - **Every Spotify link a job stores is canonical now, the web UI's too.** `https://open.spotify.com/<type>/<id>`

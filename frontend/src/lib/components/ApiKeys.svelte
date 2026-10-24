@@ -82,6 +82,8 @@
 			madeKey = true;
 		} catch (err) {
 			error = () => errorText(err);
+			// At the limit by another tab's count: show the keys the server has, not this tab's.
+			if (err instanceof api.ApiError && err.code === 'api_key_limit_reached') load();
 		} finally {
 			creating = false;
 		}

@@ -181,13 +181,33 @@ def test_a_cascade_spotify_cant_answer_is_503(client, user_key, monkeypatch):
     assert response.json()["code"] == "cascade_unavailable"
 
 
-def test_an_unknown_cascade_value_is_a_validation_error(client, user_key):
+@pytest.mark.parametrize("cascade", ["playlist", "", "ALBUM"])
+def test_an_unknown_cascade_value_is_cascade_invalid(client, user_key, cascade):
+    """Live review: a stable code, not FastAPI's raw validation list."""
     response = client.post(
         "/api/jobs",
-        json={"url": f"https://open.spotify.com/track/{TRACK_ID}", "cascade": "playlist"},
+        json={"url": f"https://open.spotify.com/track/{TRACK_ID}", "cascade": cascade},
         headers=bearer(user_key),
     )
     assert response.status_code == 422
+    assert response.json()["code"] == "cascade_invalid"
+    assert response.json()["params"]["reason"] == "unknown"
+
+
+def test_a_nul_in_the_link_is_refused_not_a_500(authenticated_client, db_session):
+    response = authenticated_client.post("/api/jobs", json={"url": "a\u0000b"})
+    assert response.status_code == 422
+    assert response.json()["code"] == "request_invalid"
+    assert db_session.query(Job).count() == 0
+
+
+def test_cascade_invalid_reads_right(client, user_key):
+    response = client.post(
+        "/api/jobs",
+        json={"url": f"https://open.spotify.com/album/{ALBUM_ID}", "cascade": "album"},
+        headers=bearer(user_key),
+    )
+    assert response.json()["detail"] == "An album link has no album to queue"
 
 
 # --- hint ---------------------------------------------------------------------------------
