@@ -871,5 +871,49 @@
 	"account_clock_12h": "12-hour ({example})",
 	"account_clock_24h": "24-hour ({example})",
 	"settings_proxy_format": "http(s)://[user:pass@]ipv4[:port]",
-	"account_language_auto": "automatic ({language})"
+	"account_language_auto": "automatic ({language})",
+	"error_rate_limited": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "Too many tries. Try again in {n} second.",
+				"countPlural=*": "Too many tries. Try again in {n} seconds."
+			}
+		}
+	],
+	"error_api_key_label_invalid": "Give the key a name of up to {max} characters",
+	"error_api_key_limit_reached": "You already have {max} keys; revoke one first",
+	"error_api_key_not_found": "No such key (already revoked?)",
+	"account_keys_heading": "Browser extension keys",
+	"account_keys_hint": "The spotdl-web Firefox extension uses your sign-in in this browser when it can. Where it can't, give it a key. A key can only queue Spotify links and say whose it is: it never opens anything else, admin pages included.",
+	"account_keys_name": "Name",
+	"account_keys_name_placeholder": "laptop firefox",
+	"account_keys_create": "create key",
+	"account_keys_creating": "creating…",
+	"account_keys_new_heading": "Your new key",
+	"account_keys_new_hint": "Copy it into the extension now. It isn't shown again: if you lose it, revoke it and create another.",
+	"account_keys_new_label": "Key",
+	"account_keys_copy": "copy",
+	"account_keys_copied": "copied",
+	"account_keys_copy_failed": "Couldn't copy; select the key and copy it yourself.",
+	"account_keys_done": "done",
+	"account_keys_list_label": "Your keys",
+	"account_keys_loading": "Loading your keys…",
+	"account_keys_load_failed": "Couldn't read your keys: {error}",
+	"account_keys_try_again": "try again",
+	"account_keys_empty": "No keys yet.",
+	"account_keys_count": "{active} of {max} in use",
+	"account_keys_created": "created {when}",
+	"account_keys_last_used": "last used {when}",
+	"account_keys_never_used": "never used",
+	"account_keys_revoke": "revoke",
+	"account_keys_revoke_named": "revoke {label}",
+	"account_keys_revoke_title": "Revoke this key?",
+	"account_keys_revoke_body": "Whatever uses it stops working at once. A revoked key can't be brought back; create a new one instead.",
+	"account_keys_revoke_confirm": "revoke key",
+	"account_keys_revoke_cancel": "keep key",
+	"account_keys_revoked": "Revoked {label}.",
+	"account_keys_limit": "That's as many keys as you can have; revoke one to create another.",
+	"dashboard_submit_already_queued": "Already in your queue: that link is still downloading."
 }
