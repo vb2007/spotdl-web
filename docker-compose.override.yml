@@ -163,7 +163,7 @@ services:
         if [ -n "$$stale" ]; then
           echo "web: root-owned files in frontend/, left by a dev web container from before v52:" >&2
           echo "$$stale" >&2
-          echo "web: hand them back once, then start web again:" >&2
+          echo "web: hand them back once (in an agent slot, prefix it with scripts/agent_stack.sh <slot> run, or just run scripts/agent_stack.sh <slot> up), then start web again:" >&2
           echo "  docker compose run --rm --no-deps -u root web sh -c 'find /app \\( -path /app/node_modules -o -path /app/src/lib/paraglide -o -path /app/.svelte-kit \\) -prune -o -user 0 -exec chown 1000:1000 {} +'" >&2
           exit 1
         fi

@@ -121,7 +121,8 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 		throw new Error(
 			`the dev web container lost its own ${detached.join(', ')} (removing that directory on the ` +
 				'host detaches the volume), so a host-side npm run check would reload the pages under ' +
-				'test: docker compose restart web, then run again'
+				'test: docker compose restart web (in an agent slot: scripts/agent_stack.sh <slot> run ' +
+				'docker compose restart web), then run again'
 		);
 	}
 

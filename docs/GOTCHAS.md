@@ -6147,7 +6147,9 @@ independently-found production bug from the same conversation)
   beat's stale sweep. A worker exiting on its own, for any reason, ends the wrapper with its status
   (128+N for signal N), so the v32 config guard still stops the container and Docker's restart
   policy covers every crash, a syntax error an edit brought in included (it crash-loops until
-  fixed). An earlier version waited for the next edit instead after a crash soon after a reload,
+  fixed, and comes back after the fix on Docker's restart backoff: ~25 s after a 45 s error).
+  A `docker compose stop` that lands while a just-reloaded Celery is still booting exits 143
+  (Celery dies of the SIGTERM before its handlers exist, as it would unwrapped). An earlier version waited for the next edit instead after a crash soon after a reload,
   and a worker SIGKILLed in that window stayed dead behind a "healthy" container. `init: true`
   keeps the wrapper off PID 1 (which drops a signal that arrives before its handler exists) and
   reaps orphans.
@@ -6235,10 +6237,12 @@ independently-found production bug from the same conversation)
   - a soak against a second, pre-v52-style dev server (root, shared `.svelte-kit`) on a copy of
     the tree, mixing HMR edits, host-side `svelte-kit sync` (partly failing with `EACCES` on
     root-owned types, as v44's did), `chown` of `.svelte-kit`, routes added and removed, bursts,
-    and `vite.config.ts` restarts: 955 cycles over 1 h 40 min so far (532 HMR edits, 114 host
-    syncs, 35 new routes, 21 restarts), 198 checks, no failure. (One stop came from a page that
-    never rendered while the server stalled for 40 s under the parallel e2e run's load; the probe
-    counts that separately now.)
+    and `vite.config.ts` restarts: 1,759 cycles over 3 h 32 min (959 HMR edits, 189 bursts, 215
+    host syncs, 84 `chown`s, 62 routes added, 41 restarts), with 334 checks of a fresh page and
+    331 of a page kept open throughout. The dialog opened every time it was asked. The one stop
+    was a fresh page that never rendered while the server stalled for 40 s under a parallel e2e
+    run's load; from then on the probe counted those apart (4 more), and never one where the
+    page rendered and the dialog didn't open.
   Every fresh page loaded `confirm.ts`, and each optimized dependency, under one URL, and the
   dialog opened every time. No fix went into `ConfirmDialog.svelte`. What v52 did change is the one
   mechanism found that rewrites what Vite serves from outside it: a host-side `npm run check`
@@ -6249,9 +6253,9 @@ independently-found production bug from the same conversation)
   `.vite/deps/svelte_internal_client` chunk under two queries before restarting `web`.
 - **A reload restarts `worker-meta`'s boot work too.** Its boot runs `reconcile_disk()` (prunes
   ledger rows whose file is missing) and `proxies.sync_from_file()`, so since v52 every backend save
-  runs them on the dev stack, as a manual `docker compose restart worker-meta` always did. During a
-  library sweep that is moving files, a reconcile could in principle find a file mid-move and
-  prune its row (a re-download later): don't edit backend files while a dev sweep runs.
+  runs them on the dev stack, as a manual `docker compose restart worker-meta` always did. That is
+  safe during a library sweep: the sweep commits a row's repoint before unlinking the source, and
+  reconcile re-reads a row whose file is missing before pruning it (v34.1).
 - **Vite's error overlay can outlive a fixed compile error.** After a syntax error in a `.svelte`
   file and a byte-for-byte revert, an open page kept `vite-error-overlay` (vite-plugin-svelte skips
   the unchanged output, so no update clears it), and it intercepts every click: in a kept-open tab
