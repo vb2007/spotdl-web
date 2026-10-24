@@ -74,7 +74,7 @@ why that needed doing, and why it wasn't the original design).
 ## 3. Verify
 
 ```bash
-curl -s http://localhost:8000/api/health
+curl -s http://127.0.0.1:8000/api/health
 ```
 
 Ports bound to `127.0.0.1` is fine and expected here too — this is your own machine, nothing
@@ -110,7 +110,7 @@ session = create_session(db, user.id)
 db.commit()
 print(session.token)
 "
-# then: curl -H 'Cookie: SPOTDL_SESSION=<token>' http://localhost:8000/api/jobs
+# then: curl -H 'Cookie: SPOTDL_SESSION=<token>' http://127.0.0.1:8000/api/jobs
 ```
 
 ## 5. Exercising sort & move locally (v28)
@@ -140,7 +140,7 @@ not some other path, or the sweep writes into the container's ephemeral overlay 
 instead of the bind mount, "succeeds," and nothing shows up on disk or through nginx:
 
 ```bash
-curl -b <admin cookie jar> -X PATCH http://localhost:8000/api/settings/library \
+curl -b <admin cookie jar> -X PATCH http://127.0.0.1:8000/api/settings/library \
   -H "Content-Type: application/json" \
   -d '{"library_target_dir":"/mnt/raid1/media/music"}'
 ```
@@ -400,7 +400,7 @@ the suite still reads that file for any key the slot file lacks: keep the slot f
 the worktree free of `.env.e2e`.
 
 In a browser, use one profile (or private window) per stack: cookies aren't scoped by port, so
-the session cookie of `localhost:5174` and the owner's `localhost:5173` overwrite each other, and
+the session cookie of `127.0.0.1:5174` and the owner's `127.0.0.1:5173` overwrite each other, and
 each stack then answers the other's token with 401.
 
 **Other commands against the slot.** Anything that should hit the slot rather than the owner's

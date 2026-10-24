@@ -6137,11 +6137,12 @@ independently-found production bug from the same conversation)
   each worker's `command` is still `docker-compose.yml`'s (worker-dl's `--concurrency=1
   --prefetch-multiplier=1` can't drift) and a `docker compose run` one-off passes through. A change
   sends SIGTERM (Celery's warm shutdown) and SIGKILL after the service's stop grace (300 s for
-  `worker-dl`/`worker-expand`, 30 s for `worker-meta`): a SIGKILLed main process isn't covered by
+  `worker-dl`/`worker-expand`, Docker's default 10 s for `worker-meta`): a SIGKILLed main process isn't covered by
   `task_reject_on_worker_lost`, so its task would wait for the broker's 6 h visibility timeout or
   beat's stale sweep. The first child exiting on its own ends the wrapper with its code (the v32
-  config guard still stops the container); a child that dies after a reload (a syntax error) waits
-  for the next edit instead of crash-looping. `init: true` keeps the wrapper off PID 1 (which drops
+  config guard still stops the container, and Docker's restart policy still covers a worker that
+  dies later); only a child that dies within 30 s of a restart an edit caused (a syntax error)
+  waits for the next edit instead of crash-looping. `init: true` keeps the wrapper off PID 1 (which drops
   a signal that arrives before its handler exists) and reaps orphans.
 - **A dev dependency change no longer needs `--renew-anon-volumes`.** `node_modules` is a named
   volume with a stamp of the `package-lock.json` it was installed from; the dev command runs
