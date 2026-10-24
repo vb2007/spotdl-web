@@ -378,7 +378,7 @@ wait_healthy() {
 # workers couldn't write ./downloads, and a host `npm ci` couldn't fill frontend/node_modules.
 prepare_mounts() {
 	mkdir -p "$ROOT/downloads" "$ROOT/test-library" "$ROOT/frontend/node_modules" \
-		"$ROOT/frontend/src/lib/paraglide"
+		"$ROOT/frontend/src/lib/paraglide" "$ROOT/frontend/.svelte-kit"
 	[ -e "$ROOT/proxies.txt" ] || : >"$ROOT/proxies.txt"
 	[ -f "$ROOT/proxies.txt" ] ||
 		die "$ROOT/proxies.txt isn't a file (Docker made it a directory: a container started before it existed). Take the slot down (scripts/agent_stack.sh $SLOT down), remove it (root-owned: docker run --rm -v \"$ROOT:/w\" alpine rmdir /w/proxies.txt), then retry"
@@ -393,8 +393,10 @@ prepare_mounts() {
 # root-owned files, so a worktree that still has some gets them back, through a one-off root
 # container, before `up`. The worktree's frontend/ is mounted whole at /host: the container's
 # own /app hides .svelte-kit, node_modules and the compiled messages behind its volumes.
+# `--build`: a slot's existing image may be a pre-v52 one, which would fill the web volumes this
+# run creates as root.
 return_frontend_files() {
-	dc run --rm --no-deps -T -u root -v "$ROOT/frontend:/host" web sh -c "find /host -path /host/node_modules -prune -o -user 0 -exec chown $(id -u):$(id -g) {} +" || true
+	dc run --rm --no-deps --build -T -u root -v "$ROOT/frontend:/host" web sh -c "find /host -path /host/node_modules -prune -o -user 0 -exec chown $(id -u):$(id -g) {} +" || true
 }
 
 # --- realdl lock --------------------------------------------------------------------------------
@@ -637,7 +639,7 @@ up)
 	dc up -d --build "$@"
 	echo "agent_stack: waiting for slot $SLOT to be healthy"
 	wait_healthy
-	echo "agent_stack: slot $SLOT is up: web http://localhost:$WEB_PORT, api http://localhost:$API_PORT"
+	echo "agent_stack: slot $SLOT is up: web http://127.0.0.1:$WEB_PORT, api http://127.0.0.1:$API_PORT"
 	;;
 down)
 	if [ ! -f "$ENV_AGENT" ]; then

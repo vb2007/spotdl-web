@@ -11,9 +11,10 @@ WORKDIR /app
 RUN chown node:node /app
 USER node
 COPY --chown=node:node package.json package-lock.json ./
+COPY --chown=node:node scripts/lockfile-stamp.mjs scripts/
 RUN npm ci \
 	&& mkdir -p src/lib/paraglide .svelte-kit \
-	&& sha256sum package-lock.json | cut -d' ' -f1 > node_modules/.package-lock.sha256
+	&& node scripts/lockfile-stamp.mjs > node_modules/.package-lock.sha256
 
 FROM node:22-alpine AS build
 WORKDIR /app

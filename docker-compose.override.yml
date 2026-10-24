@@ -32,7 +32,11 @@ x-dev-env: &dev-env
 # stays docker-compose.yml's, word for word (worker-dl's --concurrency=1
 # --prefetch-multiplier=1 can't drift from production's), and a one-off `docker compose run`
 # passes straight through it. `beat` isn't wrapped: restart it after editing its schedule.
+# worker-dl and worker-expand give a running download or sweep their stop_grace_period (300 s)
+# before a restart kills it, as `docker compose stop` would. `init: true` on each: the wrapper
+# isn't PID 1 (which ignores a signal it has no handler for yet) and orphans get reaped.
 x-dev-reload: &dev-reload ["python", "/opt/dev/reload.py", "--"]
+x-dev-reload-long: &dev-reload-long ["python", "/opt/dev/reload.py", "--grace", "300", "--"]
 x-dev-reload-mount: &dev-reload-mount ./scripts/dev:/opt/dev:ro
 
 services:
@@ -77,7 +81,8 @@ services:
 
   worker-dl:
     environment: *dev-env
-    entrypoint: *dev-reload
+    entrypoint: *dev-reload-long
+    init: true
     # Bind-mounted to the project root instead of the base file's named `downloads` volume,
     # so downloaded files are directly browsable on the host during local dev. `!override`
     # replaces rather than merges (v01 gotcha) — without it this would sit alongside the
@@ -92,6 +97,7 @@ services:
   worker-meta:
     environment: *dev-env
     entrypoint: *dev-reload
+    init: true
     volumes: !override
       - ./backend/app:/app/app
       - *dev-reload-mount
@@ -105,7 +111,8 @@ services:
 
   worker-expand:
     environment: *dev-env
-    entrypoint: *dev-reload
+    entrypoint: *dev-reload-long
+    init: true
     volumes: !override
       - ./backend/app:/app/app
       - *dev-reload-mount
@@ -128,13 +135,30 @@ services:
     # of the lockfile it was installed from (frontend/Dockerfile's dev stage); when the
     # bind-mounted lockfile no longer matches it, `npm ci` reinstalls into the volume before
     # Vite starts. A restart (`docker compose restart web`) is all a dependency change needs.
-    # Root-owned files on the bind mount (left by a dev `web` from before v52, which ran as
-    # root) would fail Vite with EACCES halfway through; they stop it here instead, with the
-    # one command that hands them back.
+    # The stamp leaves out the app's own version (frontend/scripts/lockfile-stamp.mjs), so a
+    # version bump alone never reinstalls.
+    # What a dev `web` from before v52 (root, the `build` stage) left behind would fail Vite with
+    # EACCES halfway through, so it stops here instead, saying what to do: its image (the first
+    # `up` after v52 needs `--build`), volumes it filled as root, or root-owned files on the bind
+    # mount.
     command:
       - sh
       - -c
       - |
+        if [ "$$(id -u)" = 0 ]; then
+          echo "web: this is the dev web image from before v52 (it runs as root), and Docker has filled web's volumes from it as root." >&2
+          echo "web: once (docker compose ls names the project):" >&2
+          echo "  docker compose rm -sf web && docker volume rm <project>_web-node-modules <project>_web-paraglide <project>_web-svelte-kit && docker compose up -d --build web" >&2
+          exit 1
+        fi
+        for dir in node_modules src/lib/paraglide .svelte-kit; do
+          if [ ! -w "$$dir" ]; then
+            echo "web: $$dir isn't writable by uid $$(id -u): a dev web image from before v52 filled its volume as root." >&2
+            echo "web: remove the web container and its three volumes once (docker compose ls names the project), then start web again:" >&2
+            echo "  docker compose rm -sf web && docker volume rm <project>_web-node-modules <project>_web-paraglide <project>_web-svelte-kit" >&2
+            exit 1
+          fi
+        done
         stale="$$(find /app \( -path /app/node_modules -o -path /app/src/lib/paraglide -o -path /app/.svelte-kit \) -prune -o -user 0 -print | head -3)"
         if [ -n "$$stale" ]; then
           echo "web: root-owned files in frontend/, left by a dev web container from before v52:" >&2
@@ -143,7 +167,7 @@ services:
           echo "  docker compose run --rm --no-deps -u root web sh -c 'find /app \\( -path /app/node_modules -o -path /app/src/lib/paraglide -o -path /app/.svelte-kit \\) -prune -o -user 0 -exec chown 1000:1000 {} +'" >&2
           exit 1
         fi
-        want="$$(sha256sum package-lock.json | cut -d' ' -f1)"
+        want="$$(node scripts/lockfile-stamp.mjs)"
         if [ "$$(cat node_modules/.package-lock.sha256 2>/dev/null)" != "$$want" ]; then
           echo "web: package-lock.json changed since node_modules was installed; running npm ci"
           npm ci --no-audit --no-fund || exit 1
@@ -190,7 +214,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      # v52: room for the `npm ci` a changed lockfile runs first.
+      start_period: 300s
 
 # v52: the dev `web` container's own node_modules, compiled messages and SvelteKit output (see
 # its `volumes`).
