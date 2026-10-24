@@ -120,8 +120,36 @@ services:
   web:
     build:
       context: ./frontend
-      target: build
-    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+      # v52: the dependencies-only dev stage, running as `node` (uid 1000), so what Vite writes
+      # into the bind mount isn't root's (D3).
+      target: dev
+    # v52 (D4): node_modules lives in a volume, which outlives an image rebuild, so a changed
+    # package-lock.json used to need `up -d --renew-anon-volumes`. The volume carries a stamp
+    # of the lockfile it was installed from (frontend/Dockerfile's dev stage); when the
+    # bind-mounted lockfile no longer matches it, `npm ci` reinstalls into the volume before
+    # Vite starts. A restart (`docker compose restart web`) is all a dependency change needs.
+    # Root-owned files on the bind mount (left by a dev `web` from before v52, which ran as
+    # root) would fail Vite with EACCES halfway through; they stop it here instead, with the
+    # one command that hands them back.
+    command:
+      - sh
+      - -c
+      - |
+        stale="$$(find /app \( -path /app/node_modules -o -path /app/src/lib/paraglide \) -prune -o -user 0 -print | head -3)"
+        if [ -n "$$stale" ]; then
+          echo "web: root-owned files in frontend/, left by a dev web container from before v52:" >&2
+          echo "$$stale" >&2
+          echo "web: hand them back once, then start web again:" >&2
+          echo "  docker compose run --rm --no-deps -u root web sh -c 'find /app \\( -path /app/node_modules -o -path /app/src/lib/paraglide \\) -prune -o -user 0 -exec chown 1000:1000 {} +'" >&2
+          exit 1
+        fi
+        want="$$(sha256sum package-lock.json | cut -d' ' -f1)"
+        if [ "$$(cat node_modules/.package-lock.sha256 2>/dev/null)" != "$$want" ]; then
+          echo "web: package-lock.json changed since node_modules was installed; running npm ci"
+          npm ci --no-audit --no-fund || exit 1
+          echo "$$want" > node_modules/.package-lock.sha256
+        fi
+        exec npm run dev -- --host 0.0.0.0 --port 5173
     # `!override` here, not a plain merge (v27) -- without it, this list would sit alongside
     # the base file's `downloads:/downloads:ro` *named volume*, which is a second, empty,
     # Docker-managed volume, never the real host directory worker-dl/worker-meta actually
@@ -131,11 +159,14 @@ services:
     # perpetually-empty volume that isn't the one anything ever downloads into.
     volumes: !override
       - ./frontend:/app
-      - /app/node_modules
+      # v52: named, not anonymous (v46). A new name starts from the dev image's content, owned
+      # by `node`; the anonymous ones a pre-v52 container left behind are root-owned and would
+      # otherwise be carried into the recreated container.
+      - web-node-modules:/app/node_modules
       # v46: Paraglide's compiled messages (src/lib/paraglide) get the container's own copy, as
-      # node_modules does: Vite compiles them as root, and on the bind mount those root-owned
-      # files would make every host-side `npm run check`/`lint` fail to recompile them.
-      - /app/src/lib/paraglide
+      # node_modules does, so a host-side `npm run check`/`lint` and the container never fight
+      # over one compiled output.
+      - web-paraglide:/app/src/lib/paraglide
       - ./downloads:/downloads:ro
       - ./test-library:/mnt/raid1/media/music:ro
     # `ports` lists merge across compose files rather than replace (unlike `command`/`build`
@@ -155,3 +186,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
+# v52: the dev `web` container's own node_modules and compiled messages (see its `volumes`).
+volumes:
+  web-node-modules:
+  web-paraglide:
