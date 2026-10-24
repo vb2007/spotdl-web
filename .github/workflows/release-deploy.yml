@@ -20,7 +20,9 @@ name: Release & Deploy
 # current version's release again in release mode. That puts a release back after a `manual-*`
 # dispatch. The workflow files and the deploy's `.pipeline` scripts (check_required_env.py,
 # migration_guard.sh, redact_env.py) come from `main`'s head; everything the deploy checks out
-# (compose files, wait_for_stack_health.sh) is the tag's, so a fix there still needs a bump. Re-run a failed run's *failed* jobs to retry its release or deploy.
+# (compose files, wait_for_stack_health.sh) is the tag's, so a fix there still needs a bump.
+# Re-run a failed run's *failed* jobs to retry its release or deploy: "Re-run all jobs" re-runs
+# `plan`, which then finds the tag and deploys nothing.
 "on":
   push:
     branches: [main]
@@ -79,10 +81,11 @@ jobs:
             echo "v$VERSION has no tag yet: releasing it." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$REDEPLOY" = "true" ]; then
             # The release's own commit, so the deploy keeps tag and commit together. An annotated
-            # tag's `^{}` line names its commit; a lightweight tag's own line does.
-            COMMIT="$(printf '%s\n' "$REMOTE" | awk '$2 ~ /\^\{\}$/ {print $1}')"
-            [ -n "$COMMIT" ] || COMMIT="$(printf '%s\n' "$REMOTE" | awk 'NR == 1 {print $1}')"
-            if ! printf '%s\n' "$COMMIT" | grep -Eqx '[0-9a-f]{40}'; then
+            # tag's `^{}` line names its commit; a lightweight tag's own line does. Exact names:
+            # patterns match ref-name tails, so `refs/tags/x/refs/tags/vX` would match too.
+            COMMIT="$(printf '%s\n' "$REMOTE" | awk -v r="refs/tags/v$VERSION" \
+              '$2 == r "^{}" {p = $1} $2 == r {l = $1} END {print (p != "" ? p : l)}')"
+            if ! [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
               echo "::error::Couldn't resolve v$VERSION's commit for the redeploy (got '$COMMIT')."
               exit 1
             fi

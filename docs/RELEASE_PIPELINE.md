@@ -91,8 +91,8 @@ passes, `plan` says `release=false`, and `release` and `deploy` show as skipped 
 `workflow_run` trigger fires on **every** completion of the workflow it names, whatever its
 event or branch: every PR's CI run, every scheduled run and every dispatch fired Release, which
 then skipped itself. A skipped run still *completes*, so it fired Publish & Deploy, which skipped
-too. Of the last 1000 runs when v49 was planned, Release was 160 skipped of 212 and Publish & Deploy 158
-of 228. Calling the workflows from one run (`uses:` on a job, `workflow_call` in the callee)
+too. Of the last 1000 runs when v49 was planned, Release was 160 skipped of 212 and Publish &
+Deploy 158 of 228. Calling the workflows from one run (`uses:` on a job, `workflow_call` in the callee)
 keeps both reasons the chain was built for, without that noise:
 
 - **It can't release code that failed its checks.** `release` `needs:` the checks, in the same
@@ -475,7 +475,8 @@ exactly what broke v28's deploy and its rollback on 2026-09-27. The checklist:
    needs. The owner reads that before merging.
 3. **Add it to the host's `.env` before merging** (`/mnt/raid1/spotdl-web/.env`). If it's
    forgotten, the deploy's preflight fails naming the variable, with nothing on the host
-   changed: add it, then re-run the failed run.
+   changed: add it, then re-run the failed run's failed jobs (not "all jobs", see "Manual
+   recovery levers").
 4. **Nothing to do for rollback.** Rollback restores the previous commit's compose files, which
    don't reference the new variable, so a leftover key in `.env` is harmless.
 

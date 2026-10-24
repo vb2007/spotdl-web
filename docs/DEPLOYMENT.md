@@ -314,8 +314,8 @@ happened:
 
 | Rollback says | What it means | What to do |
 |---|---|---|
-| not needed | The preflight (or the backup) failed before anything on the host moved. | Fix the cause, typically a missing `.env` variable named in the log (see "A deploy needs a new `.env` variable" below), then re-run. |
-| succeeded | The old commit + tag are back up and healthy. The run is still red, because the deploy failed. | Investigate at leisure, fix, re-run. |
+| not needed | The preflight (or the backup) failed before anything on the host moved. | Fix the cause, typically a missing `.env` variable named in the log (see "A deploy needs a new `.env` variable" below), then re-run the failed jobs. |
+| succeeded | The old commit + tag are back up and healthy. The run is still red, because the deploy failed. | Investigate at leisure, fix, re-run the failed jobs. |
 | succeeded, back on … the pre-deploy version | v33.1 fallback: the database was ahead of `.last-good`, so the rollback returned to what was running before the deploy (typically a `manual-*` dispatch) instead. `.last-good` is unchanged. | As above. The host is on the pre-deploy build (usually a `manual-*` dispatch) until the next real release. |
 | refused | The database is **ahead** of the rollback image. The failed deploy's checkout and containers were left exactly as they were. | "The database is ahead of the rollback image" below. |
 | not started | The rollback stopped before moving anything (no rollback target recorded). The failed deploy is still in place. | Read the log, then roll back manually if needed. |
@@ -327,7 +327,8 @@ happened:
 
 **A deploy needs a new `.env` variable** (the preflight failed, naming it): add it to
 `/mnt/raid1/spotdl-web/.env`, with the value the version's PR lists under "Deploy notes", then
-re-run the failed run from the Actions page. Nothing else on the host needs undoing: the
+re-run the failed run's **failed jobs** (`gh run rerun <id> --failed`; "Re-run all jobs" re-runs
+`plan`, which finds the tag and deploys nothing since v49). Nothing else on the host needs undoing: the
 preflight runs before the backup, the checkout and `IMAGE_TAG` ever move.
 
 **Roll back to a known-good version manually.** `.last-good` holds the last release that came up
@@ -440,7 +441,7 @@ bash /tmp/migration_guard.sh "$PWD"   # exit 0: safe to start; 3: the database i
 
 **The very first automated deploy fails** (nothing recorded to roll back to; the workflow says so
 explicitly and exits non-zero rather than guessing): fix the underlying cause and re-run the
-workflow, or fall back to [Upgrading an existing deployment](#upgrading-an-existing-deployment-manual-fallback)
+run's failed jobs, or fall back to [Upgrading an existing deployment](#upgrading-an-existing-deployment-manual-fallback)
 to bring the stack up manually while you investigate.
 
 ---
