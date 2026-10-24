@@ -8,6 +8,11 @@
 # package-lock.json no longer matches it (D4).
 FROM node:22-alpine AS dev
 WORKDIR /app
+# As the build stage below: `$env/static/public` (src/lib/api.ts) needs it declared, and empty
+# means same-origin. In the environment it also wins over a `frontend/.env` that names another
+# origin, so the dev container never depends on that file.
+ARG PUBLIC_API_BASE_URL=""
+ENV PUBLIC_API_BASE_URL=$PUBLIC_API_BASE_URL
 RUN chown node:node /app
 USER node
 COPY --chown=node:node package.json package-lock.json ./
