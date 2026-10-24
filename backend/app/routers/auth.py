@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -5,8 +7,8 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import get_db
 from app.errors import ApiError
-from app.models import User, UserSession
-from app.services import upstream_auth, user_settings
+from app.models import ApiKey, User, UserSession
+from app.services import api_keys, rate_limit, upstream_auth, user_settings
 from app.services.sessions import SESSION_IDLE_TIMEOUT, create_session, delete_session, get_valid_session
 from app.services.users import get_or_create_user
 
@@ -54,6 +56,49 @@ def require_admin(user: User = Depends(require_session)) -> User:
     if not user.is_admin:
         raise ApiError(403, "admin_required", "Admin access required")
     return user
+
+
+@dataclass
+class Principal:
+    """Who a `require_session_or_api_key` route is acting for, and how they got in."""
+
+    user: User
+    # Set when the request authenticated with an API key rather than the session cookie.
+    api_key: ApiKey | None = None
+
+
+def _bearer_token(request: Request) -> str | None:
+    scheme, _, token = request.headers.get("authorization", "").partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        return None
+    return token.strip()
+
+
+def require_session_or_api_key(request: Request, db: Session = Depends(get_db)) -> Principal:
+    """v53: the session cookie first, then `Authorization: Bearer sdw_...` (the browser
+    extension's fallback when the cookie doesn't reach the API). Only job create and
+    `GET /api/auth/me` depend on this. Every other route keeps `require_session` (cookie
+    only), so a key can't reach it at all, and `require_admin` sits on top of that: an
+    admin's key is never admin."""
+    token = request.cookies.get(COOKIE_NAME)
+    if token is not None:
+        session = get_valid_session(db, token)
+        if session is not None:
+            db.commit()
+            user = db.get(User, session.user_id)
+            if user is not None:
+                return Principal(user)
+
+    bearer = _bearer_token(request)
+    if bearer is None:
+        raise ApiError(401, "not_authenticated", "Not authenticated")
+    key = api_keys.authenticate(db, bearer)
+    user = db.get(User, key.user_id) if key is not None else None
+    if user is None:
+        # Never echoes the key back, not even its prefix.
+        raise ApiError(401, "api_key_invalid", "Invalid or revoked API key")
+    db.commit()
+    return Principal(user, key)
 
 
 def require_session_for_streaming(request: Request) -> User:
@@ -107,16 +152,24 @@ def _set_session_cookie(response: Response, token: str) -> None:
 
 
 @router.post("/login")
-async def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> dict:
+async def login(
+    payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)
+) -> dict:
     settings = get_settings()
+    # v53: failed logins are limited per email and client address, checked before the
+    # upstream is asked at all.
+    address = rate_limit.client_address(request)
+    rate_limit.check_login(payload.email, address)
 
     upstream_ok, username = await upstream_auth.login(payload.email, payload.password)
     allowed = payload.email.strip().lower() in {e.strip().lower() for e in settings.allowed_emails}
 
     # Upstream failure and allowlist rejection must be indistinguishable to the caller.
     if not upstream_ok or not allowed:
+        rate_limit.record_login_failure(payload.email, address)
         raise _INVALID_CREDENTIALS
 
+    rate_limit.clear_login_failures(payload.email, address)
     user = get_or_create_user(db, payload.email, username)
     session = create_session(db, user.id)
     db.commit()
@@ -137,7 +190,12 @@ def logout(
 
 
 @router.get("/me")
-def me(user: User = Depends(require_session), db: Session = Depends(get_db)) -> dict:
+def me(principal: Principal = Depends(require_session_or_api_key), db: Session = Depends(get_db)) -> dict:
+    user = principal.user
+    if principal.api_key is not None:
+        # v53: a key reads who it belongs to and nothing else. `is_admin` is reported as
+        # it is, but grants nothing through a key.
+        return {"email": user.email, "username": user.username, "is_admin": user.is_admin}
     # v45: the keyboard-shortcut preference rides along, so the app shell knows it on every
     # route load without a second request. v46: so do the language and the clock (`null`:
     # none saved, the browser decides).
