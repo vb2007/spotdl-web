@@ -977,6 +977,8 @@ needed" claim — rather than silently deleted.
 - Inside `db_session`'s one transaction: `begin_snapshot`'s isolation switch is dropped, `now()`
   is the test's start time throughout, and SAVEPOINTs stand in for commits → *v51*
 - The migrations seed `worker_state` id 1: a test inserting it must `merge`, not `add` → *v51*
+- `now()` inside `db_session` made two "left `updated_at` alone" tests pass with their guard
+  reverted; such a test pins an explicit past value → *v51*
 - Running Alembic from a test with an ini file runs `fileConfig()`, which disables every logger
   the app already made (and every `caplog` assertion with it) → *v51*
 
@@ -5822,8 +5824,18 @@ independently-found production bug from the same conversation)
 - **`count_queries` would count the SAVEPOINTs.** They're the isolation's statements, not the
   code's, so the listener skips them. Without that, every N+1 guard broke.
 - **`now()` doesn't move inside `db_session`.** Postgres's `now()` is the transaction's start, and
-  the whole test is one transaction. No current test depends on it moving; a future one that
-  does needs `committed_db` or explicit timestamps.
+  the whole test is one transaction. The two v35 "`updated_at` left alone" tests turned hollow
+  that way: with the guard reverted, the column's `onupdate=func.now()` wrote the value the row
+  already held, and both still passed (blind review, round 1). They pin an explicit past
+  `updated_at` first now. A test whose point is that a server timestamp moved, or didn't, needs
+  an explicit past value or `committed_db`.
+- **A failed race test must not leave its threads parked.** One that fails while another thread
+  waits at a gate leaves that thread's transaction open, and its locks block the teardown's
+  `TRUNCATE`. `committed_db` opens every gate and joins every thread first
+  (`concurrency.release_all`).
+- **The test marker alone doesn't keep a run off production's server.** `spotdlwebtest` passes
+  it, and lives on the same server as `spotdlweb`. `TEST_DATABASE_URL` must also name a slot's
+  `postgres` or a loopback host.
 - **Alembic from Python, without the ini.** `command.upgrade(Config("alembic.ini"), ...)` runs
   `alembic/env.py`'s `fileConfig()`, whose `disable_existing_loggers` silences every app logger
   already created, and every `caplog` test with it. conftest builds a bare `Config()` with only

@@ -449,9 +449,12 @@ never SQLite:
   run killed hard (`kill -9`) leaves its database behind; `down --volumes` clears it.
 - `TEST_DATABASE_URL` names the server and the database name stem. `agent_stack.sh` sets it to the
   slot's Postgres; set it yourself to override that. Before any test, the suite refuses (exit 4) a
-  `TEST_DATABASE_URL` that is unset, names a database without `test` in its name, names a
-  production one (`app/config.py`'s v32 guard: `spotdlweb`, `spotdl_web`), or picks the database
-  with `?dbname=`/`?service=`.
+  `TEST_DATABASE_URL` that is unset, names a database without `test` in its name (or a name over
+  40 bytes), names a production one (`app/config.py`'s v32 guard: `spotdlweb`, `spotdl_web`),
+  names a server other than a slot's `postgres` or a loopback one (`localhost`, `127.0.0.1`,
+  `::1`), or picks the database or server with `?dbname=`/`?service=`/`?host=`/`?hostaddr=`. The
+  server check is what keeps a run off the LAN server, which is production's: `spotdlwebtest`
+  passes the name checks.
 - Outside a slot (a host venv), use any disposable server, never the LAN one (production's):
   `docker run -d --rm -e POSTGRES_USER=spotdl -e POSTGRES_DB=spotdl_test -e
   POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1::5432 postgres:18.6-bookworm`, then
@@ -462,6 +465,8 @@ never SQLite:
   truncates every table afterwards: it's for the real-concurrency tests, whose sessions must see
   each other's commits and locks. `tests/concurrency.py` has the helpers (a `Gate` to stop one
   session at a named point, a `Thread`, and `blocked_or_done`, which reads Postgres' lock waits).
+  When a test ends, `committed_db` opens its gates and joins its threads before truncating, so a
+  failed race test can't leave a parked transaction blocking the next one.
 - **The SQLite engine path is removed, not kept behind a flag** (owner-visible decision, v51): a
   second dialect nobody runs by default is exactly where the "lock was requested" tests came from,
   and on Postgres the suite is no slower.
