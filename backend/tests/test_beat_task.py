@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from concurrency import Gate, Thread
+from concurrency import Gate, Thread, blocked_or_done
 from sqlalchemy import event
 
 from app.models import (
@@ -448,13 +448,21 @@ def test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections
 
     reclaimer = Thread(reclaim, name="stale-track reclaim")
     gate.wait_reached()
-    with committed_db() as db:  # the download's own success commit
-        track = db.get(Track, track_id)
-        track.state = TrackState.COMPLETED
-        track.output_path = "/downloads/song-a.mp3"
-        db.commit()
+
+    def complete():  # the download's own success commit
+        with committed_db() as db:
+            track = db.get(Track, track_id)
+            track.state = TrackState.COMPLETED
+            track.output_path = "/downloads/song-a.mp3"
+            db.commit()
+
+    # In a thread: a fix that row-locks the sweep's snapshot makes this commit wait for the
+    # sweep, and either way the gate opens once it has finished or blocked.
+    completer = Thread(complete, name="download's completed commit")
+    blocked_or_done(completer)
     gate.open()
     reclaimer.join()
+    completer.join()
 
     with committed_db() as db:
         assert db.get(Track, track_id).state == TrackState.COMPLETED
