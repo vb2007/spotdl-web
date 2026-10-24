@@ -318,8 +318,10 @@ def test_a_straddling_trip_released_before_the_window_comes_with_its_release(db_
 def test_current_breaker_state(db_session, now):
     from app.models import WorkerState
 
-    db_session.add(WorkerState(id=1, paused=True, breaker_trip_count=2,
-                               breaker_tripped_until=now + timedelta(minutes=40)))
+    # merge, not add: the initial migration seeds the worker_state row (v51 builds the schema
+    # with Alembic, not create_all).
+    db_session.merge(WorkerState(id=1, paused=True, breaker_trip_count=2,
+                                 breaker_tripped_until=now + timedelta(minutes=40)))
     db_session.commit()
     assert stats.admin_stats(db_session, "24h", now)["breaker"]["current"] == {
         "paused": True,
