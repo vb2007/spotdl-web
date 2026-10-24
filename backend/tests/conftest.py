@@ -69,10 +69,18 @@ def _test_database_urls() -> tuple[str, str]:
             f"TEST_DATABASE_URL names the database {url.database!r}, which has no "
             f"{TEST_DATABASE_MARKER!r} marker in its name; the suite runs only on a test database"
         )
-    if (url.host or "").lower() not in _ALLOWED_HOSTS:
+    host = (url.host or "").lower()
+    if host not in _ALLOWED_HOSTS:
         raise ValueError(
             f"TEST_DATABASE_URL names the server {url.host!r}; the suite creates databases only on "
             f"a slot's own Postgres or a loopback one ({', '.join(_ALLOWED_HOSTS)})"
+        )
+    # On the production host (the CI runner), loopback's default port is production's own
+    # Postgres. A disposable one is published on a port Docker picks, so name it.
+    if host != "postgres" and url.port in (None, 5432):
+        raise ValueError(
+            "TEST_DATABASE_URL on a loopback host needs its port, and not 5432 (on the production "
+            "host that is production's Postgres): `docker port <container> 5432` prints it"
         )
     # Postgres truncates identifiers past 63 bytes, which would merge two runs' names.
     if len(url.database.encode()) > _MAX_STEM:
@@ -132,7 +140,8 @@ _BACKEND = Path(__file__).resolve().parents[1]
 
 
 def pytest_configure(config):
-    if _REFUSAL is not None:
+    # --help and --markers configure pytest without running anything.
+    if _REFUSAL is not None and not (config.option.help or config.option.markers):
         raise pytest.UsageError(f"refusing to run the suite: {_REFUSAL}")
 
 
@@ -218,6 +227,9 @@ def pytest_sessionstart(session):
             _report(session, f"alembic upgrade head: {line}")
 
 
+# trylast: after an interrupt, pytest tears the interrupted test's fixtures down in its own
+# sessionfinish; dropping the database before that would make their teardown fail noisily.
+@pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session, exitstatus):
     name = session.config.stash.get(_CREATED, None)
     if name is not None:
