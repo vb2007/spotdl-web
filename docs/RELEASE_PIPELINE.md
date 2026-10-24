@@ -61,7 +61,7 @@ something:
 | `pull_request` | `ci.yml` **"CI"** | The checks only: `version`, `pytest`, `deps-sync`, `compose-config`, `frontend`, `summary` |
 | `push` to `main` | `release-deploy.yml` **"Release & Deploy"** | The chain below, in one run |
 | `schedule` (`17 4 * * *`) | `nightly.yml` **"Nightly"** | `yt-dlp-freshness` and its notice |
-| manual | `workflow_dispatch` on any of them | "Release & Deploy": the chain again on `main`. "Publish & Deploy": deploy any ref (manual mode, below). "Release": cut `main`'s release, nothing else. "CI", "Nightly": the checks |
+| manual | `workflow_dispatch` on any of them | "Release & Deploy": the chain again on `main` (with `redeploy`: deploy the current release again). "Publish & Deploy": deploy any ref (manual mode, below). "Release": cut `main`'s release, nothing else. "CI", "Nightly": the checks |
 
 ```
 push to main
@@ -70,10 +70,11 @@ release-deploy.yml   "Release & Deploy" (one run, jobs ordered by `needs:`)
    │
    ├─ checks    uses: ci.yml            the PR checks, on the pushed commit
    ├─ plan      check_version.py -> VERSION; is vVERSION tagged yet? -> release = true/false
+   │              (a `redeploy` dispatch with the tag present: redeploy = true, commit = the tag's)
    ├─ release   uses: release.yml       only when release == true
    │              gh release create vVERSION --generate-notes --target <commit>
    │              (+ deploy bundle, requirements.txt; "Latest" only for the newest tag)
-   ├─ deploy    uses: publish-deploy.yml   only after a release in this run
+   ├─ deploy    uses: publish-deploy.yml   only after this run's own release, or for a redeploy
    │              ├─ resolve -> commit, version, image tags, persist (release mode)
    │              ├─ publish -> docker build + push both images to GHCR, images.json on the release
    │              └─ deploy  -> stale guard -> required-var preflight -> pg_backup -> checkout on
@@ -139,13 +140,22 @@ that should wait on anything:
 gh workflow run "Publish & Deploy" --repo vb2007/spotdl-web -f ref=<branch-or-tag-or-sha>
 ```
 
-v49 didn't change this path: the same `resolve` outputs (`manual-<short-sha>`, `persist=false`,
-no `latest`), the same publish and deploy steps, and its own Matrix notice on a failure.
+v49 didn't change what this path does: the same `resolve` outputs (`manual-<short-sha>`,
+`persist=false`, no `latest`), the same publish and deploy steps, and its own Matrix notice on a
+failure (now sent with an inline `curl`, see Notifications). Two things around it did change:
+
+- **No `deploy-prod` concurrency group.** A dispatch's jobs now interleave with a merge's on the
+  one runner instead of waiting as a whole run (two deploys still never run at once). Dispatched
+  while a merge's run is in flight, whichever deploy job runs *last* is what stays on the host,
+  and the version guard doesn't apply to a dispatch. Don't dispatch over an in-flight merge.
+- **A merge no longer puts the release back by itself.** Before v49 every merge, bumped or not,
+  re-deployed the latest release. Now only a merge that cuts a new release deploys, so a
+  `manual-*` build stays until the next version bump, or until you put the release back with
+  `gh workflow run "Release & Deploy" -f redeploy=true` (see "Manual recovery levers").
 
 The image never gets tagged `latest`, so a plain `docker compose pull` elsewhere can never pick it
-up by accident. The *next* release-mode deploy always supersedes whatever a manual dispatch left
-running — a `manual-*` version string never equals a real semver `IMAGE_TAG`, so the skip check
-never suppresses that following real deploy.
+up by accident. A `manual-*` version string never equals a real semver `IMAGE_TAG`, so the skip
+check never suppresses the release-mode deploy that replaces it.
 
 ---
 
@@ -474,16 +484,27 @@ exactly what broke v28's deploy and its rollback on 2026-09-27. The checklist:
   "Release & Deploy" run from the Actions UI (`gh run rerun <run id> --failed`). The release is
   already done, so only the deploy runs again, in release mode with the same commit and tag: it
   also records `.last-good`, and a clean re-run of an already-correctly-deployed version is a
-  no-op. Don't wait for the next merge to pick it up: a merge whose version is already tagged
-  deploys nothing. A re-run uses the workflow files of the run's own commit and is possible for
-  30 days, so when the fix is in the pipeline itself (`.github/`), ship it with a version bump
-  (a patch slice): that release deploys with the fixed workflow. A fresh dispatch (`gh workflow run "Publish & Deploy" -f ref=main`) works
-  too, but it's a `manual-*` deploy: it never skips and never updates `.last-good`.
+  no-op. Re-run the *failed* jobs, not all of them: "Re-run all jobs" re-runs `plan`, which
+  now finds the tag, so the run ends green with nothing deployed and no notice. Don't wait for
+  the next merge to pick it up either: a merge whose version is already tagged deploys nothing.
+  A re-run uses the workflow files of the run's own commit and is possible for 30 days; when
+  the fix is in the pipeline itself (`.github/`, no version bump), use the redeploy below.
+- **Redeploy the current release** (v49, the owner's lever):
+  `gh workflow run "Release & Deploy" --repo vb2007/spotdl-web -f redeploy=true`. On `main`,
+  with the version already tagged, `plan` skips the release and the `deploy` job deploys the
+  **tag's commit** in release mode (preflight, backup, health gate, rollback, `.last-good`, the
+  ✅ notice), using the workflow files of `main`'s head. It's the way to put the release back
+  after a `manual-*` dispatch, and to ship a pipeline-only fix to the current release. A host
+  already on that version and healthy is skipped (and its `.last-good` recorded). Without a tag
+  yet, the input changes nothing: the run releases and deploys as a merge would. A fresh
+  `gh workflow run "Publish & Deploy" -f ref=main` works too, but it's a `manual-*` deploy: it
+  never skips and never updates `.last-good`.
 - **Re-run a failed release**: re-run that "Release & Deploy" run's failed jobs the same way; the
   deploy follows it in the same run. Dispatching "Release & Deploy" on `main` works too (the
   checks run again first). Dispatching "Release" alone (`gh workflow run release.yml`) only cuts
   the tag and deploys nothing, and the next "Release & Deploy" then sees the tag and skips the
-  deploy as well, so use it only when you want a release without a deploy.
+  deploy as well (until a `redeploy` dispatch), so use it only when you want a release without
+  a deploy.
 - **Deploy a branch before it merges**: `gh workflow run "Publish & Deploy" -f ref=<branch>`
   (manual mode above). Dispatch it from `main` (the default), whose workflow file has v49's
   pipeline; `--ref <old tag>` would run that tag's copy of the workflow.

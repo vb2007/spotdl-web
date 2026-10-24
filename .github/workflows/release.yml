@@ -14,8 +14,8 @@ name: Release
 #   - no personal access token: a release created with GITHUB_TOKEN doesn't fire other
 #     workflows, but nothing has to be fired, since the deploy is the next job of the same run.
 # `workflow_dispatch` is kept: it cuts the release of `main`'s current version on demand, but it
-# deploys nothing (re-run or dispatch "Release & Deploy" for the whole chain; see
-# docs/RELEASE_PIPELINE.md, "Manual recovery levers"). No `concurrency` group (v49): a pending
+# deploys nothing (dispatch "Release & Deploy" for the whole chain, or with `redeploy` once the
+# tag exists; see docs/RELEASE_PIPELINE.md, "Manual recovery levers"). No `concurrency` group (v49): a pending
 # run in a group is cancelled by the next one, and the tag-exists check below already makes a
 # second release of the same version a no-op.
 "on":

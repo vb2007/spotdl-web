@@ -275,11 +275,12 @@ section already gave; worth listening to it next time before re-learning it.)
 
 ### `release-deploy.yml` — "Release & Deploy" (v49)
 
-Runs on every push to `main`, plus `workflow_dispatch` (the whole chain again on `main`). Jobs,
+Runs on every push to `main`, plus `workflow_dispatch` (the whole chain again on `main`; with
+`redeploy`, the current release is deployed again). Jobs,
 in order: `checks` (calls `ci.yml`) → `plan` (reads the version with `check_version.py` and
 checks with `git ls-remote --tags origin` whether `vX.Y.Z` is already tagged) → `release` (calls
 `release.yml`, only when the tag is missing) → `deploy` (calls `publish-deploy.yml`, only after
-a release in the same run) → `notify` (one `curl` to Matrix on any failed job, or after a real
+this run's own release, or for a `redeploy` dispatch) → `notify` (one `curl` to Matrix on any failed job, or after a real
 deploy). A merge with no version bump is one run whose `release` and `deploy` show as skipped
 jobs.
 

@@ -979,7 +979,7 @@ needed" claim — rather than silently deleted.
   decide its mode from its inputs, never from `github.event_name` → *v49*
 - No `concurrency` group anywhere: even `cancel-in-progress: false` cancels an older *pending*
   run. Deploys are serialized by the single runner, and a stale one is a no-op by version → *v49*
-- The one runner takes jobs FIFO across all runs, so each later stage of a merge's run queues
+- The one runner takes jobs roughly FIFO across all runs, so each later stage of a merge's run queues
   behind every job started meanwhile; a burst interleaves stage by stage → *v49*
 - A workflow listener matches the upstream by the default branch's workflow at that *path*: a
   renamed test copy of `ci.yml` still woke `main`'s Release. Test copies get their own file → *v49*
@@ -987,6 +987,8 @@ needed" claim — rather than silently deleted.
   read it in an assignment first → *v49*
 - A merge's release can find its version already tagged by another run: deploy only when the tag
   points at this run's commit (`owned`) → *v49*
+- An unbumped merge deploys nothing now; `gh workflow run "Release & Deploy" -f redeploy=true`
+  puts the current release back (after a `manual-*` dispatch, or for a pipeline-only fix) → *v49*
 
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
@@ -4429,7 +4431,9 @@ independently-found production bug from the same conversation)
   after v33 merges (main's push → CI → `Release`, which succeeds with the tag already existing →
   `Publish & Deploy`, idempotency-skipped if the host is on that release's tag; if a
   `manual-*` dispatch is what's running, it redeploys the release instead, and records it once
-  healthy).
+  healthy). *(Corrected 2026-10-24, v49: a merge without a new version no longer deploys at
+  all; `gh workflow run "Release & Deploy" -f redeploy=true` is what puts the release back and
+  writes `.last-good`.)*
 - **A pending `workflow_dispatch` in the `deploy-prod` concurrency group gets silently replaced.**
   GitHub keeps at most one running and one *pending* run per concurrency group
   (`cancel-in-progress: false` only protects the running one). During v33's final verification,
@@ -5564,7 +5568,8 @@ independently-found production bug from the same conversation)
   workflow at that file path: a scratch copy of `ci.yml` renamed on a test branch still ran as
   "CI" and woke `main`'s Release. Give a test copy its own file path.
 - **The fix is jobs of one run calling workflows (`uses:` + `workflow_call`).** `needs:` orders
-  the stages, the caller grants the permissions (`contents: write`, `packages: write`) and passes
+  the stages, the caller grants the permissions (`contents: write`, plus `packages: write` for
+  the deploy) and passes
   `secrets: inherit`, and the stages a merge doesn't need show as skipped *jobs* in that one run,
   not as runs. A called workflow sees the caller's `github` context (`event_name`, `sha`,
   `workflow`, `ref`), so it takes its mode from its inputs, and only `main` may release:
@@ -5605,9 +5610,15 @@ independently-found production bug from the same conversation)
   deploy gated only on "release succeeded" would ship the second commit under the first
   commit's tag. `release.yml` outputs `owned` (the tag points at this run's commit), and the
   deploy runs only when it's true.
+- **A merge without a new version no longer deploys anything.** Before v49 every merge re-deployed
+  the latest release, which also replaced a `manual-*` dispatch and shipped pipeline-only
+  fixes. The owner's lever for both is a `redeploy` input on the "Release & Deploy" dispatch: the
+  tag's commit, deployed in release mode with `main`'s workflow files. And re-run a failed run's
+  *failed* jobs only: "Re-run all jobs" re-runs `plan`, finds the tag, and ends green with
+  nothing deployed.
 - **A failed deploy is no longer retried by the next merge.** Before v49 every Release
   completion (an unbumped merge's included) fired Publish & Deploy, which retried a failed
   deploy. Now the deploy runs only after a release in the same run, so a failed one waits for
   `gh run rerun <id> --failed`; the notice says so by arriving at all. A re-run uses the run's own
-  commit's workflow files (and expires after 30 days), so a pipeline-only fix ships with a
-  version bump to get a release-mode deploy.
+  commit's workflow files (and expires after 30 days), so a pipeline-only fix reaches the
+  current release with a `redeploy` dispatch instead.

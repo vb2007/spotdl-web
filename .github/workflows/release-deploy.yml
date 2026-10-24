@@ -16,11 +16,19 @@ name: Release & Deploy
 # deploy job's version guard covers an older run finishing after a newer one.
 #
 # `workflow_dispatch` re-runs the whole chain on `main`. With the version already released, that
-# is the checks only; re-run a failed run's jobs to retry its release or deploy.
+# is the checks only, unless `redeploy` is set (the owner's lever, v49): then it deploys the
+# current version's release again in release mode, with this run's workflow files. That puts a
+# release back after a `manual-*` dispatch, and ships a pipeline-only fix (no version bump) to
+# the current release. Re-run a failed run's *failed* jobs to retry its release or deploy.
 "on":
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      redeploy:
+        description: "Version already released: deploy that release again (release mode)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -29,13 +37,16 @@ jobs:
   checks:
     uses: ./.github/workflows/ci.yml
 
-  # Reads the version at this commit and decides whether its tag still has to be cut. Kept small:
-  # v61 adds an `extension` output beside `release`.
+  # Reads the version at this commit and decides whether its tag still has to be cut, or (a
+  # `redeploy` dispatch) whether its release is deployed again. Kept small: v61 adds an
+  # `extension` output beside `release`.
   plan:
     needs: checks
     runs-on: self-hosted
     outputs:
       release: ${{ steps.plan.outputs.release }}
+      redeploy: ${{ steps.plan.outputs.redeploy }}
+      commit: ${{ steps.plan.outputs.commit }}
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
     steps:
@@ -49,6 +60,8 @@ jobs:
       # "no tag yet".
       - name: Decide what to release
         id: plan
+        env:
+          REDEPLOY: ${{ inputs.redeploy }}
         run: |
           if [ "$GITHUB_REF" != "refs/heads/main" ]; then
             echo "::error::Release & Deploy releases main only (this run is on $GITHUB_REF). To try a branch on the host, dispatch Publish & Deploy with -f ref=<branch>."
@@ -57,13 +70,22 @@ jobs:
           VERSION="$(python3 .github/scripts/check_version.py)"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-          TAGS="$(git ls-remote --tags --refs origin "refs/tags/v$VERSION")"
-          if [ -n "$TAGS" ]; then
+          REMOTE="$(git ls-remote origin "refs/tags/v$VERSION" "refs/tags/v$VERSION^{}")"
+          if [ -z "$REMOTE" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION has no tag yet: releasing it." | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$REDEPLOY" = "true" ]; then
+            # The release's own commit, so the deploy keeps tag and commit together. An annotated
+            # tag's `^{}` line names its commit; a lightweight tag's own line does.
+            COMMIT="$(printf '%s\n' "$REMOTE" | awk '$2 ~ /\^\{\}$/ {print $1}')"
+            [ -n "$COMMIT" ] || COMMIT="$(printf '%s\n' "$REMOTE" | awk 'NR == 1 {print $1}')"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "redeploy=true" >> "$GITHUB_OUTPUT"
+            echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION is already released: deploying its commit $COMMIT again (redeploy)." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
             echo "release=false" >> "$GITHUB_OUTPUT"
             echo "v$VERSION is already released: nothing to release or deploy." | tee -a "$GITHUB_STEP_SUMMARY"
-          else
-            echo "release=true" >> "$GITHUB_OUTPUT"
-            echo "v$VERSION has no tag yet: releasing and deploying it." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
   release:
@@ -76,19 +98,25 @@ jobs:
       commit: ${{ github.sha }}
     secrets: inherit
 
-  # Only after a release in this same run (skipped with it otherwise), and only when that tag is
-  # this run's commit (`owned`, see release.yml). Release mode: persists the new IMAGE_TAG and
-  # `.last-good`, exactly as the old merge-driven path did.
+  # After a release in this same run, and only when that tag is this run's commit (`owned`, see
+  # release.yml); or, for a `redeploy` dispatch, the existing release's commit. Skipped
+  # otherwise. Release mode: persists the new IMAGE_TAG and `.last-good`, exactly as the old
+  # merge-driven path did. `always()` only so a skipped `release` (the redeploy case) doesn't
+  # skip it; the plan must have succeeded either way.
   deploy:
-    needs: release
-    if: needs.release.outputs.owned == 'true'
+    needs: [plan, release]
+    if: >-
+      always() && needs.plan.result == 'success' && (
+        (needs.release.result == 'success' && needs.release.outputs.owned == 'true') ||
+        (needs.release.result == 'skipped' && needs.plan.outputs.redeploy == 'true')
+      )
     permissions:
       contents: write
       packages: write
     uses: ./.github/workflows/publish-deploy.yml
     with:
-      commit: ${{ github.sha }}
-      release_tag: ${{ needs.release.outputs.tag }}
+      commit: ${{ needs.plan.outputs.redeploy == 'true' && needs.plan.outputs.commit || github.sha }}
+      release_tag: ${{ needs.release.outputs.tag || needs.plan.outputs.tag }}
     secrets: inherit
 
   # One notice for the whole run: any failed or cancelled job, named, and every real deploy
@@ -145,13 +173,17 @@ jobs:
             elif [ "$DEPLOY_RESULT" = "skipped" ]; then
               # The checks, the plan or the release failed: the deploy never started.
               rollback="not needed, nothing was deployed"
-            elif [ -n "$DEPLOY_VERSION" ] && [ "$PUBLISHED" != "true" ]; then
+            elif [ -z "$DEPLOY_VERSION" ]; then
+              # resolve didn't finish (a failed called workflow still returns its outputs, so
+              # an empty version means exactly that): publish and deploy never started.
+              rollback="not needed, resolve didn't finish, so nothing was built or deployed"
+            elif [ "$PUBLISHED" != "true" ]; then
               # The deploy's outputs did come back (resolve's version), without publish's: the
               # publish job didn't finish (images may be partly pushed), so the host job never ran.
               rollback="not needed, publish didn't finish, so the host deploy never started"
             else
-              # No note at all: the deploy job never reported (runner died, host rebooted, or
-              # GitHub failed it at "Set up job"), or no output came back. Don't guess.
+              # Published, but no note at all: the deploy job never reported (runner died, host
+              # rebooted, or GitHub failed it at "Set up job"). Don't guess.
               rollback="UNKNOWN, the deploy job reported nothing. Check the host"
             fi
             {

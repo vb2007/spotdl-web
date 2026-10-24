@@ -43,8 +43,9 @@ gh workflow run "Publish & Deploy" --repo vb2007/spotdl-web -f ref=<branch-or-ta
 
 This builds a throwaway `manual-<short-sha>` image (never `:latest`, so a plain
 `docker compose pull` never picks it up by accident) and deploys it immediately — always, with
-no skip/idempotency checks, since it's an explicit on-demand request. The *next* real
-release-driven deploy always supersedes it.
+no skip/idempotency checks, since it's an explicit on-demand request. It stays until the next
+release is deployed, or until `gh workflow run "Release & Deploy" -f redeploy=true` puts the
+current release back (v49; an unbumped merge no longer does).
 
 **Manual fallback**, if the pipeline itself is broken and you need to get a specific known-good
 version running directly:
