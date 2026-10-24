@@ -973,7 +973,8 @@ needed" claim — rather than silently deleted.
   `test`-marked stem), Alembic-built, dropped at the end; `db_session` rolls back, `committed_db`
   truncates → *v51*
 - A race test needs `committed_db` and `tests/concurrency.py` (a `Gate` at a named point, a
-  `Thread`, `blocked_or_done` reading `pg_stat_activity`'s lock waits); never a sleep → *v51*
+  `Thread`, `blocked_or_done` reading `pg_stat_activity`'s lock waits); never a sleep, and never
+  beside `db_session`/`client` (it calls the endpoint function directly) → *v51*
 - Inside `db_session`'s one transaction: `begin_snapshot`'s isolation switch is dropped, `now()`
   is the test's start time throughout, and SAVEPOINTs stand in for commits → *v51*
 - The migrations seed `worker_state` id 1: a test inserting it must `merge`, not `add` → *v51*
@@ -5880,6 +5881,14 @@ independently-found production bug from the same conversation)
   main thread, so a fix that row-locks the sweep's snapshot would have deadlocked it into an
   `InterleavingBroke` instead of an XPASS; that commit runs in a `Thread` now, and both fix
   shapes (a state re-check, a `FOR UPDATE` snapshot) give `XPASS(strict)`.
+- **Round 5:** `committed_db` beside `db_session` (or `client`, `make_user`, anything built on
+  it) errored at teardown with a stray-connection message that told the test to do what it was
+  doing; it now fails at setup saying the two can't be combined, which wave 2's race tests need to
+  know (call the endpoint function with committed sessions instead). A role-level `timezone`
+  outranks the database's: 16 tests failed under `ALTER ROLE ... SET timezone =
+  'America/New_York'`; conftest sets `PGTZ=UTC`, a startup option that outranks both. libpq's
+  `PGHOSTADDR`/`PGSERVICE`/`PGSERVICEFILE` could pick another server than the URL's host: refused
+  when set.
 - **Fixture teardown order matters for race tests.** `committed_db` depends on `monkeypatch`, so
   it tears down (releasing parked threads) while the test's stubs are still in place.
 - **Alembic from Python, without the ini.** `command.upgrade(Config("alembic.ini"), ...)` runs

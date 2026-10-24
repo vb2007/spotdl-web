@@ -480,10 +480,16 @@ never SQLite:
   test's rows and commit outside the rollback. (It watches `app.db`'s engine; an engine a test
   builds itself, like the alerts watchdog's, isn't covered.)
 - The run's database is set to `lock_timeout = '30s'`, so a lock a broken test leaves held fails
-  the next test that needs it instead of hanging the run, and to `timezone = 'UTC'`, so every
-  session reads timestamps in UTC
+  the next test that needs it instead of hanging the run, and to `timezone = 'UTC'` (with
+  `PGTZ=UTC` on every connection, which outranks a role's own setting), so every session reads
+  timestamps in UTC
   whatever the server's own setting: several tests compare aware datetimes, and 15 of them failed
   against a disposable server running in `Europe/Budapest` before that.
+- `committed_db` can't be combined with `db_session`, or with any fixture built on it (`client`,
+  `authenticated_client`, `admin_client`, `owner`, `make_user`, `session_cookie`,
+  `count_queries`): the test fails at setup saying so. Its teardown truncates and ends every other
+  session, which `db_session`'s open transaction can't survive. A race test calls the endpoint or
+  task function directly with committed sessions, as `test_jobs.py`'s does.
 - A race the move to Postgres exposes, or that a real-connection test reproduces before its
   owning slice fixes it, is an `xfail(strict=True)` naming that slice: the stale-track reclaim's
   E2 is one, for v55 (`test_beat_task.py`).
