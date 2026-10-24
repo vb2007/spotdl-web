@@ -39,6 +39,13 @@ _gates: list["Gate"] = []
 _threads: list["Thread"] = []
 
 
+class InterleavingBroke(Exception):
+    """The interleaving itself failed (a gate never reached or opened, a thread that never
+    finished or blocked), as opposed to the race's outcome. Not an AssertionError, so an
+    `xfail(raises=AssertionError)` race test can't count a broken harness as the expected
+    failure."""
+
+
 class Gate:
     """A point one thread stops at until the test calls `open()`. Callable with any arguments,
     so it can stand in for a hook or a session event listener directly."""
@@ -53,7 +60,7 @@ class Gate:
     def __call__(self, *args, **kwargs) -> None:
         self._reached.set()
         if not self._open.wait(self.timeout):
-            raise TimeoutError(f"gate {self.name!r} was never opened")
+            raise InterleavingBroke(f"gate {self.name!r} was never opened")
 
     def wrap(self, fn):
         """`fn`, stopping at this gate before it runs."""
@@ -66,7 +73,7 @@ class Gate:
 
     def wait_reached(self) -> None:
         if not self._reached.wait(self.timeout):
-            raise AssertionError(f"no thread reached gate {self.name!r}")
+            raise InterleavingBroke(f"no thread reached gate {self.name!r}")
 
     @property
     def reached(self) -> bool:
@@ -102,7 +109,7 @@ class Thread:
     def join(self, timeout: float = TIMEOUT):
         self._thread.join(timeout)
         if self._thread.is_alive():
-            raise AssertionError(f"thread {self.name!r} still running after {timeout}s")
+            raise InterleavingBroke(f"thread {self.name!r} still running after {timeout}s")
         if self._error is not None:
             raise self._error
         return self._result
@@ -134,7 +141,7 @@ def blocked_or_done(thread: Thread, engine: Engine | None = None, timeout: float
         if lock_waiters(engine):
             return "blocked"
         time.sleep(_POLL)
-    raise AssertionError(f"thread {thread.name!r} neither finished nor blocked on a lock in {timeout}s")
+    raise InterleavingBroke(f"thread {thread.name!r} neither finished nor blocked on a lock in {timeout}s")
 
 
 def release_all() -> list[str]:
