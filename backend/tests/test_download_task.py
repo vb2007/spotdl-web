@@ -1649,12 +1649,17 @@ def test_ladder_step_ignores_held_and_cancelled_rows(db_session, monkeypatch, fa
 
 # --- v35 (c): redelivery must not rewrite a completed track -----------------------------
 
+_LONG_AGO = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
 
 @pytest.mark.parametrize("state", [TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE])
 def test_redelivered_message_for_a_finished_track_is_a_noop(db_session, monkeypatch, state):
     track = _make_track(db_session)
     track.state = state
     track.output_path = "/downloads/song-a.mp3"
+    # An explicit past value (v51): inside db_session's one transaction, Postgres's now() is
+    # the test's start, so an onupdate bump would write the value the row already holds.
+    track.updated_at = _LONG_AGO
     db_session.add(
         DownloadedTrack(
             spotify_track_id="abc123", file_path="/downloads/song-a.mp3", format="mp3", bitrate="320k"
@@ -1670,6 +1675,7 @@ def test_redelivered_message_for_a_finished_track_is_a_noop(db_session, monkeypa
     monkeypatch.setattr(dedup, "is_already_downloaded", _fail_if_called)
     monkeypatch.setattr(downloads, "get_downloader", _fail_if_called)
     before_updated_at = db_session.get(Track, track.id).updated_at
+    assert before_updated_at == _LONG_AGO
 
     download_task.download_track(str(track.id))
 
@@ -1740,9 +1746,11 @@ def test_a_stray_message_for_a_cancelled_track_leaves_updated_at_alone(db_sessio
     archive clock) when nothing about the track itself changed."""
     track = _make_track(db_session)
     track.state = TrackState.CANCELLED
+    track.updated_at = _LONG_AGO  # see test_redelivered_message_for_a_finished_track_is_a_noop
     db_session.commit()
     _patch_common(monkeypatch, db_session)
     before = db_session.get(Track, track.id).updated_at
+    assert before == _LONG_AGO
 
     download_task.download_track(str(track.id))
 
