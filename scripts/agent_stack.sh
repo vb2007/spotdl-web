@@ -36,6 +36,8 @@ ENV_FILE="$ROOT/.env"
 ENV_AGENT="$ROOT/.env.agent"
 # Generated next to .env.agent when PG_PORT is set; gitignored.
 PG_PORT_OVERLAY="$ROOT/.agent-stack/pg-port.yml"
+# The backlog count's errors (pending_downloads); gitignored.
+BACKLOG_LOG="$ROOT/.agent-stack/backlog.log"
 REALDL_LOCK=/tmp/spotdl-web-realdl.lock
 # app/config.py's PRODUCTION_DATABASE_NAMES: a .env naming one is a production checkout.
 PRODUCTION_DATABASE_NAMES=(spotdlweb spotdl_web)
@@ -182,7 +184,8 @@ write_env_agent() {
 	local previous_dirs
 	if [ -n "$previous" ] && [ "$previous" != "$SLOT" ]; then
 		previous_dirs="$(docker ps -a --filter "label=com.docker.compose.project=spotdlweb-s$previous" \
-			--format '{{.Label "com.docker.compose.project.working_dir"}}')"
+			--format '{{.Label "com.docker.compose.project.working_dir"}}')" ||
+			die "docker ps failed: can't check slot $previous before switching"
 		# A here-string, not a pipe: under pipefail, grep -q exiting early can fail the pipeline.
 		if grep -qxF -- "$ROOT" <<<"$previous_dirs"; then
 			die "this worktree's stack is slot $previous's and still exists: scripts/agent_stack.sh $previous down first"
@@ -281,8 +284,14 @@ export_compose_env() {
 	local pg_port
 	pg_port="$(env_value "$ENV_AGENT" PG_PORT)"
 	if [ -n "$pg_port" ]; then
-		mkdir -p "$(dirname "$PG_PORT_OVERLAY")"
-		printf 'services:\n  postgres:\n    ports:\n      - "127.0.0.1:%s:5432"\n' "$pg_port" >"$PG_PORT_OVERLAY"
+		local overlay
+		overlay="$(printf 'services:\n  postgres:\n    ports:\n      - "127.0.0.1:%s:5432"\n' "$pg_port")"
+		# Replaced atomically, and only when it changes: a running realdl/e2e re-reads it.
+		if [ "$(cat "$PG_PORT_OVERLAY" 2>/dev/null)" != "$overlay" ]; then
+			mkdir -p "${PG_PORT_OVERLAY%/*}"
+			printf '%s\n' "$overlay" >"$PG_PORT_OVERLAY.tmp.$$"
+			mv "$PG_PORT_OVERLAY.tmp.$$" "$PG_PORT_OVERLAY"
+		fi
 		files="$files:$PG_PORT_OVERLAY"
 	fi
 	# Never deleted here: a realdl or e2e still running in this worktree may list it.
@@ -510,6 +519,7 @@ run_locked() {
 # whose file is gone is a download too. A job still expanding counts as well: its tracks don't
 # exist yet, and could be anything.
 pending_downloads() {
+	mkdir -p "${BACKLOG_LOG%/*}"
 	dc exec -T worker-meta python -c '
 from sqlalchemy import text
 from app.db import SessionLocal
@@ -524,7 +534,7 @@ ids = db.execute(text("select spotify_track_id from tracks where state in (:a, :
                  {"a": "pending", "b": "queued", "c": "downloading", "d": "waiting"}).scalars().all()
 expanding = db.execute(text("select count(*) from jobs where state = :s"), {"s": "expanding"}).scalar()
 print(sum(1 for i in ids if downloads(i)) + expanding)
-' 2>/dev/null | tail -n 1
+' 2>"$BACKLOG_LOG" | tail -n 1
 }
 
 # --- e2e fixture ---------------------------------------------------------------------------------
@@ -534,7 +544,8 @@ print(sum(1 for i in ids if downloads(i)) + expanding)
 # scripts/agent_seed.py recreates both, idempotently.
 seed_fixture() {
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"
-	dc exec -T worker-meta python - <"$ROOT/scripts/agent_seed.py"
+	dc exec -T worker-meta python - <"$ROOT/scripts/agent_seed.py" ||
+		die "seeding the e2e fixture failed in worker-meta: scripts/agent_stack.sh $SLOT logs worker-meta"
 }
 
 # The slot's e2e identities: frontend/e2e/.env.e2e.s<slot> (gitignored), exported so it wins
@@ -673,11 +684,12 @@ e2e)
 	[ -f "$ROOT/frontend/src/lib/paraglide/messages.js" ] ||
 		die "frontend/src/lib/paraglide isn't compiled on the host: run npm ci && npm run check in frontend/ first"
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"
-	backlog="$(pending_downloads)"
-	[ "$backlog" = 0 ] || die "slot $SLOT has $backlog unfinished track(s) outside the ledger or job(s) still expanding, which worker-dl could really download during the suite: cancel those jobs first (or run them with realdl)"
-	# Before worker-dl starts: a queued fixture track whose stand-in is gone must be back on disk
-	# before anything can dispatch it.
+	# Seeded first: a queued fixture track whose stand-in is gone is back on disk (a ledger hit
+	# again) before the backlog is counted, and before worker-dl could dispatch it.
 	seed_fixture
+	backlog="$(pending_downloads)" || backlog=""
+	[ -n "$backlog" ] || die "couldn't count slot $SLOT's download backlog (see $BACKLOG_LOG), so not starting worker-dl"
+	[ "$backlog" = 0 ] || die "slot $SLOT has $backlog unfinished track(s) outside the ledger or job(s) still expanding, which worker-dl could really download during the suite: cancel those jobs first (or run them with realdl)"
 	acquire_realdl "e2e"
 	run_locked npm --prefix "$ROOT/frontend" run test:e2e -- "$@"
 	;;
@@ -686,8 +698,12 @@ realdl)
 	require_env_agent
 	export_compose_env
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"
-	backlog="$(pending_downloads)"
-	[ "$backlog" = 0 ] || echo "agent_stack: note: $backlog unfinished track(s) outside the ledger or expanding job(s) may download once worker-dl starts" >&2
+	backlog="$(pending_downloads)" || backlog=""
+	if [ -z "$backlog" ]; then
+		echo "agent_stack: note: couldn't count the download backlog (see $BACKLOG_LOG)" >&2
+	elif [ "$backlog" != 0 ]; then
+		echo "agent_stack: note: $backlog unfinished track(s) outside the ledger or expanding job(s) may download once worker-dl starts" >&2
+	fi
 	acquire_realdl "$*"
 	run_locked "$@"
 	;;
