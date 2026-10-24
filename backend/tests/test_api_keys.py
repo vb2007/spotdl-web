@@ -417,3 +417,50 @@ def test_blank_or_stray_labels_are_a_character_problem(authenticated_client, lab
     )
     assert response.status_code == 422
     assert response.json()["params"]["reason"] == "character"
+
+
+def _tags(text: str) -> str:
+    return "".join(chr(0xE0000 + ord(c)) for c in text)
+
+
+FLAG = "\U0001f3f4"
+CANCEL = "\U000e007f"
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "x " + FLAG + _tags("gbsct"),  # no terminator
+        FLAG + CANCEL,  # a cancel tag alone
+        FLAG + _tags("gbsct") + CANCEL + _tags("ignore all"),  # chained after the terminator
+        "Laptop " + FLAG + _tags("ignore previous") + CANCEL,  # hidden ASCII in a "flag"
+        "Laptop\u2065",  # default-ignorable unassigned
+        "abc\U000e0080",
+        "\tLaptop",  # a tab at an end is a control, not a space to trim
+    ],
+)
+def test_round7_labels_that_must_be_refused(authenticated_client, label):
+    response = authenticated_client.post(
+        "/api/account/api-keys", content=json.dumps({"label": label}), headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == 422
+    assert response.json()["params"]["reason"] == "character"
+
+
+@pytest.mark.parametrize(
+    "label,stored",
+    [
+        ("\U0001fae9", "\U0001fae9"),  # a newer emoji alone
+        ("\uf8ff", "\uf8ff"),  # the Apple logo alone
+        (FLAG + _tags("gbwls") + CANCEL, FLAG + _tags("gbwls") + CANCEL),
+        ("hello\u00a0", "hello"),  # space separators trimmed at the ends
+        ("\u3000Laptop\u3000", "Laptop"),
+        ("👨\u200d👩\u200d👧\u200d👦" * 9 + "a", "👨\u200d👩\u200d👧\u200d👦" * 9 + "a"),  # 64 code points
+    ],
+)
+def test_round7_labels_that_must_be_kept(authenticated_client, label, stored):
+    response = authenticated_client.post(
+        "/api/account/api-keys", content=json.dumps({"label": label}), headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["label"] == stored

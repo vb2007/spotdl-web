@@ -280,6 +280,8 @@
 			} else queue.addJob(job);
 		} catch (err) {
 			submitError = errorText(err, m.dashboard_submit_failed);
+			// v53: the link itself was refused (too long): mark the field, as the form's own checks do.
+			if (err instanceof api.ApiError && err.code === 'submit_too_long') submitInvalid = true;
 		} finally {
 			submitting = false;
 		}

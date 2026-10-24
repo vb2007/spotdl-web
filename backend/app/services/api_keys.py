@@ -11,6 +11,7 @@ job create, `GET /api/jobs/{id}` (its own jobs) and `GET /api/auth/me` only.
 """
 
 import hashlib
+import re
 import secrets
 import unicodedata
 import uuid
@@ -46,39 +47,48 @@ def _generate() -> tuple[str, str]:
 
 # Kept inside a label although they're format characters: emoji sequences need them.
 _JOINERS = {"\u200c", "\u200d"}
-# Tag characters, allowed only inside a subdivision flag (🏴 + tags, ending in U+E007F).
-_BLACK_FLAG = "\U0001f3f4"
-_TAGS = range(0xE0020, 0xE0080)
-
-
-def _unfit_at(label: str, index: int) -> bool:
-    """Whether label[index] is a character a label must not hold, by Unicode category:
-    controls (a NUL can't be stored in Postgres text at all), lone surrogates (can't be
-    encoded to UTF-8), format characters (bidi controls and marks, zero-width spaces: they
-    reorder the key's prefix around them or make two labels look alike) and line/paragraph
-    separators. Kept: ZWJ/ZWNJ (emoji sequences), tag characters inside a subdivision flag,
-    and unassigned or private-use code points (Python's Unicode tables trail new emoji, and
-    macOS types the Apple logo as private use)."""
-    char = label[index]
-    if char in _JOINERS:
-        return False
-    if ord(char) in _TAGS:
-        start = index
-        while start > 0 and ord(label[start - 1]) in _TAGS:
-            start -= 1
-        return not (start > 0 and label[start - 1] == _BLACK_FLAG)
-    return unicodedata.category(char) in {"Cc", "Cf", "Cs", "Zl", "Zp"}
-
-
+# A subdivision flag (🏴 Scotland, Wales, England): the black flag, 1-6 tag letters or digits,
+# then the cancel tag. The only place a tag character may appear; any other tag run (no
+# terminator, chained after one, or carrying hidden ASCII text) is refused.
+_SUBDIVISION_FLAG = re.compile("\U0001f3f4[\U000e0030-\U000e0039\U000e0061-\U000e007a]{1,6}\U000e007f")
+# Unassigned code points Unicode reserves as default-ignorable: renderers draw them as nothing.
+_IGNORABLE_UNASSIGNED = ((0x2065, 0x2065), (0xFFF0, 0xFFF8), (0xE0000, 0xE0FFF))
 # Characters that show as blank although Unicode calls them letters or symbols.
 _FILLERS = {"\u115f", "\u1160", "\u3164", "\uffa0", "\u2800"}
 
 
-def _visible(label: str) -> bool:
-    """At least one character that shows: not only marks, fillers and joiners."""
-    return any(
-        unicodedata.category(c)[0] in "LNPS" and c not in _FILLERS for c in label
-    )
+def _unfit(char: str) -> bool:
+    """A character a label must not hold (outside a subdivision flag): controls (a NUL can't be
+    stored in Postgres text at all), lone surrogates (can't be encoded to UTF-8), format
+    characters (bidi controls and marks, zero-width spaces, tags: they reorder the key's prefix
+    around them, hide text, or make two labels look alike), line/paragraph separators, and the
+    default-ignorable unassigned ranges. Kept: ZWJ/ZWNJ (emoji sequences), and other unassigned
+    or private-use code points (Python 3.12's tables are Unicode 15.0, so newer emoji such as
+    🫩 read as unassigned; macOS types the Apple logo as private use)."""
+    if char in _JOINERS:
+        return False
+    code = ord(char)
+    if any(low <= code <= high for low, high in _IGNORABLE_UNASSIGNED):
+        return True
+    return unicodedata.category(char) in {"Cc", "Cf", "Cs", "Zl", "Zp"}
+
+
+def _shows(char: str) -> bool:
+    """Whether a character draws something: letters, digits, punctuation, symbols, and the
+    unassigned/private-use code points `_unfit` keeps; not marks, spaces or blank fillers."""
+    return unicodedata.category(char)[0] in "LNPS" or unicodedata.category(char) in ("Cn", "Co")
+
+
+def _trim(label: str) -> str:
+    """Spaces off both ends: every space separator (Zs: NBSP, U+3000...), not `str.strip()`,
+    which also eats \\x1c-\\x1f and U+0085 and would report a control character as an empty
+    name."""
+    start, end = 0, len(label)
+    while start < end and unicodedata.category(label[start]) == "Zs":
+        start += 1
+    while end > start and unicodedata.category(label[end - 1]) == "Zs":
+        end -= 1
+    return label[start:end]
 
 
 class LabelInvalid(Exception):
@@ -88,15 +98,17 @@ class LabelInvalid(Exception):
 
 
 def normalize_label(label: str) -> str:
-    """The label as stored. Raises LabelInvalid("length") when it's empty or too long once
-    trimmed, LabelInvalid("character") when it holds a character a label can't, or nothing
-    visible."""
-    # Only plain spaces are trimmed silently: `str.strip()` also eats \x1c-\x1f and U+0085,
-    # which would report a control character as an empty name.
-    label = label.strip(" ")
+    """The label as stored. Raises LabelInvalid("length") when it's empty or longer than
+    LABEL_MAX_LENGTH code points once trimmed, LabelInvalid("character") when it holds a
+    character a label can't, or nothing visible."""
+    label = _trim(label)
     if not label or len(label) > LABEL_MAX_LENGTH:
         raise LabelInvalid("length")
-    if any(_unfit_at(label, i) for i in range(len(label))) or not _visible(label):
+    # Whole subdivision flags count as one visible character; what's left is checked one by one.
+    rest = _SUBDIVISION_FLAG.sub("\U0001f3f4", label)
+    if any(_unfit(c) for c in rest):
+        raise LabelInvalid("character")
+    if not any(_shows(c) and c not in _FILLERS for c in rest):
         raise LabelInvalid("character")
     return label
 

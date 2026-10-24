@@ -6044,12 +6044,17 @@ independently-found production bug from the same conversation)
   sat `expanding` meanwhile. Nothing reads `expand_job`'s result: `ignore_result=True` (as
   `send_alert` already had) makes it fail in well under a second.
 - **A label's character rule goes by Unicode category, and the tables lag.** Refused: `Cc`, `Cf`,
-  `Cs`, `Zl`, `Zp` (controls, bidi and zero-width format characters, surrogates, separators),
-  except ZWJ/ZWNJ and tag characters inside a subdivision flag (🏴 + tags); a label needs one
-  visible character (U+2800 and the Hangul fillers count as blank). Kept: `Cn` and `Co`, because
-  Python 3.12's `unicodedata` is Unicode 15.0, so every newer emoji (🫩, Emoji 16) is "unassigned",
-  and macOS types the Apple logo as private use. Only plain spaces are trimmed: `str.strip()`
-  also eats \x1c-\x1f and U+0085, which reported a control character as an empty name.
+  `Cs`, `Zl`, `Zp` (controls, bidi and zero-width format characters, tags, surrogates, separators)
+  and the default-ignorable unassigned ranges (U+2065, U+FFF0-FFF8, U+E0000-E0FFF, drawn as
+  nothing), except ZWJ/ZWNJ and whole subdivision flags (🏴, 1-6 tag letters or digits, the cancel
+  tag): an unterminated or chained tag run hid ASCII text behind a plain 🏴. A label needs one
+  character that shows (U+2800 and the Hangul fillers count as blank). Kept and counted as
+  showing: other `Cn` and `Co`, because Python 3.12's `unicodedata` is Unicode 15.0 (every newer
+  emoji, 🫩, is "unassigned") and macOS types the Apple logo as private use. Space separators
+  (`Zs`) are trimmed at the ends, not `str.strip()`, which also eats \\x1c-\\x1f and U+0085 and
+  reported a control character as an empty name. The form trims only plain spaces (the rest is
+  the backend's to judge) and counts code points like the backend: its `maxlength` counts UTF-16
+  units and silently cut long emoji labels mid-sequence, so it's only a 4x backstop now.
 - **Job create caps the link or search at 2048 characters** (`submit_too_long`): the web UI's
   cookie path had no bound, and a 20 MB "search" was stored, searched by worker-expand and echoed
   into every listing of that user's jobs (a 60 MB `GET /api/jobs`).

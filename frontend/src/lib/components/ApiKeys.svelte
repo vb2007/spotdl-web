@@ -14,8 +14,11 @@
 	import { errorText } from '$lib/i18n/errors';
 	import { formatDateTime, formatNumber } from '$lib/i18n/format';
 
-	// The longest name the backend takes (services/api_keys.py LABEL_MAX_LENGTH).
+	// The longest name the backend takes (services/api_keys.py LABEL_MAX_LENGTH), in code
+	// points, as the backend counts. The field's own `maxlength` counts UTF-16 units, so it is
+	// only a backstop (it would cut an emoji in half): the check below says so instead.
 	const LABEL_MAX = 64;
+	const FIELD_MAX = LABEL_MAX * 4;
 
 	type Shown = (() => string) | null;
 
@@ -57,8 +60,10 @@
 		labelError = null;
 		error = null;
 		status = null;
-		const name = label.trim();
-		if (!name || name.length > LABEL_MAX) {
+		// Plain spaces only: anything else at the ends (a tab, a BOM) is the backend's to judge,
+		// so it gets the backend's message rather than vanishing here.
+		const name = label.replace(/^ +| +$/g, '');
+		if (!name || [...name].length > LABEL_MAX) {
 			labelError = () => m.error_api_key_label_invalid({ max: formatNumber(LABEL_MAX) });
 			await tick();
 			const field = document.getElementById('api-key-label');
@@ -178,7 +183,7 @@
 					class="well"
 					type="text"
 					autocomplete="off"
-					maxlength={LABEL_MAX}
+					maxlength={FIELD_MAX}
 					placeholder={m.account_keys_name_placeholder()}
 					bind:value={label}
 					disabled={creating || atLimit}
