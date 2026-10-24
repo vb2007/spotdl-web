@@ -2,6 +2,7 @@
 create and `GET /api/auth/me` only, never an admin route, even an admin's key."""
 
 import hashlib
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -60,9 +61,16 @@ def test_create_shows_the_key_once_and_lists_it_by_prefix_only(authenticated_cli
     assert raw not in (row.hash, row.prefix, row.label)
 
 
-@pytest.mark.parametrize("label", ["", "   ", "x" * (api_keys.LABEL_MAX_LENGTH + 1), "a\u0000b", "tab\there"])
+@pytest.mark.parametrize(
+    "label",
+    ["", "   ", "x" * (api_keys.LABEL_MAX_LENGTH + 1), "a\u0000b", "tab\there", "a\ud800", "c1\x85x", "bidi\u202e"],
+)
 def test_create_refuses_a_blank_or_long_label(authenticated_client, label):
-    response = authenticated_client.post("/api/account/api-keys", json={"label": label})
+    # Raw JSON: httpx can't encode a lone surrogate itself, but a JSON escape carries one.
+    body = json.dumps({"label": label})
+    response = authenticated_client.post(
+        "/api/account/api-keys", content=body, headers={"Content-Type": "application/json"}
+    )
     assert response.status_code == 422
     assert response.json()["code"] == "api_key_label_invalid"
 
@@ -245,7 +253,7 @@ PUBLIC_ROUTES = {("GET", "/api/health"), ("POST", "/api/auth/login")}
 
 
 def _api_routes(routes=None) -> list[APIRoute]:
-    """Every APIRoute in the app. FastAPI 0.162 keeps an included router as a lazy
+    """Every APIRoute in the app. FastAPI (0.141+) keeps an included router as a lazy
     `_IncludedRouter` wrapper (no prefix of its own here: every router carries its prefix), so
     this descends into each one's `original_router`."""
     found = []

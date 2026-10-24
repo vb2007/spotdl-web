@@ -43,11 +43,24 @@ def _generate() -> tuple[str, str]:
     return prefix, f"{KEY_PREFIX}{prefix}_{secrets.token_urlsafe(32)}"
 
 
+def _unfit(char: str) -> bool:
+    """A character a label must not hold: a control character (a NUL can't be stored in
+    Postgres text at all), a lone surrogate (can't be encoded to UTF-8), or a bidi control
+    (it would reorder the key's prefix around it wherever the label is shown)."""
+    code = ord(char)
+    return (
+        code < 32
+        or 0x7F <= code <= 0x9F
+        or 0xD800 <= code <= 0xDFFF
+        or 0x202A <= code <= 0x202E
+        or 0x2066 <= code <= 0x2069
+    )
+
+
 def normalize_label(label: str) -> str | None:
     """The label as stored, or None when it's empty or too long once trimmed."""
     label = label.strip()
-    # Control characters too: a NUL can't be stored in Postgres text at all (a 500).
-    if not label or len(label) > LABEL_MAX_LENGTH or any(ord(c) < 32 or ord(c) == 127 for c in label):
+    if not label or len(label) > LABEL_MAX_LENGTH or any(_unfit(c) for c in label):
         return None
     return label
 
@@ -67,7 +80,7 @@ def create_key(db: Session, user_id: uuid.UUID, label: str) -> tuple[ApiKey, str
     MAX_ACTIVE_KEYS active keys. The caller commits."""
     # Two creates at once would both count below the limit: the user's row serializes them
     # (Postgres; SQLite, the unit tests', has one writer anyway).
-    db.query(User.id).filter(User.id == user_id).with_for_update().one()
+    db.query(User.id).filter(User.id == user_id).with_for_update(key_share=True).one()
     active = (
         db.query(ApiKey)
         .filter(ApiKey.user_id == user_id, ApiKey.revoked_at.is_(None))

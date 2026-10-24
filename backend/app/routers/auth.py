@@ -11,6 +11,7 @@ from app.errors import ApiError
 from app.models import ApiKey, User, UserSession
 from app.services import api_keys, rate_limit, upstream_auth, user_settings
 from app.services.sessions import SESSION_IDLE_TIMEOUT, create_session, delete_session, get_valid_session
+from app.services.spotify_urls import storable
 from app.services.users import get_or_create_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -166,6 +167,10 @@ async def login(
 ) -> dict:
     # v53: failed logins are limited per email and client address, counted before the
     # upstream is asked at all. The Redis client is sync, so it runs off the event loop.
+    # An email or password no one can have (a NUL, a lone surrogate) is rejected like any
+    # wrong one, before it reaches a hash, the upstream or Postgres (each would be a 500).
+    if not (storable(payload.email) and storable(payload.password)):
+        raise _INVALID_CREDENTIALS
     address = rate_limit.client_address(request)
     await run_in_threadpool(rate_limit.hit_login, payload.email, address)
 

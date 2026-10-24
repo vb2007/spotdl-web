@@ -35,10 +35,10 @@
 
 	const atLimit = $derived(keys !== null && keys.length >= maxActive);
 
-	function load() {
+	function load(): Promise<void> {
 		loadError = null;
 		const resets = queue.getResetCount();
-		api
+		return api
 			.listApiKeys()
 			.then((list) => {
 				if (queue.getResetCount() !== resets) return;
@@ -83,7 +83,8 @@
 		} catch (err) {
 			error = () => errorText(err);
 			// At the limit by another tab's count: show the keys the server has, not this tab's.
-			if (err instanceof api.ApiError && err.code === 'api_key_limit_reached') load();
+			// Awaited: whether focus can go back to the field depends on what it says.
+			if (err instanceof api.ApiError && err.code === 'api_key_limit_reached') await load();
 		} finally {
 			creating = false;
 		}

@@ -747,7 +747,7 @@ needed" claim — rather than silently deleted.
   (recorded in the v39 section; v39.1 has no section of its own)
 
 **Testing & verification technique**
-- FastAPI 0.162's `app.routes` holds lazy `_IncludedRouter` wrappers: walk `original_router.routes`
+- FastAPI's `app.routes` (0.141+) holds lazy `_IncludedRouter` wrappers: walk `original_router.routes`
   to find every `APIRoute` → *v53*
 - Playwright's `request.newContext()` inside a test inherits the project's `storageState`; a slot's
   own real-stack evidence jobs skew later e2e picks (delete them first) → *v53*
@@ -5966,7 +5966,8 @@ independently-found production bug from the same conversation)
   parametrizes this over every route in the app, not only the admin ones. The job read was added
   on the owner's decision the same day (the master plan's "read their own submission status"):
   through a key it's the key's user's own jobs only, an admin's too (404 otherwise).
-- **FastAPI 0.162 keeps an included router as a lazy `_IncludedRouter` in `app.routes`.** A test
+- **FastAPI keeps an included router as a lazy `_IncludedRouter` in `app.routes`** (0.162 in the slot's
+  image, 0.141.1 in `uv.lock`/`requirements.txt`: both do). A test
   walking `app.routes` for `APIRoute`s finds only the four built-in docs routes; descend through
   each wrapper's `original_router.routes` (every router here carries its own prefix, and
   `include_router` adds none).
@@ -6009,4 +6010,14 @@ independently-found production bug from the same conversation)
   largest job, archived ones included, so a cancelled 296-track artist job from a cascade check
   replaced the seeded 14-track album and four keyboard tests failed. Cancelling and archiving
   isn't enough: delete such jobs from the slot database (it's the slot's own) before `e2e`.
+- **Text Postgres or UTF-8 can't take reaches the API as JSON escapes.** A NUL (`\u0000`) and a
+  lone surrogate (`\ud800`) in a key label, a link or a login email each gave a 500 (a psycopg
+  `DataError`, or `UnicodeEncodeError` in the login bucket's hash) until refused up front:
+  `spotify_urls.storable` for links and logins, `api_keys.normalize_label` (also C1 controls and
+  bidi overrides, which reordered the key prefix in the revoke dialog). In a test, httpx can't
+  encode a lone surrogate (`json=` raises): send `content=json.dumps(...)`. And `str.strip()`
+  removes `\x85` (NEL) as whitespace.
+- **redis-py retries a dead connection with backoff by default** (6.x: three tries, exponential
+  with jitter), so 1 s socket timeouts still left a "fail-open" limiter stalling each request for
+  several seconds. `Retry(NoBackoff(), 0)` makes it fail at once.
 

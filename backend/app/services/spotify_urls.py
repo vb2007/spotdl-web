@@ -106,7 +106,17 @@ class CascadeNotFound(Exception):
 
 
 class CascadeUnavailable(Exception):
-    """The metadata call failed or ran out of time."""
+    """The metadata call failed or ran out of time (`reason` "failed"), or every metadata
+    worker is busy (`reason` "busy")."""
+
+    def __init__(self, reason: str = "failed") -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+def storable(text: str) -> bool:
+    """Whether Postgres can store `text` and it can be UTF-8 encoded: no NUL, no lone surrogate."""
+    return not any(c == "\x00" or 0xD800 <= ord(c) <= 0xDFFF for c in text)
 
 
 class CascadeAmbiguous(Exception):
@@ -138,7 +148,7 @@ def resolve_cascade(ref: SpotifyRef, cascade: str) -> SpotifyRef:
         raise CascadeInvalid
     if not _slots.acquire(blocking=False):
         logger.warning("cascade: every metadata worker is busy; refusing")
-        raise CascadeUnavailable
+        raise CascadeUnavailable("busy")
     try:
         future = _executor.submit(_fetch, ref)
     except BaseException:

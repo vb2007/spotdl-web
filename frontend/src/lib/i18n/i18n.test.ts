@@ -256,7 +256,12 @@ const BACKEND_CODES = [
 	'setting_out_of_range',
 	'alerts_not_configured',
 	'alert_send_failed',
-	'retention_days_invalid'
+	'retention_days_invalid',
+	// v53
+	'rate_limited',
+	'api_key_label_invalid',
+	'api_key_limit_reached',
+	'api_key_not_found'
 ];
 const CLIENT_CODES = [
 	'request_invalid',
@@ -274,7 +279,8 @@ const PARAMS: Record<string, string | number> = {
 	min: 2,
 	max: 1000,
 	reason: 'HTTP 403',
-	status: 'Bad Gateway'
+	status: 'Bad Gateway',
+	retry_after: 42
 };
 
 describe('every error code', () => {

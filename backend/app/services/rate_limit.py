@@ -16,6 +16,8 @@ import logging
 import uuid
 
 import redis
+from redis.backoff import NoBackoff
+from redis.retry import Retry
 from fastapi import Request
 
 from app.config import get_settings
@@ -32,8 +34,13 @@ def _redis() -> redis.Redis:
     global _client
     if _client is None:
         # Short timeouts: a limiter that waits on a dead Redis would stall the login it guards.
+        # No retries either: redis-py's default retries a dead connection with backoff for
+        # several seconds before the error that lets the request through.
         _client = redis.Redis.from_url(
-            get_settings().redis_url, socket_connect_timeout=1, socket_timeout=1
+            get_settings().redis_url,
+            socket_connect_timeout=1,
+            socket_timeout=1,
+            retry=Retry(NoBackoff(), 0),
         )
     return _client
 
@@ -70,10 +77,23 @@ def client_address(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+# The per-address bucket's limit, as a multiple of LOGIN_RATE_LIMIT_FAILURES: looser than the
+# email-and-address one (a household shares an address), but it stops one address spraying
+# guesses across many emails, each of which the upstream would otherwise be asked about.
+ADDRESS_LIMIT_FACTOR = 5
+
+
 def _login_bucket(email: str, address: str) -> str:
-    # Hashed, so the Redis keyspace never holds an email address.
-    digest = hashlib.sha256(f"{email.strip().lower()}\n{address}".encode()).hexdigest()
+    # Hashed, so the Redis keyspace never holds an email address. `surrogatepass`: a lone
+    # surrogate can't be UTF-8 encoded, and the caller refuses such an email anyway.
+    text = f"{email.strip().lower()}\n{address}"
+    digest = hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
     return f"{KEY_PREFIX}login:{digest}"
+
+
+def _address_bucket(address: str) -> str:
+    digest = hashlib.sha256(address.encode("utf-8", "surrogatepass")).hexdigest()
+    return f"{KEY_PREFIX}login-address:{digest}"
 
 
 def hit_login(email: str, address: str) -> None:
@@ -81,21 +101,29 @@ def hit_login(email: str, address: str) -> None:
     asked, and raises 429 `rate_limited` once the window holds more than
     LOGIN_RATE_LIMIT_FAILURES of them, so a right password is refused too until it ends.
     Counted first, not after a failure: a burst of parallel guesses would otherwise all read
-    the same count and every one would reach the upstream. A success clears the bucket
-    (`clear_login_failures`), so what accumulates is failures plus attempts still in flight."""
+    the same count and every one would reach the upstream. A success clears the email's bucket
+    (`clear_login_failures`), so what accumulates there is failures plus attempts in flight.
+    The address's own bucket (ADDRESS_LIMIT_FACTOR times looser) counts every attempt from it,
+    for any email, and isn't cleared by a success."""
     settings = get_settings()
     limit = settings.login_rate_limit_failures
     if limit <= 0:
         return
-    bucket = _login_bucket(email, address)
+    window = settings.login_rate_limit_window_seconds
+    retry_after = None
     try:
-        count = _count(bucket, settings.login_rate_limit_window_seconds)
-        ttl = _redis().ttl(bucket) if count > limit else 0
+        for bucket, bucket_limit in (
+            (_login_bucket(email, address), limit),
+            (_address_bucket(address), limit * ADDRESS_LIMIT_FACTOR),
+        ):
+            if _count(bucket, window) > bucket_limit:
+                ttl = _redis().ttl(bucket)
+                retry_after = max(retry_after or 0, ttl if ttl > 0 else 1)
     except redis.RedisError:
         logger.warning("rate_limit: login attempt not counted, Redis unavailable")
         return
-    if count > limit:
-        raise _rate_limited(ttl if ttl > 0 else 1)
+    if retry_after is not None:
+        raise _rate_limited(retry_after)
 
 
 def clear_login_failures(email: str, address: str) -> None:
@@ -111,7 +139,9 @@ def clear_login_failures(email: str, address: str) -> None:
 def hit_job_create(user_id: uuid.UUID, api_key_id: uuid.UUID | None) -> None:
     """Counts one job create against the user and, for a key-authenticated request, the key
     too; raises 429 `rate_limited` when either is over JOB_CREATE_RATE_LIMIT in its window. A
-    refused create counts as well (its window still ends when it would have)."""
+    refused create counts as well (its window still ends when it would have). With one limit for
+    both, the key's bucket only ever trips first when the user's window has just rolled over:
+    it's there so a key keeps its own count if the limits ever differ."""
     settings = get_settings()
     limit = settings.job_create_rate_limit
     if limit <= 0:

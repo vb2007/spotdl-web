@@ -1,6 +1,7 @@
 """v53: job create for the extension -- the Spotify allowlist for key and extension-origin
 requests, canonical links, server-side cascades, the duplicate hint, and the rate limits."""
 
+import json
 import uuid
 
 import pytest
@@ -181,7 +182,7 @@ def test_a_cascade_spotify_cant_answer_is_503(client, user_key, monkeypatch):
     assert response.json()["code"] == "cascade_unavailable"
 
 
-@pytest.mark.parametrize("cascade", ["playlist", "", "ALBUM"])
+@pytest.mark.parametrize("cascade", ["playlist", "", "ALBUM", 5, ["album"], {"a": 1}, True])
 def test_an_unknown_cascade_value_is_cascade_invalid(client, user_key, cascade):
     """Live review: a stable code, not FastAPI's raw validation list."""
     response = client.post(
@@ -194,8 +195,11 @@ def test_an_unknown_cascade_value_is_cascade_invalid(client, user_key, cascade):
     assert response.json()["params"]["reason"] == "unknown"
 
 
-def test_a_nul_in_the_link_is_refused_not_a_500(authenticated_client, db_session):
-    response = authenticated_client.post("/api/jobs", json={"url": "a\u0000b"})
+@pytest.mark.parametrize("url", ["a\u0000b", "zz \ud800 search"])
+def test_an_unstorable_link_is_refused_not_a_500(authenticated_client, db_session, url):
+    response = authenticated_client.post(
+        "/api/jobs", content=json.dumps({"url": url}), headers={"Content-Type": "application/json"}
+    )
     assert response.status_code == 422
     assert response.json()["code"] == "request_invalid"
     assert db_session.query(Job).count() == 0
@@ -437,7 +441,7 @@ def test_a_login_attempt_counts_before_the_upstream_is_asked(client, monkeypatch
     seen = []
 
     async def fake(email, password):
-        seen.append(sum(fake_redis.values.values()))
+        seen.append(sum(v for k, v in fake_redis.values.items() if k.startswith("spotdl:ratelimit:login:")))
         return False, None
 
     monkeypatch.setattr(auth_router.upstream_auth, "login", fake)
@@ -549,3 +553,63 @@ def test_a_keys_own_bucket_answers_429_with_its_retry_after(client, authenticate
     # The user's cookie isn't held back by the key's bucket.
     client.cookies.update(cookie)
     assert client.post("/api/jobs", json={"url": "search words"}).status_code == 201
+
+
+@pytest.mark.parametrize(
+    "email,password",
+    [("x\ud800@example.com", "x"), ("allowed@example.com", "p\ud800"), ("a\u0000@example.com", "x")],
+)
+def test_an_impossible_login_is_invalid_credentials_not_a_500(client, monkeypatch, fake_redis, email, password):
+    asked = []
+
+    async def fake(e, p):
+        asked.append(e)
+        return True, None
+
+    monkeypatch.setattr(auth_router.upstream_auth, "login", fake)
+    monkeypatch.setattr(get_settings(), "login_rate_limit_failures", 10)
+    response = client.post(
+        "/api/auth/login",
+        content=json.dumps({"email": email, "password": password}),
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 401
+    assert response.json()["code"] == "invalid_credentials"
+    assert asked == []
+
+
+def test_one_address_spraying_many_emails_is_limited(client, monkeypatch, low_limits, fake_redis):
+    """Review round 3: the per-address bucket (ADDRESS_LIMIT_FACTOR times looser) stops one
+    address guessing across emails, each under its own email limit."""
+    from app.services import rate_limit
+
+    async def fake(email, password):
+        return False, None
+
+    monkeypatch.setattr(auth_router.upstream_auth, "login", fake)
+    allowed = low_limits.login_rate_limit_failures * rate_limit.ADDRESS_LIMIT_FACTOR
+    statuses = [
+        client.post("/api/auth/login", json={"email": f"user{i}@example.com", "password": "x"}).status_code
+        for i in range(allowed + 1)
+    ]
+    assert statuses[:allowed] == [401] * allowed
+    assert statuses[allowed] == 429
+    # Another address isn't held back.
+    other = client.post(
+        "/api/auth/login", json={"email": "user0@example.com", "password": "x"}, headers={"X-Real-IP": "198.51.100.9"}
+    )
+    assert other.status_code == 401
+
+
+def test_a_busy_cascade_says_so(client, user_key, monkeypatch):
+    def busy(ref, cascade):
+        raise spotify_urls.CascadeUnavailable("busy")
+
+    monkeypatch.setattr(spotify_urls, "resolve_cascade", busy)
+    response = client.post(
+        "/api/jobs",
+        json={"url": f"https://open.spotify.com/track/{TRACK_ID}", "cascade": "album"},
+        headers=bearer(user_key),
+    )
+    assert response.status_code == 503
+    assert response.json()["params"]["reason"] == "busy"
