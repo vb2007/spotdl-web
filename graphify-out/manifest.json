@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
-    "mtime": 1792871860.8126657,
-    "ast_hash": "7286c590455e5e7bf8f9b71c51a33f30",
+    "mtime": 1792872659.8021169,
+    "ast_hash": "8ce4676c1d148e2a08dea947e3bd974a",
     "semantic_hash": ""
   },
   "backend/alembic/versions/ebc1d43e2c21_initial_schema.py": {
@@ -215,8 +215,8 @@
     "semantic_hash": ""
   },
   "backend/tests/conftest.py": {
-    "mtime": 1792871744.0820417,
-    "ast_hash": "7404bbc228d7626059db04b0db653055",
+    "mtime": 1792873509.3435557,
+    "ast_hash": "a0342343cee78529c86d4e379ec20943",
     "semantic_hash": ""
   },
   "backend/tests/test_auth.py": {
@@ -285,8 +285,8 @@
     "semantic_hash": ""
   },
   "docs/CI_SELF_HOSTED_RUNNER.md": {
-    "mtime": 1792869747.799991,
-    "ast_hash": "68fd631dd3b3063774ac64d5486375a9",
+    "mtime": 1792872659.8022623,
+    "ast_hash": "cccf5a6ba24cadc6770f1b32c2f3710b",
     "semantic_hash": ""
   },
   ".github/scripts/junit_to_summary.py": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792871860.814074,
-    "ast_hash": "127762a4d43dfd1e5127ad922761a306",
+    "mtime": 1792873550.1257355,
+    "ast_hash": "966915602776d023d0f893c8fd6009c3",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -685,7 +685,7 @@
     "semantic_hash": ""
   },
   "backend/app/services/rollup.py": {
-    "mtime": 1792868632.263858,
+    "mtime": 1792872533.2555285,
     "ast_hash": "86221ece9f39c377b0386727459b0149",
     "semantic_hash": ""
   },
@@ -715,8 +715,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_track_listing.py": {
-    "mtime": 1792868632.2662702,
-    "ast_hash": "d38a7c3cfc0efbd0d40ce3d6d71b8488",
+    "mtime": 1792872507.4057822,
+    "ast_hash": "07d0a7d56de9ed969211f4e6290113f8",
     "semantic_hash": ""
   },
   "backend/app/services/archive.py": {
@@ -1750,8 +1750,8 @@
     "semantic_hash": ""
   },
   "scripts/agent_stack.sh": {
-    "mtime": 1792871312.2726674,
-    "ast_hash": "307a688aab3afbda6bd9e254534528b9",
+    "mtime": 1792873509.3529122,
+    "ast_hash": "42cf12e157c6bd553d1731451e1acd6b",
     "semantic_hash": ""
   },
   "docker-compose.agent.yml": {
@@ -1780,8 +1780,8 @@
     "semantic_hash": ""
   },
   "backend/tests/concurrency.py": {
-    "mtime": 1792870393.406969,
-    "ast_hash": "9cc27900c348e0139bff0f8508a3436f",
+    "mtime": 1792873509.3432217,
+    "ast_hash": "aa86834a461d3eedd59cfd90229e7945",
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/059d744b27d6e0e2.json": {
