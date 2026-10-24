@@ -199,12 +199,17 @@ def pytest_sessionstart(session):
             # Every session on it reads timestamps in UTC, whatever the server's own TimeZone:
             # the suite compares aware datetimes, and a disposable server needn't be UTC.
             conn.exec_driver_sql(f"ALTER DATABASE {_quoted(url.database)} SET timezone TO 'UTC'")
+            # A lock a broken test leaves held (a connection nothing here watches) fails the
+            # next test that needs it, instead of hanging the run. Well above the race tests'
+            # own waits (concurrency.TIMEOUT).
+            conn.exec_driver_sql(f"ALTER DATABASE {_quoted(url.database)} SET lock_timeout TO '30s'")
     except DBAPIError as exc:
         # The driver's message names host and port, never the password.
         raise pytest.UsageError(f"can't create the test database {url.database}: {exc.orig}") from None
     session.config.stash[_CREATED] = url.database
-    # SIGTERM (a `kill`, a container stop) would end the run without sessionfinish, leaving the
-    # database behind; as a KeyboardInterrupt, pytest unwinds and drops it like a Ctrl-C does.
+    # SIGTERM (a `kill`) would end the run without sessionfinish, leaving the database behind;
+    # as a KeyboardInterrupt, pytest unwinds and drops it like a Ctrl-C does. (A stopped `api`
+    # container SIGKILLs it instead: that one is left, docs/LOCAL_DEV.md.)
     signal.signal(signal.SIGTERM, signal.default_int_handler)
     _report(session, f"created {url.database} on {url.host}:{url.port or 5432}")
     # No ini file: alembic/env.py runs fileConfig() on one, which would disable every logger
