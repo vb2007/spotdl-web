@@ -201,8 +201,11 @@ needed" claim — rather than silently deleted.
 - A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
   production, TCP on and off); a key is the fallback, valid only on job create, reading its own
   job and `me` (an admin's key gets 401 everywhere else) → *v53*
-- Rate limits (failed logins per email + address, creates per user and key) fail open on a Redis
-  error; low limits on a slot go in `.env.agent` plus a `run … --force-recreate api` → *v53*
+- Rate limits (logins per email + address and per address, IPv6 by /64; creates per user and
+  key) fail open at once on a Redis error (no retries); low limits on a slot go in `.env.agent`
+  plus a `run … --force-recreate api` → *v53*
+- FastAPI's default 422 echoes the body (a surrogate there was a 500 logging a password); a
+  stored task result made `.delay()` wait ~19 s on a dead Redis → *v53*
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
 - `Secure` cookies work over `http://localhost` in browsers but **not** in `httpx`/`TestClient` —
   tests need `base_url="https://testserver"` → *v03*
@@ -6031,5 +6034,25 @@ independently-found production bug from the same conversation)
   unquotes) made `get_valid_session` a 500 on every route until it answered "no session".
 - **A broker error after the job row commits left a job `expanding` forever** (pre-existing), and
   v53's hint then handed it back to every re-submit for an hour. Job create now marks it `failed`
-  and answers 503 `queue_unavailable`, so the next submit starts over.
+  and archived (it would otherwise sit in the incoming panel reading as an unreadable link) and
+  answers 503 `queue_unavailable`, so the next submit starts over. It's archived, not deleted
+  (soft archive is a locked decision), so a client hammering create through a Redis outage
+  leaves one hidden row per try: the rate limiter fails open in that same outage.
+- **`.delay()` on a task whose result is stored waits on the result backend first.** With Redis
+  stopped, `expand_job.delay` took about 19 s to raise (the Redis result backend's
+  `on_task_call` retries its connection 20 times), so the 503 above came after 19 s and the job
+  sat `expanding` meanwhile. Nothing reads `expand_job`'s result: `ignore_result=True` (as
+  `send_alert` already had) makes it fail in well under a second.
+- **A label's character rule goes by Unicode category, and the tables lag.** Refused: `Cc`, `Cf`,
+  `Cs`, `Zl`, `Zp` (controls, bidi and zero-width format characters, surrogates, separators),
+  except ZWJ/ZWNJ and tag characters inside a subdivision flag (🏴 + tags); a label needs one
+  visible character (U+2800 and the Hangul fillers count as blank). Kept: `Cn` and `Co`, because
+  Python 3.12's `unicodedata` is Unicode 15.0, so every newer emoji (🫩, Emoji 16) is "unassigned",
+  and macOS types the Apple logo as private use. Only plain spaces are trimmed: `str.strip()`
+  also eats \x1c-\x1f and U+0085, which reported a control character as an empty name.
+- **Job create caps the link or search at 2048 characters** (`submit_too_long`): the web UI's
+  cookie path had no bound, and a 20 MB "search" was stored, searched by worker-expand and echoed
+  into every listing of that user's jobs (a 60 MB `GET /api/jobs`).
+- **The login buckets key an IPv6 client by its /64** (one host holds a whole /64 and could rotate
+  through it); an IPv4-mapped address counts as its IPv4, a zone id is dropped.
 

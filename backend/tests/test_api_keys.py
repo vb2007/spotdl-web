@@ -98,7 +98,21 @@ def test_create_refuses_a_blank_or_long_label(authenticated_client, label):
     assert response.json()["params"]["reason"] == expected
 
 
-@pytest.mark.parametrize("label", ["Laptop 🦊", "👨\u200d👩\u200d👧", "Tükörfúró gép", "日本語", "ok-1_2.3"])
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Laptop 🦊",
+        "👨\u200d👩\u200d👧",
+        "Tükörfúró gép",
+        "日本語",
+        "ok-1_2.3",
+        # Round 6: newer than Python's Unicode tables (🫩, Emoji 16), private use (macOS's
+        # Apple logo), a subdivision flag (🏴 + tag characters).
+        "Fáradt \U0001fae9",
+        "MacBook \uf8ff",
+        "\U0001f3f4\U000e0067\U000e0062\U000e0065\U000e006e\U000e0067\U000e007f England",
+    ],
+)
 def test_ordinary_labels_are_kept(authenticated_client, label):
     assert _create_key(authenticated_client, label)["label"] == label
 
@@ -392,3 +406,14 @@ def test_get_valid_session_never_queries_an_unstorable_token():
 
     assert get_valid_session(NoQueries(), "\x00abc") is None
     assert get_valid_session(NoQueries(), "a\ud800") is None
+
+
+@pytest.mark.parametrize("label", ["\u2800", "\u2800\u2800", "\x1c", "\x85", "a\U000e0067b", "\U000e0067"])
+def test_blank_or_stray_labels_are_a_character_problem(authenticated_client, label):
+    """Round 6: a braille blank shows nothing; a lone control isn't "empty" (str.strip()
+    would have eaten \\x1c and U+0085 and blamed the length); tag characters outside a flag."""
+    response = authenticated_client.post(
+        "/api/account/api-keys", content=json.dumps({"label": label}), headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == 422
+    assert response.json()["params"]["reason"] == "character"

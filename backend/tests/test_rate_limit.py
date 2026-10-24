@@ -12,3 +12,12 @@ def test_the_limiter_never_retries_a_dead_redis(monkeypatch):
     client = rate_limit._redis()
     assert client.get_connection_kwargs()["retry"]._retries == 0
     monkeypatch.setattr(rate_limit, "_client", None)
+
+
+def test_bucket_addresses():
+    assert rate_limit._bucket_address("2001:db8:1:2::5") == "2001:db8:1:2::/64"
+    assert rate_limit._bucket_address("2001:DB8:1:2:FFFF:FFFF:FFFF:FFFF") == "2001:db8:1:2::/64"
+    assert rate_limit._bucket_address("::ffff:198.51.100.7") == "198.51.100.7"
+    assert rate_limit._bucket_address("198.51.100.7") == "198.51.100.7"
+    assert rate_limit._bucket_address("fe80::1%eth0") == "fe80::/64"
+    assert rate_limit._bucket_address("not an address") == "not an address"

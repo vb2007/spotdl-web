@@ -172,7 +172,10 @@ def create_job(
         # The web UI's search text has no other bound, and a 20 MB "search" was stored, searched
         # and echoed into every listing of that user's jobs.
         raise ApiError(
-            422, "request_invalid", f"A link or search is at most {MAX_SUBMIT_LENGTH} characters"
+            422,
+            "submit_too_long",
+            f"A link or search is at most {MAX_SUBMIT_LENGTH} characters",
+            {"max": MAX_SUBMIT_LENGTH},
         )
     if not spotify_urls.storable(payload.url):
         # A NUL or a lone surrogate: Postgres can't take it, so the query would be a 500.

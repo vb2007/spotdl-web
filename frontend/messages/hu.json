@@ -883,5 +883,6 @@
 		}
 	],
 	"error_queue_unavailable": "A sor most nem fogad új linket. Próbáld újra kicsit később.",
-	"error_api_key_label_characters": "A kulcs neve nem tartalmazhat láthatatlan vagy vezérlőkaraktert (ezek gyakran a beillesztett szöveggel jönnek). Inkább gépeld be."
+	"error_api_key_label_characters": "A kulcs neve nem tartalmazhat láthatatlan vagy vezérlőkaraktert (ezek gyakran a beillesztett szöveggel jönnek). Inkább gépeld be.",
+	"error_submit_too_long": "Ez túl hosszú egy linknek: legfeljebb {max} karakter lehet."
 }

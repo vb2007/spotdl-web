@@ -664,7 +664,8 @@ def test_a_link_or_search_past_the_length_cap_is_refused(authenticated_client, d
     too_long = "x" * (jobs_router.MAX_SUBMIT_LENGTH + 1)
     response = authenticated_client.post("/api/jobs", json={"url": too_long})
     assert response.status_code == 422
-    assert response.json()["code"] == "request_invalid"
+    assert response.json()["code"] == "submit_too_long"
+    assert response.json()["params"]["max"] == jobs_router.MAX_SUBMIT_LENGTH
     assert db_session.query(Job).count() == 0
     assert authenticated_client.post("/api/jobs", json={"url": "x" * jobs_router.MAX_SUBMIT_LENGTH}).status_code == 201
 
@@ -692,3 +693,9 @@ def test_an_ipv6_host_shares_one_login_bucket_across_its_64(client, monkeypatch,
         headers={"CF-Connecting-IP": "2001:db8:1:3::1"},
     )
     assert other.status_code == 401
+
+
+def test_expand_job_stores_no_result():
+    """Round 5: a stored result made every enqueue wait on the result backend: with Redis
+    down, ~19 s of its reconnect retries before the 503."""
+    assert jobs_router.expand_job.ignore_result is True

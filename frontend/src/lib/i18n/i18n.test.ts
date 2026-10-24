@@ -264,7 +264,8 @@ const BACKEND_CODES = [
 	'api_key_label_invalid',
 	'api_key_limit_reached',
 	'api_key_not_found',
-	'queue_unavailable'
+	'queue_unavailable',
+	'submit_too_long'
 ];
 const CLIENT_CODES = [
 	'request_invalid',

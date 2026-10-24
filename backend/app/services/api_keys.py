@@ -46,17 +46,32 @@ def _generate() -> tuple[str, str]:
 
 # Kept inside a label although they're format characters: emoji sequences need them.
 _JOINERS = {"\u200c", "\u200d"}
+# Tag characters, allowed only inside a subdivision flag (🏴 + tags, ending in U+E007F).
+_BLACK_FLAG = "\U0001f3f4"
+_TAGS = range(0xE0020, 0xE0080)
 
 
-def _unfit(char: str) -> bool:
-    """A character a label must not hold, by Unicode category: controls (a NUL can't be stored
-    in Postgres text at all), lone surrogates (can't be encoded to UTF-8), private-use and
-    unassigned code points, format characters (bidi controls and marks, zero-width spaces,
-    tag characters: they reorder the key's prefix around them or make two labels look alike),
-    and line/paragraph separators. ZWJ/ZWNJ stay, for emoji sequences."""
+def _unfit_at(label: str, index: int) -> bool:
+    """Whether label[index] is a character a label must not hold, by Unicode category:
+    controls (a NUL can't be stored in Postgres text at all), lone surrogates (can't be
+    encoded to UTF-8), format characters (bidi controls and marks, zero-width spaces: they
+    reorder the key's prefix around them or make two labels look alike) and line/paragraph
+    separators. Kept: ZWJ/ZWNJ (emoji sequences), tag characters inside a subdivision flag,
+    and unassigned or private-use code points (Python's Unicode tables trail new emoji, and
+    macOS types the Apple logo as private use)."""
+    char = label[index]
     if char in _JOINERS:
         return False
-    return unicodedata.category(char) in {"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"}
+    if ord(char) in _TAGS:
+        start = index
+        while start > 0 and ord(label[start - 1]) in _TAGS:
+            start -= 1
+        return not (start > 0 and label[start - 1] == _BLACK_FLAG)
+    return unicodedata.category(char) in {"Cc", "Cf", "Cs", "Zl", "Zp"}
+
+
+# Characters that show as blank although Unicode calls them letters or symbols.
+_FILLERS = {"\u115f", "\u1160", "\u3164", "\uffa0", "\u2800"}
 
 
 def _visible(label: str) -> bool:
@@ -64,10 +79,6 @@ def _visible(label: str) -> bool:
     return any(
         unicodedata.category(c)[0] in "LNPS" and c not in _FILLERS for c in label
     )
-
-
-# Letters that render as blank (Hangul fillers and the like).
-_FILLERS = {"\u115f", "\u1160", "\u3164", "\uffa0"}
 
 
 class LabelInvalid(Exception):
@@ -80,10 +91,12 @@ def normalize_label(label: str) -> str:
     """The label as stored. Raises LabelInvalid("length") when it's empty or too long once
     trimmed, LabelInvalid("character") when it holds a character a label can't, or nothing
     visible."""
-    label = label.strip()
+    # Only plain spaces are trimmed silently: `str.strip()` also eats \x1c-\x1f and U+0085,
+    # which would report a control character as an empty name.
+    label = label.strip(" ")
     if not label or len(label) > LABEL_MAX_LENGTH:
         raise LabelInvalid("length")
-    if any(_unfit(c) for c in label) or not _visible(label):
+    if any(_unfit_at(label, i) for i in range(len(label))) or not _visible(label):
         raise LabelInvalid("character")
     return label
 

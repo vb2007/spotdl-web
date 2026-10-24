@@ -2,7 +2,9 @@
 
 `archive_jobs`/`unarchive_jobs` are the only places `Job.archived_at` is ever set --
 shared by the manual "clear log" endpoint and the hourly sweep task so there is exactly
-one eligibility rule, not two that could drift apart. Both re-derive eligibility from the
+one eligibility rule, not two that could drift apart. (One exception, v53: job create
+archives a job it couldn't enqueue at all, `routers/jobs.py`; it has no tracks, was never
+queued, and is failed, so it's eligible by this module's rule anyway.) Both re-derive eligibility from the
 real track states themselves rather than trusting the caller (job_ids passed in from a
 stale UI list, or a sweep racing a track that just became active).
 
