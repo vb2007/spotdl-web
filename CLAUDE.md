@@ -18,7 +18,7 @@ YouTube-Music rate limiting as an expected, permanent condition rather than a fa
 That inverts normal web-app priorities — durability beats throughput. A track may legitimately sit
 in the queue for days, and that is correct behavior, not a stall.
 
-**Status:** masters v1–v4 (v00–v48) are complete and shipping to `spotdl.vb2007.hu`. **Master v5 (v49–v69)
+**Status:** masters v1–v4 (v00–v48) are complete and shipping to `spotdl.vb2007.hu`. **Master v5 (v49–v70)
 is in progress**: close every open gotcha, a Firefox extension, an admin "others" view, new features.
 
 ### Where things are
@@ -237,7 +237,7 @@ terminal). **Outcome**, only once `settled`: `complete` (all `completed`/`skippe
 
 ## Version roadmap
 
-Masters v1–v4 (v00–v48) are complete; master v5 (v49–v69, waves 0–6) is in progress. Slices live in
+Masters v1–v4 (v00–v48) are complete; master v5 (v49–v70, waves 0–6) is in progress. Slices live in
 `plan/master-vN/` (patch slices in that master's Amendments); findings in `docs/GOTCHAS.md`.
 
 ## Maintaining this file
