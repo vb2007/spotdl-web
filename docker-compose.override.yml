@@ -43,11 +43,19 @@ services:
     # supervisor keeps running and the container never exits. The pre-check makes a refused
     # config exit non-zero, same as every other backend service. `exec` keeps uvicorn at
     # PID 1 for signal handling.
+    #
+    # v52 (D1): `--timeout-graceful-shutdown`, or a reload hangs for as long as any
+    # /api/stream is open. A reload shuts the old server down gracefully, and graceful means
+    # waiting for every in-flight response to finish; an SSE response never does (it ends only
+    # when its client hangs up), so `api` sat on "Waiting for connections to close" and answered
+    # nothing. After 3 s uvicorn cancels what's left: the stream's own `finally` unsubscribes,
+    # the browser's EventSource reconnects to the new server, and the app resyncs as on any
+    # reconnect.
     command:
       [
         "sh",
         "-c",
-        "python -c 'from app.config import get_settings; get_settings()' && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-config logging.json",
+        "python -c 'from app.config import get_settings; get_settings()' && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --timeout-graceful-shutdown 3 --log-config logging.json",
       ]
 
   migrate:
