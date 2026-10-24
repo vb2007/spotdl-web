@@ -1,18 +1,18 @@
 # v52: the dev `web` image (docker-compose.override.yml, `target: dev`), never built for
 # production (the last stage below is the default target). Only the dependencies: the source
 # is bind-mounted. Everything runs as `node` (uid 1000, the usual first user on a Linux host),
-# so files Vite generates into the bind mount (.svelte-kit/ after a new route) are the
-# developer's, not root's (D3). node_modules and src/lib/paraglide are owned by `node` here, so
-# the volumes the override mounts over them start out owned by `node` too. The stamp records
-# which lockfile node_modules was installed from: the dev command reinstalls when the
-# bind-mounted package-lock.json no longer matches it (D4).
+# so whatever Vite writes into the bind mount is the developer's, not root's (D3).
+# node_modules, src/lib/paraglide and .svelte-kit are owned by `node` here, so the volumes the
+# override mounts over them start out owned by `node` too. The stamp records which lockfile
+# node_modules was installed from: the dev command reinstalls when the bind-mounted
+# package-lock.json no longer matches it (D4).
 FROM node:22-alpine AS dev
 WORKDIR /app
 RUN chown node:node /app
 USER node
 COPY --chown=node:node package.json package-lock.json ./
 RUN npm ci \
-	&& mkdir -p src/lib/paraglide \
+	&& mkdir -p src/lib/paraglide .svelte-kit \
 	&& sha256sum package-lock.json | cut -d' ' -f1 > node_modules/.package-lock.sha256
 
 FROM node:22-alpine AS build

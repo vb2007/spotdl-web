@@ -135,12 +135,12 @@ services:
       - sh
       - -c
       - |
-        stale="$$(find /app \( -path /app/node_modules -o -path /app/src/lib/paraglide \) -prune -o -user 0 -print | head -3)"
+        stale="$$(find /app \( -path /app/node_modules -o -path /app/src/lib/paraglide -o -path /app/.svelte-kit \) -prune -o -user 0 -print | head -3)"
         if [ -n "$$stale" ]; then
           echo "web: root-owned files in frontend/, left by a dev web container from before v52:" >&2
           echo "$$stale" >&2
           echo "web: hand them back once, then start web again:" >&2
-          echo "  docker compose run --rm --no-deps -u root web sh -c 'find /app \\( -path /app/node_modules -o -path /app/src/lib/paraglide \\) -prune -o -user 0 -exec chown 1000:1000 {} +'" >&2
+          echo "  docker compose run --rm --no-deps -u root web sh -c 'find /app \\( -path /app/node_modules -o -path /app/src/lib/paraglide -o -path /app/.svelte-kit \\) -prune -o -user 0 -exec chown 1000:1000 {} +'" >&2
           exit 1
         fi
         want="$$(sha256sum package-lock.json | cut -d' ' -f1)"
@@ -167,6 +167,11 @@ services:
       # node_modules does, so a host-side `npm run check`/`lint` and the container never fight
       # over one compiled output.
       - web-paraglide:/app/src/lib/paraglide
+      # v52 (D7): and SvelteKit's generated files. On the shared bind mount a host-side
+      # `npm run check`/`build` (`svelte-kit sync`) rewrote the very files this Vite serves, and
+      # Vite answered with a full reload of every open page: mid-suite, spec 1 failed on it.
+      # Each side now generates its own.
+      - web-svelte-kit:/app/.svelte-kit
       - ./downloads:/downloads:ro
       - ./test-library:/mnt/raid1/media/music:ro
     # `ports` lists merge across compose files rather than replace (unlike `command`/`build`
@@ -187,7 +192,9 @@ services:
       retries: 5
       start_period: 15s
 
-# v52: the dev `web` container's own node_modules and compiled messages (see its `volumes`).
+# v52: the dev `web` container's own node_modules, compiled messages and SvelteKit output (see
+# its `volumes`).
 volumes:
   web-node-modules:
   web-paraglide:
+  web-svelte-kit:
