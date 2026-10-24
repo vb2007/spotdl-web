@@ -1,16 +1,16 @@
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.errors import ApiError
-from app.models import Job, JobSourceType, JobState, Track, TrackState, User
-from app.routers.auth import require_admin, require_session
-from app.services import archive, events, job_listing, rollup, track_listing
+from app.models import DownloadedTrack, Job, JobSourceType, JobState, Track, TrackState, User
+from app.routers.auth import Principal, require_admin, require_session, require_session_or_api_key
+from app.services import archive, events, job_listing, rate_limit, rollup, spotify_urls, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
 from app.tasks.expand import expand_job
@@ -27,6 +27,8 @@ _CANCELLABLE_TRACK_STATES = [
 
 class CreateJobRequest(BaseModel):
     url: str
+    # v53: queue the link's album or artist instead (spotify_urls.resolve_cascade).
+    cascade: Literal["album", "artist"] | None = None
 
 
 class SetPriorityRequest(BaseModel):
@@ -55,17 +57,118 @@ def _classify_source_type(url: str) -> JobSourceType:
     return JobSourceType.SEARCH
 
 
+# v53: the header the browser extension sends (`extension/<version>`). It's a non-simple
+# header, so a web page can't send it cross-origin without a CORS preflight the API refuses.
+CLIENT_HEADER = "X-Spotdl-Client"
+
+
+def _resolve_cascade(ref: spotify_urls.SpotifyRef, cascade: str) -> spotify_urls.SpotifyRef:
+    try:
+        return spotify_urls.resolve_cascade(ref, cascade)
+    except spotify_urls.CascadeInvalid:
+        raise ApiError(
+            422,
+            "cascade_invalid",
+            f"A {ref.type} link has no {cascade} to queue",
+            {"cascade": cascade, "type": ref.type},
+        ) from None
+    except spotify_urls.CascadeNotFound:
+        raise ApiError(422, "cascade_not_found", "Spotify doesn't know this link") from None
+    except spotify_urls.CascadeUnavailable:
+        raise ApiError(
+            503, "cascade_unavailable", "Spotify's metadata couldn't be read; try again"
+        ) from None
+    except spotify_urls.CascadeAmbiguous as exc:
+        raise ApiError(
+            409,
+            "cascade_ambiguous",
+            "This has more than one artist; choose one",
+            {"candidates": exc.candidates},
+        ) from None
+
+
+def _unfinished_job(db: Session, user_id: uuid.UUID, source_url: str) -> Job | None:
+    """The caller's newest job for `source_url` that is still expanding or still has a track
+    to download (rollup's `active` or `waiting`), if any."""
+    unfinished_track = (
+        db.query(Track.id)
+        .filter(
+            Track.job_id == Job.id,
+            Track.state.in_(
+                (TrackState.PENDING, TrackState.QUEUED, TrackState.DOWNLOADING, TrackState.WAITING)
+            ),
+        )
+        .exists()
+    )
+    return (
+        db.query(Job)
+        .filter(
+            Job.user_id == user_id,
+            Job.source_url == source_url,
+            Job.archived_at.is_(None),
+            (Job.state == JobState.EXPANDING) | ((Job.state == JobState.EXPANDED) & unfinished_track),
+        )
+        .order_by(Job.created_at.desc())
+        .first()
+    )
+
+
 @router.post("", status_code=201)
 def create_job(
     payload: CreateJobRequest,
+    request: Request,
+    response: Response,
     db: Session = Depends(get_db),
-    user: User = Depends(require_session),
+    principal: Principal = Depends(require_session_or_api_key),
 ) -> dict:
-    job = Job(source_url=payload.url, source_type=_classify_source_type(payload.url), user_id=user.id)
+    """v53: the session cookie or an API key. A key-authenticated or extension-origin
+    request (`X-Spotdl-Client`) may submit only an open.spotify.com track/album/artist/
+    playlist link (422 `url_not_spotify` otherwise); the web UI's cookie requests keep
+    submitting anything, search text included. A Spotify link is stored in its canonical
+    form either way.
+
+    `hint` in the answer: `already_queued` when the caller already has an unfinished job for
+    the same link (that job is returned, 200, and nothing is created), `in_library` when a
+    track link's track is already in the ledger (the job is still created, and resolves as a
+    duplicate)."""
+    user = principal.user
+    rate_limit.hit_job_create(user.id, principal.api_key.id if principal.api_key else None)
+
+    restricted = principal.api_key is not None or CLIENT_HEADER.lower() in request.headers
+    ref = spotify_urls.parse(payload.url)
+    if ref is None and (restricted or payload.cascade is not None):
+        raise ApiError(
+            422, "url_not_spotify", "Only open.spotify.com track, album, artist or playlist links"
+        )
+    if ref is not None and payload.cascade is not None:
+        ref = _resolve_cascade(ref, payload.cascade)
+
+    if ref is not None:
+        source_url, source_type = ref.url, ref.source_type
+    else:
+        source_url, source_type = payload.url, _classify_source_type(payload.url)
+
+    existing = _unfinished_job(db, user.id, source_url)
+    if existing is not None:
+        response.status_code = 200
+        return {
+            **job_to_dict(
+                existing, track_counts(db, existing.id), user.email, user.username, rollup.job_title(db, existing)
+            ),
+            "hint": "already_queued",
+        }
+
+    hint = None
+    if ref is not None and ref.type == "track" and db.get(DownloadedTrack, ref.id) is not None:
+        hint = "in_library"
+    job = Job(source_url=source_url, source_type=source_type, user_id=user.id)
     db.add(job)
     db.commit()
     expand_job.delay(str(job.id))
-    return job_to_dict(job, track_counts(db, job.id), user.email, user.username, rollup.job_title(db, job))
+    return {
+        **job_to_dict(job, track_counts(db, job.id), user.email, user.username, rollup.job_title(db, job)),
+        "hint": hint,
+    }
 
 
 @router.get("")

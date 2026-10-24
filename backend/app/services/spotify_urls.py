@@ -1,0 +1,158 @@
+"""Spotify URL allowlist, normalization and server-side cascades (v53).
+
+`parse` accepts only `open.spotify.com` track/album/artist/playlist links (an `intl-xx` locale
+segment and any query such as `?si=` are dropped) and gives back the canonical
+`https://open.spotify.com/<type>/<id>`. Everything else is None: search text, other hosts,
+`spotify:` URIs, podcasts. Key-authenticated and extension-origin job creates accept nothing
+else (`routers/jobs.py`).
+
+`resolve_cascade` turns a track into its album or artist, or an album into its artist, from
+Spotify's own metadata (never from the page the extension saw). It runs in the request, as one
+metadata call bounded by CASCADE_TIMEOUT_SECONDS, because an ambiguous artist must come back to
+the client as a 409 with the candidates to choose from; a cascade resolved later, during
+expansion, would have no one to ask.
+"""
+
+import concurrent.futures
+import logging
+import re
+from dataclasses import dataclass
+from urllib.parse import urlsplit
+
+from app.models import JobSourceType
+
+logger = logging.getLogger(__name__)
+
+SPOTIFY_HOST = "open.spotify.com"
+_TYPES = {
+    "track": JobSourceType.TRACK,
+    "album": JobSourceType.ALBUM,
+    "artist": JobSourceType.ARTIST,
+    "playlist": JobSourceType.PLAYLIST,
+}
+# Spotify ids are 22 base-62 characters.
+_ID_RE = re.compile(r"^[0-9A-Za-z]{22}$")
+# The locale segment Spotify puts before the type for a non-English page: `intl-hu`, `intl-pt`,
+# `intl-zh-hant`.
+_INTL_RE = re.compile(r"^intl-[a-z]{2,3}(?:-[a-z0-9]{2,8})?$", re.IGNORECASE)
+
+CASCADE_TIMEOUT_SECONDS = 10
+# Bounds the metadata calls running at once: a call that outlives its request's timeout keeps
+# its thread until spotdl gives up on its own.
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="cascade")
+
+
+@dataclass(frozen=True)
+class SpotifyRef:
+    type: str
+    id: str
+
+    @property
+    def url(self) -> str:
+        return f"https://{SPOTIFY_HOST}/{self.type}/{self.id}"
+
+    @property
+    def source_type(self) -> JobSourceType:
+        return _TYPES[self.type]
+
+
+def parse(text: str) -> SpotifyRef | None:
+    """The track/album/artist/playlist `text` links to on open.spotify.com, or None."""
+    text = text.strip()
+    if any(c.isspace() for c in text):
+        return None
+    try:
+        parts = urlsplit(text)
+        port = parts.port
+    except ValueError:
+        return None
+    if parts.scheme.lower() not in ("http", "https"):
+        return None
+    if (parts.hostname or "").lower() != SPOTIFY_HOST:
+        return None
+    if parts.username is not None or parts.password is not None or port is not None:
+        return None
+    segments = [s for s in parts.path.split("/") if s]
+    if segments and _INTL_RE.match(segments[0]):
+        segments = segments[1:]
+    if len(segments) != 2:
+        return None
+    kind, spotify_id = segments
+    if kind not in _TYPES or not _ID_RE.match(spotify_id):
+        return None
+    return SpotifyRef(kind, spotify_id)
+
+
+class CascadeInvalid(Exception):
+    """The cascade doesn't apply to this kind of link (an album's album, a playlist's artist)."""
+
+
+class CascadeNotFound(Exception):
+    """Spotify has no such track or album."""
+
+
+class CascadeUnavailable(Exception):
+    """The metadata call failed or ran out of time."""
+
+
+class CascadeAmbiguous(Exception):
+    def __init__(self, candidates: list[dict[str, str]]) -> None:
+        super().__init__("more than one artist")
+        self.candidates = candidates
+
+
+# Which link types each cascade starts from.
+CASCADE_SOURCES = {"album": {"track"}, "artist": {"track", "album"}}
+
+
+def _fetch(ref: SpotifyRef) -> dict:
+    # The one place outside expansion.py that talks to Spotify; it still goes through the
+    # singleton guard (CLAUDE.md's invariant).
+    from spotdl.utils.spotify import SpotifyClient
+
+    from app.services.expansion import _ensure_spotify_client
+
+    _ensure_spotify_client()
+    client = SpotifyClient()
+    return client.track(ref.id) if ref.type == "track" else client.album(ref.id)
+
+
+def resolve_cascade(ref: SpotifyRef, cascade: str) -> SpotifyRef:
+    """The album or artist `ref` cascades to. Raises CascadeInvalid, CascadeNotFound,
+    CascadeUnavailable or CascadeAmbiguous (more than one artist: the client picks)."""
+    if ref.type not in CASCADE_SOURCES.get(cascade, set()):
+        raise CascadeInvalid
+    future = _executor.submit(_fetch, ref)
+    try:
+        meta = future.result(timeout=CASCADE_TIMEOUT_SECONDS)
+    except concurrent.futures.TimeoutError as exc:
+        logger.warning("cascade: %s %s metadata timed out", ref.type, ref.id)
+        raise CascadeUnavailable from exc
+    except KeyError as exc:
+        # spotdl's scraping client indexes straight into Spotify's answer, so an id Spotify
+        # doesn't know surfaces as a bare KeyError (expansion.expand's same case).
+        raise CascadeNotFound from exc
+    except Exception as exc:
+        logger.warning("cascade: %s %s metadata failed: %s", ref.type, ref.id, type(exc).__name__)
+        raise CascadeUnavailable from exc
+
+    try:
+        if cascade == "album":
+            album_id = meta["album"]["id"]
+            if not _ID_RE.match(album_id or ""):
+                raise CascadeUnavailable
+            return SpotifyRef("album", album_id)
+        artists: dict[str, str] = {}
+        for artist in meta["artists"]:
+            artist_id = artist.get("id") or ""
+            if _ID_RE.match(artist_id) and artist_id not in artists:
+                artists[artist_id] = artist.get("name") or ""
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise CascadeUnavailable from exc
+    if not artists:
+        raise CascadeUnavailable
+    if len(artists) > 1:
+        raise CascadeAmbiguous(
+            [{"name": name, "url": SpotifyRef("artist", artist_id).url} for artist_id, name in artists.items()]
+        )
+    return SpotifyRef("artist", next(iter(artists)))
