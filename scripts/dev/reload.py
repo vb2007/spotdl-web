@@ -73,7 +73,9 @@ def stop(child: subprocess.Popen, grace: float) -> None:
         child.wait(timeout=grace)
     except subprocess.TimeoutExpired:
         log(f"still running {grace:g}s after SIGTERM; killing it")
-        child.kill()
+        # The whole process group (it has its own): Celery's pool children die with their parent,
+        # but a task's own subprocess (ffmpeg, say) would keep writing next to the new worker.
+        os.killpg(child.pid, signal.SIGKILL)
         child.wait()
 
 
