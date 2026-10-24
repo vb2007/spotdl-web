@@ -886,7 +886,7 @@
 	"error_api_key_limit_reached": "You already have {max} keys; revoke one first",
 	"error_api_key_not_found": "No such key (already revoked?)",
 	"account_keys_heading": "Browser extension keys",
-	"account_keys_hint": "The spotdl-web Firefox extension uses your sign-in in this browser when it can. Where it can't, give it a key. A key can only queue Spotify links and say whose it is: it never opens anything else, admin pages included.",
+	"account_keys_hint": "The spotdl-web Firefox extension uses your sign-in in this browser when it can. Where it can't, give it a key. A key can only queue Spotify links, follow how they're doing and say whose it is: it never opens anything else, admin pages included.",
 	"account_keys_name": "Name",
 	"account_keys_name_placeholder": "laptop firefox",
 	"account_keys_create": "create key",

@@ -198,9 +198,9 @@ needed" claim — rather than silently deleted.
   service names alone misses it → *v50*
 
 **Auth, cookies & sessions**
-- A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP, TCP on
-  and off, GET and POST); a key is the fallback, valid only on job create and `me` (an admin's
-  key gets 401 everywhere else) → *v53*
+- A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
+  production, TCP on and off); a key is the fallback, valid only on job create, reading its own
+  job and `me` (an admin's key gets 401 everywhere else) → *v53*
 - Rate limits (failed logins per email + address, creates per user and key) fail open on a Redis
   error; low limits on a slot go in `.env.agent` plus a `run … --force-recreate api` → *v53*
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -5956,12 +5956,14 @@ independently-found production bug from the same conversation)
   answers `false` even with `http://127.0.0.1/*` granted (the pattern is invalid, not denied), and
   the fetch works all the same. Check `scheme://host/*`. v58: declare host permissions without
   ports.
-- **A key is no credential anywhere but job create and `me`, so an admin's key gets 401 on an
-  admin route, not 403.** The plan asks for "non-admin answers"; a non-admin's cookie gets 403
-  (404 on `/api/admin/stats` and the test-alert send), but a key never reaches `require_admin` at
-  all: every route other than the two keeps `require_session` (cookie only), which answers 401
-  `not_authenticated`. `test_api_keys.py` parametrizes this over every route in the app, not only
-  the admin ones.
+- **A key is no credential anywhere but job create, `GET /api/jobs/{id}` and `me`, so an admin's
+  key gets 401 on an admin route, not 403.** The plan asks for "non-admin answers"; a non-admin's
+  cookie gets 403 (404 on `/api/admin/stats` and the test-alert send), but a key never reaches
+  `require_admin` at all: every other route keeps `require_session` (cookie only), which answers
+  401 `not_authenticated` (owner's decision, 2026-10-24: keep 401). `test_api_keys.py`
+  parametrizes this over every route in the app, not only the admin ones. The job read was added
+  on the owner's decision the same day (the master plan's "read their own submission status"):
+  through a key it's the key's user's own jobs only, an admin's too (404 otherwise).
 - **FastAPI 0.162 keeps an included router as a lazy `_IncludedRouter` in `app.routes`.** A test
   walking `app.routes` for `APIRoute`s finds only the four built-in docs routes; descend through
   each wrapper's `original_router.routes` (every router here carries its own prefix, and

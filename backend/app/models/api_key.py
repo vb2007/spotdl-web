@@ -9,8 +9,9 @@ from app.db import Base
 
 class ApiKey(Base):
     """A per-user API key (v53), the browser extension's fallback when the session cookie
-    doesn't reach the API. A key authenticates as its user on exactly two routes, job create
-    and `GET /api/auth/me` (`routers/auth.py`'s `require_session_or_api_key`), and never
+    doesn't reach the API. A key authenticates as its user on exactly three routes, job create,
+    reading one of its own jobs and `GET /api/auth/me` (`routers/auth.py`'s
+    `require_session_or_api_key`), and never
     satisfies `require_session` or `require_admin`, even when its user is an admin.
 
     The secret is never stored: `hash` is the SHA-256 of the full `sdw_<prefix>_<secret>`

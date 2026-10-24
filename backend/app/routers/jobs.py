@@ -259,7 +259,9 @@ def unarchive_jobs(
     return {"unarchived_ids": [str(job.id) for job in jobs]}
 
 
-def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, str, str | None]:
+def _get_job_or_404(
+    db: Session, job_id: uuid.UUID, user: User, *, owner_only: bool = False
+) -> tuple[Job, str, str | None]:
     """Returns the job alongside its owner's email and username in one join -- and, for a
     non-admin, filters by ownership in the same query rather than loading the row and
     checking after, so a foreign job is indistinguishable from a nonexistent one (404,
@@ -270,7 +272,7 @@ def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, st
         .join(User, Job.user_id == User.id)
         .filter(Job.id == job_id)
     )
-    if not user.is_admin:
+    if owner_only or not user.is_admin:
         query = query.filter(Job.user_id == user.id)
     row = query.one_or_none()
     if row is None:
@@ -282,9 +284,14 @@ def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, st
 def get_job(
     job_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_session),
+    principal: Principal = Depends(require_session_or_api_key),
 ) -> dict:
-    job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
+    """v53 (owner's decision): an API key may read its own user's jobs here, the extension's
+    "how is my submission doing", and nothing else of the job API. Through a key it's always
+    the user's own jobs, even an admin's key (404 for anyone else's, like a non-owner)."""
+    job, owner_email, owner_username = _get_job_or_404(
+        db, job_id, principal.user, owner_only=principal.api_key is not None
+    )
     return job_to_dict(
         job, track_counts(db, job.id), owner_email, owner_username, rollup.job_title(db, job)
     )

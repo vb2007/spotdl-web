@@ -7,7 +7,7 @@ A key is `sdw_<prefix>_<secret>`: `prefix` is 8 random hex characters kept for d
 read never yields a usable key. Lookup is by that hash; a revoked key matches nothing.
 
 What a key may do is decided in `routers/auth.py`, not here: it authenticates as its user on
-job create and `GET /api/auth/me` only.
+job create, `GET /api/jobs/{id}` (its own jobs) and `GET /api/auth/me` only.
 """
 
 import hashlib

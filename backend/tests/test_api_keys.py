@@ -208,15 +208,38 @@ def test_a_users_key_sees_only_their_own_jobs_through_create(client, session_coo
     assert job_b.json()["id"] != job_a["id"]
     assert job_b.json()["owner_email"] == "b@example.com"
     assert job_b.json()["hint"] is None
-    # And B's key can't list anything, A's jobs included.
+    # B's key reads B's own job, never A's (404, like a non-owner), and lists nothing.
     assert client.get("/api/jobs", headers=bearer(key_b)).status_code == 401
-    assert client.get(f"/api/jobs/{job_a['id']}", headers=bearer(key_b)).status_code == 401
+    assert client.get(f"/api/jobs/{job_b.json()['id']}", headers=bearer(key_b)).status_code == 200
+    foreign = client.get(f"/api/jobs/{job_a['id']}", headers=bearer(key_b))
+    assert foreign.status_code == 404
+    assert foreign.json()["code"] == "job_not_found"
+    assert client.get(f"/api/jobs/{job_a['id']}", headers=bearer(key_a)).json()["id"] == job_a["id"]
+    # Nor the tracks of A's job, or B's own: a key reads the job, nothing under it.
+    assert client.get(f"/api/jobs/{job_b.json()['id']}/tracks", headers=bearer(key_b)).status_code == 401
+
+
+def test_an_admins_key_reads_only_the_admins_own_jobs(client, session_cookie, admin_client, monkeypatch):
+    """An admin's cookie reads anyone's job; an admin's key only the admin's own."""
+    monkeypatch.setattr(jobs_router.expand_job, "delay", lambda job_id: None)
+    admin_cookie = dict(admin_client.cookies)
+    raw = _create_key(admin_client)["key"]
+    user_job = _as(client, session_cookie("a@example.com")).post(
+        "/api/jobs", json={"url": "https://open.spotify.com/album/4aawyAB9vmqN3uQ7FjRGTy"}
+    ).json()
+    client.cookies.clear()
+    own = client.post(
+        "/api/jobs", json={"url": "https://open.spotify.com/album/4OHNH3sDzIxnmUADXzv2kT"}, headers=bearer(raw)
+    ).json()
+    assert client.get(f"/api/jobs/{own['id']}", headers=bearer(raw)).status_code == 200
+    assert client.get(f"/api/jobs/{user_job['id']}", headers=bearer(raw)).status_code == 404
+    assert _as(client, admin_cookie).get(f"/api/jobs/{user_job['id']}").status_code == 200
 
 
 # --- a key never grants admin, or anything else ------------------------------------------
 
 # The two routes a key may use. Everything else in the app must refuse a key.
-KEY_ROUTES = {("POST", "/api/jobs"), ("GET", "/api/auth/me")}
+KEY_ROUTES = {("POST", "/api/jobs"), ("GET", "/api/jobs/{job_id}"), ("GET", "/api/auth/me")}
 # Routes that need no credential at all.
 PUBLIC_ROUTES = {("GET", "/api/health"), ("POST", "/api/auth/login")}
 

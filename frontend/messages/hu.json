@@ -843,7 +843,7 @@
 	"error_api_key_limit_reached": "Már {max} kulcsod van; előbb vonj vissza egyet",
 	"error_api_key_not_found": "Nincs ilyen kulcs (talán már visszavontad?)",
 	"account_keys_heading": "Kulcsok a böngészőbővítményhez",
-	"account_keys_hint": "A spotdl-web Firefox-bővítmény a böngésződ bejelentkezését használja, ha tudja. Ahol nem, adj neki egy kulcsot. Egy kulcs csak Spotify-linkeket tehet sorba, és megmondja, kié: semmi mást nem nyit meg, a rendszergazdai oldalakat sem.",
+	"account_keys_hint": "A spotdl-web Firefox-bővítmény a böngésződ bejelentkezését használja, ha tudja. Ahol nem, adj neki egy kulcsot. Egy kulcs csak Spotify-linkeket tehet sorba, követheti, hogy állnak, és megmondja, kié: semmi mást nem nyit meg, a rendszergazdai oldalakat sem.",
 	"account_keys_name": "Név",
 	"account_keys_name_placeholder": "laptop firefox",
 	"account_keys_create": "kulcs létrehozása",

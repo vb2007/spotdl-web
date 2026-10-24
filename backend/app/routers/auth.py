@@ -81,8 +81,8 @@ def _bearer_token(request: Request) -> str | None:
 
 def require_session_or_api_key(request: Request, db: Session = Depends(get_db)) -> Principal:
     """v53: the session cookie first, then `Authorization: Bearer sdw_...` (the browser
-    extension's fallback when the cookie doesn't reach the API). Only job create and
-    `GET /api/auth/me` depend on this. Every other route keeps `require_session` (cookie
+    extension's fallback when the cookie doesn't reach the API). Only job create,
+    `GET /api/jobs/{id}` (a key: its own jobs only) and `GET /api/auth/me` depend on this. Every other route keeps `require_session` (cookie
     only), so a key can't reach it at all, and `require_admin` sits on top of that: an
     admin's key is never admin."""
     token = request.cookies.get(COOKIE_NAME)
