@@ -25,8 +25,8 @@ def begin_snapshot(db: Session) -> None:
     *statement* its own snapshot instead: a listing built from several statements (a count,
     per-status counts, the page) can then disagree with itself when a row commits between
     them -- v34.2 measured "9 items of 8" on 8 of 411 listings while jobs were being
-    submitted. Postgres only; SQLite (the test suite) has no such level and is a single
-    writer anyway."""
+    submitted. Postgres only (the dialect check is left from the SQLite test suite v51 removed).
+    Inside a rollback-isolated test the switch is dropped (tests/conftest.py)."""
     db.commit()
     if db.get_bind().dialect.name == "postgresql":
         db.connection(execution_options={"isolation_level": "REPEATABLE READ"})
