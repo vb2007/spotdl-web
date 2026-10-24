@@ -234,7 +234,8 @@
 		try {
 			const created = await api.createJob(job.source_url);
 			if (queue.getResetCount() !== session) return;
-			queue.addJob(created);
+			// v53: the link is already downloading in another job: that one is on the page.
+			if (created.hint !== 'already_queued') queue.addJob(created);
 			resubmitted = { ...resubmitted, [job.id]: true };
 		} catch (err) {
 			setError(job.id, errorText(err, m.incoming_retry_failed));

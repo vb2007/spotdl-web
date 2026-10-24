@@ -231,6 +231,8 @@
 	});
 	let submitting = $state(false);
 	let submitError = $state('');
+	// v53: the line under the form says something that isn't a failure (already queued).
+	let submitNotice = $state(false);
 
 	// v47: the form checks the link itself (`novalidate`): the browser's own bubble spoke the
 	// browser's language, sat outside the design, and turned away a link pasted with words or
@@ -240,6 +242,7 @@
 	let submitInvalid = $state(false);
 	async function showSubmitProblem(text: string): Promise<void> {
 		submitInvalid = true;
+		submitNotice = false;
 		submitError = '';
 		await tick();
 		submitError = text;
@@ -261,14 +264,20 @@
 		url = link;
 		submitting = true;
 		submitError = '';
+		submitNotice = false;
 		// A logout while the POST is in flight resets the store; the created job then belongs
 		// to the previous identity and must not land in the next one's overlay (v42 sweep).
 		const session = queue.getResetCount();
 		try {
 			const job = await api.createJob(link);
 			if (queue.getResetCount() !== session) return;
-			queue.addJob(job);
 			url = '';
+			// v53: the same link is still downloading: nothing new was created, and the job
+			// returned is already on the page (or the overlay); say so instead of adding it twice.
+			if (job.hint === 'already_queued') {
+				submitNotice = true;
+				submitError = m.dashboard_submit_already_queued();
+			} else queue.addJob(job);
 		} catch (err) {
 			submitError = errorText(err, m.dashboard_submit_failed);
 		} finally {
@@ -641,7 +650,9 @@
 					>{submitting ? m.dashboard_submit_sending() : m.dashboard_submit()}</button
 				>
 			</form>
-			<p id="submit-error" class="submit-error" role="alert">{submitError}</p>
+			<p id="submit-error" class="submit-error" class:notice={submitNotice} role="alert">
+				{submitError}
+			</p>
 		</div>
 
 		<IncomingJobs
@@ -1029,6 +1040,10 @@
 		padding: 0 var(--space-4);
 		color: var(--fail);
 		font-size: var(--fs-detail);
+	}
+
+	.submit-error.notice {
+		color: var(--text-muted);
 	}
 
 	.submit-error:empty {
