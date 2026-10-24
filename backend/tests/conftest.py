@@ -33,6 +33,9 @@ _DATABASE_SELECTING_KEYS = ("dbname", "service", "host", "hostaddr", "port")
 # LAN server: it is production's (`spotdlwebtest` lives beside `spotdlweb`), and its test marker
 # alone would let a run CREATE and DROP databases there.
 _ALLOWED_HOSTS = ("postgres", "localhost", "127.0.0.1", "::1")
+# libpq reads these from the environment for whatever the URL leaves out, and each can send the
+# connection to another server than the URL's host (a hostaddr wins over the host).
+_SERVER_SELECTING_ENV = ("PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE")
 # Room for "_" + 12 hex characters inside Postgres's 63-byte identifier limit.
 _MAX_STEM = 40
 # A server holding any of these is production's, whatever address reached it: on the production
@@ -61,6 +64,9 @@ def _test_database_urls() -> tuple[str, str]:
         url = make_url(raw)
     except (ArgumentError, ValueError):  # unreachable after the guard; kept fail-closed
         raise ValueError("TEST_DATABASE_URL can't be parsed") from None
+    for name in _SERVER_SELECTING_ENV:
+        if os.environ.get(name):
+            raise ValueError(f"{name} is set, and libpq would let it pick the server; unset it")
     for key in _DATABASE_SELECTING_KEYS:
         if key in url.query:
             raise ValueError(f"TEST_DATABASE_URL must name its server and database in the URL, not with ?{key}=")
@@ -196,6 +202,7 @@ def pytest_sessionstart(session):
                     f"{production!r}, so it is production's; use a slot's or a disposable one"
                 )
             conn.exec_driver_sql(f"CREATE DATABASE {_quoted(url.database)}")
+            session.config.stash[_CREATED] = url.database
             # Every session on it reads timestamps in UTC, whatever the server's own TimeZone:
             # the suite compares aware datetimes, and a disposable server needn't be UTC.
             conn.exec_driver_sql(f"ALTER DATABASE {_quoted(url.database)} SET timezone TO 'UTC'")
@@ -204,9 +211,11 @@ def pytest_sessionstart(session):
             # own waits (concurrency.TIMEOUT).
             conn.exec_driver_sql(f"ALTER DATABASE {_quoted(url.database)} SET lock_timeout TO '30s'")
     except DBAPIError as exc:
+        # pytest skips sessionfinish when sessionstart raises: drop what was created here.
+        if session.config.stash.get(_CREATED, None) is not None:
+            _drop(url.database)
         # The driver's message names host and port, never the password.
         raise pytest.UsageError(f"can't create the test database {url.database}: {exc.orig}") from None
-    session.config.stash[_CREATED] = url.database
     # SIGTERM (a `kill`) would end the run without sessionfinish, leaving the database behind;
     # as a KeyboardInterrupt, pytest unwinds and drops it like a Ctrl-C does. (A stopped `api`
     # container SIGKILLs it instead: that one is left, docs/LOCAL_DEV.md.)
@@ -291,7 +300,7 @@ def db_session():
         # What the stray connection committed is outside the rollback: clear it for the next test.
         _end_other_sessions()
         _truncate_all()
-    assert not leftovers, f"tests/concurrency.py needs committed_db, not db_session: {leftovers}"
+    assert not leftovers, f"the test's threads (tests/concurrency.py belongs with committed_db): {leftovers}"
     assert not strays, (
         f"the test opened {len(strays)} connection(s) of its own on the run's database, outside "
         "db_session's rollback: patch the SessionLocal it reached, or use committed_db"
