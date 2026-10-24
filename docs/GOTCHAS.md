@@ -6138,15 +6138,19 @@ independently-found production bug from the same conversation)
   Celery workers with. `scripts/dev/reload.py` is a stdlib poller (one `os.walk` a second over
   `/app/app`), mounted read-only at `/opt/dev` and set as the three workers' dev `entrypoint`, so
   each worker's `command` is still `docker-compose.yml`'s (worker-dl's `--concurrency=1
-  --prefetch-multiplier=1` can't drift) and a `docker compose run` one-off passes through. A change
+  --prefetch-multiplier=1` can't drift). Only a `celery … worker` command is supervised: any other
+  (a `docker compose run` one-off, a shell) is `exec`ed as is, so it's never re-run on an edit (an
+  earlier version restarted one-offs too, and hung after them). A change
   sends SIGTERM (Celery's warm shutdown) and SIGKILL after the service's stop grace (300 s for
   `worker-dl`/`worker-expand`, Docker's default 10 s for `worker-meta`): a SIGKILLed main process isn't covered by
   `task_reject_on_worker_lost`, so its task would wait for the broker's 6 h visibility timeout or
-  beat's stale sweep. The first child exiting on its own ends the wrapper with its code (the v32
-  config guard still stops the container, and Docker's restart policy still covers a worker that
-  dies later); only a child that dies within 30 s of a restart an edit caused (a syntax error)
-  waits for the next edit instead of crash-looping. `init: true` keeps the wrapper off PID 1 (which drops
-  a signal that arrives before its handler exists) and reaps orphans.
+  beat's stale sweep. A worker exiting on its own, for any reason, ends the wrapper with its status
+  (128+N for signal N), so the v32 config guard still stops the container and Docker's restart
+  policy covers every crash, a syntax error an edit brought in included (it crash-loops until
+  fixed). An earlier version waited for the next edit instead after a crash soon after a reload,
+  and a worker SIGKILLed in that window stayed dead behind a "healthy" container. `init: true`
+  keeps the wrapper off PID 1 (which drops a signal that arrives before its handler exists) and
+  reaps orphans.
 - **A dev dependency change no longer needs `--renew-anon-volumes`.** `node_modules` is a named
   volume with a stamp of the `package-lock.json` it was installed from; the dev command runs
   `npm ci` into the volume when the bind-mounted lockfile differs (`npm ci` works on a mounted
@@ -6248,3 +6252,7 @@ independently-found production bug from the same conversation)
   runs them on the dev stack, as a manual `docker compose restart worker-meta` always did. During a
   library sweep that is moving files, a reconcile could in principle find a file mid-move and
   prune its row (a re-download later): don't edit backend files while a dev sweep runs.
+- **Vite's error overlay can outlive a fixed compile error.** After a syntax error in a `.svelte`
+  file and a byte-for-byte revert, an open page kept `vite-error-overlay` (vite-plugin-svelte skips
+  the unchanged output, so no update clears it), and it intercepts every click: in a kept-open tab
+  that looks exactly like "the dialog doesn't open". Esc or a reload clears it. Not v52's doing.

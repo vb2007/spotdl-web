@@ -138,9 +138,9 @@ services:
     # The stamp leaves out the app's own version (frontend/scripts/lockfile-stamp.mjs), so a
     # version bump alone never reinstalls.
     # What a dev `web` from before v52 (root, the `build` stage) left behind would fail Vite with
-    # EACCES halfway through, so it stops here instead, saying what to do: its image (the first
-    # `up` after v52 needs `--build`), volumes it filled as root, or root-owned files on the bind
-    # mount.
+    # EACCES halfway through, so it exits here instead, saying what to do (and Docker's restart
+    # policy keeps re-running the check until it's done): its image (the first `up` after v52
+    # needs `--build`), volumes it filled as root, or root-owned files on the bind mount.
     command:
       - sh
       - -c
