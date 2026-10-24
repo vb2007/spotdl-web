@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1792846111.0999854,
-    "ast_hash": "c77c96aa6a3dce268fc8c85b24b8cac1",
+    "mtime": 1792852674.6004357,
+    "ast_hash": "b968cf1602b27c68f6b14b1d684414c6",
     "semantic_hash": ""
   },
   "README.md": {
@@ -1620,8 +1620,8 @@
     "semantic_hash": ""
   },
   "plan/master-v5/00-master-plan.md": {
-    "mtime": 1792846097.374976,
-    "ast_hash": "75d086bcd62a05983c88fcff238324e8",
+    "mtime": 1792852692.6051779,
+    "ast_hash": "7e07b2f74f41f6183b9075d18a4aeac1",
     "semantic_hash": ""
   },
   "plan/master-v5/IMPLEMENTATION_PROMPT.md": {
@@ -1685,8 +1685,8 @@
     "semantic_hash": ""
   },
   "plan/master-v5/v60-pipeline-resilience.md": {
-    "mtime": 1792782885.2467952,
-    "ast_hash": "c33d18021dc7705d4bde5491f20ec4db",
+    "mtime": 1792852674.6004357,
+    "ast_hash": "05123191e73627946dbef49c44bd5ee2",
     "semantic_hash": ""
   },
   "plan/master-v5/v61-extension-release.md": {
@@ -1727,11 +1727,6 @@
   "plan/master-v5/v68-log-virtualization.md": {
     "mtime": 1792782885.2467952,
     "ast_hash": "8c6a9ba3c5c7f7583bad63796914921b",
-    "semantic_hash": ""
-  },
-  "plan/master-v5/v69-v5-hardening.md": {
-    "mtime": 1792782885.2467952,
-    "ast_hash": "0a07b8830f9b06c6f2e64d1b07687810",
     "semantic_hash": ""
   },
   ".github/scripts/test_check_version.py": {
@@ -1777,6 +1772,16 @@
   "frontend/project.inlang/README.md": {
     "mtime": 1792783461.8265476,
     "ast_hash": "53240a798c90017cbf9ee28bced4b155",
+    "semantic_hash": ""
+  },
+  "plan/master-v5/v69-user-access.md": {
+    "mtime": 1792852674.6004357,
+    "ast_hash": "309d395f460b0a74497c97821dd74c5c",
+    "semantic_hash": ""
+  },
+  "plan/master-v5/v70-v5-hardening.md": {
+    "mtime": 1792852674.6004357,
+    "ast_hash": "ef77bd553f59e85679b2c836323798fe",
     "semantic_hash": ""
   }
 }
