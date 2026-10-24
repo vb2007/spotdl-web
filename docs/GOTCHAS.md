@@ -979,6 +979,9 @@ needed" claim — rather than silently deleted.
 - The migrations seed `worker_state` id 1: a test inserting it must `merge`, not `add` → *v51*
 - `now()` inside `db_session` made two "left `updated_at` alone" tests pass with their guard
   reverted; such a test pins an explicit past value → *v51*
+- `db_session` fails a test that opens its own connection (an unpatched `SessionLocal` now
+  reaches the real run database); the run refuses a server holding a production database,
+  loopback included → *v51*
 - Running Alembic from a test with an ini file runs `fileConfig()`, which disables every logger
   the app already made (and every `caplog` assertion with it) → *v51*
 
@@ -5810,7 +5813,9 @@ independently-found production bug from the same conversation)
 ### v51 pytest-postgres gotchas (learned moving the suite from SQLite to real Postgres)
 
 - **The move exposed no new race, and almost no test cared.** 601 of 602 tests passed on the
-  first Postgres run. The one failure was `test_stats.py`'s `test_current_breaker_state`, which
+  first Postgres run. (The known E2 reclaim race, v55's, now has a real-connection reproduction:
+  a strict xfail in `test_beat_task.py`, added after round 2 of the blind review pointed out
+  that D8 names "reclaim".) The one failure was `test_stats.py`'s `test_current_breaker_state`, which
   inserted `WorkerState(id=1)`: the initial migration seeds that row, and `create_all` never did.
   It merges the row now. `committed_db`'s truncate puts the seed back, so every test starts from
   what a fresh `upgrade head` leaves.
@@ -5835,7 +5840,16 @@ independently-found production bug from the same conversation)
   (`concurrency.release_all`).
 - **The test marker alone doesn't keep a run off production's server.** `spotdlwebtest` passes
   it, and lives on the same server as `spotdlweb`. `TEST_DATABASE_URL` must also name a slot's
-  `postgres` or a loopback host.
+  `postgres` or a loopback host, and even that isn't enough on the production host (the CI
+  runner), where loopback reaches production's Postgres: the run refuses any server that holds
+  `spotdlweb`, `spotdl_web` or `spotdlwebtest`, checked over the connection before `CREATE
+  DATABASE`.
+- **A forgotten `SessionLocal` patch used to fail loudly, and now wouldn't.** Before v51 an
+  unpatched one connected to a placeholder URL and errored; now `app.db.engine` is the run's
+  real database, so it would read past the test's uncommitted rows and commit outside the
+  rollback. `db_session` fails any test that checks out a connection of its own.
+- **Fixture teardown order matters for race tests.** `committed_db` depends on `monkeypatch`, so
+  it tears down (releasing parked threads) while the test's stubs are still in place.
 - **Alembic from Python, without the ini.** `command.upgrade(Config("alembic.ini"), ...)` runs
   `alembic/env.py`'s `fileConfig()`, whose `disable_existing_loggers` silences every app logger
   already created, and every `caplog` test with it. conftest builds a bare `Config()` with only

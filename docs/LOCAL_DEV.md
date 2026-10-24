@@ -452,9 +452,10 @@ never SQLite:
   `TEST_DATABASE_URL` that is unset, names a database without `test` in its name (or a name over
   40 bytes), names a production one (`app/config.py`'s v32 guard: `spotdlweb`, `spotdl_web`),
   names a server other than a slot's `postgres` or a loopback one (`localhost`, `127.0.0.1`,
-  `::1`), or picks the database or server with `?dbname=`/`?service=`/`?host=`/`?hostaddr=`. The
-  server check is what keeps a run off the LAN server, which is production's: `spotdlwebtest`
-  passes the name checks.
+  `::1`), or picks the database or server with `?dbname=`/`?service=`/`?host=`/`?hostaddr=`.
+  Then, connected, it refuses a server that holds `spotdlweb`, `spotdl_web` or `spotdlwebtest`:
+  that server is production's, whatever address reached it (on the production host, the CI
+  runner, loopback reaches it too), and `spotdlwebtest` passes the name checks.
 - Outside a slot (a host venv), use any disposable server, never the LAN one (production's):
   `docker run -d --rm -e POSTGRES_USER=spotdl -e POSTGRES_DB=spotdl_test -e
   POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1::5432 postgres:18.6-bookworm`, then
@@ -465,8 +466,14 @@ never SQLite:
   truncates every table afterwards: it's for the real-concurrency tests, whose sessions must see
   each other's commits and locks. `tests/concurrency.py` has the helpers (a `Gate` to stop one
   session at a named point, a `Thread`, and `blocked_or_done`, which reads Postgres' lock waits).
-  When a test ends, `committed_db` opens its gates and joins its threads before truncating, so a
-  failed race test can't leave a parked transaction blocking the next one.
+  When a test ends, `committed_db` opens its gates and joins its threads before truncating (and
+  before `monkeypatch` undoes the test's stubs), so a failed race test can't leave a parked
+  transaction blocking the next one, or resume one with the real publish. A `db_session` test
+  that opens a connection of its own (an unpatched `SessionLocal`) fails: it would read past the
+  test's rows and commit outside the rollback.
+- A race the move to Postgres exposes, or that a real-connection test reproduces before its
+  owning slice fixes it, is an `xfail(strict=True)` naming that slice: the stale-track reclaim's
+  E2 is one, for v55 (`test_beat_task.py`).
 - **The SQLite engine path is removed, not kept behind a flag** (owner-visible decision, v51): a
   second dialect nobody runs by default is exactly where the "lock was requested" tests came from,
   and on Postgres the suite is no slower.
