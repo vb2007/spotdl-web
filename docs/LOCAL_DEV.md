@@ -479,7 +479,9 @@ never SQLite:
   that opens a connection of its own (an unpatched `SessionLocal`) fails: it would read past the
   test's rows and commit outside the rollback. (It watches `app.db`'s engine; an engine a test
   builds itself, like the alerts watchdog's, isn't covered.)
-- The run's database is set to `timezone = 'UTC'`, so every session reads timestamps in UTC
+- The run's database is set to `lock_timeout = '30s'`, so a lock a broken test leaves held fails
+  the next test that needs it instead of hanging the run, and to `timezone = 'UTC'`, so every
+  session reads timestamps in UTC
   whatever the server's own setting: several tests compare aware datetimes, and 15 of them failed
   against a disposable server running in `Europe/Budapest` before that.
 - A race the move to Postgres exposes, or that a real-connection test reproduces before its

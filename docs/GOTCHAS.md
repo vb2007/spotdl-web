@@ -5874,6 +5874,12 @@ independently-found production bug from the same conversation)
   timestamps in the server's own TimeZone: against a server in `Europe/Budapest`, 15 tests failed
   (their `.replace(tzinfo=timezone.utc)` shifted the instant). The run's database is created with
   `ALTER DATABASE ... SET timezone TO 'UTC'`.
+- **Round 4 of the live review:** a `db_session` test that left a lock held on an engine of its
+  own hung the next test forever; the run's database has `lock_timeout = '30s'` now (it failed
+  with `LockNotAvailable` after 30 s in the probe). The E2 xfail ran the "download" commit on the
+  main thread, so a fix that row-locks the sweep's snapshot would have deadlocked it into an
+  `InterleavingBroke` instead of an XPASS; that commit runs in a `Thread` now, and both fix
+  shapes (a state re-check, a `FOR UPDATE` snapshot) give `XPASS(strict)`.
 - **Fixture teardown order matters for race tests.** `committed_db` depends on `monkeypatch`, so
   it tears down (releasing parked threads) while the test's stubs are still in place.
 - **Alembic from Python, without the ini.** `command.upgrade(Config("alembic.ini"), ...)` runs
