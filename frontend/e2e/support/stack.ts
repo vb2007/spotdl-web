@@ -108,11 +108,14 @@ function compose(...args: string[]): string {
  * Returns the ones missing from the running container's mount table; none for a `web` that isn't
  * the dev one (no bind-mounted /app). */
 export function detachedWebVolumes(): string[] {
-	const mounted = new Set(
-		compose('exec', '-T', 'web', 'cat', '/proc/1/mountinfo')
-			.split('\n')
-			.map((line) => line.split(' ')[4])
-	);
+	let mountinfo: string;
+	try {
+		mountinfo = compose('exec', '-T', 'web', 'cat', '/proc/1/mountinfo');
+	} catch {
+		// No running compose `web` (E2E_BASE_URL aimed elsewhere): nothing of ours to check.
+		return [];
+	}
+	const mounted = new Set(mountinfo.split('\n').map((line) => line.split(' ')[4]));
 	if (!mounted.has('/app')) return [];
 	return ['/app/node_modules', '/app/src/lib/paraglide', '/app/.svelte-kit'].filter(
 		(dir) => !mounted.has(dir)
