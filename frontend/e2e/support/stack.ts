@@ -596,10 +596,11 @@ print(" ".join(f"{t}:{j}" for t, j in rows))
 		: [];
 }
 
-/** v52 (D7): spec 3's own fixture, so it never needs an earlier `@network` pass. When the user
- * has no track with a recorded network path, adds one as a real first-try download leaves it
- * (one `completed direct-ipv4` attempt), in an archived job of its own title, no file and no
- * ledger row: spec 3 only reads its attempts. Returns whether it added one. */
+/** v52 (D7): spec 3's own fixture, so it never needs an earlier `@network` pass. Adds, once per
+ * user, a track as a real first-try download leaves it (one `completed direct-ipv4` attempt), in
+ * an archived one-track job of its own title, with no file and no ledger row: spec 3 only reads
+ * its attempts. Keyed on its own Spotify id, not on "any track with a network path", which spec
+ * 3's finder may reject (an album's track, a shared title). Returns whether it added it. */
 export function addNetworkPathFixture(email: string): boolean {
 	return (
 		stackPython(
@@ -615,9 +616,8 @@ from app.models.user import User
 db = SessionLocal()
 user = db.query(User).filter(User.email == sys.argv[1]).one()
 has_one = db.execute(text("""
-    select 1 from track_attempts a join tracks t on t.id = a.track_id
-    join jobs j on j.id = t.job_id
-    where j.user_id = :user and a.network_path is not null limit 1
+    select 1 from tracks t join jobs j on j.id = t.job_id
+    where j.user_id = :user and t.spotify_track_id = 'e2enetworkpathfixture' limit 1
 """), {"user": user.id}).first()
 if has_one:
     print("present")
