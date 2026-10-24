@@ -273,6 +273,17 @@ def _ignore_isolation_level(connection) -> None:
     connection.execution_options = execution_options
 
 
+@pytest.fixture(autouse=True)
+def _rate_limits_off(monkeypatch):
+    """v53: no test reaches a real Redis through the rate limiter (it would wait out a connect
+    timeout, or share counters with a dev stack's Redis). A test of the limits turns them
+    back on with its own values and `tests/extension_support.py`'s `fake_redis`."""
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "login_rate_limit_failures", 0)
+    monkeypatch.setattr(get_settings(), "job_create_rate_limit", 0)
+
+
 @pytest.fixture()
 def db_session():
     """One outer transaction per test, rolled back at the end. The code under test commits and

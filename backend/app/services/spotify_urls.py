@@ -16,6 +16,7 @@ expansion, would have no one to ask.
 import concurrent.futures
 import logging
 import re
+import threading
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
@@ -37,9 +38,17 @@ _ID_RE = re.compile(r"^[0-9A-Za-z]{22}$")
 _INTL_RE = re.compile(r"^intl-[a-z]{2,3}(?:-[a-z0-9]{2,8})?$", re.IGNORECASE)
 
 CASCADE_TIMEOUT_SECONDS = 10
-# Bounds the metadata calls running at once: a call that outlives its request's timeout keeps
-# its thread until spotdl gives up on its own.
-_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="cascade")
+# Bounds the metadata calls running at once. A call that outlives its request's timeout keeps
+# its thread until spotdl gives up on its own (its client retries for up to about 90s), so a
+# call that would only queue behind busy ones is refused at once instead (`_slots`).
+_CASCADE_WORKERS = 4
+_executor = concurrent.futures.ThreadPoolExecutor(
+    max_workers=_CASCADE_WORKERS, thread_name_prefix="cascade"
+)
+_slots = threading.BoundedSemaphore(_CASCADE_WORKERS)
+# Spotify's "Various Artists" pseudo-artist, a compilation's only artist: its discography is
+# every compilation on Spotify, never what an album's "artist" cascade means.
+VARIOUS_ARTISTS_ID = "0LyfQWJT6nXafLPZqxe9Of"
 
 
 @dataclass(frozen=True)
@@ -84,7 +93,12 @@ def parse(text: str) -> SpotifyRef | None:
 
 
 class CascadeInvalid(Exception):
-    """The cascade doesn't apply to this kind of link (an album's album, a playlist's artist)."""
+    """The cascade doesn't apply to this kind of link (an album's album, a playlist's artist),
+    or this link has no artist to cascade to (a compilation's "Various Artists")."""
+
+    def __init__(self, reason: str = "type") -> None:
+        super().__init__(reason)
+        self.reason = reason
 
 
 class CascadeNotFound(Exception):
@@ -122,7 +136,16 @@ def resolve_cascade(ref: SpotifyRef, cascade: str) -> SpotifyRef:
     CascadeUnavailable or CascadeAmbiguous (more than one artist: the client picks)."""
     if ref.type not in CASCADE_SOURCES.get(cascade, set()):
         raise CascadeInvalid
-    future = _executor.submit(_fetch, ref)
+    if not _slots.acquire(blocking=False):
+        logger.warning("cascade: every metadata worker is busy; refusing")
+        raise CascadeUnavailable
+    try:
+        future = _executor.submit(_fetch, ref)
+    except BaseException:
+        _slots.release()
+        raise
+    # The slot is held until the call itself ends, not the request's wait for it.
+    future.add_done_callback(lambda _: _slots.release())
     try:
         meta = future.result(timeout=CASCADE_TIMEOUT_SECONDS)
     except concurrent.futures.TimeoutError as exc:
@@ -145,11 +168,18 @@ def resolve_cascade(ref: SpotifyRef, cascade: str) -> SpotifyRef:
         artists: dict[str, str] = {}
         for artist in meta["artists"]:
             artist_id = artist.get("id") or ""
-            if _ID_RE.match(artist_id) and artist_id not in artists:
+            if (
+                _ID_RE.match(artist_id)
+                and artist_id != VARIOUS_ARTISTS_ID
+                and artist_id not in artists
+            ):
                 artists[artist_id] = artist.get("name") or ""
+        various = any((a.get("id") or "") == VARIOUS_ARTISTS_ID for a in meta["artists"])
     except (KeyError, TypeError, AttributeError) as exc:
         raise CascadeUnavailable from exc
     if not artists:
+        if various:
+            raise CascadeInvalid("various_artists")
         raise CascadeUnavailable
     if len(artists) > 1:
         raise CascadeAmbiguous(

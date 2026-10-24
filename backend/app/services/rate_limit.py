@@ -49,16 +49,6 @@ def _rate_limited(retry_after: int) -> ApiError:
     )
 
 
-def _over(bucket: str, limit: int) -> int | None:
-    """The bucket's remaining seconds when it already holds `limit` events, else None."""
-    client = _redis()
-    count = client.get(bucket)
-    if count is None or int(count) < limit:
-        return None
-    ttl = client.ttl(bucket)
-    return ttl if ttl > 0 else 1
-
-
 def _count(bucket: str, window: int) -> int:
     """Counts one event; returns the bucket's count including it."""
     pipe = _redis().pipeline()
@@ -86,30 +76,26 @@ def _login_bucket(email: str, address: str) -> str:
     return f"{KEY_PREFIX}login:{digest}"
 
 
-def check_login(email: str, address: str) -> None:
-    """Raises 429 `rate_limited` once this email has failed LOGIN_RATE_LIMIT_FAILURES times
-    from this address inside the window -- before the upstream is asked, so a right password
-    is refused too until the window ends."""
+def hit_login(email: str, address: str) -> None:
+    """Counts this login attempt for its email and client address before the upstream is
+    asked, and raises 429 `rate_limited` once the window holds more than
+    LOGIN_RATE_LIMIT_FAILURES of them, so a right password is refused too until it ends.
+    Counted first, not after a failure: a burst of parallel guesses would otherwise all read
+    the same count and every one would reach the upstream. A success clears the bucket
+    (`clear_login_failures`), so what accumulates is failures plus attempts still in flight."""
     settings = get_settings()
-    if settings.login_rate_limit_failures <= 0:
+    limit = settings.login_rate_limit_failures
+    if limit <= 0:
         return
+    bucket = _login_bucket(email, address)
     try:
-        retry_after = _over(_login_bucket(email, address), settings.login_rate_limit_failures)
+        count = _count(bucket, settings.login_rate_limit_window_seconds)
+        ttl = _redis().ttl(bucket) if count > limit else 0
     except redis.RedisError:
-        logger.warning("rate_limit: login check skipped, Redis unavailable")
+        logger.warning("rate_limit: login attempt not counted, Redis unavailable")
         return
-    if retry_after is not None:
-        raise _rate_limited(retry_after)
-
-
-def record_login_failure(email: str, address: str) -> None:
-    settings = get_settings()
-    if settings.login_rate_limit_failures <= 0:
-        return
-    try:
-        _count(_login_bucket(email, address), settings.login_rate_limit_window_seconds)
-    except redis.RedisError:
-        logger.warning("rate_limit: login failure not counted, Redis unavailable")
+    if count > limit:
+        raise _rate_limited(ttl if ttl > 0 else 1)
 
 
 def clear_login_failures(email: str, address: str) -> None:

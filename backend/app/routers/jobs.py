@@ -65,12 +65,12 @@ CLIENT_HEADER = "X-Spotdl-Client"
 def _resolve_cascade(ref: spotify_urls.SpotifyRef, cascade: str) -> spotify_urls.SpotifyRef:
     try:
         return spotify_urls.resolve_cascade(ref, cascade)
-    except spotify_urls.CascadeInvalid:
+    except spotify_urls.CascadeInvalid as exc:
         raise ApiError(
             422,
             "cascade_invalid",
             f"A {ref.type} link has no {cascade} to queue",
-            {"cascade": cascade, "type": ref.type},
+            {"cascade": cascade, "type": ref.type, "reason": exc.reason},
         ) from None
     except spotify_urls.CascadeNotFound:
         raise ApiError(422, "cascade_not_found", "Spotify doesn't know this link") from None

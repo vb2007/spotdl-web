@@ -143,3 +143,44 @@ def test_a_failing_or_slow_metadata_call_is_unavailable(monkeypatch):
             spotify_urls.resolve_cascade(SpotifyRef("track", ID), "album")
     finally:
         release.set()
+
+
+def test_a_cascade_is_refused_at_once_when_every_worker_is_busy(monkeypatch):
+    """Review round 1 (L1): never queued behind slow calls nobody waits for any more."""
+    import threading
+
+    release = threading.Event()
+    started = threading.Semaphore(0)
+
+    def slow(ref):
+        started.release()
+        release.wait(5)
+        return {"album": {"id": ALBUM}}
+
+    monkeypatch.setattr(spotify_urls, "_fetch", slow)
+    monkeypatch.setattr(spotify_urls, "CASCADE_TIMEOUT_SECONDS", 0.05)
+    try:
+        for _ in range(spotify_urls._CASCADE_WORKERS):
+            with pytest.raises(spotify_urls.CascadeUnavailable):
+                spotify_urls.resolve_cascade(SpotifyRef("track", ID), "album")
+        calls_before = 0
+        for _ in range(spotify_urls._CASCADE_WORKERS):
+            assert started.acquire(timeout=2)
+            calls_before += 1
+        monkeypatch.setattr(spotify_urls, "_fetch", lambda ref: pytest.fail("queued behind busy workers"))
+        with pytest.raises(spotify_urls.CascadeUnavailable):
+            spotify_urls.resolve_cascade(SpotifyRef("track", ID), "album")
+    finally:
+        release.set()
+    # Once they end, cascades work again.
+    import time
+
+    monkeypatch.setattr(spotify_urls, "_fetch", lambda ref: {"album": {"id": ALBUM}})
+    deadline = time.monotonic() + 5
+    while True:
+        try:
+            assert spotify_urls.resolve_cascade(SpotifyRef("track", ID), "album") == SpotifyRef("album", ALBUM)
+            break
+        except spotify_urls.CascadeUnavailable:
+            assert time.monotonic() < deadline
+            time.sleep(0.05)

@@ -378,6 +378,7 @@ def test_a_redis_outage_lets_requests_through(authenticated_client, monkeypatch,
 
 def test_a_zero_limit_turns_the_limiter_off(authenticated_client, monkeypatch, fake_redis):
     monkeypatch.setattr(get_settings(), "job_create_rate_limit", 0)
+    monkeypatch.setattr(get_settings(), "login_rate_limit_failures", 0)
     for i in range(40):
         assert authenticated_client.post("/api/jobs", json={"url": f"s {i}"}).status_code == 201
     assert fake_redis.values == {}
@@ -409,3 +410,60 @@ def test_the_log_formatter_redacts_a_key_too():
     line = JsonFormatter().format(record)
     assert raw not in line
     assert "sdw_0a1b2c3d_[redacted]" in line
+
+
+def test_a_login_attempt_counts_before_the_upstream_is_asked(client, monkeypatch, low_limits, fake_redis):
+    """Review round 1 (M1): counted first, so parallel guesses can't all read the same count."""
+    seen = []
+
+    async def fake(email, password):
+        seen.append(sum(fake_redis.values.values()))
+        return False, None
+
+    monkeypatch.setattr(auth_router.upstream_auth, "login", fake)
+    for _ in range(2):
+        client.post("/api/auth/login", json={"email": "allowed@example.com", "password": "x"})
+    assert seen == [1, 2]
+    blocked = client.post("/api/auth/login", json={"email": "allowed@example.com", "password": "x"})
+    assert blocked.status_code == 429
+    assert seen == [1, 2]  # the third never reached the upstream
+
+
+def test_an_album_by_various_artists_has_no_artist_to_cascade_to(client, user_key, monkeypatch, db_session):
+    """Review round 1 (M3): a compilation's only artist is the pseudo-artist."""
+    _metadata(monkeypatch, {"artists": [{"id": spotify_urls.VARIOUS_ARTISTS_ID, "name": "Various Artists"}]})
+    response = client.post(
+        "/api/jobs",
+        json={"url": f"https://open.spotify.com/album/{ALBUM_ID}", "cascade": "artist"},
+        headers=bearer(user_key),
+    )
+    assert response.status_code == 422
+    assert response.json()["code"] == "cascade_invalid"
+    assert response.json()["params"]["reason"] == "various_artists"
+    assert db_session.query(Job).count() == 0
+
+
+def test_various_artists_is_never_a_candidate_beside_real_artists(client, user_key, monkeypatch):
+    _metadata(
+        monkeypatch,
+        {"artists": [{"id": spotify_urls.VARIOUS_ARTISTS_ID, "name": "Various Artists"}, {"id": ARTIST_ID, "name": "A"}]},
+    )
+    response = client.post(
+        "/api/jobs",
+        json={"url": f"https://open.spotify.com/track/{TRACK_ID}", "cascade": "artist"},
+        headers=bearer(user_key),
+    )
+    assert response.status_code == 201
+    assert response.json()["source_url"] == f"https://open.spotify.com/artist/{ARTIST_ID}"
+
+
+def test_a_key_stops_working_when_its_user_leaves_the_allowlist(client, user_key, monkeypatch):
+    """Review round 1 (L2): they can't sign in to revoke it, and no one else can see it."""
+    assert client.get("/api/auth/me", headers=bearer(user_key)).status_code == 200
+    monkeypatch.setattr(get_settings(), "allowed_emails", ["admin@example.com"])
+    for response in (
+        client.get("/api/auth/me", headers=bearer(user_key)),
+        client.post("/api/jobs", json={"url": f"https://open.spotify.com/album/{ALBUM_ID}"}, headers=bearer(user_key)),
+    ):
+        assert response.status_code == 401
+        assert response.json()["code"] == "api_key_invalid"

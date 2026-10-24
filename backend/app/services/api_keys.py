@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from app.models import ApiKey
+from app.models import ApiKey, User
 
 KEY_PREFIX = "sdw_"
 # A user's active (unrevoked) keys. One per browser profile is the expected use; ten leaves
@@ -64,6 +64,9 @@ def create_key(db: Session, user_id: uuid.UUID, label: str) -> tuple[ApiKey, str
     """Creates a key for `user_id` and returns it with the raw key, which exists only in this
     return value. `label` must already be normalized. Raises ApiKeyLimitReached at
     MAX_ACTIVE_KEYS active keys. The caller commits."""
+    # Two creates at once would both count below the limit: the user's row serializes them
+    # (Postgres; SQLite, the unit tests', has one writer anyway).
+    db.query(User.id).filter(User.id == user_id).with_for_update().one()
     active = (
         db.query(ApiKey)
         .filter(ApiKey.user_id == user_id, ApiKey.revoked_at.is_(None))

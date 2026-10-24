@@ -14,7 +14,19 @@ from app.routers import jobs as jobs_router
 from app.services import api_keys
 from extension_support import api_keys_table, bearer, fake_redis  # noqa: F401 (fixtures)
 
-pytestmark = pytest.mark.usefixtures("api_keys_table", "fake_redis")
+pytestmark = pytest.mark.usefixtures("api_keys_table", "fake_redis", "_more_identities")
+
+
+@pytest.fixture()
+def _more_identities(monkeypatch):
+    # A key re-checks the allowlist on every use, so the extra identities these tests mint
+    # sessions for directly must be on it too.
+    from app.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(
+        settings, "allowed_emails", [*settings.allowed_emails, "a@example.com", "b@example.com", "other@example.com"]
+    )
 
 
 def _as(client, cookie: dict[str, str]):

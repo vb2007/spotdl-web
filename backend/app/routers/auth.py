@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Depends, Request, Response
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -58,6 +59,10 @@ def require_admin(user: User = Depends(require_session)) -> User:
     return user
 
 
+def _allowlisted(email: str) -> bool:
+    return email.strip().lower() in {e.strip().lower() for e in get_settings().allowed_emails}
+
+
 @dataclass
 class Principal:
     """Who a `require_session_or_api_key` route is acting for, and how they got in."""
@@ -94,6 +99,10 @@ def require_session_or_api_key(request: Request, db: Session = Depends(get_db)) 
         raise ApiError(401, "not_authenticated", "Not authenticated")
     key = api_keys.authenticate(db, bearer)
     user = db.get(User, key.user_id) if key is not None else None
+    # A key outlives a login, so it re-checks the allowlist a login checks: someone taken off
+    # ALLOWED_EMAILS can't sign in to revoke their keys, and no one else can see them.
+    if user is not None and not _allowlisted(user.email):
+        user = None
     if user is None:
         # Never echoes the key back, not even its prefix.
         raise ApiError(401, "api_key_invalid", "Invalid or revoked API key")
@@ -155,21 +164,19 @@ def _set_session_cookie(response: Response, token: str) -> None:
 async def login(
     payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)
 ) -> dict:
-    settings = get_settings()
-    # v53: failed logins are limited per email and client address, checked before the
-    # upstream is asked at all.
+    # v53: failed logins are limited per email and client address, counted before the
+    # upstream is asked at all. The Redis client is sync, so it runs off the event loop.
     address = rate_limit.client_address(request)
-    rate_limit.check_login(payload.email, address)
+    await run_in_threadpool(rate_limit.hit_login, payload.email, address)
 
     upstream_ok, username = await upstream_auth.login(payload.email, payload.password)
-    allowed = payload.email.strip().lower() in {e.strip().lower() for e in settings.allowed_emails}
+    allowed = _allowlisted(payload.email)
 
     # Upstream failure and allowlist rejection must be indistinguishable to the caller.
     if not upstream_ok or not allowed:
-        rate_limit.record_login_failure(payload.email, address)
         raise _INVALID_CREDENTIALS
 
-    rate_limit.clear_login_failures(payload.email, address)
+    await run_in_threadpool(rate_limit.clear_login_failures, payload.email, address)
     user = get_or_create_user(db, payload.email, username)
     session = create_session(db, user.id)
     db.commit()
