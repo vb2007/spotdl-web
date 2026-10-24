@@ -53,7 +53,7 @@ The docs also still describe older realities.
   - Provide a `scripts/prod_logs.sh` that reads the last N hours across a restart.
 - **X1:** `README.md`: current status (masters v1–v4 complete, v5 in progress), what the app is,
   links to the docs. It points at `plan/master-v5/` and must not repeat CLAUDE.md.
-- **X2:** `docs/GOTCHAS.md`: fix the title and caveat (it covers v01–v69+). The index stays.
+- **X2:** `docs/GOTCHAS.md`: fix the title and caveat (it covers v01–v70+). The index stays.
 - **X3:** `.env.example:10` and `docs/DEPLOYMENT.md` (`:562-587`, backup filenames `:365,374,795`)
   use the real production DB name `spotdlweb`. Check against the host `.env`'s **name only**, in
   the same batched SSH trip as P2.

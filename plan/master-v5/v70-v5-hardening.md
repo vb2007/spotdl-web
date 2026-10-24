@@ -1,14 +1,14 @@
-# v69 — Master v5 Hardening & Close
+# v70 — Master v5 Hardening & Close
 
 Branch: `dev-v5-hardening` → PR into `main`
-Version: `5.69.0`
+Version: `5.70.0`
 Wave / slot: 6 / 1 (serial, last)
-Depends on: every v49–v68 slice merged
+Depends on: every v49–v69 slice merged
 
 ## Scope
 
 The production close, in the same role v13, v22, v31 and v48 played, with one v5-specific worry
-added: **parallel development.** Twenty slices were built side by side and rebased onto each
+added: **parallel development.** Twenty-one slices were built side by side and rebased onto each
 other. Failures between them are more likely than in any earlier master: a migration re-parented
 wrongly, a hotspot conflict resolved by dropping a line, two slices' assumptions about
 `queue.ts` or `jobs.py` colliding. The close looks exactly there.
@@ -24,8 +24,9 @@ wrongly, a hotspot conflict resolved by dropping a line, two slices' assumptions
 2. **The cross-user separation sweep:** `pytest backend/tests/test_ownership.py` plus the gating
    suites (CLAUDE.md's v2 invariant list, plus v53's keys, v54's views, v56's single-track GET and
    admin rule, v59's alert history, v63's watch and re-expand, v64's export, v65's share, v66's
-   my-stats and notification preference), **and** `scripts/verify_separation_sse.sh` (including
-   v54's `others` case) against a running stack. Cover direct-id endpoints. Non-owner gets 404,
+   my-stats and notification preference, v69's allowlist endpoints), **and** `scripts/verify_separation_sse.sh` (including
+   v54's `others` case) against a running stack, including v69's revocation case (a removed user's open stream ends,
+   the admin's stays). Cover direct-id endpoints. Non-owner gets 404,
    and admin endpoints follow v56's rule.
 3. **The key boundary:** a parametrized test asserting an API key is rejected or treated as
    non-admin on **every** route except the two it's allowed on. A new route added without
@@ -39,7 +40,8 @@ wrongly, a hotspot conflict resolved by dropping a line, two slices' assumptions
    - the cookie path and the key fallback;
    - auto-update confirmed from the latest release.
 6. **A production smoke** in a real browser with a test identity: every route, `/share`
-   (emulated), export of a small job, my stats, notifications.
+   (emulated), export of a small job, my stats, notifications, and `/users` (add and remove a test
+   address, confirming the removed identity is logged out live).
 7. **Pipeline record:** every "Release & Deploy", manual Publish & Deploy and extension-release run
    since v49, with outcome and whether its notice arrived (P1's fix proven in production if any
    failure happened). v49's rule holds across the whole master: **no run was skipped or cancelled**,
@@ -57,7 +59,7 @@ wrongly, a hotspot conflict resolved by dropping a line, two slices' assumptions
     - `README.md`, `docs/LOCAL_DEV.md`, `docs/DEPLOYMENT.md`, `docs/RELEASE_PIPELINE.md`,
       `docs/EXTENSION.md`;
     - `PRODUCT.md` (the extension, PWA and notifications now exist).
-11. **The closing re-read:** every Done-when bullet of v49–v68, fresh, against merged code and PR
+11. **The closing re-read:** every Done-when bullet of v49–v69, fresh, against merged code and PR
     evidence. Each one is re-evidenced, re-verified, or declared a known gap here.
 12. **Clean up agent artifacts:** stale worktrees, slot stacks and volumes, and leftover realdl
     lock files on the dev machine (list them before removing; ask before deleting anything not
@@ -84,8 +86,8 @@ New features. Anything found that isn't a regression of a v5 change is logged fo
 - [ ] **Ledger:** every row has a final status in the PR, with accepted rows' owner
       re-confirmation linked.
 - [ ] Housekeeping answers recorded. Docs reconciled. `CLAUDE.md` ≤ 250 lines.
-- [ ] The closing re-read is done for every v49–v68 bullet.
+- [ ] The closing re-read is done for every v49–v69 bullet.
 - [ ] Agent artifacts listed and cleaned (`git worktree list`, `docker compose ls`, `docker volume
       ls` before and after).
 - [ ] `pytest`, `npm run lint`, `npm run check`, `npm run build` and `npm run test:e2e` pass. Both
-      version files read `5.69.0`. `uv lock` is in sync. `graphify update .` has been run.
+      version files read `5.70.0`. `uv lock` is in sync. `graphify update .` has been run.

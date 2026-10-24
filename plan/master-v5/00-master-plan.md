@@ -2,7 +2,7 @@
 
 > This is the master v5 roadmap, approved by the owner and committed **verbatim** as the project's
 > permanent record, with the same treatment masters v1–v4 got. Individual version plans
-> (`plan/master-v5/v49-*.md` … `v69-*.md`) expand the roadmap below. `IMPLEMENTATION_PROMPT.md`
+> (`plan/master-v5/v49-*.md` … `v70-*.md`) expand the roadmap below. `IMPLEMENTATION_PROMPT.md`
 > in this folder is the template prompt for every v5 implementation agent. `CLAUDE.md` carries
 > the durable summary. Master v1–v4 plans are never edited again. Where this plan corrects one of
 > them, it says so here.
@@ -11,7 +11,7 @@
 
 Masters v1–v4 (v00–v48, PRs #1–#71) are complete. 4.48.0 is deployed at `spotdl.vb2007.hu` and in
 daily use. **Master v5 is meant to be the last master for a while**, so it should leave nothing
-known-broken behind. It has four parts:
+known-broken behind. It has five parts:
 
 1. **Close every open issue.** Over 48 versions, GOTCHAS, PR bodies ("Found, not fixed"), plan
    amendments and CI history accumulated about 45 confirmed-open items. The ledger below gives
@@ -28,6 +28,9 @@ known-broken behind. It has four parts:
    - job zip and M3U export;
    - a PWA with a Web Share Target;
    - personal notifications and a non-admin "my stats".
+5. **Admin-managed user access** (owner request, 2026-10-24). The admin adds e-mail addresses to
+   the login allowlist in the app, and the person can sign in right away, with no `.env` edit or
+   redeploy. Removing an address cuts that person off at once.
 
 **New for v5: parallel implementation.** Up to **4 agents work side by side**, each in its own git
 worktree with its own Docker stack and its own local Postgres. That takes infrastructure the repo
@@ -54,6 +57,7 @@ Read from the repo, GitHub and CI this session (2026-10-23, `main` at `df712e2`)
 | **CI pytest runs on SQLite** | `ci.yml:101-103`: "every test uses an in-memory SQLite engine". `FOR UPDATE` and native-enum casts are untestable (GOTCHAS v34.1, v35) |
 | **Cookie-only auth, no API tokens, no rate limits** | `routers/auth.py:15,25-35,98-106` (`SPOTDL_SESSION`, `httponly`, `secure`, `samesite=lax`). No limiter anywhere in `backend/app` |
 | **Job create accepts anything** | `routers/jobs.py:44-54` `_classify_source_type` is a substring check, and anything else becomes a `SEARCH` job |
+| **The login allowlist is env-only** | `ALLOWED_EMAILS` is read via `get_settings()` (`config.py:75`) and checked on each login (`routers/auth.py:114`). Boot requires `ADMIN_EMAIL` ∈ `ALLOWED_EMAILS` (`config.py:198-212`). Adding a user means editing the host `.env` and recreating `api` (`docs/DEPLOYMENT.md:655-663`). An open `/api/stream` validates its session only at connect (`routers/stream.py`) |
 | **Admin scope is one boolean** | `all_users` in `routers/jobs.py:85`, `routers/tracks.py:101`, `services/job_listing.py:83`, `services/track_listing.py:79,90`, `routers/stream.py:27-31`, `frontend/src/lib/stores/queue.ts:186,638-662`, `QueueControls.svelte:363-372` |
 | **SSE payloads carry no owner** | `services/events.py:52`. Only the Redis channel name (`spotdl:events:{user_id}`) identifies the owner |
 | **No extension, PWA manifest or service worker** | No `extension/` directory, `frontend/static/` holds only `robots.txt`, `app.html` has no manifest link |
@@ -64,7 +68,7 @@ Read from the repo, GitHub and CI this session (2026-10-23, `main` at `df712e2`)
 ## Open-items ledger
 
 Every unfixed item found this session. **Slice** is where it gets fixed. "Accepted" items keep a
-written reason and are re-confirmed by v69. Sources: GOTCHAS line numbers, PR numbers, and plan
+written reason and are re-confirmed by v70. Sources: GOTCHAS line numbers, PR numbers, and plan
 files.
 
 ### Download / retry engine → v55 unless noted
@@ -223,13 +227,14 @@ files.
 | Parallel implementation | Up to **4 agents at once**, grouped into **waves**. A wave starts only after every slice of earlier waves is merged. Each slice has a fixed **slot** (1–4) and a declared **"Files owned"** list. Two same-wave slices never own the same file, apart from the shared hotspots below |
 | Agent environment | Each agent has its own **git worktree** (never the shared main checkout) and its own **compose project** with its **own local Postgres container**, created and owned by the agent (owner decision). The LAN `spotdlwebtest` stays the owner's interactive dev DB. Agents don't use it |
 | Real YouTube traffic from agents | `worker-dl` is **off by default** in agent stacks. A real download needs the host-wide lock `/tmp/spotdl-web-realdl.lock`, so at most one agent stack ever talks to YouTube, the same exposure as one dev stack |
-| Shared hotspots | `frontend/messages/{en,hu}.json`, `docs/GOTCHAS.md`, `graphify-out/`, the Alembic head, `CLAUDE.md`, plus the per-wave co-owned files each plan declares (wave 1: `routers/jobs.py` create vs list params; wave 2: v57's single `dedup` call site in `tasks/download.py`; wave 3: `ci.yml` and `release-deploy.yml`, where v60 and v61 own separate jobs; wave 4: `JobRow.svelte`'s delimited v63/v64 blocks and `/account`'s v65/v66 blocks). These are resolved by the **rebase protocol**, never avoided by skipping a needed edit |
+| Shared hotspots | `frontend/messages/{en,hu}.json`, `docs/GOTCHAS.md`, `graphify-out/`, the Alembic head, `CLAUDE.md`, plus the per-wave co-owned files each plan declares (wave 1: `routers/jobs.py` create vs list params; wave 2: v57's single `dedup` call site in `tasks/download.py`; wave 3: `ci.yml` and `release-deploy.yml`, where v60 and v61 own separate jobs; wave 4: `JobRow.svelte`'s delimited v63/v64 blocks and `/account`'s v65/v66 blocks; wave 5: `stores/queue.ts`, where v68 may add a windowing hook and v69 owns the revoke-handling block, and `frontend/e2e/`, where v69 adds one spec and v68 owns the rest). These are resolved by the **rebase protocol**, never avoided by skipping a needed edit |
 | CI chain | No `workflow_run` anywhere (v49): PRs run "CI"; a push to `main` runs one "Release & Deploy" run that calls the checks, the release and the deploy in-run; the schedule runs only "Nightly". Nothing cancels, and nothing creates a run that only skips |
 | Merge order | The owner merges a wave in ascending slice order. CI rejects a version that isn't strictly greater than `main`'s (v50) |
 | Production data | Still not disposable. A migration that drops or rewrites data says so and takes a `pg_backup` first |
 | Firefox extension | Lives in `extension/`, Manifest V3, Firefox-only. It has its **own semver** in `extension/manifest.json`, independent of the app version, and CI forces a bump when `extension/` changes (v61). Distributed as an AMO-signed **unlisted** XPI on a GitHub release, with a self-hosted `update_url` |
 | Extension auth | **The existing session cookie first** (seamless when logged in to the app in the same Firefox). Only if that fails, a per-user **API key** from `/account`. Keys can only submit jobs and read their own submission status. They never unlock admin endpoints or any other surface |
 | Extension submissions | Server-side allowlist: `open.spotify.com` track/album/artist/playlist URLs only (no `SEARCH`) for key-authenticated and extension-origin requests. Cascades (track → album/artist, album → artist) are resolved **server-side** from Spotify metadata, never scraped from the DOM |
+| User access | The login allowlist is a **DB table** (v69), imported once from `ALLOWED_EMAILS` and then managed in the admin-only `/users` page; the env list is ignored afterwards. `ADMIN_EMAIL` stays in env, is always allowed and can't be removed. Removing an address ends that user's sessions, open streams and API keys **at once**; their jobs and files stay, and re-adding restores the same account (owner decisions, 2026-10-24) |
 | Admin scope | `view = mine \| all \| others`, admin-only. A non-admin is always `mine`. The `all_users` parameter stays as an alias for `all` |
 | UI work | Every UI slice goes through the impeccable skill. Hungarian QWERTZ keyboard rules and both message files apply to every new element, including the extension's own UI (`_locales/en`, `_locales/hu`) |
 
@@ -270,8 +275,8 @@ files.
 | 2 | v55 (1) · v56 (2) · v57 (3) · v58 (4) | Engine races, API gaps, library hardening, the extension | wave 1 (v58 needs v53) |
 | 3 | v59 (1) · v60 (2) · v61 (3) · v62 (4) | Alert delivery, pipeline resilience, extension release, frontend store fixes | wave 2 (v61 needs v58) |
 | 4 | v63 (1) · v64 (2) · v65 (3) · v66 (4) | Watch jobs, export, PWA/share, personal notifications | wave 3 |
-| 5 | v67 (1) · v68 (2) | UI debt (impeccable), list virtualization | wave 4 |
-| 6 | v69 (1) | Hardening close | wave 5 |
+| 5 | v67 (1) · v68 (2) · v69 (3) | UI debt (impeccable), list virtualization, admin-managed user access | wave 4 (v69 needs v53, v56, v62) |
+| 6 | v70 (1) | Hardening close | wave 5 |
 
 ### Rebase protocol (every agent, before the final push and again if `main` moves while the PR is open)
 
@@ -313,7 +318,8 @@ files.
 | **v66** | 4 | `dev-personal-notifications` | Browser notifications when own jobs settle; a non-admin "my stats" |
 | **v67** | 5 | `dev-ui-debt` | U2, U3, U5–U13, plus an impeccable audit of every surface v53–v66 added |
 | **v68** | 5 | `dev-log-virtualization` | U4: virtualized job/track lists that keep keyboard, focus, live patching and load-more intact |
-| **v69** | 6 | `dev-v5-hardening` | The production close: the cross-user sweep over every new surface, the full e2e plus an extension pass, a production smoke, ledger re-confirmation, docs, the closing re-read |
+| **v69** | 5 | `dev-user-access` | The admin manages the login allowlist in a new `/users` page: a DB table imported once from `ALLOWED_EMAILS`, live without a restart; removal ends sessions, open streams and API keys at once, keeping the data |
+| **v70** | 6 | `dev-v5-hardening` | The production close: the cross-user sweep over every new surface, the full e2e plus an extension pass, a production smoke, ledger re-confirmation, docs, the closing re-read |
 
 ### Why this order
 
@@ -332,7 +338,10 @@ files.
 - **Wave 4's features** come after the fixes, so they're built on a correct engine and store.
 - **Wave 5's UI work comes last**, so impeccable audits the final surfaces. Virtualization
   rebuilds the list once everything that renders into it exists.
-- **v69 closes**, as v13, v22, v31 and v48 did.
+- **v69 (user access) joins wave 5** because waves 1–4 are full and it builds on v53's keys, v56's
+  admin rule and v62's cross-tab identity. It gets its own `/users` route, so it never touches
+  v67's `/settings` rework, and runs its own impeccable pass.
+- **v70 closes**, as v13, v22, v31 and v48 did.
 
 ---
 
@@ -377,6 +386,13 @@ files.
 - **v67/v68 vs v45's keyboard model and v37's e2e selectors.** Virtualization must keep the roving
   tabindex by row **id**, `End`/`Shift+G` load-more, and focus restoration. Off-screen rows don't
   exist in the DOM, so selectors and the help overlay can't assume they do.
+- **v69's revocation vs the admin's pattern subscription.** The admin's stream subscribes to
+  `spotdl:events:*`, every user's channel. A revocation published there would reach the admin's
+  own tab, which would log itself out. Revocation goes on a separate `spotdl:control:{user_id}`
+  channel that the pattern never matches. The stream's periodic session re-check uses a
+  short-lived DB session, never one held open for the stream's life (v31's idle-in-transaction
+  bug). A revoked API key makes the v58 extension fall back to "log in" cleanly, never into a
+  retry loop.
 
 ---
 
@@ -427,7 +443,7 @@ v5-specific:
      empirically, not assumed.
 4. **v61 proves the signed XPI installs in release Firefox** and auto-updates from `updates.json`.
 5. **Every new read path re-runs the cross-user sweep:** v53 keys, v54 others view, v63 watched
-   jobs, v64 export, v65 share, v66 my-stats.
+   jobs, v64 export, v65 share, v66 my-stats, v69 allowlist and revocation.
 6. **UI slices** keep using impeccable, and keep the e2e suite green on desktop, mobile and `hu`.
 
 ---
@@ -435,12 +451,13 @@ v5-specific:
 ## Owner housekeeping (not agent work)
 
 These came up in PR deploy notes and were never confirmed as done. They're tracked here so
-they don't get lost. v69 asks about each.
+they don't get lost. v70 asks about each.
 
 - [ ] Dismiss the two GitGuardian false-positive incidents (#52, commit `1bbb4cd`).
 - [ ] Confirm production `.env` has `MATRIX_*` set (app alerts are off otherwise) (#52).
 - [ ] Run `scripts/moved_file_redownloads.sql` against production and note the counts (#55).
-- [ ] Remove `v48smoke@example.com` from production `ALLOWED_EMAILS` (#70).
+- [ ] Remove `v48smoke@example.com` from the allowlist (#70): in `/users`, once v69 is deployed
+      (or from `.env` before that).
 - [ ] Disable the dead file-sourced proxies in `/settings` (#60).
 - [ ] Add the AMO API credentials (`AMO_JWT_ISSUER`, `AMO_JWT_SECRET`) as repository secrets
       before v61.
