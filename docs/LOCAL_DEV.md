@@ -56,6 +56,12 @@ docker compose up
 (No `-f docker-compose.yml` exclusion — that flag is specifically to *avoid* the override on
 the production host. Here, the override is the point.)
 
+**The first `up` after v52 needs `--build`** (`docker compose up --build`): the dev `web` image
+became a dependencies-only stage that runs as uid 1000, and Compose won't rebuild an image it
+already has. `web` refuses to start on the old one and says so. Before that first `up`, also
+`mkdir -p frontend/.svelte-kit` if it doesn't exist, or Docker creates it root-owned as the
+mountpoint of `web`'s own `.svelte-kit` volume.
+
 **One gap this trades away:** the override runs `vite dev` for `web`, not nginx — anything whose
 correctness depends specifically on nginx behavior (a new `internal` location, a new `location`
 block) can't be exercised through this stack at all; verifying that kind of change needs
@@ -307,11 +313,15 @@ scripts/agent_stack.sh <slot> down [--volumes]
 
 | Slot | Compose project | API | Web | Database |
 |---|---|---|---|---|
-| 1 | `spotdlweb-s1` | `localhost:8001` | `localhost:5174` | `spotdlweb_s1` in the project's own `postgres` container |
-| 2 | `spotdlweb-s2` | `localhost:8002` | `localhost:5175` | `spotdlweb_s2` |
-| 3 | `spotdlweb-s3` | `localhost:8003` | `localhost:5176` | `spotdlweb_s3` |
-| 4 | `spotdlweb-s4` | `localhost:8004` | `localhost:5177` | `spotdlweb_s4` |
-| owner | the checkout's directory name | `localhost:8000` | `localhost:5173` | LAN `spotdlwebtest` |
+| 1 | `spotdlweb-s1` | `127.0.0.1:8001` | `127.0.0.1:5174` | `spotdlweb_s1` in the project's own `postgres` container |
+| 2 | `spotdlweb-s2` | `127.0.0.1:8002` | `127.0.0.1:5175` | `spotdlweb_s2` |
+| 3 | `spotdlweb-s3` | `127.0.0.1:8003` | `127.0.0.1:5176` | `spotdlweb_s3` |
+| 4 | `spotdlweb-s4` | `127.0.0.1:8004` | `127.0.0.1:5177` | `spotdlweb_s4` |
+| owner | the checkout's directory name | `127.0.0.1:8000` | `127.0.0.1:5173` | LAN `spotdlwebtest` |
+
+v52 (D6): `127.0.0.1` rather than `localhost`, which can resolve to `[::1]` first, where another
+project's dev server may be listening (Docker publishes every port on `127.0.0.1` only).
+Chromium keeps the `Secure` session cookie on `http://127.0.0.1`.
 
 **Setting one up.** In a fresh worktree (`git worktree add -b <branch> ../spotdl-web-wt/<branch>
 origin/main`), copy the owner's dev `.env` in (`cp ../../spotdl-web/.env .`), then `up` (it also
@@ -522,9 +532,9 @@ compose labels instead.
 **Root-owned frontend files (fixed in v52).** Before v52 the dev `web` container ran Vite as root
 and wrote `.svelte-kit/` and `project.inlang`'s cache into the worktree root-owned. It now runs as
 uid 1000 with its own `.svelte-kit` volume, and refuses to start over root-owned files a pre-v52
-container left in the bind mount. `up` hands any such files (including the host's own
-`.svelte-kit/`) back to you before starting the stack, so a worktree from before v52 needs nothing
-by hand.
+container left in the bind mount. `up` builds the new `web` image first and hands any such files
+(including the host's own `.svelte-kit/`) back to you before starting the stack, so a worktree
+from before v52 needs nothing by hand.
 
 ## Troubleshooting
 

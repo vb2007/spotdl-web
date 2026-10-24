@@ -6136,13 +6136,20 @@ independently-found production bug from the same conversation)
   `/app/app`), mounted read-only at `/opt/dev` and set as the three workers' dev `entrypoint`, so
   each worker's `command` is still `docker-compose.yml`'s (worker-dl's `--concurrency=1
   --prefetch-multiplier=1` can't drift) and a `docker compose run` one-off passes through. A change
-  sends SIGTERM (Celery's warm shutdown) and SIGKILL after 30 s; a child that exits on its own ends
-  the wrapper with its code, so the v32 config guard still stops the container. In the agent
-  overlay `worker-dl` has `init: true`, so tini, not the wrapper, is PID 1 there.
+  sends SIGTERM (Celery's warm shutdown) and SIGKILL after the service's stop grace (300 s for
+  `worker-dl`/`worker-expand`, 30 s for `worker-meta`): a SIGKILLed main process isn't covered by
+  `task_reject_on_worker_lost`, so its task would wait for the broker's 6 h visibility timeout or
+  beat's stale sweep. The first child exiting on its own ends the wrapper with its code (the v32
+  config guard still stops the container); a child that dies after a reload (a syntax error) waits
+  for the next edit instead of crash-looping. `init: true` keeps the wrapper off PID 1 (which drops
+  a signal that arrives before its handler exists) and reaps orphans.
 - **A dev dependency change no longer needs `--renew-anon-volumes`.** `node_modules` is a named
   volume with a stamp of the `package-lock.json` it was installed from; the dev command runs
   `npm ci` into the volume when the bind-mounted lockfile differs (`npm ci` works on a mounted
-  `node_modules`: no `EBUSY`). The one remaining step is a restart: `docker compose up -d` leaves a
+  `node_modules`: no `EBUSY`). The stamp leaves out the app's own `version` (every slice bumps it,
+  and a bare `sha256sum` of the lockfile would have reinstalled at every slice's first boot), and
+  the dev healthcheck's `start_period` is 300 s, room for that `npm ci`. The one remaining step is a
+  restart: `docker compose up -d` leaves a
   running container alone when its image didn't change (seen: removing a dependency again rebuilt
   to an identical cached image, and `up` printed `Running`), so `docker compose restart web`.
 - **Root-owned frontend files came from the dev `web` running Vite as root.** It now runs as
@@ -6152,6 +6159,13 @@ independently-found production bug from the same conversation)
   root. A pre-v52 checkout still has root-owned files in the bind mount; the dev command refuses
   to start over them and prints the `chown` that hands them back, and `agent_stack.sh up` runs it
   itself. On a host whose user isn't uid 1000, files Vite writes are uid 1000's.
+- **A new named volume is filled from whichever image mounts it first.** Compose doesn't rebuild an
+  image it already has when the override's `target` changes, so the first plain `up` after v52 ran
+  the old root `build`-stage image, which filled the three new `web` volumes as root (tried on slot
+  2 with the pre-v52 image re-tagged). The dev command now refuses a root image (with the one-step
+  recovery: remove `web` and its volumes, `up --build`) and any of the three directories it can't
+  write. `agent_stack.sh up` builds `web` before its first `run`. A missing `frontend/.svelte-kit`
+  is created root-owned on the host as the volume's mountpoint, so `up` pre-creates it.
 - **Host-side `svelte-kit sync` reloaded every open page.** `npm run check`/`build` regenerate
   `.svelte-kit/generated` (`root.js`, `root.svelte`, `server/internal.js` with a new
   `version_hash`), and on the shared bind mount the dev Vite logged `page reload
