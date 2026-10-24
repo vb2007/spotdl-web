@@ -125,7 +125,7 @@ def main() -> int:
                 and not is_strictly_greater(version, base_version)
             ):
                 print(
-                    f"check_version: the version ({version}) is lower than {base}'s "
+                    f"check_version: the version ({version}) isn't above {base}'s "
                     f"({base_version}). It must be strictly greater: {base} moved past this "
                     f"slice, so rebase onto it and ask the owner for the version to use.",
                     file=sys.stderr,

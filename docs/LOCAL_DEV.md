@@ -319,9 +319,10 @@ service refuses to start. The script refuses:
 - a slot whose containers or database volume belong to another worktree (`env`, `up` and `down`
   hold a per-slot lock, `/tmp/spotdl-web-slot<slot>.lock`, so two worktrees can't claim one free
   slot at once);
-- a worktree whose `.env` names a production database (`spotdlweb`, `spotdl_web`);
+- a worktree whose `.env` names a production database (`spotdlweb`, `spotdl_web`; in the path or any
+  `dbname=`), or whose `DATABASE_URL` uses `$` interpolation the check can't follow;
 - `up worker-dl`, and (best effort) `run` with a command that names `worker-dl` with a starting verb,
-  `realdl` or `COMPOSE_PROFILES`;
+  or mentions `--profile`, `realdl` or `COMPOSE_PROFILES` anywhere (even as a `grep` pattern);
 - switching a worktree to another slot while it still owns its old slot's database volume.
 
 **What `.env.agent` holds.** `env` derives it from the worktree's `.env`, gitignored, mode 600:
@@ -332,7 +333,8 @@ service refuses to start. The script refuses:
 - fresh random `REDIS_PASSWORD`, `SESSION_SECRET` and Postgres password (kept by later `env` runs,
   since the database volume was initialised with that password);
 - the slot's test identities only: `ALLOWED_EMAILS=v5s<slot>admin@example.com,v5s<slot>user@example.com`,
-  `ADMIN_EMAIL=v5s<slot>admin@example.com` (`AGENT_EXTRA_EMAILS=a@example.com,…` before `env` adds more);
+  `ADMIN_EMAIL=v5s<slot>admin@example.com` (`AGENT_EXTRA_EMAILS=a@example.com,…` before `env` adds more,
+  test identities only: each at example.com/.net/.org or a `.test`, `.example` or `.invalid` domain);
 - copied from `.env`, only engine and download tuning plus the upstream login: `UPSTREAM_AUTH_BASE_URL`
   (the real `vb2007.hu-api`), `SPOTIFY_CLIENT_*`, `LADDER_SECONDS`, `STALE_TRACK_AFTER_SECONDS`, pacing,
   format, bitrate and `DOWNLOAD_OUTPUT_DIR`, `PROXY_FILE`, `COOKIE_FILE`, `YOUTUBE_PLAYER_CLIENTS`. Never `.env`'s
@@ -386,7 +388,8 @@ the session cookie of `localhost:5174` and the owner's `localhost:5173` overwrit
 each stack then answers the other's token with 401.
 
 **Other commands against the slot.** Anything that should hit the slot rather than the owner's
-stack runs under `run`, which exports the same `COMPOSE_*` variables and `API_PORT`/`WEB_PORT`:
+stack runs under `run`, which exports the same `COMPOSE_*` variables and `API_PORT`/`WEB_PORT` and
+runs the command from your current directory (the worktree root, for the relative paths below):
 `scripts/agent_stack.sh 1 run scripts/verify_separation_sse.sh` (its default base URL follows
 `API_PORT`), `scripts/agent_stack.sh 1 run docker compose exec api sh`.
 

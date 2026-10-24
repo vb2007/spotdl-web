@@ -91,19 +91,28 @@ env_value() {
 # its .env): nothing here may run there.
 refuse_production_env() {
 	[ -f "$ENV_FILE" ] || return 0
-	local url path query name dbname prod
+	local url query name param prod
+	local -a names params
 	url="$(env_value "$ENV_FILE" DATABASE_URL)"
 	[ -n "$url" ] || return 0
+	# Compose interpolates .env: a URL built from other variables isn't the one checked here.
+	[[ "$url" != *'$'* ]] ||
+		die "$ENV_FILE's DATABASE_URL uses \$ interpolation, which this check can't follow: refusing (write it out in full)"
 	# SQLAlchemy's own URL pattern (sqlalchemy.engine.url._parse_url, which app/config.py's guard
 	# relies on): scheme, optional user:password@, host, port, /database, ?query.
 	local re='^[A-Za-z0-9_+]+://(([^:/]*)(:([^@]*))?@)?((\[[^/?]+\])|([^/:?]+))?(:([^/?]*))?(/([^?]*))?(\?(.*))?'
 	[[ "$url" =~ $re ]] ||
 		die "$ENV_FILE's DATABASE_URL can't be parsed: refusing (app/config.py would too)"
-	path="${BASH_REMATCH[11]}"
+	names=("${BASH_REMATCH[11]}")
 	query="${BASH_REMATCH[13]}"
-	if [[ "&$query" =~ \&dbname=([^\&]*) ]]; then dbname="${BASH_REMATCH[1]}"; else dbname=""; fi
-	# Either name, percent-decoded, trimmed and case-folded, refuses (a superset of the guard's).
-	for name in "$path" "$dbname"; do
+	# Every dbname= in the query, as the guard checks each (a query value's + is a space).
+	IFS='&' read -ra params <<<"$query"
+	for param in "${params[@]}"; do
+		param="${param//+/ }"
+		[[ "$param" != dbname=* ]] || names+=("${param#dbname=}")
+	done
+	# Any name, percent-decoded, trimmed and case-folded, refuses (a superset of the guard's).
+	for name in "${names[@]}"; do
 		name="$(printf '%b' "${name//%/\\x}")"
 		name="${name%/}"
 		name="${name#"${name%%[![:space:]]*}"}"
@@ -204,7 +213,8 @@ write_env_agent() {
 	[ -f "$ENV_FILE" ] || die "no $ENV_FILE: copy the main checkout's dev .env into this worktree first (docs/LOCAL_DEV.md, 'Parallel agent stacks')."
 	# Kept across runs: the database volume was initialised with this password, and a new
 	# session secret would sign everyone out.
-	local pg_password redis_password session_secret pg_port extra_emails emails key line tmp
+	local pg_password redis_password session_secret pg_port extra_emails emails address key line tmp
+	local -a addresses
 	pg_password="$(env_value "$ENV_AGENT" AGENT_PG_PASSWORD)"
 	redis_password="$(env_value "$ENV_AGENT" REDIS_PASSWORD)"
 	session_secret="$(env_value "$ENV_AGENT" SESSION_SECRET)"
@@ -224,6 +234,12 @@ write_env_agent() {
 	if [ -n "$extra_emails" ] && ! [[ "$extra_emails" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+(,[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)*$ ]]; then
 		die "AGENT_EXTRA_EMAILS must be comma-separated addresses, got '$extra_emails'"
 	fi
+	# Test identities only (CLAUDE.md): a reserved domain (RFC 2606) is nobody's real address.
+	IFS=',' read -ra addresses <<<"$extra_emails"
+	for address in "${addresses[@]}"; do
+		[[ "${address,,}" =~ @([a-z0-9-]+\.)*(example\.(com|net|org)|test|example|invalid)$ ]] ||
+			die "AGENT_EXTRA_EMAILS takes test identities only, at example.com/.net/.org or a .test, .example or .invalid domain: got '$address'"
+	done
 	emails="v5s${SLOT}admin@example.com,v5s${SLOT}user@example.com${extra_emails:+,$extra_emails}"
 
 	tmp="$(mktemp "$ROOT/.env.agent.XXXXXX")"
@@ -268,7 +284,13 @@ write_env_agent() {
 }
 
 require_env_agent() {
-	[ -f "$ENV_AGENT" ] || die "no $ENV_AGENT yet: run scripts/agent_stack.sh $SLOT env (or up)"
+	if [ ! -f "$ENV_AGENT" ]; then
+		# env would refuse too: the volume was initialised with the password the file held.
+		if [ "$(docker volume inspect "${PROJECT}_pgdata" --format '{{index .Labels "spotdlweb.worktree"}}' 2>/dev/null)" = "$ROOT" ]; then
+			die "no $ENV_AGENT, but slot $SLOT's database volume is still here: restore $ENV_AGENT (it holds that database's password), or drop the slot with scripts/agent_stack.sh $SLOT down --volumes"
+		fi
+		die "no $ENV_AGENT yet: run scripts/agent_stack.sh $SLOT env (or up)"
+	fi
 	local slot
 	slot="$(env_value "$ENV_AGENT" AGENT_SLOT)"
 	[ "$slot" = "$SLOT" ] || die "this worktree is slot ${slot:-?}'s, not slot $SLOT's: to switch, scripts/agent_stack.sh ${slot:-<old slot>} down, then scripts/agent_stack.sh $SLOT env"
@@ -352,6 +374,8 @@ prepare_mounts() {
 	mkdir -p "$ROOT/downloads" "$ROOT/test-library" "$ROOT/frontend/node_modules" \
 		"$ROOT/frontend/src/lib/paraglide"
 	[ -e "$ROOT/proxies.txt" ] || : >"$ROOT/proxies.txt"
+	[ -f "$ROOT/proxies.txt" ] ||
+		die "$ROOT/proxies.txt isn't a file (Docker made it a directory: a container started before it existed). Remove it (root-owned: docker run --rm -v \"$ROOT:/w\" alpine rmdir /w/proxies.txt), then retry"
 	# $env/static/public needs PUBLIC_API_BASE_URL declared (empty: same-origin), for Vite in the
 	# container and `npm run check` on the host alike. The template's value is the dev one.
 	[ -e "$ROOT/frontend/.env" ] || cp "$ROOT/frontend/.env.example" "$ROOT/frontend/.env"
@@ -437,6 +461,8 @@ acquire_realdl() {
 	# A message to a stderr whose reader is gone (`| tee` killed by the same Ctrl-C) would kill
 	# bash with SIGPIPE, and the EXIT trap's own first message would kill it again, before
 	# worker-dl is removed. With SIGPIPE ignored the write just fails and the cleanup carries on.
+	# (A stderr dead before the command starts fails this script there, under set -e: the command
+	# never runs, and the cleanup still does.)
 	trap '' PIPE
 	printf 'slot %s (%s, %s), pid %s, since %s: %s\n' "$SLOT" "$PROJECT" "$ROOT" "$$" \
 		"$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$purpose" >"$REALDL_LOCK"
@@ -658,16 +684,18 @@ pytest)
 	;;
 run)
 	[ $# -ge 1 ] || die "usage: scripts/agent_stack.sh $SLOT run <command...>"
-	# Naming a profiled service enables its profile: `run docker compose up worker-dl` would start
-	# it without the lock.
+	# Naming a profiled service enables its profile, and so does `--profile '*'`: either would
+	# start it without the lock.
 	# A best-effort guard (a script that starts it unseen gets through); the stray checks are the
 	# backstop.
-	if [[ "$*" == *realdl* || "$*" == *COMPOSE_PROFILES* ]] ||
+	if [[ "$*" == *realdl* || "$*" == *COMPOSE_PROFILES* || "$*" == *--profile* ]] ||
 		{ [[ " $* " == *" worker-dl "* ]] && [[ " $* " =~ \ (up|start|restart|create|run)\  ]]; }; then
 		die "worker-dl runs only under the realdl lock: scripts/agent_stack.sh $SLOT realdl <command>"
 	fi
 	require_env_agent
 	export_compose_env
+	# A `docker compose up` here would otherwise have Docker create the mount sources root-owned.
+	prepare_mounts
 	"$@"
 	;;
 seed)
