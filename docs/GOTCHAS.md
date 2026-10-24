@@ -6070,4 +6070,9 @@ independently-found production bug from the same conversation)
   into every listing of that user's jobs (a 60 MB `GET /api/jobs`).
 - **The login buckets key an IPv6 client by its /64** (one host holds a whole /64 and could rotate
   through it); an IPv4-mapped address counts as its IPv4, a zone id is dropped.
+- **On a dev or slot stack every login shares one client address** (the Vite proxy's, or the
+  container peer: no Cloudflare in front), so the per-address login bucket counts every login of
+  every identity, successes included, against 5x LOGIN_RATE_LIMIT_FAILURES. Low test limits trip
+  it within a few logins, and buckets from an earlier, longer window survive an `api` recreate:
+  delete `spotdl:ratelimit:*` in the slot's Redis before a limits check.
 
