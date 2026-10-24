@@ -749,6 +749,8 @@ needed" claim — rather than silently deleted.
 **Testing & verification technique**
 - FastAPI 0.162's `app.routes` holds lazy `_IncludedRouter` wrappers: walk `original_router.routes`
   to find every `APIRoute` → *v53*
+- Playwright's `request.newContext()` inside a test inherits the project's `storageState`; a slot's
+  own real-stack evidence jobs skew later e2e picks (delete them first) → *v53*
 - e2e names come from the compiled message files (`t()`); a saved language beats the browser
   locale, so setup/teardown clear both identities' language in the DB → *v46*
 - The hidden admin 404s carry no error `code`, so they still read like an unknown route → *v46*
@@ -5990,3 +5992,17 @@ independently-found production bug from the same conversation)
   `agent_stack.sh <slot> up` rewrites `.env.agent` from `.env` (only `COPIED_KEYS`), so appending
   `JOB_CREATE_RATE_LIMIT=4` and running `up` loses it; `run docker compose up -d --no-deps
   --force-recreate api` keeps it. Put the original back the same way afterwards.
+- **Inside a Playwright test, `request.newContext()` gets the project's `storageState`.** Spec
+  18's "cookie-less" key check went out with the signed-in user's cookie, the API tried the
+  cookie first, and a revoked key "still worked" (200). Pass `storageState: {cookies: [],
+  origins: []}` for a request that must carry only a key, and check the answer came from the key
+  (a key's `me` has only `email`, `username`, `is_admin`).
+- **The dashboard form never sends bare words.** `submitLink.ts` refuses text without a link,
+  so the web UI's non-allowlisted submissions are a `spotify:` URI, a `<youtube>|<spotify>` pair or
+  another site's link (all kept for a cookie request without `X-Spotdl-Client`); search text only
+  arrives through the API.
+- **Real-stack evidence jobs on a slot leak into later e2e runs.** Spec 14 picks the admin's
+  largest job, archived ones included, so a cancelled 296-track artist job from a cascade check
+  replaced the seeded 14-track album and four keyboard tests failed. Cancelling and archiving
+  isn't enough: delete such jobs from the slot database (it's the slot's own) before `e2e`.
+
