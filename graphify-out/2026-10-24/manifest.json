@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
-    "mtime": 1792872659.8021169,
-    "ast_hash": "8ce4676c1d148e2a08dea947e3bd974a",
+    "mtime": 1792875224.6662967,
+    "ast_hash": "6549edcccab59f4d1f923f4c441f73f1",
     "semantic_hash": ""
   },
   "backend/alembic/versions/ebc1d43e2c21_initial_schema.py": {
@@ -215,8 +215,8 @@
     "semantic_hash": ""
   },
   "backend/tests/conftest.py": {
-    "mtime": 1792873509.3435557,
-    "ast_hash": "a0342343cee78529c86d4e379ec20943",
+    "mtime": 1792875133.9372442,
+    "ast_hash": "6a1e4292b1387a107d895686c17c1369",
     "semantic_hash": ""
   },
   "backend/tests/test_auth.py": {
@@ -300,13 +300,13 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/beat.py": {
-    "mtime": 1792871375.1212542,
+    "mtime": 1792875171.9844172,
     "ast_hash": "91f2a6af4cc9089c3e89f8d11992eb3c",
     "semantic_hash": ""
   },
   "backend/tests/test_beat_task.py": {
-    "mtime": 1792871744.0821848,
-    "ast_hash": "b6b1f20b6e2603d78b2c2ebdcbc02257",
+    "mtime": 1792875133.9373581,
+    "ast_hash": "6b0738c8da062124ee305649bffa8c08",
     "semantic_hash": ""
   },
   "backend/tests/test_retry.py": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792873550.1257355,
-    "ast_hash": "966915602776d023d0f893c8fd6009c3",
+    "mtime": 1792875224.666558,
+    "ast_hash": "b4ef8973cdf80e8dbeb5ab7b759ab28d",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
