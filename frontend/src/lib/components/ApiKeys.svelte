@@ -199,7 +199,7 @@
 					<button type="button" class="btn" onclick={dismissFresh}>{m.account_keys_done()}</button>
 				</div>
 			</div>
-			<p class="copy-state" class:ok={copied === 'yes'} role="status">
+			<p class="save-state" class:saved={copied === 'yes'} role="status">
 				{copied === 'yes'
 					? m.account_keys_copied()
 					: copied === 'failed'
@@ -322,16 +322,6 @@
 	.key {
 		color: var(--text-primary);
 		letter-spacing: 0.02em;
-	}
-
-	.copy-state {
-		font-size: var(--fs-meta);
-		color: var(--text-muted);
-		min-height: 1.125rem;
-	}
-
-	.copy-state.ok {
-		color: var(--settled);
 	}
 
 	.load-failed {
