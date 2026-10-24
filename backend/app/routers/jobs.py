@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -87,9 +88,16 @@ def _resolve_cascade(ref: spotify_urls.SpotifyRef, cascade: str) -> spotify_urls
         ) from None
 
 
+# How long a job may sit in `expanding` and still count as queued. Nothing recovers a job
+# whose expansion was lost (a broker error after its row committed), and a key can't cancel
+# one: past this, a re-submit creates a fresh job instead of answering with the dead one. A
+# discography expands in about two minutes; the margin covers a backed-up expand queue.
+ALREADY_QUEUED_EXPANDING_FOR = timedelta(hours=1)
+
+
 def _unfinished_job(db: Session, user_id: uuid.UUID, source_url: str) -> Job | None:
-    """The caller's newest job for `source_url` that is still expanding or still has a track
-    to download (rollup's `active` or `waiting`), if any."""
+    """The caller's newest job for `source_url` that is still expanding (recently) or still
+    has a track to download (rollup's `active` or `waiting`), if any."""
     unfinished_track = (
         db.query(Track.id)
         .filter(
@@ -100,13 +108,15 @@ def _unfinished_job(db: Session, user_id: uuid.UUID, source_url: str) -> Job | N
         )
         .exists()
     )
+    expanding_since = datetime.now(timezone.utc) - ALREADY_QUEUED_EXPANDING_FOR
     return (
         db.query(Job)
         .filter(
             Job.user_id == user_id,
             Job.source_url == source_url,
             Job.archived_at.is_(None),
-            (Job.state == JobState.EXPANDING) | ((Job.state == JobState.EXPANDED) & unfinished_track),
+            ((Job.state == JobState.EXPANDING) & (Job.created_at > expanding_since))
+            | ((Job.state == JobState.EXPANDED) & unfinished_track),
         )
         .order_by(Job.created_at.desc())
         .first()
@@ -141,6 +151,9 @@ def create_job(
             422, "url_not_spotify", "Only open.spotify.com track, album, artist or playlist links"
         )
     if ref is not None and payload.cascade is not None:
+        # The metadata call can take seconds: never with a transaction idling open across it
+        # (v31's idle-in-transaction lesson). The user row reloads after it.
+        db.commit()
         ref = _resolve_cascade(ref, payload.cascade)
 
     if ref is not None:

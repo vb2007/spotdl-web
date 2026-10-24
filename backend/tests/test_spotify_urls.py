@@ -157,6 +157,14 @@ def test_a_cascade_is_refused_at_once_when_every_worker_is_busy(monkeypatch):
         release.wait(5)
         return {"album": {"id": ALBUM}}
 
+    # Review round 2 (L5b): the pool is shared by the module, so start from every slot free
+    # (an earlier test's slow call may still be letting go of one).
+    import time as _time
+
+    deadline = _time.monotonic() + 5
+    while spotify_urls._slots._value < spotify_urls._CASCADE_WORKERS:
+        assert _time.monotonic() < deadline, "an earlier test's cascade call never ended"
+        _time.sleep(0.02)
     monkeypatch.setattr(spotify_urls, "_fetch", slow)
     monkeypatch.setattr(spotify_urls, "CASCADE_TIMEOUT_SECONDS", 0.05)
     try:

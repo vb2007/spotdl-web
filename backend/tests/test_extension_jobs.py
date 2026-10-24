@@ -467,3 +467,65 @@ def test_a_key_stops_working_when_its_user_leaves_the_allowlist(client, user_key
     ):
         assert response.status_code == 401
         assert response.json()["code"] == "api_key_invalid"
+
+
+def test_a_stale_expanding_job_is_not_already_queued(client, user_key, db_session, owner):
+    """Review round 2 (M1): an expansion that was lost leaves a job `expanding` forever, and a
+    key can't cancel it, so past ALREADY_QUEUED_EXPANDING_FOR a re-submit creates a new job."""
+    from datetime import datetime, timedelta, timezone
+
+    url = f"https://open.spotify.com/album/{ALBUM_ID}"
+    stale = Job(
+        source_url=url,
+        source_type="album",
+        state=JobState.EXPANDING,
+        user_id=owner.id,
+        created_at=datetime.now(timezone.utc) - jobs_router.ALREADY_QUEUED_EXPANDING_FOR - timedelta(minutes=1),
+    )
+    db_session.add(stale)
+    db_session.commit()
+    response = client.post("/api/jobs", json={"url": url}, headers=bearer(user_key))
+    assert response.status_code == 201
+    assert response.json()["id"] != str(stale.id)
+    # The fresh one does count.
+    again = client.post("/api/jobs", json={"url": url}, headers=bearer(user_key))
+    assert again.status_code == 200
+    assert again.json()["id"] == response.json()["id"]
+
+
+def test_already_queued_is_decided_per_job(authenticated_client, db_session, owner):
+    """Review round 2 (L5a): one job's unfinished track never makes another job of the same
+    user look queued: the track check is correlated to each job."""
+    url = f"https://open.spotify.com/album/{ALBUM_ID}"
+    other = Job(source_url="https://open.spotify.com/album/1SwW8cXJr9oFXF0AikjUzk", source_type="album",
+                state=JobState.EXPANDED, user_id=owner.id)
+    settled = Job(source_url=url, source_type="album", state=JobState.EXPANDED, user_id=owner.id)
+    db_session.add_all([other, settled])
+    db_session.flush()
+    db_session.add_all([
+        Track(job_id=other.id, spotify_track_id="a" * 22, song_json={"name": "x"}, state=TrackState.WAITING),
+        Track(job_id=settled.id, spotify_track_id="b" * 22, song_json={"name": "y"}, state=TrackState.COMPLETED),
+    ])
+    db_session.commit()
+    response = authenticated_client.post("/api/jobs", json={"url": url})
+    assert response.status_code == 201
+    assert response.json()["hint"] is None
+
+
+def test_a_keys_own_bucket_answers_429_with_its_retry_after(client, authenticated_client, low_limits, fake_redis):
+    """Review round 2 (L5c): the key's bucket, not the user's, is the one over the limit."""
+    from app.services import rate_limit
+
+    cookie = dict(authenticated_client.cookies)
+    raw = authenticated_client.post("/api/account/api-keys", json={"label": "k"}).json()["key"]
+    key_id = authenticated_client.get("/api/account/api-keys").json()["keys"][0]["id"]
+    bucket = f"{rate_limit.KEY_PREFIX}create:key:{key_id}"
+    fake_redis.values[bucket] = 3
+    fake_redis.expires[bucket] = __import__("time").monotonic() + 42
+    client.cookies.clear()
+    response = client.post("/api/jobs", json={"url": f"https://open.spotify.com/album/{ALBUM_ID}"}, headers=bearer(raw))
+    assert response.status_code == 429
+    assert 40 <= int(response.headers["Retry-After"]) <= 42
+    # The user's cookie isn't held back by the key's bucket.
+    client.cookies.update(cookie)
+    assert client.post("/api/jobs", json={"url": "search words"}).status_code == 201

@@ -1,7 +1,7 @@
 <!--
 	v53: /account's "browser extension keys" section. A key is the Firefox extension's fallback
-	when this browser's session cookie doesn't reach the API: it can queue Spotify links and read
-	whose it is, nothing else (backend/app/routers/auth.py). Create (named), list (prefix, created,
+	when this browser's session cookie doesn't reach the API: it can queue Spotify links, read
+	those jobs and say whose it is, nothing else (backend/app/routers/auth.py). Create (named), list (prefix, created,
 	last used) and revoke. The whole key exists only in the create answer, so it's shown once,
 	here, with a copy control, until "done" or leaving the page.
 -->
@@ -67,6 +67,7 @@
 			return;
 		}
 		creating = true;
+		let madeKey = false;
 		// A sign-out while the request is in flight: the key belongs to the previous identity,
 		// and this page must not show it to whoever is here next (v42's late-write guard).
 		const resets = queue.getResetCount();
@@ -78,15 +79,26 @@
 			fresh = { id: row.id, label: row.label, key };
 			copied = null;
 			label = '';
+			madeKey = true;
 		} catch (err) {
 			error = () => errorText(err);
 		} finally {
 			creating = false;
 		}
-		if (fresh) {
-			await tick();
+		await tick();
+		if (madeKey) {
 			document.getElementById('api-key-fresh')?.focus();
+			return;
 		}
+		// Creating disabled the field that had focus: back to it to try again, or to the
+		// section's heading when it stays disabled (the limit reached meanwhile).
+		await focusNameOrHeading();
+	}
+
+	async function focusNameOrHeading() {
+		const field = document.getElementById('api-key-label') as HTMLInputElement | null;
+		if (field && !field.disabled) await keepFocus(field);
+		else await keepFocusOnHeading('keys-heading');
 	}
 
 	async function copyKey() {
@@ -107,7 +119,10 @@
 		fresh = null;
 		copied = null;
 		await tick();
-		document.getElementById('api-key-label')?.focus();
+		// "done" itself is gone: the name field, or the heading at the key limit.
+		const field = document.getElementById('api-key-label') as HTMLInputElement | null;
+		if (field && !field.disabled) field.focus();
+		else await keepFocusOnHeading('keys-heading');
 	}
 
 	async function revoke(key: api.ApiKey) {
@@ -119,7 +134,7 @@
 			cancelLabel: m.account_keys_revoke_cancel()
 		});
 		if (!confirmed || !keys?.some((k) => k.id === key.id)) {
-			return keepFocus(document.getElementById('keys-heading'));
+			return keepFocusOnHeading('keys-heading');
 		}
 		busy = { ...busy, [key.id]: true };
 		error = null;

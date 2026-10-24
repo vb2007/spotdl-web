@@ -915,5 +915,15 @@
 	"account_keys_revoke_cancel": "keep key",
 	"account_keys_revoked": "Revoked {label}.",
 	"account_keys_limit": "That's as many keys as you can have; revoke one to create another.",
-	"dashboard_submit_already_queued": "Already in your queue: that link is still downloading."
+	"dashboard_submit_already_queued": "Already in your queue: that link is still downloading.",
+	"login_error_rate_limited_for": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "Too many sign-in attempts. Try again in {n} minute.",
+				"countPlural=*": "Too many sign-in attempts. Try again in {n} minutes."
+			}
+		}
+	]
 }

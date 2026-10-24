@@ -872,5 +872,14 @@
 	"account_keys_revoke_cancel": "kulcs megtartása",
 	"account_keys_revoked": "{label} visszavonva.",
 	"account_keys_limit": "Ennél több kulcsod nem lehet; vonj vissza egyet, hogy újat hozhass létre.",
-	"dashboard_submit_already_queued": "Ez már a sorodban van: azt a linket még töltjük."
+	"dashboard_submit_already_queued": "Ez már a sorodban van: azt a linket még töltjük.",
+	"login_error_rate_limited_for": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "Túl sok bejelentkezési kísérlet. Próbáld újra {n} perc múlva."
+			}
+		}
+	]
 }
