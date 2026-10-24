@@ -19,7 +19,7 @@ import uuid
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
-from app.config import check_not_production_database
+from app.config import PRODUCTION_DATABASE_NAMES, check_not_production_database
 
 # The database name must carry this marker, so the suite never runs on a database that wasn't
 # made for it; production's names (app/config.py's v32 guard) are refused on top of that.
@@ -35,6 +35,10 @@ _DATABASE_SELECTING_KEYS = ("dbname", "service", "host", "hostaddr")
 _ALLOWED_HOSTS = ("postgres", "localhost", "127.0.0.1", "::1")
 # Room for "_" + 12 hex characters inside Postgres's 63-byte identifier limit.
 _MAX_STEM = 40
+# A server holding any of these is production's, whatever address reached it: on the production
+# host (the CI runner) its Postgres answers on loopback too. `spotdlwebtest`, the owner's dev
+# database, lives on that same server.
+_PRODUCTION_SERVER_DATABASES = (*PRODUCTION_DATABASE_NAMES, "spotdlwebtest")
 
 
 def _test_database_urls() -> tuple[str, str]:
@@ -107,7 +111,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, text
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -167,8 +171,17 @@ def pytest_sessionstart(session):
     url = make_url(RUN_DATABASE_URL)
     try:
         with _maintenance_engine().connect() as conn:
+            production = conn.execute(
+                text("SELECT datname FROM pg_database WHERE lower(datname) = ANY(:names)"),
+                {"names": [n.lower() for n in _PRODUCTION_SERVER_DATABASES]},
+            ).scalars().first()
+            if production is not None:
+                raise pytest.UsageError(
+                    f"refusing to run the suite: the server at {url.host}:{url.port or 5432} holds "
+                    f"{production!r}, so it is production's; use a slot's or a disposable one"
+                )
             conn.exec_driver_sql(f"CREATE DATABASE {_quoted(url.database)}")
-    except OperationalError as exc:
+    except DBAPIError as exc:
         # The driver's message names host and port, never the password.
         raise pytest.UsageError(f"can't create the test database {url.database}: {exc.orig}") from None
     session.config.stash[_CREATED] = url.database
@@ -220,17 +233,32 @@ def _ignore_isolation_level(connection) -> None:
 @pytest.fixture()
 def db_session():
     """One outer transaction per test, rolled back at the end. The code under test commits and
-    rolls back freely: each of those ends a SAVEPOINT inside it instead."""
+    rolls back freely: each of those ends a SAVEPOINT inside it instead.
+
+    Any other connection the test opens on app.db's engine fails it: that is a SessionLocal the
+    test forgot to patch, which reads past the test's uncommitted rows and commits for real,
+    outside the rollback, into every later test."""
     connection = engine.connect()
     transaction = connection.begin()
     _ignore_isolation_level(connection)
     session = Session(bind=connection, join_transaction_mode="create_savepoint", autoflush=False)
+    strays = []
+
+    def _stray(dbapi_connection, connection_record, connection_proxy):
+        strays.append(connection_record)
+
+    event.listen(engine, "checkout", _stray)
     try:
         yield session
     finally:
+        event.remove(engine, "checkout", _stray)
         session.close()
         transaction.rollback()
         connection.close()
+    assert not strays, (
+        f"the test opened {len(strays)} connection(s) of its own on the run's database, outside "
+        "db_session's rollback: patch the SessionLocal it reached, or use committed_db"
+    )
 
 
 def _truncate_all() -> None:
@@ -250,10 +278,12 @@ def _truncate_all() -> None:
 
 
 @pytest.fixture()
-def committed_db():
+def committed_db(monkeypatch):
     """A sessionmaker on this run's database whose sessions really commit, so several of them
     (and the threads in tests/concurrency.py) see each other's writes and locks, the way two
-    workers or two requests do. Every table is truncated afterwards. Use it only where a test
+    workers or two requests do. Every table is truncated afterwards. It depends on `monkeypatch`
+    so it is torn down first: a thread a failed test left parked resumes with the test's stubs
+    still in place, never the real publish or Celery send. Use it only where a test
     needs that; `db_session` is faster and the default."""
     # app.db.SessionLocal's own settings, so the code under test behaves as it does in a worker.
     factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
