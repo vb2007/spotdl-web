@@ -91,7 +91,7 @@ env_value() {
 # its .env): nothing here may run there.
 refuse_production_env() {
 	[ -f "$ENV_FILE" ] || return 0
-	local url query name param prod
+	local url query name param key value prod
 	local -a names params
 	url="$(env_value "$ENV_FILE" DATABASE_URL)"
 	[ -n "$url" ] || return 0
@@ -105,11 +105,15 @@ refuse_production_env() {
 		die "$ENV_FILE's DATABASE_URL can't be parsed: refusing (app/config.py would too)"
 	names=("${BASH_REMATCH[11]}")
 	query="${BASH_REMATCH[13]}"
-	# Every dbname= in the query, as the guard checks each (a query value's + is a space).
+	# Every dbname= in the query, as the guard checks each. Its parse_qsl splits at the first =
+	# and decodes key and value alike (+ is a space), so db%6Eame is a dbname too.
 	IFS='&' read -ra params <<<"$query"
 	for param in "${params[@]}"; do
-		param="${param//+/ }"
-		[[ "$param" != dbname=* ]] || names+=("${param#dbname=}")
+		[[ "$param" == *=* ]] || continue
+		key="${param%%=*}"
+		key="$(printf '%b' "${key//%/\\x}")"
+		value="${param#*=}"
+		[ "${key//+/ }" != dbname ] || names+=("${value//+/ }")
 	done
 	# Any name, percent-decoded, trimmed and case-folded, refuses (a superset of the guard's).
 	for name in "${names[@]}"; do
@@ -375,7 +379,7 @@ prepare_mounts() {
 		"$ROOT/frontend/src/lib/paraglide"
 	[ -e "$ROOT/proxies.txt" ] || : >"$ROOT/proxies.txt"
 	[ -f "$ROOT/proxies.txt" ] ||
-		die "$ROOT/proxies.txt isn't a file (Docker made it a directory: a container started before it existed). Remove it (root-owned: docker run --rm -v \"$ROOT:/w\" alpine rmdir /w/proxies.txt), then retry"
+		die "$ROOT/proxies.txt isn't a file (Docker made it a directory: a container started before it existed). Take the slot down (scripts/agent_stack.sh $SLOT down), remove it (root-owned: docker run --rm -v \"$ROOT:/w\" alpine rmdir /w/proxies.txt), then retry"
 	# $env/static/public needs PUBLIC_API_BASE_URL declared (empty: same-origin), for Vite in the
 	# container and `npm run check` on the host alike. The template's value is the dev one.
 	[ -e "$ROOT/frontend/.env" ] || cp "$ROOT/frontend/.env.example" "$ROOT/frontend/.env"
