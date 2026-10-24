@@ -114,6 +114,9 @@ except ValueError as exc:
 # is set unconditionally: nothing the suite runs can reach any other database. A refused run
 # gets an address that can't resolve, and pytest_configure stops it before any test.
 os.environ["DATABASE_URL"] = RUN_DATABASE_URL or "postgresql+psycopg://refused@refused.invalid/refused_test"
+# libpq sends this as a startup option, which outranks a role's or the database's own TimeZone:
+# the suite compares aware datetimes (the run's database is set to UTC too).
+os.environ["PGTZ"] = "UTC"
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("SESSION_SECRET", "test-secret")
 # Two addresses: ADMIN_EMAIL must be allowlisted too (config.py's v17 validator), and
@@ -340,13 +343,23 @@ def _truncate_all() -> None:
 
 
 @pytest.fixture()
-def committed_db(monkeypatch):
+def committed_db(request, monkeypatch):
     """A sessionmaker on this run's database whose sessions really commit, so several of them
     (and the threads in tests/concurrency.py) see each other's writes and locks, the way two
     workers or two requests do. Every table is truncated afterwards. It depends on `monkeypatch`
     so it is torn down first: a thread a failed test left parked resumes with the test's stubs
     still in place, never the real publish or Celery send. Use it only where a test
     needs that; `db_session` is faster and the default."""
+    if "db_session" in request.fixturenames:
+        # Its teardown truncates and ends every other session, which db_session's open outer
+        # transaction can't survive. A race test calls the endpoint or task function directly
+        # with a committed session (see test_jobs.py's), not through `client`.
+        pytest.fail(
+            "committed_db can't be combined with db_session or a fixture built on it "
+            "(client, authenticated_client, admin_client, owner, make_user, session_cookie, "
+            "count_queries)",
+            pytrace=False,
+        )
     # app.db.SessionLocal's own settings, so the code under test behaves as it does in a worker.
     factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     try:
