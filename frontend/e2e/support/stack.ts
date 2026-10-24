@@ -600,11 +600,10 @@ print(" ".join(f"{t}:{j}" for t, j in rows))
  * user, a track as a real first-try download leaves it (one `completed direct-ipv4` attempt), in
  * an archived one-track job of its own title, with no file and no ledger row: spec 3 only reads
  * its attempts. Keyed on its own Spotify id, not on "any track with a network path", which spec
- * 3's finder may reject (an album's track, a shared title). Returns whether it added it. */
-export function addNetworkPathFixture(email: string): boolean {
-	return (
-		stackPython(
-			`
+ * 3's finder may reject (an album's track, a shared title). Returns its `{ trackId, jobId }`. */
+export function networkPathFixture(email: string): { trackId: string; jobId: string } {
+	const [trackId, jobId] = stackPython(
+		`
 import sys
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
@@ -615,12 +614,12 @@ from app.models.track_attempt import NetworkPath, TrackAttempt, TrackAttemptOutc
 from app.models.user import User
 db = SessionLocal()
 user = db.query(User).filter(User.email == sys.argv[1]).one()
-has_one = db.execute(text("""
-    select 1 from tracks t join jobs j on j.id = t.job_id
+existing = db.execute(text("""
+    select t.id, t.job_id from tracks t join jobs j on j.id = t.job_id
     where j.user_id = :user and t.spotify_track_id = 'e2enetworkpathfixture' limit 1
 """), {"user": user.id}).first()
-if has_one:
-    print("present")
+if existing:
+    print(f"{existing[0]}:{existing[1]}")
 else:
     # A month back, so it sorts after anything a run creates.
     created = datetime.now(timezone.utc) - timedelta(days=30)
@@ -641,11 +640,11 @@ else:
                         outcome=TrackAttemptOutcome.COMPLETED,
                         network_path=NetworkPath.DIRECT_IPV4))
     db.commit()
-    print("added")
+    print(f"{track.id}:{job.id}")
 `,
-			[normalizeEmail(email)]
-		) === 'added'
-	);
+		[normalizeEmail(email)]
+	).split(':');
+	return { trackId, jobId };
 }
 
 /** How many `download_track` tasks worker-dl is running right now for either e2e identity, by

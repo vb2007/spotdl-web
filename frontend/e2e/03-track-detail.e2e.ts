@@ -2,10 +2,10 @@ import { expect, test, type APIRequestContext, type Page } from '@playwright/tes
 import type { Job, JobTracksPage, TrackAttempt } from '../src/lib/api';
 import {
 	ADMIN_STATE,
-	addNetworkPathFixture,
 	adminIdentity,
 	expectedAttemptVia,
 	expectedTimeline,
+	networkPathFixture,
 	readSeed,
 	tracksWithNetworkPath,
 	type SeedJob
@@ -14,10 +14,14 @@ import { jobToggle, openDashboard, trackToggle } from './support/ui';
 
 test.use({ storageState: ADMIN_STATE });
 
-/** An admin-owned track with a real network path whose job title is unique among the admin's
- * jobs (archived included), so the dashboard search finds its row by title. */
-async function findRealPathTrack(context: APIRequestContext): Promise<SeedJob | null> {
-	for (const { trackId, jobId } of tracksWithNetworkPath(adminIdentity().email)) {
+/** Of `candidates`, the first admin-owned track with a real network path whose job title is
+ * unique among the admin's jobs (archived included) and whose job has only that track, so the
+ * dashboard search finds its row by title. */
+async function findRealPathTrack(
+	context: APIRequestContext,
+	candidates: { trackId: string; jobId: string }[]
+): Promise<SeedJob | null> {
+	for (const { trackId, jobId } of candidates) {
 		const job = (await (await context.get(`/api/jobs/${jobId}`)).json()) as Job;
 		const q = new URLSearchParams({ q: job.title, include_archived: 'true', limit: '100' });
 		const sameTitle = (
@@ -78,10 +82,10 @@ test('expanding a job and a track loads attempt history with its network path', 
 	// setup), so a real path label renders. Without one, only the path-less branch would ever
 	// render and a broken real-path label would pass. v52 (D7): a database that has none (a fresh
 	// one) gets this spec's own fixture, so it runs standalone, with no network pass first.
-	let realPath = await findRealPathTrack(page.request);
-	if (realPath === null && addNetworkPathFixture(adminIdentity().email)) {
-		realPath = await findRealPathTrack(page.request);
-	}
+	const email = adminIdentity().email;
+	const realPath =
+		(await findRealPathTrack(page.request, tracksWithNetworkPath(email))) ??
+		(await findRealPathTrack(page.request, [networkPathFixture(email)]));
 	expect(realPath, 'an admin-owned track with a recorded network path').not.toBeNull();
 	if (realPath === null) return;
 	await openDashboard(page);
