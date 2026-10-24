@@ -387,13 +387,14 @@ prepare_mounts() {
 	[ -e "$ROOT/frontend/.env" ] || cp "$ROOT/frontend/.env.example" "$ROOT/frontend/.env"
 }
 
-# The dev `web` container runs Vite as root, which writes .svelte-kit/ and project.inlang's cache
-# into the worktree root-owned, and then host-side `npm run check`/`lint` fail with EACCES
-# (docs/GOTCHAS.md, v44). A fresh worktree hits that on its first `up`, so hand them back.
-# (Vite keeps writing as root afterwards; v52 owns the lasting fix.)
+# Before v52 the dev `web` container ran Vite as root, which wrote .svelte-kit/ and project.inlang's
+# cache into the worktree root-owned, and then host-side `npm run check`/`lint` failed with EACCES
+# (docs/GOTCHAS.md, v44). v52 runs it as uid 1000, and its dev command refuses to start over
+# root-owned files, so a worktree that still has some gets them back, through a one-off root
+# container, before `up`.
 return_frontend_files() {
-	# Not into the container's own node_modules and compiled messages (anonymous volumes).
-	dc exec -T web sh -c "find /app \\( -path /app/node_modules -o -path /app/src/lib/paraglide \\) -prune -o -user 0 -exec chown $(id -u):$(id -g) {} +" || true
+	# Not into the container's own node_modules and compiled messages (volumes).
+	dc run --rm --no-deps -T -u root web sh -c "find /app \\( -path /app/node_modules -o -path /app/src/lib/paraglide \\) -prune -o -user 0 -exec chown $(id -u):$(id -g) {} +" || true
 }
 
 # --- realdl lock --------------------------------------------------------------------------------
@@ -631,10 +632,10 @@ up)
 		[ "$arg" != worker-dl ] || die "worker-dl runs only under the realdl lock: scripts/agent_stack.sh $SLOT realdl <command>"
 	done
 	prepare_mounts
+	return_frontend_files
 	dc up -d --build "$@"
 	echo "agent_stack: waiting for slot $SLOT to be healthy"
 	wait_healthy
-	return_frontend_files
 	echo "agent_stack: slot $SLOT is up: web http://localhost:$WEB_PORT, api http://localhost:$API_PORT"
 	;;
 down)
