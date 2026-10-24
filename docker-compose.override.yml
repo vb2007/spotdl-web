@@ -26,6 +26,15 @@ networks:
 x-dev-env: &dev-env
   SPOTDL_ENV: dev
 
+# v52 (D2): the Celery workers restart on a backend edit, as `api` does under --reload.
+# scripts/dev/reload.py runs the service's own `command` as its child and restarts it when a
+# .py file under /app/app changes. It wraps through `entrypoint`, so each worker's `command`
+# stays docker-compose.yml's, word for word (worker-dl's --concurrency=1
+# --prefetch-multiplier=1 can't drift from production's), and a one-off `docker compose run`
+# passes straight through it. `beat` isn't wrapped: restart it after editing its schedule.
+x-dev-reload: &dev-reload ["python", "/opt/dev/reload.py", "--"]
+x-dev-reload-mount: &dev-reload-mount ./scripts/dev:/opt/dev:ro
+
 services:
   api:
     environment: *dev-env
@@ -68,20 +77,24 @@ services:
 
   worker-dl:
     environment: *dev-env
+    entrypoint: *dev-reload
     # Bind-mounted to the project root instead of the base file's named `downloads` volume,
     # so downloaded files are directly browsable on the host during local dev. `!override`
     # replaces rather than merges (v01 gotcha) — without it this would sit alongside the
     # named volume as a second, conflicting mount at the same target.
     volumes: !override
       - ./backend/app:/app/app
+      - *dev-reload-mount
       - ./downloads:/downloads
       # v38: the dedup gate must see moved files; read-only, as in the base file.
       - ./test-library:/mnt/raid1/media/music:ro
 
   worker-meta:
     environment: *dev-env
+    entrypoint: *dev-reload
     volumes: !override
       - ./backend/app:/app/app
+      - *dev-reload-mount
       - ./downloads:/downloads
       - ./proxies.txt:/app/proxies.txt:ro
       # v28: a throwaway local test library, never the real ~120k-track directory --
@@ -92,8 +105,10 @@ services:
 
   worker-expand:
     environment: *dev-env
+    entrypoint: *dev-reload
     volumes: !override
       - ./backend/app:/app/app
+      - *dev-reload-mount
       - ./downloads:/downloads
       - ./test-library:/mnt/raid1/media/music
 
