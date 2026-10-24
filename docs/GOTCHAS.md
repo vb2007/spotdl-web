@@ -6208,3 +6208,32 @@ independently-found production bug from the same conversation)
   whose `q` is the typed text (the store applies only its newest request's answer).
 - **Spec 3 makes its own network-path fixture** when the admin has no track with a recorded
   network path (a fresh database), so it no longer needs a prior `@network` pass.
+- **v44's "a long-running Vite stops opening the confirmation dialog" didn't reproduce.** v44's own
+  transcript says more than its entry: the failing control was *release now*, one minute after a
+  real breaker escalation; a *fresh* browser also got the `<dialog>` element rendered but empty
+  and never opened (so the server's state, not one page's); no console error; and the check after
+  restarting `web` opened *pause*, not *release now*. A rendered dialog that never reacts while
+  `confirmAction` (which `handleRelease` calls before anything else) did run means the page held
+  two instances of `stores/confirm.ts`, or of the Svelte runtime. What v52 ran against the dev
+  server, checking a fresh page each time (and, in the soak, a page kept open throughout):
+  - 162 HMR cycles on the dialog's own files and their importers (`confirm.ts`, `ConfirmDialog`,
+    `WorkerStatus`, `/settings`, the layout, `queue.ts`), with navigation between pages, HMR with
+    the dialog open, and compile errors then fixes;
+  - 40 bursts of simultaneous writes to eight of those files while a page loaded;
+  - a host-side `svelte-kit sync`, a new npm dependency discovered at runtime (Vite optimized it
+    without a new browser hash), and 10 in-process Vite restarts;
+  - a soak against a second, pre-v52-style dev server (root, shared `.svelte-kit`) on a copy of
+    the tree, mixing HMR edits, host-side `svelte-kit sync` (partly failing with `EACCES` on
+    root-owned types, as v44's did), `chown` of `.svelte-kit`, routes added and removed, bursts,
+    and `vite.config.ts` restarts: 955 cycles over 1 h 40 min so far (532 HMR edits, 114 host
+    syncs, 35 new routes, 21 restarts), 198 checks, no failure. (One stop came from a page that
+    never rendered while the server stalled for 40 s under the parallel e2e run's load; the probe
+    counts that separately now.)
+  Every fresh page loaded `confirm.ts`, and each optimized dependency, under one URL, and the
+  dialog opened every time. No fix went into `ConfirmDialog.svelte`. What v52 did change is the one
+  mechanism found that rewrites what Vite serves from outside it: a host-side `npm run check`
+  (which v44's session ran repeatedly while `web` ran as root, chowning `.svelte-kit` by hand)
+  rewrote `.svelte-kit/generated` and detached the container's compiled-messages volume. Both
+  now stay in the container's own volumes. If it recurs: list the module URLs a fresh page loads
+  (`performance.getEntriesByType('resource')`) and look for `confirm.ts` or a
+  `.vite/deps/svelte_internal_client` chunk under two queries before restarting `web`.
