@@ -400,8 +400,8 @@ def test_archive_unarchive_endpoints_require_session(client):
 
 def test_cancel_job_row_locks_the_job_before_reading_its_tracks(authenticated_client, db_session, monkeypatch):
     """v34.1: the FOR UPDATE is what serializes a cancel against expand_job's EXPANDED
-    commit. SQLite (this suite) ignores it, so pin that it's requested; the serialization
-    itself was verified on real Postgres (docs/GOTCHAS.md's v34.1 entry)."""
+    commit. This pins that it's requested; the next test proves the serialization on two
+    real connections (before v51 the suite ran on SQLite, which ignores it)."""
     from sqlalchemy.orm import Session
 
     _stub_expand_job(monkeypatch)
@@ -481,8 +481,9 @@ def test_cancel_job_row_lock_holds_off_a_concurrent_expanded_commit(committed_db
 
 def test_job_listing_reads_from_one_snapshot(authenticated_client, db_session, monkeypatch):
     """v34.2: count, counts_by_status and the page must come from one snapshot (they
-    disagreed under Postgres READ COMMITTED). SQLite (this suite) has no REPEATABLE READ,
-    so pin that the listing opens the snapshot; the race itself was measured live."""
+    disagreed under Postgres READ COMMITTED). This pins that the listing opens the snapshot;
+    the next test reproduces the race on two real connections (before v51 the suite ran on
+    SQLite, which has no REPEATABLE READ)."""
     from app.services import job_listing
 
     opened = []
