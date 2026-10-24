@@ -28,7 +28,8 @@
 #     ./scripts/verify_separation_sse.sh
 #
 # Env vars:
-#   SPOTDL_WEB_BASE_URL           default: http://localhost:8000
+#   SPOTDL_WEB_BASE_URL           default: http://localhost:${API_PORT:-8000} (v50: an agent
+#                                  slot's API port, e.g. API_PORT=8001 for slot 1)
 #   SPOTDL_WEB_USER_A_EMAIL / _PASSWORD   required -- must already be in ALLOWED_EMAILS
 #   SPOTDL_WEB_USER_B_EMAIL / _PASSWORD   a DIFFERENT, non-admin user than A -- required
 #                                          unless SPOTDL_WEB_USER_B_TOKEN is set instead
@@ -53,7 +54,7 @@
 #                                  the events it's waiting for ever land
 set -euo pipefail
 
-BASE_URL="${SPOTDL_WEB_BASE_URL:-http://localhost:8000}"
+BASE_URL="${SPOTDL_WEB_BASE_URL:-http://localhost:${API_PORT:-8000}}"
 TEST_TRACK_URL="${SPOTDL_WEB_TEST_TRACK_URL:-https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT}"
 CAPTURE_SECONDS="${SPOTDL_WEB_CAPTURE_SECONDS:-40}"
 

@@ -1,0 +1,130 @@
+# v50: the opt-in overlay for a parallel agent stack (master v5, "Parallel execution model"),
+# applied only by scripts/agent_stack.sh, on top of docker-compose.yml and
+# docker-compose.override.yml:
+#
+#   docker compose --env-file .env.agent \
+#     -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.agent.yml ...
+#
+# Never in production: the prod invocation names its files explicitly (docker-compose.yml +
+# docker-compose.prod.yml), and every backend service here keeps the override's SPOTDL_ENV=dev,
+# so app/config.py's v32 guard still refuses a production database name. Every value below comes
+# from the slot's generated .env.agent (`agent_stack.sh <slot> env`), never from the worktree's
+# .env: the `${VAR:?}` forms fail the render if this file is used without it.
+#
+# What makes a slot independent of the owner's default stack and of the other slots:
+# - the project name (COMPOSE_PROJECT_NAME=spotdlweb-s<slot>) prefixes every container, network
+#   and named volume (redis-data, pgdata, the base file's downloads/library);
+# - the host ports (API_PORT/WEB_PORT, docker-compose.yml);
+# - its own Postgres container and database, below;
+# - ./downloads, ./test-library and ./proxies.txt resolve against the worktree, so each worktree
+#   has its own;
+# - the IPv6 subnet of the project network, below.
+
+# Every backend service talks to this project's own Postgres, whatever .env.agent's
+# DATABASE_URL says, and reads only .env.agent (never the worktree's .env, which may carry the
+# owner's identities or Matrix tokens).
+x-agent-env: &agent-env
+  SPOTDL_ENV: dev
+  DATABASE_URL: postgresql+psycopg://${AGENT_PG_USER:?run scripts/agent_stack.sh <slot> env}:${AGENT_PG_PASSWORD:?run scripts/agent_stack.sh <slot> env}@postgres:5432/${AGENT_PG_DB:?run scripts/agent_stack.sh <slot> env}
+
+x-agent-depends: &agent-depends
+  postgres:
+    condition: service_healthy
+
+services:
+  postgres:
+    # Production's version, read once from the owner's spotdlwebtest (same server as
+    # production) on 2026-10-23: PostgreSQL 18.6 on Debian, databases en_US.UTF-8 with the libc
+    # provider. Debian-based for glibc's collation: Alpine's musl sorts text in codepoint order,
+    # so a server-side sort or cursor page would come out differently from production. The 18
+    # image keeps its data under /var/lib/postgresql/18/docker and refuses a volume mounted at
+    # the old /var/lib/postgresql/data, so the volume goes on /var/lib/postgresql.
+    image: postgres:18.6-bookworm
+    environment:
+      POSTGRES_DB: ${AGENT_PG_DB:?run scripts/agent_stack.sh <slot> env}
+      POSTGRES_USER: ${AGENT_PG_USER:?run scripts/agent_stack.sh <slot> env}
+      POSTGRES_PASSWORD: ${AGENT_PG_PASSWORD:?run scripts/agent_stack.sh <slot> env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    # No host port: `agent_stack.sh <slot> psql` goes through the container. A PG_PORT in
+    # .env.agent adds a loopback one (agent_stack.sh writes that overlay itself).
+    healthcheck:
+      # Over TCP: on a fresh volume the image's init runs a temporary server on the unix socket
+      # only, which would pass a socket check while `migrate` still can't connect.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  migrate:
+    env_file: !override
+      - .env.agent
+    environment: *agent-env
+    depends_on: *agent-depends
+
+  api:
+    env_file: !override
+      - .env.agent
+    environment: *agent-env
+    depends_on: *agent-depends
+    # `agent_stack.sh <slot> pytest` runs the suite in this container from the worktree's whole
+    # backend (the image has no tests). A directory, not single files: git replaces a file by
+    # rename, and a single-file bind keeps the old inode until the container is recreated. Outside
+    # /app, so `uvicorn --reload` (watching /app) doesn't restart on a test edit.
+    volumes:
+      - ./backend:/src:ro
+
+  # Off unless asked for: only `agent_stack.sh <slot> realdl|e2e` start it, under the host-wide
+  # lock /tmp/spotdl-web-realdl.lock, so at most one agent stack ever talks to YouTube.
+  worker-dl:
+    profiles: ["realdl"]
+    # tini as PID 1: celery started as PID 1 drops SIGTERM until it has installed its handlers, so
+    # a realdl interrupted in worker-dl's first seconds waited out the full 300 s grace period.
+    init: true
+    env_file: !override
+      - .env.agent
+    environment: *agent-env
+    depends_on: *agent-depends
+
+  worker-meta:
+    env_file: !override
+      - .env.agent
+    environment: *agent-env
+    depends_on: *agent-depends
+
+  worker-expand:
+    env_file: !override
+      - .env.agent
+    environment: *agent-env
+    depends_on: *agent-depends
+
+  beat:
+    env_file: !override
+      - .env.agent
+    environment: *agent-env
+    depends_on: *agent-depends
+
+# docker-compose.override.yml pins the dev network's IPv6 subnet (fd00:dead:beef::/64), and two
+# networks can't share one: a second stack would fail to create its network. Each slot takes
+# its own /64 inside that /48-sized prefix, distinct from the owner's (fd00:dead:beef:0::/64).
+networks:
+  default:
+    ipam:
+      config: !override
+        - subnet: "fd00:dead:beef:${AGENT_SLOT:?run scripts/agent_stack.sh <slot> env}::/64"
+
+volumes:
+  pgdata:
+    # Names the worktree that owns the slot's database: agent_stack.sh refuses to reuse it from
+    # another one (a later slice in the same slot starts from a fresh database). Only this
+    # volume: labelling the base file's redis-data too would change an existing slot's volume
+    # config, and Compose then asks on a terminal whether to recreate it (losing its data).
+    labels:
+      spotdlweb.worktree: ${AGENT_WORKTREE:?run scripts/agent_stack.sh <slot> env}

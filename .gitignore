@@ -8,6 +8,12 @@
 # env
 .env
 !.env.example
+# v50: an agent slot's generated env (scripts/agent_stack.sh) and its generated PG_PORT overlay
+/.env.agent
+/.env.agent.*
+/.agent-stack/
+# v50: a slot's e2e identities (also covered by frontend/.gitignore's `.env.*`)
+/frontend/e2e/.env.e2e.s*
 
 # local dev: bind-mounted download output (see docker-compose.override.yml)
 /downloads/
@@ -43,6 +49,9 @@
 # v46: Paraglide's compiled messages (also in frontend/.gitignore), generated code graphify
 # would otherwise index (2,000+ nodes) for the same reason.
 /frontend/src/lib/paraglide/
+
+# v50: bytecode from running .github/scripts/test_check_version.py
+/.github/scripts/__pycache__/
 
 # backend
 backend/__pycache__/

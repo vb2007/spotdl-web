@@ -167,6 +167,34 @@ needed" claim — rather than silently deleted.
   "Waiting for connections to close" until `docker compose restart api` → *v48*
 - A deploy recreates every container, so `docker compose logs` on the host only reaches back to
   the last deploy; anything older (an alert that never arrived) can't be reconstructed → *v48*
+- Two stacks on one machine collide on more than ports: the dev override pins the network's IPv6
+  subnet, Postgres 18's image refuses the old `/var/lib/postgresql/data` volume path, and a
+  fresh worktree's bind-mount sources get created root-owned; `scripts/agent_stack.sh` handles
+  each → *v50*
+- An agent slot's e2e run needs `worker-dl` (seeds settle there) and the owner's dev history
+  (ledger rows, three pages of admin jobs, an album, a network-path attempt); it runs under the
+  realdl lock after `scripts/agent_seed.py` recreates them → *v50*
+- Chromium aborts every in-flight request with `ERR_NETWORK_CHANGED` when the host's interfaces
+  churn (another stack's crash-looping containers): an e2e failure on a blank page is that → *v50*
+- Bash reads a script as it runs it: editing (or rebasing) `scripts/agent_stack.sh` under a running
+  `realdl`/`e2e` would execute whatever lands at its offset, so it runs from a `main()` function → *v50*
+- Postgres's Alpine image sorts text by codepoint (musl); production's Debian 18.6 uses glibc
+  `en_US.UTF-8`, so a slot runs `postgres:18.6-bookworm` → *v50*
+- Cookies ignore ports: two stacks on `localhost` in one browser profile overwrite each other's
+  session cookie → *v50*
+- Labelling an existing named volume makes Compose ask "Recreate (data will be lost)?" on a
+  terminal (silently skipped without one) → *v50*
+- `trap '' INT` doesn't protect a `docker compose` child (Go re-enables SIGINT); bash defers a
+  trapped SIGTERM until the foreground child exits → *v50*
+- `pg_isready` without `-h` passes against the image's socket-only init server → *v50*
+- Celery as PID 1 drops SIGTERM until its handlers exist: a `worker-dl` stopped in its first
+  seconds waits out the 300 s grace period (slot overlay: `init: true`) → *v50*
+- A cleanup that writes to a dead stderr (closed terminal, a `| tee` killed by the same Ctrl-C)
+  dies of SIGPIPE before it acts, bash's own messages and the docker CLI's alike → *v50*
+- `agent_stack.sh` reads a `.env`'s `DATABASE_URL` with SQLAlchemy's URL grammar (path and
+  `?dbname=`), not a string cut: a cut let `?`-in-password, `%77` or socket URLs past it → *v50*
+- `--profile '*'` enables every profiled service, `worker-dl` and `cloudflared` included: a guard on
+  service names alone misses it → *v50*
 
 **Auth, cookies & sessions**
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
@@ -5625,3 +5653,133 @@ independently-found production bug from the same conversation)
   `gh run rerun <id> --failed`; the notice says so by arriving at all. A re-run uses the run's own
   commit's workflow files (and expires after 30 days), so a workflow-side fix reaches the
   current release with a `redeploy` dispatch instead.
+
+### v50 parallel-stacks gotchas (learned building the agent slot stacks)
+
+- **Ports were the obvious collision, not the only one.** A second dev stack on the same machine
+  also fails on:
+  - the network: `docker-compose.override.yml` pins the dev network's IPv6 subnet
+    (`fd00:dead:beef::/64`), and Docker won't create a second network with the same subnet.
+    `docker-compose.agent.yml` gives each slot `fd00:dead:beef:<slot>::/64` (an `!override` on
+    `ipam.config`, a list);
+  - the bind-mount sources: in a fresh worktree `./downloads`, `./test-library`, `./proxies.txt`
+    and the `web` container's anonymous-volume mountpoints (`frontend/node_modules`,
+    `frontend/src/lib/paraglide`) don't exist, so Docker creates them root-owned (`proxies.txt`
+    as a directory). The uid-1000 workers then can't write `./downloads`, and a host `npm ci`
+    fails with `EACCES`. `agent_stack.sh up` creates them first, and copies
+    `frontend/.env.example` to `frontend/.env`, without which `npm run check` (and Vite) can't
+    resolve `PUBLIC_API_BASE_URL` from `$env/static/public`.
+- **Postgres 18's image moved its data directory.** `PGDATA` is
+  `/var/lib/postgresql/18/docker`, and the image refuses a volume mounted at the old
+  `/var/lib/postgresql/data`. The slot volume goes on `/var/lib/postgresql`. 18.6 is production's
+  version (`SELECT version()` on `spotdlwebtest`, the same server, 2026-10-23).
+- **`env_file: .env` would leak the owner's identities into a slot.** Interpolation follows
+  `--env-file`, but every backend container still loads the anchor's `env_file: .env`, so a slot
+  would carry the owner's `ALLOWED_EMAILS` (the real admin included) and Matrix token. The overlay
+  replaces it with `.env.agent` (`env_file: !override`), and builds `DATABASE_URL` itself from the
+  slot's `AGENT_PG_*` values.
+- **The e2e suite can't run without `worker-dl`.** Seeded jobs settle as `skipped_duplicate`
+  inside `download_track`, and setup and teardown ask `worker-dl` (`celery inspect`, the dedup
+  check) what it would download and what it's running. So `agent_stack.sh <slot> e2e` takes the
+  realdl lock like a real download does, although a default run makes no network attempt
+  (teardown proves it).
+- **The e2e suite leans on the owner's dev history, not only `LEDGER_TRACKS`.** On a fresh slot
+  database the first run failed 21 tests: specs 12 and 14 submit nine more ledger tracks
+  (`CANCEL_TRACKS`, `SUBMISSION_TRACKS`, `HELD_TRACKS`, `NEIGHBOUR_TRACK`), spec 14 wants "an admin job with twelve or
+  more tracks" and three pages of 50 jobs, and spec 3 an admin track whose attempt recorded a
+  network path ("run `npm run test:e2e:network` once"). `scripts/agent_seed.py` recreates all of
+  it (stand-in files are one-second silent MP3s: dedup is folder + filename only, so they count
+  as present). One ordering trap: spec 9 takes the first two in-library ledger files *under the
+  library root*, ordered by Spotify id, and spec 14's `098tt…` sorts before every other id. So
+  the submitted-track rows are filed (`in_library`, which a library sweep skips, so spec 12's
+  sweep has nothing to move) but kept under `/downloads`, and only spec 9's two sit in the
+  library.
+- **`ERR_NETWORK_CHANGED` from another stack.** Specs 10 and 11 once failed on a blank page: the
+  trace showed every module request aborted with `net::ERR_NETWORK_CHANGED`. Chromium cancels all
+  in-flight requests, loopback ones included, when it sees the host's interfaces change. It
+  happened while slot 2's six backend containers were crash-looping (the v32 guard test), each
+  restart adding and removing a veth (the journal also shows this host's VPN agent reacting to
+  every one). That's the likely trigger, not a proven one: single restarts and 25 back-to-back
+  `docker run`s didn't reproduce it. Another agent's crash loop can fail your run; re-run (v52
+  owns retries).
+- **Bash reads a script while running it.** An edit to `agent_stack.sh` while a long `realdl` or
+  `e2e` from it was running would have run whatever text landed at bash's saved offset once the
+  child command returned (a rebase that touches the file does the same). The commands now run
+  from a `main` function, called on the script's last line, so the whole file is parsed first.
+- **`docker compose ps -a` lists a stopped profile service.** After `realdl` stopped `worker-dl`,
+  the exited container stayed in `ps -a` although its profile wasn't active, and `up`'s health
+  wait read it as crashed. `realdl` now removes it (`rm --stop --force`) on release.
+- **Healthchecks pass in seconds, not after `interval`.** Docker 25+ probes every 5 s during
+  `start_period` (the default `start_interval`), so the workers' 120 s `interval` doesn't delay a
+  fresh stack's health: a slot is healthy about 15 s after its containers start.
+- **Tracks dispatched while `worker-dl` is off wait in the slot's Redis.** Beat keeps dispatching
+  due tracks to the `downloads` queue, and its stale-track reclaim (`beat._reclaim_stale_tracks`)
+  re-dispatches them every `STALE_TRACK_AFTER_SECONDS`, so duplicate messages pile up. They run on
+  the next `realdl` (or `e2e`), for real if the track isn't in the ledger. `e2e` therefore refuses
+  while such tracks exist, and `realdl` counts them as it starts.
+- **The v32 guard's message names the owner's database.** A slot pointed at a production name
+  refuses on all six backend services, but the advice reads "point DATABASE_URL at
+  spotdlwebtest", which a slot never uses. Its fix is `agent_stack.sh <slot> env`.
+- **The Alpine Postgres image collates differently from production.** The first slot overlay used
+  `postgres:18.6-alpine`; `ORDER BY` over `('b','B','a','_z','Z')` gave `B Z _z a b` there (musl:
+  codepoint order). `spotdlwebtest` and `spotdlweb` are `en_US.UTF-8` with the libc provider on
+  Debian (glibc), which sorts case- and punctuation-insensitively first. Server-side sorts and
+  cursor pagination over text would then pass on a slot in an order production never produces.
+  Slots run `postgres:18.6-bookworm`; switching an existing slot's image needs `down --volumes`
+  (an index built under one collation is wrong under another).
+- **Cookies are not port-scoped.** `SPOTDL_SESSION` is a host-only cookie on `localhost`, and a
+  browser sends it to every port there: logging in to a slot on `localhost:5174` replaces the
+  owner's `localhost:5173` session, and each stack rejects the other's token. Playwright's
+  contexts are separate jars, so the suite is unaffected; a person needs one browser profile per
+  stack.
+- **Changing a named volume's config makes Compose ask to recreate it, on a terminal only.** v50's
+  first round labelled the base file's `redis-data` volume in the overlay. An existing slot then
+  printed `Volume "spotdlweb-s1_redis-data" exists but doesn't match configuration in compose
+  file. Recreate (data will be lost)? [y/N]` on every `up` run from a terminal, and an interactive
+  `realdl` hung on it; without a TTY Compose went ahead silently, so scripted runs never showed
+  it. Only `pgdata` carries the worktree label, as it has since that volume was first created.
+- **Ignoring SIGINT in bash doesn't protect a `docker compose` child.** `trap '' INT` is inherited
+  as "ignored", but the Go docker CLI re-enables SIGINT, so a second Ctrl-C during the realdl
+  cleanup aborted `docker compose rm` and left `worker-dl` running with the lock free. The removal
+  now runs under `setsid --wait`, out of the terminal's process group.
+- **Bash defers a trapped SIGTERM until its foreground child exits.** `kill <agent_stack pid>`
+  during `realdl <hour-long command>` did nothing until the command ended. The command now runs in
+  the background with `wait`, so the trap fires at once and passes SIGTERM on (a background child
+  of a non-interactive shell starts with SIGINT ignored, so SIGINT isn't forwarded as is).
+- **`pg_isready` without `-h` checks the unix socket.** On a fresh volume the image's init runs a
+  temporary server on the socket only; a socket probe passes while TCP clients (`migrate`) still
+  get "connection refused". The slot healthcheck probes `-h 127.0.0.1`.
+- **Celery as PID 1 ignores an early SIGTERM.** A process running as PID 1 gets no default signal
+  actions, so until celery has installed its own handlers a SIGTERM does nothing, and `docker stop`
+  waits out `stop_grace_period` (300 s for `worker-dl`) before SIGKILL. A `realdl` interrupted
+  during `worker-dl`'s first seconds sat in its cleanup for the full five minutes. The slot overlay
+  gives `worker-dl` `init: true` (tini as PID 1 passes the signal on, and celery, not yet handling
+  it, simply exits); production's `worker-dl` is unchanged.
+- **A `wait`-based signal forward reaches only the direct child.** The first `run_locked` sent
+  SIGTERM to the command it started; `realdl sh -c 'sleep 299'` left the `sleep` running (a
+  background child of a non-interactive shell starts with SIGINT ignored, so the terminal's Ctrl-C
+  didn't reach it either). It now signals the command's whole process tree, on SIGHUP too.
+- **A dead stderr kills the cleanup, twice over.** With `realdl … 2>&1 | tee log` and Ctrl-C, `tee`
+  dies too. Bash then took SIGPIPE writing to it, and its EXIT trap (which bash 5.3 does run after
+  a fatal signal) took another on its own first message, before removing anything, so `worker-dl`
+  stayed up with the lock free. (Corrected 2026-10-24 in review: an earlier version of this entry
+  said a signal death skips the EXIT trap.) With SIGPIPE ignored in bash,
+  the docker CLI inherited a broken stderr and died of SIGPIPE itself (Go raises it on a failed
+  write to fd 2) before removing the container. The script now ignores SIGPIPE while it holds the
+  lock (the command gets the default back), turns errexit off in the cleanup, and sends the
+  removal's output to `.agent-stack/realdl-cleanup.log` before copying it to stderr.
+- **The script's production-`.env` check is SQLAlchemy's URL grammar, not a string cut.** Its first
+  parse cut at the first `?` and took the last `/` segment, so a `?` in a password, a trailing `/`
+  or space, `%77` or a socket URL (`postgresql:///spotdlweb?host=…`) named "production" past it,
+  and `env`/`up` would then have commented out that checkout's `DATABASE_URL`. It now matches
+  `sqlalchemy.engine.url._parse_url`'s pattern (what app/config.py's guard uses), checks both the
+  path and `?dbname=`, percent-decoded and case-folded, and refuses a URL it can't parse. The
+  main-checkout refusal fails closed too (a `git rev-parse` error refuses). (Corrected 2026-10-24:
+  it checked only the first `dbname=`, and Compose interpolates `.env`, so `?dbname=x&dbname=spotdlweb`
+  and `/${PGDB}` got past it. It now checks every `dbname=` and refuses a URL with a `$`.)
+- **`docker compose --profile '*'` enables every profiled service.** The `run` guard looked for
+  `worker-dl` next to a starting verb, `realdl` and `COMPOSE_PROFILES`, so
+  `run docker compose --profile '*' up -d` started `worker-dl` (and `cloudflared`) outside the lock.
+  It now refuses any `--profile`. The same `run docker compose up` had also skipped the mount
+  preparation, so Docker created `proxies.txt` as a root-owned directory, which a later `up`
+  accepted because it tested `-e`: `run` prepares the mounts now, and both refuse a non-file.

@@ -13,6 +13,9 @@ a database.** Local dev uses its own dedicated dev database, **`spotdlwebtest`**
 keeps its own (`spotdlweb`). Redis and every other container run entirely locally and are never
 shared with the deployed instance either. See [Dedicated dev database](#dedicated-dev-database)
 below for how it's created, built and reset, and why this is enforced rather than just advised.
+The one exception is an implementation agent's **slot stack** (master v5, v50): it runs its own
+throwaway Postgres container, never the LAN server. See
+[Parallel agent stacks](#parallel-agent-stacks-v50).
 
 ---
 
@@ -235,8 +238,8 @@ npm run test:e2e:network    # opt-in: the one @network spec, a real YouTube down
 E2E_STRICT=1 npm run test:e2e   # v43: fail, never skip, spec 12's tests that step aside on a busy stack
 ```
 
-`E2E_BASE_URL` overrides the origin (default `http://localhost:5173`), for example to aim at the
-production-style `web` image. It must stay a loopback origin, and the config refuses anything
+`E2E_BASE_URL` overrides the origin (default `http://localhost:${WEB_PORT:-5173}`, v50), for example
+to aim at the production-style `web` image. It must stay a loopback origin, and the config refuses anything
 else: setup and teardown check the local stack's database, so the browser must drive that stack.
 Use `localhost`, not `127.0.0.1`: the session cookie is `Secure`, which Chromium only honours over
 plain HTTP on `localhost`. If another dev server listens on `[::1]:5173`, it captures `localhost`
@@ -279,6 +282,180 @@ accounts, none of which exist on the runner. CI still lints and typechecks `e2e/
 `npm run check`). Since v46 both also run `scripts/check-messages.mjs` (`en.json`/`hu.json` hold
 the same keys with the same inputs), and `lint` adds `scripts/scan-literals.mjs` (no hard-coded
 user-visible string outside the message files). Running it is part of each UI version's local checks.
+
+## Parallel agent stacks (v50)
+
+Master v5 runs up to four implementation agents at once, each in its own git worktree. Each one
+brings up its own **slot stack** beside the owner's default one, through one script:
+
+```bash
+scripts/agent_stack.sh <slot> env      # write .env.agent from the worktree's .env
+scripts/agent_stack.sh <slot> up       # (re)write .env.agent, build, start, wait until healthy
+scripts/agent_stack.sh <slot> ps|logs|psql
+scripts/agent_stack.sh <slot> run <cmd...>     # <cmd> aimed at the slot (its compose project, files, ports)
+scripts/agent_stack.sh <slot> pytest [args]    # the backend suite, inside the slot's api container
+scripts/agent_stack.sh <slot> e2e [args]       # the full Playwright suite against the slot
+scripts/agent_stack.sh <slot> realdl <cmd...>  # worker-dl on, under the host-wide lock, for <cmd>
+scripts/agent_stack.sh <slot> down [--volumes]
+```
+
+| Slot | Compose project | API | Web | Database |
+|---|---|---|---|---|
+| 1 | `spotdlweb-s1` | `localhost:8001` | `localhost:5174` | `spotdlweb_s1` in the project's own `postgres` container |
+| 2 | `spotdlweb-s2` | `localhost:8002` | `localhost:5175` | `spotdlweb_s2` |
+| 3 | `spotdlweb-s3` | `localhost:8003` | `localhost:5176` | `spotdlweb_s3` |
+| 4 | `spotdlweb-s4` | `localhost:8004` | `localhost:5177` | `spotdlweb_s4` |
+| owner | the checkout's directory name | `localhost:8000` | `localhost:5173` | LAN `spotdlwebtest` |
+
+**Setting one up.** In a fresh worktree (`git worktree add -b <branch> ../spotdl-web-wt/<branch>
+origin/main`), copy the owner's dev `.env` in (`cp ../../spotdl-web/.env .`), then `up` (it also
+creates `frontend/.env` from its template, which `$env/static/public` needs). `env` and `up` also
+comment out the copied `.env`'s `DATABASE_URL`: the worktree's own plain `docker compose up` would
+otherwise run the branch's migrations on the owner's `spotdlwebtest`, and without it every backend
+service refuses to start. The script refuses:
+
+- a slot other than 1–4;
+- the shared main checkout (a slot runs only from a linked worktree);
+- a slot whose containers or database volume belong to another worktree (`env`, `up` and `down`
+  hold a per-slot lock, `/tmp/spotdl-web-slot<slot>.lock`, so two worktrees can't claim one free
+  slot at once);
+- a worktree whose `.env` names a production database (`spotdlweb`, `spotdl_web`; in the path or any
+  `dbname=`), or whose `DATABASE_URL` uses `$` interpolation the check can't follow;
+- `up worker-dl`, and (best effort) `run` with a command that names `worker-dl` with a starting verb,
+  or mentions `--profile`, `realdl` or `COMPOSE_PROFILES` anywhere (even as a `grep` pattern);
+- switching a worktree to another slot while it still owns its old slot's database volume.
+
+**What `.env.agent` holds.** `env` derives it from the worktree's `.env`, gitignored, mode 600:
+
+- the slot's `COMPOSE_PROJECT_NAME`, `API_PORT`, `WEB_PORT`, `FRONTEND_ORIGINS` and `SPOTDL_ENV=dev`;
+- its database (`AGENT_PG_DB`, `AGENT_PG_USER`, `AGENT_PG_PASSWORD`; the overlay builds every
+  backend service's `DATABASE_URL` from them, so `.env.agent` carries none);
+- fresh random `REDIS_PASSWORD`, `SESSION_SECRET` and Postgres password (kept by later `env` runs,
+  since the database volume was initialised with that password);
+- the slot's test identities only: `ALLOWED_EMAILS=v5s<slot>admin@example.com,v5s<slot>user@example.com`,
+  `ADMIN_EMAIL=v5s<slot>admin@example.com` (`AGENT_EXTRA_EMAILS=a@example.com,…` before `env` adds more,
+  test identities only: each at example.com/.net/.org or a `.test`, `.example` or `.invalid` domain);
+- copied from `.env`, only engine and download tuning plus the upstream login: `UPSTREAM_AUTH_BASE_URL`
+  (the real `vb2007.hu-api`), `SPOTIFY_CLIENT_*`, `LADDER_SECONDS`, `STALE_TRACK_AFTER_SECONDS`, pacing,
+  format, bitrate and `DOWNLOAD_OUTPUT_DIR`, `PROXY_FILE`, `COOKIE_FILE`, `YOUTUBE_PLAYER_CLIENTS`. Never `.env`'s
+  identities, Matrix token, tunnel token or database.
+
+**The overlay.** `up` runs `docker compose --env-file .env.agent -f docker-compose.yml -f
+docker-compose.override.yml -f docker-compose.agent.yml` (exported as `COMPOSE_PROJECT_NAME`,
+`COMPOSE_FILE` and `COMPOSE_ENV_FILES`, so the e2e suite's own `docker compose` calls hit the slot
+too). `docker-compose.agent.yml` is never part of a production invocation. It:
+
+- adds a `postgres` service matching production (18.6 on Debian, so glibc's `en_US.UTF-8`
+  collation, read from `spotdlwebtest` on the same server; Alpine's musl sorts text differently),
+  with a named volume and a healthcheck, and no host port unless `.env.agent`
+  has `PG_PORT` (`PG_PORT=55431 scripts/agent_stack.sh 1 up`; `PG_PORT= … up` removes it);
+- points every backend service's `DATABASE_URL` at it and makes them wait for its healthcheck;
+  `migrate` builds the schema on first `up`, as on the owner's stack;
+- reads `.env.agent` instead of `.env` in every backend container;
+- puts `worker-dl` in the `realdl` profile, so a slot never downloads by default;
+- gives the project network its own IPv6 `/64` (`fd00:dead:beef:<slot>::/64`): the dev override
+  pins one subnet, and two networks can't share it.
+
+Everything else is already per slot: the project name prefixes every container, network and
+named volume (Redis's data included), and `./downloads`, `./test-library` and `./proxies.txt` are
+relative to the worktree (`up` creates them, so Docker doesn't create them root-owned).
+
+**Logins.** Each slot logs in through the real upstream its `.env.agent` names
+(`UPSTREAM_AUTH_BASE_URL`, copied from `.env`). Register its two identities there once, with a
+plain alphanumeric username (§4). From the host, a `host.docker.internal:3000` upstream is
+`localhost:3000`:
+
+```bash
+SLOT=1
+UPSTREAM="$(sed -n 's/^UPSTREAM_AUTH_BASE_URL=//p' .env.agent | sed 's/host\.docker\.internal/localhost/')"
+for role in admin user; do
+  curl -sS -X POST "$UPSTREAM/auth/register" -H 'Content-Type: application/json' \
+    -d "{\"username\":\"v5s${SLOT}$role\",\"email\":\"v5s${SLOT}$role@example.com\",\"password\":\"<a fresh password>\"}"
+done
+```
+
+Then put them in `frontend/e2e/.env.e2e.s<slot>` (same keys as `.env.e2e.example`, gitignored).
+The first `e2e` also saves that file as `<git common dir>/agent-stack/e2e.s<slot>.env` (the main
+checkout's `.git/agent-stack/`, shared by every worktree), and a later worktree without its own
+file uses that one: the next slice in the slot can't register the same addresses again. All four
+slots' identities were registered and saved during v50, so a slot's first agent needs no setup.
+`e2e` exports that file's keys, so they win over a `frontend/e2e/.env.e2e` in the worktree, but
+the suite still reads that file for any key the slot file lacks: keep the slot file complete, or
+the worktree free of `.env.e2e`.
+
+In a browser, use one profile (or private window) per stack: cookies aren't scoped by port, so
+the session cookie of `localhost:5174` and the owner's `localhost:5173` overwrite each other, and
+each stack then answers the other's token with 401.
+
+**Other commands against the slot.** Anything that should hit the slot rather than the owner's
+stack runs under `run`, which exports the same `COMPOSE_*` variables and `API_PORT`/`WEB_PORT` and
+runs the command from your current directory (the worktree root, for the relative paths below):
+`scripts/agent_stack.sh 1 run scripts/verify_separation_sse.sh` (its default base URL follows
+`API_PORT`), `scripts/agent_stack.sh 1 run docker compose exec api sh`.
+
+**Real YouTube traffic: the realdl lock.** At most one *agent* stack on this machine talks to
+YouTube at a time (the owner's default stack keeps its own `worker-dl`, outside the lock: the
+agents together add one dev stack's exposure). `realdl <cmd…>` takes
+`flock -n /tmp/spotdl-web-realdl.lock`, refuses while any other slot's `worker-dl` still runs,
+writes its holder (slot, worktree, pid, start time, command) into the file, rebuilds and starts
+`worker-dl`, waits until it answers a ping, runs the command, then removes `worker-dl` and
+releases the lock, however the command ends:
+
+- Ctrl-C, SIGTERM or SIGHUP to the script ends the command and everything it started (as SIGTERM)
+  and then cleans up; a second Ctrl-C during the cleanup doesn't cut it short (the removal runs in
+  its own session), and `worker-dl` runs under an init (`init: true`), so it stops at once even
+  when interrupted in its first seconds;
+- the command doesn't inherit the lock, so if the script itself is killed outright (SIGKILL, which
+  nothing can trap), the lock frees while the command and that slot's `worker-dl` may still run;
+  every other slot's `realdl` refuses (both before starting its own `worker-dl` and again once it
+  answers) until
+  it's gone (`scripts/agent_stack.sh <slot> down` there).
+
+A second `realdl` from any slot fails at once, naming the holder: wait and retry, never start
+`worker-dl` by hand. A track whose job is unfinished and whose Spotify id isn't in the ledger
+really downloads once `worker-dl` runs: beat keeps re-dispatching it into the slot's Redis while
+`worker-dl` is off (its stale-track reclaim). `realdl` says how many there are before it starts `worker-dl`.
+
+**e2e on a slot.** The suite needs `worker-dl` (every seeded job settles there as a duplicate, and
+setup and teardown ask the worker itself what it's running), so `e2e` runs under the realdl
+lock too, although a default run makes no network attempt; it refuses to start while the slot
+has unfinished tracks outside the ledger or a job still expanding (above), which could. The suite was written against the owner's
+long-lived dev database, so before it runs, `seed` (`scripts/agent_seed.py`, idempotent) recreates
+what a fresh slot lacks:
+
+- a ledger row and a one-second silent stand-in file for every track a default run submits
+  (`LEDGER_TRACKS` in `frontend/e2e/support/stack.ts`, spec 12's `CANCEL_TRACKS` and
+  `SUBMISSION_TRACKS`, spec 14's
+  `HELD_TRACKS` and `NEIGHBOUR_TRACK`), under `./downloads/agent fixture/`, plus spec 9's two
+  tracks the library sort moved, under `./test-library/agent fixture/`;
+- the e2e admin's history: 120 archived jobs (spec 14 pages through three pages of 50), a 14-track
+  album (spec 14's twelve-or-more-track job) and a track whose attempt recorded a network path
+  (spec 3; on the owner's stack an earlier `@network` pass leaves one).
+
+A new spec that leans on more of the owner's data needs that data added to the seed too. Then `npm run test:e2e`
+runs from the worktree's
+`frontend/` (run `npm ci`, `npm run check`, which compiles the messages the specs import, and
+`npx playwright install chromium` there once) with
+`E2E_BASE_URL=http://localhost:<web port>`.
+
+**`pytest`** runs the backend suite inside the slot's `api` container, from the worktree's
+`backend/` (the overlay mounts it read-only at `/src`), with pytest pinned to `uv.lock`'s
+versions and a clean environment, as on the host.
+
+**Teardown and reset.** `down` stops and removes the slot (`worker-dl` included); the database
+and Redis volumes stay, so `up` comes back with the same data. `down --volumes` drops them, and
+the next `up` builds a fresh database. A slot's database volume is labelled with its worktree, so
+the next slice to use the slot can't silently inherit it: drop it with `down --volumes` from the
+old worktree, or `docker volume rm spotdlweb-s<slot>_pgdata spotdlweb-s<slot>_redis-data` once that
+worktree is gone (only the database volume carries the label; the Redis one holds the old queue). A
+slot left up by a worktree that was removed without `down` is refused with the `docker` commands
+that clear it. If a
+worktree lost its `.env.agent`, `down [--volumes]` still works there: it removes the slot by its
+compose labels instead.
+
+**Known rough edge.** The dev `web` container runs Vite as root and writes `.svelte-kit/` and
+`project.inlang`'s cache into the worktree root-owned. `up` hands those back to you once, but a
+route added later can leave new ones (`docs/GOTCHAS.md`, v44; v52 owns the lasting fix).
 
 ## Troubleshooting
 
