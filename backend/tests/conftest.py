@@ -27,7 +27,7 @@ TEST_DATABASE_MARKER = "test"
 # libpq lets these query keys pick the database or the server, over the URL's path and host.
 # The per-run database replaces the path, so either would point the run, and its closing DROP,
 # somewhere else.
-_DATABASE_SELECTING_KEYS = ("dbname", "service", "host", "hostaddr")
+_DATABASE_SELECTING_KEYS = ("dbname", "service", "host", "hostaddr", "port")
 # The servers a run may create databases on: a slot's own container (`postgres`, inside its
 # compose project) and a loopback one (CI's service container, a local `docker run`). Never the
 # LAN server: it is production's (`spotdlwebtest` lives beside `spotdlweb`), and its test marker
@@ -196,6 +196,9 @@ def pytest_sessionstart(session):
                     f"{production!r}, so it is production's; use a slot's or a disposable one"
                 )
             conn.exec_driver_sql(f"CREATE DATABASE {_quoted(url.database)}")
+            # Every session on it reads timestamps in UTC, whatever the server's own TimeZone:
+            # the suite compares aware datetimes, and a disposable server needn't be UTC.
+            conn.exec_driver_sql(f"ALTER DATABASE {_quoted(url.database)} SET timezone TO 'UTC'")
     except DBAPIError as exc:
         # The driver's message names host and port, never the password.
         raise pytest.UsageError(f"can't create the test database {url.database}: {exc.orig}") from None
@@ -256,7 +259,8 @@ def db_session():
     """One outer transaction per test, rolled back at the end. The code under test commits and
     rolls back freely: each of those ends a SAVEPOINT inside it instead.
 
-    Any other connection the test opens on app.db's engine fails it: that is a SessionLocal the
+    Any other connection the test opens on app.db's engine fails it (an engine of its own, like
+    the alerts watchdog's, isn't watched): that is a SessionLocal the
     test forgot to patch, which reads past the test's uncommitted rows and commits for real,
     outside the rollback, into every later test."""
     connection = engine.connect()
@@ -276,10 +280,13 @@ def db_session():
         session.close()
         transaction.rollback()
         connection.close()
+    # A Gate or Thread needs committed_db (one connection can't race itself), which releases them.
+    leftovers = concurrency.release_all()
     if strays:
         # What the stray connection committed is outside the rollback: clear it for the next test.
         _end_other_sessions()
         _truncate_all()
+    assert not leftovers, f"tests/concurrency.py needs committed_db, not db_session: {leftovers}"
     assert not strays, (
         f"the test opened {len(strays)} connection(s) of its own on the run's database, outside "
         "db_session's rollback: patch the SessionLocal it reached, or use committed_db"
