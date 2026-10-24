@@ -91,6 +91,7 @@ class Thread:
         self.name = name
         self._result = None
         self._error: BaseException | None = None
+        self._joined = False
 
         def run():
             try:
@@ -107,6 +108,7 @@ class Thread:
         return not self._thread.is_alive()
 
     def join(self, timeout: float = TIMEOUT):
+        self._joined = True
         self._thread.join(timeout)
         if self._thread.is_alive():
             raise InterleavingBroke(f"thread {self.name!r} still running after {timeout}s")
@@ -146,15 +148,18 @@ def blocked_or_done(thread: Thread, engine: Engine | None = None, timeout: float
 
 def release_all() -> list[str]:
     """Opens every gate the test made and waits for every thread it started, so none is left
-    holding a transaction. Returns the names of threads still running after TIMEOUT (stuck on
-    something other than a gate); their errors were the test's to report."""
+    holding a transaction. Returns a problem per thread still running after TIMEOUT (stuck on
+    something other than a gate) and per error from a thread the test never joined, which would
+    otherwise go unseen. A joined thread's error was the test's to report."""
     for gate in _gates:
         gate.open()
-    stuck = []
+    problems = []
     for thread in _threads:
         thread._thread.join(TIMEOUT)
         if thread._thread.is_alive():
-            stuck.append(thread.name)
+            problems.append(f"thread {thread.name!r} still running")
+        elif not thread._joined and thread._error is not None:
+            problems.append(f"thread {thread.name!r}, never joined, raised {thread._error!r}")
     _gates.clear()
     _threads.clear()
-    return stuck
+    return problems

@@ -276,10 +276,30 @@ def db_session():
         session.close()
         transaction.rollback()
         connection.close()
+    if strays:
+        # What the stray connection committed is outside the rollback: clear it for the next test.
+        _end_other_sessions()
+        _truncate_all()
     assert not strays, (
         f"the test opened {len(strays)} connection(s) of its own on the run's database, outside "
         "db_session's rollback: patch the SessionLocal it reached, or use committed_db"
     )
+
+
+def _end_other_sessions() -> None:
+    """Terminates every other session on the run's database: one a failed test left open (its
+    traceback keeps the Session alive) would hold its locks and block every later test, with
+    no timeout on a plain db_session statement. The pool's dead connections are replaced on
+    their next checkout (app.db's engine pings first)."""
+    with engine.connect() as conn:
+        conn.execute(
+            text(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                "WHERE datname = current_database() AND pid <> pg_backend_pid()"
+            )
+        )
+        conn.commit()
+    engine.dispose()
 
 
 def _truncate_all() -> None:
@@ -311,9 +331,10 @@ def committed_db(monkeypatch):
     try:
         yield factory
     finally:
-        stuck = concurrency.release_all()
+        problems = concurrency.release_all()
+        _end_other_sessions()
         _truncate_all()
-        assert not stuck, f"threads still running after the test: {stuck}"
+        assert not problems, f"the test's threads: {problems}"
 
 
 @pytest.fixture()
