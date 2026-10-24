@@ -11,14 +11,17 @@ polls file times instead: a few hundred files, once a second.
     python reload.py [--watch DIR] [--grace SECONDS] -- <command...>
 
 - A change restarts the child with SIGTERM (Celery's warm shutdown: a running task finishes),
-  then SIGKILL after `--grace` seconds. The override gives `worker-dl` and `worker-expand` their
-  `stop_grace_period` (300 s), so an edit waits for a download or a sweep as a `docker compose
-  stop` would. A worker killed anyway leaves its task to beat's stale sweep (`task_acks_late`
-  redelivers it only after the broker's visibility timeout).
-- The first child exiting on its own ends this process with the same code, so a refused config
-  (app/config.py's v32 guard) still stops the container, and a one-off `docker compose run`
-  behaves as without the wrapper. A child restarted after an edit that then dies (a syntax
-  error, say) is logged, and the next change starts it again, as `uvicorn --reload` does.
+  then SIGKILL after `--grace` seconds: by default Docker's own 10 s stop grace (worker-meta's),
+  and the override passes `worker-dl`'s and `worker-expand`'s `stop_grace_period` (300 s), so
+  an edit waits for a download or a sweep as a `docker compose stop` would. A worker killed
+  anyway leaves its task to beat's stale sweep (`task_acks_late` redelivers it only after the
+  broker's visibility timeout).
+- A child exiting on its own ends this process with the same code, so a refused config
+  (app/config.py's v32 guard) still stops the container, the restart policy still applies to a
+  worker that dies later, and a one-off `docker compose run` behaves as without the wrapper.
+  The one exception: a child that dies within `CRASH_WINDOW_SEC` of a restart an edit caused (a
+  syntax error, say) is logged, and the next change starts it again, as `uvicorn --reload`
+  does.
 - SIGTERM/SIGINT to this process (`docker compose stop`) go to the child, with no grace of our
   own: the service's `stop_grace_period` decides. The override runs it under `init: true`, so
   it isn't PID 1 and orphans are reaped.
@@ -36,6 +39,8 @@ import time
 POLL_SEC = 1.0
 # A checkout or rebase rewrites many files over a moment: restart once it has settled.
 SETTLE_SEC = 0.5
+# A child restarted by an edit that dies this soon died of the edit: wait for the next one.
+CRASH_WINDOW_SEC = 30.0
 
 
 def log(message: str) -> None:
@@ -75,7 +80,7 @@ def stop(child: subprocess.Popen, grace: float) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--watch", default="/app/app")
-    parser.add_argument("--grace", type=float, default=30.0)
+    parser.add_argument("--grace", type=float, default=10.0)
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
@@ -84,6 +89,8 @@ def main() -> int:
 
     child: subprocess.Popen | None = None
     stopping = False
+    # When an edit last (re)started the child; None for the first start.
+    reloaded_at: float | None = None
 
     def forward(signum, _frame):
         nonlocal stopping
@@ -95,15 +102,15 @@ def main() -> int:
     signal.signal(signal.SIGTERM, forward)
     signal.signal(signal.SIGINT, forward)
 
-    def start() -> subprocess.Popen:
-        started = subprocess.Popen(command)
-        # A stop that arrived while there was no child to forward it to.
+    def start() -> None:
+        nonlocal child
+        child = subprocess.Popen(command)
+        # Checked after `child` is set: a stop that arrived while there was no live child to
+        # forward it to is sent now, and one arriving later finds this child.
         if stopping:
-            started.send_signal(signal.SIGTERM)
-        return started
+            child.send_signal(signal.SIGTERM)
 
-    child = start()
-    restarted = False
+    start()
     state = snapshot(args.watch)
     log(f"watching {len(state)} .py files under {args.watch}")
     while True:
@@ -116,11 +123,16 @@ def main() -> int:
         else:
             time.sleep(POLL_SEC)
         if code is not None:
-            if stopping or not restarted:
+            died_of_edit = (
+                not stopping
+                and reloaded_at is not None
+                and time.monotonic() - reloaded_at < CRASH_WINDOW_SEC
+            )
+            if not died_of_edit:
                 if not stopping:
                     log(f"{command[0]} exited on its own ({code})")
                 return code
-            log(f"{command[0]} exited ({code}) after a reload; waiting for the next change")
+            log(f"{command[0]} exited ({code}) right after a reload; waiting for the next change")
             child = None
         if stopping:
             if child is None:
@@ -146,8 +158,8 @@ def main() -> int:
             stop(child, args.grace)
             if stopping:
                 return child.returncode
-        child = start()
-        restarted = True
+        start()
+        reloaded_at = time.monotonic()
 
 
 if __name__ == "__main__":
