@@ -6048,10 +6048,15 @@ independently-found production bug from the same conversation)
   variation-selector runs (the known smuggling encodings: two selectors per byte, one joiner per
   bit) and single ignorables after an ASCII word all made a label render exactly like another key's,
   or carry hidden data. The rule now (`services/api_keys.py`): Unicode's Default_Ignorable_Code_Point
-  set is refused except in the one context a script or emoji needs it (ZWJ/ZWNJ only between two
-  visible non-ASCII characters, an emoji selector may precede the ZWJ as in ❤️‍🔥; VS15/VS16 only
-  after an emoji-like symbol or a keycap digit; ideographic variation selectors only after a CJK
-  ideograph; Mongolian selectors within Mongolian); tag characters only as the three recommended
+  set is refused except in the one context a script or emoji needs it (ZWJ/ZWNJ around a virama,
+  ZWNJ between letters of a joining script such as Arabic, ZWJ between emoji, past a presentation
+  selector or skin tone as in ❤️‍🔥; VS15/VS16 after a non-ASCII symbol or punctuation, ℹ, or a
+  keycap digit; ideographic variation selectors after a CJK ideograph; Mongolian selectors within
+  Mongolian), and never more than 8 per label (`MAX_IGNORABLES`: enough for several emoji
+  sequences, and a bound on what they could encode). The residue is accepted on purpose: one
+  needless ignorable in a valid context (★️ vs ★, a ZWNJ after a non-joining Arabic letter) still
+  renders like the plain text, but a label is shown only to its owner and every key row and the
+  revoke dialog show the key's unique prefix beside it. Tag characters only as the three recommended
   subdivision flags (England, Scotland, Wales); controls, surrogates, line/paragraph separators,
   blank-drawing characters (U+2800, U+1D159, U+16FE4) and non-visible format characters refused
   (the prepended number signs, which draw, stay); one visible character required. Space

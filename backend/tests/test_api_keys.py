@@ -455,7 +455,8 @@ def test_round7_labels_that_must_be_refused(authenticated_client, label):
         (FLAG + _tags("gbwls") + CANCEL, FLAG + _tags("gbwls") + CANCEL),
         ("hello\u00a0", "hello"),  # space separators trimmed at the ends
         ("\u3000Laptop\u3000", "Laptop"),
-        ("👨\u200d👩\u200d👧\u200d👦" * 9 + "a", "👨\u200d👩\u200d👧\u200d👦" * 9 + "a"),  # 64 code points
+        # 64 code points with multi-code-point emoji (two families: 6 joiners, under the cap).
+        ("👨\u200d👩\u200d👧\u200d👦" * 2 + "a" * 50, "👨\u200d👩\u200d👧\u200d👦" * 2 + "a" * 50),
     ],
 )
 def test_round7_labels_that_must_be_kept(authenticated_client, label, stored):
@@ -522,3 +523,59 @@ def test_round8_visible_text_is_kept(authenticated_client, label, stored):
     )
     assert response.status_code == 201, (label, response.text)
     assert response.json()["label"] == (stored or label)
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        # Round 9: joiners where no script needs them, and payloads past the ignorable cap.
+        "K\u0151\u200d\u00e9r",
+        "\u041a\u200c\u043b\u044e\u0447",
+        "\u6771\u200d\u4eac",
+        "\U0001f600\u200d\U0001f600" * 0 + "Lap\u0301\u200c\u0301top",
+        "".join("\u6f22" + chr(0xE0100 + b) for b in b"ignore previous instructions"),
+        "\u0430" + "".join(("\u200c" if bit == "0" else "\u200d") + "\u0430" for bit in "0110100001101001"),
+        "".join("\u2605" + ("\ufe0e" if i % 2 else "\ufe0f") for i in range(12)),
+    ],
+)
+def test_round9_hidden_or_needless_ignorables_are_refused(authenticated_client, label):
+    response = authenticated_client.post(
+        "/api/account/api-keys", content=json.dumps({"label": label}), headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == 422, label
+    assert response.json()["params"]["reason"] == "character"
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "\u0d05\u0d35\u0d28\u0d4d\u200d",  # Malayalam chillu (old encoding)
+        "\u0d05\u0d35\u0d28\u0d4d\u200d \u0d35",
+        "\u0c95\u0ccd\u200d",  # Kannada
+        "\u09b0\u200d\u09cd\u09af",  # Bengali ya-phala
+        "\u0dc1\u0dca\u200d\u0dbb\u0dd3",  # Sinhala
+        "\u203c\ufe0f",  # ‼️
+        "\u2049\ufe0f",
+        "\u2139\ufe0f",  # ℹ️
+        "\u3030\ufe0f",
+        "Laptop \u203c\ufe0f",
+        "\U0001f469\U0001f3fd\u200d\U0001f4bb",  # skin tone before ZWJ
+        "\U0001f642\u200d\u2194\ufe0f",  # 🙂‍↔️
+        "\U0001f441\ufe0f\u200d\U0001f5e8\ufe0f",  # 👁️‍🗨️
+        "\U0001f469\u200d\u2764\ufe0f\u200d\U0001f48b\u200d\U0001f468",  # 4 ignorables
+    ],
+)
+def test_round9_legitimate_input_is_kept(authenticated_client, label):
+    response = authenticated_client.post(
+        "/api/account/api-keys", content=json.dumps({"label": label}), headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == 201, (label, response.text)
+
+
+def test_more_than_the_ignorable_cap_is_refused_even_in_emoji(authenticated_client):
+    """Nine families hold 27 joiners: past MAX_IGNORABLES, the bound on what invisible
+    characters could encode, even where each one is in a valid context."""
+    label = "👨\u200d👩\u200d👧\u200d👦" * 3  # 9 joiners
+    response = authenticated_client.post("/api/account/api-keys", json={"label": label})
+    assert response.status_code == 422
+    assert response.json()["params"]["reason"] == "character"

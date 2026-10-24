@@ -91,12 +91,33 @@ def _is_mongolian(char: str) -> bool:
     return 0x1820 <= ord(char) <= 0x18AA
 
 
-def _visible_base(char: str | None) -> bool:
-    """A character that draws something and isn't plain ASCII (a joiner between ASCII
-    letters is never needed, and is exactly how a lookalike or hidden payload is built)."""
-    if char is None or ord(char) < 0x80 or _ignorable(ord(char)):
+# At most this many default-ignorables a label may hold, however placed: enough for several
+# emoji sequences (👩‍❤️‍💋‍👨 needs 4), and a bound on what invisible characters could encode.
+MAX_IGNORABLES = 8
+# Scripts whose letters join, where a ZWNJ changes the shaping (Arabic incl. Persian, Syriac,
+# N'Ko, Mongolian).
+_JOINING_SCRIPTS = ((0x0600, 0x06FF), (0x0700, 0x074F), (0x0750, 0x077F), (0x07C0, 0x07FF),
+                    (0x0860, 0x08FF), (0x1800, 0x18AF), (0xFB50, 0xFDFF), (0xFE70, 0xFEFF))
+# Emoji skin-tone modifiers, which may sit between an emoji and its ZWJ.
+_SKIN_TONES = range(0x1F3FB, 0x1F400)
+
+
+def _is_virama(char: str | None) -> bool:
+    return char is not None and unicodedata.combining(char) == 9
+
+
+def _joining_letter(char: str | None) -> bool:
+    if char is None or not unicodedata.category(char).startswith("L"):
         return False
-    return unicodedata.category(char)[0] in "LNPSM" or unicodedata.category(char) in ("Cn", "Co")
+    return any(low <= ord(char) <= high for low, high in _JOINING_SCRIPTS)
+
+
+def _emoji_like(char: str | None) -> bool:
+    """A pictographic symbol a ZWJ sequence can join (or a code point newer than Python's
+    tables, which is where new emoji land)."""
+    if char is None or ord(char) < 0x2000:
+        return False
+    return unicodedata.category(char) in ("So", "Sm", "Sk", "Cn")
 
 
 def _allowed_ignorable(text: str, index: int) -> bool:
@@ -105,18 +126,31 @@ def _allowed_ignorable(text: str, index: int) -> bool:
     before = text[index - 1] if index > 0 else None
     after = text[index + 1] if index + 1 < len(text) else None
     if code in _JOINERS:
-        # Between two visible non-ASCII characters (emoji ZWJ sequences, Indic conjuncts,
-        # Persian ZWNJ); an emoji presentation selector may sit just before (❤️‍🔥).
-        if before is not None and ord(before) in _EMOJI_SELECTORS:
+        # Indic: around a virama (conjuncts, Malayalam chillu, Bengali ya-phala).
+        if _is_virama(before) or _is_virama(after):
+            return True
+        # Arabic-script and other joining scripts: ZWNJ between letters (marks skipped).
+        if code == 0x200C:
+            left = index - 1
+            while left >= 0 and unicodedata.category(text[left]).startswith("M"):
+                left -= 1
+            return _joining_letter(text[left] if left >= 0 else None) and _joining_letter(after)
+        # Emoji ZWJ sequences, past an emoji presentation selector or a skin tone.
+        if before is not None and (ord(before) in _EMOJI_SELECTORS or ord(before) in _SKIN_TONES):
             before = text[index - 2] if index > 1 else None
-        return _visible_base(before) and _visible_base(after)
+        return _emoji_like(before) and _emoji_like(after)
     if code in _EMOJI_SELECTORS:
-        # After an emoji-like symbol (❤️, 🏳️), or a keycap's digit, # or * (1️⃣).
+        # After a keycap's digit, # or * (1️⃣), or a non-ASCII symbol or punctuation an emoji
+        # picker qualifies (❤️, ‼️, 〰️), or ℹ️.
         if before is None:
             return False
         if before in _KEYCAP_BASES:
             return after == "\u20e3"
-        return ord(before) >= 0x80 and unicodedata.category(before) in ("So", "Sm", "Cn")
+        if before == "\u2139":
+            return True
+        return ord(before) >= 0x80 and (
+            unicodedata.category(before)[0] in "SP" or unicodedata.category(before) == "Cn"
+        )
     if 0xE0100 <= code <= 0xE01EF:
         # An ideographic variation selector, after a CJK ideograph (Japanese name variants).
         return before is not None and _is_cjk(before)
@@ -154,14 +188,15 @@ def normalize_label(label: str) -> str:
     if not label or len(label) > LABEL_MAX_LENGTH:
         raise LabelInvalid("length")
     text = _SUBDIVISION_FLAG.sub(_FLAG_PLACEHOLDER, label)
-    visible = 0
+    visible = ignorables = 0
     for index, char in enumerate(text):
         code = ord(char)
         category = unicodedata.category(char)
         if category in ("Cc", "Cs", "Zl", "Zp") or code in _BLANK:
             raise LabelInvalid("character")
         if _ignorable(code):
-            if not _allowed_ignorable(text, index):
+            ignorables += 1
+            if ignorables > MAX_IGNORABLES or not _allowed_ignorable(text, index):
                 raise LabelInvalid("character")
             continue
         if category == "Cf" and code not in _VISIBLE_FORMAT:
