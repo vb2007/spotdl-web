@@ -686,8 +686,10 @@ pytest)
 	pytest_pin="pytest==$(lock_version pytest)"
 	asyncio_pin="pytest-asyncio==$(lock_version pytest-asyncio)"
 	dc exec -T api sh -c "[ -x /tmp/pytest-venv/bin/pytest ] || { python -m venv --system-site-packages /tmp/pytest-venv && uv pip install --quiet --python /tmp/pytest-venv/bin/python '$pytest_pin' '$asyncio_pin'; }"
-	# Exported and passed by name (`-e TEST_DATABASE_URL`), never on a command line: the URL
-	# carries the slot's database password, and every argv on this host shows up in `ps`.
+	# Exported and passed by name (`-e TEST_DATABASE_URL`), not on `docker exec`'s command line,
+	# which lives as long as the run: the URL carries the slot's database password, and every
+	# argv on this host shows up in `ps`. (`env`'s argv holds it for the instant before it execs
+	# python.)
 	export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql+psycopg://$PG_USER:$(env_value "$ENV_AGENT" AGENT_PG_PASSWORD)@postgres:5432/$(env_value "$ENV_AGENT" AGENT_PG_DB)_test}"
 	if [ -t 0 ] && [ -t 1 ]; then tty_flag=(); else tty_flag=(-T); fi
 	# shellcheck disable=SC2016 # expanded by the container's sh, not here
