@@ -1,30 +1,38 @@
 name: Release
 
-# Cuts a versioned GitHub release with a generated changelog + deploy assets whenever CI
-# passes on `main` — the first hop of the v21 release pipeline (see docs/RELEASE_PIPELINE.md
-# for the full chain diagram and rationale).
+# Cuts a versioned GitHub release with a generated changelog + deploy assets — the release step
+# of the pipeline (see docs/RELEASE_PIPELINE.md for the full chain diagram and rationale).
 #
-# Chained from CI via `workflow_run`, deliberately NOT from `push` directly:
-#   - `push` would race CI itself -- nothing would stop a release being cut from code that
-#     fails its own tests.
-#   - A `release: [published]` trigger downstream would need a personal access token instead
-#     of GITHUB_TOKEN (GitHub's own loop-prevention rule: a release created with the default
-#     GITHUB_TOKEN does not fire other workflows) -- chaining via workflow_run avoids needing
-#     a PAT anywhere in this pipeline.
-# `workflow_dispatch` is also kept, same rationale as ci.yml's own dispatch trigger -- lets a
-# release be cut on demand (e.g. re-running after a transient failure) without waiting for a
-# fresh push to main.
+# v49: called in-run by release-deploy.yml ("Release & Deploy", on every push to `main`), after
+# its checks passed and only when the version's tag doesn't exist yet. The caller passes the exact
+# commit, so this never has to guess which one CI tested. It used to be chained onto CI by a
+# workflow-completion trigger, which fired on every CI completion (PRs, the schedule, dispatches)
+# and left a skipped run behind each time, and that skipped run completing fired Publish & Deploy
+# in turn. Calling it from the same run keeps both of the old reasons for chaining, without the
+# noise:
+#   - it can't race CI: `needs:` orders it after the checks in the same run;
+#   - no personal access token: a release created with GITHUB_TOKEN doesn't fire other
+#     workflows, but nothing has to be fired, since the deploy is the next job of the same run.
+# `workflow_dispatch` is kept: it cuts the release of `main`'s current version on demand, but it
+# deploys nothing (dispatch "Release & Deploy" for the whole chain, or with `redeploy` once the
+# tag exists; see docs/RELEASE_PIPELINE.md, "Manual recovery levers"). No `concurrency` group (v49): a pending
+# run in a group is cancelled by the next one, and the tag-exists check below already makes a
+# second release of the same version a no-op.
 "on":
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  workflow_call:
+    inputs:
+      commit:
+        description: "The exact commit to release (the caller's tested push commit)"
+        required: true
+        type: string
+    outputs:
+      tag:
+        description: "The release tag (vX.Y.Z)"
+        value: ${{ jobs.release.outputs.tag }}
+      owned:
+        description: "true when the tag is this commit's: created by this run, or already pointing at it (a re-run)"
+        value: ${{ jobs.release.outputs.owned }}
   workflow_dispatch:
-
-# Never two releases racing each other -- a release run must fully finish (tag pushed, assets
-# uploaded) before the next one starts, so publish-deploy.yml never sees a half-finished release.
-concurrency:
-  group: release
-  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -32,27 +40,16 @@ permissions:
 jobs:
   release:
     runs-on: self-hosted
-    # Only follow a CI run that (a) actually succeeded and (b) was itself triggered by a real
-    # push to main -- CI also runs on every PR and on manual dispatch, neither of which should
-    # ever cut a release. workflow_dispatch on this workflow itself always proceeds (there is
-    # no upstream CI run to check in that case).
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' &&
-       github.event.workflow_run.head_branch == 'main')
-    # v33: read by the `notify` job below. Outputs are kept even when this job fails.
     outputs:
       tag: ${{ steps.version.outputs.tag }}
+      owned: ${{ steps.owned.outputs.owned }}
     steps:
-      # A workflow_run event's own GITHUB_SHA/GITHUB_REF are main's current head, not
-      # necessarily the commit that triggered the upstream CI run (see GitHub's workflow_run
-      # docs) -- check out the exact commit CI just tested instead of trusting the default ref.
-      # workflow_dispatch has no such upstream commit, so it explicitly targets `main`.
-      - name: Checkout the exact commit CI tested
+      # Called: the commit the caller tested. Dispatched: `main`, resolved to its commit here, so
+      # the tag below targets exactly what was checked out.
+      - name: Check out the commit to release
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.event.workflow_run.head_sha }}
+          ref: ${{ inputs.commit || 'main' }}
           fetch-depth: 0
 
       - name: Resolve version
@@ -61,18 +58,57 @@ jobs:
           VERSION="$(python3 .github/scripts/check_version.py)"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       # Checked against the remote, not a local `git tag -l` (the reference this borrows its
       # shape from, vb2007.hu-api's gh-release.yml, uses the latter) -- this is a fresh
       # checkout every run, so a local tag list would always be empty regardless of what's
       # already been released.
+      # v49: also whether this is the newest version released so far. Nothing cancels a run on
+      # `main` any more, so in a burst of merges an older run's release can come after a newer
+      # one's; it must not take the "Latest" badge from it. The remote's tags are read in an
+      # assignment of their own, so a failed `ls-remote` fails the step (under `bash -e` without
+      # pipefail, a pipeline would hide it). Names are compared whole (the ref's own path minus
+      # `refs/tags/`), never stripped greedily, so a tag `x/refs/tags/vX` isn't taken for `vX`.
       - name: Check whether this version was already released
         id: tag-check
         run: |
-          if git ls-remote --tags origin "refs/tags/${{ steps.version.outputs.tag }}" | grep -q .; then
+          TAG="${{ steps.version.outputs.tag }}"
+          TAGS="$(git ls-remote --tags --refs origin 'refs/tags/v*')"
+          if printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/", "", $2); print $2}' | grep -qxF "$TAG"; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+          NEWEST="$( { printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/", "", $2); print $2}'; echo "$TAG"; } \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
+          if [ "$NEWEST" = "$TAG" ]; then echo "latest=true" >> "$GITHUB_OUTPUT"; else echo "latest=false" >> "$GITHUB_OUTPUT"; fi
+
+      # v49: whether the tag is this commit's. Two runs can carry the same untagged version (a
+      # bump, then an unbumped merge before the first one's release ran): both plans see no
+      # tag, and the second run's release finds the first one's. Its deploy must not then ship
+      # its own commit under a tag that points elsewhere, so the caller deploys only when this is
+      # true. A re-run of this same run finds its own tag, so it stays true.
+      - name: Check whether the tag is this commit's
+        id: owned
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          COMMIT="${{ steps.version.outputs.commit }}"
+          if [ "${{ steps.tag-check.outputs.exists }}" = "false" ]; then
+            echo "owned=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          REMOTE="$(git ls-remote --tags origin "refs/tags/$TAG" "refs/tags/$TAG^{}")"
+          # An annotated tag's `^{}` line names its commit; a lightweight tag's own line does.
+          # Exact names: patterns match ref-name tails, so `refs/tags/x/refs/tags/vX` would too.
+          TAG_COMMIT="$(printf '%s\n' "$REMOTE" | awk -v r="refs/tags/$TAG" \
+            '$2 == r "^{}" {p = $1} $2 == r {l = $1} END {print (p != "" ? p : l)}')"
+          if [ "$TAG_COMMIT" = "$COMMIT" ]; then
+            echo "owned=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "owned=false" >> "$GITHUB_OUTPUT"
+            echo "$TAG already points at $TAG_COMMIT, not $COMMIT: another run released this version, so this run deploys nothing." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
       # Self-sufficient deploy bundle: everything needed to run the published images without
@@ -99,14 +135,15 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" \
             --title "${{ steps.version.outputs.tag }}" \
             --generate-notes \
-            --latest \
-            --target "${{ github.event_name == 'workflow_dispatch' && 'main' || github.event.workflow_run.head_sha }}" \
+            --latest=${{ steps.tag-check.outputs.latest }} \
+            --target "${{ steps.version.outputs.commit }}" \
             "$BUNDLE_PATH" \
             "requirements-${{ steps.version.outputs.version }}.txt"
 
       # images.json (exact GHCR digests) is uploaded later by publish-deploy.yml's `publish`
-      # job -- the digests don't exist until those images are actually pushed, which can only
-      # happen after this release (and its tag) exists.
+      # job (the next job of the same "Release & Deploy" run) -- the digests don't exist until
+      # those images are actually pushed, which can only happen after this release (and its tag)
+      # exists.
       - name: Summary
         run: |
           {
@@ -117,37 +154,3 @@ jobs:
               echo "Created with deploy bundle + requirements.txt. \`images.json\` follows from Publish & Deploy."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
-
-  # v33: a failed or cancelled release used to be silent: publish-deploy.yml's `resolve` skips
-  # itself when this workflow didn't succeed, so its own notify never fires for it. Same sender
-  # and same unconfigured-means-off rule as publish-deploy.yml's notify. A skipped `release`
-  # (CI failed, or a PR/dispatch CI run) isn't a release failure and sends nothing.
-  notify:
-    needs: [release]
-    runs-on: self-hosted
-    if: always() && (needs.release.result == 'failure' || needs.release.result == 'cancelled')
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          sparse-checkout: .github/scripts
-
-      - name: Send the Matrix notification
-        env:
-          MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
-          MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
-          MATRIX_ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
-          MATRIX_TXN_ID: gha-${{ github.run_id }}-${{ github.run_attempt }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          WORKFLOW: ${{ github.workflow }}
-          RESULT: ${{ needs.release.result }}
-          TAG: ${{ needs.release.outputs.tag }}
-        run: |
-          {
-            echo "❌ spotdl-web: $WORKFLOW failed"
-            echo "Failed job(s): release ($RESULT)"
-            echo "Release: ${TAG:-unresolved}"
-            echo "Nothing was deployed: Publish & Deploy only follows a successful release."
-            echo "Run: $RUN_URL"
-          } > "$RUNNER_TEMP/message.txt"
-          cat "$RUNNER_TEMP/message.txt"
-          python3 .github/scripts/matrix_notify.py < "$RUNNER_TEMP/message.txt"

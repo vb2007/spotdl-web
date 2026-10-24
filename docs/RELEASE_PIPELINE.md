@@ -29,7 +29,7 @@ python3 .github/scripts/check_version.py origin/main # also fail if backend/ or 
 ```
 
 `ci.yml`'s `version` job runs the second form on every PR (comparing against the PR's base
-branch) and the first form on every push to `main`. **A PR is not merge-ready until this job is
+branch) and the first form on every push to `main` (as part of "Release & Deploy"'s `checks`). **A PR is not merge-ready until this job is
 green** — this is a standing project requirement (`CLAUDE.md`), not specific to this slice.
 
 **One shared app version, not independent backend/frontend versions.** `check_version.py`
@@ -43,77 +43,92 @@ content-addressed layers mean this costs registry storage overhead, not real wor
 the pipeline mis-detected what changed.
 
 A PR that touches **neither** `backend/` nor `frontend/` (docs, workflows, plan files — like the
-PR that added this sentence) needs no version bump at all. `release.yml`'s tag-exists check
-finds the current version already released and skips cutting a new one; `publish-deploy.yml`
-still runs (the upstream `Release` run still completes successfully) but both its
-already-published and already-deployed idempotency checks skip everything else — no new image,
-no host change. `ci.yml`'s `version` job passing on a docs-only diff with no bump was confirmed
-live on PR #24; the full skip-the-whole-chain behavior on merge is the same idempotency path
-already verified during v21's own pre-merge and post-merge testing (see the Idempotency section
-below).
+PR that added this sentence) needs no version bump at all. Its merge is still one "Release &
+Deploy" run: the checks run, the `plan` job finds the current version already tagged, and the
+`release` and `deploy` jobs show as skipped inside that run (v49). No other run is created, no new
+image, no host change. `ci.yml`'s `version` job passing on a docs-only diff with no bump was
+confirmed live on PR #24.
 
 ---
 
 ## The chain
 
+Since v49, one event starts one run, and every run in the Actions list is one that does
+something:
+
+| Event | Workflow (run name) | What runs |
+|---|---|---|
+| `pull_request` | `ci.yml` **"CI"** | The checks only: `version`, `pytest`, `deps-sync`, `compose-config`, `frontend`, `summary` |
+| `push` to `main` | `release-deploy.yml` **"Release & Deploy"** | The chain below, in one run |
+| `schedule` (`17 4 * * *`) | `nightly.yml` **"Nightly"** | `yt-dlp-freshness` and its notice |
+| manual | `workflow_dispatch` on any of them | "Release & Deploy": the chain again on `main` (with `redeploy`: deploy the current release again). "Publish & Deploy": deploy any ref (manual mode, below). "Release": cut `main`'s release, nothing else. "CI", "Nightly": the checks |
+
 ```
-ci.yml              on: push (main), pull_request, workflow_dispatch, schedule (daily; never releases)
+push to main
    │
-   │  workflow_run: completed && success && event == 'push' && head_branch == 'main'
-   ▼
-release.yml          "Release"
-   │  1. check_version.py -> VERSION, TAG=vVERSION
-   │  2. git ls-remote --tags origin -> already released? skip the rest if so
-   │  3. build deploy bundle + requirements.txt
-   │  4. gh release create --generate-notes --latest --target <commit>
+release-deploy.yml   "Release & Deploy" (one run, jobs ordered by `needs:`)
    │
-   │  workflow_run: completed && success
-   ▼
-publish-deploy.yml   "Publish & Deploy"
-   │
-   ├─ job: resolve   -> mode, commit, version, image_tags, persist
-   ├─ job: publish   -> docker build + push both images to GHCR, record digests on the release
-   ├─ job: deploy    -> required-var preflight -> pg_backup -> checkout on the host -> pull
-   │                    -> up -d -> health gate -> .last-good (release mode)
-   │                    -> on failure: migration guard -> roll back commit + tag together
-   └─ job: notify    -> Matrix message on any failure/cancel, and on every real deploy (v33)
+   ├─ checks    uses: ci.yml            the PR checks, on the pushed commit
+   ├─ plan      check_version.py -> VERSION; is vVERSION tagged yet? -> release = true/false
+   │              (a `redeploy` dispatch with the tag present: redeploy = true, commit = the tag's)
+   ├─ release   uses: release.yml       only when release == true
+   │              gh release create vVERSION --generate-notes --target <commit>
+   │              (+ deploy bundle, requirements.txt; "Latest" only for the newest tag)
+   ├─ deploy    uses: publish-deploy.yml   only after this run's own release, or for a redeploy
+   │              ├─ resolve -> commit, version, image tags, persist (release mode)
+   │              ├─ publish -> docker build + push both images to GHCR, images.json on the release
+   │              └─ deploy  -> stale guard -> required-var preflight -> pg_backup -> checkout on
+   │                            the host -> pull -> up -d -> health gate -> .last-good
+   │                            -> on failure: migration guard -> roll back commit + tag together
+   └─ notify    one curl to Matrix: any failed or cancelled job (named), or a real deploy
 ```
 
-`release.yml` has its own `notify` job too (v33): a failed release skips everything in
-`publish-deploy.yml`, so that workflow's `notify` never sees it.
+A merge with no version bump (docs, workflows, plans) is still exactly **one** run: `checks`
+passes, `plan` says `release=false`, and `release` and `deploy` show as skipped *jobs* inside it.
 
-Two `workflow_run` hops — inside GitHub's documented three-level chain limit (a workflow can't
-`workflow_run`-trigger more than three levels deep).
+**Why the stages are jobs of one run, not chained workflows (v49).** Until v49 the chain was
+`ci.yml` → `workflow_run` → `release.yml` → `workflow_run` → `publish-deploy.yml`. A
+`workflow_run` trigger fires on **every** completion of the workflow it names, whatever its
+event or branch: every PR's CI run, every scheduled run and every dispatch fired Release, which
+then skipped itself. A skipped run still *completes*, so it fired Publish & Deploy, which skipped
+too. Of the last 1000 runs when v49 was planned, Release was 160 skipped of 212 and Publish &
+Deploy 158 of 228. Calling the workflows from one run (`uses:` on a job, `workflow_call` in the callee)
+keeps both reasons the chain was built for, without that noise:
 
-**Why chain from CI, not straight from `push`:** a release created with the default
-`GITHUB_TOKEN` does **not** trigger other workflows (GitHub's own loop-prevention rule), so
-`release: [published]` can't drive `publish-deploy.yml` without adding a personal access token.
-Chaining via `workflow_run` needs no PAT anywhere in the pipeline. It also structurally enforces
-"only deploy code that passed CI" without polling: there is exactly **one** self-hosted runner for
-this repo, so a `deploy` job that *polled* `ci.yml`'s conclusion while holding that runner's only
-slot would deadlock against `ci.yml` itself queuing behind it.
+- **It can't release code that failed its checks.** `release` `needs:` the checks, in the same
+  run, on the same commit (`github.sha` of the push, passed down as an input).
+- **No personal access token.** A release created with the default `GITHUB_TOKEN` doesn't trigger
+  other workflows (GitHub's loop prevention), so a `release: [published]` trigger would need a
+  PAT. Nothing has to be triggered now: the deploy is the next job. The caller grants the called
+  jobs `contents: write` (and `packages: write` for the deploy) and passes `secrets: inherit`.
+- **No polling deadlock.** A deploy job that polled CI's conclusion while holding the one
+  runner would block CI itself (v21). `needs:` waits without holding a runner.
 
-**Why `workflow_run`'s own `github.sha`/`github.ref` aren't trusted directly:** GitHub sets both
-to the default branch's current head for a `workflow_run` event, not necessarily the commit that
-triggered the upstream run. `release.yml` explicitly checks out
-`github.event.workflow_run.head_sha`; `publish-deploy.yml` resolves the tag from the release
-itself (`gh release view --json tagName`) and checks out its exact commit. The image that gets
-published is therefore always tied to a specific commit by construction, never "whatever main's
-head happened to be when the job started."
+Called workflows see the **caller's** `github` context: `github.event_name` is `push` (or
+`workflow_dispatch` when "Release & Deploy" is dispatched), and `github.workflow` is
+"Release & Deploy". So `release.yml` and `publish-deploy.yml` never decide their mode from the
+event. They use their inputs: a `commit` input means "called by the chain". The commit is always
+passed explicitly; nothing looks the release up again (`gh release view`) or reads
+`github.event.workflow_run.*`.
+
+**Never chain workflows through `workflow_run` again** (`docs/GOTCHAS.md`, v49). A later slice
+that adds a stage (v61's extension signing) adds a job to "Release & Deploy", gated on a `plan`
+output.
 
 ---
 
 ## Publish & Deploy — two modes
 
 `publish-deploy.yml` has one `resolve` job that decides which mode applies and computes
-everything the `publish`/`deploy` jobs need, so those jobs never branch on `github.event_name`
-themselves.
+everything the `publish`/`deploy` jobs need, so those jobs never branch on the mode themselves.
+The mode comes from the inputs (a `commit` input is release mode), never `github.event_name`,
+which is the caller's event when it's called.
 
-| | Release mode (`workflow_run`) | Manual mode (`workflow_dispatch`) |
+| | Release mode (`workflow_call`) | Manual mode (`workflow_dispatch`) |
 |---|---|---|
-| Trigger | `release.yml` ("Release") completing successfully | `-f ref=<branch/tag/sha>`, any time |
-| `version` | the release's tag, stripped of `v` | `manual-<short-sha>` |
-| Image tags pushed | `$version`, `latest` | `$version` only — **never `latest`** |
+| Trigger | the `deploy` job of "Release & Deploy", right after its release (or a `redeploy` dispatch) | `-f ref=<branch/tag/sha>`, any time |
+| `version` | `check_version.py` at the release's commit, which must equal its tag without the `v` | `manual-<short-sha>` |
+| Image tags pushed | `$version`, plus `latest` unless a newer `v*` tag exists at push time (v49) | `$version` only — **never `latest`** |
 | `persist` | `true` — becomes the host's new baseline `IMAGE_TAG` | `false` |
 | Skip if already done | yes (see Idempotency) | never — every dispatch always builds + deploys fresh |
 
@@ -125,19 +140,39 @@ that should wait on anything:
 gh workflow run "Publish & Deploy" --repo vb2007/spotdl-web -f ref=<branch-or-tag-or-sha>
 ```
 
+v49 didn't change what this path does: the same `resolve` outputs (`manual-<short-sha>`,
+`persist=false`, no `latest`), the same publish and deploy steps, and its own Matrix notice on a
+failure (now sent with an inline `curl`, see Notifications). Two things around it did change:
+
+- **No `deploy-prod` concurrency group.** A dispatch's jobs now interleave with a merge's on the
+  one runner instead of waiting as a whole run (two deploys still never run at once). Dispatched
+  while a merge's run is in flight, whichever deploy job runs *last* is what stays on the host,
+  and the version guard doesn't apply to a dispatch. Don't dispatch over an in-flight merge.
+- **A merge no longer puts the release back by itself.** Before v49 every merge, bumped or not,
+  re-deployed the latest release. Now only a merge that cuts a new release deploys, so a
+  `manual-*` build stays until the next version bump, or until you put the release back with
+  `gh workflow run "Release & Deploy" -f redeploy=true` (see "Manual recovery levers").
+
 The image never gets tagged `latest`, so a plain `docker compose pull` elsewhere can never pick it
-up by accident. The *next* release-mode deploy always supersedes whatever a manual dispatch left
-running — a `manual-*` version string never equals a real semver `IMAGE_TAG`, so the skip check
-never suppresses that following real deploy.
+up by accident. A `manual-*` version string never equals a real semver `IMAGE_TAG`, so the skip
+check never suppresses the release-mode deploy that replaces it.
 
 ---
 
 ## Idempotency
 
-`release.yml` skips creating a release when the tag already exists (a docs-only merge with no
-version bump) but the run still concludes `success` — so `publish-deploy.yml` fires regardless.
-In **release mode**, two independent skip checks handle that:
+The `plan` job of "Release & Deploy" only calls the release when `vVERSION` isn't tagged yet, and
+the deploy only runs after that release (or for a `redeploy` dispatch), so an unbumped merge
+never reaches either. The skip
+checks below cover a **re-run** of a run whose release or deploy already happened, and a race
+between two runs carrying the same version. In **release mode**:
 
+- `release`: the tag already exists on the remote → nothing is created; the job still succeeds
+  and outputs the tag. It also outputs `owned`: whether that tag points at **this run's**
+  commit. A re-run finds its own tag (`owned=true`, the deploy goes ahead). A second run carrying
+  the same version (a bump, then an unbumped merge whose `plan` ran before the first one's
+  release) finds the first run's tag (`owned=false`), and its `deploy` job is skipped: it never
+  publishes or deploys its own commit under a tag that points elsewhere.
 - `publish`: `docker manifest inspect ghcr.io/vb2007/spotdl-web-{backend,frontend}:$VERSION` both
   succeed → already published, skip the build/push.
 - `deploy`: the host's `.env` already has `IMAGE_TAG=$VERSION` **and**
@@ -147,6 +182,29 @@ In **release mode**, two independent skip checks handle that:
 
 **Manual mode never applies either skip** — every dispatch is explicit and always builds/deploys
 fresh, which is the entire point of being able to test a branch on demand.
+
+### No cancelling, no stale deploys (v49)
+
+No workflow has a `concurrency` group. Before v49, CI's `cancel-in-progress` (grouped by ref)
+applied to `main` too, so a second merge cancelled the first merge's run, release included, and
+the Release and Publish & Deploy groups could cancel a *pending* run (GitHub keeps one running
+and one pending per group). Now two merges in a row both run in full. What keeps them from
+hurting each other:
+
+- **One runner.** Two jobs never run at the same time, so two deploys (or a deploy and a manual
+  dispatch) never overlap on the host.
+- **The version guard** (deploy step 3 below). The runner takes jobs roughly in the order they
+  became ready, not strictly, so an older run's deploy could come after a newer one's. A
+  release-mode deploy whose version is lower than the production baseline (`.last-good`) ends
+  as a **successful no-op**, with one line in the job summary ("Not deployed: X is older than
+  the production baseline Y"). Nothing on the host moves, `.last-good` stays, and no notice is
+  sent.
+- **`latest` and the "Latest" release badge go to the newest version only.** `release` (before
+  creating the release) and `publish` (right before pushing `latest`) compare against every `v*`
+  tag on the remote, so an older run finishing last doesn't take either from the newer one.
+- **Only `main` is released.** `plan` fails a "Release & Deploy" dispatched from any other
+  branch, so an unmerged commit can't take a version's tag (and with it, the real merge's
+  release). Try a branch on the host with a manual "Publish & Deploy" instead.
 
 ---
 
@@ -208,7 +266,11 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
    checkout's `HEAD` only when `.last-good` doesn't exist yet. Since v33.1 it also records the
    pre-deploy version and an instant verdict on whether it's healthy *and* really what's running
    (the `api` container's image tag), for the rollback's fallback.
-3. **Required-variable preflight** (v33), still before anything on the host moves. It fetches,
+3. **Stale-version guard** (v49, release mode only): a version lower than `.last-good`'s
+   `IMAGE_TAG` turns the rest of the job into a no-op (see "No cancelling, no stale deploys").
+   It reads `.last-good` only, so the very first release after the file exists is compared, and
+   a `manual-*` `IMAGE_TAG` in `.env` never blocks a release.
+4. **Required-variable preflight** (v33), still before anything on the host moves. It fetches,
    reads the *new* commit's `docker-compose.yml` and `docker-compose.prod.yml` out of git into a
    temp dir (`git show <sha>:<file>`, so the deploy checkout stays where it is), and checks them
    against the host's real `.env`:
@@ -223,24 +285,24 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
 
    A failure here ends the run with nothing changed: no backup, no checkout, no `IMAGE_TAG`
    write. That's the gap that broke v28's deploy *and* its rollback on 2026-09-27.
-4. **Skip check** (release mode only) — see Idempotency above.
-5. **Back up Postgres** — runs `$DEPLOY_DIR/scripts/pg_backup.sh` (the *currently deployed*
+5. **Skip check** (release mode only) — see Idempotency above.
+6. **Back up Postgres** — runs `$DEPLOY_DIR/scripts/pg_backup.sh` (the *currently deployed*
    version of the script, since this runs before the checkout below switches it), before anything
    can touch the schema. Both modes run this — a manual dispatch can still carry a pending
    migration. The dump's path is kept (v33): a refused rollback has to hand it to a human.
-6. **Update the checkout** (already fetched by the preflight, so this step's first command
+7. **Update the checkout** (already fetched by the preflight, so this step's first command
    moves the host, and "the deploy step ran" means "the host moved"):
    `git checkout --detach --force <commit-sha>` (the exact commit resolved by the `resolve` job,
    not a human-readable ref — see the chain section above for why), `git reset --hard`, **`git
    clean -fd -e /.last-good`**. Deliberately **not** `-fdx`: `.env` and `proxies.txt` are
    gitignored, and `-x` would delete both along with the host's real secrets and proxy pool.
-7. **Write `IMAGE_TAG`** into `.env` (idempotent upsert — replaces the line if present, appends if
+8. **Write `IMAGE_TAG`** into `.env` (idempotent upsert — replaces the line if present, appends if
    not). Safe to leave there permanently: `Settings.model_config` in `backend/app/config.py` is
    `extra="ignore"`, so the extra key reaching containers via `env_file: .env` is inert; Compose
    itself reads it for the `${IMAGE_TAG}` interpolation in `docker-compose.prod.yml`.
-8. **Pull + up**: `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile
+9. **Pull + up**: `docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile
    tunnel pull` then `... up -d --no-build --remove-orphans`.
-9. **Health gate** — `.github/scripts/wait_for_stack_health.sh`, polling up to 420s. That budget
+10. **Health gate** — `.github/scripts/wait_for_stack_health.sh`, polling up to 420s. That budget
    isn't arbitrary: `worker-dl`/`worker-meta`/`worker-expand`'s healthchecks have a 90s `start_period` and a 120s
    interval, so a genuinely healthy worker can take ~3.5 minutes to even report it. Checks:
    `redis`/`api`/`worker-dl`/`worker-meta`/`worker-expand`/`web` → `healthy`; `migrate` → `exited 0`;
@@ -248,19 +310,21 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
    `curl http://localhost:8000/api/health`. Since v33 a compose **error** (an interpolation
    failure, a bad file, no daemon) fails it immediately with exit 2, instead of reading as "not
    healthy yet" and waiting out the timeout.
-10. **Rollback on failure** — see "Rollback" below.
-11. **Record last-known-good** (release mode, on success only) — see below.
-12. **Prune** (on success only): `docker image prune -f` + `docker builder prune -f
+11. **Rollback on failure** — see "Rollback" below.
+12. **Record last-known-good** (release mode, on success only) — see below.
+13. **Prune** (on success only): `docker image prune -f` + `docker builder prune -f
     --keep-storage 5GB`, so the ~800MB backend image doesn't accumulate a new dangling layer set
     on every release. A prune error is only a warning (v33): the deploy is already healthy.
-13. **Summary** (always): version, mode, skipped, the rollback result, and the host's end
+14. **The notice's rollback line** (always, v49): the "Rollback:" text of the Matrix
+    notice, composed from this job's step outcomes and handed to whichever `notify` reports it.
+15. **Summary** (always): version, mode, skipped, the rollback result, and the host's end
     state (checkout `HEAD`, the `.env` `IMAGE_TAG` line, `.last-good`, `compose ps`), both on the
     run's summary page and in the log. None of it is secret, and it means a run's outcome can be
     read without SSHing into the host.
 
 ### Rollback
 
-Only runs when the deploy step (6–8) actually started, since a failure in the preflight or the
+Only runs when the deploy step (7–9) actually started, since a failure in the preflight or the
 backup left nothing to undo. A run **cancelled** by hand rolls back too, since a cancel mid-`up`
 leaves the host half-deployed. The job's `timeout-minutes` is 40 so that a failing deploy's two
 420s health waits (gate, then rollback) fit with room to spare. Code/image rollback only: Alembic migrations are never downgraded
@@ -322,7 +386,8 @@ COMMIT=<sha of the deploy checkout's HEAD>
 - A `manual-*` dispatch (`persist=false`) **never** writes it. So a throwaway dispatch tag can't
   become the rollback target, the way `manual-fe6a30d` did on 2026-09-27 when the rollback read
   `.env` instead.
-- A failed run never writes it.
+- A failed run never writes it, and neither does a stale one (v49): that would move the
+  baseline back to an older version.
 - Gitignored (`/.last-good`), and every `git clean` in the job also passes `-e /.last-good`, so a
   dispatch of a pre-v33 *ref* (whose `.gitignore` lacks the entry) can't delete it either. A
   dispatch run *from* a pre-v33 copy of the workflow (`gh workflow run --ref <old tag>`) still
@@ -340,41 +405,59 @@ answer in that specific case, not a silent no-op.
 
 ---
 
-## Notifications (v33)
+## Notifications (v33, curl-only since v49)
 
-Both `publish-deploy.yml` and `release.yml` end with a `notify` job that posts one plain-text
-message to a Matrix room through `.github/scripts/matrix_notify.py` (stdlib-only):
-`PUT {homeserver}/_matrix/client/v3/rooms/{room}/send/m.room.message/{txn}`, with the bot's token
-as `Authorization: Bearer`. `txn` is `gha-<run id>-<run attempt>`, so a retried request is
-deduplicated by the homeserver, while a re-run (a new attempt) posts again, on purpose.
+Each notice is one plain-text message to the pipeline's Matrix room, sent by a `notify` job that
+is a **single `run:` step with no `uses:`**: no checkout, no action at all. The runner downloads
+nothing for it, so a GitHub-side failure on an action download (the `429` that killed 4.40.2's
+deploy at "Set up job", v48) can't take the notice down with the job it reports on. The step
+sends it with `curl`:
+`PUT {homeserver}/_matrix/client/v3/rooms/{room}/send/m.room.message/{txn}`, the bot's token as
+`Authorization: Bearer`, the JSON body and the room id encoded by a one-line `python3`. The URL
+and the token reach curl on stdin (`--config -`), never its command line, and nothing prints
+them (curl runs with `-s`, since its error text names the host). `txn` is
+`gha-<run id>-<run attempt>`, so a retried request is deduplicated by the homeserver, while a
+re-run (a new attempt) posts again, on purpose. The same sender is inlined in all three files
+that notify. `.github/scripts/matrix_notify.py` no longer runs in any workflow; it stays as the
+manual test in `docs/DEPLOYMENT.md`, "Matrix alert bot".
 
 | Workflow | Sends when | Message carries |
 |---|---|---|
-| `publish-deploy.yml` | any of `resolve`/`publish`/`deploy` failed or was cancelled | workflow, failed job(s), release tag + version + mode, rollback result, run URL |
-| `publish-deploy.yml` | a release-mode deploy succeeded and wasn't idempotency-skipped | version, release tag, run URL |
-| `release.yml` | the `release` job failed or was cancelled | workflow, version tag, run URL |
+| "Release & Deploy" | any of `checks`/`plan`/`release`/`deploy` failed or was cancelled | workflow, the failed job(s), with the failed check's name (`checks: pytest`), tag + version, the rollback line, run URL |
+| "Release & Deploy" | a release-mode deploy succeeded and wasn't skipped (idempotent or stale) | version, tag, run URL |
+| "Publish & Deploy" (dispatch only) | any of `resolve`/`publish`/`deploy` failed or was cancelled | workflow, failed job(s), version (manual dispatch), the rollback line, run URL |
+| "Nightly" | `yt-dlp-freshness` failed or was cancelled | workflow, failed job, run URL |
 
-So silence is meant to mean "nothing happened", never "maybe it failed" (two exceptions below: a
-failure GitHub causes before any step runs, and an outage of the alert channel itself). A skipped
-run (a docs-only merge) sends nothing. Messages never contain `.env` content.
+One run sends at most one notice. Called from "Release & Deploy", `publish-deploy.yml`'s own
+`notify` stays skipped; the caller's reads the deploy's outputs (`version`, `published`,
+`skipped`, `rollback_note`) instead. The rollback line comes from the deploy job itself
+(step 14 above), so both senders word it the same. Without a rollback line, the chain's notice
+falls back on the other outputs: no `version` means `resolve` didn't finish (nothing was built
+or deployed), no `published` means `publish` didn't finish (the host deploy never started), and
+otherwise the deploy job reported nothing (the runner died, or GitHub failed the job before its
+first step): check the host. A standalone "Release" dispatch has no notice (v49): the person who
+dispatched it is watching it, and the automatic path is covered by "Release & Deploy".
+
+So silence is meant to mean "nothing happened", never "maybe it failed" (one exception below: an
+outage of the alert channel itself). A merge with nothing to release sends nothing. Messages
+never contain `.env` content.
 
 The running app's own alerts (v36: breaker, failure spikes, stale beat, library sweeps) use the
 same bot and room, configured in the host's `.env` rather than these secrets; see
-`docs/DEPLOYMENT.md`, "App alerts (v36)". A `notify` job needs the runner to download its
-actions like any other job, so a GitHub-side failure at "Set up job" (a `429` on the action
-download, as on 4.40.2's run) takes out the deploy and its own message together (v48).
+`docs/DEPLOYMENT.md`, "App alerts (v36)".
 
 **Secrets**, as repository secrets (Settings → Secrets and variables → Actions):
 `MATRIX_HOMESERVER_URL`, `MATRIX_ACCESS_TOKEN`, `MATRIX_ROOM_ID`. Setting up the bot and the
 room is in `docs/DEPLOYMENT.md`, "Matrix alert bot". **Unconfigured means off**: if any of the
 three is unset, `notify` prints a `::warning::` and exits 0, so missing alert config can never
 turn a green run red. A configured send that fails (a revoked token, Synapse down) is a
-`::warning::` on the `notify` job, which still passes (v33.1, the owner's call): a Synapse or
-Cloudflare outage takes the runner and the app down with it anyway, and a red run for a healthy
-deploy would only mislead. The trade-off is that a failure isolated to the alert channel (a
-revoked token, the bot kicked from the room, v33's Cloudflare User-Agent ban) only shows as that
-warning, and the room goes quiet, so "silence means nothing happened" holds only while the
-channel works. Check that a real deploy's success message still arrives now and then.
+`::warning::` with the HTTP status and Matrix `errcode` on the `notify` job, which still passes
+(v33.1, the owner's call): a Synapse or Cloudflare outage takes the runner and the app down with
+it anyway, and a red run for a healthy deploy would only mislead. The trade-off is that a failure
+isolated to the alert channel (a revoked token, the bot kicked from the room, v33's Cloudflare
+User-Agent ban) only shows as that warning, and the room goes quiet, so "silence means nothing
+happened" holds only while the channel works. Check that a real deploy's success message still
+arrives now and then.
 
 ---
 
@@ -392,7 +475,8 @@ exactly what broke v28's deploy and its rollback on 2026-09-27. The checklist:
    needs. The owner reads that before merging.
 3. **Add it to the host's `.env` before merging** (`/mnt/raid1/spotdl-web/.env`). If it's
    forgotten, the deploy's preflight fails naming the variable, with nothing on the host
-   changed: add it, then re-run the failed run.
+   changed: add it, then re-run the failed run's failed jobs (not "all jobs", see "Manual
+   recovery levers").
 4. **Nothing to do for rollback.** Rollback restores the previous commit's compose files, which
    don't reference the new variable, so a leftover key in `.env` is harmless.
 
@@ -400,11 +484,39 @@ exactly what broke v28's deploy and its rollback on 2026-09-27. The checklist:
 
 ## Manual recovery levers
 
-- **Re-run a failed deploy**: fix whatever broke, then **re-run the failed run** from the Actions
-  UI. That re-resolves the same release in release mode, so it also records `.last-good`, and a
-  clean re-run of an already-correctly-deployed version is a no-op. A fresh dispatch
-  (`gh workflow run "Publish & Deploy" -f ref=main`) works too, but it's a `manual-*` deploy: it
+- **Re-run a failed deploy**: fix whatever broke, then **re-run the failed jobs** of that
+  "Release & Deploy" run from the Actions UI (`gh run rerun <run id> --failed`). The release is
+  already done, so only the deploy runs again, in release mode with the same commit and tag: it
+  also records `.last-good`, and a clean re-run of an already-correctly-deployed version is a
+  no-op. Re-run the *failed* jobs, not all of them: "Re-run all jobs" re-runs `plan`, which
+  now finds the tag, so the run ends green with nothing deployed and no notice. Don't wait for
+  the next merge to pick it up either: a merge whose version is already tagged deploys nothing.
+  A re-run uses the workflow files of the run's own commit and is possible for 30 days; when
+  the fix is in the workflow files or the `.pipeline` scripts (no version bump), use the
+  redeploy below.
+- **Redeploy the current release** (v49, the owner's lever):
+  `gh workflow run "Release & Deploy" --repo vb2007/spotdl-web -f redeploy=true`. On `main`,
+  with the version already tagged, `plan` skips the release and the `deploy` job deploys the
+  **tag's commit** in release mode (preflight, backup, health gate, rollback, `.last-good`, the
+  ✅ notice). Only the workflow files and the deploy's `.pipeline` scripts
+  (`check_required_env.py`, `migration_guard.sh`, `redact_env.py`) come from `main`'s head.
+  What the deploy checks out (the compose files, `wait_for_stack_health.sh`) is the tag's, and
+  `pg_backup.sh` is the host's, so a fix to those still needs a version bump. It's the way to put the release back after a `manual-*` dispatch, and to ship a
+  workflow-side fix to the current release. A host already on that version and healthy is
+  skipped (and `.last-good` recorded, when the host checkout is on the tag's commit; otherwise
+  it only warns). `main`'s checks must pass first, so a red `main` blocks it. Without a tag
+  yet, the input changes nothing: the run releases and deploys as a merge would. A fresh
+  `gh workflow run "Publish & Deploy" -f ref=main` works too, but it's a `manual-*` deploy: it
   never skips and never updates `.last-good`.
+- **Re-run a failed release**: re-run that "Release & Deploy" run's failed jobs the same way; the
+  deploy follows it in the same run. Dispatching "Release & Deploy" on `main` works too (the
+  checks run again first). Dispatching "Release" alone (`gh workflow run release.yml`) only cuts
+  the tag and deploys nothing, and the next "Release & Deploy" then sees the tag and skips the
+  deploy as well (until a `redeploy` dispatch), so use it only when you want a release without
+  a deploy.
+- **Deploy a branch before it merges**: `gh workflow run "Publish & Deploy" -f ref=<branch>`
+  (manual mode above). Dispatch it from `main` (the default), whose workflow file has v49's
+  pipeline; `--ref <old tag>` would run that tag's copy of the workflow.
 - **Deploy an older release by hand**: see `docs/DEPLOYMENT.md`'s manual fallback section — same
   `git checkout --detach vX.Y.Z` + `IMAGE_TAG` + `pull`/`up` sequence the workflow itself runs.
 - **Delete a bad release**: `gh release delete vX.Y.Z --repo vb2007/spotdl-web --cleanup-tag` —

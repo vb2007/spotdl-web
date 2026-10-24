@@ -26,8 +26,8 @@ otherwise.
 ## Automated deployment (v21+)
 
 Every merge into `main` (that bumped the version — see `CLAUDE.md`'s versioning rule) flows
-through three chained GitHub Actions workflows, running on the self-hosted runner on this same
-host: **CI → Release → Publish & Deploy**. The last of those pulls the freshly-published
+through one GitHub Actions run, "Release & Deploy", on the self-hosted runner on this same
+host: **checks → release → publish & deploy** as jobs of that run (v49). The last of those pulls the freshly-published
 `ghcr.io/vb2007/spotdl-web-backend`/`-frontend` images onto `/mnt/raid1/spotdl-web` and
 restarts the stack, with a pre-migration `pg_backup.sh` run and automatic rollback if the new
 stack doesn't come up healthy. Full pipeline detail, GHCR package layout, idempotency, and
@@ -43,8 +43,9 @@ gh workflow run "Publish & Deploy" --repo vb2007/spotdl-web -f ref=<branch-or-ta
 
 This builds a throwaway `manual-<short-sha>` image (never `:latest`, so a plain
 `docker compose pull` never picks it up by accident) and deploys it immediately — always, with
-no skip/idempotency checks, since it's an explicit on-demand request. The *next* real
-release-driven deploy always supersedes it.
+no skip/idempotency checks, since it's an explicit on-demand request. It stays until the next
+release is deployed, or until `gh workflow run "Release & Deploy" -f redeploy=true` puts the
+current release back (v49; an unbumped merge no longer does).
 
 **Manual fallback**, if the pipeline itself is broken and you need to get a specific known-good
 version running directly:
@@ -313,8 +314,8 @@ happened:
 
 | Rollback says | What it means | What to do |
 |---|---|---|
-| not needed | The preflight (or the backup) failed before anything on the host moved. | Fix the cause, typically a missing `.env` variable named in the log (see "A deploy needs a new `.env` variable" below), then re-run. |
-| succeeded | The old commit + tag are back up and healthy. The run is still red, because the deploy failed. | Investigate at leisure, fix, re-run. |
+| not needed | The preflight (or the backup) failed before anything on the host moved. | Fix the cause, typically a missing `.env` variable named in the log (see "A deploy needs a new `.env` variable" below), then re-run the failed jobs. |
+| succeeded | The old commit + tag are back up and healthy. The run is still red, because the deploy failed. | Investigate at leisure, fix, re-run the failed jobs. |
 | succeeded, back on … the pre-deploy version | v33.1 fallback: the database was ahead of `.last-good`, so the rollback returned to what was running before the deploy (typically a `manual-*` dispatch) instead. `.last-good` is unchanged. | As above. The host is on the pre-deploy build (usually a `manual-*` dispatch) until the next real release. |
 | refused | The database is **ahead** of the rollback image. The failed deploy's checkout and containers were left exactly as they were. | "The database is ahead of the rollback image" below. |
 | not started | The rollback stopped before moving anything (no rollback target recorded). The failed deploy is still in place. | Read the log, then roll back manually if needed. |
@@ -326,7 +327,8 @@ happened:
 
 **A deploy needs a new `.env` variable** (the preflight failed, naming it): add it to
 `/mnt/raid1/spotdl-web/.env`, with the value the version's PR lists under "Deploy notes", then
-re-run the failed run from the Actions page. Nothing else on the host needs undoing: the
+re-run the failed run's **failed jobs** (`gh run rerun <id> --failed`; "Re-run all jobs" re-runs
+`plan`, which finds the tag and deploys nothing since v49). Nothing else on the host needs undoing: the
 preflight runs before the backup, the checkout and `IMAGE_TAG` ever move.
 
 **Roll back to a known-good version manually.** `.last-good` holds the last release that came up
@@ -439,7 +441,7 @@ bash /tmp/migration_guard.sh "$PWD"   # exit 0: safe to start; 3: the database i
 
 **The very first automated deploy fails** (nothing recorded to roll back to; the workflow says so
 explicitly and exits non-zero rather than guessing): fix the underlying cause and re-run the
-workflow, or fall back to [Upgrading an existing deployment](#upgrading-an-existing-deployment-manual-fallback)
+run's failed jobs, or fall back to [Upgrading an existing deployment](#upgrading-an-existing-deployment-manual-fallback)
 to bring the stack up manually while you investigate.
 
 ---
@@ -447,8 +449,8 @@ to bring the stack up manually while you investigate.
 ## Matrix alert bot (v33)
 
 The pipeline posts to one Matrix room on this host's Synapse: a message for any failed or
-cancelled Publish & Deploy or Release run, and one for every real (release-mode) deploy that
-succeeded. v36's app alerts reuse the same bot and room ([App alerts](#app-alerts-v36) below). This is a one-time setup, done by
+cancelled "Release & Deploy" run, manual "Publish & Deploy" dispatch or "Nightly" run, and one
+for every real (release-mode) deploy that succeeded (v49). v36's app alerts reuse the same bot and room ([App alerts](#app-alerts-v36) below). This is a one-time setup, done by
 the owner, since it touches the production Synapse. Until the three repository secrets exist,
 the `notify` jobs print a warning and pass, so nothing breaks in the meantime.
 

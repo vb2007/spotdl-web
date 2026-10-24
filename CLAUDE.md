@@ -91,7 +91,7 @@ name and role; never copy one's into the other.
 | Proxy strategy | Direct first → on failure wait out the ladder → *then* proxy |
 | Dedup | Global ledger keyed on Spotify track ID + disk reconciliation |
 | Deployment | Docker Compose stack on Debian 12 |
-| CI | Self-hosted GitHub Actions runner on the production host |
+| CI | Self-hosted GitHub Actions runner on the production host; chained in-run, no `workflow_run` (v49) |
 | Worker concurrency | `worker-dl` stays `--concurrency=1` — concurrency *is* rate-limit exposure |
 
 ### Master v2 additions

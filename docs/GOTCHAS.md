@@ -949,11 +949,13 @@ needed" claim — rather than silently deleted.
   so, and v12 ignored it and had to undo it) → *v12*
 - A release created with the default `GITHUB_TOKEN` doesn't trigger other workflows (GitHub's own
   loop prevention) — chain via `workflow_run` instead of a downstream `release:`/`push` trigger
-  → *v21*
+  → *v21*. **Corrected 2026-10-23 (v49):** call the next stage as a job of the same run
+  (`workflow_call`) instead; `workflow_run` leaves an empty run behind every completion → *v49*
 - A `deploy` job polling another workflow's conclusion deadlocks against a single shared
   self-hosted runner — chain from the upstream workflow instead of polling → *v21*
 - `workflow_run`'s own `github.sha`/`github.ref` are the default branch's current head, not the
   triggering commit — resolve the real commit explicitly (e.g. from the release tag) → *v21*
+  (moot since v49: nothing uses `workflow_run`; the chain passes the commit as an input)
 - `repos/.../actions/permissions/workflow`'s `default_workflow_permissions` caps what any
   workflow's own `permissions:` block can grant, independent of that block → *v21*
 - `importlib.metadata.version("pkg")` reports the PyPI-normalized version string (`2026.7.4`);
@@ -967,7 +969,27 @@ needed" claim — rather than silently deleted.
 
 - GitHub answering `429` to the runner's action download kills the job at "Set up job", and the
   `notify` job needs the same action, so the failure and its alert vanish together (4.40.2 never
-  deployed, and nobody was told) → *v48*
+  deployed, and nobody was told) → *v48*; every `notify` is now one `curl` step with no `uses:`
+  → *v49*
+- **Never chain workflows through `workflow_run`.** It fires on every completion of the named
+  workflow (PRs, schedules, dispatches) and the run it starts has to skip itself, and a skipped
+  run completes too, so the next link fires as well. Call the stages as jobs of one run
+  (`uses:` + `workflow_call`) → *v49*
+- A called workflow sees the **caller's** `github` context (`event_name`, `workflow`, `sha`):
+  decide its mode from its inputs, never from `github.event_name` → *v49*
+- No `concurrency` group anywhere: even `cancel-in-progress: false` cancels an older *pending*
+  run. Deploys are serialized by the single runner, and a stale one is a no-op by version → *v49*
+- The one runner takes jobs roughly FIFO across all runs, so each later stage of a merge's run queues
+  behind every job started meanwhile; a burst interleaves stage by stage → *v49*
+- A workflow listener matches the upstream by the default branch's workflow at that *path*: a
+  renamed test copy of `ci.yml` still woke `main`'s Release. Test copies get their own file → *v49*
+- `git ls-remote … | grep` under the default `bash -e` (no pipefail) hides a failed remote read;
+  read it in an assignment first → *v49*
+- A merge's release can find its version already tagged by another run: deploy only when the tag
+  points at this run's commit (`owned`) → *v49*
+- An unbumped merge deploys nothing now; `gh workflow run "Release & Deploy" -f redeploy=true`
+  puts the current release back (after a `manual-*` dispatch, or for a workflow-side fix; the
+  health script and compose files still come from the tag) → *v49*
 
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
@@ -3043,14 +3065,18 @@ automated deploy-to-host)
   as a repo secret. Chaining via `workflow_run` (release.yml → publish-deploy.yml) sidesteps this
   entirely with no PAT anywhere in the pipeline — confirmed by reading GitHub's own events
   documentation before designing around it, not discovered the expensive way via a silently
-  non-firing workflow.
+  non-firing workflow. *(Corrected 2026-10-23, v49: the loop-prevention rule still holds, but
+  `workflow_run` was the wrong way around it. It fires on every completion of the upstream
+  workflow and leaves a skipped run behind each time. The stages are now jobs of one run, calling
+  the workflows through `workflow_call`; see the v49 entry.)*
 - **A `deploy` job that polls `ci.yml`'s conclusion would deadlock against a single self-hosted
   runner** — this repo has exactly one runner (`vbServer`) shared across every workflow. A job
   holding that runner's only slot while waiting on another workflow that needs the same runner to
   even start is a real deadlock, not a theoretical one. The fix is structural, not a timeout:
   chain `release.yml` off `ci.yml` via `workflow_run` (so "CI passed" is a precondition for the
   job even being scheduled, never something a running job waits on), and `publish-deploy.yml` off
-  `release.yml` the same way.
+  `release.yml` the same way. *(Corrected 2026-10-23, v49: `needs:` between jobs of one run
+  gives the same guarantee without `workflow_run`.)*
 - **`workflow_run`'s own `github.sha`/`github.ref` are the default branch's current head, not
   necessarily the commit that triggered the upstream run** — verified against GitHub's events
   reference before relying on it. `release.yml` explicitly checks out
@@ -4406,7 +4432,9 @@ independently-found production bug from the same conversation)
   after v33 merges (main's push → CI → `Release`, which succeeds with the tag already existing →
   `Publish & Deploy`, idempotency-skipped if the host is on that release's tag; if a
   `manual-*` dispatch is what's running, it redeploys the release instead, and records it once
-  healthy).
+  healthy). *(Corrected 2026-10-24, v49: a merge without a new version no longer deploys at
+  all; `gh workflow run "Release & Deploy" -f redeploy=true` is what puts the release back and
+  writes `.last-good`.)*
 - **A pending `workflow_dispatch` in the `deploy-prod` concurrency group gets silently replaced.**
   GitHub keeps at most one running and one *pending* run per concurrency group
   (`cancel-in-progress: false` only protects the running one). During v33's final verification,
@@ -5528,3 +5556,72 @@ independently-found production bug from the same conversation)
 - **Stdin and `docker compose exec -T`.** `while read p; do docker compose exec -T svc stat "$p";
   done < list` stats only the first path: `exec -T` passes the loop's stdin to the container and
   consumes the rest. Run the loop inside one `exec ... sh -c 'while read ...' < list`.
+
+### v49 ci-chain gotchas (learned replacing the `workflow_run` chain with one in-run chain)
+
+- **`workflow_run` makes an empty run for every completion it hears.** The trigger fires whenever
+  the named workflow completes, whatever its event or branch, so every PR's CI run, every
+  scheduled run and every dispatch started a Release run whose only job skipped itself. A
+  skipped run still *completes*, so it fired Publish & Deploy, which skipped too: 161 of 214
+  Release runs and 159 of 230 Publish & Deploy runs in the whole history at v49 (160/212 and
+  158/228 in the planning count) were these. The listener
+  matches the upstream by workflow *name*, and GitHub names a run by the default branch's
+  workflow at that file path: a scratch copy of `ci.yml` renamed on a test branch still ran as
+  "CI" and woke `main`'s Release. Give a test copy its own file path.
+- **The fix is jobs of one run calling workflows (`uses:` + `workflow_call`).** `needs:` orders
+  the stages, the caller grants the permissions (`contents: write`, plus `packages: write` for
+  the deploy) and passes
+  `secrets: inherit`, and the stages a merge doesn't need show as skipped *jobs* in that one run,
+  not as runs. A called workflow sees the caller's `github` context (`event_name`, `sha`,
+  `workflow`, `ref`), so it takes its mode from its inputs, and only `main` may release:
+  `plan` fails a dispatch from any other branch, which would otherwise tag and persist-deploy an
+  unmerged commit.
+- **A concurrency group cancels, even with `cancel-in-progress: false`.** GitHub keeps one
+  running and one pending run or job per group and cancels the older pending one. So there is
+  no group anywhere; the one self-hosted runner already serializes every job, and the deploy's
+  version guard turns an older release arriving last into a successful no-op. A second runner
+  would need another, non-cancelling lock.
+- **The one runner takes queued jobs roughly first-in, first-out across all runs** (observed,
+  not guaranteed). A merge's `plan`,
+  `release` and `deploy` each become ready only after the previous stage finishes, so each of
+  them queues behind every job of every run started meanwhile (other merges' and PRs' checks).
+  A burst of merges therefore interleaves stage by stage, and a release can wait behind a whole
+  wave of PR checks. That's why agents push in batches.
+- **Burst test outcome (scratch, 2026-10-23).** Three version-bump pushes 14 s apart made three
+  "Release & Deploy" runs, all `success`, none cancelled or skipped. With no concurrency group,
+  nothing was cancelled by GitHub either (the question task 3 asked), so `deploy-prod` was dropped
+  for good. The FIFO queue ran them stage by stage (the three `plan`s, then the three `release`s,
+  …), 36 minutes from the first push to the last notice, and the stub deploys landed in push
+  order (9.0.4, 9.0.5, 9.0.6). Only 9.0.6 pushed `latest`; the two older publishes, which ran
+  after 9.0.6's tag existed, logged "Not pushing latest". An older version pushed afterwards
+  (9.0.2 over the 9.0.6 baseline) is the guard's own test, recorded in the PR.
+- **Nothing cancels, so ordering is the guard's job, not the queue's.** `latest` and the
+  "Latest" badge are decided against the remote's `v*` tags right before they're set, never
+  earlier in the run, and a deploy below `.last-good` is a no-op that writes nothing.
+- **Read the remote in an assignment, not a pipeline.** GitHub's default `run` shell is
+  `bash -e` without pipefail, so `git ls-remote … | grep -q .` reads a failed `ls-remote` as "no
+  such tag" (and would have cut a release). `TAGS="$(git ls-remote …)"` fails the step instead.
+- **A notice must not need a download.** A job with any `uses:` downloads its actions during "Set
+  up job", before step one, so a GitHub `429` there kills every step (v48). Each `notify` is one
+  `run:` step with `curl`: the URL and the token reach curl on stdin (`--config -`), never its
+  command line; secrets are whitespace-trimmed first, since a pasted trailing newline breaks
+  curl's config file and reads as "no response".
+- **Two runs can carry the same untagged version** (a bump, then an unbumped merge whose `plan`
+  runs before the first release). The second run's release finds the tag and succeeds, so a
+  deploy gated only on "release succeeded" would ship the second commit under the first
+  commit's tag. `release.yml` outputs `owned` (the tag points at this run's commit), and the
+  deploy runs only when it's true.
+- **A merge without a new version no longer deploys anything.** Before v49 every merge re-deployed
+  the latest release, which also replaced a `manual-*` dispatch and shipped pipeline-only
+  fixes. The owner's lever for both is a `redeploy` input on the "Release & Deploy" dispatch: the
+  tag's commit, deployed in release mode with `main`'s workflow files and `.pipeline` scripts.
+  What the deploy checks out (compose files, `wait_for_stack_health.sh`) is still the tag's, so a
+  fix there needs a version bump, as before v49. And re-run a failed run's
+  *failed* jobs only: "Re-run all jobs" re-runs `plan`, finds the tag, and ends green with
+  nothing deployed.
+- **A failed deploy is no longer retried by the next merge.** Before v49 every Release
+  completion (an unbumped merge's included) fired Publish & Deploy, which retried a failed
+  deploy. Now the deploy runs only after a release in the same run, so a failed one waits for
+  `gh run rerun <id> --failed`; the notice says so by arriving at all. A re-run uses the run's own
+  commit's workflow files (and expires after 30 days), so a workflow-side fix reaches the
+  current release with a `redeploy` dispatch instead.
