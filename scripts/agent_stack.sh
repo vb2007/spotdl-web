@@ -141,14 +141,14 @@ refuse_foreign_slot() {
 		die "docker ps failed: can't check who owns slot $SLOT"
 	while IFS= read -r dir; do
 		if [ -n "$dir" ] && [ "$dir" != "$ROOT" ]; then
-			[ -d "$dir" ] || die "slot $SLOT ($PROJECT) was left up by a worktree that no longer exists ($dir). Clear it with: docker ps -aq --filter label=com.docker.compose.project=$PROJECT | xargs -r docker rm -fv; docker network rm ${PROJECT}_default; docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data"
+			[ -d "$dir" ] || die "slot $SLOT ($PROJECT) was left up by a worktree that no longer exists ($dir). Clear it with: docker ps -aq --filter label=com.docker.compose.project=$PROJECT | xargs -r docker rm -fv; docker network rm ${PROJECT}_default; docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data ${PROJECT}_web-node-modules ${PROJECT}_web-paraglide ${PROJECT}_web-svelte-kit"
 			die "slot $SLOT ($PROJECT) is in use by another worktree: $dir. Take it down there (scripts/agent_stack.sh $SLOT down), or pick another slot."
 		fi
 	done <<<"$dirs"
 	volume_dir="$(docker volume inspect "${PROJECT}_pgdata" \
 		--format '{{index .Labels "spotdlweb.worktree"}}' 2>/dev/null || true)"
 	if [ -n "$volume_dir" ] && [ "$volume_dir" != "$ROOT" ]; then
-		die "slot $SLOT's database volume ${PROJECT}_pgdata belongs to another worktree: $volume_dir. Drop it there (scripts/agent_stack.sh $SLOT down --volumes), or, if that worktree is gone, docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data (Redis's queue goes with it)."
+		die "slot $SLOT's database volume ${PROJECT}_pgdata belongs to another worktree: $volume_dir. Drop it there (scripts/agent_stack.sh $SLOT down --volumes), or, if that worktree is gone, docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data ${PROJECT}_web-node-modules ${PROJECT}_web-paraglide ${PROJECT}_web-svelte-kit (Redis's queue goes with it)."
 	fi
 }
 
@@ -213,7 +213,7 @@ write_env_agent() {
 		fi
 		# The stored password is slot $previous's; a volume this slot kept was made with its own.
 		if docker volume inspect "${PROJECT}_pgdata" >/dev/null 2>&1; then
-			die "slot $SLOT still has a database volume from before, with a password .env.agent no longer holds: drop it with scripts/agent_stack.sh $SLOT down --volumes (after env for slot $SLOT fails, use docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data)"
+			die "slot $SLOT still has a database volume from before, with a password .env.agent no longer holds: drop it with scripts/agent_stack.sh $SLOT down --volumes (after env for slot $SLOT fails, use docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data ${PROJECT}_web-node-modules ${PROJECT}_web-paraglide ${PROJECT}_web-svelte-kit)"
 		fi
 	fi
 	[ -f "$ENV_FILE" ] || die "no $ENV_FILE: copy the main checkout's dev .env into this worktree first (docs/LOCAL_DEV.md, 'Parallel agent stacks')."
@@ -649,8 +649,10 @@ down)
 		docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" | xargs -r docker rm -fv >/dev/null
 		docker network rm "${PROJECT}_default" >/dev/null 2>&1 || true
 		if [ "${1:-}" = --volumes ] || [ "${1:-}" = -v ]; then
-			docker volume rm "${PROJECT}_pgdata" "${PROJECT}_redis-data" >/dev/null 2>&1 || true
-			echo "agent_stack: removed ${PROJECT}_pgdata and ${PROJECT}_redis-data" >&2
+			# v52: and the dev web container's own volumes.
+			docker volume rm "${PROJECT}_pgdata" "${PROJECT}_redis-data" "${PROJECT}_web-node-modules" \
+				"${PROJECT}_web-paraglide" "${PROJECT}_web-svelte-kit" >/dev/null 2>&1 || true
+			echo "agent_stack: removed ${PROJECT}_pgdata, ${PROJECT}_redis-data and the web-* volumes" >&2
 		fi
 		return 0
 	fi

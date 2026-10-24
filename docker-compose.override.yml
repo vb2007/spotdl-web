@@ -147,14 +147,14 @@ services:
       - |
         if [ "$$(id -u)" = 0 ]; then
           echo "web: this is the dev web image from before v52 (it runs as root), and Docker has filled web's volumes from it as root." >&2
-          echo "web: once (docker compose ls names the project):" >&2
+          echo "web: once (docker compose ls names the project; in an agent slot it is spotdlweb-s<slot>, and each docker compose command gets the prefix scripts/agent_stack.sh <slot> run):" >&2
           echo "  docker compose rm -sf web && docker volume rm <project>_web-node-modules <project>_web-paraglide <project>_web-svelte-kit && docker compose up -d --build web" >&2
           exit 1
         fi
         for dir in node_modules src/lib/paraglide .svelte-kit; do
           if [ ! -w "$$dir" ]; then
             echo "web: $$dir isn't writable by uid $$(id -u): a dev web image from before v52 filled its volume as root." >&2
-            echo "web: remove the web container and its three volumes once (docker compose ls names the project), then start web again:" >&2
+            echo "web: remove the web container and its three volumes once (docker compose ls names the project; in an agent slot it is spotdlweb-s<slot>, and docker compose gets the prefix scripts/agent_stack.sh <slot> run), then start web again:" >&2
             echo "  docker compose rm -sf web && docker volume rm <project>_web-node-modules <project>_web-paraglide <project>_web-svelte-kit" >&2
             exit 1
           fi
