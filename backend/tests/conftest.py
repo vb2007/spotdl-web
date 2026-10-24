@@ -59,7 +59,9 @@ def _test_database_urls() -> tuple[str, str]:
     try:
         check_not_production_database(raw, "dev")
     except ValueError as exc:
-        raise ValueError(f"TEST_DATABASE_URL is refused by app/config.py's production-database guard: {exc}") from None
+        # Its "-- point DATABASE_URL at spotdlwebtest" advice is the app's, not the suite's.
+        reason = str(exc).split(" -- ")[0]
+        raise ValueError(f"TEST_DATABASE_URL is refused by app/config.py's production-database guard: {reason}") from None
     try:
         url = make_url(raw)
     except (ArgumentError, ValueError):  # unreachable after the guard; kept fail-closed
@@ -356,8 +358,8 @@ def committed_db(request, monkeypatch):
         # with a committed session (see test_jobs.py's), not through `client`.
         pytest.fail(
             "committed_db can't be combined with db_session or a fixture built on it "
-            "(client, authenticated_client, admin_client, owner, make_user, session_cookie, "
-            "count_queries)",
+            "(client, authenticated_client, admin_client, owner, admin_user, make_user, "
+            "session_cookie, count_queries)",
             pytrace=False,
         )
     # app.db.SessionLocal's own settings, so the code under test behaves as it does in a worker.
