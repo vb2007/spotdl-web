@@ -2,10 +2,11 @@
 
 A Celery worker keeps the Python it imported at boot, so an edit under the bind-mounted
 `backend/app` never reached `worker-dl`/`worker-meta`/`worker-expand` until someone restarted
-them by hand (docs/GOTCHAS.md, v06 and v48). `docker-compose.override.yml` makes this script
+them by hand (docs/GOTCHAS.md, v23 and v48). `docker-compose.override.yml` makes this script
 their entrypoint, so it runs the service's own `command` unchanged as a child process, and
 restarts it when a `.py` file under the watched tree changes, much as `uvicorn --reload` does for
-`api`. The image has no `watchfiles` (spotdl pins plain `uvicorn`, without its extras), so this
+`api`. The image has no `watchfiles` (pyproject.toml's uv override pins plain `uvicorn`, for spotdl's
+sake, which drops `[standard]`'s extras), so this
 polls file times instead: a few hundred files, once a second.
 
     python reload.py [--watch DIR] [--grace SECONDS] -- <command...>
@@ -77,6 +78,12 @@ def stop(child: subprocess.Popen, grace: float) -> None:
         child.wait()
 
 
+def exit_status(code: int) -> int:
+    """A child killed by signal N (Popen's -N) as a shell reports it, 128 + N: sys.exit(-15)
+    would exit 241."""
+    return 128 - code if code < 0 else code
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--watch", default="/app/app")
@@ -104,7 +111,9 @@ def main() -> int:
 
     def start() -> None:
         nonlocal child
-        child = subprocess.Popen(command)
+        # Its own process group: a terminal's Ctrl-C (`docker compose run -it`) reaches only this
+        # process, which forwards it once. Twice would be Celery's cold shutdown.
+        child = subprocess.Popen(command, process_group=0)
         # Checked after `child` is set: a stop that arrived while there was no live child to
         # forward it to is sent now, and one arriving later finds this child.
         if stopping:
@@ -131,7 +140,7 @@ def main() -> int:
             if not died_of_edit:
                 if not stopping:
                     log(f"{command[0]} exited on its own ({code})")
-                return code
+                return exit_status(code)
             log(f"{command[0]} exited ({code}) right after a reload; waiting for the next change")
             child = None
         if stopping:
@@ -157,7 +166,7 @@ def main() -> int:
         if child is not None:
             stop(child, args.grace)
             if stopping:
-                return child.returncode
+                return exit_status(child.returncode)
         start()
         reloaded_at = time.monotonic()
 
