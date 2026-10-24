@@ -5848,6 +5848,11 @@ independently-found production bug from the same conversation)
   unpatched one connected to a placeholder URL and errored; now `app.db.engine` is the run's
   real database, so it would read past the test's uncommitted rows and commit outside the
   rollback. `db_session` fails any test that checks out a connection of its own.
+- **SIGTERM skipped `pytest_sessionfinish`** (live review), leaving the run's database behind;
+  the session start installs `signal.default_int_handler` for SIGTERM, so it unwinds like
+  Ctrl-C. A `%` in the rendered URL (any %-escaped password) crashed `alembic/env.py`'s
+  `set_main_option` (configparser interpolation), printing the URL with its password; the
+  conftest refuses such a URL first.
 - **Fixture teardown order matters for race tests.** `committed_db` depends on `monkeypatch`, so
   it tears down (releasing parked threads) while the test's stubs are still in place.
 - **Alembic from Python, without the ini.** `command.upgrade(Config("alembic.ini"), ...)` runs

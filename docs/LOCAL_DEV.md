@@ -445,14 +445,20 @@ never SQLite:
 
 - Each run creates a database of its own on the slot's Postgres (`spotdlweb_s<slot>_test_<random>`),
   builds the schema with Alembic `upgrade head` (the run's header lists every migration), and
-  drops it at the end. Two runs at once, on one slot, two slots or beside CI, never share one. A
-  run killed hard (`kill -9`) leaves its database behind; `down --volumes` clears it.
+  drops it at the end. Two runs at once, on one slot, two slots or beside CI, never share one.
+  Ctrl-C and SIGTERM still drop it. A run killed outright leaves it behind: SIGKILL, or the `api`
+  container stopped mid-run (Docker signals only the container's main process, then kills the
+  rest). `down --volumes` clears those. Without a terminal (`-T`, an agent's or a pipe's call),
+  Ctrl-C ends only the `docker exec` client: the run goes on in the container, unseen, and still
+  drops its database when it finishes.
 - `TEST_DATABASE_URL` names the server and the database name stem. `agent_stack.sh` sets it to the
   slot's Postgres; set it yourself to override that. Before any test, the suite refuses (exit 4) a
   `TEST_DATABASE_URL` that is unset, names a database without `test` in its name (or a name over
   40 bytes), names a production one (`app/config.py`'s v32 guard: `spotdlweb`, `spotdl_web`),
   names a server other than a slot's `postgres` or a loopback one (`localhost`, `127.0.0.1`,
-  `::1`), or picks the database or server with `?dbname=`/`?service=`/`?host=`/`?hostaddr=`.
+  `::1`), picks the database or server with `?dbname=`/`?service=`/`?host=`/`?hostaddr=`, or
+  needs %-escaping (Alembic's config reads `%` as interpolation, and would crash printing the
+  URL, password included).
   Then, connected, it refuses a server that holds `spotdlweb`, `spotdl_web` or `spotdlwebtest`:
   that server is production's, whatever address reached it (on the production host, the CI
   runner, loopback reaches it too), and `spotdlwebtest` passes the name checks.
