@@ -6043,18 +6043,23 @@ independently-found production bug from the same conversation)
   `on_task_call` retries its connection 20 times), so the 503 above came after 19 s and the job
   sat `expanding` meanwhile. Nothing reads `expand_job`'s result: `ignore_result=True` (as
   `send_alert` already had) makes it fail in well under a second.
-- **A label's character rule goes by Unicode category, and the tables lag.** Refused: `Cc`, `Cf`,
-  `Cs`, `Zl`, `Zp` (controls, bidi and zero-width format characters, tags, surrogates, separators)
-  and the default-ignorable unassigned ranges (U+2065, U+FFF0-FFF8, U+E0000-E0FFF, drawn as
-  nothing), except ZWJ/ZWNJ and whole subdivision flags (🏴, 1-6 tag letters or digits, the cancel
-  tag): an unterminated or chained tag run hid ASCII text behind a plain 🏴. A label needs one
-  character that shows (U+2800 and the Hangul fillers count as blank). Kept and counted as
-  showing: other `Cn` and `Co`, because Python 3.12's `unicodedata` is Unicode 15.0 (every newer
-  emoji, 🫩, is "unassigned") and macOS types the Apple logo as private use. Space separators
-  (`Zs`) are trimmed at the ends, not `str.strip()`, which also eats \\x1c-\\x1f and U+0085 and
-  reported a control character as an empty name. The form trims only plain spaces (the rest is
-  the backend's to judge) and counts code points like the backend: its `maxlength` counts UTF-16
-  units and silently cut long emoji labels mid-sequence, so it's only a 4x backstop now.
+- **A key label's character rule took eight review rounds; the principle that held is "no text
+  may be invisible".** Patching characters one by one kept losing: tag runs behind 🏴, joiner and
+  variation-selector runs (the known smuggling encodings: two selectors per byte, one joiner per
+  bit) and single ignorables after an ASCII word all made a label render exactly like another key's,
+  or carry hidden data. The rule now (`services/api_keys.py`): Unicode's Default_Ignorable_Code_Point
+  set is refused except in the one context a script or emoji needs it (ZWJ/ZWNJ only between two
+  visible non-ASCII characters, an emoji selector may precede the ZWJ as in ❤️‍🔥; VS15/VS16 only
+  after an emoji-like symbol or a keycap digit; ideographic variation selectors only after a CJK
+  ideograph; Mongolian selectors within Mongolian); tag characters only as the three recommended
+  subdivision flags (England, Scotland, Wales); controls, surrogates, line/paragraph separators,
+  blank-drawing characters (U+2800, U+1D159, U+16FE4) and non-visible format characters refused
+  (the prepended number signs, which draw, stay); one visible character required. Space
+  separators trim at the ends and collapse inside (two spaces or an NBSP would look like one),
+  in the form too, which also counts code points like the backend (its `maxlength` counts UTF-16
+  units and once cut emoji labels mid-sequence, so it's only a 4x backstop). Python 3.12's tables
+  are Unicode 15.0, so newer emoji (🫩) read as unassigned (`Cn`): those, and private use (macOS's
+  Apple logo), count as visible.
 - **Job create caps the link or search at 2048 characters** (`submit_too_long`): the web UI's
   cookie path had no bound, and a 20 MB "search" was stored, searched by worker-expand and echoed
   into every listing of that user's jobs (a 60 MB `GET /api/jobs`).

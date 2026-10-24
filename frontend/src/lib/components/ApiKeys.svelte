@@ -60,9 +60,10 @@
 		labelError = null;
 		error = null;
 		status = null;
-		// Plain spaces only: anything else at the ends (a tab, a BOM) is the backend's to judge,
-		// so it gets the backend's message rather than vanishing here.
-		const name = label.replace(/^ +| +$/g, '');
+		// Spaces as the backend treats them (services/api_keys.py `_collapse_spaces`): space
+		// separators off the ends, each run inside down to one space. Anything else (a tab, a BOM)
+		// is the backend's to judge, so it gets the backend's message rather than vanishing here.
+		const name = label.replace(/^\p{Zs}+|\p{Zs}+$/gu, '').replace(/\p{Zs}+/gu, ' ');
 		if (!name || [...name].length > LABEL_MAX) {
 			labelError = () => m.error_api_key_label_invalid({ max: formatNumber(LABEL_MAX) });
 			await tick();

@@ -45,50 +45,99 @@ def _generate() -> tuple[str, str]:
     return prefix, f"{KEY_PREFIX}{prefix}_{secrets.token_urlsafe(32)}"
 
 
-# Kept inside a label although they're format characters: emoji sequences need them.
-_JOINERS = {"\u200c", "\u200d"}
-# A subdivision flag (🏴 Scotland, Wales, England): the black flag, 1-6 tag letters or digits,
-# then the cancel tag. The only place a tag character may appear; any other tag run (no
-# terminator, chained after one, or carrying hidden ASCII text) is refused.
-_SUBDIVISION_FLAG = re.compile("\U0001f3f4[\U000e0030-\U000e0039\U000e0061-\U000e007a]{1,6}\U000e007f")
-# Unassigned code points Unicode reserves as default-ignorable: renderers draw them as nothing.
-_IGNORABLE_UNASSIGNED = ((0x2065, 0x2065), (0xFFF0, 0xFFF8), (0xE0000, 0xE0FFF))
-# Characters that show as blank although Unicode calls them letters or symbols.
-_FILLERS = {"\u115f", "\u1160", "\u3164", "\uffa0", "\u2800"}
+# The label rule (v53, settled over the reviews): a label is the owner's name for a key, shown
+# in the /account list and the revoke dialog. It must be storable (no NUL, no lone surrogate),
+# and no text in it may be invisible: an invisible character could make it render exactly like
+# another key's label, or carry hidden data. So Unicode's default-ignorable characters (drawn
+# as nothing) are refused, except where a script or emoji needs one, and then only in that
+# context. Everything visible stays: every script, combining marks, emoji, private use (the
+# macOS Apple logo), and code points newer than Python 3.12's Unicode 15.0 tables.
+
+# Unicode's Default_Ignorable_Code_Point property (DerivedCoreProperties.txt).
+_DEFAULT_IGNORABLE = (
+    (0x00AD, 0x00AD), (0x034F, 0x034F), (0x061C, 0x061C), (0x115F, 0x1160), (0x17B4, 0x17B5),
+    (0x180B, 0x180F), (0x200B, 0x200F), (0x202A, 0x202E), (0x2060, 0x206F), (0x3164, 0x3164),
+    (0xFE00, 0xFE0F), (0xFEFF, 0xFEFF), (0xFFA0, 0xFFA0), (0xFFF0, 0xFFF8),
+    (0x1BCA0, 0x1BCA3), (0x1D173, 0x1D17A), (0xE0000, 0xE0FFF),
+)
+# Visible format characters (prepended number signs drawn over the digits that follow).
+_VISIBLE_FORMAT = {0x0600, 0x0601, 0x0602, 0x0603, 0x0604, 0x0605, 0x06DD, 0x070F, 0x0890,
+                   0x0891, 0x08E2, 0x110BD, 0x110CD}
+# Letters and symbols that draw as blank.
+_BLANK = {0x2800, 0x1D159, 0x16FE4}
+# The three subdivision flags Unicode recommends (England, Scotland, Wales): the only place tag
+# characters may appear. Each counts as one visible character.
+_SUBDIVISION_FLAG = re.compile(
+    "\U0001f3f4(?:"
+    + "|".join("".join(chr(0xE0000 + ord(c)) for c in code) for code in ("gbeng", "gbsct", "gbwls"))
+    + ")\U000e007f"
+)
+_FLAG_PLACEHOLDER = "\U0001f3f4"
+_JOINERS = (0x200C, 0x200D)
+_EMOJI_SELECTORS = (0xFE0E, 0xFE0F)
+_KEYCAP_BASES = set("0123456789#*")
 
 
-def _unfit(char: str) -> bool:
-    """A character a label must not hold (outside a subdivision flag): controls (a NUL can't be
-    stored in Postgres text at all), lone surrogates (can't be encoded to UTF-8), format
-    characters (bidi controls and marks, zero-width spaces, tags: they reorder the key's prefix
-    around them, hide text, or make two labels look alike), line/paragraph separators, and the
-    default-ignorable unassigned ranges. Kept: ZWJ/ZWNJ (emoji sequences), and other unassigned
-    or private-use code points (Python 3.12's tables are Unicode 15.0, so newer emoji such as
-    🫩 read as unassigned; macOS types the Apple logo as private use)."""
-    if char in _JOINERS:
-        return False
+def _ignorable(code: int) -> bool:
+    return any(low <= code <= high for low, high in _DEFAULT_IGNORABLE)
+
+
+def _is_cjk(char: str) -> bool:
     code = ord(char)
-    if any(low <= code <= high for low, high in _IGNORABLE_UNASSIGNED):
-        return True
-    return unicodedata.category(char) in {"Cc", "Cf", "Cs", "Zl", "Zp"}
+    return 0x3400 <= code <= 0x9FFF or 0xF900 <= code <= 0xFAFF or 0x20000 <= code <= 0x3FFFF
 
 
-def _shows(char: str) -> bool:
-    """Whether a character draws something: letters, digits, punctuation, symbols, and the
-    unassigned/private-use code points `_unfit` keeps; not marks, spaces or blank fillers."""
-    return unicodedata.category(char)[0] in "LNPS" or unicodedata.category(char) in ("Cn", "Co")
+def _is_mongolian(char: str) -> bool:
+    return 0x1820 <= ord(char) <= 0x18AA
 
 
-def _trim(label: str) -> str:
-    """Spaces off both ends: every space separator (Zs: NBSP, U+3000...), not `str.strip()`,
-    which also eats \\x1c-\\x1f and U+0085 and would report a control character as an empty
-    name."""
-    start, end = 0, len(label)
-    while start < end and unicodedata.category(label[start]) == "Zs":
-        start += 1
-    while end > start and unicodedata.category(label[end - 1]) == "Zs":
-        end -= 1
-    return label[start:end]
+def _visible_base(char: str | None) -> bool:
+    """A character that draws something and isn't plain ASCII (a joiner between ASCII
+    letters is never needed, and is exactly how a lookalike or hidden payload is built)."""
+    if char is None or ord(char) < 0x80 or _ignorable(ord(char)):
+        return False
+    return unicodedata.category(char)[0] in "LNPSM" or unicodedata.category(char) in ("Cn", "Co")
+
+
+def _allowed_ignorable(text: str, index: int) -> bool:
+    """Whether the default-ignorable at text[index] is one a script or emoji needs here."""
+    code = ord(text[index])
+    before = text[index - 1] if index > 0 else None
+    after = text[index + 1] if index + 1 < len(text) else None
+    if code in _JOINERS:
+        # Between two visible non-ASCII characters (emoji ZWJ sequences, Indic conjuncts,
+        # Persian ZWNJ); an emoji presentation selector may sit just before (❤️‍🔥).
+        if before is not None and ord(before) in _EMOJI_SELECTORS:
+            before = text[index - 2] if index > 1 else None
+        return _visible_base(before) and _visible_base(after)
+    if code in _EMOJI_SELECTORS:
+        # After an emoji-like symbol (❤️, 🏳️), or a keycap's digit, # or * (1️⃣).
+        if before is None:
+            return False
+        if before in _KEYCAP_BASES:
+            return after == "\u20e3"
+        return ord(before) >= 0x80 and unicodedata.category(before) in ("So", "Sm", "Cn")
+    if 0xE0100 <= code <= 0xE01EF:
+        # An ideographic variation selector, after a CJK ideograph (Japanese name variants).
+        return before is not None and _is_cjk(before)
+    if 0x180B <= code <= 0x180F:
+        # Mongolian variation selectors and vowel separator, within Mongolian text.
+        return before is not None and _is_mongolian(before)
+    return False
+
+
+def _collapse_spaces(label: str) -> str:
+    """Space separators off both ends, and each run inside down to one plain space: two spaces,
+    or an NBSP, would otherwise look exactly like one. Not `str.strip()`, which also eats
+    \\x1c-\\x1f and U+0085 and would report a control character as an empty name."""
+    out: list[str] = []
+    for char in label:
+        if unicodedata.category(char) == "Zs":
+            if out and out[-1] != " ":
+                out.append(" ")
+        else:
+            out.append(char)
+    return "".join(out).rstrip(" ")
 
 
 class LabelInvalid(Exception):
@@ -98,17 +147,28 @@ class LabelInvalid(Exception):
 
 
 def normalize_label(label: str) -> str:
-    """The label as stored. Raises LabelInvalid("length") when it's empty or longer than
-    LABEL_MAX_LENGTH code points once trimmed, LabelInvalid("character") when it holds a
-    character a label can't, or nothing visible."""
-    label = _trim(label)
+    """The label as stored (space separators collapsed, see `_collapse_spaces`). Raises
+    LabelInvalid("length") when it's empty or longer than LABEL_MAX_LENGTH code points,
+    LabelInvalid("character") when it holds a character a label can't, or nothing visible."""
+    label = _collapse_spaces(label)
     if not label or len(label) > LABEL_MAX_LENGTH:
         raise LabelInvalid("length")
-    # Whole subdivision flags count as one visible character; what's left is checked one by one.
-    rest = _SUBDIVISION_FLAG.sub("\U0001f3f4", label)
-    if any(_unfit(c) for c in rest):
-        raise LabelInvalid("character")
-    if not any(_shows(c) and c not in _FILLERS for c in rest):
+    text = _SUBDIVISION_FLAG.sub(_FLAG_PLACEHOLDER, label)
+    visible = 0
+    for index, char in enumerate(text):
+        code = ord(char)
+        category = unicodedata.category(char)
+        if category in ("Cc", "Cs", "Zl", "Zp") or code in _BLANK:
+            raise LabelInvalid("character")
+        if _ignorable(code):
+            if not _allowed_ignorable(text, index):
+                raise LabelInvalid("character")
+            continue
+        if category == "Cf" and code not in _VISIBLE_FORMAT:
+            raise LabelInvalid("character")
+        if category[0] in "LNPS" or category in ("Cn", "Co", "Cf"):
+            visible += 1
+    if not visible:
         raise LabelInvalid("character")
     return label
 

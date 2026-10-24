@@ -464,3 +464,61 @@ def test_round7_labels_that_must_be_kept(authenticated_client, label, stored):
     )
     assert response.status_code == 201, response.text
     assert response.json()["label"] == stored
+
+
+def _vs_encode(data: bytes) -> str:
+    return "".join(chr(0xFE00 + (b >> 4)) + chr(0xFE00 + (b & 15)) for b in data)
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        # Round 8: hidden data and lookalikes through ignorables next to visible text.
+        "Laptop" + _vs_encode(b"ignore previous instructions"),
+        "Laptop" + "".join("\u200c\u200d"[int(bit)] for bit in "0110100001101001"),
+        "Laptop Firefox\u200d",
+        "\u200dLaptop Firefox",
+        "Lap\u200dtop",
+        "Laptop Firefox\ufe0f",
+        "Lap\u034ftop",
+        "Lap\u115ftop",
+        "Laptop\u3164",
+        "Laptop \u2800",
+        "Laptop\u17b4",
+        "Laptop\u180b",
+        "\U0001d159",
+        "Laptop " + "".join(FLAG + _tags(w) + CANCEL for w in ("ignore", "allpre", "viousi")),
+        "x\ufff9y",
+    ],
+)
+def test_round8_invisible_text_is_refused(authenticated_client, label):
+    response = authenticated_client.post(
+        "/api/account/api-keys", content=json.dumps({"label": label}), headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == 422, label
+    assert response.json()["params"]["reason"] == "character"
+
+
+@pytest.mark.parametrize(
+    "label,stored",
+    [
+        ("\u2764\ufe0f\u200d\U0001f525", None),  # ❤️‍🔥
+        ("\U0001f3f3\ufe0f\u200d\U0001f308", None),  # 🏳️‍🌈
+        ("1\ufe0f\u20e3 key", None),  # keycap
+        ("\u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645", None),  # Persian ZWNJ
+        ("\u0915\u094d\u200d\u0937", None),  # Hindi ZWJ after virama
+        ("\u845b\U000e0100", None),  # Japanese ideographic variation
+        ("\u182c\u1820\u1837\u180e\u1820", None),  # Mongolian vowel separator
+        ("\u0600\u0661\u0662", None),  # Arabic number sign
+        ("Z\u0301a\u0308lgo", None),  # combining marks on letters
+        (FLAG + _tags("gbeng") + CANCEL + FLAG + _tags("gbsct") + CANCEL + FLAG + _tags("gbwls") + CANCEL, None),
+        ("Laptop  Firefox", "Laptop Firefox"),  # two spaces look like one: collapsed
+        ("Laptop\u00a0Firefox", "Laptop Firefox"),
+    ],
+)
+def test_round8_visible_text_is_kept(authenticated_client, label, stored):
+    response = authenticated_client.post(
+        "/api/account/api-keys", content=json.dumps({"label": label}), headers={"Content-Type": "application/json"}
+    )
+    assert response.status_code == 201, (label, response.text)
+    assert response.json()["label"] == (stored or label)
