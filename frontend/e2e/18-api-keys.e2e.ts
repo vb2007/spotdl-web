@@ -4,6 +4,7 @@ import { m, t, type Lang } from './support/i18n';
 import { skipUnlessStrict } from './support/guards';
 import { tabTo } from './support/keyboard';
 import {
+	LEDGER_TRACKS,
 	USER_STATE,
 	expandWorkerBusy,
 	expandWorkerRunning,
@@ -24,12 +25,18 @@ test.use({ storageState: USER_STATE });
 const KEY_RE = /^sdw_([0-9a-f]{8})_[A-Za-z0-9_-]{43}$/;
 
 async function me(baseURL: string, key: string): Promise<number> {
-	// No cookie at all: the key alone.
-	const bare = await request.newContext({ baseURL });
+	// No cookie at all: the key alone. Explicitly empty, since inside a test the runner hands
+	// `request.newContext` the project's `storageState` (the signed-in user), and the server
+	// tries the cookie first.
+	const bare = await request.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
 	try {
-		return (
-			await bare.get('/api/auth/me', { headers: { Authorization: `Bearer ${key}` } })
-		).status();
+		const answer = await bare.get('/api/auth/me', {
+			headers: { Authorization: `Bearer ${key}` }
+		});
+		// A key's answer is who it belongs to and nothing else (a cookie's carries preferences).
+		if (answer.ok())
+			expect(Object.keys(await answer.json()).sort()).toEqual(['email', 'is_admin', 'username']);
+		return answer.status();
 	} finally {
 		await bare.dispose();
 	}
@@ -147,37 +154,52 @@ test('the keys section works in Hungarian, keyboard only', async ({
 	}
 });
 
-test('the web UI still submits search text, and says when a link is already queued', async ({
+test('the web UI keeps submitting what the allowlist refuses, and says when a link is already queued', async ({
 	page,
 	baseURL
 }, testInfo) => {
 	test.setTimeout(180_000);
-	// The search job must never expand into a real download: worker-expand is held while it
-	// exists (spec 12's pattern), and the job is cancelled before it starts again.
+	// Neither job may expand into a real download: worker-expand is held while they exist
+	// (spec 12's pattern), and both are cancelled before it starts again. The URI names a
+	// ledger track besides, so even an expansion would settle as a duplicate.
 	skipUnlessStrict(!expandWorkerRunning(), 'worker-expand is stopped; not starting it');
 	const busy = expandWorkerBusy();
 	skipUnlessStrict(busy.length > 0, `worker-expand is busy (${busy.join(', ')}); not stopping it`);
-	const text = `daft punk e2e ${testInfo.project.name} ${Date.now()}`;
+	const spotifyId =
+		testInfo.project.name === 'mobile' ? LEDGER_TRACKS.submitMobile : LEDGER_TRACKS.submitDesktop;
+	// The form sends any link, a `spotify:` URI included, but never bare words: the allowlist
+	// refuses both for the extension, and a cookie request without its header keeps them.
+	const uri = `spotify:track:${spotifyId}`;
+	const words = `daft punk e2e ${testInfo.project.name} ${Date.now()}`;
 	const user = await request.newContext({ baseURL, storageState: USER_STATE });
-	let jobId: string | null = null;
+	const held: string[] = [];
 	stopExpandWorker();
 	try {
 		await openDashboard(page);
-		const job = await submitUrl(page, text);
-		jobId = job.id;
+		const job = await submitUrl(page, uri);
+		held.push(job.id);
 		recordHeldSubmission(job.id);
+		expect(job.source_url).toBe(uri);
 		expect(job.source_type).toBe('search');
-		expect(job.source_url).toBe(text);
 		expect((job as Job & { hint: unknown }).hint).toBeNull();
 		expect(job.owner_email.toLowerCase()).toBe(userIdentity().email.trim().toLowerCase());
 
-		// The same text again while that job is still expanding: the same job, 200, and a
-		// notice rather than a second row.
+		// Search text, through the same cookie request `api.createJob` makes.
+		const search = await page.request.post('/api/jobs', { data: { url: words } });
+		expect(search.status()).toBe(201);
+		const searchJob = (await search.json()) as Job;
+		held.push(searchJob.id);
+		recordHeldSubmission(searchJob.id);
+		expect(searchJob.source_type).toBe('search');
+		expect(searchJob.source_url).toBe(words);
+
+		// The same URI again while its job is still expanding: the same job, 200, and a notice
+		// rather than a second row.
 		const again = page.waitForResponse(
 			(r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/jobs'
 		);
 		const input = page.getByLabel(t(m.dashboard_submit_input_label), { exact: true });
-		await input.fill(text);
+		await input.fill(uri);
 		await input.press('Enter');
 		const answer = await again;
 		expect(answer.status()).toBe(200);
@@ -185,17 +207,24 @@ test('the web UI still submits search text, and says when a link is already queu
 		expect(body.id).toBe(job.id);
 		expect(body.hint).toBe('already_queued');
 		await expect(page.locator('#submit-error')).toHaveText(t(m.dashboard_submit_already_queued));
+		// One row for it in the incoming overlay, not two.
+		await expect(
+			page
+				.getByRole('list', { name: t(m.incoming_heading), exact: true })
+				.getByRole('listitem')
+				.filter({ hasText: uri })
+		).toHaveCount(1);
 	} finally {
 		try {
 			await restartExpandWorker();
 		} catch (err) {
 			expect.soft(String(err), 'starting worker-expand again').toBe('');
 		}
-		if (jobId) {
+		for (const jobId of held) {
 			const job = (await (await user.get(`/api/jobs/${jobId}`)).json()) as Job;
 			if (job.status.lifecycle !== 'cancelled') await user.delete(`/api/jobs/${jobId}`);
-			await user.post('/api/jobs/archive', { data: { job_ids: [jobId] } });
 		}
+		if (held.length) await user.post('/api/jobs/archive', { data: { job_ids: held } });
 		await user.dispose();
 	}
 });
