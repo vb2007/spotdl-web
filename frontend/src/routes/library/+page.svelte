@@ -205,7 +205,8 @@
 		// "running" has disabled the button already.
 		if (running) {
 			error = m.library_already_running();
-			return handFocusToPanel();
+			handFocusToPanel();
+			return keepFocus(heading);
 		}
 		// The button is disabled from here until the sweep ends.
 		handFocusToPanel();
