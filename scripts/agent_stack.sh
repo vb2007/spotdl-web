@@ -373,7 +373,7 @@ wait_healthy() {
 	done
 }
 
-# Bind-mount sources and the dev `web` container's anonymous-volume mountpoints must exist
+# Bind-mount sources and the dev `web` container's volume mountpoints must exist
 # before `up`, or Docker creates them root-owned (and a directory, for proxies.txt): the uid-1000
 # workers couldn't write ./downloads, and a host `npm ci` couldn't fill frontend/node_modules.
 prepare_mounts() {
@@ -729,7 +729,7 @@ e2e)
 	export_compose_env
 	load_e2e_credentials
 	# The specs import the compiled messages from the host side; the web container's copy is
-	# its own (an anonymous volume).
+	# its own (a volume).
 	[ -f "$ROOT/frontend/src/lib/paraglide/messages.js" ] ||
 		die "frontend/src/lib/paraglide isn't compiled on the host: run npm ci && npm run check in frontend/ first"
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"

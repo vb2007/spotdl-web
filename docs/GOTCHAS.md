@@ -201,7 +201,7 @@ needed" claim — rather than silently deleted.
   service names alone misses it → *v50*
 - `uvicorn --reload` waits for every in-flight response before restarting and SSE never ends:
   the dev `api` runs with `--timeout-graceful-shutdown 3` → *v52*
-- The backend image has no `watchfiles` (spotdl pins plain `uvicorn`), so the dev workers reload
+- The backend image has no `watchfiles` (the uv override pins plain `uvicorn`), so the dev workers reload
   through the stdlib `scripts/dev/reload.py`, wrapped as their `entrypoint` so each `command`
   stays production's word for word → *v52*
 - The dev `web` runs as uid 1000 from the Dockerfile's deps-only `dev` stage, with named volumes
@@ -6132,8 +6132,9 @@ independently-found production bug from the same conversation)
   unsubscribes, and the browser's EventSource reconnects. Production has no `--reload`, but a
   deploy's `docker stop` of `api` waits on open streams the same way, up to Docker's 10 s kill
   (not changed here).
-- **The backend image has no `watchfiles`.** spotdl pins plain `uvicorn` (no `[standard]`
-  extras), so the dev `api` reloads with `StatReload`, and there was no watcher to wrap the
+- **The backend image has no `watchfiles`.** `backend/pyproject.toml` asks for
+  `uvicorn[standard]`, but its uv `override-dependencies` (there for spotdl's own pins) replace it
+  with plain `uvicorn`, extras gone, so the dev `api` reloads with `StatReload`, and there was no watcher to wrap the
   Celery workers with. `scripts/dev/reload.py` is a stdlib poller (one `os.walk` a second over
   `/app/app`), mounted read-only at `/opt/dev` and set as the three workers' dev `entrypoint`, so
   each worker's `command` is still `docker-compose.yml`'s (worker-dl's `--concurrency=1
@@ -6161,7 +6162,9 @@ independently-found production bug from the same conversation)
   recreated container keeps its old anonymous volumes, which a pre-v52 container had filled as
   root. A pre-v52 checkout still has root-owned files in the bind mount; the dev command refuses
   to start over them and prints the `chown` that hands them back, and `agent_stack.sh up` runs it
-  itself. On a host whose user isn't uid 1000, files Vite writes are uid 1000's.
+  itself. The uid is fixed, not the host's: on a host whose user isn't uid 1000, Vite (uid 1000)
+  can't write the bind-mounted files that user owns (`project.inlang`'s cache, say) and fails with
+  `EACCES`. This host's user is uid 1000; another host would need a `user:` and a matching image.
 - **A new named volume is filled from whichever image mounts it first.** Compose doesn't rebuild an
   image it already has when the override's `target` changes, so the first plain `up` after v52 ran
   the old root `build`-stage image, which filled the three new `web` volumes as root (tried on slot
@@ -6182,9 +6185,12 @@ independently-found production bug from the same conversation)
     every host compile logged `page reload src/lib/paraglide/messages.js`. That is also what
     v46's "the recreated directory dropped out of the watch" was. The script now compiles with
     `cleanOutdir: false`, as `vite.config.ts` already did: five compiles plus a full
-    `check`/`lint`/`build` kept the mount and logged nothing. A container that already lost the
-    mount gets it back when it's recreated (`docker compose up -d --force-recreate web`). Host
-    `npm ci` and `svelte-kit sync` remove no mountpoint.
+    `check`/`lint`/`build` kept the mount and logged nothing. Host `npm ci` and `svelte-kit
+    sync` remove no mountpoint, but a hand-run `rm -rf frontend/.svelte-kit` (or `node_modules`,
+    or `src/lib/paraglide`) still does, and the container then shares the host's copy (a
+    `.svelte-kit` loss also 500s every open page until the host regenerates it). `docker compose
+    restart web` remounts all three, and the e2e global setup refuses to start while one is
+    missing (`detachedWebVolumes`), so it can't come back as a mid-run reload.
   - A host `npm run build` still logs `page reload build/*.html`, which Vite's client ignores (it
     reloads only for its own page's HTML).
 - **Chromium keeps a `Secure` cookie on `http://127.0.0.1`; Playwright's request contexts
@@ -6237,3 +6243,8 @@ independently-found production bug from the same conversation)
   now stay in the container's own volumes. If it recurs: list the module URLs a fresh page loads
   (`performance.getEntriesByType('resource')`) and look for `confirm.ts` or a
   `.vite/deps/svelte_internal_client` chunk under two queries before restarting `web`.
+- **A reload restarts `worker-meta`'s boot work too.** Its boot runs `reconcile_disk()` (prunes
+  ledger rows whose file is missing) and `proxies.sync_from_file()`, so since v52 every backend save
+  runs them on the dev stack, as a manual `docker compose restart worker-meta` always did. During a
+  library sweep that is moving files, a reconcile could in principle find a file mid-move and
+  prune its row (a re-download later): don't edit backend files while a dev sweep runs.

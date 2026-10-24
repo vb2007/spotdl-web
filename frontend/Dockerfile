@@ -1,7 +1,8 @@
 # v52: the dev `web` image (docker-compose.override.yml, `target: dev`), never built for
 # production (the last stage below is the default target). Only the dependencies: the source
 # is bind-mounted. Everything runs as `node` (uid 1000, the usual first user on a Linux host),
-# so whatever Vite writes into the bind mount is the developer's, not root's (D3).
+# so whatever Vite writes into the bind mount is the developer's, not root's (D3). On a host
+# whose user has another uid, Vite can't write that user's files (docs/GOTCHAS.md, v52).
 # node_modules, src/lib/paraglide and .svelte-kit are owned by `node` here, so the volumes the
 # override mounts over them start out owned by `node` too. The stamp records which lockfile
 # node_modules was installed from: the dev command reinstalls when the bind-mounted

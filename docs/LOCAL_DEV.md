@@ -58,9 +58,12 @@ the production host. Here, the override is the point.)
 
 **The first `up` after v52 needs `--build`** (`docker compose up --build`): the dev `web` image
 became a dependencies-only stage that runs as uid 1000, and Compose won't rebuild an image it
-already has. `web` refuses to start on the old one and says so. Before that first `up`, also
-`mkdir -p frontend/.svelte-kit` if it doesn't exist, or Docker creates it root-owned as the
-mountpoint of `web`'s own `.svelte-kit` volume.
+already has. `web` refuses to start on the old one and says so. Before that first `up` (and on a
+fresh clone), also `mkdir -p frontend/node_modules frontend/src/lib/paraglide frontend/.svelte-kit`:
+Docker creates a missing mountpoint of `web`'s volumes root-owned, and the host-side
+`npm run check`/`lint`/`build` then can't write it (`scripts/agent_stack.sh up` does this for a
+slot). `web` keeps its own `.svelte-kit`, so a route added while it runs gets its `./$types` on
+the host only with the next host `npx svelte-kit sync` (or `npm run check`).
 
 **One gap this trades away:** the override runs `vite dev` for `web`, not nginx — anything whose
 correctness depends specifically on nginx behavior (a new `internal` location, a new `location`
@@ -446,7 +449,7 @@ what a fresh slot lacks:
   tracks the library sort moved, under `./test-library/agent fixture/`;
 - the e2e admin's history: 120 archived jobs (spec 14 pages through three pages of 50), a 14-track
   album (spec 14's twelve-or-more-track job) and a track whose attempt recorded a network path
-  (spec 3; on the owner's stack an earlier `@network` pass leaves one).
+  (spec 3, which since v52 adds its own fixture when it finds none it can use).
 
 A new spec that leans on more of the owner's data needs that data added to the seed too. Then `npm run test:e2e`
 runs from the worktree's
@@ -546,6 +549,7 @@ from before v52 needs nothing by hand.
 | `migrate` exits at boot (and api/workers/beat never start, since they wait on it) with `SPOTDL_ENV=dev but DATABASE_URL points at the production database …` or `… can't be parsed` / `… names no database` (v32) | The local `.env`'s `DATABASE_URL` points at production's database, or is malformed. The dev guard refuses rather than risk production rows | Point `DATABASE_URL` at `spotdlwebtest` (see [Dedicated dev database](#dedicated-dev-database)). Never remove `SPOTDL_ENV` from the override to get past it |
 | `migrate` fails at boot (api/workers/beat never start) with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | Either `ADMIN_EMAIL` is unset in `.env`, or it's set but not also present in `ALLOWED_EMAILS` — both are required at startup, by design | Add `ADMIN_EMAIL=you@example.com` to `.env` and make sure that same address is also in `ALLOWED_EMAILS` |
 | After editing a backend file, `api` logs `Waiting for connections to close` and stops answering (v48) | `uvicorn --reload` waits for every open response before restarting, and an `/api/stream` SSE response (a browser tab, a `curl -N`, a Playwright run) never ends on its own | Fixed in v52: the dev `api` runs with `--timeout-graceful-shutdown 3`, so the reload goes ahead after 3 s and open streams reconnect. If it still hangs, `docker compose restart api` |
-| A backend change works through `api` but a task still runs the old code | Before v52, Celery workers didn't hot-reload: they keep the Python they imported at boot | Fixed in v52 for `worker-dl`, `worker-meta` and `worker-expand`: `scripts/dev/reload.py` restarts them on a `.py` change under `backend/app` (their logs show `dev-reload: changed: …`). `beat` isn't wrapped: `docker compose restart beat` after editing its schedule |
+| A backend change works through `api` but a task still runs the old code | Before v52, Celery workers didn't hot-reload: they keep the Python they imported at boot | Fixed in v52 for `worker-dl`, `worker-meta` and `worker-expand`: `scripts/dev/reload.py` restarts them on a `.py` change under `backend/app` (their logs show `dev-reload: changed: …`). `beat` isn't wrapped: `docker compose restart beat` after editing its schedule. A worker logging `dev-reload: … exited (…) right after a reload; waiting for the next change` died within 30 s of an edit's restart (a syntax error, or Redis/Postgres down at that moment): save again, or `docker compose restart <worker>` |
 | A frontend dependency change doesn't show up in `web` (v46) | `web`'s `node_modules` is a volume (`docker-compose.override.yml`), which outlives an image rebuild | Since v52, `docker compose restart web`: the dev command compares `package-lock.json` with the stamp of the lockfile `node_modules` was installed from, and runs `npm ci` into the volume when they differ (its log says so). A plain `up -d` doesn't restart a container whose image didn't change, so restart it. No `--renew-anon-volumes` |
+| Every host `npm run check` reloads the open dev pages, or the e2e setup fails with `the dev web container lost its own /app/…` (v52) | `frontend/node_modules`, `frontend/src/lib/paraglide` or `frontend/.svelte-kit` was removed on the host while `web` ran: Linux detaches a container's volume when its mountpoint is removed, so `web` now shares the host's copy | `docker compose restart web` (it remounts its volumes). Don't `rm -rf` those three while `web` runs |
 | `web` exits at once, logging `root-owned files in frontend/, left by a dev web container from before v52` | Before v52 the dev `web` ran as root and left root-owned files in the bind mount; it now runs as uid 1000 and can't write them | Run the `docker compose run … chown` command it prints, once, then `docker compose up -d web`. The host's own `frontend/.svelte-kit/` may hold root-owned files too (host `npm run check` then fails with `EACCES`): `docker compose run --rm --no-deps -u root -v "$PWD/frontend:/host" web chown -R 1000:1000 /host/.svelte-kit` |
