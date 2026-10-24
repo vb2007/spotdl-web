@@ -49,6 +49,7 @@ needed" claim — rather than silently deleted.
   → *v02*
 - The model class is `UserSession`, not `Session` (collides with `sqlalchemy.orm.Session`) → *v02*
 - `JSONB` has no SQLite compiler; `conftest.py` registers a `@compiles` shim for tests → *v04*
+  *(2026-10-24, v51: the suite runs on Postgres; the shim is gone.)*
 - v16 landed `jobs.user_id`/`sessions.user_id` as **NOT NULL with no application code populating
   them yet** — deliberate, and fixed in v17 by wiring `get_or_create_user` into login → *v16, v17*
 - `Track.song_json[key].astext` extracts JSONB text portably on both Postgres and SQLite, including
@@ -203,6 +204,7 @@ needed" claim — rather than silently deleted.
 - SQLite returns naive datetimes for `func.now()`; session/breaker checks normalize to UTC → *v03,
   v06*
 - SQLite in-memory test engines need `StaticPool` + `check_same_thread=False` → *v03*
+  *(2026-10-24, v51: the suite runs on Postgres; no SQLite engine is left.)*
 - `localhost` and `127.0.0.1` are different CORS origins *and* cross-site for `SameSite` cookies —
   produced a 200-then-401 login bug → *v09*
 - A `catch` block must distinguish "the backend said no" from "the request never arrived" → *v09*
@@ -967,7 +969,21 @@ needed" claim — rather than silently deleted.
 - v31's open questions closed on dev: a real album's every `COMPLETED` file exists at its
   `output_path`, and four real ladder delays matched `LADDER_SECONDS` exactly → *v48*
 
+- pytest runs on real Postgres: a per-run database (`TEST_DATABASE_URL` names the server and a
+  `test`-marked stem), Alembic-built, dropped at the end; `db_session` rolls back, `committed_db`
+  truncates → *v51*
+- A race test needs `committed_db` and `tests/concurrency.py` (a `Gate` at a named point, a
+  `Thread`, `blocked_or_done` reading `pg_stat_activity`'s lock waits); never a sleep → *v51*
+- Inside `db_session`'s one transaction: `begin_snapshot`'s isolation switch is dropped, `now()`
+  is the test's start time throughout, and SAVEPOINTs stand in for commits → *v51*
+- The migrations seed `worker_state` id 1: a test inserting it must `merge`, not `add` → *v51*
+- Running Alembic from a test with an ini file runs `fileConfig()`, which disables every logger
+  the app already made (and every `caplog` assertion with it) → *v51*
+
 **CI**
+- The `pytest` job's Postgres is a service container the runner pulls with the shared
+  `~/.docker/config.json`, before any step (a job-private `DOCKER_CONFIG` can't reach it);
+  published on `127.0.0.1::5432`, trust auth → *v51*
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
   vanishes from PR checks rather than showing as failed → *v12*
 - `docker compose config` needs a real `.env` on disk, separate from `${VAR}` interpolation → *v12*
@@ -4590,6 +4606,8 @@ independently-found production bug from the same conversation)
   was held (`still blocked after 2s: True`), then matched 0 rows, and the job ended `cancelled`.
   The test suite runs on SQLite, which ignores `FOR UPDATE`, so its test only pins that the lock
   is requested.
+  *(2026-10-24, v51: the suite runs on Postgres, and the race is reproduced on two real
+  connections, in both orders: `test_jobs.py`, `test_expand_task.py`.)*
 - **Known, not fixed: a broker error *inside* expand_job's success-path enqueue loop strands
   the rest of that job's tracks in `pending`.** The task fails and is acked (`acks_late` acks
   failures), so nothing redelivers it. A generic "stale pending" sweep isn't a safe fix: a
@@ -5783,3 +5801,42 @@ independently-found production bug from the same conversation)
   It now refuses any `--profile`. The same `run docker compose up` had also skipped the mount
   preparation, so Docker created `proxies.txt` as a root-owned directory, which a later `up`
   accepted because it tested `-e`: `run` prepares the mounts now, and both refuse a non-file.
+
+### v51 pytest-postgres gotchas (learned moving the suite from SQLite to real Postgres)
+
+- **The move exposed no new race, and almost no test cared.** 601 of 602 tests passed on the
+  first Postgres run. The one failure was `test_stats.py`'s `test_current_breaker_state`, which
+  inserted `WorkerState(id=1)`: the initial migration seeds that row, and `create_all` never did.
+  It merges the row now. `committed_db`'s truncate puts the seed back, so every test starts from
+  what a fresh `upgrade head` leaves.
+- **Rollback isolation vs `begin_snapshot`.** `db_session` is one outer transaction with
+  `join_transaction_mode="create_savepoint"`, so the code's commits become `RELEASE SAVEPOINT`s.
+  Postgres sets an isolation level only at a transaction's start, and SQLAlchemy raises
+  (`isolation_level may not be altered unless rollback() or commit() is called first`) when
+  `begin_snapshot` asks for REPEATABLE READ inside it. The test connection drops that one option:
+  with no concurrent writer, the rows read are the same. The snapshot itself is proven with
+  `committed_db` (`test_job_listing_snapshot_hides_a_job_committed_mid_listing`).
+- **`count_queries` would count the SAVEPOINTs.** They're the isolation's statements, not the
+  code's, so the listener skips them. Without that, every N+1 guard broke.
+- **`now()` doesn't move inside `db_session`.** Postgres's `now()` is the transaction's start, and
+  the whole test is one transaction. No current test depends on it moving; a future one that
+  does needs `committed_db` or explicit timestamps.
+- **Alembic from Python, without the ini.** `command.upgrade(Config("alembic.ini"), ...)` runs
+  `alembic/env.py`'s `fileConfig()`, whose `disable_existing_loggers` silences every app logger
+  already created, and every `caplog` test with it. conftest builds a bare `Config()` with only
+  `script_location`, and catches `alembic.runtime.migration`'s INFO lines itself to print them.
+- **pytest skips `pytest_sessionfinish` when `pytest_sessionstart` raises.** A failed migration
+  would leave its database behind, so the start hook drops it itself before re-raising.
+- **Proving a lock held, without a sleep.** `blocked_or_done` polls `pg_stat_activity` for a
+  session in the run's database with `wait_event_type = 'Lock'`. The run's database is its own,
+  so any waiter is the test's. Paired with a `Gate` on the holder (`before_commit` session event,
+  `once=True`), each race test is deterministic, and each fails with its guard reverted (the PR
+  lists the outputs).
+- **The service container's pull happens outside the job.** The runner pulls and starts
+  `services:` containers before the first step, with the runner user's shared
+  `~/.docker/config.json`. publish-deploy's job-private `DOCKER_CONFIG` (#71) is set by a step and
+  can't apply. The image is public, so it pulls anonymously, but a dead `docker.io` credential or
+  `credsStore` helper in the shared file would fail the job before it starts
+  (`docs/CI_SELF_HOSTED_RUNNER.md`, section 5).
+- **A credentialed URL literal in a workflow is a GitGuardian finding** (v44), so the CI Postgres
+  runs with `POSTGRES_HOST_AUTH_METHOD=trust`, published on loopback only.
