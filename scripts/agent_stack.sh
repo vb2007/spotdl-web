@@ -686,16 +686,18 @@ pytest)
 	pytest_pin="pytest==$(lock_version pytest)"
 	asyncio_pin="pytest-asyncio==$(lock_version pytest-asyncio)"
 	dc exec -T api sh -c "[ -x /tmp/pytest-venv/bin/pytest ] || { python -m venv --system-site-packages /tmp/pytest-venv && uv pip install --quiet --python /tmp/pytest-venv/bin/python '$pytest_pin' '$asyncio_pin'; }"
-	# Exported and passed by name (`-e TEST_DATABASE_URL`), not on `docker exec`'s command line,
-	# which lives as long as the run: the URL carries the slot's database password, and every
-	# argv on this host shows up in `ps`. (`env`'s argv holds it for the instant before it execs
-	# python.)
+	# Exported and passed by name (`-e TEST_DATABASE_URL`), never in an argv: the URL carries the
+	# slot's database password, and every argv on this host shows up in `ps` (or an execve trace).
+	# The clean environment is built by os.execve, not `env -i NAME=value`, whose own argv would
+	# carry it.
 	export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql+psycopg://$PG_USER:$(env_value "$ENV_AGENT" AGENT_PG_PASSWORD)@postgres:5432/$(env_value "$ENV_AGENT" AGENT_PG_DB)_test}"
 	if [ -t 0 ] && [ -t 1 ]; then tty_flag=(); else tty_flag=(-T); fi
-	# shellcheck disable=SC2016 # expanded by the container's sh, not here
-	dc exec "${tty_flag[@]}" -e TEST_DATABASE_URL -w /src api sh -c \
-		'exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp PYTHONDONTWRITEBYTECODE=1 TEST_DATABASE_URL="$TEST_DATABASE_URL" /tmp/pytest-venv/bin/python -m pytest -p no:cacheprovider "$@"' \
-		pytest "$@"
+	dc exec "${tty_flag[@]}" -e TEST_DATABASE_URL -w /src api /tmp/pytest-venv/bin/python -c '
+import os, sys
+env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": "/tmp", "PYTHONDONTWRITEBYTECODE": "1",
+       "TEST_DATABASE_URL": os.environ.get("TEST_DATABASE_URL", "")}
+os.execve(sys.executable, [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", *sys.argv[1:]], env)
+' "$@"
 	;;
 run)
 	[ $# -ge 1 ] || die "usage: scripts/agent_stack.sh $SLOT run <command...>"
