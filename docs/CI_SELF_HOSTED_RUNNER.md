@@ -183,7 +183,9 @@ Redis, no `ffmpeg` binary:
   creates a database of its own on it, migrates it with Alembic `upgrade head` (the log lists
   every migration under `test database: alembic upgrade head:`), runs the suite, and drops it.
   The production Postgres on this host is never contacted: the conftest sets `DATABASE_URL` to the
-  run's own database before the app is imported.
+  run's own database before the app is imported, refuses a loopback URL without an explicit port
+  or on 5432 (production's, here) before connecting anywhere, and, once connected, refuses a
+  server that holds a production database.
 - **What the runner's Docker setup needs for that (#71).** The runner pulls and starts service
   containers **itself**, before any step runs, with its own process environment: the Docker CLI
   config it uses is the runner user's shared `~/.docker/config.json`, which every repository's

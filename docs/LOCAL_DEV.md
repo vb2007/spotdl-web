@@ -456,7 +456,8 @@ never SQLite:
   `TEST_DATABASE_URL` that is unset, names a database without `test` in its name (or a name over
   40 bytes), names a production one (`app/config.py`'s v32 guard: `spotdlweb`, `spotdl_web`),
   names a server other than a slot's `postgres` or a loopback one (`localhost`, `127.0.0.1`,
-  `::1`), picks the database or server with `?dbname=`/`?service=`/`?host=`/`?hostaddr=`, or
+  `::1`) on an explicit port other than 5432 (on the production host, loopback's 5432 is
+  production's own Postgres), picks the database or server with `?dbname=`/`?service=`/`?host=`/`?hostaddr=`, or
   needs %-escaping (Alembic's config reads `%` as interpolation, and would crash printing the
   URL, password included).
   Then, connected, it refuses a server that holds `spotdlweb`, `spotdl_web` or `spotdlwebtest`:

@@ -5853,6 +5853,13 @@ independently-found production bug from the same conversation)
   Ctrl-C. A `%` in the rendered URL (any %-escaped password) crashed `alembic/env.py`'s
   `set_main_option` (configparser interpolation), printing the URL with its password; the
   conftest refuses such a URL first.
+- **Round 3 of the blind review:** a harness timeout raised `AssertionError`, so the E2 strict
+  xfail (`raises=AssertionError`) would have stayed XFAIL even if a rewrite stopped reaching the
+  gate; the harness raises `concurrency.InterleavingBroke` now. A loopback URL with no port means
+  5432, which on the runner is production's Postgres: refused before connecting. And
+  `test_track_listing_embeds_derived_job_title` passed with its "first track" order reversed,
+  since both tracks shared one `created_at` inside the test's transaction (pinned now; a full
+  suite run with the order flipped fails it and nothing else).
 - **Fixture teardown order matters for race tests.** `committed_db` depends on `monkeypatch`, so
   it tears down (releasing parked threads) while the test's stubs are still in place.
 - **Alembic from Python, without the ini.** `command.upgrade(Config("alembic.ini"), ...)` runs
