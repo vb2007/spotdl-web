@@ -20,7 +20,6 @@ import {
 	restoreWorker,
 	spotifyTrackUrl,
 	stackPython,
-	tracksWithNetworkPath,
 	userIdentity,
 	waitForJob,
 	type Identity,
@@ -106,23 +105,6 @@ async function seedJob(context: APIRequestContext, spotifyId: string): Promise<S
 	return { jobId: id, title: job.title, trackId: track.id, trackTitle: track.title ?? '' };
 }
 
-/** An admin-owned track with a real network path whose job title is unique among the admin's
- * jobs (archived included), so spec 3 can find its row by title. */
-async function findRealPathTrack(context: APIRequestContext): Promise<SeedJob | null> {
-	for (const { trackId, jobId } of tracksWithNetworkPath(adminIdentity().email)) {
-		const job = (await (await context.get(`/api/jobs/${jobId}`)).json()) as Job;
-		const q = new URLSearchParams({ q: job.title, include_archived: 'true', limit: '100' });
-		const sameTitle = (
-			(await (await context.get(`/api/jobs?${q}`)).json()) as { items: Job[] }
-		).items.filter((j) => j.title === job.title);
-		if (sameTitle.length !== 1) continue;
-		const tracks = (await (await context.get(`/api/jobs/${jobId}/tracks`)).json()) as JobTracksPage;
-		if (tracks.items.length !== 1 || tracks.items[0].id !== trackId) continue;
-		return { jobId, title: job.title, trackId, trackTitle: tracks.items[0].title ?? '' };
-	}
-	return null;
-}
-
 export default async function globalSetup(config: FullConfig): Promise<void> {
 	loadE2eEnv();
 	const baseURL = config.projects[0].use.baseURL;
@@ -185,11 +167,7 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 		if (adminResult.status === 'rejected') throw adminResult.reason;
 		if (userResult.status === 'rejected') throw userResult.reason;
 		const [adminSeed, userSeed] = [adminResult.value, userResult.value];
-		const seed: Seed = {
-			admin: adminSeed,
-			user: userSeed,
-			realPath: await findRealPathTrack(admin)
-		};
+		const seed: Seed = { admin: adminSeed, user: userSeed };
 		writeFileSync(SEED_FILE, JSON.stringify(seed, null, '\t'));
 	} finally {
 		await admin.dispose();

@@ -355,10 +355,6 @@ export interface SeedJob {
 export interface Seed {
 	admin: SeedJob;
 	user: SeedJob;
-	/** An admin-owned track whose attempts recorded a real network path (left by an earlier
-	 * `@network` pass), for spec 3's real-path labels. Null on a dev DB without one. Its job is
-	 * archived by setup, and its title is the only one of its kind among the admin's jobs. */
-	realPath: SeedJob | null;
 }
 
 export function readSeed(): Seed {
@@ -598,6 +594,58 @@ print(" ".join(f"{t}:{j}" for t, j in rows))
 				return { trackId, jobId };
 			})
 		: [];
+}
+
+/** v52 (D7): spec 3's own fixture, so it never needs an earlier `@network` pass. When the user
+ * has no track with a recorded network path, adds one as a real first-try download leaves it
+ * (one `completed direct-ipv4` attempt), in an archived job of its own title, no file and no
+ * ledger row: spec 3 only reads its attempts. Returns whether it added one. */
+export function addNetworkPathFixture(email: string): boolean {
+	return (
+		stackPython(
+			`
+import sys
+from datetime import datetime, timedelta, timezone
+from sqlalchemy import text
+from app.db import SessionLocal
+from app.models.job import Job, JobSourceType, JobState
+from app.models.track import Track, TrackState
+from app.models.track_attempt import NetworkPath, TrackAttempt, TrackAttemptOutcome
+from app.models.user import User
+db = SessionLocal()
+user = db.query(User).filter(User.email == sys.argv[1]).one()
+has_one = db.execute(text("""
+    select 1 from track_attempts a join tracks t on t.id = a.track_id
+    join jobs j on j.id = t.job_id
+    where j.user_id = :user and a.network_path is not null limit 1
+"""), {"user": user.id}).first()
+if has_one:
+    print("present")
+else:
+    # A month back, so it sorts after anything a run creates.
+    created = datetime.now(timezone.utc) - timedelta(days=30)
+    job = Job(user_id=user.id, source_url="https://open.spotify.com/track/e2enetworkpathfixture",
+              source_type=JobSourceType.TRACK, state=JobState.EXPANDED, created_at=created,
+              archived_at=created + timedelta(hours=1))
+    db.add(job)
+    db.flush()
+    track = Track(job_id=job.id, spotify_track_id="e2enetworkpathfixture",
+                  song_json={"name": "e2e network path fixture", "artists": ["e2e fixture"],
+                             "album_name": "e2e fixture"},
+                  state=TrackState.COMPLETED, created_at=created, attempts_made=1)
+    db.add(track)
+    db.flush()
+    db.add(TrackAttempt(track_id=track.id, attempt_number=1,
+                        started_at=created + timedelta(seconds=10),
+                        finished_at=created + timedelta(seconds=30),
+                        outcome=TrackAttemptOutcome.COMPLETED,
+                        network_path=NetworkPath.DIRECT_IPV4))
+    db.commit()
+    print("added")
+`,
+			[normalizeEmail(email)]
+		) === 'added'
+	);
 }
 
 /** How many `download_track` tasks worker-dl is running right now for either e2e identity, by
