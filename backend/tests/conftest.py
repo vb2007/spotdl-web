@@ -24,9 +24,17 @@ from app.config import check_not_production_database
 # The database name must carry this marker, so the suite never runs on a database that wasn't
 # made for it; production's names (app/config.py's v32 guard) are refused on top of that.
 TEST_DATABASE_MARKER = "test"
-# libpq lets these query keys pick the database, over the URL's path. The per-run database
-# replaces the path, so either would point the run, and its closing DROP, somewhere else.
-_DATABASE_SELECTING_KEYS = ("dbname", "service")
+# libpq lets these query keys pick the database or the server, over the URL's path and host.
+# The per-run database replaces the path, so either would point the run, and its closing DROP,
+# somewhere else.
+_DATABASE_SELECTING_KEYS = ("dbname", "service", "host", "hostaddr")
+# The servers a run may create databases on: a slot's own container (`postgres`, inside its
+# compose project) and a loopback one (CI's service container, a local `docker run`). Never the
+# LAN server: it is production's (`spotdlwebtest` lives beside `spotdlweb`), and its test marker
+# alone would let a run CREATE and DROP databases there.
+_ALLOWED_HOSTS = ("postgres", "localhost", "127.0.0.1", "::1")
+# Room for "_" + 12 hex characters inside Postgres's 63-byte identifier limit.
+_MAX_STEM = 40
 
 
 def _test_database_urls() -> tuple[str, str]:
@@ -51,14 +59,21 @@ def _test_database_urls() -> tuple[str, str]:
         raise ValueError("TEST_DATABASE_URL can't be parsed") from None
     for key in _DATABASE_SELECTING_KEYS:
         if key in url.query:
-            raise ValueError(f"TEST_DATABASE_URL must name its database in the path, not with ?{key}=")
+            raise ValueError(f"TEST_DATABASE_URL must name its server and database in the URL, not with ?{key}=")
     if TEST_DATABASE_MARKER not in url.database.lower():
         raise ValueError(
             f"TEST_DATABASE_URL names the database {url.database!r}, which has no "
             f"{TEST_DATABASE_MARKER!r} marker in its name; the suite runs only on a test database"
         )
+    if (url.host or "").lower() not in _ALLOWED_HOSTS:
+        raise ValueError(
+            f"TEST_DATABASE_URL names the server {url.host!r}; the suite creates databases only on "
+            f"a slot's own Postgres or a loopback one ({', '.join(_ALLOWED_HOSTS)})"
+        )
     # Postgres truncates identifiers past 63 bytes, which would merge two runs' names.
-    run_database = f"{url.database[:40]}_{uuid.uuid4().hex[:12]}"
+    if len(url.database.encode()) > _MAX_STEM:
+        raise ValueError(f"TEST_DATABASE_URL's database name is over {_MAX_STEM} bytes")
+    run_database = f"{url.database}_{uuid.uuid4().hex[:12]}"
     return (
         url.set(database="postgres").render_as_string(hide_password=False),
         url.set(database=run_database).render_as_string(hide_password=False),
@@ -96,6 +111,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
+import concurrency
 from app.db import Base, engine, get_db
 from app.main import app
 from app.models import User
@@ -239,11 +255,14 @@ def committed_db():
     (and the threads in tests/concurrency.py) see each other's writes and locks, the way two
     workers or two requests do. Every table is truncated afterwards. Use it only where a test
     needs that; `db_session` is faster and the default."""
-    factory = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    # app.db.SessionLocal's own settings, so the code under test behaves as it does in a worker.
+    factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     try:
         yield factory
     finally:
+        stuck = concurrency.release_all()
         _truncate_all()
+        assert not stuck, f"threads still running after the test: {stuck}"
 
 
 @pytest.fixture()

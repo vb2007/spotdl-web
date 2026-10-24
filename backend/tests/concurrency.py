@@ -32,6 +32,12 @@ from sqlalchemy import Engine, text
 TIMEOUT = 15.0
 _POLL = 0.01
 
+# Every gate and thread the current test made, so conftest's committed_db can release them when
+# the test ends early (a failed assertion with a thread still parked at a gate, holding its
+# transaction's locks, would otherwise block the teardown's TRUNCATE).
+_gates: list["Gate"] = []
+_threads: list["Thread"] = []
+
 
 class Gate:
     """A point one thread stops at until the test calls `open()`. Callable with any arguments,
@@ -42,6 +48,7 @@ class Gate:
         self.timeout = timeout
         self._reached = threading.Event()
         self._open = threading.Event()
+        _gates.append(self)
 
     def __call__(self, *args, **kwargs) -> None:
         self._reached.set()
@@ -85,6 +92,7 @@ class Thread:
                 self._error = exc
 
         self._thread = threading.Thread(target=run, name=name, daemon=True)
+        _threads.append(self)
         self._thread.start()
 
     @property
@@ -127,3 +135,19 @@ def blocked_or_done(thread: Thread, engine: Engine | None = None, timeout: float
             return "blocked"
         time.sleep(_POLL)
     raise AssertionError(f"thread {thread.name!r} neither finished nor blocked on a lock in {timeout}s")
+
+
+def release_all() -> list[str]:
+    """Opens every gate the test made and waits for every thread it started, so none is left
+    holding a transaction. Returns the names of threads still running after TIMEOUT (stuck on
+    something other than a gate); their errors were the test's to report."""
+    for gate in _gates:
+        gate.open()
+    stuck = []
+    for thread in _threads:
+        thread._thread.join(TIMEOUT)
+        if thread._thread.is_alive():
+            stuck.append(thread.name)
+    _gates.clear()
+    _threads.clear()
+    return stuck
