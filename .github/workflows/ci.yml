@@ -62,7 +62,8 @@ jobs:
     # the first step and removes it after the last, cancelled runs included. `127.0.0.1::5432`
     # publishes it on a loopback port Docker picks, never a fixed one, so two jobs can't collide
     # and nothing outside this host can reach it (this runner is the production host).
-    # conftest.py creates its own database on it per run, migrates it with Alembic, and drops it.
+    # The "Run pytest" step points TEST_DATABASE_URL at it; conftest.py creates its own database
+    # on it per run, migrates it with Alembic, and drops it.
     # The runner pulls the image itself, before any step: the job-private DOCKER_CONFIG that
     # publish-deploy.yml's jobs set (#71) can't cover that pull, and it doesn't need to, since
     # the image is public and pulled anonymously (docs/CI_SELF_HOSTED_RUNNER.md, section 5).
@@ -80,8 +81,6 @@ jobs:
         options: >-
           --health-cmd "pg_isready -h 127.0.0.1 -U spotdl -d spotdl_test"
           --health-interval 2s --health-timeout 5s --health-retries 30
-    env:
-      TEST_DATABASE_URL: postgresql+psycopg://spotdl@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/spotdl_test
     steps:
       # v7 targets Node 24 natively - v4 was flagged deprecated (targets Node 20, forced to run
       # on 24 anyway) on this workflow's first real runs. Verified v7.0.1's action.yml directly
@@ -150,6 +149,10 @@ jobs:
       # wrong extension. Deliberately not `-x` / fail-fast — a partial report covering only the
       # first failure defeats the point of a report.
       - name: Run pytest
+        # The `job` context (the port Docker picked) exists only from the steps on: a job-level
+        # `env:` using it fails the whole file at parse time.
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://spotdl@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/spotdl_test
         run: |
           mkdir -p test-reports
           .venv/bin/pytest -v \
