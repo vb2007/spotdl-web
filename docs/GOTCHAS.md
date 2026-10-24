@@ -766,6 +766,8 @@ needed" claim — rather than silently deleted.
   (recorded in the v39 section; v39.1 has no section of its own)
 - A host-side `svelte-kit sync` (`npm run check`/`build`) rewrites `.svelte-kit/generated` and Vite
   reloads every open page; the dev `web` has its own `.svelte-kit` volume since v52 → *v52*
+- Removing a directory on the host detaches a container's volume mounted there (Paraglide's
+  `cleanOutdir` did, on every host check): compile in place → *v52*
 - Disabling a focused control drops its focus only on the browser's next frame, so a focus
   check right after an await can still see it focused: move focus before disabling (the
   library sweep's start) → *v52*
@@ -6167,13 +6169,24 @@ independently-found production bug from the same conversation)
   recovery: remove `web` and its volumes, `up --build`) and any of the three directories it can't
   write. `agent_stack.sh up` builds `web` before its first `run`. A missing `frontend/.svelte-kit`
   is created root-owned on the host as the volume's mountpoint, so `up` pre-creates it.
-- **Host-side `svelte-kit sync` reloaded every open page.** `npm run check`/`build` regenerate
-  `.svelte-kit/generated` (`root.js`, `root.svelte`, `server/internal.js` with a new
-  `version_hash`), and on the shared bind mount the dev Vite logged `page reload
-  .svelte-kit/generated/root.js` for each. The dev `web` now has its own `.svelte-kit` volume:
-  a host `npm run check` then logged nothing in the container. A host `npm run build` still logs
-  `page reload build/*.html`, which Vite's client ignores (it reloads only for its own page's
-  HTML).
+- **Host-side `npm run check`/`lint`/`build` reloaded every open dev page, two ways.**
+  - `svelte-kit sync` regenerates `.svelte-kit/generated` (`root.js`, `root.svelte`,
+    `server/internal.js` with a new `version_hash`), and on the shared bind mount the dev Vite
+    logged `page reload .svelte-kit/generated/root.js` for each. The dev `web` now has its own
+    `.svelte-kit` volume.
+  - `scripts/check-messages.mjs` compiled Paraglide with the default `cleanOutdir`, which
+    `rmdir`s `frontend/src/lib/paraglide` and recreates it (seen with `strace`). That directory is
+    the mountpoint of the container's own compiled-messages volume, and **Linux detaches a mount
+    whose mountpoint is removed from another mount namespace**: the container's mount table lost
+    `/app/src/lib/paraglide` (1 entry, then 0), so from then on it shared the host's directory and
+    every host compile logged `page reload src/lib/paraglide/messages.js`. That is also what
+    v46's "the recreated directory dropped out of the watch" was. The script now compiles with
+    `cleanOutdir: false`, as `vite.config.ts` already did: five compiles plus a full
+    `check`/`lint`/`build` kept the mount and logged nothing. A container that already lost the
+    mount gets it back when it's recreated (`docker compose up -d --force-recreate web`). Host
+    `npm ci` and `svelte-kit sync` remove no mountpoint.
+  - A host `npm run build` still logs `page reload build/*.html`, which Vite's client ignores (it
+    reloads only for its own page's HTML).
 - **Chromium keeps a `Secure` cookie on `http://127.0.0.1`; Playwright's request contexts
   don't.** Logging in through the page on `127.0.0.1` gave a working session (`/api/auth/me` 200
   from the page), while a `request.newContext` made from that page's storage state got 401:
