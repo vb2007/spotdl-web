@@ -84,6 +84,8 @@
 	});
 	const announcement = $derived(stateChanged ? stateSentence : '');
 	let heading: HTMLElement | undefined = $state();
+	// v52 (D5): the start button, so a confirmed start can hand its focus on before disabling it.
+	let startButton: HTMLButtonElement | undefined = $state();
 
 	function formatWhen(iso: string): string {
 		return formatDateTime(iso, { dateStyle: 'medium', timeStyle: 'short' });
@@ -195,6 +197,12 @@
 			error = m.library_already_running();
 			return keepFocus(heading);
 		}
+		// v52 (D5): the button is disabled from here until the sweep ends, so its focus moves to
+		// the panel first. Waiting for the answer (keepFocus below) lost the race: the browser
+		// drops a disabled control's focus only on its next frame, so the check could still find
+		// the button focused, and the stream's "running" then dropped it to <body> for good.
+		const active = document.activeElement;
+		if (active === null || active === document.body || active === startButton) heading?.focus();
 		starting = true;
 		error = '';
 		try {
@@ -208,7 +216,7 @@
 		} finally {
 			starting = false;
 		}
-		// The button is disabled while the sweep runs, which drops its focus: land on the panel.
+		// The last resort, should focus have fallen to <body> anyway.
 		await keepFocus(heading);
 	}
 
@@ -327,7 +335,13 @@
 							{sweepHint.before}<a href={resolve('/settings')}>{sweepHint.link}</a>{sweepHint.after}
 						</p>
 					</div>
-					<button type="button" class="btn" disabled={starting || running} onclick={onStart}>
+					<button
+						type="button"
+						class="btn"
+						disabled={starting || running}
+						onclick={onStart}
+						bind:this={startButton}
+					>
 						{running ? m.library_sweeping() : starting ? m.library_starting() : m.library_start()}
 					</button>
 				</header>
