@@ -21,7 +21,9 @@
 #   psql [args]         psql on the slot's database
 #   run <cmd...>        run <cmd> with the slot's compose project, files and ports exported
 #                       (e.g. `run scripts/verify_separation_sse.sh`, `run docker compose exec api sh`)
-#   pytest [args]       the backend suite, inside the slot's api container
+#   pytest [args]       the backend suite, inside the slot's api container, on a throwaway
+#                       database the run creates on the slot's Postgres and drops at the end
+#                       (TEST_DATABASE_URL=... overrides the server and name stem)
 #   seed                the e2e ledger fixture (idempotent; `e2e` runs it itself)
 #   e2e [args]          the full Playwright suite against the slot (under the realdl lock: the
 #                       suite needs worker-dl, though it never downloads)
@@ -675,15 +677,19 @@ pytest)
 	# pytest isn't in the runtime image: a venv on top of its packages, at uv.lock's versions,
 	# made once per api container. The suite gets a clean environment, as on CI and the host:
 	# the container's own (the slot identities, its DATABASE_URL) would override conftest.py's
-	# test defaults. v51 points it at a throwaway database on the slot's Postgres.
+	# test defaults. v51: TEST_DATABASE_URL names the slot's Postgres and a database name stem
+	# (it needs a "test" marker); conftest.py creates a database of its own per run from it,
+	# migrates it to head and drops it at the end, so two runs at once never share one.
 	lock_version() {
 		awk -v name="$1" '$0 == "name = \"" name "\"" { getline; gsub(/version = |"/, ""); print; exit }' "$ROOT/backend/uv.lock"
 	}
 	pytest_pin="pytest==$(lock_version pytest)"
 	asyncio_pin="pytest-asyncio==$(lock_version pytest-asyncio)"
 	dc exec -T api sh -c "[ -x /tmp/pytest-venv/bin/pytest ] || { python -m venv --system-site-packages /tmp/pytest-venv && uv pip install --quiet --python /tmp/pytest-venv/bin/python '$pytest_pin' '$asyncio_pin'; }"
+	test_database_url="${TEST_DATABASE_URL:-postgresql+psycopg://$PG_USER:$(env_value "$ENV_AGENT" AGENT_PG_PASSWORD)@postgres:5432/$(env_value "$ENV_AGENT" AGENT_PG_DB)_test}"
 	if [ -t 0 ] && [ -t 1 ]; then tty_flag=(); else tty_flag=(-T); fi
 	dc exec "${tty_flag[@]}" -w /src api env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp PYTHONDONTWRITEBYTECODE=1 \
+		TEST_DATABASE_URL="$test_database_url" \
 		/tmp/pytest-venv/bin/python -m pytest -p no:cacheprovider "$@"
 	;;
 run)

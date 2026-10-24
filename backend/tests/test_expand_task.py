@@ -1,6 +1,10 @@
 import uuid
 
+from concurrency import Gate, Thread, blocked_or_done
+from sqlalchemy import event
+
 from app.models import Job, JobSourceType, JobState, Track, TrackState, User
+from app.routers import jobs as jobs_router
 from app.services import events, expansion
 from app.tasks import expand as expand_task
 
@@ -347,3 +351,89 @@ def test_expand_job_overlapping_run_after_expand_then_cancel_adds_no_second_trac
 
     assert db_session.query(Track).filter(Track.job_id == job.id).count() == 1
     assert enqueued == []
+
+
+# --- v51: the v34.1 cancel race, on two real connections -------------------------------
+# The tests above simulate the cancel inside expand_job's own session. These run the real
+# cancel_job and the real expand_job on sessions of their own (conftest's committed_db), in
+# both orders the race allows.
+
+
+def _committed_expanding_job(committed_db) -> tuple[uuid.UUID, uuid.UUID]:
+    with committed_db() as db:
+        user = User(email="owner@example.com", is_admin=False)
+        db.add(user)
+        db.flush()
+        job = Job(
+            source_url="https://open.spotify.com/album/abc",
+            source_type=JobSourceType.ALBUM,
+            user_id=user.id,
+        )
+        db.add(job)
+        db.commit()
+        return job.id, user.id
+
+
+def _real_sessions(committed_db, monkeypatch) -> list[str]:
+    monkeypatch.setattr(expand_task, "SessionLocal", committed_db)
+    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: None)
+    monkeypatch.setattr(events, "publish_track_event", lambda *args, **kwargs: None)
+    return _stub_download_track(monkeypatch)
+
+
+def _cancel(committed_db, job_id, user_id) -> None:
+    with committed_db() as db:
+        jobs_router.cancel_job(job_id, db=db, user=db.get(User, user_id))
+
+
+def _assert_cancelled_with_its_tracks(committed_db, job_id) -> None:
+    with committed_db() as db:
+        assert db.get(Job, job_id).state == JobState.CANCELLED
+        states = [t.state for t in db.query(Track).filter(Track.job_id == job_id).all()]
+        assert states == [TrackState.CANCELLED, TrackState.CANCELLED]
+
+
+def test_a_cancel_committed_mid_expansion_stays_cancelled_on_real_connections(committed_db, monkeypatch):
+    """The cancel lands while expansion's Spotify round trip runs. Guard: expand_job's
+    conditional UPDATE (WHERE state = expanding), which then matches no row."""
+    job_id, user_id = _committed_expanding_job(committed_db)
+    enqueued = _real_sessions(committed_db, monkeypatch)
+    gate = Gate("expansion's Spotify round trip")
+    songs = [_FakeSong("abc123", {"name": "Song A"}), _FakeSong("def456", {"name": "Song B"})]
+    monkeypatch.setattr(expansion, "expand", gate.wrap(lambda url: songs))
+
+    expander = Thread(expand_task.expand_job, str(job_id), name="expand_job")
+    gate.wait_reached()
+    _cancel(committed_db, job_id, user_id)
+    gate.open()
+    expander.join()
+
+    _assert_cancelled_with_its_tracks(committed_db, job_id)
+    assert enqueued == []
+
+
+def test_an_expanded_commit_during_a_cancel_waits_for_it_on_real_connections(committed_db, monkeypatch):
+    """expand_job's EXPANDED commit lands between cancel_job's track query and its commit.
+    Guard: cancel_job's row lock, which holds the commit off until the cancel has committed."""
+    job_id, user_id = _committed_expanding_job(committed_db)
+    enqueued = _real_sessions(committed_db, monkeypatch)
+    songs = [_FakeSong("abc123", {"name": "Song A"}), _FakeSong("def456", {"name": "Song B"})]
+    monkeypatch.setattr(expansion, "expand", lambda url: songs)
+    gate = Gate("cancel_job, tracks read, before its commit")
+
+    def cancel():
+        with committed_db() as db:
+            event.listen(db, "before_commit", gate, once=True)
+            jobs_router.cancel_job(job_id, db=db, user=db.get(User, user_id))
+
+    canceller = Thread(cancel, name="cancel_job")
+    gate.wait_reached()
+    expander = Thread(expand_task.expand_job, str(job_id), name="expand_job")
+    held_off = blocked_or_done(expander)
+    gate.open()
+    canceller.join()
+    expander.join()
+
+    _assert_cancelled_with_its_tracks(committed_db, job_id)
+    assert enqueued == []
+    assert held_off == "blocked"

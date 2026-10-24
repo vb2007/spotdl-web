@@ -1,6 +1,81 @@
-import os
+"""The suite runs on real Postgres (v51). Before it, every test ran on in-memory SQLite, which
+ignores `FOR UPDATE`, has no native enums and compares differently, so a fixed race could only
+be "proven" by asserting that a lock was requested.
 
-os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://test:test@localhost/test")
+Each run creates its own database on the server `TEST_DATABASE_URL` names, builds the schema with
+Alembic (`upgrade head`, so every migration runs on every run) and drops it at the end. Two runs
+at once (two slots, or CI beside a slot) never share a database. `scripts/agent_stack.sh <slot>
+pytest` sets `TEST_DATABASE_URL` to the slot's own Postgres; CI sets it to the job's service
+container. Isolation is per test: `db_session` rolls everything back (the default), and
+`committed_db` truncates instead, for the real-concurrency tests (`tests/concurrency.py`) whose
+sessions must see each other's commits.
+
+The SQLite engine path is gone, not kept behind a flag (decision recorded in docs/LOCAL_DEV.md).
+"""
+
+import os
+import uuid
+
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
+
+from app.config import check_not_production_database
+
+# The database name must carry this marker, so the suite never runs on a database that wasn't
+# made for it; production's names (app/config.py's v32 guard) are refused on top of that.
+TEST_DATABASE_MARKER = "test"
+# libpq lets these query keys pick the database, over the URL's path. The per-run database
+# replaces the path, so either would point the run, and its closing DROP, somewhere else.
+_DATABASE_SELECTING_KEYS = ("dbname", "service")
+
+
+def _test_database_urls() -> tuple[str, str]:
+    """(server URL on its maintenance database, this run's own database URL), from
+    TEST_DATABASE_URL. Raises ValueError naming the database only, never the URL (it carries
+    the password)."""
+    raw = os.environ.get("TEST_DATABASE_URL", "").strip()
+    if not raw:
+        raise ValueError(
+            "TEST_DATABASE_URL is not set. Run the suite with `scripts/agent_stack.sh <slot> "
+            "pytest`, or point TEST_DATABASE_URL at a disposable Postgres server (docs/LOCAL_DEV.md)"
+        )
+    # v32's guard, with the dev marker forced on: an unparseable URL, one naming no database
+    # and one naming production's database are all refused.
+    try:
+        check_not_production_database(raw, "dev")
+    except ValueError as exc:
+        raise ValueError(f"TEST_DATABASE_URL is refused by app/config.py's production-database guard: {exc}") from None
+    try:
+        url = make_url(raw)
+    except (ArgumentError, ValueError):  # unreachable after the guard; kept fail-closed
+        raise ValueError("TEST_DATABASE_URL can't be parsed") from None
+    for key in _DATABASE_SELECTING_KEYS:
+        if key in url.query:
+            raise ValueError(f"TEST_DATABASE_URL must name its database in the path, not with ?{key}=")
+    if TEST_DATABASE_MARKER not in url.database.lower():
+        raise ValueError(
+            f"TEST_DATABASE_URL names the database {url.database!r}, which has no "
+            f"{TEST_DATABASE_MARKER!r} marker in its name; the suite runs only on a test database"
+        )
+    # Postgres truncates identifiers past 63 bytes, which would merge two runs' names.
+    run_database = f"{url.database[:40]}_{uuid.uuid4().hex[:12]}"
+    return (
+        url.set(database="postgres").render_as_string(hide_password=False),
+        url.set(database=run_database).render_as_string(hide_password=False),
+    )
+
+
+try:
+    MAINTENANCE_DATABASE_URL, RUN_DATABASE_URL = _test_database_urls()
+    _REFUSAL = None
+except ValueError as exc:
+    MAINTENANCE_DATABASE_URL = RUN_DATABASE_URL = None
+    _REFUSAL = str(exc)
+
+# Every engine the app builds (app.db's, alerts' watchdog, Alembic's) reads DATABASE_URL, so it
+# is set unconditionally: nothing the suite runs can reach any other database. A refused run
+# gets an address that can't resolve, and pytest_configure stops it before any test.
+os.environ["DATABASE_URL"] = RUN_DATABASE_URL or "postgresql+psycopg://refused@refused.invalid/refused_test"
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("SESSION_SECRET", "test-secret")
 # Two addresses: ADMIN_EMAIL must be allowlisted too (config.py's v17 validator), and
@@ -8,81 +83,167 @@ os.environ.setdefault("SESSION_SECRET", "test-secret")
 os.environ.setdefault("ALLOWED_EMAILS", "allowed@example.com,admin@example.com")
 os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
 
+import logging
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import create_engine, event, text
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
-from app.db import get_db
+from app.db import Base, engine, get_db
 from app.main import app
-from app.models import (
-    AppSettings,
-    BreakerEvent,
-    DownloadedTrack,
-    Job,
-    LibrarySortRun,
-    Proxy,
-    Track,
-    TrackAttempt,
-    User,
-    UserSession,
-    UserSettings,
-    WorkerState,
-)
+from app.models import User
 from app.routers import auth as auth_router
 from app.services.sessions import create_session
-from app.services.stats import epoch_bucket
+
+_BACKEND = Path(__file__).resolve().parents[1]
 
 
-# SQLite (used for fast in-process tests, see v02/v03 gotchas) has no native JSONB type —
-# render it as plain JSON so Track.__table__.create() doesn't fail; a no-op against real
-# Postgres/psycopg, which never goes through this compiler.
-@compiles(JSONB, "sqlite")
-def _compile_jsonb_sqlite(element, compiler, **kw):
-    return "JSON"
+def pytest_configure(config):
+    if _REFUSAL is not None:
+        raise pytest.UsageError(f"refusing to run the suite: {_REFUSAL}")
 
 
-# services/stats.py's UTC bucket index, for the same in-process SQLite engine. SQLite
-# stores these timestamps as naive UTC text, which strftime('%s') reads as UTC.
-@compiles(epoch_bucket, "sqlite")
-def _compile_epoch_bucket_sqlite(element, compiler, **kw):
-    return (
-        f"((CAST(strftime('%s', {compiler.process(element.clauses, **kw)}) AS INTEGER) "
-        f"+ {element.offset}) / {element.seconds})"
-    )
+def _quoted(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+def _report(session, line: str) -> None:
+    reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+    if reporter is not None:
+        # After the last test, the progress line ("...  [100%]") is still open.
+        if reporter._tw.width_of_current_line:
+            reporter.write("\n")
+        reporter.write_line(f"test database: {line}")
+
+
+class _Collect(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(logging.INFO)
+        self.lines: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(record.getMessage())
+
+
+_CREATED = pytest.StashKey[str]()
+
+
+def _maintenance_engine():
+    return create_engine(MAINTENANCE_DATABASE_URL, isolation_level="AUTOCOMMIT", poolclass=NullPool)
+
+
+def _drop(name: str) -> None:
+    engine.dispose()
+    with _maintenance_engine().connect() as conn:
+        conn.exec_driver_sql(f"DROP DATABASE IF EXISTS {_quoted(name)} WITH (FORCE)")
+
+
+def pytest_sessionstart(session):
+    """Creates this run's database and migrates it to head, before any test (or collection)
+    runs. The migrations Alembic ran are printed, so a CI log shows them."""
+    url = make_url(RUN_DATABASE_URL)
+    try:
+        with _maintenance_engine().connect() as conn:
+            conn.exec_driver_sql(f"CREATE DATABASE {_quoted(url.database)}")
+    except OperationalError as exc:
+        # The driver's message names host and port, never the password.
+        raise pytest.UsageError(f"can't create the test database {url.database}: {exc.orig}") from None
+    session.config.stash[_CREATED] = url.database
+    _report(session, f"created {url.database} on {url.host}:{url.port or 5432}")
+    # No ini file: alembic/env.py runs fileConfig() on one, which would disable every logger
+    # the app has already created (and with them, every caplog assertion).
+    alembic_config = Config()
+    alembic_config.set_main_option("script_location", str(_BACKEND / "alembic"))
+    migration_log = logging.getLogger("alembic.runtime.migration")
+    collect = _Collect()
+    level = migration_log.level
+    migration_log.addHandler(collect)
+    migration_log.setLevel(logging.INFO)
+    try:
+        command.upgrade(alembic_config, "head")
+    except BaseException:
+        # pytest skips sessionfinish when sessionstart raises: drop it here, or it's left behind.
+        _drop(url.database)
+        raise
+    finally:
+        migration_log.removeHandler(collect)
+        migration_log.setLevel(level)
+    for line in collect.lines:
+        if line.startswith("Running upgrade"):
+            _report(session, f"alembic upgrade head: {line}")
+
+
+def pytest_sessionfinish(session, exitstatus):
+    name = session.config.stash.get(_CREATED, None)
+    if name is not None:
+        _drop(name)
+        _report(session, f"dropped {name}")
+
+
+def _ignore_isolation_level(connection) -> None:
+    """`app.db.begin_snapshot` switches its session to REPEATABLE READ, which Postgres allows
+    only at a transaction's start. A rollback-isolated test runs inside one outer transaction,
+    so the switch is dropped here: with no concurrent writer it reads the same rows either
+    way. The snapshot itself is proven by a `committed_db` test, where it really happens."""
+    real = connection.execution_options
+
+    def execution_options(**options):
+        options.pop("isolation_level", None)
+        return real(**options) if options else connection
+
+    connection.execution_options = execution_options
 
 
 @pytest.fixture()
 def db_session():
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    # User must exist before UserSession/Job, both of which FK into it.
-    User.__table__.create(engine)
-    UserSession.__table__.create(engine)
-    Job.__table__.create(engine)
-    Proxy.__table__.create(engine)
-    Track.__table__.create(engine)
-    TrackAttempt.__table__.create(engine)
-    DownloadedTrack.__table__.create(engine)
-    WorkerState.__table__.create(engine)
-    BreakerEvent.__table__.create(engine)
-    AppSettings.__table__.create(engine)
-    UserSettings.__table__.create(engine)
-    LibrarySortRun.__table__.create(engine)
-    testing_session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    session = testing_session_local()
+    """One outer transaction per test, rolled back at the end. The code under test commits and
+    rolls back freely: each of those ends a SAVEPOINT inside it instead."""
+    connection = engine.connect()
+    transaction = connection.begin()
+    _ignore_isolation_level(connection)
+    session = Session(bind=connection, join_transaction_mode="create_savepoint", autoflush=False)
     try:
         yield session
     finally:
         session.close()
+        transaction.rollback()
+        connection.close()
+
+
+def _truncate_all() -> None:
+    tables = ", ".join(_quoted(t.name) for t in Base.metadata.sorted_tables)
+    with engine.begin() as conn:
+        # A session a test left open would otherwise hang the run here, holding its locks.
+        conn.exec_driver_sql("SET LOCAL lock_timeout = '10s'")
+        conn.exec_driver_sql(f"TRUNCATE {tables} RESTART IDENTITY CASCADE")
+        # Put back what the migrations seed (the initial schema's worker_state row), so the
+        # next test starts from the same database a fresh `upgrade head` leaves.
+        conn.execute(
+            text(
+                "INSERT INTO worker_state (id, breaker_trip_count, consecutive_failures, paused) "
+                "VALUES (1, 0, 0, false)"
+            )
+        )
+
+
+@pytest.fixture()
+def committed_db():
+    """A sessionmaker on this run's database whose sessions really commit, so several of them
+    (and the threads in tests/concurrency.py) see each other's writes and locks, the way two
+    workers or two requests do. Every table is truncated afterwards. Use it only where a test
+    needs that; `db_session` is faster and the default."""
+    factory = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    try:
+        yield factory
+    finally:
+        _truncate_all()
 
 
 @pytest.fixture()
@@ -168,14 +329,19 @@ def session_cookie(db_session, make_user):
     return _make
 
 
+_SAVEPOINT_STATEMENTS = ("SAVEPOINT ", "RELEASE SAVEPOINT ", "ROLLBACK TO SAVEPOINT ")
+
+
 @pytest.fixture()
 def count_queries(db_session):
     """Counts SQL statements executed inside a `with` block, for asserting a query count
     directly (v15's N+1 regression guard) rather than inferring it from timing.
 
-    Listens on db_session's own Engine -- the `client` fixture overrides get_db with this
+    Listens on db_session's own connection -- the `client` fixture overrides get_db with this
     exact session, so every statement a request issues passes through here. This is the
-    repo's first query-counting helper; there was previously no way to assert this at all."""
+    repo's first query-counting helper; there was previously no way to assert this at all.
+    The SAVEPOINTs that stand in for the code's commits under the rollback isolation (v51)
+    aren't counted: they aren't the code's own statements."""
     engine = db_session.get_bind()
 
     @contextmanager
@@ -183,7 +349,8 @@ def count_queries(db_session):
         statements: list[str] = []
 
         def _record(conn, cursor, statement, parameters, context, executemany):
-            statements.append(statement)
+            if not statement.startswith(_SAVEPOINT_STATEMENTS):
+                statements.append(statement)
 
         event.listen(engine, "before_cursor_execute", _record)
         try:

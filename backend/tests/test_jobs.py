@@ -1,6 +1,9 @@
 import uuid
 from datetime import datetime, timezone
 
+from concurrency import Gate, Thread, blocked_or_done
+from sqlalchemy import event, update
+
 from app.models import Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers import jobs as jobs_router
 from app.services import events
@@ -419,6 +422,63 @@ def test_cancel_job_row_locks_the_job_before_reading_its_tracks(authenticated_cl
     assert locked == [uuid.UUID(job_id)]
 
 
+def _committed_job(committed_db, state: JobState) -> tuple[uuid.UUID, uuid.UUID]:
+    with committed_db() as db:
+        user = User(email="owner@example.com", is_admin=False)
+        db.add(user)
+        db.flush()
+        job = Job(
+            user_id=user.id,
+            source_url="https://open.spotify.com/album/xyz",
+            source_type=JobSourceType.ALBUM,
+            state=state,
+        )
+        db.add(job)
+        db.commit()
+        return job.id, user.id
+
+
+def test_cancel_job_row_lock_holds_off_a_concurrent_expanded_commit(committed_db, monkeypatch):
+    """v51, the test above on two real connections: cancel_job holds the job's row lock from
+    before its track query until its commit, so expand_job's EXPANDED commit (its conditional
+    UPDATE) waits for the cancel, then matches no row. Without the lock that UPDATE lands
+    between the cancel's track query and its commit, and the new tracks download under a
+    cancelled job (the v34.1 race; test_expand_task.py runs the whole interleaving)."""
+    monkeypatch.setattr(events, "publish_track_event", lambda *a, **kw: None)
+    monkeypatch.setattr(events, "publish_job_event", lambda *a, **kw: None)
+    job_id, user_id = _committed_job(committed_db, JobState.EXPANDING)
+    gate = Gate("cancel_job, tracks read, before its commit")
+
+    def cancel():
+        with committed_db() as db:
+            event.listen(db, "before_commit", gate, once=True)
+            jobs_router.cancel_job(job_id, db=db, user=db.get(User, user_id))
+
+    canceller = Thread(cancel, name="cancel_job")
+    gate.wait_reached()
+
+    def expanded_commit() -> int:
+        # expand_job's own statement (app/tasks/expand.py).
+        with committed_db() as db:
+            matched = db.execute(
+                update(Job)
+                .where(Job.id == job_id, Job.state == JobState.EXPANDING)
+                .values(state=JobState.EXPANDED)
+            ).rowcount
+            db.commit()
+            return matched
+
+    expander = Thread(expanded_commit, name="expand_job's EXPANDED commit")
+    held_off = blocked_or_done(expander)
+    gate.open()
+    canceller.join()
+
+    assert expander.join() == 0
+    assert held_off == "blocked"
+    with committed_db() as db:
+        assert db.get(Job, job_id).state == JobState.CANCELLED
+
+
 def test_job_listing_reads_from_one_snapshot(authenticated_client, db_session, monkeypatch):
     """v34.2: count, counts_by_status and the page must come from one snapshot (they
     disagreed under Postgres READ COMMITTED). SQLite (this suite) has no REPEATABLE READ,
@@ -429,3 +489,48 @@ def test_job_listing_reads_from_one_snapshot(authenticated_client, db_session, m
     monkeypatch.setattr(job_listing, "begin_snapshot", lambda db: opened.append(db))
     assert authenticated_client.get("/api/jobs").status_code == 200
     assert len(opened) == 1
+
+
+def test_job_listing_snapshot_hides_a_job_committed_mid_listing(committed_db, monkeypatch):
+    """v51, the test above on two real connections: a job committed between the listing's
+    counts and its page is in neither, so the three agree. Under READ COMMITTED the page saw it
+    and the counts didn't ("9 items of 8", v34.2)."""
+    from app.services import job_listing, pagination
+
+    _, user_id = _committed_job(committed_db, JobState.EXPANDED)
+    gate = Gate("list_jobs, counts read, before its page")
+
+    def listing() -> dict:
+        with committed_db() as db:
+            return job_listing.list_jobs(
+                db,
+                user_id=user_id,
+                is_admin=False,
+                all_users=False,
+                q=None,
+                status_tokens=[],
+                source_type=None,
+                include_archived=False,
+                sort="created_at",
+                dir="desc",
+                limit=50,
+                cursor=None,
+            )
+
+    monkeypatch.setattr(pagination, "apply_cursor", gate.wrap(pagination.apply_cursor))
+    lister = Thread(listing, name="list_jobs")
+    gate.wait_reached()
+    with committed_db() as db:
+        db.add(
+            Job(
+                user_id=user_id,
+                source_url="https://open.spotify.com/album/new",
+                source_type=JobSourceType.ALBUM,
+                state=JobState.EXPANDED,
+            )
+        )
+        db.commit()
+    gate.open()
+    page = lister.join()
+
+    assert len(page["items"]) == page["total_estimate"] == sum(page["counts_by_status"].values()) == 1
