@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { request, type APIRequestContext, type FullConfig } from '@playwright/test';
 import type { Job, JobTracksPage } from '../src/lib/api';
 import { loadE2eEnv } from './support/env';
@@ -50,8 +50,19 @@ async function login(
 				"Check the dev .env's ADMIN_EMAIL."
 		);
 	}
+	// v52 (D6): the suite runs on http://127.0.0.1, where Playwright's request contexts (unlike
+	// Chromium) never send a `Secure` cookie: they count only `localhost` as a secure origin over
+	// plain HTTP. The saved session drops the flag, so every context made from it (this one
+	// included, from here on) sends it. The server still sets it, and a login the browser makes
+	// itself (spec 1) keeps it.
 	await context.storageState({ path: statePath });
-	return context;
+	const state = JSON.parse(readFileSync(statePath, 'utf8')) as {
+		cookies: { secure: boolean }[];
+	};
+	for (const cookie of state.cookies) cookie.secure = false;
+	writeFileSync(statePath, JSON.stringify(state));
+	await context.dispose();
+	return request.newContext({ baseURL, storageState: statePath });
 }
 
 /** Leaves the identity with nothing in flight and nothing unarchived, so every run starts from

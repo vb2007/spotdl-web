@@ -391,10 +391,10 @@ prepare_mounts() {
 # cache into the worktree root-owned, and then host-side `npm run check`/`lint` failed with EACCES
 # (docs/GOTCHAS.md, v44). v52 runs it as uid 1000, and its dev command refuses to start over
 # root-owned files, so a worktree that still has some gets them back, through a one-off root
-# container, before `up`.
+# container, before `up`. The worktree's frontend/ is mounted whole at /host: the container's
+# own /app hides .svelte-kit, node_modules and the compiled messages behind its volumes.
 return_frontend_files() {
-	# Not into the container's own node_modules and compiled messages (volumes).
-	dc run --rm --no-deps -T -u root web sh -c "find /app \\( -path /app/node_modules -o -path /app/src/lib/paraglide \\) -prune -o -user 0 -exec chown $(id -u):$(id -g) {} +" || true
+	dc run --rm --no-deps -T -u root -v "$ROOT/frontend:/host" web sh -c "find /host -path /host/node_modules -prune -o -user 0 -exec chown $(id -u):$(id -g) {} +" || true
 }
 
 # --- realdl lock --------------------------------------------------------------------------------
@@ -605,7 +605,8 @@ load_e2e_credentials() {
 		value="$(env_value "$file" "$key")"
 		export "$key=$value"
 	done <"$file"
-	export E2E_BASE_URL="http://localhost:$WEB_PORT"
+	# v52 (D6): 127.0.0.1, as frontend/playwright.config.ts explains.
+	export E2E_BASE_URL="http://127.0.0.1:$WEB_PORT"
 }
 
 # --- Commands -----------------------------------------------------------------------------------
