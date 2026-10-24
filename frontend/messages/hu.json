@@ -882,5 +882,6 @@
 			}
 		}
 	],
-	"error_queue_unavailable": "A sor most nem fogad új linket. Próbáld újra kicsit később."
+	"error_queue_unavailable": "A sor most nem fogad új linket. Próbáld újra kicsit később.",
+	"error_api_key_label_characters": "A kulcs neve nem tartalmazhat láthatatlan vagy vezérlőkaraktert (ezek gyakran a beillesztett szöveggel jönnek). Inkább gépeld be."
 }

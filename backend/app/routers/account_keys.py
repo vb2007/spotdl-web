@@ -38,14 +38,20 @@ def create_api_key(
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
 ) -> dict:
-    label = api_keys.normalize_label(payload.label)
-    if label is None:
+    try:
+        label = api_keys.normalize_label(payload.label)
+    except api_keys.LabelInvalid as exc:
+        detail = (
+            f"A key needs a label of 1 to {api_keys.LABEL_MAX_LENGTH} characters"
+            if exc.reason == "length"
+            else "A label can't hold invisible or control characters"
+        )
         raise ApiError(
             422,
             "api_key_label_invalid",
-            f"A key needs a label of 1 to {api_keys.LABEL_MAX_LENGTH} characters",
-            {"max": api_keys.LABEL_MAX_LENGTH},
-        )
+            detail,
+            {"max": api_keys.LABEL_MAX_LENGTH, "reason": exc.reason},
+        ) from None
     try:
         key, raw_key = api_keys.create_key(db, user.id, label)
     except api_keys.ApiKeyLimitReached:

@@ -12,6 +12,7 @@ JOB_CREATE_RATE_LIMIT_WINDOW_SECONDS. A limit of 0 turns that limiter off.
 """
 
 import hashlib
+import ipaddress
 import logging
 import uuid
 
@@ -65,6 +66,20 @@ def _count(bucket: str, window: int) -> int:
     return int(count)
 
 
+def _bucket_address(address: str) -> str:
+    """The address a login bucket keys on: an IPv6 address by its /64 (one host usually holds
+    a whole /64 and could rotate through it), anything else as it is."""
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        return address
+    if ip.version == 6:
+        if ip.ipv4_mapped is not None:
+            return str(ip.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{ip}/64", strict=False))
+    return str(ip)
+
+
 def client_address(request: Request) -> str:
     """The caller's address. Production reaches the API through Cloudflare's tunnel and the
     `web` container's nginx, so the peer is nginx: Cloudflare's `CF-Connecting-IP` names the
@@ -86,13 +101,13 @@ ADDRESS_LIMIT_FACTOR = 5
 def _login_bucket(email: str, address: str) -> str:
     # Hashed, so the Redis keyspace never holds an email address. `surrogatepass`: a lone
     # surrogate can't be UTF-8 encoded, and the caller refuses such an email anyway.
-    text = f"{email.strip().lower()}\n{address}"
+    text = f"{email.strip().lower()}\n{_bucket_address(address)}"
     digest = hashlib.sha256(text.encode("utf-8", "surrogatepass")).hexdigest()
     return f"{KEY_PREFIX}login:{digest}"
 
 
 def _address_bucket(address: str) -> str:
-    digest = hashlib.sha256(address.encode("utf-8", "surrogatepass")).hexdigest()
+    digest = hashlib.sha256(_bucket_address(address).encode("utf-8", "surrogatepass")).hexdigest()
     return f"{KEY_PREFIX}login-address:{digest}"
 
 

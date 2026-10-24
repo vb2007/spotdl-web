@@ -64,7 +64,10 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	retention_days_invalid: () => m.error_retention_days_invalid(),
 	// v53: keys (/account) and the limits on sign-in and submitting.
 	rate_limited: (p) => m.error_rate_limited(counted(Number(p.retry_after ?? 0))),
-	api_key_label_invalid: (p) => m.error_api_key_label_invalid({ max: formatNumber(Number(p.max)) }),
+	api_key_label_invalid: (p) =>
+		p.reason === 'character'
+			? m.error_api_key_label_characters()
+			: m.error_api_key_label_invalid({ max: formatNumber(Number(p.max)) }),
 	api_key_limit_reached: (p) => m.error_api_key_limit_reached({ max: formatNumber(Number(p.max)) }),
 	api_key_not_found: () => m.error_api_key_not_found(),
 	queue_unavailable: () => m.error_queue_unavailable(),

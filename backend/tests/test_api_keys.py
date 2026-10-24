@@ -75,6 +75,15 @@ def test_create_shows_the_key_once_and_lists_it_by_prefix_only(authenticated_cli
         "x\u200fy",
         "x\u061cy",
         "x\u2028y",
+        "\u200b",
+        "lr4\u200b",
+        "\ufeff",
+        "\u2060",
+        "\u3164",
+        "\U000e0041",
+        "\u0301",
+        "x\u180ey",
+        "x\ufff9y",
     ],
 )
 def test_create_refuses_a_blank_or_long_label(authenticated_client, label):
@@ -85,6 +94,13 @@ def test_create_refuses_a_blank_or_long_label(authenticated_client, label):
     )
     assert response.status_code == 422
     assert response.json()["code"] == "api_key_label_invalid"
+    expected = "length" if label.strip() == "" or len(label) > api_keys.LABEL_MAX_LENGTH else "character"
+    assert response.json()["params"]["reason"] == expected
+
+
+@pytest.mark.parametrize("label", ["Laptop 🦊", "👨\u200d👩\u200d👧", "Tükörfúró gép", "日本語", "ok-1_2.3"])
+def test_ordinary_labels_are_kept(authenticated_client, label):
+    assert _create_key(authenticated_client, label)["label"] == label
 
 
 def test_create_stops_at_the_active_key_limit_and_a_revoke_frees_a_slot(authenticated_client):
@@ -363,3 +379,16 @@ def test_a_nul_in_the_session_cookie_is_no_session_and_falls_back_to_the_key(cli
     assert client.get("/api/auth/me", headers=bad).status_code == 401
     assert client.get("/api/jobs", headers=bad).status_code == 401
     assert client.get("/api/auth/me", headers={**bad, **bearer(raw)}).json()["email"] == "allowed@example.com"
+
+
+def test_get_valid_session_never_queries_an_unstorable_token():
+    """Review round 5: SQLite (this suite) compares a NUL without error, so only a direct test
+    proves the guard that keeps Postgres from raising on one."""
+    from app.services.sessions import get_valid_session
+
+    class NoQueries:
+        def query(self, *args, **kwargs):
+            raise AssertionError("queried")
+
+    assert get_valid_session(NoQueries(), "\x00abc") is None
+    assert get_valid_session(NoQueries(), "a\ud800") is None

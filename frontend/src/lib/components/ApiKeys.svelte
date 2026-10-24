@@ -81,7 +81,10 @@
 			label = '';
 			madeKey = true;
 		} catch (err) {
-			error = () => errorText(err);
+			// The name itself was refused: say so under the field, like the local check does.
+			if (err instanceof api.ApiError && err.code === 'api_key_label_invalid') {
+				labelError = () => errorText(err);
+			} else error = () => errorText(err);
 			// At the limit by another tab's count: show the keys the server has, not this tab's.
 			// Awaited: whether focus can go back to the field depends on what it says.
 			if (err instanceof api.ApiError && err.code === 'api_key_limit_reached') await load();

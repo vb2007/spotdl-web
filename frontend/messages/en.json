@@ -926,5 +926,6 @@
 			}
 		}
 	],
-	"error_queue_unavailable": "The queue can't take new links right now. Try again in a moment."
+	"error_queue_unavailable": "The queue can't take new links right now. Try again in a moment.",
+	"error_api_key_label_characters": "A key's name can't hold invisible or control characters (often pasted along with text). Type it instead."
 }

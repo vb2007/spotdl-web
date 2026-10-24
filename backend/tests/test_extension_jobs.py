@@ -631,6 +631,8 @@ def test_a_broker_error_fails_the_job_instead_of_leaving_it_expanding(client, us
     job = db_session.query(Job).one()
     db_session.refresh(job)
     assert job.state == JobState.FAILED
+    # Archived at once: never really queued, and no "unreadable link" in the incoming panel.
+    assert job.archived_at is not None
     monkeypatch.setattr(jobs_router.expand_job, "delay", lambda job_id: None)
     again = client.post("/api/jobs", json={"url": url}, headers=bearer(user_key))
     assert again.status_code == 201
@@ -655,3 +657,38 @@ def test_a_refused_body_is_422_request_invalid_and_never_echoed(authenticated_cl
     assert "SECRET-MARKER" not in response.text
     assert all(set(e) == {"type", "loc", "msg"} for e in response.json()["detail"])
     assert "SECRET-MARKER" not in caplog.text
+
+
+def test_a_link_or_search_past_the_length_cap_is_refused(authenticated_client, db_session):
+    """Live review: a 20 MB search was stored, searched and echoed into every listing."""
+    too_long = "x" * (jobs_router.MAX_SUBMIT_LENGTH + 1)
+    response = authenticated_client.post("/api/jobs", json={"url": too_long})
+    assert response.status_code == 422
+    assert response.json()["code"] == "request_invalid"
+    assert db_session.query(Job).count() == 0
+    assert authenticated_client.post("/api/jobs", json={"url": "x" * jobs_router.MAX_SUBMIT_LENGTH}).status_code == 201
+
+
+def test_an_ipv6_host_shares_one_login_bucket_across_its_64(client, monkeypatch, low_limits, fake_redis):
+    """Review round 5: one host holds a whole /64 and could rotate through it."""
+
+    async def fake(email, password):
+        return False, None
+
+    monkeypatch.setattr(auth_router.upstream_auth, "login", fake)
+    statuses = [
+        client.post(
+            "/api/auth/login",
+            json={"email": "allowed@example.com", "password": "x"},
+            headers={"CF-Connecting-IP": f"2001:db8:1:2::{i:x}"},
+        ).status_code
+        for i in range(1, 4)
+    ]
+    assert statuses == [401, 401, 429]
+    # Another /64 isn't held back.
+    other = client.post(
+        "/api/auth/login",
+        json={"email": "allowed@example.com", "password": "x"},
+        headers={"CF-Connecting-IP": "2001:db8:1:3::1"},
+    )
+    assert other.status_code == 401

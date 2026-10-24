@@ -95,6 +95,9 @@ def _resolve_cascade(ref: spotify_urls.SpotifyRef, cascade: str) -> spotify_urls
         ) from None
 
 
+# The longest link or search text a job may be created from (a Spotify link is under 100).
+MAX_SUBMIT_LENGTH = 2048
+
 # How long a job may sit in `expanding` and still count as queued. Nothing recovers a job
 # whose expansion was lost (a broker error after its row committed), and a key can't cancel
 # one: past this, a re-submit creates a fresh job instead of answering with the dead one. A
@@ -165,6 +168,12 @@ def create_job(
                 "reason": "unknown",
             },
         )
+    if len(payload.url) > MAX_SUBMIT_LENGTH:
+        # The web UI's search text has no other bound, and a 20 MB "search" was stored, searched
+        # and echoed into every listing of that user's jobs.
+        raise ApiError(
+            422, "request_invalid", f"A link or search is at most {MAX_SUBMIT_LENGTH} characters"
+        )
     if not spotify_urls.storable(payload.url):
         # A NUL or a lone surrogate: Postgres can't take it, so the query would be a 500.
         raise ApiError(422, "request_invalid", "The link holds a character that can't be stored")
@@ -216,8 +225,11 @@ def create_job(
         # The broker (Redis) is down: the committed job would never expand, and the hint would
         # hand it back to every re-submit as "already queued". It fails instead, so the next
         # submit starts over (v53, live review).
+        # Archived at once too: it was never really queued, and an unarchived failed job would
+        # sit in the dashboard's incoming panel reading as an unreadable link.
         job.state = JobState.FAILED
         job.error = "Couldn't be queued for expansion; submit it again"
+        job.archived_at = datetime.now(timezone.utc)
         db.commit()
         logger.warning("create_job: expansion not enqueued for %s: %s", job.id, type(exc).__name__)
         raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None

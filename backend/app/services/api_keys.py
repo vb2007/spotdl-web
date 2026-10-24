@@ -12,6 +12,7 @@ job create, `GET /api/jobs/{id}` (its own jobs) and `GET /api/auth/me` only.
 
 import hashlib
 import secrets
+import unicodedata
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -43,27 +44,47 @@ def _generate() -> tuple[str, str]:
     return prefix, f"{KEY_PREFIX}{prefix}_{secrets.token_urlsafe(32)}"
 
 
+# Kept inside a label although they're format characters: emoji sequences need them.
+_JOINERS = {"\u200c", "\u200d"}
+
+
 def _unfit(char: str) -> bool:
-    """A character a label must not hold: a control character (a NUL can't be stored in
-    Postgres text at all), a lone surrogate (can't be encoded to UTF-8), a bidi control or
-    mark (it would reorder the key's prefix around it wherever the label is shown, or make
-    two labels look alike), or a line/paragraph separator."""
-    code = ord(char)
-    return (
-        code < 32
-        or 0x7F <= code <= 0x9F
-        or 0xD800 <= code <= 0xDFFF
-        or 0x202A <= code <= 0x202E
-        or 0x2066 <= code <= 0x2069
-        or code in (0x061C, 0x200E, 0x200F, 0x2028, 0x2029)
+    """A character a label must not hold, by Unicode category: controls (a NUL can't be stored
+    in Postgres text at all), lone surrogates (can't be encoded to UTF-8), private-use and
+    unassigned code points, format characters (bidi controls and marks, zero-width spaces,
+    tag characters: they reorder the key's prefix around them or make two labels look alike),
+    and line/paragraph separators. ZWJ/ZWNJ stay, for emoji sequences."""
+    if char in _JOINERS:
+        return False
+    return unicodedata.category(char) in {"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"}
+
+
+def _visible(label: str) -> bool:
+    """At least one character that shows: not only marks, fillers and joiners."""
+    return any(
+        unicodedata.category(c)[0] in "LNPS" and c not in _FILLERS for c in label
     )
 
 
-def normalize_label(label: str) -> str | None:
-    """The label as stored, or None when it's empty or too long once trimmed."""
+# Letters that render as blank (Hangul fillers and the like).
+_FILLERS = {"\u115f", "\u1160", "\u3164", "\uffa0"}
+
+
+class LabelInvalid(Exception):
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason  # "length" or "character"
+
+
+def normalize_label(label: str) -> str:
+    """The label as stored. Raises LabelInvalid("length") when it's empty or too long once
+    trimmed, LabelInvalid("character") when it holds a character a label can't, or nothing
+    visible."""
     label = label.strip()
-    if not label or len(label) > LABEL_MAX_LENGTH or any(_unfit(c) for c in label):
-        return None
+    if not label or len(label) > LABEL_MAX_LENGTH:
+        raise LabelInvalid("length")
+    if any(_unfit(c) for c in label) or not _visible(label):
+        raise LabelInvalid("character")
     return label
 
 
