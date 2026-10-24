@@ -18,6 +18,10 @@ def create_session(db: Session, user_id: uuid.UUID) -> UserSession:
 
 
 def get_valid_session(db: Session, token: str) -> UserSession | None:
+    # v53: a cookie can carry a NUL (Starlette unquotes `"\000"`), which Postgres can't
+    # compare (a 500 on every route): no real token holds one, so it's simply no session.
+    if "\x00" in token or any(0xD800 <= ord(c) <= 0xDFFF for c in token):
+        return None
     session = db.query(UserSession).filter(UserSession.token == token).one_or_none()
     if session is None:
         return None

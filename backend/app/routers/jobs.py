@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
@@ -15,6 +16,8 @@ from app.services import archive, events, job_listing, rate_limit, rollup, spoti
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
 from app.tasks.expand import expand_job
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -154,7 +157,13 @@ def create_job(
             422,
             "cascade_invalid",
             "A cascade is \"album\" or \"artist\"",
-            {"cascade": str(payload.cascade)[:40], "reason": "unknown"},
+            # Echoed only when it can be: a lone surrogate would fail the response's encoding.
+            {
+                "cascade": payload.cascade[:40]
+                if isinstance(payload.cascade, str) and spotify_urls.storable(payload.cascade)
+                else None,
+                "reason": "unknown",
+            },
         )
     if not spotify_urls.storable(payload.url):
         # A NUL or a lone surrogate: Postgres can't take it, so the query would be a 500.
@@ -201,7 +210,17 @@ def create_job(
     job = Job(source_url=source_url, source_type=source_type, user_id=user.id)
     db.add(job)
     db.commit()
-    expand_job.delay(str(job.id))
+    try:
+        expand_job.delay(str(job.id))
+    except Exception as exc:
+        # The broker (Redis) is down: the committed job would never expand, and the hint would
+        # hand it back to every re-submit as "already queued". It fails instead, so the next
+        # submit starts over (v53, live review).
+        job.state = JobState.FAILED
+        job.error = "Couldn't be queued for expansion; submit it again"
+        db.commit()
+        logger.warning("create_job: expansion not enqueued for %s: %s", job.id, type(exc).__name__)
+        raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
     return {
         **job_to_dict(job, track_counts(db, job.id), user.email, user.username, rollup.job_title(db, job)),
         "hint": hint,

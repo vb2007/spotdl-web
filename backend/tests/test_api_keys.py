@@ -63,7 +63,19 @@ def test_create_shows_the_key_once_and_lists_it_by_prefix_only(authenticated_cli
 
 @pytest.mark.parametrize(
     "label",
-    ["", "   ", "x" * (api_keys.LABEL_MAX_LENGTH + 1), "a\u0000b", "tab\there", "a\ud800", "c1\x85x", "bidi\u202e"],
+    [
+        "",
+        "   ",
+        "x" * (api_keys.LABEL_MAX_LENGTH + 1),
+        "a\u0000b",
+        "tab\there",
+        "a\ud800",
+        "c1\x85x",
+        "bidi\u202e",
+        "x\u200fy",
+        "x\u061cy",
+        "x\u2028y",
+    ],
 )
 def test_create_refuses_a_blank_or_long_label(authenticated_client, label):
     # Raw JSON: httpx can't encode a lone surrogate itself, but a JSON escape carries one.
@@ -311,6 +323,8 @@ def test_the_route_lists_are_complete():
 def test_an_admins_key_gets_no_admin_answer_on_any_admin_route(client, admin_client, method, path):
     raw = _create_key(admin_client)["key"]
     client.cookies.clear()
+    # A valid admin key (it works where a key may), refused here.
+    assert client.get("/api/auth/me", headers=bearer(raw)).json()["is_admin"] is True
     response = client.request(method, _fill(path), headers=bearer(raw), json={})
     # Not authenticated at all: a key is no credential here, so it never reaches the
     # admin check, and certainly never passes it.
@@ -325,6 +339,7 @@ def test_an_admins_key_gets_no_admin_answer_on_any_admin_route(client, admin_cli
 def test_a_key_is_refused_on_every_route_but_submit_and_me(client, admin_client, method, path):
     raw = _create_key(admin_client)["key"]
     client.cookies.clear()
+    assert client.get("/api/auth/me", headers=bearer(raw)).status_code == 200
     response = client.request(method, _fill(path), headers=bearer(raw), json={})
     assert response.status_code == 401, (method, path, response.status_code, response.text)
 
@@ -337,3 +352,14 @@ def test_the_admins_cookie_still_works_beside_its_key(admin_client):
 def test_user_delete_cascades_to_keys_in_the_model():
     fk = next(iter(ApiKey.__table__.c.user_id.foreign_keys))
     assert fk.ondelete == "CASCADE"
+
+
+def test_a_nul_in_the_session_cookie_is_no_session_and_falls_back_to_the_key(client, authenticated_client):
+    """Live review: Starlette unquotes `"\\000"` in a quoted cookie into a NUL Postgres can't
+    compare; it was a 500 on every route."""
+    raw = _create_key(authenticated_client)["key"]
+    client.cookies.clear()
+    bad = {"Cookie": 'SPOTDL_SESSION="\\000abc"'}
+    assert client.get("/api/auth/me", headers=bad).status_code == 401
+    assert client.get("/api/jobs", headers=bad).status_code == 401
+    assert client.get("/api/auth/me", headers={**bad, **bearer(raw)}).json()["email"] == "allowed@example.com"

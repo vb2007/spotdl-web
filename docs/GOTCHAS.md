@@ -5976,7 +5976,9 @@ independently-found production bug from the same conversation)
   `waiting` track. A settled, failed or cancelled job doesn't count, so re-submitting a finished
   link still re-runs it (dedup then settles it at once). Two simultaneous identical submits
   both created at first (the live review's 6 parallel posts made three jobs); the create now locks
-  the user's row (`FOR UPDATE`) before the check, so they serialize: one 201, five 200. An
+  the user's row before the check, so they serialize: one 201, five 200. It's `FOR NO KEY UPDATE`
+  (`with_for_update(key_share=True)`), not `FOR UPDATE`, on purpose: a concurrent login's session
+  insert takes a `KEY SHARE` lock on the same row, which `FOR UPDATE` would block. An
   `expanding` job counts only for its first hour (a lost expansion would otherwise answer every
   re-submit forever, and a key can't cancel it). A `spotify:` URI the web UI submits is stored as
   typed (cookie requests keep today's behavior), so it never matches an `https` link's job. The web UI (the dashboard form and the incoming
@@ -6020,4 +6022,14 @@ independently-found production bug from the same conversation)
 - **redis-py retries a dead connection with backoff by default** (6.x: three tries, exponential
   with jitter), so 1 s socket timeouts still left a "fail-open" limiter stalling each request for
   several seconds. `Retry(NoBackoff(), 0)` makes it fail at once.
+- **FastAPI's default 422 echoes the submitted body back (`input`), so a lone surrogate in it made
+  the 422 a 500, and that 500's traceback logged the whole body: a login's password, in plain
+  text.** Pre-existing on every endpoint; `app/errors.py`'s `validation_error_handler` now answers
+  `request_invalid` with each error's type, location and message only (still a list in
+  `detail`, which `api.ts` already maps). The same encode failure hid in `cascade_invalid`'s own
+  `params` (it echoed the value), and a NUL in a quoted cookie (`"\000…"`, which Starlette
+  unquotes) made `get_valid_session` a 500 on every route until it answered "no session".
+- **A broker error after the job row commits left a job `expanding` forever** (pre-existing), and
+  v53's hint then handed it back to every re-submit for an hour. Job create now marks it `failed`
+  and answers 503 `queue_unavailable`, so the next submit starts over.
 

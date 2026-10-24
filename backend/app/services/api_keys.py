@@ -45,8 +45,9 @@ def _generate() -> tuple[str, str]:
 
 def _unfit(char: str) -> bool:
     """A character a label must not hold: a control character (a NUL can't be stored in
-    Postgres text at all), a lone surrogate (can't be encoded to UTF-8), or a bidi control
-    (it would reorder the key's prefix around it wherever the label is shown)."""
+    Postgres text at all), a lone surrogate (can't be encoded to UTF-8), a bidi control or
+    mark (it would reorder the key's prefix around it wherever the label is shown, or make
+    two labels look alike), or a line/paragraph separator."""
     code = ord(char)
     return (
         code < 32
@@ -54,6 +55,7 @@ def _unfit(char: str) -> bool:
         or 0xD800 <= code <= 0xDFFF
         or 0x202A <= code <= 0x202E
         or 0x2066 <= code <= 0x2069
+        or code in (0x061C, 0x200E, 0x200F, 0x2028, 0x2029)
     )
 
 

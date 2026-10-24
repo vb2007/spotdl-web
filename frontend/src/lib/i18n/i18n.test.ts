@@ -231,8 +231,10 @@ describe('plurals and numbers', () => {
 	});
 });
 
-// Every code backend/app/errors.py's ApiErrors carry (tests/test_api_error_codes.py reaches
-// each one), plus the ones api.ts assigns itself.
+// Every code the web UI can meet from backend/app/errors.py's ApiErrors
+// (tests/test_api_error_codes.py reaches each one), plus the ones api.ts assigns itself. v53's
+// extension-only codes (api_key_invalid, url_not_spotify, cascade_*) never reach the web UI:
+// it sends no key, no X-Spotdl-Client header and no cascade.
 const BACKEND_CODES = [
 	'invalid_credentials',
 	'not_authenticated',
@@ -261,7 +263,8 @@ const BACKEND_CODES = [
 	'rate_limited',
 	'api_key_label_invalid',
 	'api_key_limit_reached',
-	'api_key_not_found'
+	'api_key_not_found',
+	'queue_unavailable'
 ];
 const CLIENT_CODES = [
 	'request_invalid',

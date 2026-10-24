@@ -881,5 +881,6 @@
 				"*": "Túl sok bejelentkezési kísérlet. Próbáld újra {n} perc múlva."
 			}
 		}
-	]
+	],
+	"error_queue_unavailable": "A sor most nem fogad új linket. Próbáld újra kicsit később."
 }

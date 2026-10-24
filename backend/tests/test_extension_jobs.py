@@ -182,13 +182,14 @@ def test_a_cascade_spotify_cant_answer_is_503(client, user_key, monkeypatch):
     assert response.json()["code"] == "cascade_unavailable"
 
 
-@pytest.mark.parametrize("cascade", ["playlist", "", "ALBUM", 5, ["album"], {"a": 1}, True])
+@pytest.mark.parametrize("cascade", ["playlist", "", "ALBUM", 5, ["album"], {"a": 1}, True, "\ud800", ["\ud800"]])
 def test_an_unknown_cascade_value_is_cascade_invalid(client, user_key, cascade):
-    """Live review: a stable code, not FastAPI's raw validation list."""
+    """Live review: a stable code, not FastAPI's raw validation list, and never a 500 (a lone
+    surrogate echoed back in `params` failed the response's encoding)."""
     response = client.post(
         "/api/jobs",
-        json={"url": f"https://open.spotify.com/track/{TRACK_ID}", "cascade": cascade},
-        headers=bearer(user_key),
+        content=json.dumps({"url": f"https://open.spotify.com/track/{TRACK_ID}", "cascade": cascade}),
+        headers={**bearer(user_key), "Content-Type": "application/json"},
     )
     assert response.status_code == 422
     assert response.json()["code"] == "cascade_invalid"
@@ -613,3 +614,44 @@ def test_a_busy_cascade_says_so(client, user_key, monkeypatch):
     )
     assert response.status_code == 503
     assert response.json()["params"]["reason"] == "busy"
+
+
+def test_a_broker_error_fails_the_job_instead_of_leaving_it_expanding(client, user_key, monkeypatch, db_session):
+    """Live review: the job row was committed and then `expand_job.delay` raised (Redis down),
+    leaving a job that never expands and that the hint handed back as already queued."""
+    url = f"https://open.spotify.com/album/{ALBUM_ID}"
+
+    def down(job_id):
+        raise ConnectionError("broker down")
+
+    monkeypatch.setattr(jobs_router.expand_job, "delay", down)
+    response = client.post("/api/jobs", json={"url": url}, headers=bearer(user_key))
+    assert response.status_code == 503
+    assert response.json()["code"] == "queue_unavailable"
+    job = db_session.query(Job).one()
+    db_session.refresh(job)
+    assert job.state == JobState.FAILED
+    monkeypatch.setattr(jobs_router.expand_job, "delay", lambda job_id: None)
+    again = client.post("/api/jobs", json={"url": url}, headers=bearer(user_key))
+    assert again.status_code == 201
+    assert again.json()["id"] != str(job.id)
+
+
+@pytest.mark.parametrize(
+    "path,body",
+    [
+        ("/api/auth/login", {"emial": "x@example.com\ud800", "password": "SECRET-MARKER"}),
+        ("/api/auth/login", {"email": ["\ud800"], "password": "SECRET-MARKER"}),
+        ("/api/jobs", {"url": ["\ud800"]}),
+        ("/api/account/api-keys", {"label": ["\ud800"]}),
+    ],
+)
+def test_a_refused_body_is_422_request_invalid_and_never_echoed(authenticated_client, path, body, caplog):
+    """Live review: FastAPI's default 422 echoed `input`; a lone surrogate there made it a 500
+    whose traceback logged the body, a password included."""
+    response = authenticated_client.post(path, content=json.dumps(body), headers={"Content-Type": "application/json"})
+    assert response.status_code == 422
+    assert response.json()["code"] == "request_invalid"
+    assert "SECRET-MARKER" not in response.text
+    assert all(set(e) == {"type", "loc", "msg"} for e in response.json()["detail"])
+    assert "SECRET-MARKER" not in caplog.text
