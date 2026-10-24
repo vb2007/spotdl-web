@@ -78,10 +78,15 @@ def _test_database_urls() -> tuple[str, str]:
     if len(url.database.encode()) > _MAX_STEM:
         raise ValueError(f"TEST_DATABASE_URL's database name is over {_MAX_STEM} bytes")
     run_database = f"{url.database}_{uuid.uuid4().hex[:12]}"
-    return (
-        url.set(database="postgres").render_as_string(hide_password=False),
-        url.set(database=run_database).render_as_string(hide_password=False),
-    )
+    run_url = url.set(database=run_database).render_as_string(hide_password=False)
+    # alembic/env.py hands the URL to Alembic's configparser, which reads `%` as interpolation:
+    # it would crash and print the whole URL, password included.
+    if "%" in run_url:
+        raise ValueError(
+            "TEST_DATABASE_URL needs %-escaping (a special character in the password or a "
+            "query value), which Alembic's config can't take; use a plainer one"
+        )
+    return url.set(database="postgres").render_as_string(hide_password=False), run_url
 
 
 try:
@@ -103,6 +108,7 @@ os.environ.setdefault("ALLOWED_EMAILS", "allowed@example.com,admin@example.com")
 os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
 
 import logging
+import signal
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -185,6 +191,9 @@ def pytest_sessionstart(session):
         # The driver's message names host and port, never the password.
         raise pytest.UsageError(f"can't create the test database {url.database}: {exc.orig}") from None
     session.config.stash[_CREATED] = url.database
+    # SIGTERM (a `kill`, a container stop) would end the run without sessionfinish, leaving the
+    # database behind; as a KeyboardInterrupt, pytest unwinds and drops it like a Ctrl-C does.
+    signal.signal(signal.SIGTERM, signal.default_int_handler)
     _report(session, f"created {url.database} on {url.host}:{url.port or 5432}")
     # No ini file: alembic/env.py runs fileConfig() on one, which would disable every logger
     # the app has already created (and with them, every caplog assertion).

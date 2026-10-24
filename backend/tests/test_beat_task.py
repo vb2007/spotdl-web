@@ -410,6 +410,7 @@ def test_reclaim_counts_an_attempt_only_when_the_track_was_downloading(
 
 @pytest.mark.xfail(
     strict=True,
+    raises=AssertionError,
     reason="v55 (E2): the reclaim UPDATE doesn't re-check state, so a track that completes "
     "after the sweep's stale snapshot is reset to waiting",
 )
