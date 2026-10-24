@@ -41,7 +41,10 @@ def _test_database_urls() -> tuple[str, str]:
         )
     # v32's guard, with the dev marker forced on: an unparseable URL, one naming no database
     # and one naming production's database are all refused.
-    check_not_production_database(raw, "dev")
+    try:
+        check_not_production_database(raw, "dev")
+    except ValueError as exc:
+        raise ValueError(f"TEST_DATABASE_URL is refused by app/config.py's production-database guard: {exc}") from None
     try:
         url = make_url(raw)
     except (ArgumentError, ValueError):  # unreachable after the guard; kept fail-closed
@@ -80,6 +83,7 @@ os.environ.setdefault("SESSION_SECRET", "test-secret")
 os.environ.setdefault("ALLOWED_EMAILS", "allowed@example.com,admin@example.com")
 os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
 
+import logging
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -88,6 +92,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -109,25 +114,77 @@ def _quoted(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _test_database():
-    """Creates this run's database, migrates it to head, and drops it at the end."""
-    name = make_url(RUN_DATABASE_URL).database
-    maintenance = create_engine(MAINTENANCE_DATABASE_URL, isolation_level="AUTOCOMMIT", poolclass=NullPool)
-    with maintenance.connect() as conn:
-        conn.exec_driver_sql(f"CREATE DATABASE {_quoted(name)}")
+def _report(session, line: str) -> None:
+    reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+    if reporter is not None:
+        # After the last test, the progress line ("...  [100%]") is still open.
+        if reporter._tw.width_of_current_line:
+            reporter.write("\n")
+        reporter.write_line(f"test database: {line}")
+
+
+class _Collect(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(logging.INFO)
+        self.lines: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.lines.append(record.getMessage())
+
+
+_CREATED = pytest.StashKey[str]()
+
+
+def _maintenance_engine():
+    return create_engine(MAINTENANCE_DATABASE_URL, isolation_level="AUTOCOMMIT", poolclass=NullPool)
+
+
+def _drop(name: str) -> None:
+    engine.dispose()
+    with _maintenance_engine().connect() as conn:
+        conn.exec_driver_sql(f"DROP DATABASE IF EXISTS {_quoted(name)} WITH (FORCE)")
+
+
+def pytest_sessionstart(session):
+    """Creates this run's database and migrates it to head, before any test (or collection)
+    runs. The migrations Alembic ran are printed, so a CI log shows them."""
+    url = make_url(RUN_DATABASE_URL)
     try:
-        # No ini file: alembic/env.py runs fileConfig() on one, which would disable every
-        # logger the app has already created (and with them, every caplog assertion).
-        alembic_config = Config()
-        alembic_config.set_main_option("script_location", str(_BACKEND / "alembic"))
+        with _maintenance_engine().connect() as conn:
+            conn.exec_driver_sql(f"CREATE DATABASE {_quoted(url.database)}")
+    except OperationalError as exc:
+        # The driver's message names host and port, never the password.
+        raise pytest.UsageError(f"can't create the test database {url.database}: {exc.orig}") from None
+    session.config.stash[_CREATED] = url.database
+    _report(session, f"created {url.database} on {url.host}:{url.port or 5432}")
+    # No ini file: alembic/env.py runs fileConfig() on one, which would disable every logger
+    # the app has already created (and with them, every caplog assertion).
+    alembic_config = Config()
+    alembic_config.set_main_option("script_location", str(_BACKEND / "alembic"))
+    migration_log = logging.getLogger("alembic.runtime.migration")
+    collect = _Collect()
+    level = migration_log.level
+    migration_log.addHandler(collect)
+    migration_log.setLevel(logging.INFO)
+    try:
         command.upgrade(alembic_config, "head")
-        yield
+    except BaseException:
+        # pytest skips sessionfinish when sessionstart raises: drop it here, or it's left behind.
+        _drop(url.database)
+        raise
     finally:
-        engine.dispose()
-        with maintenance.connect() as conn:
-            conn.exec_driver_sql(f"DROP DATABASE IF EXISTS {_quoted(name)} WITH (FORCE)")
-        maintenance.dispose()
+        migration_log.removeHandler(collect)
+        migration_log.setLevel(level)
+    for line in collect.lines:
+        if line.startswith("Running upgrade"):
+            _report(session, f"alembic upgrade head: {line}")
+
+
+def pytest_sessionfinish(session, exitstatus):
+    name = session.config.stash.get(_CREATED, None)
+    if name is not None:
+        _drop(name)
+        _report(session, f"dropped {name}")
 
 
 def _ignore_isolation_level(connection) -> None:
@@ -145,7 +202,7 @@ def _ignore_isolation_level(connection) -> None:
 
 
 @pytest.fixture()
-def db_session(_test_database):
+def db_session():
     """One outer transaction per test, rolled back at the end. The code under test commits and
     rolls back freely: each of those ends a SAVEPOINT inside it instead."""
     connection = engine.connect()
@@ -177,7 +234,7 @@ def _truncate_all() -> None:
 
 
 @pytest.fixture()
-def committed_db(_test_database):
+def committed_db():
     """A sessionmaker on this run's database whose sessions really commit, so several of them
     (and the threads in tests/concurrency.py) see each other's writes and locks, the way two
     workers or two requests do. Every table is truncated afterwards. Use it only where a test
