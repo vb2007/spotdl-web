@@ -112,7 +112,8 @@ async function openJob(page: Page, jobId: string): Promise<void> {
 async function typeSearch(page: Page, text: string): Promise<void> {
 	const answered = page.waitForResponse((r) => {
 		const url = new URL(r.url());
-		return url.pathname === '/api/jobs' && url.searchParams.get('q') === text;
+		// The store sends the search trimmed.
+		return url.pathname === '/api/jobs' && url.searchParams.get('q') === text.trim();
 	});
 	await page.keyboard.type(text);
 	await answered;

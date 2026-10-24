@@ -101,6 +101,24 @@ function compose(...args: string[]): string {
 	}).trim();
 }
 
+/** v52 (D7): the dev `web` container keeps `node_modules`, the compiled messages and `.svelte-kit`
+ * in volumes of its own, so a host-side `npm run check`/`build` never touches what its Vite
+ * serves. Removing one of those directories on the host (`rm -rf frontend/.svelte-kit`) detaches
+ * the container's mount, and from then on every host check reloads the pages a run drives.
+ * Returns the ones missing from the running container's mount table; none for a `web` that isn't
+ * the dev one (no bind-mounted /app). */
+export function detachedWebVolumes(): string[] {
+	const mounted = new Set(
+		compose('exec', '-T', 'web', 'cat', '/proc/1/mountinfo')
+			.split('\n')
+			.map((line) => line.split(' ')[4])
+	);
+	if (!mounted.has('/app')) return [];
+	return ['/app/node_modules', '/app/src/lib/paraglide', '/app/.svelte-kit'].filter(
+		(dir) => !mounted.has(dir)
+	);
+}
+
 export function stopExpandWorker(): void {
 	writeFileSync(EXPAND_STOPPED_FILE, '[]');
 	compose('stop', 'worker-expand');

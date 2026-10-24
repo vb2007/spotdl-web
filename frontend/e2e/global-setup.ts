@@ -10,6 +10,7 @@ import {
 	SEED_FILE,
 	USER_STATE,
 	adminIdentity,
+	detachedWebVolumes,
 	e2eDownloadsInFlight,
 	isSettled,
 	ledgerMisses,
@@ -113,6 +114,16 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 	// Teardown runs even when setup throws: neither file may still describe an earlier run.
 	rmSync(RUN_FILE, { force: true });
 	rmSync(SEED_FILE, { force: true });
+
+	// v52 (D7): fail now, and say why, rather than flake later on a reload.
+	const detached = detachedWebVolumes();
+	if (detached.length) {
+		throw new Error(
+			`the dev web container lost its own ${detached.join(', ')} (removing that directory on the ` +
+				'host detaches the volume), so a host-side npm run check would reload the pages under ' +
+				'test: docker compose restart web, then run again'
+		);
+	}
 
 	// Spec 12 stops worker-expand for one test; a run killed inside it would leave it stopped,
 	// and every submission after that would sit at "tuning in". Only a stop the suite recorded
