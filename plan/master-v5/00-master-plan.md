@@ -463,13 +463,32 @@ here.
   `gh workflow run "Release & Deploy" -f redeploy=true`: on `main`, with the version already
   tagged, `plan` skips the release and the deploy runs on the tag's commit in release mode. The
   `plan` job gains `redeploy`/`commit` outputs beside `release` (v61 still adds `extension`).
-- **2026-10-23, v50: a slot's e2e run needs a seeded history, and `worker-dl`.** The plan expected
-  slot verification to lean on "tracks already present". The Playwright suite leans on much more
-  of the owner's long-lived `spotdlwebtest`: ledger rows for every track a default run submits,
-  three pages of admin jobs, a twelve-track album and a network-path attempt. A fresh slot
-  database has none of it. v50 adds `scripts/agent_seed.py` (run by `agent_stack.sh <slot> seed`,
-  and by `e2e` before the suite), which recreates it with stand-in files. The suite also needs
-  `worker-dl` running (seeded jobs settle there, and setup and teardown query it), so
-  `agent_stack.sh <slot> e2e` holds the realdl lock for the run: e2e runs on different slots are
-  serialized, though a default run makes no network attempt. A spec that comes to lean on more
-  dev data must extend the seed.
+
+- **2026-10-24: admin-managed user access inserted as v69 (owner's request); the close moves to
+  v70.** The admin adds login addresses in the app, and the person can sign in right away, with
+  no `.env` edit or redeploy.
+  - **What exists today:** `ALLOWED_EMAILS` is env-only (`config.py:75`, checked at
+    `routers/auth.py:114`), boot requires `ADMIN_EMAIL` in it (`config.py:198-212`), and adding a
+    user means editing the host `.env` (`docs/DEPLOYMENT.md:655-663`). An open `/api/stream`
+    checks its session only at connect.
+  - **Owner decisions (locked for v5):**
+    - The allowlist becomes a **DB table**, imported once from `ALLOWED_EMAILS` (plus
+      `ADMIN_EMAIL`) and then managed in an admin-only `/users` page. The env list is ignored
+      after the import. `ADMIN_EMAIL` stays in env, is always allowed, and can't be removed.
+    - Removing an address cuts the person off **at once**: their sessions, open streams and API
+      keys. Their jobs and files stay, and re-adding restores the same account.
+  - **Placement:** `v69-user-access.md`, wave 5 / slot 3, beside v67 and v68. Waves 1–4 are full,
+    and it builds on v53's keys, v56's admin rule (A6) and v62's cross-tab identity (F9).
+    - It gets its own `/users` route, so it never touches v67's `/settings` rework, and it runs
+      its own impeccable pass.
+    - Wave 5's co-owned hotspots gain `stores/queue.ts` (v68 windowing, v69's revoke block) and
+      `frontend/e2e/` (v69 adds one spec; v68 owns the rest).
+  - **Renumbering:** the close is now `v70-v5-hardening.md` (`5.70.0`), and every reference to
+    "v69" as the close in the text above means v70 (the ledger's re-confirmation, the housekeeping
+    questions, the Waves and Roadmap rows). Its cross-user sweep and production smoke cover v69,
+    and so does Verification item 5.
+  - **Critical interaction:** the admin's stream pattern-subscribes to `spotdl:events:*`, so a
+    revocation published there would log out the admin's own tab. Revocation uses a separate
+    `spotdl:control:{user_id}` channel, and the stream's periodic session re-check uses a
+    short-lived DB session (v31's idle-in-transaction bug).
+  - **Housekeeping:** `v48smoke@example.com` can be removed in `/users` once v69 is deployed.
