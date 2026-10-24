@@ -5860,6 +5860,14 @@ independently-found production bug from the same conversation)
   `test_track_listing_embeds_derived_job_title` passed with its "first track" order reversed,
   since both tracks shared one `created_at` inside the test's transaction (pinned now; a full
   suite run with the order flipped fails it and nothing else).
+- **Round 3 of the live review:** a failed `committed_db` test whose own Session stayed open (its
+  traceback keeps it alive) held its row lock, and the next `db_session` test blocked forever.
+  `committed_db` now terminates every other backend on the run's database before truncating. A
+  stray commit from an unpatched `SessionLocal` was reported but stayed for the rest of the run:
+  `db_session` truncates after one. A thread nobody joined lost its exception silently:
+  `release_all` reports it. And `env -i NAME=value` put the password in `env`'s argv for an
+  instant (an execve trace caught it): `agent_stack.sh` builds the clean environment with
+  `os.execve` instead.
 - **Fixture teardown order matters for race tests.** `committed_db` depends on `monkeypatch`, so
   it tears down (releasing parked threads) while the test's stubs are still in place.
 - **Alembic from Python, without the ini.** `command.upgrade(Config("alembic.ini"), ...)` runs
