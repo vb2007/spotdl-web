@@ -154,9 +154,31 @@ def test_non_admin_all_users_flag_ignored_on_tracks_endpoint(client, db_session,
 
     client.cookies.clear()
     client.cookies.update(owner_cookie)
-    response = client.get("/api/tracks", params={"all_users": "true"})
-    titles = {i["title"] for i in response.json()["items"]}
-    assert titles == {"Mine"}
+    # v54: so are `view=all` and `view=others`.
+    for flag in ({"all_users": "true"}, {"view": "all"}, {"view": "others"}):
+        response = client.get("/api/tracks", params=flag)
+        titles = {i["title"] for i in response.json()["items"]}
+        assert titles == {"Mine"}, flag
+
+
+def test_admin_views_on_tracks_endpoint(client, db_session, make_user, session_cookie):
+    """v54: `mine` = the admin's own, `all` = everyone's, `others` = everyone's but the
+    admin's, with or without the job-status filter's subquery."""
+    admin = make_user("root@example.com", is_admin=True)
+    other = make_user("other@example.com")
+    admin_cookie = session_cookie("root@example.com", is_admin=True)
+
+    _add_track(db_session, _make_job(db_session, admin), name="Mine")
+    _add_track(db_session, _make_job(db_session, other), name="Theirs")
+
+    client.cookies.clear()
+    client.cookies.update(admin_cookie)
+    expected = {"mine": {"Mine"}, "all": {"Mine", "Theirs"}, "others": {"Theirs"}}
+    for view, titles in expected.items():
+        for extra in ({}, {"status": "settled"}):
+            response = client.get("/api/tracks", params={"view": view, **extra})
+            assert response.status_code == 200
+            assert {i["title"] for i in response.json()["items"]} == titles, (view, extra)
 
 
 def test_tracks_scope_counts_by_state_ignore_the_state_filter_but_honor_the_rest(

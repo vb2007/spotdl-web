@@ -169,6 +169,7 @@ def test_download_track_file_404s_for_non_owner_and_200s_for_owner_and_admin(
 
 
 def test_all_users_flag_from_non_admin_is_silently_ignored(client, db_session, make_user, session_cookie):
+    """v54: so is a non-admin's `view=all`/`view=others` -- normalized to `mine`, never 403."""
     owner = make_user("owner@example.com")
     other = make_user("other@example.com")
     owner_cookie = session_cookie("owner@example.com")
@@ -176,25 +177,61 @@ def test_all_users_flag_from_non_admin_is_silently_ignored(client, db_session, m
     _make_job(db_session, owner)
     _make_job(db_session, other)
 
-    response = _as(client, owner_cookie).get("/api/jobs?all_users=true")
-    owners = {j["owner_email"] for j in response.json()["items"]}
-    assert owners == {"owner@example.com"}
+    for query in ("all_users=true", "view=all", "view=others", "view=mine"):
+        for path in ("/api/jobs", "/api/jobs?scope=track", "/api/tracks"):
+            sep = "&" if "?" in path else "?"
+            response = _as(client, owner_cookie).get(f"{path}{sep}{query}")
+            assert response.status_code == 200, (path, query)
+            if path == "/api/jobs":
+                owners = {j["owner_email"] for j in response.json()["items"]}
+                assert owners == {"owner@example.com"}, query
+                assert sum(response.json()["counts_by_status"].values()) == 1, query
 
 
 def test_admin_default_view_is_own_jobs_only_and_all_users_reveals_the_rest(
     client, db_session, make_user, session_cookie
 ):
+    """v54: `view=mine` is the default, `view=all` (alias `all_users=true`) is everyone's,
+    and `view=others` is everyone's but the admin's own."""
     owner = make_user("owner@example.com")
-    make_user("root@example.com", is_admin=True)
+    admin = make_user("root@example.com", is_admin=True)
     admin_cookie = session_cookie("root@example.com", is_admin=True)
 
     job = _make_job(db_session, owner)
+    own_job = _make_job(db_session, admin)
 
-    default_view = _as(client, admin_cookie).get("/api/jobs").json()["items"]
-    assert all(j["id"] != str(job.id) for j in default_view)
+    def ids(query: str) -> set[str]:
+        body = _as(client, admin_cookie).get(f"/api/jobs{query}").json()
+        assert sum(body["counts_by_status"].values()) == len(body["items"]), query
+        return {j["id"] for j in body["items"]}
 
-    all_view = _as(client, admin_cookie).get("/api/jobs?all_users=true").json()["items"]
-    assert any(j["id"] == str(job.id) for j in all_view)
+    assert ids("") == {str(own_job.id)}
+    assert ids("?view=mine") == {str(own_job.id)}
+    assert ids("?all_users=true") == {str(job.id), str(own_job.id)}
+    assert ids("?view=all") == {str(job.id), str(own_job.id)}
+    assert ids("?view=others") == {str(job.id)}
+    # all_users=false is the alias's "not all": the admin's own, like the default.
+    assert ids("?all_users=false") == {str(own_job.id)}
+
+
+@pytest.mark.parametrize("path", ["/api/jobs", "/api/jobs?scope=track", "/api/tracks", "/api/stream"])
+@pytest.mark.parametrize("query", ["all_users=true&view=all", "all_users=false&view=others", "view=mine&all_users=true"])
+def test_all_users_and_view_together_is_a_422(client, make_user, session_cookie, path, query):
+    """v54: `all_users` stays an alias of `view=all`; naming both is a conflict, whatever the
+    identity (the check runs before the non-admin normalization)."""
+    make_user("root@example.com", is_admin=True)
+    sep = "&" if "?" in path else "?"
+    for cookie in (session_cookie("root@example.com", is_admin=True), session_cookie("owner@example.com")):
+        response = _as(client, cookie).get(f"{path}{sep}{query}")
+        assert response.status_code == 422, (path, query)
+        assert response.json()["code"] == "invalid_list_params"
+
+
+def test_an_unknown_view_is_a_422(client, make_user, session_cookie):
+    make_user("root@example.com", is_admin=True)
+    _as(client, session_cookie("root@example.com", is_admin=True))
+    for path in ("/api/jobs?view=everyone", "/api/tracks?view=theirs", "/api/stream?view=x"):
+        assert client.get(path).status_code == 422, path
 
 
 def test_search_and_scope_track_never_surface_another_users_rows(client, db_session, make_user, session_cookie):
@@ -218,16 +255,23 @@ def test_search_and_scope_track_never_surface_another_users_rows(client, db_sess
 
     # A search term that *does* match the victim's track must still come back empty for
     # a non-owner, non-admin caller -- across every surface that accepts `q`.
+    # v54: the admin-only views are no way around it, `others` least of all.
     for path in ("/api/jobs", "/api/jobs?scope=track", "/api/tracks"):
-        response = client.get(f"{path}{'&' if '?' in path else '?'}q=VeryUniqueSearchableTitle")
-        assert response.status_code == 200
-        assert response.json()["items"] == [], path
+        for view in ("", "&view=all", "&view=others", "&all_users=true"):
+            response = client.get(f"{path}{'&' if '?' in path else '?'}q=VeryUniqueSearchableTitle{view}")
+            assert response.status_code == 200
+            assert response.json()["items"] == [], (path, view)
 
     # Same for the victim's job's own /{id}/tracks endpoint -- direct-id, must 404.
     assert client.get(f"/api/jobs/{victim_job.id}/tracks?q=VeryUnique").status_code == 404
 
     # And status/state filters must not become a side channel either.
-    for path in ("/api/jobs?status=waiting", "/api/tracks?state=waiting"):
+    for path in (
+        "/api/jobs?status=waiting",
+        "/api/tracks?state=waiting",
+        "/api/tracks?status=waiting&view=others",
+        "/api/jobs?status=waiting&view=others",
+    ):
         response = client.get(path)
         assert response.status_code == 200
         ids = {item["id"] for item in response.json()["items"]}
@@ -238,10 +282,11 @@ def test_search_and_scope_track_never_surface_another_users_rows(client, db_sess
 def test_tracks_scope_counts_by_state_are_owner_scoped(client, db_session, make_user, session_cookie):
     """v35 (g): the tracks scope's state-chip counts are a data surface too -- a stranger's
     tracks must never show up in them, through either URL. An admin's default view is its
-    own; all_users is honored for an admin only."""
+    own; all_users is honored for an admin only. v54: so are `view=all`/`view=others`, the
+    latter excluding the admin's own tracks."""
     owner = make_user("owner@example.com")
     stranger = make_user("stranger@example.com")
-    make_user("root@example.com", is_admin=True)
+    admin = make_user("root@example.com", is_admin=True)
     owner_cookie = session_cookie("owner@example.com")
     stranger_cookie = session_cookie("stranger@example.com")
     admin_cookie = session_cookie("root@example.com", is_admin=True)
@@ -262,10 +307,35 @@ def test_tracks_scope_counts_by_state_are_owner_scoped(client, db_session, make_
         sep = "&" if "?" in url else "?"
         ignored = _as(client, owner_cookie).get(f"{url}{sep}all_users=true").json()
         assert ignored["counts_by_state"] == {"waiting": 1, "completed": 1}
+        for query in ("all_users=true", "view=all", "view=others"):
+            ignored = _as(client, owner_cookie).get(f"{url}{sep}{query}").json()
+            assert ignored["counts_by_state"] == {"waiting": 1, "completed": 1}, query
         admin_own = _as(client, admin_cookie).get(url).json()
         assert admin_own["counts_by_state"] == {}
         admin_all = _as(client, admin_cookie).get(f"{url}{sep}all_users=true").json()
         assert admin_all["counts_by_state"] == {"waiting": 4, "completed": 1}
+
+    # The admin's own tracks now exist: `mine` is just them, `all` adds them, `others` doesn't.
+    admin_job = _make_job(db_session, admin)
+    _make_track(db_session, admin_job, state=TrackState.LOOKUP_FAILED)
+    for url in ("/api/tracks", "/api/jobs?scope=track"):
+        sep = "&" if "?" in url else "?"
+        expected = {
+            "view=mine": {"lookup_failed": 1},
+            "view=all": {"waiting": 4, "completed": 1, "lookup_failed": 1},
+            "all_users=true": {"waiting": 4, "completed": 1, "lookup_failed": 1},
+            "view=others": {"waiting": 4, "completed": 1},
+        }
+        for query, counts in expected.items():
+            body = _as(client, admin_cookie).get(f"{url}{sep}{query}").json()
+            assert body["counts_by_state"] == counts, (url, query)
+            assert len(body["items"]) == sum(counts.values()), (url, query)
+        # The job-status subquery takes the same predicate: `others` + a status filter never
+        # reaches the admin's own (settled, partial) job.
+        others_settled = _as(client, admin_cookie).get(f"{url}{sep}view=others&status=settled").json()
+        assert others_settled["items"] == [], url
+        mine_settled = _as(client, admin_cookie).get(f"{url}{sep}view=mine&status=settled").json()
+        assert len(mine_settled["items"]) == 1, url
 
 
 def test_admin_stats_is_admin_only_and_hidden_from_everyone_else(
