@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1792969313.5252378,
-    "ast_hash": "4ba122fba37619a931e4d81ebd0641d7",
+    "mtime": 1792971942.108131,
+    "ast_hash": "dfcb6ebe53993f7b4b9f62dec3e4db59",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -360,8 +360,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1792969303.6603646,
-    "ast_hash": "8f5ac58045960c8c869fb2615110ae7a",
+    "mtime": 1792971942.4559252,
+    "ast_hash": "07266d9abc9a243bcd5eab8d83318b0b",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1792962362.0316303,
-    "ast_hash": "01944b0c2cd508108e4e2c1cf0b1dae5",
+    "mtime": 1792971991.7850335,
+    "ast_hash": "857ae6531ce5970971153a2f88665b6e",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
@@ -1040,8 +1040,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.test.ts": {
-    "mtime": 1792969349.9851706,
-    "ast_hash": "5350cc8a609751b58f6486483d4eb1f1",
+    "mtime": 1792971974.1089315,
+    "ast_hash": "5d2e19812c52b116c8b67a454e59e45d",
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/progressCache.ts": {

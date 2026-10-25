@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1792967010.8948977,
-    "ast_hash": "47bf8a3adfdba839ab055a658fead519",
+    "mtime": 1792969313.5252378,
+    "ast_hash": "4ba122fba37619a931e4d81ebd0641d7",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -360,8 +360,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1792966423.563077,
-    "ast_hash": "e356ace84ca1c7f417da605a5661d622",
+    "mtime": 1792969303.6603646,
+    "ast_hash": "8f5ac58045960c8c869fb2615110ae7a",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792967121.2963173,
-    "ast_hash": "51d3617a84356c40dd8586034c0b5ec5",
+    "mtime": 1792969323.714268,
+    "ast_hash": "30204b2c50e7d30a75ac1cbf863098f6",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -800,8 +800,8 @@
     "semantic_hash": ""
   },
   "scripts/verify_separation_sse.sh": {
-    "mtime": 1792960197.785943,
-    "ast_hash": "cac4e91add52de48f3cba53568b2817e",
+    "mtime": 1792969323.7145817,
+    "ast_hash": "d2951870c21f89071fb6a5322c77110c",
     "semantic_hash": ""
   },
   "backend/alembic/versions/c1a9f0e2b3d4_add_no_output_track_error_type.py": {
@@ -1040,8 +1040,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.test.ts": {
-    "mtime": 1792966276.8105547,
-    "ast_hash": "20191f4c40cdf4c40a63847f353befc0",
+    "mtime": 1792969349.9851706,
+    "ast_hash": "5350cc8a609751b58f6486483d4eb1f1",
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/progressCache.ts": {
