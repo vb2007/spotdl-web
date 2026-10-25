@@ -73,6 +73,14 @@ test.describe('admin', () => {
 
 		await switched(page, () => viewButton(page, m.queuectl_viewing_mine).click());
 		await expectView(page, 'mine');
+
+		// Back to the dashboard from another page brings back the view it was left in, not the
+		// one the history entry was first loaded with (`?view=others`, from the reload above).
+		await page.getByRole('link', { name: t(m.dashboard_nav_account), exact: true }).click();
+		await expect(page).toHaveURL(/\/account$/);
+		await page.goBack();
+		await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
+		await expectView(page, 'mine');
 	});
 
 	test('a link submitted in the others view is not shown there; a notice says where it went', async ({

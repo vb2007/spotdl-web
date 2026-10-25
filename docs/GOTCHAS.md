@@ -486,7 +486,10 @@ needed" claim — rather than silently deleted.
   own downloads there: their amber needs a separate own-download check; a dropped run of own
   messages must still heartbeat on schedule (the tunnel's idle timeout) → *v54*
 - SSE payloads name no owner (v17), so in `view=all` the page can't tell whose a new lane is: one
-  debounced bulk lookup (the view's `downloading` listing plus `view=mine`) places lanes → *v54*
+  debounced bulk lookup (the view's `downloading` listing, owners embedded) places lanes → *v54*
+- SvelteKit's `replaceState` leaves `page.url` at the last navigation and records that stale URL
+  in the history entry, so a later Back navigates to it: read a query-string state from `location`
+  → *v54*
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
   Tunnel closes the connection → *v08*
 - `get_message(ignore_subscribe_messages=True)` returns `None` immediately after subscribe, so the
@@ -6287,9 +6290,12 @@ independently-found production bug from the same conversation)
   them dropped under `others`, nothing would have been written at all. `_event_stream` now also
   writes a heartbeat when 15 s pass since the last write, dropped messages or not.
 - **Whose lane is it, in `all`?** The SSE payloads carry no owner, so a lane that arrives by event
-  is unplaced until `resolveLaneOwners` (debounced 250 ms, at most two bulk requests: the view's
-  own `downloading` listing, which embeds `owner_*`, and `view=mine`). Until then it reads as
-  elsewhere (neutral), so the admin's own lane in `all` turns amber a moment after it appears.
+  is unplaced until `resolveLaneOwners` (debounced 250 ms, one bulk request: the view's own
+  `downloading` listing, which embeds `owner_*`; the page tells the store the viewer's email, so the
+  same listing says whose lane is the viewer's). Until then it reads as elsewhere (neutral), so the
+  admin's own lane in `all` turns amber a moment after it appears. _(Corrected 2026-10-25, v54
+  review round 2: the first version also asked `view=mine` and compared ids, two snapshots that
+  could disagree.)_
   `lanesLookedUp` keeps a lane the lookup couldn't list (it left `downloading`) from asking again
   on every progress tick.
 - **"Live" on a row was "receiving", not "receiving for you".** v47 made a job's badge and bar
@@ -6300,3 +6306,12 @@ independently-found production bug from the same conversation)
   two identities, en/hu, desktop/mobile) missed the first download: it finished while the pages
   were still logging in. Holding the track `waiting` a minute out let the pages settle first. A
   second id turned out to be a song already on disk under the same filename and settled in 0.2 s.
+- **`replaceState` and `page.url` disagree, and history remembers the wrong one.** SvelteKit's
+  `replaceState(url, state)` rewrites the address bar but leaves `page.url` at the last real
+  navigation, and stores that stale `page.url` in the history entry (`PAGE_URL_KEY`). A Back to
+  the entry then navigates to the stale URL: a hard load at `?view=others`, a switch to mine (the
+  bar reads `/`), a trip to `/account` and Back came back as others. Both the "is the URL already
+  right" check and the mount-time read take `window.location` (the page is `ssr = false`).
+  `replaceState` in `onMount` of a hard load also throws in dev ("before router is initialized":
+  `started` is set after mount and after the first `afterNavigate`), so the mount-time sync waits
+  a `setTimeout`.

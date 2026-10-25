@@ -908,3 +908,43 @@ describe('v54 review round 1', () => {
 		expect(get(queue.viewerReceiving)).toBe(true);
 	});
 });
+
+describe('v54 review round 2', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		queue.reset();
+		vi.resetAllMocks();
+		listJobsPage.mockResolvedValue(jobsPage([]));
+		listTracksPage.mockResolvedValue(tracksPage([]));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('others: a submit or retry that resolves there is never inserted', () => {
+		queue.setView('others');
+		queue.addJob(job('mine-1', 'expanding', 'expanding'));
+		expect(get(queue.incomingJobs)).toHaveLength(0);
+		queue.setView('all');
+		queue.addJob(job('mine-2', 'expanding', 'expanding'));
+		expect(get(queue.incomingJobs).map((j) => j.id)).toEqual(['mine-2']);
+	});
+
+	it('others: a poll that starts after a resync wins over the resync\u2019s older snapshot', async () => {
+		queue.setView('others');
+		const own = deferred<TracksPage>();
+		listTracksPage.mockImplementation((params = {}) =>
+			params.view === 'mine' ? own.promise : Promise.resolve(tracksPage([]))
+		);
+		const reloading = queue.reload();
+		// The newer poll sees the viewer's download already over.
+		listTracksPage.mockImplementation(async () => tracksPage([]));
+		await queue.refreshOwnElsewhere();
+		expect(get(queue.viewerReceiving)).toBe(false);
+		// The resync's older snapshot (still downloading) lands afterwards: dropped.
+		own.resolve(tracksPage([downloadingTrack('mine-1')]));
+		await reloading;
+		expect(get(queue.viewerReceiving)).toBe(false);
+	});
+});

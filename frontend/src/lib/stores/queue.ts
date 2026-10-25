@@ -417,6 +417,8 @@ function createQueueStore() {
 	async function hydrateLive(): Promise<void> {
 		const seq = ++liveHydrateSeq;
 		const startedAt = liveEventCounter;
+		// A poll that starts after this snapshot is newer than it, and wins.
+		const ownSeq = view === 'others' ? ++ownElsewhereSeq : null;
 		const [incomingResult, activeResult, ownResult] = await Promise.allSettled([
 			api.listJobsPage({ status: ['expanding', 'failed'], view, limit: HYDRATE_LIMIT }),
 			api.listTracksPage({
@@ -430,10 +432,9 @@ function createQueueStore() {
 			view === 'others' ? ownDownloadingIds() : Promise.resolve(null)
 		]);
 		if (seq !== liveHydrateSeq) return;
-		// A failed check keeps the last value, as `refreshOwnElsewhere`'s does; a poll still in
-		// flight from before this resync must not overwrite it afterwards.
-		if (view === 'others' && ownResult.status === 'fulfilled') {
-			ownElsewhereSeq++;
+		// A failed check keeps the last value, as `refreshOwnElsewhere`'s does; a poll from
+		// before this resync can't overwrite it, nor can this overwrite a later poll's.
+		if (ownSeq === ownElsewhereSeq && ownResult.status === 'fulfilled') {
 			ownReceivingElsewhere.set(ownResult.value?.size ?? 0);
 		}
 		if (incomingResult.status === 'fulfilled') {
@@ -931,6 +932,9 @@ function createQueueStore() {
 	 * it may not match the active filters, e.g. an archived-only view), so patching `page`
 	 * directly would be wrong more often than right. */
 	function addJob(job: Job): void {
+		// v54: the others view leaves the viewer's own jobs out, a submit or retry included,
+		// even one that resolved after a switch into it.
+		if (view === 'others') return;
 		touchIncoming(job.id);
 		incoming.update((current) => ({ ...current, [job.id]: job }));
 	}

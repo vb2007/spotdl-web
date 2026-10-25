@@ -56,8 +56,11 @@
 	// Never for a non-admin, whatever the URL says or an earlier admin session on this tab
 	// left in the store.
 	const VIEWS: readonly View[] = ['mine', 'all', 'others'];
+	// `location`, not `route.url`: a Back to an entry `replaceState` rewrote navigates to the URL
+	// SvelteKit recorded for it (the one before the rewrite), so `route.url` can name a view the
+	// admin has since left; the address bar can't. The page is client-only (`ssr = false`).
 	function viewInUrl(): View | null {
-		const asked = route.url.searchParams.get('view');
+		const asked = new URLSearchParams(window.location.search).get('view');
 		return VIEWS.find((v) => v === asked) ?? null;
 	}
 	let view = $state<View>(untrack(() => (isAdmin ? (viewInUrl() ?? queue.getView()) : 'mine')));
