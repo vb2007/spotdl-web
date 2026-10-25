@@ -6197,7 +6197,8 @@ independently-found production bug from the same conversation)
     `.svelte-kit` loss also 500s every open page until the host regenerates it). `docker compose
     restart web` remounts all three, and the e2e global setup refuses to start while one is
     missing (`detachedWebVolumes`), so it can't come back as a mid-run reload.
-  - A host `npm run build` still logs `page reload build/*.html`, which Vite's client ignores (it
+  - A host `npm run build` still logs `page reload build/*.html`, and the e2e HTML reporter
+    `page reload playwright-report/*.html` at the end of a run; Vite's client ignores both (it
     reloads only for its own page's HTML).
 - **Chromium keeps a `Secure` cookie on `http://127.0.0.1`; Playwright's request contexts
   don't.** Logging in through the page on `127.0.0.1` gave a working session (`/api/auth/me` 200
