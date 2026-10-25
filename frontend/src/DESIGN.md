@@ -241,7 +241,8 @@ second colour vocabulary for a new component — map any new state onto one of t
 > in the job rows' owner-tag style, so colour is never the only cue; their rows read as idle. The
 > viewer's own download warms the page in **every** view, including other-users, whose stream
 > leaves the viewer's own events out: there the page asks (on resync and on its 5s worker poll)
-> whether the viewer has a download of their own receiving. This closes §8.3.
+> whether the viewer has a download of their own receiving. The Waterfall's edge stays neutral
+> there: it marks a lane on the panel, and that view shows none of the viewer's. This closes §8.3.
 
 `--signal-ink` (`#2a1c05`, a dark ink for text on an amber fill) and `--fail-dim` (`#5c2f30`) are
 defined in `:root` but consumed nowhere as of v47: nothing sets text on amber, and the controls that
