@@ -509,3 +509,20 @@ here.
   ship as `5.52.0`. The owner left the choice to the v52 session. `5.53.1` keeps every later
   slice's planned `5.NN.0` (`5.54.0` would have taken v54's), at the cost of the patch number a
   `v53.1` would have used: such a slice, if one is ever inserted, takes `5.53.2`.
+
+- **2026-10-25, v69: what a removal does to the person's downloads (owner's decision).** The
+  2026-10-24 entry left this open: as written, the person's queued tracks would have kept
+  downloading, since nothing in the dispatch path looks at the allowlist.
+  - **The rule:** a job that has already started keeps downloading to the end, so no album or
+    artist is left with gaps in the archive. A job that hasn't started doesn't start. The unit is
+    the job, for albums, playlists and artists alike.
+  - **Held, not cancelled:** an unstarted job is held (`jobs.held_at`, rollup lifecycle `held`).
+    The admin can still cancel it, and adding the address again resumes it.
+  - **Watched jobs (v63)** of a removed owner aren't re-expanded, started or not, since new tracks
+    are new work.
+  - **How:**
+    - the removal and `download_track` serialize on the job row, so nothing starts after the hold;
+    - a gate in `download_track` drains messages already in the broker without an attempt.
+
+    `v69-user-access.md` carries the tasks, the files (`tasks/{download,expand,beat}.py`,
+    `services/rollup.py`, `models/job.py`, `i18n/labels.ts`) and the Done-when evidence.

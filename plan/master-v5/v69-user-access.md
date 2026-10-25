@@ -32,6 +32,13 @@ Today:
 
   Their jobs and files stay. Adding the address again restores the same `users` row and its
   history.
+- **Downloads after removal (2026-10-25):** a job that **has started** keeps downloading to the
+  end, so no album or artist is left half-archived. A job that **hasn't started** doesn't start.
+  - The unit is the job, so this covers albums, playlists and artists alike. A started artist job
+    finishes every album in it, including albums none of whose tracks had begun.
+  - A started job keeps its retry ladder, which may take days.
+  - A job that hadn't started is **held**: none of its tracks is attempted. The admin can still
+    cancel it. Adding the address again resumes it.
 
 The `users` table is untouched in meaning: it still decides what someone owns and may do, and
 `is_admin` still comes from `ADMIN_EMAIL`. Only "who may log in" moves from env to the database.
@@ -44,9 +51,10 @@ The `users` table is untouched in meaning: it still decides what someone owns an
        `services.users.normalize_email`);
      - `added_by`: FK `users.id`, `ON DELETE SET NULL`, nullable, since imported rows have none;
      - `added_at`: `server_default=now()`.
+   - A new nullable `jobs.held_at` timestamp (task 3). It needs no index.
    - A data step imports `get_settings().allowed_emails ∪ {ADMIN_EMAIL}`, normalized, with
      `ON CONFLICT DO NOTHING`. Running it twice changes nothing.
-   - `downgrade()` drops the table. The env list still exists then, so behavior falls back to
+   - `downgrade()` drops the table and `jobs.held_at`. The env list still exists then, so behavior falls back to
      today's.
    - The migration only adds data. Say so in its docstring, and take a `pg_backup` before the
      production deploy anyway (the master-v4 rule).
@@ -60,10 +68,54 @@ The `users` table is untouched in meaning: it still decides what someone owns an
      - an existing row gives 409 `email_already_allowed`.
    - `remove(db, email)`:
      - `ADMIN_EMAIL` gives 409 `cannot_remove_admin`, and an unknown address 404;
-     - otherwise, in **one transaction**: delete the row, delete every `user_sessions` row of the
-       matching user (if a user row exists), and set `revoked_at` on all of that user's `api_keys`;
-     - after commit, publish the revocation (task 4).
-3. **Login and config.**
+     - otherwise, in **one transaction**:
+       - delete the row;
+       - if a user row exists, delete every `user_sessions` row of that user;
+       - set `revoked_at` on all of that user's `api_keys`;
+       - hold the user's unstarted jobs (task 3);
+     - after commit, publish the revocation (task 5).
+   - `add` of an address whose user row exists resumes that user's held jobs (task 3), in the same
+     transaction as the insert.
+3. **Downloads after removal.**
+   - **"Started":** at least one of the job's tracks either is `downloading`, `completed`,
+     `skipped_duplicate` or `lookup_failed`, or has `attempt_count > 0`. In other words, the job
+     has had an attempt or a dedup result.
+     - `waiting` alone isn't enough: the stale sweep moves a reclaimed `queued` track to
+       `waiting` without any attempt (`_reclaim_stale_tracks`).
+     - The removal decides this per job and stores it: `held_at = now()` on every job of the user
+       that isn't started, isn't `cancelled`/`failed`, and isn't archived.
+     - An `expanding` job counts as not started.
+     - One `UPDATE … WHERE NOT EXISTS (…)` does this, never a per-job loop.
+   - **The race.** The removal and `download_track`'s move to `downloading` serialize on the job
+     row:
+     - the removal locks the user's job rows (`FOR UPDATE`) before deciding;
+     - `download_track` reads `held_at` under a `FOR SHARE` lock on its job in the transaction that
+       sets `downloading`.
+
+     So a track that gets in first makes its job started, and nothing can start after the hold.
+   - **Enforcement in `download_track`.** A gate after the cancel gate (v34.1 style): a message
+     whose job has `held_at` set puts its track back to `pending` and returns, with no attempt row,
+     no breaker feed and no event. Tracks already in the broker drain this way.
+   - `expand_job`: a held job finishes expanding, but enqueues nothing; its tracks stay `pending`.
+   - **Every other path meets the same gate.** Beat dispatches only `waiting` tracks, and a held
+     job has none. The stale sweep (v34.1) can reclaim a held job's still-`queued` track before
+     its message drains; beat then re-dispatches it, and the gate puts it back to `pending`. A
+     test covers this.
+   - **Watched jobs (v63).** Beat's watched-job selection skips every job whose owner isn't allowed
+     (one join on `allowed_emails` plus `ADMIN_EMAIL`), **started or not**. A re-expansion brings
+     new tracks, which is new work.
+   - **Resume on re-add,** in `add`'s transaction: clear `held_at` on the user's jobs. After
+     commit, enqueue their `pending` tracks with one bulk query and one `.delay` per track, as
+     `_enqueue_pending_tracks` does. Watched jobs come due again at their `next_expand_at`.
+   - **Rollup.** A new lifecycle **`held`**: `held_at` is set, and the job isn't
+     `cancelled`/`failed`.
+     - It's derived in `services/rollup.py` (`lifecycle_case`, `STATUS_ORDER`, the `?status=`
+       vocabulary).
+     - It's labelled in `frontend/src/lib/i18n/labels.ts` (en/hu): "Held: owner removed".
+     - Archiving needs no change: it only takes `settled`/`failed`/`cancelled`, so a held job is
+       never auto-archived (`services/archive.py`).
+     - Only the admin can see it (v54's "others" view). The owner is signed out.
+4. **Login and config.**
    - `login()` in `routers/auth.py` uses `allowlist.is_allowed`, and keeps the single
      indistinguishable 401.
    - Remove `_check_admin_email_is_allowlisted` from `config.py`. `ALLOWED_EMAILS` becomes
@@ -72,7 +124,7 @@ The `users` table is untouched in meaning: it still decides what someone owns an
      table: "ALLOWED_EMAILS is ignored since v69, manage users in /users". Without it, a later
      `.env` edit would silently do nothing. The warning never prints the addresses (they count as
      personal data); it prints only the count.
-4. **Live revocation.**
+5. **Live revocation.**
    - **A separate control channel** `spotdl:control:{user_id}` (`services/events.py`). It must
      **never** match the admin's `spotdl:events:*` pattern subscription. Otherwise removing
      someone would deliver the revocation to the admin's own tab, which would log itself out.
@@ -89,15 +141,15 @@ The `users` table is untouched in meaning: it still decides what someone owns an
      - a redirect to `/login` with "Your access was removed", in en and hu.
 
      Reuse whatever single logout function exists; don't add a second one.
-5. **The admin API**, in new `routers/admin_users.py`:
+6. **The admin API**, in new `routers/admin_users.py`:
    - `GET /api/admin/allowlist`: **one** bulk query joining `users` by email. Each row has email,
-     `added_at`, the `added_by` email, username, `last_login_at` (null means "never signed in"), and
-     `is_admin_email`.
+     `added_at`, the `added_by` email, username, `last_login_at` (null means "never signed in"),
+     `is_admin_email`, and `held_jobs` (the count of the user's held jobs).
    - `POST /api/admin/allowlist` `{email}`: 201 with the row.
    - `DELETE /api/admin/allowlist/{email}`: 204.
    - Admin-only, answering a non-admin per **v56's A6 table**. An API key is refused on all three
      (v53's boundary; v70's deny-by-default test will check it).
-6. **The `/users` page** (admin-only; impeccable `shape` → `critique` → `audit`, outputs recorded):
+7. **The `/users` page** (admin-only; impeccable `shape` → `critique` → `audit`, outputs recorded):
    - A new route with the SvelteKit `ssr`/`prerender` exports **and** its own `frontend/nginx.conf`
      `location` (CLAUDE.md invariant). The page guards non-admins the way `/settings` does today.
    - An admin-only nav entry in `+layout.svelte`, **absent** from a non-admin's DOM (not just
@@ -110,13 +162,18 @@ The `users` table is untouched in meaning: it still decides what someone owns an
      - "never signed in" when there's no user row;
      - "added by / when";
      - the `ADMIN_EMAIL` row has a badge and no remove control.
-   - **Remove:** through the existing `ConfirmDialog`. The dialog states the consequence: signed
-     out everywhere now, extension keys revoked, data kept.
+   - **Remove:** through the existing `ConfirmDialog`. The dialog states the consequence:
+     - signed out everywhere now, and extension keys revoked;
+     - downloads already started finish;
+     - jobs not started yet are held until the address is added again;
+     - data kept.
+   - A row with held jobs shows their count ("3 jobs held"). Adding that address again says they
+     resume.
    - **Keyboard:** a go-to binding registered in the shortcut registry, collision-checked there,
      following the Hungarian QWERTZ rules (no AltGr, no `Y`/`Z`, `event.key`). It's listed in the
      help overlay. Every control is keyboard-reachable.
    - All strings go in both `en.json` and `hu.json`. Phone width is handled.
-7. **Docs and knowledge.**
+8. **Docs and knowledge.**
    - `docs/DEPLOYMENT.md`: replace the "add an address to `ALLOWED_EMAILS`" section with
      `/users`, and state that the env list is import-only.
    - `.env.example` and `.env.dev.example`: comments that `ALLOWED_EMAILS` only seeds a fresh
@@ -125,6 +182,7 @@ The `users` table is untouched in meaning: it still decides what someone owns an
      ones are added in `/users`, or with a `down --volumes` reset.
    - `CLAUDE.md`: edit the master-v2 "User identity" and "Admin" rows, keeping the file ≤250 lines.
      The allowlist is a DB table managed in `/users`, and `ADMIN_EMAIL` is always allowed.
+     Also add `held` to the "Job rollup status" lifecycle line.
    - A GOTCHAS **v69** entry with its index line.
 
 ## Files owned
@@ -137,17 +195,23 @@ The `users` table is untouched in meaning: it still decides what someone owns an
   - new `backend/app/routers/admin_users.py`, plus `main.py` (the include);
   - `config.py` (the validator and the warning);
   - `routers/stream.py` (the control subscription and the re-check);
-  - `services/events.py` (the control publish).
+  - `services/events.py` (the control publish);
+  - `models/job.py` (`held_at`), `services/rollup.py` (the `held` lifecycle);
+  - `tasks/download.py` (the hold gate), `tasks/expand.py` (no enqueue when held), and
+    `tasks/beat.py` (the watched-job owner filter only).
 - **Frontend:**
   - new `frontend/src/routes/users/*`, plus `frontend/nginx.conf` (one `location`);
   - `frontend/src/routes/+layout.svelte` (the nav entry only);
   - `frontend/src/lib/api.ts` (the new calls);
   - `frontend/src/lib/keyboard/bindings.ts` (one binding);
   - `frontend/src/lib/stores/queue.ts` (the revoke-handling block only; v68 may touch the store
-    for windowing, a declared wave-5 hotspot).
+    for windowing, a declared wave-5 hotspot);
+  - `frontend/src/lib/i18n/labels.ts` (the `held` label). If `QueueControls.svelte` lists the
+    lifecycles itself, the `held` filter option is one more wave-5 hotspot with v67, which owns
+    its layout.
 - **Tests:**
   - new `frontend/e2e/user-access.spec.ts` (v68 owns the rest of `frontend/e2e/`);
-  - new `backend/tests/test_allowlist.py`;
+  - new `backend/tests/test_allowlist.py` and `backend/tests/test_removal_holds.py`;
   - `scripts/verify_separation_sse.sh` (the revocation case).
 - **Docs:** `docs/DEPLOYMENT.md`, `docs/LOCAL_DEV.md`, `.env.example`, `.env.dev.example`,
   `CLAUDE.md`, plus the message JSONs and GOTCHAS (hotspots).
@@ -158,6 +222,7 @@ The `users` table is untouched in meaning: it still decides what someone owns an
 - Creating vb2007.hu accounts upstream.
 - Roles beyond the single admin.
 - Deleting a user's data, and a user-list view beyond the allowlist rows.
+- Holding a single track, or part of a job. The hold is per job, by the owner's decision.
 
 ## Deploy notes
 
@@ -183,7 +248,27 @@ The `users` table is untouched in meaning: it still decides what someone owns an
 - [ ] **The safety net:** with the publish suppressed (a test hook), the removed user's stream
       still ends within one heartbeat (a capture with timestamps). No connection sits `idle in
       transaction` meanwhile (`pg_stat_activity`).
-- [ ] **Re-add** restores the same `users.id` and its jobs (ids before and after).
+- [ ] **Downloads after removal,** on a slot stack, with the user's jobs set up beforehand:
+      album **A** started (one track `completed`, the rest `queued`), artist **B** started (one
+      track `waiting` on the ladder), album **C** not started (all its tracks `queued` in the
+      broker), and artist **D** still `expanding`. After the removal, each with its own evidence:
+  - A and B run to the end. Every one of their tracks reaches a terminal state, and B's ladder
+    retry is dispatched when due (`track_attempts` and state counts, plus beat and worker log
+    lines).
+  - C and D get `held_at`, and the rollup shows `held`. C's queued messages drain with **no
+    attempt row**, and its tracks are back to `pending`. D finishes expanding and enqueues
+    nothing (worker log, plus a query before and after).
+  - The removed user's watched job isn't re-expanded at its `next_expand_at` (beat log over one
+    due tick).
+  - The admin's "others" view shows C and D as "Held: owner removed" in `en` and `hu`. Archiving
+    leaves them alone.
+- [ ] **The race:** a pytest with two connections, where one track moves to `downloading` while
+      the removal runs. Whichever commits first wins: either the job is started and runs on, or
+      it's held and the track never starts. Neither outcome leaves the track `downloading` in a
+      held job.
+- [ ] **Re-add** restores the same `users.id` and its jobs (ids before and after). C's and D's
+      `held_at` are cleared, and their `pending` tracks are enqueued **once each** (the count of
+      `.delay` calls, plus the worker log) and download. The watched job is due again.
 - [ ] `ADMIN_EMAIL` can't be removed (409). A duplicate gets 409, a malformed address 422, and an
       unknown one 404 (pytest plus one real call each).
 - [ ] **Boundaries:**
