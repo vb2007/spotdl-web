@@ -12,9 +12,9 @@ from app.routers import auth as auth_router
 from app.routers import jobs as jobs_router
 from app.services import spotify_urls
 from app.services.redaction import redact_text
-from extension_support import api_keys_table, bearer, fake_redis  # noqa: F401 (fixtures)
+from extension_support import bearer, fake_redis  # noqa: F401 (fixtures)
 
-pytestmark = pytest.mark.usefixtures("api_keys_table", "fake_redis")
+pytestmark = pytest.mark.usefixtures("fake_redis")
 
 TRACK_ID = "3n3Ppam7vgaVa1iaRUc9Lp"
 ALBUM_ID = "4OHNH3sDzIxnmUADXzv2kT"

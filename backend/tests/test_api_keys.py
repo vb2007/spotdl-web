@@ -13,9 +13,9 @@ from app.main import app
 from app.models import ApiKey
 from app.routers import jobs as jobs_router
 from app.services import api_keys
-from extension_support import api_keys_table, bearer, fake_redis  # noqa: F401 (fixtures)
+from extension_support import bearer, fake_redis  # noqa: F401 (fixtures)
 
-pytestmark = pytest.mark.usefixtures("api_keys_table", "fake_redis", "_more_identities")
+pytestmark = pytest.mark.usefixtures("fake_redis", "_more_identities")
 
 
 @pytest.fixture()

@@ -1,11 +1,10 @@
-"""Shared v53 test helpers: an in-memory stand-in for the rate limiter's Redis, and the
-`api_keys` table, which conftest's per-table SQLite schema doesn't create."""
+"""Shared v53 test helpers: an in-memory stand-in for the rate limiter's Redis, and a bearer
+header. (The `api_keys` table comes from the run's Alembic schema since v51.)"""
 
 import time
 
 import pytest
 
-from app.models import ApiKey
 from app.services import rate_limit
 
 
@@ -78,11 +77,6 @@ def fake_redis(monkeypatch) -> FakeRedis:
     fake = FakeRedis()
     monkeypatch.setattr(rate_limit, "_redis", lambda: fake)
     return fake
-
-
-@pytest.fixture()
-def api_keys_table(db_session):
-    ApiKey.__table__.create(db_session.get_bind(), checkfirst=True)
 
 
 def bearer(raw_key: str) -> dict[str, str]:
