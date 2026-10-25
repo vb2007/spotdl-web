@@ -19,6 +19,7 @@ from app.db import begin_snapshot
 from app.models import Job, JobSourceType, Track, TrackState, User
 from app.services import pagination, rollup, search
 from app.services.serializers import track_to_dict
+from app.services.view_scope import View, owner_condition
 
 _SORT_FIELDS = {"created_at", "title", "state"}
 
@@ -32,7 +33,7 @@ def list_tracks(
     *,
     user_id,
     is_admin: bool,
-    all_users: bool,
+    view: View,
     q: str | None,
     job_status_tokens: list[str],
     track_states: list[str],
@@ -75,9 +76,14 @@ def list_tracks(
     )
     if job_id is not None:
         stmt = stmt.where(Track.job_id == job_id)
-    # all_users is honored only for an admin session, same threat model as job listing.
-    if not (all_users and is_admin):
-        stmt = stmt.where(Job.user_id == user_id)
+    # `view` is honored only for an admin session, same threat model as job listing. The
+    # job-status subquery below takes the very same predicate, so `others` can never join
+    # against the viewer's own jobs there.
+    if not is_admin:
+        view = "mine"
+    owner_cond = owner_condition(Job.user_id, view, user_id)
+    if owner_cond is not None:
+        stmt = stmt.where(owner_cond)
     if not include_archived:
         stmt = stmt.where(Job.archived_at.is_(None))
     if source_type is not None:
@@ -87,8 +93,9 @@ def list_tracks(
 
     if job_status_tokens:
         owner_jobs = select(Job.id, Job.state)
-        if not (all_users and is_admin):
-            owner_jobs = owner_jobs.where(Job.user_id == user_id)
+        owner_cond = owner_condition(Job.user_id, view, user_id)
+        if owner_cond is not None:
+            owner_jobs = owner_jobs.where(owner_cond)
         agg = rollup.aggregate_jobs(owner_jobs.subquery())
         lifecycle_expr = rollup.lifecycle_case(agg.c.state, agg.c.active_n, agg.c.waiting_n)
         outcome_raw = rollup.outcome_case(agg.c.partial_n)

@@ -507,7 +507,7 @@ def test_job_listing_snapshot_hides_a_job_committed_mid_listing(committed_db, mo
                 db,
                 user_id=user_id,
                 is_admin=False,
-                all_users=False,
+                view="mine",
                 q=None,
                 status_tokens=[],
                 source_type=None,

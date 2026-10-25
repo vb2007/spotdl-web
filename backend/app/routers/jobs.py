@@ -15,6 +15,7 @@ from app.routers.auth import Principal, require_admin, require_session, require_
 from app.services import archive, events, job_listing, rate_limit, rollup, spotify_urls, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
+from app.services.view_scope import View, resolve_view
 from app.tasks.expand import expand_job
 
 logger = logging.getLogger(__name__)
@@ -255,19 +256,24 @@ def list_jobs(
     dir: Literal["asc", "desc"] | None = None,
     limit: int = DEFAULT_LIMIT,
     cursor: str | None = None,
-    all_users: bool = False,
+    view: View | None = None,
+    all_users: bool | None = None,
 ) -> dict:
     """`scope=track` (the master plan's job/track toggle, "Tracks" position) delegates to
     exactly the same query `GET /api/tracks` runs, sharing `track_listing.list_tracks` --
     both URLs are equally "correct" for a track-scoped result; which one the frontend
-    calls is purely its own choice, not a distinction this API enforces."""
+    calls is purely its own choice, not a distinction this API enforces.
+
+    `view` (v54) is the admin's mine/all/others scope; `all_users=true` is its alias for
+    `all`. A non-admin always gets `mine`."""
+    view = resolve_view(view, all_users, is_admin=user.is_admin)
     try:
         if scope == "track":
             return track_listing.list_tracks(
                 db,
                 user_id=user.id,
                 is_admin=user.is_admin,
-                all_users=all_users,
+                view=view,
                 q=q,
                 job_status_tokens=status,
                 track_states=state,
@@ -283,7 +289,7 @@ def list_jobs(
             db,
             user_id=user.id,
             is_admin=user.is_admin,
-            all_users=all_users,
+            view=view,
             q=q,
             status_tokens=status,
             source_type=source_type,
@@ -387,9 +393,10 @@ def list_job_tracks(
             is_admin=user.is_admin,
             # Ownership of `job_id` is already checked above by `_get_job_or_404` (which
             # itself only bypasses the owner filter for an admin) -- passing
-            # `all_users=is_admin` here reproduces that exact same bypass for the track
-            # query rather than introducing a second, differently-shaped ownership rule.
-            all_users=user.is_admin,
+            # `view="all"` here reproduces that exact same bypass for the track query (the
+            # service narrows a non-admin back to `mine`) rather than introducing a second,
+            # differently-shaped ownership rule.
+            view="all",
             q=q,
             job_status_tokens=[],
             track_states=state,

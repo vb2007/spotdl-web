@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from app.db import begin_snapshot
 from app.models import Job, JobSourceType, User
 from app.services import pagination, rollup, search
+from app.services.view_scope import View, owner_condition
 from app.services.serializers import job_to_dict, track_counts_by_job
 
 _SORT_FIELDS = {"created_at", "title", "status", "track_count", "next_retry"}
@@ -39,7 +40,7 @@ def list_jobs(
     *,
     user_id,
     is_admin: bool,
-    all_users: bool,
+    view: View,
     q: str | None,
     status_tokens: list[str],
     source_type: JobSourceType | None,
@@ -78,10 +79,11 @@ def list_jobs(
         User.username.label("owner_username"),
     ).join(User, Job.user_id == User.id)
 
-    # all_users is honored only for an admin session -- a non-admin passing it is
-    # silently treated exactly as if they hadn't (v17's threat model).
-    if not (all_users and is_admin):
-        base = base.where(Job.user_id == user_id)
+    # `view` is honored only for an admin session -- a non-admin asking for `all` or
+    # `others` is silently treated as `mine` (v17's threat model; v54 adds `others`).
+    owner_cond = owner_condition(Job.user_id, view if is_admin else "mine", user_id)
+    if owner_cond is not None:
+        base = base.where(owner_cond)
     if not include_archived:
         base = base.where(Job.archived_at.is_(None))
     if source_type is not None:
