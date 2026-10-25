@@ -56,8 +56,8 @@ class epoch_bucket(FunctionElement):
     bucket a timestamp falls in, on a clock `offset` seconds east of UTC. Rendered per
     dialect; the bucket length and offset are our own integers and are inlined, so the
     SELECT and GROUP BY expressions compile identically (bound parameters would make
-    Postgres reject the GROUP BY). The SQLite rendering for the in-process tests lives in
-    tests/conftest.py, next to the JSONB shim."""
+    Postgres reject the GROUP BY). Postgres is the only dialect left: the test suite's SQLite
+    rendering went with v51, which runs the tests on Postgres."""
 
     type = BigInteger()
     inherit_cache = False

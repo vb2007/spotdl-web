@@ -1,5 +1,9 @@
 """v48's one-shot data migration that relinks ledger rows stranded by pre-v48 library sweeps
-(alembic revision cab1bff456eb), run against the test database's schema."""
+(alembic revision cab1bff456eb), run against the test database's schema.
+
+Since v51 that schema is real Postgres, so the migration's enum comparisons run against native
+enums: a bound string won't compare with one (`operator does not exist`), which SQLite never
+showed. These tests fail if either comparison loses its cast."""
 
 import importlib.util
 import uuid
@@ -8,6 +12,7 @@ from pathlib import Path
 
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from sqlalchemy import text
 
 from app.models import (
     DownloadedTrack,
@@ -86,6 +91,24 @@ def _track(db_session, spotify_track_id, output_path, state=TrackState.COMPLETED
     )
     db_session.add(track)
     return track
+
+
+def test_the_columns_it_compares_are_native_enums(db_session):
+    """What makes the casts load-bearing here: the columns are Postgres enums, not strings."""
+    types = dict(
+        db_session.execute(
+            text(
+                "SELECT table_name || '.' || column_name, data_type FROM information_schema.columns "
+                "WHERE (table_name, column_name) IN "
+                "(('tracks', 'state'), ('track_attempts', 'outcome'), ('library_sort_runs', 'state'))"
+            )
+        ).all()
+    )
+    assert types == {
+        "tracks.state": "USER-DEFINED",
+        "track_attempts.outcome": "USER-DEFINED",
+        "library_sort_runs.state": "USER-DEFINED",
+    }
 
 
 def test_relinks_a_stranded_row_and_its_tracks_to_the_one_library_copy(db_session):

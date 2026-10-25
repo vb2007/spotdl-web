@@ -57,6 +57,30 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # v51: the suite runs on real Postgres, production's version (v50's pin in
+    # docker-compose.agent.yml), in a container scoped to this job: the runner creates it before
+    # the first step and removes it after the last, cancelled runs included. `127.0.0.1::5432`
+    # publishes it on a loopback port Docker picks, never a fixed one, so two jobs can't collide
+    # and nothing outside this host can reach it (this runner is the production host).
+    # The "Run pytest" step points TEST_DATABASE_URL at it; conftest.py creates its own database
+    # on it per run, migrates it with Alembic, and drops it.
+    # The runner pulls the image itself, before any step: the job-private DOCKER_CONFIG that
+    # publish-deploy.yml's jobs set (#71) can't cover that pull, and it doesn't need to, since
+    # the image is public and pulled anonymously (docs/CI_SELF_HOSTED_RUNNER.md, section 5).
+    services:
+      postgres:
+        image: postgres:18.6-bookworm
+        # No password: reachable on this host's loopback only, and a credentialed URL literal
+        # is what GitGuardian flags on every PR commit (docs/GOTCHAS.md, v44).
+        env:
+          POSTGRES_USER: spotdl
+          POSTGRES_DB: spotdl_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 127.0.0.1::5432
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U spotdl -d spotdl_test"
+          --health-interval 2s --health-timeout 5s --health-retries 30
     steps:
       # v7 targets Node 24 natively - v4 was flagged deprecated (targets Node 20, forced to run
       # on 24 anyway) on this workflow's first real runs. Verified v7.0.1's action.yml directly
@@ -100,9 +124,9 @@ jobs:
           uv venv --clear --python 3.12 .venv
           uv pip install --python .venv/bin/python ".[dev,report]"
 
-      # No Postgres/Redis/ffmpeg service needed here — every test uses an in-memory SQLite
-      # engine and mocks any real spotdl/network call (see docs/CI_SELF_HOSTED_RUNNER.md for
-      # why, and what to add if a future test needs a real service).
+      # Postgres is the job's service container above (v51). No Redis or ffmpeg: every test
+      # mocks any real spotdl/network call and the Redis publish (see
+      # docs/CI_SELF_HOSTED_RUNNER.md for why, and what to add if a future test needs one).
       #
       # v22's cross-user data-separation sweep (CLAUDE.md's "Data separation is a security
       # property" invariant) runs here as an ordinary part of this suite for every REST
@@ -125,6 +149,10 @@ jobs:
       # wrong extension. Deliberately not `-x` / fail-fast — a partial report covering only the
       # first failure defeats the point of a report.
       - name: Run pytest
+        # The `job` context (the port Docker picked) exists only from the steps on: a job-level
+        # `env:` using it fails the whole file at parse time.
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://spotdl@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/spotdl_test
         run: |
           mkdir -p test-reports
           .venv/bin/pytest -v \

@@ -1,8 +1,10 @@
+import threading
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from concurrency import Gate, Thread
 from spotdl.providers.audio.base import AudioProviderError
 
 from app.config import get_settings
@@ -1647,12 +1649,17 @@ def test_ladder_step_ignores_held_and_cancelled_rows(db_session, monkeypatch, fa
 
 # --- v35 (c): redelivery must not rewrite a completed track -----------------------------
 
+_LONG_AGO = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
 
 @pytest.mark.parametrize("state", [TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE])
 def test_redelivered_message_for_a_finished_track_is_a_noop(db_session, monkeypatch, state):
     track = _make_track(db_session)
     track.state = state
     track.output_path = "/downloads/song-a.mp3"
+    # An explicit past value (v51): inside db_session's one transaction, Postgres's now() is
+    # the test's start, so an onupdate bump would write the value the row already holds.
+    track.updated_at = _LONG_AGO
     db_session.add(
         DownloadedTrack(
             spotify_track_id="abc123", file_path="/downloads/song-a.mp3", format="mp3", bitrate="320k"
@@ -1668,6 +1675,7 @@ def test_redelivered_message_for_a_finished_track_is_a_noop(db_session, monkeypa
     monkeypatch.setattr(dedup, "is_already_downloaded", _fail_if_called)
     monkeypatch.setattr(downloads, "get_downloader", _fail_if_called)
     before_updated_at = db_session.get(Track, track.id).updated_at
+    assert before_updated_at == _LONG_AGO
 
     download_task.download_track(str(track.id))
 
@@ -1680,14 +1688,69 @@ def test_redelivered_message_for_a_finished_track_is_a_noop(db_session, monkeypa
     assert published == []
 
 
+def test_a_redelivery_before_the_first_deliverys_ack_is_a_noop_on_real_connections(
+    committed_db, monkeypatch, tmp_path
+):
+    """v51, the test above on real connections: the first delivery commits COMPLETED and its
+    ledger row, then stops before it returns, as a worker that crashes before its ack does
+    (acks_late). The redelivered message runs on a session of its own, and the real dedup
+    gate reads the ledger through its own connection. Guard: the v35 (c) finished-track check;
+    without it the redelivery rewrote the track to skipped_duplicate."""
+    with committed_db() as db:
+        user = User(email="owner@example.com", is_admin=False)
+        db.add(user)
+        db.flush()
+        job = Job(source_url="https://open.spotify.com/track/abc", source_type=JobSourceType.TRACK, user_id=user.id)
+        db.add(job)
+        db.flush()
+        track = Track(
+            job_id=job.id, spotify_track_id="abc123", song_json={"name": "Song A"}, state=TrackState.QUEUED
+        )
+        db.add(track)
+        db.commit()
+        track_id = track.id
+    monkeypatch.setattr(download_task, "SessionLocal", committed_db)
+    monkeypatch.setattr(dedup, "SessionLocal", committed_db)
+    monkeypatch.setattr(download_task.Song, "from_dict", classmethod(lambda cls, data: data))
+    monkeypatch.setattr(tagging, "is_supported_format", lambda path: False)
+    output_path = tmp_path / "song-a.mp3"
+    output_path.write_bytes(b"fake audio bytes")
+    monkeypatch.setattr(downloads, "get_downloader", lambda *args, **kwargs: _FakeDownloader())
+    monkeypatch.setattr(downloads, "download_one", lambda song, downloader: (song, output_path))
+    gate = Gate("first delivery: COMPLETED committed, not yet acked")
+    published = []
+
+    def publish(owner_id, track_id_, job_id, state, **kwargs):
+        published.append((threading.current_thread().name, state))
+        if state == "completed":
+            gate()
+
+    monkeypatch.setattr(events, "publish_track_event", publish)
+
+    first = Thread(download_task.download_track, str(track_id), name="first delivery")
+    gate.wait_reached()
+    download_task.download_track(str(track_id))  # the redelivered message
+    gate.open()
+    first.join()
+
+    with committed_db() as db:
+        track = db.get(Track, track_id)
+        assert (track.state, track.output_path) == (TrackState.COMPLETED, str(output_path))
+        outcomes = [a.outcome for a in db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id)]
+        assert outcomes == [TrackAttemptOutcome.COMPLETED]
+    assert published == [("first delivery", "downloading"), ("first delivery", "completed")]
+
+
 def test_a_stray_message_for_a_cancelled_track_leaves_updated_at_alone(db_session, monkeypatch):
     """v35: record_attempt's counter UPDATE must not bump tracks.updated_at (the job's
     archive clock) when nothing about the track itself changed."""
     track = _make_track(db_session)
     track.state = TrackState.CANCELLED
+    track.updated_at = _LONG_AGO  # see test_redelivered_message_for_a_finished_track_is_a_noop
     db_session.commit()
     _patch_common(monkeypatch, db_session)
     before = db_session.get(Track, track.id).updated_at
+    assert before == _LONG_AGO
 
     download_task.download_track(str(track.id))
 

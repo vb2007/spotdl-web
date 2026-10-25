@@ -2,6 +2,7 @@
 count constancy, and `counts_by_state`."""
 
 import uuid
+from datetime import datetime, timezone
 
 from app.models import Job, JobSourceType, JobState, Track, TrackState
 
@@ -114,8 +115,13 @@ def test_track_listing_embeds_derived_job_title(authenticated_client, db_session
     same `rollup.job_title_expr` the job listing itself uses, just selected alongside
     each track row instead of aggregated per job."""
     job = _make_job(db_session, owner)
-    _add_track(db_session, job, name="First Song")
-    _add_track(db_session, job, name="Second Song")
+    # Explicit created_at, inserted out of order (v51): inside db_session's one transaction
+    # every row's server default is the same instant, so the "first" track was a coin toss.
+    second = _add_track(db_session, job, name="Second Song")
+    first = _add_track(db_session, job, name="First Song")
+    first.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    second.created_at = datetime(2026, 1, 2, tzinfo=timezone.utc)
+    db_session.commit()
 
     response = authenticated_client.get("/api/tracks")
     items = response.json()["items"]

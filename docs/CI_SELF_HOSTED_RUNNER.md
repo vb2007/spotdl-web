@@ -166,24 +166,50 @@ platform-tools on other projects' runners — the point of this section is that 
 itself isn't one of those cases, not that apt has no place in runner setup at all.
 
 **Nothing else needs installing on the host for this test job specifically** — no PostgreSQL, no
-Redis, no `ffmpeg` binary. This is a property of the current test suite, not an oversight:
+Redis, no `ffmpeg` binary:
 
-- Every test uses an in-memory SQLite engine (`backend/tests/conftest.py`'s `db_session`
-  fixture) rather than the real Postgres instance — `DATABASE_URL`/`REDIS_URL`/`SESSION_SECRET`/
-  `ALLOWED_EMAILS`/`ADMIN_EMAIL` (v17+) env vars are set to harmless placeholder values purely to
-  satisfy `Settings()`'s required fields (and its `ADMIN_EMAIL`-in-`ALLOWED_EMAILS` validator) at
-  import time; nothing ever actually connects using them (SQLAlchemy's `create_engine()` and
-  Celery's app construction are both lazy).
+- **PostgreSQL comes as a job-scoped service container (v51).** Until v51 every test ran on an
+  in-memory SQLite engine, which ignores `FOR UPDATE`, has no native enums and compares
+  differently, so a fixed race could only be "proven" by asserting that a lock was requested.
+  The `pytest` job now declares a `services: postgres:` container on production's version
+  (`postgres:18.6-bookworm`, v50's pin). The runner creates it before the first step, on a
+  per-job Docker network, waits for its health check (`pg_isready`), and removes it after the
+  last step, a cancelled run included. Its port is published as `127.0.0.1::5432`: loopback only
+  (this runner *is* the production host), on a host port Docker picks, so concurrent jobs never
+  collide and nothing else on the host is touched. The job reads the chosen port from
+  `${{ job.services.postgres.ports['5432'] }}` into `TEST_DATABASE_URL`. No password is set
+  (`POSTGRES_HOST_AUTH_METHOD=trust`, loopback only), so no credentialed URL literal reaches the
+  repository for GitGuardian to flag (`docs/GOTCHAS.md`, v44). `backend/tests/conftest.py` then
+  creates a database of its own on it, migrates it with Alembic `upgrade head` (the log lists
+  every migration under `test database: alembic upgrade head:`), runs the suite, and drops it.
+  The production Postgres on this host is never contacted: the conftest sets `DATABASE_URL` to the
+  run's own database before the app is imported, refuses a loopback URL without an explicit port
+  or on 5432 (production's, here) before connecting anywhere, and, once connected, refuses a
+  server that holds a production database.
+- **What the runner's Docker setup needs for that (#71).** The runner pulls and starts service
+  containers **itself**, before any step runs, with its own process environment: the Docker CLI
+  config it uses is the runner user's shared `~/.docker/config.json`, which every repository's
+  runner on this host shares. The job-private `DOCKER_CONFIG` that `publish-deploy.yml`'s
+  `publish`/`deploy` jobs set (#71) is set by a step, so it can't apply to that pull, and it
+  doesn't need to: `postgres` is a public Docker Hub image, pulled anonymously. Two things follow:
+  1. The shared config must not carry a broken `docker.io` credential or a `credsStore` whose
+     helper isn't installed. Either fails the service pull (`denied`/`unauthorized`, or `error
+     getting credentials`) before the job's first step, with nothing in the job's own control to
+     fix it. The fix is on the host, as the runner user: `docker logout` (docker.io), or removing
+     the dead `credsStore`. It is the same class of failure as v21's stale GHCR login.
+  2. Docker Hub rate-limits anonymous pulls per IP. The runner re-pulls the image on every job;
+     after the first pull the layers are cached and only the manifest request counts, one per
+     `pytest` job, far below the limit.
+  Verified on this runner by v51's PR run (the "Initialize containers" step's log).
+- **No Redis**: `REDIS_URL` is a placeholder; every test that publishes an event monkeypatches
+  the publish.
 - No test constructs a real `spotdl.download.downloader.Downloader` or calls a real Spotify/
   YouTube endpoint — `SpotifyClient.init`, `get_simple_songs`, `Downloader`, and
   `search_and_download` are all monkeypatched at the call site in every test that touches them.
   `ffmpeg` is only ever needed inside a real `Downloader`, which the test suite never builds.
 
-**If a future test needs one of these for real** (e.g. an actual integration test against
-Postgres, mirroring the manual verification `CLAUDE.md`'s workflow rules already require before
-a PR is merge-ready): add it as a GitHub Actions **service container** in the workflow, or point
-it at this same host's existing Postgres instance the way `docs/DEPLOYMENT.md` does for the
-deployed app — don't reach for either preemptively while the suite doesn't need it.
+**If a future test needs another service for real**, add it the same way: a job-scoped
+**service container** with a loopback, Docker-picked port, never this host's own instance.
 
 ## 6. What the workflows actually run
 
@@ -239,7 +265,8 @@ section already gave; worth listening to it next time before re-learning it.)
   `origin/<base-ref>`) when the diff touches `backend/`/`frontend/` without bumping the version —
   the CI-enforced half of `CLAUDE.md`'s versioning rule. `release.yml` reads this same script's
   stdout as the single source of the version string for the tag it cuts.
-- **`pytest` job** (`runs-on: self-hosted`, working directory `backend/`): checkout → install
+- **`pytest` job** (`runs-on: self-hosted`, working directory `backend/`): a `postgres` service
+  container (v51, section 5) → checkout → install
   `uv` → `uv python install 3.12` → fresh venv + `uv pip install ".[dev,report]"` → `pytest -v`
   generating three report formats (`test-reports/junit.xml`, `report.html`, `report.ods` — see
   Section 8) → uploads each as its own artifact, even on test failure.

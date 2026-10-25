@@ -293,7 +293,7 @@ scripts/agent_stack.sh <slot> env      # write .env.agent from the worktree's .e
 scripts/agent_stack.sh <slot> up       # (re)write .env.agent, build, start, wait until healthy
 scripts/agent_stack.sh <slot> ps|logs|psql
 scripts/agent_stack.sh <slot> run <cmd...>     # <cmd> aimed at the slot (its compose project, files, ports)
-scripts/agent_stack.sh <slot> pytest [args]    # the backend suite, inside the slot's api container
+scripts/agent_stack.sh <slot> pytest [args]    # the backend suite, in the slot's api container, on the slot's Postgres
 scripts/agent_stack.sh <slot> e2e [args]       # the full Playwright suite against the slot
 scripts/agent_stack.sh <slot> realdl <cmd...>  # worker-dl on, under the host-wide lock, for <cmd>
 scripts/agent_stack.sh <slot> down [--volumes]
@@ -440,7 +440,67 @@ runs from the worktree's
 
 **`pytest`** runs the backend suite inside the slot's `api` container, from the worktree's
 `backend/` (the overlay mounts it read-only at `/src`), with pytest pinned to `uv.lock`'s
-versions and a clean environment, as on the host.
+versions and a clean environment, as on the host. Since v51 the suite runs on **real Postgres**,
+never SQLite:
+
+- Each run creates a database of its own on the slot's Postgres (`spotdlweb_s<slot>_test_<random>`),
+  builds the schema with Alembic `upgrade head` (the run's header lists every migration), and
+  drops it at the end. Two runs at once, on one slot, two slots or beside CI, never share one.
+  Ctrl-C and SIGTERM still drop it. A run killed outright leaves it behind: SIGKILL, or the `api`
+  container stopped mid-run (Docker signals only the container's main process, then kills the
+  rest). `down --volumes` clears those. Without a terminal (`-T`, an agent's or a pipe's call),
+  Ctrl-C ends only the `docker exec` client: the run goes on in the container, unseen, and still
+  drops its database when it finishes.
+- `TEST_DATABASE_URL` names the server and the database name stem. `agent_stack.sh` sets it to the
+  slot's Postgres; set it yourself to override that. Before any test, the suite refuses (exit 4) a
+  `TEST_DATABASE_URL` that is unset, names a database without `test` in its name (or a name over
+  40 bytes), names a production one (`app/config.py`'s v32 guard: `spotdlweb`, `spotdl_web`),
+  names a server other than a slot's `postgres` or a loopback one (`localhost`, `127.0.0.1`,
+  `::1`) on an explicit port other than 5432 (on the production host, loopback's 5432 is
+  production's own Postgres), picks the database or server with `?dbname=`/`?service=`/`?host=`/`?hostaddr=`/`?port=`, or
+  needs %-escaping (Alembic's config reads `%` as interpolation, and would crash printing the
+  URL, password included).
+  Then, connected, it refuses a server that holds `spotdlweb`, `spotdl_web` or `spotdlwebtest`:
+  that server is production's, whatever address reached it (on the production host, the CI
+  runner, loopback reaches it too), and `spotdlwebtest` passes the name checks.
+- Outside a slot (a host venv), use any disposable server, never the LAN one (production's):
+  `docker run -d --rm -e POSTGRES_USER=spotdl -e POSTGRES_DB=spotdl_test -e
+  POSTGRES_HOST_AUTH_METHOD=trust -p 127.0.0.1::5432 postgres:18.6-bookworm`, then
+  `TEST_DATABASE_URL=postgresql+psycopg://spotdl@127.0.0.1:<port>/spotdl_test pytest` (the port is
+  `docker port <container> 5432`'s). That is the CI job's setup.
+- Isolation is per test. `db_session` (the default) runs the test in one transaction and rolls it
+  back; the code's own commits become savepoints inside it. `committed_db` really commits and
+  truncates every table afterwards: it's for the real-concurrency tests, whose sessions must see
+  each other's commits and locks. `tests/concurrency.py` has the helpers (a `Gate` to stop one
+  session at a named point, a `Thread`, and `blocked_or_done`, which reads Postgres' lock waits).
+  When a test ends, `committed_db` opens its gates and joins its threads before truncating (and
+  before `monkeypatch` undoes the test's stubs), so a failed race test can't leave a parked
+  transaction blocking the next one, or resume one with the real publish. A `db_session` test
+  that opens a connection of its own (an unpatched `SessionLocal`) fails: it would read past the
+  test's rows and commit outside the rollback. (It watches `app.db`'s engine; an engine a test
+  builds itself, like the alerts watchdog's, isn't covered.)
+- The run's database is set to `lock_timeout = '30s'`, so a lock a broken test leaves held fails
+  the next test that needs it instead of hanging the run, and to `timezone = 'UTC'` (with
+  `PGTZ=UTC` on every connection, which outranks a role's own setting), so every session reads
+  timestamps in UTC
+  whatever the server's own setting: several tests compare aware datetimes, and 15 of them failed
+  against a disposable server running in `Europe/Budapest` before that.
+- `committed_db` can't be combined with `db_session`, or with any fixture built on it (`client`,
+  `authenticated_client`, `admin_client`, `owner`, `make_user`, `session_cookie`,
+  `count_queries`): the test fails at setup saying so. Its teardown truncates and ends every other
+  session, which `db_session`'s open transaction can't survive. A race test calls the endpoint or
+  task function directly with committed sessions, as `test_jobs.py`'s does.
+- A race the move to Postgres exposes, or that a real-connection test reproduces before its
+  owning slice fixes it, is an `xfail(strict=True)` naming that slice: the stale-track reclaim's
+  E2 is one, for v55 (`test_beat_task.py`).
+- **The SQLite engine path is removed, not kept behind a flag** (owner-visible decision, v51): a
+  second dialect nobody runs by default is exactly where the "lock was requested" tests came from,
+  and on Postgres the suite is no slower.
+- **Budget:** the full default run stays under **30 s of pytest time** on a slot (v51 measured
+  8.5 to 11.4 s for 608 tests; SQLite took 10.4 s for 602). Nothing is marked slow or skipped, in
+  CI or locally. A concurrency test whose interleaving breaks fails after `concurrency.TIMEOUT`
+  (15 s) instead of hanging. If a later slice pushes the run past the budget, mark its slow tests
+  and record it here.
 
 **Teardown and reset.** `down` stops and removes the slot (`worker-dl` included); the database
 and Redis volumes stay, so `up` comes back with the same data. `down --volumes` drops them, and
