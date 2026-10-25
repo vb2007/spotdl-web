@@ -948,3 +948,64 @@ describe('v54 review round 2', () => {
 		expect(get(queue.viewerReceiving)).toBe(false);
 	});
 });
+
+describe('v54 review round 3', () => {
+	function owned(id: string, email: string): TrackWithJob {
+		const t = downloadingTrack(id);
+		return { ...t, job: { ...t.job, owner_email: email } };
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		queue.reset();
+		vi.resetAllMocks();
+		listJobsPage.mockResolvedValue(jobsPage([]));
+		listTracksPage.mockResolvedValue(tracksPage([]));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('all: ticks closer than the wait never hold the lane lookup back', async () => {
+		queue.setView('all');
+		queue.setViewer('me@example.com');
+		await queue.reload();
+		listTracksPage.mockResolvedValue(tracksPage([owned('t1', 'me@example.com')]));
+		for (let i = 0; i < 10; i++) {
+			await queue.applyEvent(trackEvent('t1', 'downloading', i * 10));
+			await vi.advanceTimersByTimeAsync(100);
+		}
+		expect(get(queue.ownActiveTracks).map((t) => t.id)).toEqual(['t1']);
+	});
+
+	it('all: a lane an event touched during a resync still takes the snapshot\u2019s owner', async () => {
+		queue.setView('all');
+		queue.setViewer('me@example.com');
+		const active = deferred<TracksPage>();
+		listTracksPage.mockImplementation(() => active.promise);
+		const reloading = queue.reload();
+		// The event lands while the snapshot is in flight, so its state wins over the snapshot's.
+		await queue.applyEvent(trackEvent('t1', 'downloading', 40));
+		active.resolve(tracksPage([owned('t1', 'me@example.com')]));
+		await reloading;
+		expect(get(queue.activeTracks)[0]).toMatchObject({ progress: 40, mine: true });
+	});
+
+	it('others: a cancel that resolves after a switch into it never inserts the viewer\u2019s job', async () => {
+		queue.setViewer('a@example.com');
+		const cancelled = deferred<Job>();
+		cancelJob.mockReturnValue(cancelled.promise);
+		queue.addJob(job('mine-1', 'failed', 'failed'));
+		const cancelling = queue.cancelJob('mine-1');
+		queue.setView('others');
+		await queue.reload();
+		cancelled.resolve(job('mine-1', 'cancelled', 'cancelled'));
+		await cancelling;
+		expect(get(queue.page).items).toHaveLength(0);
+		// A cancel started and finished in others (a retry's dismiss) is refused the same way.
+		cancelJob.mockResolvedValue(job('mine-2', 'cancelled', 'cancelled'));
+		await queue.cancelJob('mine-2');
+		expect(get(queue.page).items).toHaveLength(0);
+	});
+});

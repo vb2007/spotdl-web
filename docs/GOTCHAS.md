@@ -490,6 +490,9 @@ needed" claim — rather than silently deleted.
 - SvelteKit's `replaceState` leaves `page.url` at the last navigation and records that stale URL
   in the history entry, so a later Back navigates to it: read a query-string state from `location`
   → *v54*
+- A Back/Forward between two entries of the same route reuses the mounted page (no remount), and
+  `navigating` is still set inside `afterNavigate`: adopt the popped entry's state there, never
+  write the page's own over it → *v54*
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
   Tunnel closes the connection → *v08*
 - `get_message(ignore_subscribe_messages=True)` returns `None` immediately after subscribe, so the
@@ -6315,3 +6318,16 @@ independently-found production bug from the same conversation)
   `replaceState` in `onMount` of a hard load also throws in dev ("before router is initialized":
   `started` is set after mount and after the first `afterNavigate`), so the mount-time sync waits
   a `setTimeout`.
+- **"Mine" leaves no query string, so the history entry has to say it another way.** A `/` entry
+  left in mine looked exactly like a fresh `g d` to `/` (which keeps the store's view, v42), so a
+  Back to it opened whatever view the admin used last. The view now also goes into the entry's
+  page state (`replaceState(url, { view })`, `App.PageState.view`); SvelteKit restores it on a
+  popstate before the page renders (`client.js`, `page.state = popped.state`), and a link or
+  `goto` arrives with `{}`. Naming `?view=mine` instead would have changed every admin dashboard
+  URL that specs 14 and 17 assert.
+- **Three quick Backs raced the page's own URL sync.** The live reviewer's rapid Back sequence
+  (dashboard → account → dashboard → account, then Back ×3) landed on the first `/` entry while
+  the second dashboard was still mounted: a same-route popstate reuses the component, and its
+  `afterNavigate` wrote its own `others` over the entry. It reproduced 5 of 6 times in Playwright
+  and never in a slower script. `afterNavigate` now adopts the popped entry's view on a popstate,
+  and the mount-time sync skips while another navigation is in flight.

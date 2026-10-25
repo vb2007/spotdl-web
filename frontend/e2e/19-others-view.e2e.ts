@@ -83,6 +83,84 @@ test.describe('admin', () => {
 		await expectView(page, 'mine');
 	});
 
+	test('Back restores the view each dashboard entry was left in, mine included', async ({
+		page
+	}) => {
+		await openDashboard(page);
+		await expectView(page, 'mine');
+		const account = page.getByRole('link', { name: t(m.dashboard_nav_account), exact: true });
+		const dashboard = async () => {
+			await page.keyboard.press('g');
+			await page.keyboard.press('d');
+			await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
+		};
+		// Entries: / (left in mine), /account, / (left in others), /account.
+		await account.click();
+		await expect(page).toHaveURL(/\/account$/);
+		await dashboard();
+		// A bare `/` keeps the store's view (mine here).
+		await expectView(page, 'mine');
+		await switched(page, () => viewButton(page, m.queuectl_viewing_others).click());
+		await expectView(page, 'others');
+		await account.click();
+		await expect(page).toHaveURL(/\/account$/);
+
+		await page.goBack();
+		await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
+		await expectView(page, 'others');
+		await page.goBack();
+		await expect(page).toHaveURL(/\/account$/);
+		await page.goBack();
+		await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
+		await expectView(page, 'mine');
+	});
+
+	test('a "try again" that lands after a switch into others puts nothing of the admin\u2019s there', async ({
+		page,
+		baseURL
+	}) => {
+		const { admin } = readSeed();
+		const url = missingTrackUrl();
+		const created: string[] = [];
+		try {
+			await openDashboard(page);
+			created.push((await submitUrl(page, url)).id);
+			const incoming = page.getByRole('list', { name: t(m.incoming_heading) });
+			const retry = incoming.getByRole('button', { name: t(m.incoming_retry_label, { url }) });
+			await expect(retry).toBeVisible({ timeout: 60_000 });
+
+			// Hold the resubmit until the view has switched.
+			let release!: () => void;
+			const held = new Promise<void>((r) => (release = r));
+			await page.route('**/api/jobs', async (route) => {
+				if (route.request().method() !== 'POST') return route.fallback();
+				await held;
+				const response = await route.fetch();
+				created.push(((await response.json()) as Job).id);
+				await route.fulfill({ response });
+			});
+			await retry.click();
+			await switched(page, () => viewButton(page, m.queuectl_viewing_others).click());
+			const dismissed = page.waitForResponse(
+				(r) => r.request().method() === 'DELETE' && r.url().includes(created[0])
+			);
+			release();
+			await dismissed;
+			await page.waitForTimeout(1000);
+			// Neither the resubmitted job nor the dismissed original (both the admin's).
+			await expect(page.getByText(url, { exact: true })).toHaveCount(0);
+			await expect(jobToggle(page, admin.title)).toHaveCount(0);
+			await expect(
+				page.getByRole('list', { name: t(m.dashboard_list_jobs), exact: true }).getByText(url)
+			).toHaveCount(0);
+		} finally {
+			await page.unroute('**/api/jobs');
+			const ctx = await apiRequest.newContext({ baseURL, storageState: ADMIN_STATE });
+			for (const id of created) await ctx.delete(`/api/jobs/${id}`);
+			await ctx.dispose();
+		}
+	});
+
 	test('a link submitted in the others view is not shown there; a notice says where it went', async ({
 		page,
 		baseURL

@@ -551,7 +551,7 @@
 					>
 						<span
 							class="progress-fill"
-							class:stale={$link !== 'live'}
+							class:stale={$link !== 'live' || elsewhere}
 							style:transform="scaleX({track.progress / 100})"
 						></span>
 					</span>

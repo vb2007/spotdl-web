@@ -499,7 +499,19 @@ function createQueueStore() {
 				delete next[id];
 			}
 			for (const { job, ...track } of snapshot.items) {
-				if (!snapshotIsNewest(liveTrackTouchedAt, track.id, startedAt)) continue;
+				if (!snapshotIsNewest(liveTrackTouchedAt, track.id, startedAt)) {
+					// A live event is newer than this snapshot's state, but whose lane it is
+					// doesn't change: fill that in for a lane the stream couldn't place (v54).
+					const lane = next[track.id];
+					if (lane && (lane.mine === undefined || lane.owner === undefined)) {
+						next[track.id] = {
+							...lane,
+							mine: lane.mine ?? ownedByViewer(job),
+							owner: lane.owner ?? laneOwner(job)
+						};
+					}
+					continue;
+				}
 				clearLiveRemovalTimer(track.id);
 				// Only a lane still mid-attempt keeps its last tick; one in its grace window
 				// is showing the *previous* attempt's progress, which this one doesn't share.
@@ -530,12 +542,16 @@ function createQueueStore() {
 		return undefined;
 	}
 
+	function isViewersJob(job: { owner_email: string }): boolean {
+		return viewerEmail !== null && job.owner_email.toLowerCase() === viewerEmail;
+	}
+
 	/** Whose a listed lane is, against the viewer the page set (`setViewer`): one listing says
 	 * both the owner and, from it, whether it's the viewer's, so the two can't disagree. */
 	function ownedByViewer(job: TrackJobSummary): boolean | undefined {
 		const byView = viewSaysMine();
 		if (byView !== undefined || viewerEmail === null) return byView;
-		return job.owner_email.toLowerCase() === viewerEmail;
+		return isViewersJob(job);
 	}
 
 	/** The viewer's own `downloading` tracks, one bulk request: what tells `others` whether the
@@ -578,13 +594,19 @@ function createQueueStore() {
 	const lanesLookedUp = new Set<string>();
 
 	/** Debounced: a burst of new lanes (or a failed check) costs one lookup. */
+	/** Throttled, not debounced: progress ticks closer than the wait must not keep pushing the
+	 * lookup back. */
 	function scheduleLaneOwners(): void {
-		clearTimeout(laneOwnersTimer);
-		laneOwnersTimer = setTimeout(resolveLaneOwners, 250);
+		if (laneOwnersTimer !== undefined) return;
+		laneOwnersTimer = setTimeout(() => {
+			laneOwnersTimer = undefined;
+			resolveLaneOwners();
+		}, 250);
 	}
 
 	function forgetLaneLookups(): void {
 		clearTimeout(laneOwnersTimer);
+		laneOwnersTimer = undefined;
 		laneOwnersSeq++;
 		lanesLookedUp.clear();
 		ownElsewhereSeq++;
@@ -1044,6 +1066,9 @@ function createQueueStore() {
 				};
 			}
 			if (!opts.allowInsert) return p;
+			// v54: the others view leaves the viewer's own jobs out, whatever path brings one
+			// here (a cancel that resolved after a switch into it, say).
+			if (view === 'others' && isViewersJob(job)) return p;
 			// `expanding`/`failed` belong only in the `incoming` overlay (the same check
 			// `applyJobEvent` uses to decide overlay membership) -- a zero-track job has no
 			// track-derived title yet (or, for `failed`, never will), so inserting it here

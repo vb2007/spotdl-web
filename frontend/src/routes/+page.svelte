@@ -3,7 +3,7 @@
 	import { get } from 'svelte/store';
 	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { page as route } from '$app/state';
+	import { navigating, page as route } from '$app/state';
 	import * as api from '$lib/api';
 	import { queue, groupTracksByJob } from '$lib/stores/queue';
 	import type { Job, View } from '$lib/api';
@@ -63,24 +63,45 @@
 		const asked = new URLSearchParams(window.location.search).get('view');
 		return VIEWS.find((v) => v === asked) ?? null;
 	}
-	let view = $state<View>(untrack(() => (isAdmin ? (viewInUrl() ?? queue.getView()) : 'mine')));
+	/** The view this history entry was left in (`syncViewUrl` keeps it in the entry's page
+	 * state): a Back restores it, while a link or `g d` to `/` arrives with none. */
+	function viewInEntry(): View | null {
+		return VIEWS.find((v) => v === route.state.view) ?? null;
+	}
+	let view = $state<View>(
+		untrack(() => (isAdmin ? (viewInUrl() ?? viewInEntry() ?? queue.getView()) : 'mine'))
+	);
 
-	// v54: an in-app navigation to `/` while here (`g d`) would drop `?view=`; put it back.
+	// v54: an in-app navigation to `/` while here (`g d`) would drop `?view=`; put it back. A
+	// Back/Forward to another dashboard entry while this page is still mounted reuses it, so
+	// that entry's own view (its URL, else its state) is adopted instead of overwritten.
 	afterNavigate((navigation) => {
-		if (navigation.type !== 'enter') syncViewUrl();
+		if (navigation.type === 'enter') return;
+		if (navigation.type === 'popstate' && isAdmin) {
+			const left = viewInUrl() ?? viewInEntry();
+			if (left !== null && left !== view) {
+				onViewChange(left);
+				return;
+			}
+		}
+		syncViewUrl();
 	});
 
 	/** v54: the query string says the view (none for "mine"), replaced in place, so a reload
-	 * keeps it and switching adds no history entries. A non-admin's `?view=` is dropped. */
+	 * keeps it and switching adds no history entries. The entry's page state says it too, "mine"
+	 * included, so a Back to an entry left in "mine" restores that, not the store's latest (a
+	 * bare `/` from `g d` or a link still keeps the store's, v42). A non-admin's `?view=` is
+	 * dropped. */
 	// `location`, not `route.url`: `replaceState` leaves `page.url` at the last navigation.
 	function syncViewUrl() {
 		if (unmounted) return;
 		const query = view === 'mine' ? '' : `?view=${view}`;
-		if (query === window.location.search) return;
+		const entryView = isAdmin ? view : undefined;
+		if (query === window.location.search && viewInEntry() === (entryView ?? null)) return;
 		// `resolve()` builds the path; the rule can't see that a query string after it stays on
 		// that same resolved route.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
-		replaceState(`${resolve('/')}${query}`, route.state);
+		replaceState(`${resolve('/')}${query}`, { ...route.state, view: entryView });
 	}
 
 	let filtersActive = $derived(
@@ -608,7 +629,11 @@
 		if (queue.getView() !== view) queue.setView(view);
 		queue.setViewer(data.session?.email ?? null);
 		// After the router has started: on a hard load, `replaceState` before then throws in dev.
-		setTimeout(syncViewUrl);
+		// Not while a later navigation is under way (a quick Back past this page): the entry is
+		// no longer this one, and a client-side mount syncs from `afterNavigate` anyway.
+		setTimeout(() => {
+			if (!navigating.to) syncViewUrl();
+		});
 		link.set('connecting');
 		queue.beginResync();
 		armResyncFallback();
