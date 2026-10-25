@@ -36,6 +36,7 @@ x-dev-env: &dev-env
 # before a restart kills it, as `docker compose stop` would. `init: true` on each: the wrapper
 # isn't PID 1 (which ignores a signal it has no handler for yet) and orphans get reaped.
 x-dev-reload: &dev-reload ["python", "/opt/dev/reload.py", "--"]
+# The 300 is docker-compose.yml's stop_grace_period for those two: change them together.
 x-dev-reload-long: &dev-reload-long ["python", "/opt/dev/reload.py", "--grace", "300", "--"]
 x-dev-reload-mount: &dev-reload-mount ./scripts/dev:/opt/dev:ro
 
