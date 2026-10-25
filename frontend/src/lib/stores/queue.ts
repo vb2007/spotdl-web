@@ -190,6 +190,9 @@ function createQueueStore() {
 
 	/** v54: the admin's mine/all/others scope (v17's `allUsers`, now three-way). */
 	let view: View = 'mine';
+	/** v54 (U1): the signed-in viewer's email (lower-cased), set by the page, so a lane in `all`
+	 * can tell the viewer's own downloads from everyone else's. */
+	let viewerEmail: string | null = null;
 	let pageFetchSeq = 0;
 
 	/** v34 merge rule: SSE wins over an older REST snapshot. Every live signal for an id
@@ -422,24 +425,22 @@ function createQueueStore() {
 				view,
 				limit: HYDRATE_LIMIT
 			}),
-			// v54 (U1): in `all`, which of those lanes are the viewer's own; in `others`, whether
-			// the viewer has a download of their own the view leaves out (one more bulk request).
-			view === 'mine' ? Promise.resolve(null) : ownDownloadingIds()
+			// v54 (U1): in `others`, whether the viewer has a download of their own the view
+			// leaves out (one more bulk request).
+			view === 'others' ? ownDownloadingIds() : Promise.resolve(null)
 		]);
 		if (seq !== liveHydrateSeq) return;
-		// A failed check keeps the last value, as `refreshOwnElsewhere`'s does.
+		// A failed check keeps the last value, as `refreshOwnElsewhere`'s does; a poll still in
+		// flight from before this resync must not overwrite it afterwards.
 		if (view === 'others' && ownResult.status === 'fulfilled') {
+			ownElsewhereSeq++;
 			ownReceivingElsewhere.set(ownResult.value?.size ?? 0);
 		}
 		if (incomingResult.status === 'fulfilled') {
 			mergeIncoming(incomingResult.value, startedAt);
 		}
 		if (activeResult.status === 'fulfilled') {
-			mergeActive(
-				activeResult.value,
-				startedAt,
-				ownResult.status === 'fulfilled' ? ownResult.value : null
-			);
+			mergeActive(activeResult.value, startedAt);
 		}
 		// A stamp at or before this hydration's start can't matter to any later one (each
 		// starts from a counter value at least this high), so drop them. This bounds the
@@ -484,7 +485,7 @@ function createQueueStore() {
 	 * stream was down), so it drops now rather than lingering as a stale lane. Progress
 	 * isn't persisted server-side, so a hydrated row keeps whatever this tab last saw (or
 	 * none, after a hard reload) until the next progress tick fills it in. */
-	function mergeActive(snapshot: TracksPage, startedAt: number, ownIds: Set<string> | null): void {
+	function mergeActive(snapshot: TracksPage, startedAt: number): void {
 		const complete = snapshot.next_cursor === null;
 		const listed = new Set(snapshot.items.map((t) => t.id));
 		liveActive.update((current) => {
@@ -508,13 +509,11 @@ function createQueueStore() {
 					existing?.state === 'downloading'
 						? existing.progress
 						: recallProgress(track.id, track.attempt_count);
-				// An `all`-view lane whose owner check failed keeps what it knew (else unknown).
-				const mine = viewSaysMine() ?? ownIds?.has(track.id) ?? existing?.mine;
+				const mine = ownedByViewer(job) ?? existing?.mine;
 				next[track.id] = { ...track, progress, mine, owner: laneOwner(job) };
 			}
 			return next;
 		});
-		if (view === 'all' && ownIds === null) scheduleLaneOwners();
 	}
 
 	/** The name an `all`/`others` lane shows; none in `mine`, where every lane is the viewer's. */
@@ -523,15 +522,23 @@ function createQueueStore() {
 	}
 
 	/** v54 (U1): whether a lane in the current view is the viewer's own, when the view alone
-	 * says (`undefined` in `all`, where only a lookup can tell). */
+	 * says (`undefined` in `all`, where only its owner can tell). */
 	function viewSaysMine(): boolean | undefined {
 		if (view === 'mine') return true;
 		if (view === 'others') return false;
 		return undefined;
 	}
 
-	/** The viewer's own `downloading` tracks, one bulk request: what tells `all`'s own lanes
-	 * from everyone else's, since the SSE payloads carry no owner (v17). */
+	/** Whose a listed lane is, against the viewer the page set (`setViewer`): one listing says
+	 * both the owner and, from it, whether it's the viewer's, so the two can't disagree. */
+	function ownedByViewer(job: TrackJobSummary): boolean | undefined {
+		const byView = viewSaysMine();
+		if (byView !== undefined || viewerEmail === null) return byView;
+		return job.owner_email.toLowerCase() === viewerEmail;
+	}
+
+	/** The viewer's own `downloading` tracks, one bulk request: what tells `others` whether the
+	 * viewer's own download (which that view's stream leaves out) is receiving. */
 	async function ownDownloadingIds(): Promise<Set<string>> {
 		const own = await api.listTracksPage({
 			state: ['downloading'],
@@ -583,9 +590,9 @@ function createQueueStore() {
 		ownReceivingElsewhere.set(0);
 	}
 
-	/** v54 (U1): places the `all`/`others` lanes the SSE payloads couldn't: whose each one is
-	 * (the view's own `downloading` listing, which embeds the owner) and, in `all`, which are
-	 * the viewer's (`ownDownloadingIds`). At most two bulk requests, never one per lane. */
+	/** v54 (U1): places the `all`/`others` lanes the SSE payloads couldn't: the view's own
+	 * `downloading` listing embeds each one's owner, which says whose it is and (in `all`)
+	 * whether it's the viewer's. One bulk request, never one per lane. */
 	async function resolveLaneOwners(): Promise<void> {
 		if (view === 'mine') return;
 		const seq = ++laneOwnersSeq;
@@ -593,32 +600,29 @@ function createQueueStore() {
 		const asked = Object.keys(get(liveActive));
 		for (const id of asked) lanesLookedUp.add(id);
 		let listed: TracksPage;
-		let ownIds: Set<string> | null = null;
 		try {
-			[listed, ownIds] = await Promise.all([
-				api.listTracksPage({
-					state: ['downloading'],
-					includeArchived: true,
-					view,
-					limit: HYDRATE_LIMIT
-				}),
-				view === 'all' ? ownDownloadingIds() : Promise.resolve(null)
-			]);
+			listed = await api.listTracksPage({
+				state: ['downloading'],
+				includeArchived: true,
+				view,
+				limit: HYDRATE_LIMIT
+			});
 		} catch {
 			// Unknown lanes stay neutral and unnamed until the next event or hydration asks again.
 			for (const id of asked) lanesLookedUp.delete(id);
 			return;
 		}
 		if (seq !== laneOwnersSeq || epoch !== storeEpoch) return;
-		const owners = new Map(listed.items.map((t) => [t.id, laneOwner(t.job)]));
+		const jobs = new Map(listed.items.map((t) => [t.id, t.job]));
 		liveActive.update((current) => {
 			let changed = false;
 			const next = { ...current };
 			for (const [id, lane] of Object.entries(current)) {
-				// A lane the lookup didn't list is someone else's, or one of the viewer's that
-				// already left `downloading` (whose own events no longer warm anything).
-				const mine = viewSaysMine() ?? ownIds?.has(id) ?? lane.mine;
-				const owner = owners.get(id) ?? lane.owner;
+				// A lane the lookup didn't list already left `downloading`: it warms nothing now,
+				// so an unplaced one settles as neutral.
+				const job = jobs.get(id);
+				const mine = (job ? ownedByViewer(job) : undefined) ?? lane.mine ?? false;
+				const owner = job ? laneOwner(job) : lane.owner;
 				if (lane.mine !== mine || lane.owner !== owner) {
 					next[id] = { ...lane, mine, owner };
 					changed = true;
@@ -795,6 +799,10 @@ function createQueueStore() {
 		return view;
 	}
 
+	function setViewer(email: string | null): void {
+		viewerEmail = email?.toLowerCase() ?? null;
+	}
+
 	/** Wipes every accumulated row back to empty and invalidates any in-flight fetch, so a
 	 * stale response landing after a logout can never repopulate the store. `queue` is a
 	 * module-level singleton (survives SvelteKit's client-side `goto` navigation, which
@@ -811,6 +819,7 @@ function createQueueStore() {
 		storeEpoch++;
 		for (const jobId of Object.keys(expandedFetchSeq)) invalidateExpandedFetch(jobId);
 		view = 'mine';
+		viewerEmail = null;
 		forgetLaneLookups();
 		filters.set({ ...DEFAULT_FILTERS });
 		page.set({ ...EMPTY_PAGE });
@@ -1373,6 +1382,8 @@ function createQueueStore() {
 			// nothing to offer, and still re-apply on every update (not just at creation)
 			// so a first event that happened to lack metadata doesn't permanently freeze
 			// this track as unknown once a later one supplies it.
+			// A lane that comes back (a retry hours later) is placed afresh.
+			if (!existing) lanesLookedUp.delete(event.track_id);
 			const seed = existing ?? findCachedTrackMeta(event.track_id);
 			const base: LiveTrack = existing ?? {
 				id: event.track_id,
@@ -1548,6 +1559,7 @@ function createQueueStore() {
 		loadMore,
 		setView,
 		getView,
+		setViewer,
 		getResetCount,
 		reset,
 		toggleExpand,

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
 	import { get } from 'svelte/store';
-	import { goto, replaceState } from '$app/navigation';
+	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page as route } from '$app/state';
 	import * as api from '$lib/api';
@@ -62,11 +62,18 @@
 	}
 	let view = $state<View>(untrack(() => (isAdmin ? (viewInUrl() ?? queue.getView()) : 'mine')));
 
+	// v54: an in-app navigation to `/` while here (`g d`) would drop `?view=`; put it back.
+	afterNavigate((navigation) => {
+		if (navigation.type !== 'enter') syncViewUrl();
+	});
+
 	/** v54: the query string says the view (none for "mine"), replaced in place, so a reload
 	 * keeps it and switching adds no history entries. A non-admin's `?view=` is dropped. */
+	// `location`, not `route.url`: `replaceState` leaves `page.url` at the last navigation.
 	function syncViewUrl() {
+		if (unmounted) return;
 		const query = view === 'mine' ? '' : `?view=${view}`;
-		if (query === route.url.search) return;
+		if (query === window.location.search) return;
 		// `resolve()` builds the path; the rule can't see that a query string after it stays on
 		// that same resolved route.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
@@ -596,7 +603,9 @@
 		// The store's scope outlives the page; a non-admin must never inherit an admin's, and
 		// an admin's reload starts from the URL's (v54).
 		if (queue.getView() !== view) queue.setView(view);
-		syncViewUrl();
+		queue.setViewer(data.session?.email ?? null);
+		// After the router has started: on a hard load, `replaceState` before then throws in dev.
+		setTimeout(syncViewUrl);
 		link.set('connecting');
 		queue.beginResync();
 		armResyncFallback();

@@ -279,12 +279,8 @@ describe('v34 live hydration', () => {
 		});
 		await queue.reload();
 		expect(get(queue.activeTracks).map((t) => t.id)).toEqual(['global']);
-		// v54: in `all` the active overlay is the view's listing plus the viewer's own.
-		expect(
-			hydrationCalls()
-				.active.slice(-2)
-				.map(([p]) => p?.view)
-		).toEqual(['all', 'mine']);
+		// v54: in `all` the active overlay is still the view's one listing.
+		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ view: 'all' });
 		expect(hydrationCalls().incoming.at(-1)?.[0]).toMatchObject({ view: 'all' });
 
 		routeLists({});
@@ -743,6 +739,7 @@ describe('v54: the three-way view and whose lanes warm the page (U1)', () => {
 
 	it('all: only the viewer\u2019s own lanes count as theirs; the rest are named', async () => {
 		queue.setView('all');
+		queue.setViewer('Me@example.com');
 		routeActive({
 			all: [owned('mine-1', 'me@example.com'), owned('theirs-1', 'anna@example.com', 'anna')],
 			mine: [owned('mine-1', 'me@example.com')]
@@ -799,6 +796,7 @@ describe('v54: the three-way view and whose lanes warm the page (U1)', () => {
 		await queue.reload();
 		expect(get(queue.viewerReceiving)).toBe(true);
 		queue.setView('all');
+		queue.setViewer('me@example.com');
 		routeActive({ all: [owned('theirs-1', 'anna@example.com')], mine: [] });
 		await queue.reload();
 		expect(get(queue.viewerReceiving)).toBe(false);
@@ -806,6 +804,7 @@ describe('v54: the three-way view and whose lanes warm the page (U1)', () => {
 
 	it('all: an SSE lane (no owner in the payload) is placed by one debounced lookup, once', async () => {
 		queue.setView('all');
+		queue.setViewer('me@example.com');
 		routeActive({});
 		await queue.reload();
 		const before = hydrationCalls().active.length;
@@ -816,14 +815,14 @@ describe('v54: the three-way view and whose lanes warm the page (U1)', () => {
 		// Unplaced, it reads as elsewhere until the lookup lands.
 		expect(get(queue.ownActiveTracks)).toHaveLength(0);
 		await vi.advanceTimersByTimeAsync(300);
-		expect(hydrationCalls().active.length - before).toBe(2);
+		expect(hydrationCalls().active.length - before).toBe(1);
 		expect(get(queue.ownActiveTracks).map((t) => t.id)).toEqual(['t1']);
 		expect(get(queue.activeTracks)[0]).toMatchObject({ mine: true, owner: 'me@example.com' });
 
 		// Further ticks of a placed lane ask nothing.
 		await queue.applyEvent(trackEvent('t1', 'downloading', 30));
 		await vi.advanceTimersByTimeAsync(300);
-		expect(hydrationCalls().active.length - before).toBe(2);
+		expect(hydrationCalls().active.length - before).toBe(1);
 	});
 
 	it('others: an SSE lane is someone else\u2019s at once, and the lookup only names it', async () => {
@@ -852,5 +851,60 @@ describe('v54: the three-way view and whose lanes warm the page (U1)', () => {
 		await vi.advanceTimersByTimeAsync(0);
 		expect(get(queue.activeTracks)).toHaveLength(0);
 		expect(queue.getView()).toBe('mine');
+	});
+});
+
+describe('v54 review round 1', () => {
+	function owned(id: string, email: string): TrackWithJob {
+		const t = downloadingTrack(id);
+		return { ...t, job: { ...t.job, owner_email: email } };
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		queue.reset();
+		vi.resetAllMocks();
+		listJobsPage.mockResolvedValue(jobsPage([]));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('all: an own lane that ends and comes back on a retry is placed afresh', async () => {
+		queue.setView('all');
+		queue.setViewer('me@example.com');
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		await queue.reload();
+		listTracksPage.mockResolvedValue(tracksPage([owned('t1', 'me@example.com')]));
+		await queue.applyEvent(trackEvent('t1', 'downloading', 10));
+		await vi.advanceTimersByTimeAsync(300);
+		expect(get(queue.ownActiveTracks).map((t) => t.id)).toEqual(['t1']);
+
+		// The attempt fails; the lane leaves after its grace window.
+		await queue.applyEvent(trackEvent('t1', 'waiting'));
+		await vi.advanceTimersByTimeAsync(120_000);
+		expect(get(queue.activeTracks)).toHaveLength(0);
+
+		// Hours later the retry starts: the same id, a new lane, placed again.
+		await queue.applyEvent(trackEvent('t1', 'downloading', 5));
+		expect(get(queue.ownActiveTracks)).toHaveLength(0);
+		await vi.advanceTimersByTimeAsync(300);
+		expect(get(queue.ownActiveTracks).map((t) => t.id)).toEqual(['t1']);
+	});
+
+	it('others: a poll still in flight from before a resync never overwrites it', async () => {
+		queue.setView('others');
+		const stalePoll = deferred<TracksPage>();
+		listTracksPage.mockImplementationOnce(() => stalePoll.promise);
+		const polling = queue.refreshOwnElsewhere();
+		listTracksPage.mockImplementation(async (params = {}) =>
+			tracksPage(params.view === 'mine' ? [owned('mine-1', 'me@example.com')] : [])
+		);
+		await queue.reload();
+		expect(get(queue.viewerReceiving)).toBe(true);
+		stalePoll.resolve(tracksPage([]));
+		await polling;
+		expect(get(queue.viewerReceiving)).toBe(true);
 	});
 });
