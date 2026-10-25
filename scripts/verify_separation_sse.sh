@@ -21,6 +21,10 @@
 #     that query param must be silently ignored server-side, not honored.
 #   - the admin capture (if provided), MUST contain the job id (reverse-direction proof
 #     that the all-users pattern-subscribe genuinely works, not just that it's inert).
+#   - v54, the three-way view: B's view=all and view=others captures MUST NOT contain A's
+#     job either. With an admin, the admin also creates and cancels a job of its own, and
+#     its view=all capture MUST contain both jobs while its view=others capture MUST contain
+#     A's job and MUST NOT contain the admin's own (others drops the admin's own channel).
 #
 # Usage (against a running stack, local by default):
 #   SPOTDL_WEB_USER_A_EMAIL=a@example.com SPOTDL_WEB_USER_A_PASSWORD=... \
@@ -134,6 +138,10 @@ CAPTURE_A="$WORKDIR/capture_a.log"
 CAPTURE_B="$WORKDIR/capture_b.log"
 CAPTURE_B_ALLUSERS="$WORKDIR/capture_b_allusers.log"
 CAPTURE_ADMIN="$WORKDIR/capture_admin.log"
+CAPTURE_B_VIEW_ALL="$WORKDIR/capture_b_view_all.log"
+CAPTURE_B_VIEW_OTHERS="$WORKDIR/capture_b_view_others.log"
+CAPTURE_ADMIN_VIEW_ALL="$WORKDIR/capture_admin_view_all.log"
+CAPTURE_ADMIN_VIEW_OTHERS="$WORKDIR/capture_admin_view_others.log"
 
 echo "Opening SSE captures (${CAPTURE_SECONDS}s window)..."
 timeout "$CAPTURE_SECONDS" curl -sS -N "$BASE_URL/api/stream" -H "Cookie: SPOTDL_SESSION=$TOKEN_A" >"$CAPTURE_A" 2>/dev/null &
@@ -146,10 +154,21 @@ PID_B=$!
 # way as B's plain channel, not inferred from the mocked unit test alone.
 timeout "$CAPTURE_SECONDS" curl -sS -N "$BASE_URL/api/stream?all_users=true" -H "Cookie: SPOTDL_SESSION=$TOKEN_B" >"$CAPTURE_B_ALLUSERS" 2>/dev/null &
 PID_B_ALLUSERS=$!
+# v54: the same for the three-way view's admin-only values.
+timeout "$CAPTURE_SECONDS" curl -sS -N "$BASE_URL/api/stream?view=all" -H "Cookie: SPOTDL_SESSION=$TOKEN_B" >"$CAPTURE_B_VIEW_ALL" 2>/dev/null &
+PID_B_VIEW_ALL=$!
+timeout "$CAPTURE_SECONDS" curl -sS -N "$BASE_URL/api/stream?view=others" -H "Cookie: SPOTDL_SESSION=$TOKEN_B" >"$CAPTURE_B_VIEW_OTHERS" 2>/dev/null &
+PID_B_VIEW_OTHERS=$!
 PID_ADMIN=""
+PID_ADMIN_VIEW_ALL=""
+PID_ADMIN_VIEW_OTHERS=""
 if [ -n "$TOKEN_ADMIN" ]; then
   timeout "$CAPTURE_SECONDS" curl -sS -N "$BASE_URL/api/stream?all_users=true" -H "Cookie: SPOTDL_SESSION=$TOKEN_ADMIN" >"$CAPTURE_ADMIN" 2>/dev/null &
   PID_ADMIN=$!
+  timeout "$CAPTURE_SECONDS" curl -sS -N "$BASE_URL/api/stream?view=all" -H "Cookie: SPOTDL_SESSION=$TOKEN_ADMIN" >"$CAPTURE_ADMIN_VIEW_ALL" 2>/dev/null &
+  PID_ADMIN_VIEW_ALL=$!
+  timeout "$CAPTURE_SECONDS" curl -sS -N "$BASE_URL/api/stream?view=others" -H "Cookie: SPOTDL_SESSION=$TOKEN_ADMIN" >"$CAPTURE_ADMIN_VIEW_OTHERS" 2>/dev/null &
+  PID_ADMIN_VIEW_OTHERS=$!
 fi
 
 # Let both (p)subscribes actually land server-side before generating events -- a create
@@ -170,6 +189,21 @@ if [ -z "$JOB_ID" ]; then
 fi
 echo "Job id: $JOB_ID"
 
+# v54: the admin's own job, the one its view=others stream must never carry.
+ADMIN_JOB_ID=""
+if [ -n "$TOKEN_ADMIN" ]; then
+  echo "Creating a real job as the admin..."
+  ADMIN_CREATE="$(curl -sS -X POST "$BASE_URL/api/jobs" \
+    -H "Content-Type: application/json" -H "Cookie: SPOTDL_SESSION=$TOKEN_ADMIN" \
+    -d "{\"url\":\"$TEST_TRACK_URL\"}")"
+  ADMIN_JOB_ID="$(echo "$ADMIN_CREATE" | grep -oE '"id"[[:space:]]*:[[:space:]]*"[0-9a-f-]{36}"' | head -n1 | grep -oE '[0-9a-f-]{36}')" || true
+  if [ -z "$ADMIN_JOB_ID" ]; then
+    echo "The admin's job creation did not return an id (response: $ADMIN_CREATE)" >&2
+    exit 1
+  fi
+  echo "Admin job id: $ADMIN_JOB_ID"
+fi
+
 echo "Waiting for expansion to finish..."
 for _ in $(seq 1 15); do
   STATE_RESPONSE="$(curl -sS "$BASE_URL/api/jobs/$JOB_ID" -H "Cookie: SPOTDL_SESSION=$TOKEN_A")"
@@ -181,6 +215,17 @@ done
 
 echo "Cancelling the job as A (generates job.state + track.state events)..."
 curl -sS -X DELETE "$BASE_URL/api/jobs/$JOB_ID" -H "Cookie: SPOTDL_SESSION=$TOKEN_A" >/dev/null
+if [ -n "$ADMIN_JOB_ID" ]; then
+  for _ in $(seq 1 15); do
+    STATE_RESPONSE="$(curl -sS "$BASE_URL/api/jobs/$ADMIN_JOB_ID" -H "Cookie: SPOTDL_SESSION=$TOKEN_ADMIN")"
+    case "$STATE_RESPONSE" in
+      *'"state":"expanding"'*) sleep 1 ;;
+      *) break ;;
+    esac
+  done
+  echo "Cancelling the admin's job..."
+  curl -sS -X DELETE "$BASE_URL/api/jobs/$ADMIN_JOB_ID" -H "Cookie: SPOTDL_SESSION=$TOKEN_ADMIN" >/dev/null
+fi
 
 # Give the cancel's events a moment to land on the wire before the captures close.
 sleep 3
@@ -188,7 +233,11 @@ sleep 3
 wait "$PID_A" 2>/dev/null || true
 wait "$PID_B" 2>/dev/null || true
 wait "$PID_B_ALLUSERS" 2>/dev/null || true
+wait "$PID_B_VIEW_ALL" 2>/dev/null || true
+wait "$PID_B_VIEW_OTHERS" 2>/dev/null || true
 [ -n "$PID_ADMIN" ] && { wait "$PID_ADMIN" 2>/dev/null || true; }
+[ -n "$PID_ADMIN_VIEW_ALL" ] && { wait "$PID_ADMIN_VIEW_ALL" 2>/dev/null || true; }
+[ -n "$PID_ADMIN_VIEW_OTHERS" ] && { wait "$PID_ADMIN_VIEW_OTHERS" 2>/dev/null || true; }
 
 PASS=true
 
@@ -215,12 +264,42 @@ else
   echo "PASS: B's all_users=true attempt was silently ignored -- zero mention of A's job id."
 fi
 
+for capture in "$CAPTURE_B_VIEW_ALL" "$CAPTURE_B_VIEW_OTHERS"; do
+  name="$(basename "$capture" .log)"
+  if grep -q "$JOB_ID" "$capture"; then
+    echo "FAIL: B's ${name#capture_b_} stream received A's job id ($JOB_ID) -- a non-admin's admin-only view was honored. Captured bytes:" >&2
+    cat "$capture" >&2
+    PASS=false
+  else
+    echo "PASS: B's ${name#capture_b_} attempt was silently ignored -- zero mention of A's job id."
+  fi
+done
+
 if [ -n "$TOKEN_ADMIN" ]; then
   if grep -q "$JOB_ID" "$CAPTURE_ADMIN"; then
     echo "PASS: admin's all_users=true pattern-subscribe saw A's job id (reverse direction confirmed)."
   else
     echo "FAIL: admin's all_users=true stream never saw A's job -- pattern-subscribe may be broken." >&2
     PASS=false
+  fi
+  if grep -q "$JOB_ID" "$CAPTURE_ADMIN_VIEW_ALL" && grep -q "$ADMIN_JOB_ID" "$CAPTURE_ADMIN_VIEW_ALL"; then
+    echo "PASS: admin's view=all stream saw both A's job and the admin's own."
+  else
+    echo "FAIL: admin's view=all stream is missing A's job or the admin's own -- captured $(wc -c <"$CAPTURE_ADMIN_VIEW_ALL") bytes." >&2
+    PASS=false
+  fi
+  if grep -q "$JOB_ID" "$CAPTURE_ADMIN_VIEW_OTHERS"; then
+    echo "PASS: admin's view=others stream saw A's job."
+  else
+    echo "FAIL: admin's view=others stream never saw A's job -- its pattern-subscribe may be broken." >&2
+    PASS=false
+  fi
+  if grep -q "$ADMIN_JOB_ID" "$CAPTURE_ADMIN_VIEW_OTHERS"; then
+    echo "FAIL: admin's view=others stream carried the admin's own job ($ADMIN_JOB_ID) -- its own channel wasn't dropped. Captured bytes:" >&2
+    cat "$CAPTURE_ADMIN_VIEW_OTHERS" >&2
+    PASS=false
+  else
+    echo "PASS: admin's view=others stream contains zero mention of the admin's own job."
   fi
 fi
 
