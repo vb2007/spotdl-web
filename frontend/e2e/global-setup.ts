@@ -118,13 +118,17 @@ export default async function globalSetup(config: FullConfig): Promise<void> {
 	// v52 (D7): fail now, and say why, rather than flake later on a reload.
 	const detached = detachedWebVolumes();
 	if (detached.length) {
+		const slot = /^spotdlweb-s(\d)$/.exec(process.env.COMPOSE_PROJECT_NAME ?? '')?.[1];
 		throw new Error(
 			`the dev web container lost its own ${detached.join(', ')} (removing that directory on the ` +
 				'host detaches the volume), so a host-side npm run check would reload the pages under ' +
-				'test: mkdir -p the removed directory under frontend/ (Docker would recreate it ' +
-				'root-owned), then docker compose restart web (in an agent slot: ' +
-				'scripts/agent_stack.sh <slot> run docker compose restart web, which does both), then ' +
-				'run again'
+				'test: ' +
+				(slot
+					? `scripts/agent_stack.sh ${slot} run docker compose restart web (it recreates the ` +
+						'directory as you first)'
+					: 'mkdir -p the removed directory under frontend/ (Docker would recreate it ' +
+						'root-owned), then docker compose restart web') +
+				', then run again'
 		);
 	}
 
