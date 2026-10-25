@@ -482,6 +482,11 @@ needed" claim — rather than silently deleted.
   Matrix room; unexplained, and its logs were gone by the next deploy → *v48*
 
 **Live progress & SSE**
+- `view=others` drops the admin's own channel on the server, so the page never hears the admin's
+  own downloads there: their amber needs a separate own-download check; a dropped run of own
+  messages must still heartbeat on schedule (the tunnel's idle timeout) → *v54*
+- SSE payloads name no owner (v17), so in `view=all` the page can't tell whose a new lane is: one
+  debounced bulk lookup (the view's `downloading` listing plus `view=mine`) places lanes → *v54*
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
   Tunnel closes the connection → *v08*
 - `get_message(ignore_subscribe_messages=True)` returns `None` immediately after subscribe, so the
@@ -630,6 +635,8 @@ needed" claim — rather than silently deleted.
   others → *v28*
 
 **Frontend (SvelteKit)**
+- `svelte/no-navigation-without-resolve` rejects `replaceState(resolve('/') + '?view=…')`, any
+  form: the query-string write carries a reasoned `eslint-disable-next-line` → *v54*
 - Job create's `already_queued` hint returns the existing job with 200: don't add it to the store
   again; Spotify links are stored canonical → *v53*
 - `adapter-static` can't run a server load; routes use `ssr = false` + `prerender = true` **and**
@@ -773,6 +780,10 @@ needed" claim — rather than silently deleted.
   library sweep's start) → *v52*
 
 **Testing & verification technique**
+- A real download on a slot can finish in ~10 s, before six browser pages have logged in: hold
+  the track `waiting` with `scheduled_at` a minute out, then start `realdl`. A Spotify id whose
+  song is already on disk under the same name resolves instantly ("already exists" is the
+  filename), check `in_ledger` and the title first → *v54*
 - FastAPI's `app.routes` (0.141+) holds lazy `_IncludedRouter` wrappers: walk `original_router.routes`
   to find every `APIRoute` → *v53*
 - Playwright's `request.newContext()` inside a test inherits the project's `storageState`; a slot's
@@ -6261,3 +6272,31 @@ independently-found production bug from the same conversation)
   file and a byte-for-byte revert, an open page kept `vite-error-overlay` (vite-plugin-svelte skips
   the unchanged output, so no update clears it), and it intercepts every click: in a kept-open tab
   that looks exactly like "the dialog doesn't open". Esc or a reload clears it. Not v52's doing.
+
+### v54 scope-others gotchas (learned building the admin's mine/all/others view)
+
+- **`others` hides the admin's own downloads from the page, so U1's "the viewer's own download
+  warms the page in every view" needs a second signal.** The stream drops every message on
+  `channel_for(me)` (the plan's design: payloads stay owner-less, filtering is by channel only), so
+  under `others` no event of the admin's own ever reaches the store. `queue.ownReceivingElsewhere`
+  asks `GET /api/tracks?state=downloading&view=mine` on each resync and on the page's existing 5 s
+  worker poll, in `others` only, and the layout's ambient field reads `queue.viewerReceiving`. So
+  the field can take up to 5 s to warm or cool for an own download seen from `others`.
+- **A filtered stream can go silent for longer than the heartbeat interval.** The heartbeat was
+  "no message within 15 s"; with the admin's own progress ticks arriving every second and all of
+  them dropped under `others`, nothing would have been written at all. `_event_stream` now also
+  writes a heartbeat when 15 s pass since the last write, dropped messages or not.
+- **Whose lane is it, in `all`?** The SSE payloads carry no owner, so a lane that arrives by event
+  is unplaced until `resolveLaneOwners` (debounced 250 ms, at most two bulk requests: the view's
+  own `downloading` listing, which embeds `owner_*`, and `view=mine`). Until then it reads as
+  elsewhere (neutral), so the admin's own lane in `all` turns amber a moment after it appears.
+  `lanesLookedUp` keeps a lane the lookup couldn't list (it left `downloading`) from asking again
+  on every progress tick.
+- **"Live" on a row was "receiving", not "receiving for you".** v47 made a job's badge and bar
+  amber while one of its tracks downloads; in `all` that lit other users' rows too, which the
+  first real-download probe showed. `JobRow`'s `own`, `TrackRow`'s `elsewhere` (threaded through
+  `JobTrackList`) and `IncomingJobs`' pulse now follow the viewer, like the field and the Waterfall.
+- **Verifying U1 needs a real download, timed.** The probe (six real browser pages, three views,
+  two identities, en/hu, desktop/mobile) missed the first download: it finished while the pages
+  were still logging in. Holding the track `waiting` a minute out let the pages settle first. A
+  second id turned out to be a song already on disk under the same filename and settled in 0.2 s.
