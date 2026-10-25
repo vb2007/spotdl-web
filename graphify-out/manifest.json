@@ -90,8 +90,8 @@
     "semantic_hash": "8e20d302985b1ae15bcb1de36146a430"
   },
   "frontend/src/app.d.ts": {
-    "mtime": 1792958933.9284847,
-    "ast_hash": "c42b3f80c9023bb678c368146cc09af2",
+    "mtime": 1792966423.563077,
+    "ast_hash": "22484c7bea437733baecd757bd2d15fa",
     "semantic_hash": ""
   },
   "frontend/src/lib/index.ts": {
@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1792964351.7238274,
-    "ast_hash": "3ba3bc0868ae46dc0967aeaf30024f8d",
+    "mtime": 1792967010.8948977,
+    "ast_hash": "47bf8a3adfdba839ab055a658fead519",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -360,8 +360,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.ts": {
-    "mtime": 1792964216.242985,
-    "ast_hash": "6686bd4f70cc5d4c20a523b286326ecd",
+    "mtime": 1792966423.563077,
+    "ast_hash": "e356ace84ca1c7f417da605a5661d622",
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1792964468.5750945,
-    "ast_hash": "b0dfd2163890ba9fcbd43ce9995af3f8",
+    "mtime": 1792967121.2963173,
+    "ast_hash": "51d3617a84356c40dd8586034c0b5ec5",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -755,8 +755,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/TrackRow.svelte": {
-    "mtime": 1792961739.7676456,
-    "ast_hash": "223eafef306ab01114f97f0f622a2230",
+    "mtime": 1792966184.5274112,
+    "ast_hash": "ecf0ee22944daab737d30a3c3893f1dd",
     "semantic_hash": ""
   },
   "frontend/src/routes/account/+page.svelte": {
@@ -1040,8 +1040,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/queue.test.ts": {
-    "mtime": 1792964240.2370715,
-    "ast_hash": "0694cd42446a6e2ec50e73a1ecb3a7f7",
+    "mtime": 1792966276.8105547,
+    "ast_hash": "20191f4c40cdf4c40a63847f353befc0",
     "semantic_hash": ""
   },
   "frontend/src/lib/stores/progressCache.ts": {
@@ -1865,8 +1865,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/19-others-view.e2e.ts": {
-    "mtime": 1792964240.2371652,
-    "ast_hash": "23fe4906bdeaebec97ddbf6a4831b7aa",
+    "mtime": 1792967010.8856356,
+    "ast_hash": "92762b762e4301b1df05a85241233f20",
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/c05ab61eb258e8dd.json": {
