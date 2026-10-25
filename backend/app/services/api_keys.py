@@ -221,8 +221,7 @@ def create_key(db: Session, user_id: uuid.UUID, label: str) -> tuple[ApiKey, str
     """Creates a key for `user_id` and returns it with the raw key, which exists only in this
     return value. `label` must already be normalized. Raises ApiKeyLimitReached at
     MAX_ACTIVE_KEYS active keys. The caller commits."""
-    # Two creates at once would both count below the limit: the user's row serializes them
-    # (Postgres; SQLite, the unit tests', has one writer anyway).
+    # Two creates at once would both count below the limit: the user's row serializes them.
     db.query(User.id).filter(User.id == user_id).with_for_update(key_share=True).one()
     active = (
         db.query(ApiKey)

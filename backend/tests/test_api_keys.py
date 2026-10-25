@@ -396,8 +396,8 @@ def test_a_nul_in_the_session_cookie_is_no_session_and_falls_back_to_the_key(cli
 
 
 def test_get_valid_session_never_queries_an_unstorable_token():
-    """Review round 5: SQLite (this suite) compares a NUL without error, so only a direct test
-    proves the guard that keeps Postgres from raising on one."""
+    """Review round 5: Postgres raises on a NUL in a query parameter, so the guard must run
+    before any query; this pins it without depending on how a client sends such a cookie."""
     from app.services.sessions import get_valid_session
 
     class NoQueries:

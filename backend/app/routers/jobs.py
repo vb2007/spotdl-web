@@ -199,8 +199,7 @@ def create_job(
         source_url, source_type = payload.url, _classify_source_type(payload.url)
 
     # Two identical submits at once (an extension's double send) would both find nothing and
-    # both create: the user's row serializes them (Postgres; SQLite, the unit tests', has one
-    # writer anyway), held until this request commits.
+    # both create: the user's row serializes them, held until this request commits.
     # NO KEY UPDATE: it doesn't block the KEY SHARE locks a concurrent insert referencing the
     # user takes (a login's session row).
     db.query(User.id).filter(User.id == user.id).with_for_update(key_share=True).one()
