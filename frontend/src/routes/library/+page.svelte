@@ -84,6 +84,8 @@
 	});
 	const announcement = $derived(stateChanged ? stateSentence : '');
 	let heading: HTMLElement | undefined = $state();
+	// v52 (D5): the start button, so a confirmed start can hand its focus on before disabling it.
+	let startButton: HTMLButtonElement | undefined = $state();
 
 	function formatWhen(iso: string): string {
 		return formatDateTime(iso, { dateStyle: 'medium', timeStyle: 'short' });
@@ -152,6 +154,15 @@
 		}
 	}
 
+	/** v52 (D5): the start button's focus moves to the panel when it's (about to be) disabled.
+	 * keepFocus can't catch this one: the browser drops a disabled control's focus only on its
+	 * next frame, so a check right after an await could still find the button focused, and the
+	 * stream's "running" then dropped it to <body> for good. */
+	function handFocusToPanel(): void {
+		const active = document.activeElement;
+		if (active === null || active === document.body || active === startButton) heading?.focus();
+	}
+
 	async function onStartFlow() {
 		const settings = librarySettings;
 		const confirmed = await confirmAction({
@@ -190,11 +201,15 @@
 			}
 			if (unmounted) return;
 		}
-		// Started meanwhile (another tab): this one would only be refused. Say so.
+		// Started meanwhile (another tab): this one would only be refused. Say so. The stream's
+		// "running" has disabled the button already.
 		if (running) {
 			error = m.library_already_running();
+			handFocusToPanel();
 			return keepFocus(heading);
 		}
+		// The button is disabled from here until the sweep ends.
+		handFocusToPanel();
 		starting = true;
 		error = '';
 		try {
@@ -208,7 +223,7 @@
 		} finally {
 			starting = false;
 		}
-		// The button is disabled while the sweep runs, which drops its focus: land on the panel.
+		// The last resort, should focus have fallen to <body> anyway.
 		await keepFocus(heading);
 	}
 
@@ -327,7 +342,13 @@
 							{sweepHint.before}<a href={resolve('/settings')}>{sweepHint.link}</a>{sweepHint.after}
 						</p>
 					</div>
-					<button type="button" class="btn" disabled={starting || running} onclick={onStart}>
+					<button
+						type="button"
+						class="btn"
+						disabled={starting || running}
+						onclick={onStart}
+						bind:this={startButton}
+					>
 						{running ? m.library_sweeping() : starting ? m.library_starting() : m.library_start()}
 					</button>
 				</header>

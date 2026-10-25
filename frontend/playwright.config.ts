@@ -8,7 +8,11 @@ loadE2eEnv();
 // the CI runner is the production host (docs/LOCAL_DEV.md, "Browser end-to-end suite").
 // v50: without E2E_BASE_URL it follows WEB_PORT, the stack's published web port (an agent
 // slot's, scripts/agent_stack.sh), and is the owner's 5173 without either.
-const baseURL = process.env.E2E_BASE_URL || `http://localhost:${process.env.WEB_PORT || 5173}`;
+// v52 (D6): 127.0.0.1, never `localhost`, which can resolve to [::1] first, where another
+// project's dev server may be listening (Docker publishes `web` on 127.0.0.1 only). Chromium
+// keeps the `Secure` session cookie on http://127.0.0.1 (a trustworthy origin); Playwright's own
+// request contexts don't, which global-setup's saved sessions account for.
+const baseURL = process.env.E2E_BASE_URL || `http://127.0.0.1:${process.env.WEB_PORT || 5173}`;
 // Setup's ledger preflight and teardown's zero-download check read the local compose stack, so
 // the browser must drive that same stack: never a deployed origin.
 if (!['localhost', '127.0.0.1', '[::1]'].includes(new URL(baseURL).hostname)) {
@@ -24,6 +28,8 @@ export default defineConfig({
 	testMatch: '**/*.e2e.ts',
 	// One stack, one beat and one `worker-dl`: every spec shares the same queue and the same
 	// two identities, so they run one at a time, and a failure is never retried into a pass.
+	// v52 (D5): that's the retry policy, on purpose: a flake fails the run, with its trace kept
+	// (`trace` below), so whoever runs the suite can diagnose it rather than never see it.
 	fullyParallel: false,
 	workers: 1,
 	retries: 0,

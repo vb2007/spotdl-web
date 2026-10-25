@@ -161,11 +161,14 @@ needed" claim — rather than silently deleted.
   named volumes and fails on the network cloudflared holds → *v38*
 
 - The dev `web` container's `node_modules` and `src/lib/paraglide` are anonymous volumes: they
-  outlive a rebuild, so a dependency change needs `up -d --renew-anon-volumes` → *v46*
+  outlive a rebuild, so a dependency change needs `up -d --renew-anon-volumes` → *v46*.
+  **Corrected 2026-10-24 (v52):** named volumes now, and `npm ci` runs on its own when
+  `package-lock.json` changed; `docker compose restart web` is all it takes
 
 - `uvicorn --reload` waits forever for open SSE streams before restarting: edit a backend file
   while a browser tab (or `curl -N`) holds `/api/stream` and `api` goes unhealthy with
-  "Waiting for connections to close" until `docker compose restart api` → *v48*
+  "Waiting for connections to close" until `docker compose restart api` → *v48*.
+  **Fixed 2026-10-24 (v52):** `--timeout-graceful-shutdown 3` in the dev command
 - A deploy recreates every container, so `docker compose logs` on the host only reaches back to
   the last deploy; anything older (an alert that never arrived) can't be reconstructed → *v48*
 - Two stacks on one machine collide on more than ports: the dev override pins the network's IPv6
@@ -196,6 +199,15 @@ needed" claim — rather than silently deleted.
   `?dbname=`), not a string cut: a cut let `?`-in-password, `%77` or socket URLs past it → *v50*
 - `--profile '*'` enables every profiled service, `worker-dl` and `cloudflared` included: a guard on
   service names alone misses it → *v50*
+- `uvicorn --reload` waits for every in-flight response before restarting and SSE never ends:
+  the dev `api` runs with `--timeout-graceful-shutdown 3` → *v52*
+- The backend image has no `watchfiles` (the uv override pins plain `uvicorn`), so the dev workers reload
+  through the stdlib `scripts/dev/reload.py`, wrapped as their `entrypoint` so each `command`
+  stays production's word for word → *v52*
+- The dev `web` runs as uid 1000 from the Dockerfile's deps-only `dev` stage, with named volumes
+  for `node_modules` (reinstalled when `package-lock.json` changes), the compiled messages and
+  `.svelte-kit`; `up -d` doesn't restart an unchanged container, so a lockfile change needs
+  `docker compose restart web` → *v52*
 
 **Auth, cookies & sessions**
 - A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
@@ -381,7 +393,9 @@ needed" claim — rather than silently deleted.
   the new value — the row was correct, the stale process's loaded enum class wasn't. Any session
   that edits `app/models/*.py`, `app/services/*.py`, or `app/tasks/*.py` mid-session must
   `docker compose restart api worker-dl worker-meta beat` before trusting further real-stack
-  verification, not just re-run the script → *v23*
+  verification, not just re-run the script → *v23*. **Fixed 2026-10-24 (v52)** for the three
+  workers: `scripts/dev/reload.py` restarts them on a backend edit in dev; `beat` still needs a
+  restart
 - A Docker daemon restart (e.g. to change `/etc/docker/daemon.json`) can leave a Celery worker's
   broker connection stale even though the container itself reports `healthy` and `celery inspect
   active`/`reserved` show it idle rather than stuck — `dispatch_due_tracks` kept "succeeding" every
@@ -717,7 +731,9 @@ needed" claim — rather than silently deleted.
 - An `h1` placed between a page's `<header>` and its `<main>` is outside every landmark (axe
   `region`); a secondary page's `h1` opens its `main` → *v43*
 - A long-running Vite dev server stopped opening the confirmation dialog (restart `web`); a new
-  route leaves root-owned `.svelte-kit/types` (chown it in the container) → *v44*
+  route leaves root-owned `.svelte-kit/types` (chown it in the container) → *v44*. **Corrected
+  2026-10-24 (v52):** the dev `web` runs as uid 1000 with its own `.svelte-kit` volume, so no
+  root-owned files; the dialog failure didn't reproduce (see v52)
 - `/stats` windows are whole buckets ending with the current partial one: "Last 7 days" at 00:05
   is 6 days and 5 minutes, not 168 hours → *v44*
 - Enter/Space on a button also fire `click` (`detail` 0): a "last clicked control" heuristic must
@@ -748,6 +764,13 @@ needed" claim — rather than silently deleted.
 - A ≤640px column stack inherits flex-basis values meant for the row layout (the toggle's
   `16rem`, the bar's `100%`), which made every job row ~4× taller and hid its bar → *v39.1*
   (recorded in the v39 section; v39.1 has no section of its own)
+- A host-side `svelte-kit sync` (`npm run check`/`build`) rewrites `.svelte-kit/generated` and Vite
+  reloads every open page; the dev `web` has its own `.svelte-kit` volume since v52 → *v52*
+- Removing a directory on the host detaches a container's volume mounted there (Paraglide's
+  `cleanOutdir` did, on every host check): compile in place → *v52*
+- Disabling a focused control drops its focus only on the browser's next frame, so a focus
+  check right after an await can still see it focused: move focus before disabling (the
+  library sweep's start) → *v52*
 
 **Testing & verification technique**
 - FastAPI's `app.routes` (0.141+) holds lazy `_IncludedRouter` wrappers: walk `original_router.routes`
@@ -775,7 +798,10 @@ needed" claim — rather than silently deleted.
   families) → *v35*
 - The session cookie is `Secure`, so the browser suite needs a `localhost` origin (Chromium treats
   only that as secure over plain HTTP; `127.0.0.1` drops the cookie). Another dev server bound to
-  `[::1]:5173` silently captures `localhost` from Node and the browser → *v38*
+  `[::1]:5173` silently captures `localhost` from Node and the browser → *v38*. **Corrected
+  2026-10-24 (v52):** Chromium does keep the `Secure` cookie on `http://127.0.0.1`; Playwright's
+  own request contexts don't, so the suite targets `127.0.0.1` and its saved sessions drop the
+  flag
 - Ad-hoc verification scripts go in `/app/`, **never `/tmp/`** — `/tmp` puts the script's own dir
   first on `sys.path` and silently imports the stale baked-in `site-packages` copy of `app` → *v11*
 - A local venv for running pytest outside Docker must be installed with `-e`, or edits are
@@ -979,9 +1005,17 @@ needed" claim — rather than silently deleted.
 - `docker compose exec -T` reads the shell's stdin, so inside a `while read` loop it swallows the
   remaining lines; feed the list into one `exec ... sh -c 'while read ...'` instead → *v48*
 - A Celery worker keeps the code it started with (no hot reload), so a worker started before an
-  edit runs the old code: handy for a real before/after on the same stack, a trap otherwise → *v48*
+  edit runs the old code: handy for a real before/after on the same stack, a trap otherwise → *v48*.
+  **Corrected 2026-10-24 (v52):** the dev workers now reload on an edit, so that before/after
+  needs a prod-like run (`-f docker-compose.yml`)
 - v31's open questions closed on dev: a real album's every `COMPLETED` file exists at its
   `output_path`, and four real ladder delays matched `LADDER_SECONDS` exactly → *v48*
+- Playwright's request contexts send a `Secure` cookie over plain HTTP only to `localhost`, even
+  though Chromium keeps it on `127.0.0.1`: the suite runs on `127.0.0.1` with saved sessions
+  stripped of the flag → *v52*
+- A wait on the rows (or on "loading" being gone) right after typing a search can pass on the
+  list from before the search: wait for the search's own `?q=` answer (spec 14's `typeSearch`)
+  → *v52*
 
 - pytest runs on real Postgres: a per-run database (`TEST_DATABASE_URL` names the server and a
   `test`-marked stem), Alembic-built, dropped at the end; `db_session` rolls back, `committed_db`
@@ -4983,7 +5017,10 @@ independently-found production bug from the same conversation)
   only, so another project's Vite dev server listening on `[::1]:5173` wins `localhost` for Node
   and the browser. An e2e run then failed with HTML where JSON was expected and a foreign page in
   the screenshot. `127.0.0.1` isn't a way around it: the session cookie is `Secure`, which
-  Chromium honours over HTTP only for `localhost`. Stop the other server.
+  Chromium honours over HTTP only for `localhost`. Stop the other server. **Corrected 2026-10-24
+  (v52):** wrong about Chromium, which keeps a `Secure` cookie on `http://127.0.0.1` too. It's
+  Playwright's request contexts that send one only to `localhost`/`*.localhost`. The suite now
+  targets `127.0.0.1` (v52, D6).
 - **Production's library went live after the merge (2026-10-11).** `LIBRARY_DIR` had pointed at
   the empty test folder `/mnt/raid1/media/test`; the owner changed it to `/mnt/raid1/media/music`,
   recreated the stack and sorted 12 already-downloaded tracks: 12 moved, 0 already present,
@@ -5341,7 +5378,10 @@ independently-found production bug from the same conversation)
 - **A long-running Vite dev server can stop opening the v43 confirmation dialog.** After ~39h and
   many HMR updates on dev, clicking "release now" on `/settings` set nothing in `pendingConfirm`
   (the `<dialog>` stayed empty, no console error), while the built nginx image and a restarted
-  `web` container both worked. Restart `web` before blaming the code.
+  `web` container both worked. Restart `web` before blaming the code. **Corrected 2026-10-24
+  (v52):** a fresh browser saw it too (so it was the server's state, not a page's), and the check
+  after the restart opened *pause*, not *release now*. v52 couldn't reproduce it; see the v52
+  section for what was tried and what changed.
 - **GitGuardian's PR check flags fake credentials in test proxy URLs** ("Basic Auth String" for a
   literal URL with a six-letter user and a four-character password; single-letter or `user:pass`
   ones were not flagged), and a `(user, password)`-shaped tuple of string literals as an
@@ -5352,7 +5392,8 @@ independently-found production bug from the same conversation)
 - **Adding a route while the dev `web` container runs leaves root-owned
   `frontend/.svelte-kit/types/src/routes/<route>/`**, and `npm run check` fails with `EACCES`.
   `docker compose exec -T web chown -R 1000:1000 .svelte-kit` fixes it (the v28 entry's `rm`
-  needs the parent writable).
+  needs the parent writable). **Fixed 2026-10-24 (v52):** the dev `web` runs as uid 1000 and has
+  its own `.svelte-kit` volume.
 
 ### v45 keyboard-navigation gotchas
 
@@ -5385,7 +5426,9 @@ independently-found production bug from the same conversation)
 - **Don't run `npm run check` or `npm run build` while the e2e suite runs.** `svelte-kit sync`
   rewrites `frontend/.svelte-kit/`, the dev stack's Vite server answers with a full page reload,
   and spec 1 (which watches for exactly that) fails with "the observer must survive: no hard
-  navigation in between". Seen in v45's final run; the suite alone passed.
+  navigation in between". Seen in v45's final run; the suite alone passed. **Fixed 2026-10-24
+  (v52):** the dev `web` container has its own `.svelte-kit` volume, so a host-side sync no
+  longer touches the files its Vite serves.
 
 ### v46 i18n gotchas
 
@@ -5603,7 +5646,8 @@ independently-found production bug from the same conversation)
   interval gives one per frame (headless input lands between frames, a real mouse's in-frame).
 - **`uvicorn --reload` hangs on open SSE streams.** Editing `app/tasks/library.py` made `api` log
   "Waiting for connections to close" and stop answering (container `unhealthy`), because an
-  `/api/stream` connection was still open. `docker compose restart api` clears it.
+  `/api/stream` connection was still open. `docker compose restart api` clears it. **Fixed
+  2026-10-24 (v52):** see the v52 section.
 - **The pipeline record since v33 found two releases that never reached production.** 4.40.2's
   `deploy` job died at "Set up job" on a GitHub `429` downloading `actions/checkout`, and the
   `notify` job needs the same action, so it died the same way: no Matrix message, and nobody
@@ -6076,3 +6120,144 @@ independently-found production bug from the same conversation)
   it within a few logins, and buckets from an earlier, longer window survive an `api` recreate:
   delete `spotdl:ratelimit:*` in the slot's Redis before a limits check.
 
+### v52 dev-loop gotchas (learned fixing the dev loop and the e2e flakes)
+
+- **`uvicorn --reload` hung because a reload is a graceful shutdown.** The old server waits for
+  every in-flight response before it exits, and an `/api/stream` response only ends when its
+  client hangs up. Reproduced on slot 2: with `curl -N /api/stream` open, an edit at 19:07:30 logged
+  "Waiting for connections to close", `/api/health` stopped answering, and the old server finished
+  only at 19:08:28, when the 60 s `curl` gave up. `--timeout-graceful-shutdown 3` in the dev
+  command: the same edit at 19:09:12 logged "Cancel 1 running task(s), timeout graceful shutdown
+  exceeded" at 19:09:15 and the new server was up at 19:09:19. The cancelled generator's `finally`
+  unsubscribes, and the browser's EventSource reconnects. Production has no `--reload`, but a
+  deploy's `docker stop` of `api` waits on open streams the same way, up to Docker's 10 s kill
+  (not changed here).
+- **The backend image has no `watchfiles`.** `backend/pyproject.toml` asks for
+  `uvicorn[standard]`, but its uv `override-dependencies` (there for spotdl's own pins) replace it
+  with plain `uvicorn`, extras gone, so the dev `api` reloads with `StatReload`, and there was no watcher to wrap the
+  Celery workers with. `scripts/dev/reload.py` is a stdlib poller (one `os.walk` a second over
+  `/app/app`), mounted read-only at `/opt/dev` and set as the three workers' dev `entrypoint`, so
+  each worker's `command` is still `docker-compose.yml`'s (worker-dl's `--concurrency=1
+  --prefetch-multiplier=1` can't drift). Only a `celery … worker` command is supervised: any other
+  (a `docker compose run` one-off, a shell) is `exec`ed as is, so it's never re-run on an edit (an
+  earlier version restarted one-offs too, and hung after them). A change
+  sends SIGTERM (Celery's warm shutdown) and SIGKILL after the service's stop grace (300 s for
+  `worker-dl`/`worker-expand`, Docker's default 10 s for `worker-meta`): a SIGKILLed main process isn't covered by
+  `task_reject_on_worker_lost`, so its task would wait for the broker's 6 h visibility timeout or
+  beat's stale sweep. A worker exiting on its own, for any reason, ends the wrapper with its status
+  (128+N for signal N), so the v32 config guard still stops the container and Docker's restart
+  policy covers every crash, a syntax error an edit brought in included (it crash-loops until
+  fixed, and comes back after the fix on Docker's restart backoff: ~25 s after a 45 s error).
+  A `docker compose stop` that lands while a just-reloaded Celery is still booting exits 143
+  (Celery dies of the SIGTERM before its handlers exist, as it would unwrapped). An earlier version waited for the next edit instead after a crash soon after a reload,
+  and a worker SIGKILLed in that window stayed dead behind a "healthy" container. `init: true`
+  keeps the wrapper off PID 1 (which drops a signal that arrives before its handler exists) and
+  reaps orphans.
+- **A dev dependency change no longer needs `--renew-anon-volumes`.** `node_modules` is a named
+  volume with a stamp of the `package-lock.json` it was installed from; the dev command runs
+  `npm ci` into the volume when the bind-mounted lockfile differs (`npm ci` works on a mounted
+  `node_modules`: no `EBUSY`). The stamp leaves out the app's own `version` (every slice bumps it,
+  and a bare `sha256sum` of the lockfile would have reinstalled at every slice's first boot), and
+  the dev healthcheck's `start_period` is 300 s, room for that `npm ci`. The one remaining step is a
+  restart: `docker compose up -d` leaves a
+  running container alone when its image didn't change (seen: removing a dependency again rebuilt
+  to an identical cached image, and `up` printed `Running`), so `docker compose restart web`.
+- **Root-owned frontend files came from the dev `web` running Vite as root.** It now runs as
+  `node` (uid 1000) from a deps-only `dev` stage, whose `node_modules`, `src/lib/paraglide` and
+  `.svelte-kit` are owned by `node`, so fresh volumes start that way. The volumes are *named*: a
+  recreated container keeps its old anonymous volumes, which a pre-v52 container had filled as
+  root. A pre-v52 checkout still has root-owned files in the bind mount; the dev command refuses
+  to start over them and prints the `chown` that hands them back, and `agent_stack.sh up` runs it
+  itself. The uid is fixed, not the host's: on a host whose user isn't uid 1000, Vite (uid 1000)
+  can't write the bind-mounted files that user owns (`project.inlang`'s cache, say) and fails with
+  `EACCES`. This host's user is uid 1000; another host would need a `user:` and a matching image.
+- **A new named volume is filled from whichever image mounts it first.** Compose doesn't rebuild an
+  image it already has when the override's `target` changes, so the first plain `up` after v52 ran
+  the old root `build`-stage image, which filled the three new `web` volumes as root (tried on slot
+  2 with the pre-v52 image re-tagged). The dev command now refuses a root image (with the one-step
+  recovery: remove `web` and its volumes, `up --build`) and any of the three directories it can't
+  write. `agent_stack.sh up` builds `web` before its first `run`. A missing `frontend/.svelte-kit`
+  is created root-owned on the host as the volume's mountpoint, so `up` pre-creates it.
+- **Host-side `npm run check`/`lint`/`build` reloaded every open dev page, two ways.**
+  - `svelte-kit sync` regenerates `.svelte-kit/generated` (`root.js`, `root.svelte`,
+    `server/internal.js` with a new `version_hash`), and on the shared bind mount the dev Vite
+    logged `page reload .svelte-kit/generated/root.js` for each. The dev `web` now has its own
+    `.svelte-kit` volume.
+  - `scripts/check-messages.mjs` compiled Paraglide with the default `cleanOutdir`, which
+    `rmdir`s `frontend/src/lib/paraglide` and recreates it (seen with `strace`). That directory is
+    the mountpoint of the container's own compiled-messages volume, and **Linux detaches a mount
+    whose mountpoint is removed from another mount namespace**: the container's mount table lost
+    `/app/src/lib/paraglide` (1 entry, then 0), so from then on it shared the host's directory and
+    every host compile logged `page reload src/lib/paraglide/messages.js`. That is also what
+    v46's "the recreated directory dropped out of the watch" was. The script now compiles with
+    `cleanOutdir: false`, as `vite.config.ts` already did: five compiles plus a full
+    `check`/`lint`/`build` kept the mount and logged nothing. Host `npm ci` and `svelte-kit
+    sync` remove no mountpoint, but a hand-run `rm -rf frontend/.svelte-kit` (or `node_modules`,
+    or `src/lib/paraglide`) still does, and the container then shares the host's copy (a
+    `.svelte-kit` loss also 500s every open page until the host regenerates it). `docker compose
+    restart web` remounts all three, and the e2e global setup refuses to start while one is
+    missing (`detachedWebVolumes`), so it can't come back as a mid-run reload.
+  - A host `npm run build` still logs `page reload build/*.html`, and the e2e HTML reporter
+    `page reload playwright-report/*.html` at the end of a run; Vite's client ignores both (it
+    reloads only for its own page's HTML).
+- **Chromium keeps a `Secure` cookie on `http://127.0.0.1`; Playwright's request contexts
+  don't.** Logging in through the page on `127.0.0.1` gave a working session (`/api/auth/me` 200
+  from the page), while a `request.newContext` made from that page's storage state got 401:
+  Playwright's cookie matcher accepts plain HTTP only for `localhost` and `*.localhost`. The suite
+  now targets `http://127.0.0.1:<port>` (v38's `[::1]:5173` capture can't happen), and global
+  setup saves both sessions with the flag dropped, so every context made from them sends it.
+- **Spec 12's "start sweep asks first" flake was the page's own race.** After a confirmed start,
+  focus goes back to the start button, the page disables it (`starting`), sends the POST, and
+  called `keepFocus(heading)` once the answer landed. A browser drops a disabled control's focus
+  only on its next frame, so when the answer came back within the frame, the check still saw the
+  button focused and did nothing; the stream's `running` then disabled it for good and focus fell
+  to `<body>` ("focus after confirming"). Outside the suite, 4 of 30 confirmed starts ended on
+  `<body>`; with focus moved to the panel heading *before* the button is disabled, 0 of 60.
+- **Spec 14's load-more flake was the test's.** The job search re-lists after a debounce (~330 ms
+  here), and the test's waits after typing (the job's row listed, "loading" gone) could pass on the
+  list from before the search; the search's answer then re-rendered the rows under the next key
+  press. Timed on slot 2, the skip-link test's "one row listed" wait passed 5–19 ms after typing
+  while the search answered at 325–366 ms, in 10 of 10 runs. `typeSearch` waits for the request
+  whose `q` is the typed text (the store applies only its newest request's answer).
+- **Spec 3 makes its own network-path fixture** when the admin has no track with a recorded
+  network path (a fresh database), so it no longer needs a prior `@network` pass.
+- **v44's "a long-running Vite stops opening the confirmation dialog" didn't reproduce.** v44's own
+  transcript says more than its entry: the failing control was *release now*, one minute after a
+  real breaker escalation; a *fresh* browser also got the `<dialog>` element rendered but empty
+  and never opened (so the server's state, not one page's); no console error; and the check after
+  restarting `web` opened *pause*, not *release now*. A rendered dialog that never reacts while
+  `confirmAction` (which `handleRelease` calls before anything else) did run means the page held
+  two instances of `stores/confirm.ts`, or of the Svelte runtime. What v52 ran against the dev
+  server, checking a fresh page each time (and, in the soak, a page kept open throughout):
+  - 162 HMR cycles on the dialog's own files and their importers (`confirm.ts`, `ConfirmDialog`,
+    `WorkerStatus`, `/settings`, the layout, `queue.ts`), with navigation between pages, HMR with
+    the dialog open, and compile errors then fixes;
+  - 40 bursts of simultaneous writes to eight of those files while a page loaded;
+  - a host-side `svelte-kit sync`, a new npm dependency discovered at runtime (Vite optimized it
+    without a new browser hash), and 10 in-process Vite restarts;
+  - a soak against a second, pre-v52-style dev server (root, shared `.svelte-kit`) on a copy of
+    the tree, mixing HMR edits, host-side `svelte-kit sync` (partly failing with `EACCES` on
+    root-owned types, as v44's did), `chown` of `.svelte-kit`, routes added and removed, bursts,
+    and `vite.config.ts` restarts: 1,759 cycles over 3 h 32 min (959 HMR edits, 189 bursts, 215
+    host syncs, 84 `chown`s, 62 routes added, 41 restarts), with 334 checks of a fresh page and
+    331 of a page kept open throughout. The dialog opened every time it was asked. The one stop
+    was a fresh page that never rendered while the server stalled for 40 s under a parallel e2e
+    run's load; from then on the probe counted those apart (4 more), and never one where the
+    page rendered and the dialog didn't open.
+  Every fresh page loaded `confirm.ts`, and each optimized dependency, under one URL, and the
+  dialog opened every time. No fix went into `ConfirmDialog.svelte`. What v52 did change is the one
+  mechanism found that rewrites what Vite serves from outside it: a host-side `npm run check`
+  (which v44's session ran repeatedly while `web` ran as root, chowning `.svelte-kit` by hand)
+  rewrote `.svelte-kit/generated` and detached the container's compiled-messages volume. Both
+  now stay in the container's own volumes. If it recurs: list the module URLs a fresh page loads
+  (`performance.getEntriesByType('resource')`) and look for `confirm.ts` or a
+  `.vite/deps/svelte_internal_client` chunk under two queries before restarting `web`.
+- **A reload restarts `worker-meta`'s boot work too.** Its boot runs `reconcile_disk()` (prunes
+  ledger rows whose file is missing) and `proxies.sync_from_file()`, so since v52 every backend save
+  runs them on the dev stack, as a manual `docker compose restart worker-meta` always did. That is
+  safe during a library sweep: the sweep commits a row's repoint before unlinking the source, and
+  reconcile re-reads a row whose file is missing before pruning it (v34.1).
+- **Vite's error overlay can outlive a fixed compile error.** After a syntax error in a `.svelte`
+  file and a byte-for-byte revert, an open page kept `vite-error-overlay` (vite-plugin-svelte skips
+  the unchanged output, so no update clears it), and it intercepts every click: in a kept-open tab
+  that looks exactly like "the dialog doesn't open". Esc or a reload clears it. Not v52's doing.

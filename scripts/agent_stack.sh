@@ -141,14 +141,14 @@ refuse_foreign_slot() {
 		die "docker ps failed: can't check who owns slot $SLOT"
 	while IFS= read -r dir; do
 		if [ -n "$dir" ] && [ "$dir" != "$ROOT" ]; then
-			[ -d "$dir" ] || die "slot $SLOT ($PROJECT) was left up by a worktree that no longer exists ($dir). Clear it with: docker ps -aq --filter label=com.docker.compose.project=$PROJECT | xargs -r docker rm -fv; docker network rm ${PROJECT}_default; docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data"
+			[ -d "$dir" ] || die "slot $SLOT ($PROJECT) was left up by a worktree that no longer exists ($dir). Clear it with: docker ps -aq --filter label=com.docker.compose.project=$PROJECT | xargs -r docker rm -fv; docker network rm ${PROJECT}_default; docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data ${PROJECT}_web-node-modules ${PROJECT}_web-paraglide ${PROJECT}_web-svelte-kit"
 			die "slot $SLOT ($PROJECT) is in use by another worktree: $dir. Take it down there (scripts/agent_stack.sh $SLOT down), or pick another slot."
 		fi
 	done <<<"$dirs"
 	volume_dir="$(docker volume inspect "${PROJECT}_pgdata" \
 		--format '{{index .Labels "spotdlweb.worktree"}}' 2>/dev/null || true)"
 	if [ -n "$volume_dir" ] && [ "$volume_dir" != "$ROOT" ]; then
-		die "slot $SLOT's database volume ${PROJECT}_pgdata belongs to another worktree: $volume_dir. Drop it there (scripts/agent_stack.sh $SLOT down --volumes), or, if that worktree is gone, docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data (Redis's queue goes with it)."
+		die "slot $SLOT's database volume ${PROJECT}_pgdata belongs to another worktree: $volume_dir. Drop it there (scripts/agent_stack.sh $SLOT down --volumes), or, if that worktree is gone, docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data ${PROJECT}_web-node-modules ${PROJECT}_web-paraglide ${PROJECT}_web-svelte-kit (Redis's queue goes with it)."
 	fi
 }
 
@@ -213,7 +213,7 @@ write_env_agent() {
 		fi
 		# The stored password is slot $previous's; a volume this slot kept was made with its own.
 		if docker volume inspect "${PROJECT}_pgdata" >/dev/null 2>&1; then
-			die "slot $SLOT still has a database volume from before, with a password .env.agent no longer holds: drop it with scripts/agent_stack.sh $SLOT down --volumes (after env for slot $SLOT fails, use docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data)"
+			die "slot $SLOT still has a database volume from before, with a password .env.agent no longer holds: drop it with scripts/agent_stack.sh $SLOT down --volumes (after env for slot $SLOT fails, use docker volume rm ${PROJECT}_pgdata ${PROJECT}_redis-data ${PROJECT}_web-node-modules ${PROJECT}_web-paraglide ${PROJECT}_web-svelte-kit)"
 		fi
 	fi
 	[ -f "$ENV_FILE" ] || die "no $ENV_FILE: copy the main checkout's dev .env into this worktree first (docs/LOCAL_DEV.md, 'Parallel agent stacks')."
@@ -373,12 +373,12 @@ wait_healthy() {
 	done
 }
 
-# Bind-mount sources and the dev `web` container's anonymous-volume mountpoints must exist
+# Bind-mount sources and the dev `web` container's volume mountpoints must exist
 # before `up`, or Docker creates them root-owned (and a directory, for proxies.txt): the uid-1000
 # workers couldn't write ./downloads, and a host `npm ci` couldn't fill frontend/node_modules.
 prepare_mounts() {
 	mkdir -p "$ROOT/downloads" "$ROOT/test-library" "$ROOT/frontend/node_modules" \
-		"$ROOT/frontend/src/lib/paraglide"
+		"$ROOT/frontend/src/lib/paraglide" "$ROOT/frontend/.svelte-kit"
 	[ -e "$ROOT/proxies.txt" ] || : >"$ROOT/proxies.txt"
 	[ -f "$ROOT/proxies.txt" ] ||
 		die "$ROOT/proxies.txt isn't a file (Docker made it a directory: a container started before it existed). Take the slot down (scripts/agent_stack.sh $SLOT down), remove it (root-owned: docker run --rm -v \"$ROOT:/w\" alpine rmdir /w/proxies.txt), then retry"
@@ -387,13 +387,16 @@ prepare_mounts() {
 	[ -e "$ROOT/frontend/.env" ] || cp "$ROOT/frontend/.env.example" "$ROOT/frontend/.env"
 }
 
-# The dev `web` container runs Vite as root, which writes .svelte-kit/ and project.inlang's cache
-# into the worktree root-owned, and then host-side `npm run check`/`lint` fail with EACCES
-# (docs/GOTCHAS.md, v44). A fresh worktree hits that on its first `up`, so hand them back.
-# (Vite keeps writing as root afterwards; v52 owns the lasting fix.)
+# Before v52 the dev `web` container ran Vite as root, which wrote .svelte-kit/ and project.inlang's
+# cache into the worktree root-owned, and then host-side `npm run check`/`lint` failed with EACCES
+# (docs/GOTCHAS.md, v44). v52 runs it as uid 1000, and its dev command refuses to start over
+# root-owned files, so a worktree that still has some gets them back, through a one-off root
+# container, before `up`. The worktree's frontend/ is mounted whole at /host: the container's
+# own /app hides .svelte-kit, node_modules and the compiled messages behind its volumes.
+# `--build`: a slot's existing image may be a pre-v52 one, which would fill the web volumes this
+# run creates as root.
 return_frontend_files() {
-	# Not into the container's own node_modules and compiled messages (anonymous volumes).
-	dc exec -T web sh -c "find /app \\( -path /app/node_modules -o -path /app/src/lib/paraglide \\) -prune -o -user 0 -exec chown $(id -u):$(id -g) {} +" || true
+	dc run --rm --no-deps --build -T -u root -v "$ROOT/frontend:/host" web sh -c "find /host -path /host/node_modules -prune -o -user 0 -exec chown $(id -u):$(id -g) {} +" || true
 }
 
 # --- realdl lock --------------------------------------------------------------------------------
@@ -604,7 +607,8 @@ load_e2e_credentials() {
 		value="$(env_value "$file" "$key")"
 		export "$key=$value"
 	done <"$file"
-	export E2E_BASE_URL="http://localhost:$WEB_PORT"
+	# v52 (D6): 127.0.0.1, as frontend/playwright.config.ts explains.
+	export E2E_BASE_URL="http://127.0.0.1:$WEB_PORT"
 }
 
 # --- Commands -----------------------------------------------------------------------------------
@@ -631,11 +635,11 @@ up)
 		[ "$arg" != worker-dl ] || die "worker-dl runs only under the realdl lock: scripts/agent_stack.sh $SLOT realdl <command>"
 	done
 	prepare_mounts
+	return_frontend_files
 	dc up -d --build "$@"
 	echo "agent_stack: waiting for slot $SLOT to be healthy"
 	wait_healthy
-	return_frontend_files
-	echo "agent_stack: slot $SLOT is up: web http://localhost:$WEB_PORT, api http://localhost:$API_PORT"
+	echo "agent_stack: slot $SLOT is up: web http://127.0.0.1:$WEB_PORT, api http://127.0.0.1:$API_PORT"
 	;;
 down)
 	if [ ! -f "$ENV_AGENT" ]; then
@@ -645,8 +649,10 @@ down)
 		docker ps -aq --filter "label=com.docker.compose.project=$PROJECT" | xargs -r docker rm -fv >/dev/null
 		docker network rm "${PROJECT}_default" >/dev/null 2>&1 || true
 		if [ "${1:-}" = --volumes ] || [ "${1:-}" = -v ]; then
-			docker volume rm "${PROJECT}_pgdata" "${PROJECT}_redis-data" >/dev/null 2>&1 || true
-			echo "agent_stack: removed ${PROJECT}_pgdata and ${PROJECT}_redis-data" >&2
+			# v52: and the dev web container's own volumes.
+			docker volume rm "${PROJECT}_pgdata" "${PROJECT}_redis-data" "${PROJECT}_web-node-modules" \
+				"${PROJECT}_web-paraglide" "${PROJECT}_web-svelte-kit" >/dev/null 2>&1 || true
+			echo "agent_stack: removed ${PROJECT}_pgdata, ${PROJECT}_redis-data and the web-* volumes" >&2
 		fi
 		return 0
 	fi
@@ -725,7 +731,7 @@ e2e)
 	export_compose_env
 	load_e2e_credentials
 	# The specs import the compiled messages from the host side; the web container's copy is
-	# its own (an anonymous volume).
+	# its own (a volume).
 	[ -f "$ROOT/frontend/src/lib/paraglide/messages.js" ] ||
 		die "frontend/src/lib/paraglide isn't compiled on the host: run npm ci && npm run check in frontend/ first"
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"

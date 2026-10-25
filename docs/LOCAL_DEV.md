@@ -56,6 +56,15 @@ docker compose up
 (No `-f docker-compose.yml` exclusion — that flag is specifically to *avoid* the override on
 the production host. Here, the override is the point.)
 
+**The first `up` after v52 needs `--build`** (`docker compose up --build`): the dev `web` image
+became a dependencies-only stage that runs as uid 1000, and Compose won't rebuild an image it
+already has. `web` refuses to start on the old one and says so. Before that first `up` (and on a
+fresh clone), also `mkdir -p frontend/node_modules frontend/src/lib/paraglide frontend/.svelte-kit`:
+Docker creates a missing mountpoint of `web`'s volumes root-owned, and the host-side
+`npm run check`/`lint`/`build` then can't write it (`scripts/agent_stack.sh up` does this for a
+slot). `web` keeps its own `.svelte-kit`, so a route added while it runs gets its `./$types` on
+the host only with the next host `npx svelte-kit sync` (or `npm run check`).
+
 **One gap this trades away:** the override runs `vite dev` for `web`, not nginx — anything whose
 correctness depends specifically on nginx behavior (a new `internal` location, a new `location`
 block) can't be exercised through this stack at all; verifying that kind of change needs
@@ -68,7 +77,7 @@ why that needed doing, and why it wasn't the original design).
 ## 3. Verify
 
 ```bash
-curl -s http://localhost:8000/api/health
+curl -s http://127.0.0.1:8000/api/health
 ```
 
 Ports bound to `127.0.0.1` is fine and expected here too — this is your own machine, nothing
@@ -104,7 +113,7 @@ session = create_session(db, user.id)
 db.commit()
 print(session.token)
 "
-# then: curl -H 'Cookie: SPOTDL_SESSION=<token>' http://localhost:8000/api/jobs
+# then: curl -H 'Cookie: SPOTDL_SESSION=<token>' http://127.0.0.1:8000/api/jobs
 ```
 
 ## 5. Exercising sort & move locally (v28)
@@ -134,7 +143,7 @@ not some other path, or the sweep writes into the container's ephemeral overlay 
 instead of the bind mount, "succeeds," and nothing shows up on disk or through nginx:
 
 ```bash
-curl -b <admin cookie jar> -X PATCH http://localhost:8000/api/settings/library \
+curl -b <admin cookie jar> -X PATCH http://127.0.0.1:8000/api/settings/library \
   -H "Content-Type: application/json" \
   -d '{"library_target_dir":"/mnt/raid1/media/music"}'
 ```
@@ -238,13 +247,19 @@ npm run test:e2e:network    # opt-in: the one @network spec, a real YouTube down
 E2E_STRICT=1 npm run test:e2e   # v43: fail, never skip, spec 12's tests that step aside on a busy stack
 ```
 
-`E2E_BASE_URL` overrides the origin (default `http://localhost:${WEB_PORT:-5173}`, v50), for example
+`E2E_BASE_URL` overrides the origin (default `http://127.0.0.1:${WEB_PORT:-5173}`, v52), for example
 to aim at the production-style `web` image. It must stay a loopback origin, and the config refuses anything
 else: setup and teardown check the local stack's database, so the browser must drive that stack.
-Use `localhost`, not `127.0.0.1`: the session cookie is `Secure`, which Chromium only honours over
-plain HTTP on `localhost`. If another dev server listens on `[::1]:5173`, it captures `localhost`
-(compose publishes `web` on `127.0.0.1` only), so stop it before a run. Failures keep a trace and a screenshot under `frontend/test-results/`
+v52 (D6): the suite uses `127.0.0.1`, not `localhost`. Compose publishes `web` on `127.0.0.1` only,
+and `localhost` can resolve to `[::1]` first, where another project's dev server may be listening
+(it once captured the whole suite). Chromium keeps the `Secure` session cookie on
+`http://127.0.0.1`; Playwright's own request contexts don't, so global setup saves the two sessions
+without the flag (`e2e/global-setup.ts`).
+
+**Retries and failures (v52, D5):** `retries: 0` is deliberate. A flake fails the run rather than
+passing on a second try, and every failure keeps a trace and a screenshot under `frontend/test-results/`
 (`npx playwright show-trace <trace.zip>`), and `frontend/playwright-report/` holds the HTML report.
+Diagnose a flake from its trace; don't re-run it into a pass.
 
 **How it stays cheap on the real stack**
 
@@ -301,11 +316,15 @@ scripts/agent_stack.sh <slot> down [--volumes]
 
 | Slot | Compose project | API | Web | Database |
 |---|---|---|---|---|
-| 1 | `spotdlweb-s1` | `localhost:8001` | `localhost:5174` | `spotdlweb_s1` in the project's own `postgres` container |
-| 2 | `spotdlweb-s2` | `localhost:8002` | `localhost:5175` | `spotdlweb_s2` |
-| 3 | `spotdlweb-s3` | `localhost:8003` | `localhost:5176` | `spotdlweb_s3` |
-| 4 | `spotdlweb-s4` | `localhost:8004` | `localhost:5177` | `spotdlweb_s4` |
-| owner | the checkout's directory name | `localhost:8000` | `localhost:5173` | LAN `spotdlwebtest` |
+| 1 | `spotdlweb-s1` | `127.0.0.1:8001` | `127.0.0.1:5174` | `spotdlweb_s1` in the project's own `postgres` container |
+| 2 | `spotdlweb-s2` | `127.0.0.1:8002` | `127.0.0.1:5175` | `spotdlweb_s2` |
+| 3 | `spotdlweb-s3` | `127.0.0.1:8003` | `127.0.0.1:5176` | `spotdlweb_s3` |
+| 4 | `spotdlweb-s4` | `127.0.0.1:8004` | `127.0.0.1:5177` | `spotdlweb_s4` |
+| owner | the checkout's directory name | `127.0.0.1:8000` | `127.0.0.1:5173` | LAN `spotdlwebtest` |
+
+v52 (D6): `127.0.0.1` rather than `localhost`, which can resolve to `[::1]` first, where another
+project's dev server may be listening (Docker publishes every port on `127.0.0.1` only).
+Chromium keeps the `Secure` session cookie on `http://127.0.0.1`.
 
 **Setting one up.** In a fresh worktree (`git worktree add -b <branch> ../spotdl-web-wt/<branch>
 origin/main`), copy the owner's dev `.env` in (`cp ../../spotdl-web/.env .`), then `up` (it also
@@ -384,7 +403,7 @@ the suite still reads that file for any key the slot file lacks: keep the slot f
 the worktree free of `.env.e2e`.
 
 In a browser, use one profile (or private window) per stack: cookies aren't scoped by port, so
-the session cookie of `localhost:5174` and the owner's `localhost:5173` overwrite each other, and
+the session cookie of `127.0.0.1:5174` and the owner's `127.0.0.1:5173` overwrite each other, and
 each stack then answers the other's token with 401.
 
 **Other commands against the slot.** Anything that should hit the slot rather than the owner's
@@ -430,13 +449,13 @@ what a fresh slot lacks:
   tracks the library sort moved, under `./test-library/agent fixture/`;
 - the e2e admin's history: 120 archived jobs (spec 14 pages through three pages of 50), a 14-track
   album (spec 14's twelve-or-more-track job) and a track whose attempt recorded a network path
-  (spec 3; on the owner's stack an earlier `@network` pass leaves one).
+  (spec 3, which since v52 adds its own fixture when it finds none it can use).
 
 A new spec that leans on more of the owner's data needs that data added to the seed too. Then `npm run test:e2e`
 runs from the worktree's
 `frontend/` (run `npm ci`, `npm run check`, which compiles the messages the specs import, and
 `npx playwright install chromium` there once) with
-`E2E_BASE_URL=http://localhost:<web port>`.
+`E2E_BASE_URL=http://127.0.0.1:<web port>`.
 
 **`pytest`** runs the backend suite inside the slot's `api` container, from the worktree's
 `backend/` (the overlay mounts it read-only at `/src`), with pytest pinned to `uv.lock`'s
@@ -506,16 +525,19 @@ never SQLite:
 and Redis volumes stay, so `up` comes back with the same data. `down --volumes` drops them, and
 the next `up` builds a fresh database. A slot's database volume is labelled with its worktree, so
 the next slice to use the slot can't silently inherit it: drop it with `down --volumes` from the
-old worktree, or `docker volume rm spotdlweb-s<slot>_pgdata spotdlweb-s<slot>_redis-data` once that
+old worktree, or `docker volume rm spotdlweb-s<slot>_pgdata spotdlweb-s<slot>_redis-data` (since v52 also `spotdlweb-s<slot>_web-node-modules`, `_web-paraglide` and `_web-svelte-kit`) once that
 worktree is gone (only the database volume carries the label; the Redis one holds the old queue). A
 slot left up by a worktree that was removed without `down` is refused with the `docker` commands
 that clear it. If a
 worktree lost its `.env.agent`, `down [--volumes]` still works there: it removes the slot by its
 compose labels instead.
 
-**Known rough edge.** The dev `web` container runs Vite as root and writes `.svelte-kit/` and
-`project.inlang`'s cache into the worktree root-owned. `up` hands those back to you once, but a
-route added later can leave new ones (`docs/GOTCHAS.md`, v44; v52 owns the lasting fix).
+**Root-owned frontend files (fixed in v52).** Before v52 the dev `web` container ran Vite as root
+and wrote `.svelte-kit/` and `project.inlang`'s cache into the worktree root-owned. It now runs as
+uid 1000 with its own `.svelte-kit` volume, and refuses to start over root-owned files a pre-v52
+container left in the bind mount. `up` builds the new `web` image first and hands any such files
+(including the host's own `.svelte-kit/`) back to you before starting the stack, so a worktree
+from before v52 needs nothing by hand.
 
 ## Troubleshooting
 
@@ -526,6 +548,8 @@ route added later can leave new ones (`docs/GOTCHAS.md`, v44; v52 owns the lasti
 | Stack was working, comes back broken after `docker compose down && up` with no config changes | Check `docker compose config` for the resolved service definitions before assuming it's a code regression — compose-file merge behavior is a common source of surprises that look like app bugs | |
 | `migrate` exits at boot (and api/workers/beat never start, since they wait on it) with `SPOTDL_ENV=dev but DATABASE_URL points at the production database …` or `… can't be parsed` / `… names no database` (v32) | The local `.env`'s `DATABASE_URL` points at production's database, or is malformed. The dev guard refuses rather than risk production rows | Point `DATABASE_URL` at `spotdlwebtest` (see [Dedicated dev database](#dedicated-dev-database)). Never remove `SPOTDL_ENV` from the override to get past it |
 | `migrate` fails at boot (api/workers/beat never start) with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | Either `ADMIN_EMAIL` is unset in `.env`, or it's set but not also present in `ALLOWED_EMAILS` — both are required at startup, by design | Add `ADMIN_EMAIL=you@example.com` to `.env` and make sure that same address is also in `ALLOWED_EMAILS` |
-| After editing a backend file, `api` stops answering and goes `unhealthy`, logging `Waiting for connections to close` (v48) | `uvicorn --reload` waits for every open connection before restarting, and an `/api/stream` SSE connection (a browser tab, a `curl -N`, a Playwright run) never closes on its own | `docker compose restart api` |
-| A backend change works through `api` but a task still runs the old code | Celery workers and `beat` don't hot-reload: they keep the Python they imported at boot, even with the source bind-mounted | `docker compose restart worker-dl worker-meta worker-expand beat` (whichever run the changed code) |
-| A frontend dependency change doesn't show up in `web`, even after `docker compose build web` (v46) | `web`'s `node_modules` and compiled `src/lib/paraglide` are anonymous volumes (`docker-compose.override.yml`), and they outlive an image rebuild | `docker compose build web && docker compose up -d --renew-anon-volumes web` |
+| After editing a backend file, `api` logs `Waiting for connections to close` and stops answering (v48) | `uvicorn --reload` waits for every open response before restarting, and an `/api/stream` SSE response (a browser tab, a `curl -N`, a Playwright run) never ends on its own | Fixed in v52: the dev `api` runs with `--timeout-graceful-shutdown 3`, so the reload goes ahead after 3 s and open streams reconnect. If it still hangs, `docker compose restart api` |
+| A backend change works through `api` but a task still runs the old code | Before v52, Celery workers didn't hot-reload: they keep the Python they imported at boot | Fixed in v52 for `worker-dl`, `worker-meta` and `worker-expand`: `scripts/dev/reload.py` restarts them on a `.py` change under `backend/app` (their logs show `dev-reload: changed: …`). `beat` isn't wrapped: `docker compose restart beat` after editing its schedule. A worker whose edit broke its import exits, and Docker restarts it until the edit is fixed (`dev-reload: celery exited on its own (…)` in its log). A `docker compose run` one-off on a worker service that isn't a `celery … worker` command is `exec`ed as is, never watched |
+| A frontend dependency change doesn't show up in `web` (v46) | `web`'s `node_modules` is a volume (`docker-compose.override.yml`), which outlives an image rebuild | Since v52, `docker compose restart web`: the dev command compares `package-lock.json` with the stamp of the lockfile `node_modules` was installed from, and runs `npm ci` into the volume when they differ (its log says so). A plain `up -d` doesn't restart a container whose image didn't change, so restart it. No `--renew-anon-volumes` |
+| Every host `npm run check` reloads the open dev pages, or the e2e setup fails with `the dev web container lost its own /app/…` (v52) | `frontend/node_modules`, `frontend/src/lib/paraglide` or `frontend/.svelte-kit` was removed on the host while `web` ran: Linux detaches a container's volume when its mountpoint is removed, so `web` now shares the host's copy | `mkdir -p` the removed directory (as yourself: Docker would recreate a missing mountpoint root-owned), then `docker compose restart web`, which remounts its volumes (in an agent slot `scripts/agent_stack.sh <slot> run docker compose restart web` does both). Don't `rm -rf` those three while `web` runs |
+| `web` exits at once, logging `root-owned files in frontend/, left by a dev web container from before v52` | Before v52 the dev `web` ran as root and left root-owned files in the bind mount; it now runs as uid 1000 and can't write them | Run the `docker compose run … chown` command it prints, once, then `docker compose up -d web`. The host's own `frontend/.svelte-kit/` may hold root-owned files too (host `npm run check` then fails with `EACCES`): `docker compose run --rm --no-deps -u root -v "$PWD/frontend:/host" web chown -R 1000:1000 /host/.svelte-kit` |

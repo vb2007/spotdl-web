@@ -70,7 +70,12 @@ if (problems.length === 0) {
 		outdir,
 		strategy: ['globalVariable', 'baseLocale'],
 		// Must match vite.config.ts's paraglideVitePlugin options.
-		outputStructure: 'locale-modules'
+		outputStructure: 'locale-modules',
+		// v52 (D7): in place, as the plugin does. Emptying means removing the directory, and the
+		// dev `web` container mounts its own volume there: Linux detaches a mount whose
+		// mountpoint another namespace removes, so every host check/lint/build left the
+		// container on the host's compiled messages, reloading its pages from then on.
+		cleanOutdir: false
 	});
 	const index = readFileSync(path.join(outdir, 'messages/_index.js'), 'utf8');
 	const compiled = index.match(/^export const /gm)?.length ?? 0;

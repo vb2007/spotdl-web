@@ -103,6 +103,23 @@ async function openJob(page: Page, jobId: string): Promise<void> {
 	).toBeVisible();
 }
 
+/** v52 (D5): types `text` into the focused job search and waits for that search's own answer.
+ * The box re-lists only after a debounce, so a wait on the rows alone (or on "loading" being
+ * gone) could pass on the list from before the search (the seed row, or an archived-toggle
+ * reload's rows), which the search's answer then re-rendered under the next key press. The
+ * store applies only its newest request's answer, so once this one has landed and the list
+ * stopped loading, the rows are the search's. */
+async function typeSearch(page: Page, text: string): Promise<void> {
+	const answered = page.waitForResponse((r) => {
+		const url = new URL(r.url());
+		// The store sends the search trimmed.
+		return url.pathname === '/api/jobs' && url.searchParams.get('q') === text.trim();
+	});
+	await page.keyboard.type(text);
+	await answered;
+	await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
+}
+
 /** Leaves whatever text field has focus without the mouse (Tab onwards), so single keys act. */
 async function leaveField(page: Page): Promise<void> {
 	await page.keyboard.press('Tab');
@@ -197,7 +214,7 @@ test.describe('as the admin', () => {
 
 		await page.keyboard.press('/');
 		await expect(page.locator('#queue-search')).toBeFocused();
-		await page.keyboard.type(admin.title);
+		await typeSearch(page, admin.title);
 		await expect(
 			page.getByRole('list', { name: t(m.dashboard_list_jobs), exact: true }).getByRole('listitem')
 		).toHaveCount(1);
@@ -254,9 +271,8 @@ test.describe('as the admin', () => {
 		await openDashboard(page);
 		await page.keyboard.press('Shift+A');
 		await page.keyboard.press('/');
-		await page.keyboard.type(job!.title);
+		await typeSearch(page, job!.title);
 		await expect.poll(() => rowIds(page, 'jobs')).toContain(job!.id);
-		await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
 		await leaveField(page);
 		await focusRowByKeys(page, 'jobs', job!.id);
 		await openJob(page, job!.id);
@@ -302,9 +318,8 @@ test.describe('as the admin', () => {
 		await openDashboard(page);
 		await page.keyboard.press('Shift+A');
 		await page.keyboard.press('/');
-		await page.keyboard.type(job!.title);
+		await typeSearch(page, job!.title);
 		await expect.poll(() => rowIds(page, 'jobs')).toContain(job!.id);
-		await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
 		await leaveField(page);
 		await focusRowByKeys(page, 'jobs', job!.id);
 		await openJob(page, job!.id);

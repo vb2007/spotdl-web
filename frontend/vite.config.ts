@@ -113,7 +113,7 @@ function devFileDownloadFallback(): Plugin {
 	};
 }
 
-/** v46: the dev container keeps Paraglide's compiled messages in their own anonymous volume
+/** v46: the dev container keeps Paraglide's compiled messages in a volume of their own (v52: named)
  * (docker-compose.override.yml), and Vite's recursive watcher on the project doesn't cross into
  * a nested mount: a recompile landed on disk while the dev server kept serving the old module.
  * Watching the directory explicitly brings its changes back. Dev-only, like the plugin above. */
@@ -142,7 +142,9 @@ export default defineConfig(({ command }) => ({
 			outputStructure: 'locale-modules',
 			// Rewrite the files in place rather than emptying the directory first: a recreated
 			// directory drops out of the dev server's watch (below), and it kept serving the old
-			// messages. With one module per language every file is rewritten on each compile.
+			// messages (v52: removing it on the host also detaches the dev container's volume;
+			// scripts/check-messages.mjs compiles in place too). With one module per language
+			// every file is rewritten on each compile.
 			cleanOutdir: false
 		}),
 		sveltekit({
