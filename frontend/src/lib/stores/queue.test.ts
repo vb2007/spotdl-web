@@ -150,13 +150,13 @@ describe('v34 live hydration', () => {
 		expect(calls.incoming).toHaveLength(1);
 		expect(calls.incoming[0][0]).toMatchObject({
 			status: ['expanding', 'failed'],
-			allUsers: false
+			view: 'mine'
 		});
 		expect(calls.active).toHaveLength(1);
 		expect(calls.active[0][0]).toMatchObject({
 			state: ['downloading'],
 			includeArchived: true,
-			allUsers: false,
+			view: 'mine',
 			limit: 1000
 		});
 		expect(getJob).not.toHaveBeenCalled();
@@ -264,7 +264,7 @@ describe('v34 live hydration', () => {
 		routeLists({ active: () => mineActive.promise });
 		const firstReload = queue.reload();
 
-		queue.setAllUsers(true);
+		queue.setView('all');
 		expect(get(queue.page)).toMatchObject({ items: [], loading: true, totalEstimate: 0 });
 
 		// The superseded mine-scope response lands late -- it must not leak in.
@@ -279,18 +279,23 @@ describe('v34 live hydration', () => {
 		});
 		await queue.reload();
 		expect(get(queue.activeTracks).map((t) => t.id)).toEqual(['global']);
-		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ allUsers: true });
-		expect(hydrationCalls().incoming.at(-1)?.[0]).toMatchObject({ allUsers: true });
+		// v54: in `all` the active overlay is the view's listing plus the viewer's own.
+		expect(
+			hydrationCalls()
+				.active.slice(-2)
+				.map(([p]) => p?.view)
+		).toEqual(['all', 'mine']);
+		expect(hydrationCalls().incoming.at(-1)?.[0]).toMatchObject({ view: 'all' });
 
 		routeLists({});
-		queue.setAllUsers(false);
+		queue.setView('mine');
 		expect(get(queue.activeTracks)).toHaveLength(0);
 		expect(get(queue.incomingJobs)).toHaveLength(0);
 		await queue.reload();
-		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ allUsers: false });
+		expect(hydrationCalls().active.at(-1)?.[0]).toMatchObject({ view: 'mine' });
 	});
 
-	it('setAllUsers itself fetches nothing (the reconnect resyncs); a late old-scope page response never lands', async () => {
+	it('setView itself fetches nothing (the reconnect resyncs); a late old-scope page response never lands', async () => {
 		const oldPage = deferred<JobsPage>();
 		listJobsPage.mockImplementation((params = {}) =>
 			params.status?.includes('expanding') ? Promise.resolve(jobsPage([])) : oldPage.promise
@@ -299,7 +304,7 @@ describe('v34 live hydration', () => {
 		const reloading = queue.reload();
 		const callsBefore = listJobsPage.mock.calls.length + listTracksPage.mock.calls.length;
 
-		queue.setAllUsers(true);
+		queue.setView('others');
 		expect(listJobsPage.mock.calls.length + listTracksPage.mock.calls.length).toBe(callsBefore);
 
 		oldPage.resolve(jobsPage([job('old-scope-row', 'expanded', 'active')]));
@@ -343,14 +348,14 @@ describe('v34 live hydration', () => {
 		routeLists({});
 		const fetched = deferred<Job>();
 		getJob.mockReturnValue(fetched.promise);
-		queue.setAllUsers(true);
+		queue.setView('all');
 		const handling = queue.applyEvent({
 			type: 'job.state',
 			job_id: 'someone-elses',
 			state: 'expanding',
 			ts: '2026-10-01T18:00:03+00:00'
 		});
-		queue.setAllUsers(false);
+		queue.setView('mine');
 		// Let the new scope's hydration fully merge first, so it can't mask the late fetch
 		// by pruning it afterwards -- the order that actually leaks.
 		for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -698,5 +703,116 @@ describe('v40.2 live view stays in sync with a settling job', () => {
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(get(queue.page).countsByStatus).toEqual({ active: 1 });
 		expect(get(queue.page).totalEstimate).toBe(1);
+	});
+});
+
+describe('v54: the three-way view and whose lanes warm the page (U1)', () => {
+	function owned(id: string, email: string, username: string | null = null): TrackWithJob {
+		const t = downloadingTrack(id);
+		return { ...t, job: { ...t.job, owner_email: email, owner_username: username } };
+	}
+
+	/** The active-overlay calls split by view: the view's own listing and, in `all`, the
+	 * viewer's (`view: 'mine'`). */
+	function routeActive(byView: Partial<Record<'mine' | 'all' | 'others', TrackWithJob[]>>) {
+		listJobsPage.mockResolvedValue(jobsPage([]));
+		listTracksPage.mockImplementation(async (params = {}) =>
+			tracksPage(byView[params.view ?? 'mine'] ?? [])
+		);
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		queue.reset();
+		vi.resetAllMocks();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('mine: every lane is the viewer\u2019s, unnamed, with no extra request', async () => {
+		routeActive({ mine: [owned('t1', 'me@example.com')] });
+		await queue.reload();
+		expect(get(queue.activeTracks)).toEqual([
+			expect.objectContaining({ id: 't1', mine: true, owner: undefined })
+		]);
+		expect(get(queue.ownActiveTracks).map((t) => t.id)).toEqual(['t1']);
+		expect(hydrationCalls().active).toHaveLength(1);
+	});
+
+	it('all: only the viewer\u2019s own lanes count as theirs; the rest are named', async () => {
+		queue.setView('all');
+		routeActive({
+			all: [owned('mine-1', 'me@example.com'), owned('theirs-1', 'anna@example.com', 'anna')],
+			mine: [owned('mine-1', 'me@example.com')]
+		});
+		await queue.reload();
+		const lanes = Object.fromEntries(get(queue.activeTracks).map((t) => [t.id, t]));
+		expect(lanes['mine-1']).toMatchObject({ mine: true });
+		expect(lanes['theirs-1']).toMatchObject({ mine: false, owner: 'anna' });
+		expect(get(queue.ownActiveTracks).map((t) => t.id)).toEqual(['mine-1']);
+	});
+
+	it('others: no lane is the viewer\u2019s, so nothing warms the page', async () => {
+		queue.setView('others');
+		routeActive({ others: [owned('theirs-1', 'anna@example.com')] });
+		await queue.reload();
+		expect(get(queue.activeTracks)).toEqual([
+			expect.objectContaining({ id: 'theirs-1', mine: false, owner: 'anna@example.com' })
+		]);
+		expect(get(queue.ownActiveTracks)).toHaveLength(0);
+		// `others` needs no own-lanes request: the view already says.
+		expect(hydrationCalls().active.map(([p]) => p?.view)).toEqual(['others']);
+	});
+
+	it('all: an SSE lane (no owner in the payload) is placed by one debounced lookup, once', async () => {
+		queue.setView('all');
+		routeActive({});
+		await queue.reload();
+		const before = hydrationCalls().active.length;
+		routeActive({ all: [owned('t1', 'me@example.com')], mine: [owned('t1', 'me@example.com')] });
+
+		await queue.applyEvent(trackEvent('t1', 'downloading', 10));
+		await queue.applyEvent(trackEvent('t1', 'downloading', 20));
+		// Unplaced, it reads as elsewhere until the lookup lands.
+		expect(get(queue.ownActiveTracks)).toHaveLength(0);
+		await vi.advanceTimersByTimeAsync(300);
+		expect(hydrationCalls().active.length - before).toBe(2);
+		expect(get(queue.ownActiveTracks).map((t) => t.id)).toEqual(['t1']);
+		expect(get(queue.activeTracks)[0]).toMatchObject({ mine: true, owner: 'me@example.com' });
+
+		// Further ticks of a placed lane ask nothing.
+		await queue.applyEvent(trackEvent('t1', 'downloading', 30));
+		await vi.advanceTimersByTimeAsync(300);
+		expect(hydrationCalls().active.length - before).toBe(2);
+	});
+
+	it('others: an SSE lane is someone else\u2019s at once, and the lookup only names it', async () => {
+		queue.setView('others');
+		routeActive({});
+		await queue.reload();
+		routeActive({ others: [owned('t1', 'anna@example.com', 'anna')] });
+		await queue.applyEvent(trackEvent('t1', 'downloading', 10));
+		expect(get(queue.activeTracks)[0]).toMatchObject({ mine: false });
+		expect(get(queue.activeTracks)[0].owner).toBeUndefined();
+		await vi.advanceTimersByTimeAsync(300);
+		expect(get(queue.activeTracks)[0]).toMatchObject({ mine: false, owner: 'anna' });
+		expect(get(queue.ownActiveTracks)).toHaveLength(0);
+	});
+
+	it('a lookup that lands after a view switch or reset changes nothing', async () => {
+		queue.setView('all');
+		routeActive({});
+		await queue.reload();
+		const lookup = deferred<TracksPage>();
+		listTracksPage.mockImplementation(() => lookup.promise);
+		await queue.applyEvent(trackEvent('t1', 'downloading', 10));
+		await vi.advanceTimersByTimeAsync(300);
+		queue.reset();
+		lookup.resolve(tracksPage([owned('t1', 'me@example.com')]));
+		await vi.advanceTimersByTimeAsync(0);
+		expect(get(queue.activeTracks)).toHaveLength(0);
+		expect(queue.getView()).toBe('mine');
 	});
 });

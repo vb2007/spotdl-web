@@ -543,6 +543,10 @@ function buildQuery(
 	return s ? `?${s}` : '';
 }
 
+/** v54: the admin's list scope -- the viewer's own, everyone's, or everyone's but the viewer's.
+ * The server normalizes a non-admin to `mine` whatever is sent. */
+export type View = 'mine' | 'all' | 'others';
+
 export interface ListJobsParams {
 	q?: string;
 	status?: string[];
@@ -552,7 +556,8 @@ export interface ListJobsParams {
 	dir?: 'asc' | 'desc';
 	limit?: number;
 	cursor?: string;
-	allUsers?: boolean;
+	/** Omitted (and not sent) for `mine`, the server's default. */
+	view?: View;
 }
 
 export interface ListTracksParams {
@@ -565,7 +570,8 @@ export interface ListTracksParams {
 	dir?: 'asc' | 'desc';
 	limit?: number;
 	cursor?: string;
-	allUsers?: boolean;
+	/** Omitted (and not sent) for `mine`, the server's default. */
+	view?: View;
 }
 
 function jobsQuery(params: ListJobsParams): string {
@@ -578,7 +584,7 @@ function jobsQuery(params: ListJobsParams): string {
 		dir: params.dir,
 		limit: params.limit,
 		cursor: params.cursor,
-		all_users: params.allUsers || undefined
+		view: params.view === 'mine' ? undefined : params.view
 	});
 }
 
@@ -593,7 +599,7 @@ function tracksQuery(params: ListTracksParams): string {
 		dir: params.dir,
 		limit: params.limit,
 		cursor: params.cursor,
-		all_users: params.allUsers || undefined
+		view: params.view === 'mine' ? undefined : params.view
 	});
 }
 
@@ -945,8 +951,8 @@ export function startLibrarySort(): Promise<LibrarySortRun> {
  * case where `API_BASE` is a genuinely different absolute origin — a plain
  * `new EventSource(url)` defaults to omitting cookies there, which would silently 401
  * the stream. A harmless no-op for the same-origin default. */
-export function createEventSource(allUsers = false): EventSource {
-	return new EventSource(`${API_BASE}/api/stream${allUsers ? '?all_users=true' : ''}`, {
+export function createEventSource(view: View = 'mine'): EventSource {
+	return new EventSource(`${API_BASE}/api/stream${view === 'mine' ? '' : `?view=${view}`}`, {
 		withCredentials: true
 	});
 }

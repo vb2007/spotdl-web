@@ -14,7 +14,8 @@ import type {
 	TrackJobSummary,
 	TrackState,
 	TracksPage,
-	TrackWithJob
+	TrackWithJob,
+	View
 } from '$lib/api';
 
 /** States nothing in this app ever transitions a track *out of* -- `waiting`/
@@ -34,7 +35,11 @@ const TRULY_TERMINAL_STATES = new Set<TrackState>(['completed', 'skipped_duplica
  * event brings the lane back by itself. */
 const LANE_ENDING_STATES = new Set<TrackState>([...TRULY_TERMINAL_STATES, 'lookup_failed']);
 
-export type LiveTrack = Track & { progress?: number };
+/** v54 (U1): `mine` says whether the lane is the viewer's own download, the only kind that
+ * may warm the page amber (DESIGN.md §2), and `owner` names whose it is (display name) in the
+ * admin's `all`/`others` views. Both `undefined` until known: a lane that arrived by SSE, whose
+ * payloads name no owner (v17), waits for `resolveLaneOwners`. */
+export type LiveTrack = Track & { progress?: number; mine?: boolean; owner?: string };
 export type LiveTrackWithJob = TrackWithJob & { progress?: number };
 
 export type Scope = 'jobs' | 'tracks';
@@ -183,7 +188,8 @@ function createQueueStore() {
 	 * back at all, since nothing publishes again for it until someone dismisses it. */
 	const incoming = writable<Record<string, Job>>({});
 
-	let allUsers = false;
+	/** v54: the admin's mine/all/others scope (v17's `allUsers`, now three-way). */
+	let view: View = 'mine';
 	let pageFetchSeq = 0;
 
 	/** v34 merge rule: SSE wins over an older REST snapshot. Every live signal for an id
@@ -195,7 +201,7 @@ function createQueueStore() {
 	 * usual `pageFetchSeq`-style guard: a hydration superseded by a newer one, a scope
 	 * switch or a reset is dropped on arrival. */
 	let liveHydrateSeq = 0;
-	/** Bumped by `reset()` and `setAllUsers()`: an async SSE handler that awaited across
+	/** Bumped by `reset()` and `setView()`: an async SSE handler that awaited across
 	 * one of them is acting for a previous identity/scope and must drop its result. */
 	let storeEpoch = 0;
 	let liveEventCounter = 0;
@@ -373,7 +379,7 @@ function createQueueStore() {
 			includeArchived: f.includeArchived,
 			sort: f.sort,
 			dir: f.dir,
-			allUsers
+			view
 		};
 	}
 
@@ -408,21 +414,28 @@ function createQueueStore() {
 	async function hydrateLive(): Promise<void> {
 		const seq = ++liveHydrateSeq;
 		const startedAt = liveEventCounter;
-		const [incomingResult, activeResult] = await Promise.allSettled([
-			api.listJobsPage({ status: ['expanding', 'failed'], allUsers, limit: HYDRATE_LIMIT }),
+		const [incomingResult, activeResult, ownResult] = await Promise.allSettled([
+			api.listJobsPage({ status: ['expanding', 'failed'], view, limit: HYDRATE_LIMIT }),
 			api.listTracksPage({
 				state: ['downloading'],
 				includeArchived: true,
-				allUsers,
+				view,
 				limit: HYDRATE_LIMIT
-			})
+			}),
+			// v54 (U1): in `all` only, which of those lanes are the viewer's own (one more bulk
+			// request); `mine` and `others` already know.
+			view === 'all' ? ownDownloadingIds() : Promise.resolve(null)
 		]);
 		if (seq !== liveHydrateSeq) return;
 		if (incomingResult.status === 'fulfilled') {
 			mergeIncoming(incomingResult.value, startedAt);
 		}
 		if (activeResult.status === 'fulfilled') {
-			mergeActive(activeResult.value, startedAt);
+			mergeActive(
+				activeResult.value,
+				startedAt,
+				ownResult.status === 'fulfilled' ? ownResult.value : null
+			);
 		}
 		// A stamp at or before this hydration's start can't matter to any later one (each
 		// starts from a counter value at least this high), so drop them. This bounds the
@@ -467,7 +480,7 @@ function createQueueStore() {
 	 * stream was down), so it drops now rather than lingering as a stale lane. Progress
 	 * isn't persisted server-side, so a hydrated row keeps whatever this tab last saw (or
 	 * none, after a hard reload) until the next progress tick fills it in. */
-	function mergeActive(snapshot: TracksPage, startedAt: number): void {
+	function mergeActive(snapshot: TracksPage, startedAt: number, ownIds: Set<string> | null): void {
 		const complete = snapshot.next_cursor === null;
 		const listed = new Set(snapshot.items.map((t) => t.id));
 		liveActive.update((current) => {
@@ -479,7 +492,7 @@ function createQueueStore() {
 				clearLiveRemovalTimer(id);
 				delete next[id];
 			}
-			for (const { job: _job, ...track } of snapshot.items) {
+			for (const { job, ...track } of snapshot.items) {
 				if (!snapshotIsNewest(liveTrackTouchedAt, track.id, startedAt)) continue;
 				clearLiveRemovalTimer(track.id);
 				// Only a lane still mid-attempt keeps its last tick; one in its grace window
@@ -491,9 +504,100 @@ function createQueueStore() {
 					existing?.state === 'downloading'
 						? existing.progress
 						: recallProgress(track.id, track.attempt_count);
-				next[track.id] = { ...track, progress };
+				// An `all`-view lane whose owner check failed keeps what it knew (else unknown).
+				const mine = viewSaysMine() ?? ownIds?.has(track.id) ?? existing?.mine;
+				next[track.id] = { ...track, progress, mine, owner: laneOwner(job) };
 			}
 			return next;
+		});
+		if (view === 'all' && ownIds === null) scheduleLaneOwners();
+	}
+
+	/** The name an `all`/`others` lane shows; none in `mine`, where every lane is the viewer's. */
+	function laneOwner(job: TrackJobSummary): string | undefined {
+		return view === 'mine' ? undefined : api.displayName(job.owner_username, job.owner_email);
+	}
+
+	/** v54 (U1): whether a lane in the current view is the viewer's own, when the view alone
+	 * says (`undefined` in `all`, where only a lookup can tell). */
+	function viewSaysMine(): boolean | undefined {
+		if (view === 'mine') return true;
+		if (view === 'others') return false;
+		return undefined;
+	}
+
+	/** The viewer's own `downloading` tracks, one bulk request: what tells `all`'s own lanes
+	 * from everyone else's, since the SSE payloads carry no owner (v17). */
+	async function ownDownloadingIds(): Promise<Set<string>> {
+		const own = await api.listTracksPage({
+			state: ['downloading'],
+			includeArchived: true,
+			view: 'mine',
+			limit: HYDRATE_LIMIT
+		});
+		return new Set(own.items.map((t) => t.id));
+	}
+
+	let laneOwnersTimer: ReturnType<typeof setTimeout> | undefined;
+	let laneOwnersSeq = 0;
+	/** Lanes a lookup already placed (or is placing): a lane it couldn't list (it left
+	 * `downloading` meanwhile) must not ask again on every progress tick. */
+	const lanesLookedUp = new Set<string>();
+
+	/** Debounced: a burst of new lanes (or a failed check) costs one lookup. */
+	function scheduleLaneOwners(): void {
+		clearTimeout(laneOwnersTimer);
+		laneOwnersTimer = setTimeout(resolveLaneOwners, 250);
+	}
+
+	function forgetLaneLookups(): void {
+		clearTimeout(laneOwnersTimer);
+		laneOwnersSeq++;
+		lanesLookedUp.clear();
+	}
+
+	/** v54 (U1): places the `all`/`others` lanes the SSE payloads couldn't: whose each one is
+	 * (the view's own `downloading` listing, which embeds the owner) and, in `all`, which are
+	 * the viewer's (`ownDownloadingIds`). At most two bulk requests, never one per lane. */
+	async function resolveLaneOwners(): Promise<void> {
+		if (view === 'mine') return;
+		const seq = ++laneOwnersSeq;
+		const epoch = storeEpoch;
+		const asked = Object.keys(get(liveActive));
+		for (const id of asked) lanesLookedUp.add(id);
+		let listed: TracksPage;
+		let ownIds: Set<string> | null = null;
+		try {
+			[listed, ownIds] = await Promise.all([
+				api.listTracksPage({
+					state: ['downloading'],
+					includeArchived: true,
+					view,
+					limit: HYDRATE_LIMIT
+				}),
+				view === 'all' ? ownDownloadingIds() : Promise.resolve(null)
+			]);
+		} catch {
+			// Unknown lanes stay neutral and unnamed until the next event or hydration asks again.
+			for (const id of asked) lanesLookedUp.delete(id);
+			return;
+		}
+		if (seq !== laneOwnersSeq || epoch !== storeEpoch) return;
+		const owners = new Map(listed.items.map((t) => [t.id, laneOwner(t.job)]));
+		liveActive.update((current) => {
+			let changed = false;
+			const next = { ...current };
+			for (const [id, lane] of Object.entries(current)) {
+				// A lane the lookup didn't list is someone else's, or one of the viewer's that
+				// already left `downloading` (whose own events no longer warm anything).
+				const mine = viewSaysMine() ?? ownIds?.has(id) ?? lane.mine;
+				const owner = owners.get(id) ?? lane.owner;
+				if (lane.mine !== mine || lane.owner !== owner) {
+					next[id] = { ...lane, mine, owner };
+					changed = true;
+				}
+			}
+			return changed ? next : current;
 		});
 	}
 
@@ -635,9 +739,10 @@ function createQueueStore() {
 		expandedFetchSeq[jobId] = (expandedFetchSeq[jobId] ?? 0) + 1;
 	}
 
-	function setAllUsers(value: boolean): void {
-		allUsers = value;
+	function setView(value: View): void {
+		view = value;
 		storeEpoch++;
+		forgetLaneLookups();
 		for (const jobId of Object.keys(expandedFetchSeq)) invalidateExpandedFetch(jobId);
 		expanded.set({});
 		incoming.set({});
@@ -659,8 +764,8 @@ function createQueueStore() {
 		return resetCount;
 	}
 
-	function getAllUsers(): boolean {
-		return allUsers;
+	function getView(): View {
+		return view;
 	}
 
 	/** Wipes every accumulated row back to empty and invalidates any in-flight fetch, so a
@@ -678,7 +783,8 @@ function createQueueStore() {
 		liveHydrateSeq++;
 		storeEpoch++;
 		for (const jobId of Object.keys(expandedFetchSeq)) invalidateExpandedFetch(jobId);
-		allUsers = false;
+		view = 'mine';
+		forgetLaneLookups();
 		filters.set({ ...DEFAULT_FILTERS });
 		page.set({ ...EMPTY_PAGE });
 		expanded.set({});
@@ -1201,6 +1307,7 @@ function createQueueStore() {
 		}
 
 		if (event.state !== 'downloading') forgetProgress(event.track_id);
+		let ownerUnknown = false;
 		liveActive.update((current) => {
 			if (event.state !== 'downloading') {
 				if (!(event.track_id in current)) return current;
@@ -1253,7 +1360,8 @@ function createQueueStore() {
 				failure_count: seed?.failure_count ?? 0,
 				scheduled_at: null,
 				last_error: null,
-				last_error_type: null
+				last_error_type: null,
+				mine: viewSaysMine()
 			};
 			const next: LiveTrack = {
 				...base,
@@ -1271,8 +1379,14 @@ function createQueueStore() {
 			if (next.progress !== undefined) {
 				rememberProgress(event.track_id, next.progress, next.attempt_count);
 			}
+			ownerUnknown =
+				view !== 'mine' &&
+				(next.mine === undefined || next.owner === undefined) &&
+				!lanesLookedUp.has(event.track_id);
 			return { ...current, [event.track_id]: next };
 		});
+		// v54 (U1): an `all`/`others` lane the event can't place (its payload names no owner).
+		if (ownerUnknown) scheduleLaneOwners();
 
 		const patchOne = <T extends Track>(items: T[]): T[] => {
 			const idx = items.findIndex((t) => t.id === event.track_id);
@@ -1382,6 +1496,9 @@ function createQueueStore() {
 	);
 
 	const activeTracks = derived(liveActive, ($liveActive) => Object.values($liveActive));
+	/** v54 (U1): only these may warm the page (the layout's ambient field): the viewer's own,
+	 * in every view. */
+	const ownActiveTracks = derived(activeTracks, ($active) => $active.filter((t) => t.mine));
 
 	return {
 		filters,
@@ -1389,12 +1506,13 @@ function createQueueStore() {
 		expanded,
 		incomingJobs,
 		activeTracks,
+		ownActiveTracks,
 		setFilters,
 		reload,
 		beginResync,
 		loadMore,
-		setAllUsers,
-		getAllUsers,
+		setView,
+		getView,
 		getResetCount,
 		reset,
 		toggleExpand,
