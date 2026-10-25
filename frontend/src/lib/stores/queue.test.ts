@@ -762,8 +762,46 @@ describe('v54: the three-way view and whose lanes warm the page (U1)', () => {
 			expect.objectContaining({ id: 'theirs-1', mine: false, owner: 'anna@example.com' })
 		]);
 		expect(get(queue.ownActiveTracks)).toHaveLength(0);
-		// `others` needs no own-lanes request: the view already says.
-		expect(hydrationCalls().active.map(([p]) => p?.view)).toEqual(['others']);
+		expect(get(queue.viewerReceiving)).toBe(false);
+		// The second request asks only whether the viewer has a download the view leaves out.
+		expect(hydrationCalls().active.map(([p]) => p?.view)).toEqual(['others', 'mine']);
+	});
+
+	it('others: the viewer\u2019s own download, absent from the view, still warms the page', async () => {
+		queue.setView('others');
+		routeActive({
+			others: [owned('theirs-1', 'anna@example.com')],
+			mine: [owned('mine-1', 'me@example.com')]
+		});
+		await queue.reload();
+		// No lane of theirs (the view leaves it out), but the page knows it's receiving.
+		expect(get(queue.activeTracks).map((t) => t.id)).toEqual(['theirs-1']);
+		expect(get(queue.viewerReceiving)).toBe(true);
+
+		// It ends: the next poll says so.
+		routeActive({ others: [owned('theirs-1', 'anna@example.com')], mine: [] });
+		await queue.refreshOwnElsewhere();
+		expect(get(queue.viewerReceiving)).toBe(false);
+
+		// Only `others` asks; a switch away forgets it.
+		routeActive({ mine: [owned('mine-1', 'me@example.com')] });
+		await queue.refreshOwnElsewhere();
+		expect(get(queue.viewerReceiving)).toBe(true);
+		queue.setView('all');
+		expect(get(queue.viewerReceiving)).toBe(false);
+		const calls = listTracksPage.mock.calls.length;
+		await queue.refreshOwnElsewhere();
+		expect(listTracksPage.mock.calls.length).toBe(calls);
+	});
+
+	it('mine and all: the viewer receives exactly when a lane of theirs is live', async () => {
+		routeActive({ mine: [owned('t1', 'me@example.com')] });
+		await queue.reload();
+		expect(get(queue.viewerReceiving)).toBe(true);
+		queue.setView('all');
+		routeActive({ all: [owned('theirs-1', 'anna@example.com')], mine: [] });
+		await queue.reload();
+		expect(get(queue.viewerReceiving)).toBe(false);
 	});
 
 	it('all: an SSE lane (no owner in the payload) is placed by one debounced lookup, once', async () => {

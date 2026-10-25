@@ -422,11 +422,15 @@ function createQueueStore() {
 				view,
 				limit: HYDRATE_LIMIT
 			}),
-			// v54 (U1): in `all` only, which of those lanes are the viewer's own (one more bulk
-			// request); `mine` and `others` already know.
-			view === 'all' ? ownDownloadingIds() : Promise.resolve(null)
+			// v54 (U1): in `all`, which of those lanes are the viewer's own; in `others`, whether
+			// the viewer has a download of their own the view leaves out (one more bulk request).
+			view === 'mine' ? Promise.resolve(null) : ownDownloadingIds()
 		]);
 		if (seq !== liveHydrateSeq) return;
+		// A failed check keeps the last value, as `refreshOwnElsewhere`'s does.
+		if (view === 'others' && ownResult.status === 'fulfilled') {
+			ownReceivingElsewhere.set(ownResult.value?.size ?? 0);
+		}
 		if (incomingResult.status === 'fulfilled') {
 			mergeIncoming(incomingResult.value, startedAt);
 		}
@@ -538,6 +542,27 @@ function createQueueStore() {
 		return new Set(own.items.map((t) => t.id));
 	}
 
+	/** v54 (U1): the viewer's own `downloading` tracks the `others` view leaves out (its
+	 * stream drops the viewer's channel), so their own download still warms the page there.
+	 * Always 0 in `mine` and `all`, whose lanes already show them. */
+	const ownReceivingElsewhere = writable(0);
+	let ownElsewhereSeq = 0;
+
+	/** Re-reads `ownReceivingElsewhere`, in `others` only (the page calls it on its 5s worker
+	 * poll; the view's own events can't say when the viewer's download starts or ends). One
+	 * bulk request; a failed one keeps the last value. */
+	async function refreshOwnElsewhere(): Promise<void> {
+		if (view !== 'others') return;
+		const seq = ++ownElsewhereSeq;
+		const epoch = storeEpoch;
+		try {
+			const ids = await ownDownloadingIds();
+			if (seq === ownElsewhereSeq && epoch === storeEpoch) ownReceivingElsewhere.set(ids.size);
+		} catch {
+			// Kept: the stream and the next poll say more.
+		}
+	}
+
 	let laneOwnersTimer: ReturnType<typeof setTimeout> | undefined;
 	let laneOwnersSeq = 0;
 	/** Lanes a lookup already placed (or is placing): a lane it couldn't list (it left
@@ -554,6 +579,8 @@ function createQueueStore() {
 		clearTimeout(laneOwnersTimer);
 		laneOwnersSeq++;
 		lanesLookedUp.clear();
+		ownElsewhereSeq++;
+		ownReceivingElsewhere.set(0);
 	}
 
 	/** v54 (U1): places the `all`/`others` lanes the SSE payloads couldn't: whose each one is
@@ -1499,6 +1526,12 @@ function createQueueStore() {
 	/** v54 (U1): only these may warm the page (the layout's ambient field): the viewer's own,
 	 * in every view. */
 	const ownActiveTracks = derived(activeTracks, ($active) => $active.filter((t) => t.mine));
+	/** Whether any download of the viewer's own is receiving: a lane of theirs, or (in
+	 * `others`) one the view leaves out. */
+	const viewerReceiving = derived(
+		[ownActiveTracks, ownReceivingElsewhere],
+		([$own, $elsewhere]) => $own.length > 0 || $elsewhere > 0
+	);
 
 	return {
 		filters,
@@ -1507,6 +1540,8 @@ function createQueueStore() {
 		incomingJobs,
 		activeTracks,
 		ownActiveTracks,
+		viewerReceiving,
+		refreshOwnElsewhere,
 		setFilters,
 		reload,
 		beginResync,

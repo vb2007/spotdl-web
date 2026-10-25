@@ -33,17 +33,14 @@
 
 	let { children, data } = $props();
 
-	const { ownActiveTracks } = queue;
+	const { viewerReceiving } = queue;
 	// v40: the field warms only while `/` shows something receiving. Only `/` holds the live
 	// stream; leaving it closes the stream but leaves `activeTracks` at its last value, so on
 	// any other route the store is stale and must not light the page. v42: the same holds on
 	// `/` while its stream is down -- the lanes may be stale, so nothing reads as receiving.
 	// v54 (U1): and only the viewer's own downloads, in every view (DESIGN.md §2).
 	const live = $derived(
-		page.route.id === '/' &&
-			!data.unreachable &&
-			$ownActiveTracks.length > 0 &&
-			$streamLink === 'live'
+		page.route.id === '/' && !data.unreachable && $viewerReceiving && $streamLink === 'live'
 	);
 
 	const signedIn = $derived(data.session != null);

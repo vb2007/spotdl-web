@@ -528,6 +528,9 @@
 			window.location.reload();
 			return;
 		}
+		// v54 (U1): in the others view, whether the admin's own download (which that view's
+		// stream leaves out) is receiving, so it still warms the page.
+		queue.refreshOwnElsewhere();
 		let settled = false;
 		const overdue = setTimeout(() => {
 			if (settled || unmounted) return;
