@@ -782,7 +782,12 @@
 					{@attach kbList('jobs', { fallback: listFallback })}
 				>
 					{#each $page.items as item (item.id)}
-						<JobRow job={item as Job} {view} {isAdmin} />
+						<JobRow
+							job={item as Job}
+							{view}
+							{isAdmin}
+							own={view === 'mine' || (item as Job).owner_email === data.session?.email}
+						/>
 					{/each}
 				</ul>
 			{:else}
@@ -810,7 +815,12 @@
 							</div>
 							<ul class="rows">
 								{#each group.tracks as track (track.id)}
-									<TrackRow {track} jobId={group.job.id} {isAdmin} />
+									<TrackRow
+										{track}
+										jobId={group.job.id}
+										{isAdmin}
+										elsewhere={view !== 'mine' && group.job.owner_email !== data.session?.email}
+									/>
 								{/each}
 							</ul>
 						</li>

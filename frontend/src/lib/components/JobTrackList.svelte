@@ -12,12 +12,21 @@
 	// instead of a bare "No tracks.". It carries `job.error` for the admin only: the raw
 	// expansion error is operator detail (v39 outcome 3), as in IncomingJobs; a non-admin gets
 	// the sentence alone ('').
+	// v54 (U1): `elsewhere`, another user's job in the admin's all/others view: its tracks never
+	// take the viewer's amber (TrackRow).
 	let {
 		jobId,
 		isAdmin,
 		total,
-		unreadable = null
-	}: { jobId: string; isAdmin: boolean; total: number; unreadable?: string | null } = $props();
+		unreadable = null,
+		elsewhere = false
+	}: {
+		jobId: string;
+		isAdmin: boolean;
+		total: number;
+		unreadable?: string | null;
+		elsewhere?: boolean;
+	} = $props();
 
 	const { expanded } = queue;
 	let state = $derived($expanded[jobId]);
@@ -97,7 +106,7 @@
 			})}
 		>
 			{#each state.items as track (track.id)}
-				<TrackRow {track} {jobId} {isAdmin} />
+				<TrackRow {track} {jobId} {isAdmin} {elsewhere} />
 			{/each}
 		</ul>
 		<!-- Not after a failed re-read: the rows above are stale, and a next page would be

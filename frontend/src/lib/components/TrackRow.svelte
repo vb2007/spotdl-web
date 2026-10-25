@@ -26,7 +26,14 @@
 	import type { TrackAttempt, TrackAttemptOutcome, TrackState } from '$lib/api';
 	import type { LiveTrack } from '$lib/stores/queue';
 
-	let { track, jobId, isAdmin }: { track: LiveTrack; jobId: string; isAdmin: boolean } = $props();
+	// v54 (U1): `elsewhere`, another user's track in the admin's all/others view: receiving, but
+	// not for this viewer, so it reads idle, never amber (DESIGN.md §2).
+	let {
+		track,
+		jobId,
+		isAdmin,
+		elsewhere = false
+	}: { track: LiveTrack; jobId: string; isAdmin: boolean; elsewhere?: boolean } = $props();
 
 	let expanded = $state(false);
 	const detailId = $derived(`track-detail-${track.id}`);
@@ -60,7 +67,9 @@
 	// row's state came from a snapshot that no longer updates, so a downloading row reads
 	// idle until the link is back, as the Waterfall's lanes and the ambient field already do.
 	let stateCond = $derived(
-		track.state === 'downloading' && $link !== 'live' ? 'cond-idle' : STATE_COND[track.state]
+		track.state === 'downloading' && ($link !== 'live' || elsewhere)
+			? 'cond-idle'
+			: STATE_COND[track.state]
 	);
 
 	// The first thing the expanded view says: what this state means for the listener, in

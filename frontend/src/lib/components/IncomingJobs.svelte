@@ -386,7 +386,8 @@
 			{#each tuning as job (job.id)}
 				<li class="row">
 					<!-- Without the live link the row may be stale: no amber, no pulse. -->
-					<span class="dot" class:stale={$link !== 'live'} aria-hidden="true"></span>
+					<!-- v54 (U1): another user's link being read is not live for this viewer. -->
+					<span class="dot" class:stale={$link !== 'live' || !isOwn(job)} aria-hidden="true"></span>
 					<span class="mono state"
 						>{m.incoming_tuning({
 							source: SOURCE_LABEL[job.source_type]?.() ?? job.source_type
