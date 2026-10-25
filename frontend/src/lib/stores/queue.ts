@@ -429,13 +429,13 @@ function createQueueStore() {
 			}),
 			// v54 (U1): in `others`, whether the viewer has a download of their own the view
 			// leaves out (one more bulk request).
-			view === 'others' ? ownDownloadingIds() : Promise.resolve(null)
+			view === 'others' ? ownDownloading() : Promise.resolve(null)
 		]);
 		if (seq !== liveHydrateSeq) return;
 		// A failed check keeps the last value, as `refreshOwnElsewhere`'s does; a poll from
 		// before this resync can't overwrite it, nor can this overwrite a later poll's.
 		if (ownSeq === ownElsewhereSeq && ownResult.status === 'fulfilled') {
-			ownReceivingElsewhere.set(ownResult.value?.size ?? 0);
+			ownReceivingElsewhere.set(ownResult.value ?? 0);
 		}
 		if (incomingResult.status === 'fulfilled') {
 			mergeIncoming(incomingResult.value, startedAt);
@@ -554,16 +554,17 @@ function createQueueStore() {
 		return isViewersJob(job);
 	}
 
-	/** The viewer's own `downloading` tracks, one bulk request: what tells `others` whether the
-	 * viewer's own download (which that view's stream leaves out) is receiving. */
-	async function ownDownloadingIds(): Promise<Set<string>> {
+	/** Whether the viewer has a `downloading` track of their own (1 or 0): what tells `others`
+	 * whether the viewer's own download (which that view's stream leaves out) is receiving.
+	 * One request for one row; only "any" matters. */
+	async function ownDownloading(): Promise<number> {
 		const own = await api.listTracksPage({
 			state: ['downloading'],
 			includeArchived: true,
 			view: 'mine',
-			limit: HYDRATE_LIMIT
+			limit: 1
 		});
-		return new Set(own.items.map((t) => t.id));
+		return own.items.length;
 	}
 
 	/** v54 (U1): the viewer's own `downloading` tracks the `others` view leaves out (its
@@ -573,15 +574,20 @@ function createQueueStore() {
 	let ownElsewhereSeq = 0;
 
 	/** Re-reads `ownReceivingElsewhere`, in `others` only (the page calls it on its 5s worker
-	 * poll; the view's own events can't say when the viewer's download starts or ends). One
-	 * bulk request; a failed one keeps the last value. */
-	async function refreshOwnElsewhere(): Promise<void> {
+	 * poll; the view's own events can't say when the viewer's download starts or ends). With
+	 * the worker idle (`workerBusy` false) nobody is downloading, so it asks nothing. One
+	 * request otherwise; a failed one keeps the last value. */
+	async function refreshOwnElsewhere(workerBusy = true): Promise<void> {
 		if (view !== 'others') return;
 		const seq = ++ownElsewhereSeq;
 		const epoch = storeEpoch;
+		if (!workerBusy) {
+			ownReceivingElsewhere.set(0);
+			return;
+		}
 		try {
-			const ids = await ownDownloadingIds();
-			if (seq === ownElsewhereSeq && epoch === storeEpoch) ownReceivingElsewhere.set(ids.size);
+			const n = await ownDownloading();
+			if (seq === ownElsewhereSeq && epoch === storeEpoch) ownReceivingElsewhere.set(n);
 		} catch {
 			// Kept: the stream and the next poll say more.
 		}
@@ -593,7 +599,6 @@ function createQueueStore() {
 	 * `downloading` meanwhile) must not ask again on every progress tick. */
 	const lanesLookedUp = new Set<string>();
 
-	/** Debounced: a burst of new lanes (or a failed check) costs one lookup. */
 	/** Throttled, not debounced: progress ticks closer than the wait must not keep pushing the
 	 * lookup back. */
 	function scheduleLaneOwners(): void {
@@ -641,10 +646,11 @@ function createQueueStore() {
 			let changed = false;
 			const next = { ...current };
 			for (const [id, lane] of Object.entries(current)) {
-				// A lane the lookup didn't list already left `downloading`: it warms nothing now,
-				// so an unplaced one settles as neutral.
+				// A lane the lookup didn't list already left `downloading` (or its attempt died
+				// first): an unplaced one stays unplaced, which reads as neutral, and its next
+				// return to `downloading` asks again.
 				const job = jobs.get(id);
-				const mine = (job ? ownedByViewer(job) : undefined) ?? lane.mine ?? false;
+				const mine = (job ? ownedByViewer(job) : undefined) ?? lane.mine;
 				const owner = job ? laneOwner(job) : lane.owner;
 				if (lane.mine !== mine || lane.owner !== owner) {
 					next[id] = { ...lane, mine, owner };
@@ -1412,7 +1418,7 @@ function createQueueStore() {
 			// so a first event that happened to lack metadata doesn't permanently freeze
 			// this track as unknown once a later one supplies it.
 			// A lane that comes back (a retry hours later) is placed afresh.
-			if (!existing) lanesLookedUp.delete(event.track_id);
+			if (!existing || existing.state !== 'downloading') lanesLookedUp.delete(event.track_id);
 			const seed = existing ?? findCachedTrackMeta(event.track_id);
 			const base: LiveTrack = existing ?? {
 				id: event.track_id,

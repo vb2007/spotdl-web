@@ -149,8 +149,9 @@ PID_A=$!
 timeout "$CAPTURE_SECONDS" curl -sS -N "$BASE_URL/api/stream" -H "Cookie: SPOTDL_SESSION=$TOKEN_B" >"$CAPTURE_B" 2>/dev/null &
 PID_B=$!
 # The sweep table's other SSE row: B (non-admin) attempting the admin pattern-subscribe
-# query param must be silently ignored server-side (`use_pattern = all_users and
-# user.is_admin`, stream.py), not just inert client-side -- proven from the wire the same
+# query param must be silently ignored server-side (`resolve_view` normalizes a non-admin to
+# `mine`, and `_event_stream` re-checks it, stream.py; v54), not just inert client-side -- proven
+# from the wire the same
 # way as B's plain channel, not inferred from the mocked unit test alone.
 timeout "$CAPTURE_SECONDS" curl -sS -N "$BASE_URL/api/stream?all_users=true" -H "Cookie: SPOTDL_SESSION=$TOKEN_B" >"$CAPTURE_B_ALLUSERS" 2>/dev/null &
 PID_B_ALLUSERS=$!

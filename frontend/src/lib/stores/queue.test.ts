@@ -1009,3 +1009,49 @@ describe('v54 review round 3', () => {
 		expect(get(queue.page).items).toHaveLength(0);
 	});
 });
+
+describe('v54 review round 4', () => {
+	function owned(id: string, email: string): TrackWithJob {
+		const t = downloadingTrack(id);
+		return { ...t, job: { ...t.job, owner_email: email } };
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		queue.reset();
+		vi.resetAllMocks();
+		listJobsPage.mockResolvedValue(jobsPage([]));
+		listTracksPage.mockResolvedValue(tracksPage([]));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('all: a lane the lookup missed is asked again when it returns to downloading in its grace window', async () => {
+		queue.setView('all');
+		queue.setViewer('me@example.com');
+		await queue.reload();
+		// The first attempt dies before the lookup lands: it isn't listed.
+		await queue.applyEvent(trackEvent('t1', 'downloading', 1));
+		await vi.advanceTimersByTimeAsync(300);
+		expect(get(queue.activeTracks)[0].mine).toBeUndefined();
+		await queue.applyEvent(trackEvent('t1', 'waiting'));
+		// Back within the grace window, and listed this time.
+		listTracksPage.mockResolvedValue(tracksPage([owned('t1', 'me@example.com')]));
+		await queue.applyEvent(trackEvent('t1', 'downloading', 2));
+		await vi.advanceTimersByTimeAsync(300);
+		expect(get(queue.ownActiveTracks).map((t) => t.id)).toEqual(['t1']);
+	});
+
+	it('others: with the worker idle the own-download check asks nothing', async () => {
+		queue.setView('others');
+		await queue.reload();
+		const calls = listTracksPage.mock.calls.length;
+		await queue.refreshOwnElsewhere(false);
+		expect(listTracksPage.mock.calls.length).toBe(calls);
+		expect(get(queue.viewerReceiving)).toBe(false);
+		await queue.refreshOwnElsewhere(true);
+		expect(listTracksPage.mock.calls.at(-1)?.[0]).toMatchObject({ view: 'mine', limit: 1 });
+	});
+});

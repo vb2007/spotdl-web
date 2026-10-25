@@ -486,7 +486,7 @@ needed" claim — rather than silently deleted.
   own downloads there: their amber needs a separate own-download check; a dropped run of own
   messages must still heartbeat on schedule (the tunnel's idle timeout) → *v54*
 - SSE payloads name no owner (v17), so in `view=all` the page can't tell whose a new lane is: one
-  debounced bulk lookup (the view's `downloading` listing, owners embedded) places lanes → *v54*
+  throttled bulk lookup (the view's `downloading` listing, owners embedded) places lanes → *v54*
 - SvelteKit's `replaceState` leaves `page.url` at the last navigation and records that stale URL
   in the history entry, so a later Back navigates to it: read a query-string state from `location`
   → *v54*
@@ -6293,14 +6293,16 @@ independently-found production bug from the same conversation)
   them dropped under `others`, nothing would have been written at all. `_event_stream` now also
   writes a heartbeat when 15 s pass since the last write, dropped messages or not.
 - **Whose lane is it, in `all`?** The SSE payloads carry no owner, so a lane that arrives by event
-  is unplaced until `resolveLaneOwners` (debounced 250 ms, one bulk request: the view's own
+  is unplaced until `resolveLaneOwners` (throttled to one per 250 ms, one bulk request: the view's own
   `downloading` listing, which embeds `owner_*`; the page tells the store the viewer's email, so the
   same listing says whose lane is the viewer's). Until then it reads as elsewhere (neutral), so the
   admin's own lane in `all` turns amber a moment after it appears. _(Corrected 2026-10-25, v54
   review round 2: the first version also asked `view=mine` and compared ids, two snapshots that
   could disagree.)_
   `lanesLookedUp` keeps a lane the lookup couldn't list (it left `downloading`) from asking again
-  on every progress tick.
+  on every progress tick. _(Corrected 2026-10-26, v54 review round 4: the lookup is throttled, not
+  debounced: ticks closer than 250 ms kept pushing a debounced one back. An unlisted lane stays
+  unplaced rather than "not the viewer's", and any return to `downloading` asks again.)_
 - **"Live" on a row was "receiving", not "receiving for you".** v47 made a job's badge and bar
   amber while one of its tracks downloads; in `all` that lit other users' rows too, which the
   first real-download probe showed. `JobRow`'s `own`, `TrackRow`'s `elsewhere` (threaded through
