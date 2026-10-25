@@ -503,3 +503,9 @@ here.
   `agent_stack.sh <slot> e2e` holds the realdl lock for the run: e2e runs on different slots are
   serialized, though a default run makes no network attempt. A spec that comes to lean on more
   dev data must extend the seed.
+
+- **2026-10-25, v52: released as `5.53.1`, not `5.52.0`.** Wave 1 merged v53 (`5.53.0`) before
+  v52, and CI's `check_version` requires a version strictly greater than `main`'s, so v52 can't
+  ship as `5.52.0`. The owner left the choice to the v52 session. `5.53.1` keeps every later
+  slice's planned `5.NN.0` (`5.54.0` would have taken v54's), at the cost of the patch number a
+  `v53.1` would have used: such a slice, if one is ever inserted, takes `5.53.2`.
