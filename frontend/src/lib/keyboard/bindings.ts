@@ -257,6 +257,16 @@ export const BINDINGS: Binding[] = [
 		label: m.kbd_archived,
 		group: 'queue',
 		routes: DASHBOARD
+	},
+	{
+		// v54: mine -> all users -> other users. Shift+V, as plain `v` is free but a scope
+		// change reloads the whole list, so it takes the deliberate Shift like `Shift+A`.
+		id: 'view-cycle',
+		keys: [{ key: 'v', shift: true }],
+		label: m.kbd_view_cycle,
+		group: 'queue',
+		routes: DASHBOARD,
+		adminOnly: true
 	}
 ];
 

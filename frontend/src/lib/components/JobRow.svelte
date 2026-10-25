@@ -12,7 +12,8 @@
 	import { formatNumber, keepReadings } from '$lib/i18n/format';
 	import { jobStatusLabel } from '$lib/i18n/labels';
 
-	let { job, allUsers, isAdmin }: { job: Job; allUsers: boolean; isAdmin: boolean } = $props();
+	// v54: `all` and `others` both show rows that can be someone else's, so both name the owner.
+	let { job, view, isAdmin }: { job: Job; view: api.View; isAdmin: boolean } = $props();
 
 	const { expanded } = queue;
 	let isOpen = $derived(job.id in $expanded);
@@ -292,7 +293,7 @@
 				<span class="source-type mono"
 					>{SOURCE_TYPE_LABEL[job.source_type]?.() ?? job.source_type}</span
 				>
-				{#if allUsers}
+				{#if view !== 'mine'}
 					<span class="owner mono" title={job.owner_email}
 						>{api.displayName(job.owner_username, job.owner_email)}</span
 					>

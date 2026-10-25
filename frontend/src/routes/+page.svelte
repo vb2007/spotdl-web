@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
 	import { get } from 'svelte/store';
-	import { goto } from '$app/navigation';
+	import { goto, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page as route } from '$app/state';
 	import * as api from '$lib/api';
 	import { queue, groupTracksByJob } from '$lib/stores/queue';
-	import type { Job } from '$lib/api';
+	import type { Job, View } from '$lib/api';
 	import type { LiveTrackWithJob } from '$lib/stores/queue';
 	import { worker } from '$lib/stores/worker';
 	import Waterfall from '$lib/components/Waterfall.svelte';
@@ -46,13 +47,31 @@
 	// v42 (F05): this page's own SSE link (`$link`), shown in the header and the Waterfall,
 	// so a dropped stream never looks like a connected one; the layout reads it too.
 
-	// Admin-only (v17): mine/all-users scope. Off by default even for an admin --
-	// switching it clears the queue store (see queue.setAllUsers) and reconnects the
-	// SSE stream so both REST and live data agree on scope. v42: it starts from the store's
-	// own scope, which outlives this page (a trip to /settings and back): starting at "mine"
+	// Admin-only (v17): the mine/all scope, three-way since v54 (mine/all/others). "mine" by
+	// default even for an admin -- switching it clears the queue store (see queue.setView) and
+	// reconnects the SSE stream so both REST and live data agree on scope. v54: a reload keeps
+	// it through the query string (`?view=others`). Without one it starts from the store's own
+	// scope (v42), which outlives this page (a trip to /settings and back): starting at "mine"
 	// while the store still fetched all users mislabelled every foreign row as the admin's.
-	// Never for a non-admin, whatever an earlier admin session on this tab left in the store.
-	let allUsersView = $state(untrack(() => isAdmin) && queue.getAllUsers());
+	// Never for a non-admin, whatever the URL says or an earlier admin session on this tab
+	// left in the store.
+	const VIEWS: readonly View[] = ['mine', 'all', 'others'];
+	function viewInUrl(): View | null {
+		const asked = route.url.searchParams.get('view');
+		return VIEWS.find((v) => v === asked) ?? null;
+	}
+	let view = $state<View>(untrack(() => (isAdmin ? (viewInUrl() ?? queue.getView()) : 'mine')));
+
+	/** v54: the query string says the view (none for "mine"), replaced in place, so a reload
+	 * keeps it and switching adds no history entries. A non-admin's `?view=` is dropped. */
+	function syncViewUrl() {
+		const query = view === 'mine' ? '' : `?view=${view}`;
+		if (query === route.url.search) return;
+		// `resolve()` builds the path; the rule can't see that a query string after it stays on
+		// that same resolved route.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		replaceState(`${resolve('/')}${query}`, route.state);
+	}
 
 	let filtersActive = $derived(
 		$filters.q.trim() !== '' || $filters.status.length > 0 || $filters.state.length > 0
@@ -185,6 +204,12 @@
 				return true;
 			},
 			'scope-jobs': () => (controls?.setScope('jobs'), true),
+			// v54: mine -> all -> others -> mine (admin-only in the registry, and here too).
+			'view-cycle': () => {
+				if (!isAdmin) return false;
+				onViewChange(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]);
+				return true;
+			},
 			'scope-tracks': () => (controls?.setScope('tracks'), true),
 			filters: () => controls?.focusFilters() ?? false,
 			sort: () => (controls?.cycleSort(), true),
@@ -277,6 +302,10 @@
 			if (job.hint === 'already_queued') {
 				submitNotice = true;
 				submitError = m.dashboard_submit_already_queued();
+			} else if (queue.getView() === 'others') {
+				// v54: the others view leaves the admin's own jobs out, this one too; say where it went.
+				submitNotice = true;
+				submitError = m.dashboard_submit_added_elsewhere();
 			} else queue.addJob(job);
 		} catch (err) {
 			submitError = errorText(err, m.dashboard_submit_failed);
@@ -366,7 +395,7 @@
 
 	function connectStream() {
 		if (unmounted) return;
-		const stream = api.createEventSource(allUsersView);
+		const stream = api.createEventSource(view);
 		source = stream;
 		// v42: the stream belongs to the session it was opened under. If the store is reset
 		// meanwhile without this page logging out (an identity change in another tab, or a
@@ -452,18 +481,23 @@
 	}
 
 	/** Admin-only (v17): both REST and SSE must agree on scope, so switching requires
-	 * clearing the accumulated store (queue.setAllUsers) and reconnecting the stream
-	 * carrying the new all_users flag -- the existing connection has no way to change what
-	 * channel it's subscribed to mid-flight. The new stream's `onopen` loads the new
-	 * scope. */
-	async function onAllUsersChange(next: boolean) {
-		if (next === allUsersView) return;
-		allUsersView = next;
+	 * clearing the accumulated store (queue.setView) and reconnecting the stream carrying
+	 * the new view -- the existing connection has no way to change what channel it's
+	 * subscribed to mid-flight. The new stream's `onopen` loads the new scope. */
+	async function onViewChange(next: View) {
+		if (next === view || !isAdmin) return;
+		view = next;
+		syncViewUrl();
+		// A notice about where the last submit went is about the view it was sent from.
+		if (submitNotice) {
+			submitNotice = false;
+			submitError = '';
+		}
 		link.set('connecting');
 		clearTimeout(streamRetryTimer);
 		streamRetryDelayMs = 1000;
 		source?.close();
-		queue.setAllUsers(next);
+		queue.setView(next);
 		armResyncFallback();
 		connectStream();
 	}
@@ -556,8 +590,10 @@
 	}
 
 	onMount(() => {
-		// The store's scope outlives the page; a non-admin must never inherit an admin's.
-		if (!isAdmin && queue.getAllUsers()) queue.setAllUsers(false);
+		// The store's scope outlives the page; a non-admin must never inherit an admin's, and
+		// an admin's reload starts from the URL's (v54).
+		if (queue.getView() !== view) queue.setView(view);
+		syncViewUrl();
 		link.set('connecting');
 		queue.beginResync();
 		armResyncFallback();
@@ -657,12 +693,7 @@
 			</p>
 		</div>
 
-		<IncomingJobs
-			jobs={$incomingJobs}
-			allUsers={allUsersView}
-			sessionEmail={data.session?.email ?? ''}
-			{isAdmin}
-		/>
+		<IncomingJobs jobs={$incomingJobs} {view} sessionEmail={data.session?.email ?? ''} {isAdmin} />
 
 		<Waterfall
 			tracks={$activeTracks}
@@ -677,8 +708,8 @@
 			<QueueControls
 				bind:this={controls}
 				{isAdmin}
-				allUsers={allUsersView}
-				{onAllUsersChange}
+				{view}
+				{onViewChange}
 				countsByStatus={$page.countsByStatus}
 				countsByState={$page.countsByState}
 				{countText}
@@ -713,14 +744,21 @@
 						<button type="button" class="state-action" onclick={clearSearchAndFilters}
 							>{m.dashboard_empty_clear()}</button
 						>
-					{:else if $incomingJobs.some((j) => j.state === 'expanding' && (allUsersView || j.owner_email === data.session?.email))}
+					{:else if $incomingJobs.some((j) => j.state === 'expanding' && (view !== 'mine' || j.owner_email === data.session?.email))}
 						<h3 class="state-title">
-							{allUsersView ? m.dashboard_reading_any() : m.dashboard_reading_own()}
+							{view === 'all'
+								? m.dashboard_reading_any()
+								: view === 'others'
+									? m.dashboard_reading_others()
+									: m.dashboard_reading_own()}
 						</h3>
 						<p class="state-text">{m.dashboard_reading_text()}</p>
-					{:else if allUsersView}
+					{:else if view === 'all'}
 						<h3 class="state-title">{m.dashboard_empty_all_title()}</h3>
 						<p class="state-text">{m.dashboard_empty_all_text()}</p>
+					{:else if view === 'others'}
+						<h3 class="state-title">{m.dashboard_empty_others_title()}</h3>
+						<p class="state-text">{m.dashboard_empty_others_text()}</p>
 					{:else}
 						<h3 class="state-title">{m.dashboard_empty_own_title()}</h3>
 						<p class="state-text">
@@ -741,7 +779,7 @@
 					{@attach kbList('jobs', { fallback: listFallback })}
 				>
 					{#each $page.items as item (item.id)}
-						<JobRow job={item as Job} allUsers={allUsersView} {isAdmin} />
+						<JobRow job={item as Job} {view} {isAdmin} />
 					{/each}
 				</ul>
 			{:else}
@@ -761,7 +799,7 @@
 								<span class="title" id="group-title-{group.job.id}" title={group.job.title}
 									>{group.job.title}</span
 								>
-								{#if allUsersView}
+								{#if view !== 'mine'}
 									<span class="owner mono" title={group.job.owner_email}
 										>{api.displayName(group.job.owner_username, group.job.owner_email)}</span
 									>

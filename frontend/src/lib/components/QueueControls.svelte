@@ -12,15 +12,16 @@
 
 	let {
 		isAdmin,
-		allUsers,
-		onAllUsersChange,
+		view,
+		onViewChange,
 		countsByStatus,
 		countsByState,
 		countText
 	}: {
 		isAdmin: boolean;
-		allUsers: boolean;
-		onAllUsersChange: (value: boolean) => void;
+		/** v54: the admin's mine/all/others scope. */
+		view: api.View;
+		onViewChange: (value: api.View) => void;
 		countsByStatus: Record<string, number>;
 		countsByState: Record<string, number>;
 		/** The list's own size line ("7 of 7 jobs", "Loading…"), shown beside the heading. */
@@ -28,6 +29,13 @@
 	} = $props();
 
 	const { filters, page } = queue;
+
+	// v54: three ways to look at the queue, in the order the view key (Shift+V) cycles them.
+	const VIEW_OPTIONS: { view: api.View; label: () => string }[] = [
+		{ view: 'mine', label: m.queuectl_viewing_mine },
+		{ view: 'all', label: m.queuectl_viewing_all },
+		{ view: 'others', label: m.queuectl_viewing_others }
+	];
 
 	// v47 (v39 §4.3): a search, filter or scope change ends in one announced sentence, the
 	// list's size, once its load lands. The visible count changes with every live update
@@ -49,7 +57,7 @@
 			f.status,
 			f.state,
 			f.includeArchived,
-			queue.getAllUsers()
+			queue.getView()
 		]);
 		if (wasLoading && !loading) {
 			if (!$page.error && announcedFor !== null && key !== announcedFor) {
@@ -362,12 +370,15 @@
 
 		{#if isAdmin}
 			<div class="segmented" role="group" aria-label={m.queuectl_viewing_label()}>
-				<button type="button" aria-pressed={!allUsers} onclick={() => onAllUsersChange(false)}>
-					{m.queuectl_viewing_mine()}
-				</button>
-				<button type="button" aria-pressed={allUsers} onclick={() => onAllUsersChange(true)}>
-					{m.queuectl_viewing_all()}
-				</button>
+				{#each VIEW_OPTIONS as option (option.view)}
+					<button
+						type="button"
+						aria-pressed={view === option.view}
+						onclick={() => onViewChange(option.view)}
+					>
+						{option.label()}
+					</button>
+				{/each}
 			</div>
 		{/if}
 	</div>
@@ -525,8 +536,8 @@
 		font-size: var(--fs-detail);
 	}
 
-	/* A segmented switch: two options, one pressed, one shared edge. View scope, never
-	   a live condition, so §2 keeps it off --signal. */
+	/* A segmented switch: two or three options, one pressed, one shared edge. View scope,
+	   never a live condition, so §2 keeps it off --signal. */
 	.segmented {
 		display: inline-flex;
 		border: 1px solid var(--line-control);
