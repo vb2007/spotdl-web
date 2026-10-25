@@ -518,7 +518,9 @@
 	async function onViewChange(next: View) {
 		if (next === view || !isAdmin) return;
 		view = next;
-		syncViewUrl();
+		// Mid-navigation the browser's current entry may already be the one being navigated to:
+		// writing into it would lose that entry's own view; `afterNavigate` settles it instead.
+		if (!navigating.to) syncViewUrl();
 		// A notice about where the last submit went is about the view it was sent from.
 		if (submitNotice) {
 			submitNotice = false;
@@ -565,14 +567,14 @@
 			settled = true;
 			countUnreached();
 		}, POLL_ANSWER_MS);
-		worker
-			.refresh()
+		const refreshed = worker.refresh();
+		// v54 (U1): in the others view, whether the admin's own download (which that view's
+		// stream leaves out) is receiving, so it still warms the page; asked only while this
+		// poll's own answer says the worker is busy, and not once the page is gone.
+		queue.refreshOwnElsewhere(refreshed.then((status) => status.busy && !unmounted));
+		refreshed
 			.then(() => {
 				unreachedPolls = 0;
-				// v54 (U1): in the others view, whether the admin's own download (which that
-				// view's stream leaves out) is receiving, so it still warms the page; asked only
-				// while the worker is busy at all.
-				queue.refreshOwnElsewhere(get(workerStatus)?.busy ?? true);
 			})
 			.catch((err) => {
 				if (settled) return;

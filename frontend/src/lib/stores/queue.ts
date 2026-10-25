@@ -576,12 +576,21 @@ function createQueueStore() {
 	/** Re-reads `ownReceivingElsewhere`, in `others` only (the page calls it on its 5s worker
 	 * poll; the view's own events can't say when the viewer's download starts or ends). With
 	 * the worker idle (`workerBusy` false) nobody is downloading, so it asks nothing. One
-	 * request otherwise; a failed one keeps the last value. */
-	async function refreshOwnElsewhere(workerBusy = true): Promise<void> {
+	 * request otherwise; a failed one keeps the last value. The page passes the poll's own
+	 * answer, still pending: this call's place in line is when the poll was sent, so a resync
+	 * that starts after it wins over it. */
+	async function refreshOwnElsewhere(workerBusy: boolean | Promise<boolean> = true): Promise<void> {
 		if (view !== 'others') return;
 		const seq = ++ownElsewhereSeq;
 		const epoch = storeEpoch;
-		if (!workerBusy) {
+		let busy: boolean;
+		try {
+			busy = await workerBusy;
+		} catch {
+			return;
+		}
+		if (seq !== ownElsewhereSeq || epoch !== storeEpoch) return;
+		if (!busy) {
 			ownReceivingElsewhere.set(0);
 			return;
 		}

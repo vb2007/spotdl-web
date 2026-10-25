@@ -242,7 +242,10 @@ second colour vocabulary for a new component — map any new state onto one of t
 > viewer's own download warms the page in **every** view, including other-users, whose stream
 > leaves the viewer's own events out: there the page asks (on resync and on its 5s worker poll)
 > whether the viewer has a download of their own receiving. The Waterfall's edge stays neutral
-> there: it marks a lane on the panel, and that view shows none of the viewer's. This closes §8.3.
+> there: it marks a lane on the panel, and that view shows none of the viewer's. For the same reason
+> its idle line can read "no signal here — worker busy elsewhere" while the field is warm: true of
+> the panel, whose view leaves the viewer's own download out (accepted, no new copy). This closes
+> §8.3.
 
 `--signal-ink` (`#2a1c05`, a dark ink for text on an amber fill) and `--fail-dim` (`#5c2f30`) are
 defined in `:root` but consumed nowhere as of v47: nothing sets text on amber, and the controls that

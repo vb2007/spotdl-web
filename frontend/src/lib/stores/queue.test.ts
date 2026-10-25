@@ -895,15 +895,16 @@ describe('v54 review round 1', () => {
 
 	it('others: a poll still in flight from before a resync never overwrites it', async () => {
 		queue.setView('others');
-		const stalePoll = deferred<TracksPage>();
-		listTracksPage.mockImplementationOnce(() => stalePoll.promise);
-		const polling = queue.refreshOwnElsewhere();
+		// The poll is sent (its worker-status answer still pending), then a resync starts.
+		const status = deferred<boolean>();
+		const polling = queue.refreshOwnElsewhere(status.promise);
 		listTracksPage.mockImplementation(async (params = {}) =>
 			tracksPage(params.view === 'mine' ? [owned('mine-1', 'me@example.com')] : [])
 		);
 		await queue.reload();
 		expect(get(queue.viewerReceiving)).toBe(true);
-		stalePoll.resolve(tracksPage([]));
+		// The poll's older "worker idle" lands afterwards: dropped.
+		status.resolve(false);
 		await polling;
 		expect(get(queue.viewerReceiving)).toBe(true);
 	});
