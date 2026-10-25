@@ -21,6 +21,7 @@
 	import type { Locale } from '$lib/paraglide/runtime';
 	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
 	import RichText from '$lib/components/RichText.svelte';
+	import ApiKeys from '$lib/components/ApiKeys.svelte';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -442,6 +443,9 @@
 				<p class="form-error" role="alert">{clockError?.()}</p>
 			</div>
 		</section>
+
+		<!-- v53: keys for the browser extension (create, list, revoke). -->
+		<ApiKeys />
 	</main>
 </div>
 

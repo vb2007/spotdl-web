@@ -13,6 +13,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request
 from fastapi.exception_handlers import http_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 
@@ -37,3 +38,28 @@ async def api_error_handler(request: Request, exc: Exception) -> JSONResponse:
     if exc.params:
         body["params"] = exc.params
     return JSONResponse(body, status_code=exc.status_code, headers=exc.headers)
+
+
+def _safe(value: Any) -> Any:
+    # Text the response can encode: a lone surrogate (a JSON `\ud800` escape) would otherwise
+    # fail UTF-8 encoding and turn the 422 into a 500.
+    if isinstance(value, str):
+        return value.encode("utf-8", "backslashreplace").decode("utf-8")
+    return value
+
+
+async def validation_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """v53: a body FastAPI's own validation refuses answers 422 `request_invalid`, with each
+    error's type, location and message only. FastAPI's default handler echoed the submitted
+    `input` back, which (a) failed to encode a lone surrogate, so the 422 became a 500 whose
+    traceback logged the whole body, a login's password included, and (b) has no `code`."""
+    errors = exc.errors() if isinstance(exc, RequestValidationError) else []
+    detail = [
+        {
+            "type": _safe(e.get("type")),
+            "loc": [_safe(part) for part in e.get("loc", ())],
+            "msg": _safe(e.get("msg")),
+        }
+        for e in errors
+    ]
+    return JSONResponse({"detail": detail, "code": "request_invalid"}, status_code=422)

@@ -1,6 +1,6 @@
 import { ApiError } from '$lib/api';
 import * as m from '$lib/paraglide/messages';
-import { formatNumber } from './format';
+import { counted, formatNumber } from './format';
 import { trackStateLabel } from './labels';
 
 /** v46: an API error in the active language, by its stable `code` (backend/app/errors.py),
@@ -62,6 +62,16 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	// The reason is the Matrix server's own (redacted) words: shown as sent, untranslated.
 	alert_send_failed: (p) => m.error_alert_send_failed({ reason: String(p.reason ?? '') }),
 	retention_days_invalid: () => m.error_retention_days_invalid(),
+	// v53: keys (/account) and the limits on sign-in and submitting.
+	rate_limited: (p) => m.error_rate_limited(counted(Number(p.retry_after ?? 0))),
+	api_key_label_invalid: (p) =>
+		p.reason === 'character'
+			? m.error_api_key_label_characters()
+			: m.error_api_key_label_invalid({ max: formatNumber(Number(p.max)) }),
+	api_key_limit_reached: (p) => m.error_api_key_limit_reached({ max: formatNumber(Number(p.max)) }),
+	api_key_not_found: () => m.error_api_key_not_found(),
+	queue_unavailable: () => m.error_queue_unavailable(),
+	submit_too_long: (p) => m.error_submit_too_long({ max: formatNumber(Number(p.max)) }),
 	request_invalid: () => m.error_request_invalid(),
 	server_error: (p) => m.error_server_error({ status: String(p.status ?? '') }),
 	request_failed: (p) => m.error_request_failed({ status: String(p.status ?? '') })

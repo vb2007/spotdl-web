@@ -160,6 +160,18 @@ class Settings(BaseSettings):
     matrix_access_token: SecretStr | None = Field(default=None, alias="MATRIX_ACCESS_TOKEN")
     matrix_room_id: str | None = Field(default=None, alias="MATRIX_ROOM_ID")
 
+    # Rate limits (v53), app/services/rate_limit.py. All optional; a limit of 0 turns that
+    # limiter off. Failed logins count per email and client address, job creates per user
+    # and per API key.
+    login_rate_limit_failures: int = Field(default=10, ge=0, alias="LOGIN_RATE_LIMIT_FAILURES")
+    login_rate_limit_window_seconds: int = Field(
+        default=900, ge=1, alias="LOGIN_RATE_LIMIT_WINDOW_SECONDS"
+    )
+    job_create_rate_limit: int = Field(default=30, ge=0, alias="JOB_CREATE_RATE_LIMIT")
+    job_create_rate_limit_window_seconds: int = Field(
+        default=60, ge=1, alias="JOB_CREATE_RATE_LIMIT_WINDOW_SECONDS"
+    )
+
     @field_validator("allowed_emails", "frontend_origins", mode="before")
     @classmethod
     def _split_comma_separated(cls, value: object) -> object:

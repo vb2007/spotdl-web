@@ -638,11 +638,46 @@ export async function logout(): Promise<{ status: string }> {
 	}
 }
 
-export function createJob(url: string): Promise<Job> {
+/** v53: `hint` -- `already_queued` answers 200 with the caller's own unfinished job for the
+ * same link (nothing new was created), `in_library` a track the ledger already has. */
+export type CreateJobHint = 'already_queued' | 'in_library' | null;
+
+export function createJob(url: string): Promise<Job & { hint?: CreateJobHint }> {
 	return request('/api/jobs', {
 		method: 'POST',
 		body: JSON.stringify({ url })
 	});
+}
+
+/** v53: a per-user API key, the browser extension's fallback when the session cookie doesn't
+ * reach the API. Only `prefix` is ever shown again; the whole key exists once, in `create`'s
+ * answer. */
+export interface ApiKey {
+	id: string;
+	label: string;
+	prefix: string;
+	created_at: string;
+	last_used_at: string | null;
+}
+
+export interface ApiKeyList {
+	keys: ApiKey[];
+	max_active: number;
+}
+
+export function listApiKeys(): Promise<ApiKeyList> {
+	return request('/api/account/api-keys');
+}
+
+export function createApiKey(label: string): Promise<ApiKey & { key: string }> {
+	return request('/api/account/api-keys', {
+		method: 'POST',
+		body: JSON.stringify({ label })
+	});
+}
+
+export function revokeApiKey(keyId: string): Promise<ApiKey> {
+	return request(`/api/account/api-keys/${encodeURIComponent(keyId)}`, { method: 'DELETE' });
 }
 
 export function listJobsPage(params: ListJobsParams = {}): Promise<JobsPage> {

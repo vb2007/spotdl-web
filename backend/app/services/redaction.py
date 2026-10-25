@@ -23,6 +23,9 @@ import re
 _EMBEDDED_CREDENTIALED_URL_RE = re.compile(
     r"(https?://)[^\s:@/]+:[^\s:@/]+@([\w.-]+)(?::(\d{1,5}))?"
 )
+# v53: an API key (`sdw_<8-hex prefix>_<secret>`, services/api_keys.py). The prefix is kept,
+# since it's what /account shows to tell keys apart; the secret never survives.
+_API_KEY_RE = re.compile(r"(sdw_[0-9A-Za-z]{8})_[A-Za-z0-9_-]+")
 
 
 def redact_text(text: str) -> str:
@@ -31,10 +34,17 @@ def redact_text(text: str) -> str:
     (including on text with no embedded credentialed URL at all, which it returns
     unchanged) -- apply this to any exception message before it's logged or persisted
     (`tracks.last_error`, `track_attempts.error_message`), the same way `redact()`
-    already applies to a proxy URL that's being logged directly and in full."""
+    already applies to a proxy URL that's being logged directly and in full. v53: an API
+    key's secret goes too (its display prefix stays)."""
 
     def _sub(match: "re.Match[str]") -> str:
         scheme, host, port = match.group(1), match.group(2), match.group(3)
         return f"{scheme}{host}:{port}" if port else f"{scheme}{host}"
 
-    return _EMBEDDED_CREDENTIALED_URL_RE.sub(_sub, text)
+    return redact_api_keys(_EMBEDDED_CREDENTIALED_URL_RE.sub(_sub, text))
+
+
+def redact_api_keys(text: str) -> str:
+    """Only the API-key half of `redact_text`: app/logging_config.py's formatter has its own
+    credentialed-URL pattern and adds this one."""
+    return _API_KEY_RE.sub(r"\1_[redacted]", text)

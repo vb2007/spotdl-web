@@ -156,3 +156,64 @@ def test_proxy_errors_carry_codes_and_params(admin_client, db_session):
     assert body["params"] == {"target": "203.0.113.5:8080", "source": "file"}
     # The params name the target only, never a credential.
     assert "secretpw" not in str(body)
+
+
+# --- v53 ------------------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def _keys_table(db_session):
+    from app.models import ApiKey
+
+    ApiKey.__table__.create(db_session.get_bind(), checkfirst=True)
+
+
+def test_api_key_errors_carry_codes(authenticated_client, _keys_table, monkeypatch):
+    from app.services import api_keys
+
+    _error(authenticated_client.post("/api/account/api-keys", json={"label": " "}), 422, "api_key_label_invalid")
+    _error(authenticated_client.delete(f"/api/account/api-keys/{uuid.uuid4()}"), 404, "api_key_not_found")
+    monkeypatch.setattr(api_keys, "MAX_ACTIVE_KEYS", 0)
+    body = _error(authenticated_client.post("/api/account/api-keys", json={"label": "k"}), 409, "api_key_limit_reached")
+    assert body["params"] == {"max": 0}
+    authenticated_client.cookies.clear()
+    _error(
+        authenticated_client.get("/api/auth/me", headers={"Authorization": "Bearer sdw_00000000_x"}),
+        401,
+        "api_key_invalid",
+    )
+
+
+def test_job_create_errors_carry_codes(authenticated_client, monkeypatch):
+    from app.routers import jobs as jobs_router
+    from app.services import spotify_urls
+
+    monkeypatch.setattr(jobs_router.expand_job, "delay", lambda job_id: None)
+    track = "https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp"
+    ext = {"X-Spotdl-Client": "extension/0.1.0"}
+    _error(authenticated_client.post("/api/jobs", json={"url": "words"}, headers=ext), 422, "url_not_spotify")
+    _error(authenticated_client.post("/api/jobs", json={"url": track, "cascade": "x"}), 422, "cascade_invalid")
+    _error(authenticated_client.post("/api/jobs", json={"url": "a\u0000b"}), 422, "request_invalid")
+    monkeypatch.setattr(spotify_urls, "_fetch", lambda ref: (_ for _ in ()).throw(KeyError("uri")))
+    _error(authenticated_client.post("/api/jobs", json={"url": track, "cascade": "album"}), 422, "cascade_not_found")
+    monkeypatch.setattr(spotify_urls, "_fetch", lambda ref: (_ for _ in ()).throw(RuntimeError("down")))
+    _error(authenticated_client.post("/api/jobs", json={"url": track, "cascade": "album"}), 503, "cascade_unavailable")
+    two = {"artists": [{"id": "0C0XlULifJtAgn6ZNCW2eu", "name": "A"}, {"id": "0TnOYISbd1XYRBk9myaseg", "name": "B"}]}
+    monkeypatch.setattr(spotify_urls, "_fetch", lambda ref: two)
+    _error(authenticated_client.post("/api/jobs", json={"url": track, "cascade": "artist"}), 409, "cascade_ambiguous")
+
+
+def test_rate_limited_carries_a_code_and_retry_after(authenticated_client, monkeypatch):
+    from app.config import get_settings
+    from app.services import rate_limit
+    from extension_support import FakeRedis
+
+    fake = FakeRedis()
+    monkeypatch.setattr(rate_limit, "_redis", lambda: fake)
+    monkeypatch.setattr(get_settings(), "job_create_rate_limit", 1)
+    from app.routers import jobs as jobs_router
+
+    monkeypatch.setattr(jobs_router.expand_job, "delay", lambda job_id: None)
+    authenticated_client.post("/api/jobs", json={"url": "one"})
+    body = _error(authenticated_client.post("/api/jobs", json={"url": "two"}), 429, "rate_limited")
+    assert body["params"]["retry_after"] >= 1

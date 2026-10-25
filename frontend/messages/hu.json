@@ -829,5 +829,60 @@
 	"account_clock_12h": "12 órás ({example})",
 	"account_clock_24h": "24 órás ({example})",
 	"settings_proxy_format": "http(s)://[felhasználó:jelszó@]ipv4[:port]",
-	"account_language_auto": "automatikus ({language})"
+	"account_language_auto": "automatikus ({language})",
+	"error_rate_limited": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "Túl sok próbálkozás. Próbáld újra {n} másodperc múlva."
+			}
+		}
+	],
+	"error_api_key_label_invalid": "Adj a kulcsnak egy legfeljebb {max} karakteres nevet",
+	"error_api_key_limit_reached": "Már {max} kulcsod van; előbb vonj vissza egyet",
+	"error_api_key_not_found": "Nincs ilyen kulcs (talán már visszavontad?)",
+	"account_keys_heading": "Kulcsok a böngészőbővítményhez",
+	"account_keys_hint": "A spotdl-web Firefox-bővítmény a böngésződ bejelentkezését használja, ha tudja. Ahol nem, adj neki egy kulcsot. Egy kulcs csak Spotify-linkeket tehet sorba, követheti, hogy állnak, és megmondja, kié: semmi mást nem nyit meg, a rendszergazdai oldalakat sem.",
+	"account_keys_name": "Név",
+	"account_keys_name_placeholder": "laptop firefox",
+	"account_keys_create": "kulcs létrehozása",
+	"account_keys_creating": "létrehozás…",
+	"account_keys_new_heading": "Az új kulcsod",
+	"account_keys_new_hint": "Másold be most a bővítménybe. Többé nem jelenik meg: ha elveszíted, vond vissza, és hozz létre újat.",
+	"account_keys_new_label": "Kulcs",
+	"account_keys_copy": "másolás",
+	"account_keys_copied": "kimásolva",
+	"account_keys_copy_failed": "Nem sikerült másolni; jelöld ki a kulcsot, és másold ki magad.",
+	"account_keys_done": "kész",
+	"account_keys_list_label": "Kulcsaid",
+	"account_keys_loading": "Kulcsok betöltése…",
+	"account_keys_load_failed": "Nem sikerült beolvasni a kulcsaidat: {error}",
+	"account_keys_try_again": "újra",
+	"account_keys_empty": "Még nincs kulcsod.",
+	"account_keys_count": "{active} / {max} használatban",
+	"account_keys_created": "létrehozva: {when}",
+	"account_keys_last_used": "utoljára használva: {when}",
+	"account_keys_never_used": "még nem használták",
+	"account_keys_revoke": "visszavonás",
+	"account_keys_revoke_named": "{label} visszavonása",
+	"account_keys_revoke_title": "Visszavonod ezt a kulcsot?",
+	"account_keys_revoke_body": "Ami használja, azonnal leáll vele. Visszavont kulcs nem hozható vissza; hozz létre helyette újat.",
+	"account_keys_revoke_confirm": "kulcs visszavonása",
+	"account_keys_revoke_cancel": "kulcs megtartása",
+	"account_keys_revoked": "{label} visszavonva.",
+	"account_keys_limit": "Ennél több kulcsod nem lehet; vonj vissza egyet, hogy újat hozhass létre.",
+	"dashboard_submit_already_queued": "Ez már a sorodban van: azt a linket még töltjük.",
+	"login_error_rate_limited_for": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "Túl sok bejelentkezési kísérlet. Próbáld újra {n} perc múlva."
+			}
+		}
+	],
+	"error_queue_unavailable": "A sor most nem fogad új linket. Próbáld újra kicsit később.",
+	"error_api_key_label_characters": "A kulcs neve nem tartalmazhat láthatatlan vagy vezérlőkaraktert (ezek gyakran a beillesztett szöveggel jönnek). Inkább gépeld be.",
+	"error_submit_too_long": "Ez túl hosszú egy linknek: legfeljebb {max} karakter lehet."
 }

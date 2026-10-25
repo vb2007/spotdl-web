@@ -1,19 +1,23 @@
+import logging
 import uuid
-from typing import Literal
+from datetime import datetime, timedelta, timezone
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.errors import ApiError
-from app.models import Job, JobSourceType, JobState, Track, TrackState, User
-from app.routers.auth import require_admin, require_session
-from app.services import archive, events, job_listing, rollup, track_listing
+from app.models import DownloadedTrack, Job, JobSourceType, JobState, Track, TrackState, User
+from app.routers.auth import Principal, require_admin, require_session, require_session_or_api_key
+from app.services import archive, events, job_listing, rate_limit, rollup, spotify_urls, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
 from app.tasks.expand import expand_job
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -27,6 +31,9 @@ _CANCELLABLE_TRACK_STATES = [
 
 class CreateJobRequest(BaseModel):
     url: str
+    # v53: queue the link's album or artist instead (spotify_urls.resolve_cascade).
+    # Any JSON value, checked in the handler, so a bad one answers with a stable code (v46).
+    cascade: Any = None
 
 
 class SetPriorityRequest(BaseModel):
@@ -55,17 +62,183 @@ def _classify_source_type(url: str) -> JobSourceType:
     return JobSourceType.SEARCH
 
 
+# v53: the header the browser extension sends (`extension/<version>`). It's a non-simple
+# header, so a web page can't send it cross-origin without a CORS preflight the API refuses.
+CLIENT_HEADER = "X-Spotdl-Client"
+
+
+def _resolve_cascade(ref: spotify_urls.SpotifyRef, cascade: str) -> spotify_urls.SpotifyRef:
+    try:
+        return spotify_urls.resolve_cascade(ref, cascade)
+    except spotify_urls.CascadeInvalid as exc:
+        raise ApiError(
+            422,
+            "cascade_invalid",
+            f"{'An' if ref.type in ('album', 'artist') else 'A'} {ref.type} link has no {cascade} to queue",
+            {"cascade": cascade, "type": ref.type, "reason": exc.reason},
+        ) from None
+    except spotify_urls.CascadeNotFound:
+        raise ApiError(422, "cascade_not_found", "Spotify doesn't know this link") from None
+    except spotify_urls.CascadeUnavailable as exc:
+        raise ApiError(
+            503,
+            "cascade_unavailable",
+            "Spotify's metadata couldn't be read; try again",
+            {"reason": exc.reason},
+        ) from None
+    except spotify_urls.CascadeAmbiguous as exc:
+        raise ApiError(
+            409,
+            "cascade_ambiguous",
+            "This has more than one artist; choose one",
+            {"candidates": exc.candidates},
+        ) from None
+
+
+# The longest link or search text a job may be created from (a Spotify link is under 100).
+MAX_SUBMIT_LENGTH = 2048
+
+# How long a job may sit in `expanding` and still count as queued. Nothing recovers a job
+# whose expansion was lost (a broker error after its row committed), and a key can't cancel
+# one: past this, a re-submit creates a fresh job instead of answering with the dead one. A
+# discography expands in about two minutes; the margin covers a backed-up expand queue.
+ALREADY_QUEUED_EXPANDING_FOR = timedelta(hours=1)
+
+
+def _unfinished_job(db: Session, user_id: uuid.UUID, source_url: str) -> Job | None:
+    """The caller's newest job for `source_url` that is still expanding (recently) or still
+    has a track to download (rollup's `active` or `waiting`), if any."""
+    unfinished_track = (
+        db.query(Track.id)
+        .filter(
+            Track.job_id == Job.id,
+            Track.state.in_(
+                (TrackState.PENDING, TrackState.QUEUED, TrackState.DOWNLOADING, TrackState.WAITING)
+            ),
+        )
+        .exists()
+    )
+    expanding_since = datetime.now(timezone.utc) - ALREADY_QUEUED_EXPANDING_FOR
+    return (
+        db.query(Job)
+        .filter(
+            Job.user_id == user_id,
+            Job.source_url == source_url,
+            Job.archived_at.is_(None),
+            ((Job.state == JobState.EXPANDING) & (Job.created_at > expanding_since))
+            | ((Job.state == JobState.EXPANDED) & unfinished_track),
+        )
+        .order_by(Job.created_at.desc())
+        .first()
+    )
+
+
 @router.post("", status_code=201)
 def create_job(
     payload: CreateJobRequest,
+    request: Request,
+    response: Response,
     db: Session = Depends(get_db),
-    user: User = Depends(require_session),
+    principal: Principal = Depends(require_session_or_api_key),
 ) -> dict:
-    job = Job(source_url=payload.url, source_type=_classify_source_type(payload.url), user_id=user.id)
+    """v53: the session cookie or an API key. A key-authenticated or extension-origin
+    request (`X-Spotdl-Client`) may submit only an open.spotify.com track/album/artist/
+    playlist link (422 `url_not_spotify` otherwise); the web UI's cookie requests keep
+    submitting anything, search text included. A Spotify link is stored in its canonical
+    form either way.
+
+    `hint` in the answer: `already_queued` when the caller already has an unfinished job for
+    the same link (that job is returned, 200, and nothing is created), `in_library` when a
+    track link's track is already in the ledger (the job is still created, and resolves as a
+    duplicate)."""
+    user = principal.user
+    rate_limit.hit_job_create(user.id, principal.api_key.id if principal.api_key else None)
+    if payload.cascade is not None and (
+        not isinstance(payload.cascade, str) or payload.cascade not in spotify_urls.CASCADE_SOURCES
+    ):
+        raise ApiError(
+            422,
+            "cascade_invalid",
+            "A cascade is \"album\" or \"artist\"",
+            # Echoed only when it can be: a lone surrogate would fail the response's encoding.
+            {
+                "cascade": payload.cascade[:40]
+                if isinstance(payload.cascade, str) and spotify_urls.storable(payload.cascade)
+                else None,
+                "reason": "unknown",
+            },
+        )
+    if len(payload.url) > MAX_SUBMIT_LENGTH:
+        # The web UI's search text has no other bound, and a 20 MB "search" was stored, searched
+        # and echoed into every listing of that user's jobs.
+        raise ApiError(
+            422,
+            "submit_too_long",
+            f"A link or search is at most {MAX_SUBMIT_LENGTH} characters",
+            {"max": MAX_SUBMIT_LENGTH},
+        )
+    if not spotify_urls.storable(payload.url):
+        # A NUL or a lone surrogate: Postgres can't take it, so the query would be a 500.
+        raise ApiError(422, "request_invalid", "The link holds a character that can't be stored")
+
+    restricted = principal.api_key is not None or CLIENT_HEADER.lower() in request.headers
+    ref = spotify_urls.parse(payload.url)
+    if ref is None and (restricted or payload.cascade is not None):
+        raise ApiError(
+            422, "url_not_spotify", "Only open.spotify.com track, album, artist or playlist links"
+        )
+    if ref is not None and payload.cascade is not None:
+        # The metadata call can take seconds: never with a transaction idling open across it
+        # (v31's idle-in-transaction lesson). The user row reloads after it.
+        db.commit()
+        ref = _resolve_cascade(ref, payload.cascade)
+
+    if ref is not None:
+        source_url, source_type = ref.url, ref.source_type
+    else:
+        source_url, source_type = payload.url, _classify_source_type(payload.url)
+
+    # Two identical submits at once (an extension's double send) would both find nothing and
+    # both create: the user's row serializes them, held until this request commits.
+    # NO KEY UPDATE: it doesn't block the KEY SHARE locks a concurrent insert referencing the
+    # user takes (a login's session row).
+    db.query(User.id).filter(User.id == user.id).with_for_update(key_share=True).one()
+    existing = _unfinished_job(db, user.id, source_url)
+    if existing is not None:
+        # Nothing to write: let the lock go before building the answer.
+        db.commit()
+        response.status_code = 200
+        return {
+            **job_to_dict(
+                existing, track_counts(db, existing.id), user.email, user.username, rollup.job_title(db, existing)
+            ),
+            "hint": "already_queued",
+        }
+
+    hint = None
+    if ref is not None and ref.type == "track" and db.get(DownloadedTrack, ref.id) is not None:
+        hint = "in_library"
+    job = Job(source_url=source_url, source_type=source_type, user_id=user.id)
     db.add(job)
     db.commit()
-    expand_job.delay(str(job.id))
-    return job_to_dict(job, track_counts(db, job.id), user.email, user.username, rollup.job_title(db, job))
+    try:
+        expand_job.delay(str(job.id))
+    except Exception as exc:
+        # The broker (Redis) is down: the committed job would never expand, and the hint would
+        # hand it back to every re-submit as "already queued". It fails instead, so the next
+        # submit starts over (v53, live review).
+        # Archived at once too: it was never really queued, and an unarchived failed job would
+        # sit in the dashboard's incoming panel reading as an unreadable link.
+        job.state = JobState.FAILED
+        job.error = "Couldn't be queued for expansion; submit it again"
+        job.archived_at = datetime.now(timezone.utc)
+        db.commit()
+        logger.warning("create_job: expansion not enqueued for %s: %s", job.id, type(exc).__name__)
+        raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
+    return {
+        **job_to_dict(job, track_counts(db, job.id), user.email, user.username, rollup.job_title(db, job)),
+        "hint": hint,
+    }
 
 
 @router.get("")
@@ -156,7 +329,9 @@ def unarchive_jobs(
     return {"unarchived_ids": [str(job.id) for job in jobs]}
 
 
-def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, str, str | None]:
+def _get_job_or_404(
+    db: Session, job_id: uuid.UUID, user: User, *, owner_only: bool = False
+) -> tuple[Job, str, str | None]:
     """Returns the job alongside its owner's email and username in one join -- and, for a
     non-admin, filters by ownership in the same query rather than loading the row and
     checking after, so a foreign job is indistinguishable from a nonexistent one (404,
@@ -167,7 +342,7 @@ def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, st
         .join(User, Job.user_id == User.id)
         .filter(Job.id == job_id)
     )
-    if not user.is_admin:
+    if owner_only or not user.is_admin:
         query = query.filter(Job.user_id == user.id)
     row = query.one_or_none()
     if row is None:
@@ -179,9 +354,14 @@ def _get_job_or_404(db: Session, job_id: uuid.UUID, user: User) -> tuple[Job, st
 def get_job(
     job_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_session),
+    principal: Principal = Depends(require_session_or_api_key),
 ) -> dict:
-    job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
+    """v53 (owner's decision): an API key may read its own user's jobs here, the extension's
+    "how is my submission doing", and nothing else of the job API. Through a key it's always
+    the user's own jobs, even an admin's key (404 for anyone else's, like a non-owner)."""
+    job, owner_email, owner_username = _get_job_or_404(
+        db, job_id, principal.user, owner_only=principal.api_key is not None
+    )
     return job_to_dict(
         job, track_counts(db, job.id), owner_email, owner_username, rollup.job_title(db, job)
     )

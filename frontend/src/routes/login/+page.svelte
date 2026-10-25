@@ -7,7 +7,7 @@
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
-	import { formatNumber } from '$lib/i18n/format';
+	import { counted, formatNumber } from '$lib/i18n/format';
 
 	let email = $state('');
 	let password = $state('');
@@ -39,6 +39,17 @@
 	});
 	// v47: which field the form's own check found empty, for aria-invalid.
 	let missing = $state<'email' | 'password' | null>(null);
+
+	// v53: the app's own login limit answers 429 `rate_limited` with how long it holds (up to
+	// 15 minutes), so it says that; any other 429 (from in front of the app) keeps the old words.
+	function loginLimitText(err: unknown): string {
+		const retryAfter =
+			err instanceof api.ApiError && err.code === 'rate_limited'
+				? Number(err.params.retry_after)
+				: 0;
+		if (!(retryAfter > 0)) return m.login_error_rate_limited();
+		return m.login_error_rate_limited_for(counted(Math.ceil(retryAfter / 60)));
+	}
 
 	async function onsubmit(event: SubmitEvent) {
 		event.preventDefault();
@@ -80,7 +91,7 @@
 			errorMessage = credentialsRejected
 				? m.login_error_rejected()
 				: status === 429
-					? m.login_error_rate_limited()
+					? loginLimitText(err)
 					: status >= 500 && ![502, 503, 504].includes(status)
 						? m.login_error_server()
 						: m.login_error_unreachable();

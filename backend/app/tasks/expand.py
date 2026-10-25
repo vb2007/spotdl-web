@@ -34,7 +34,9 @@ def _enqueue_pending_tracks(db, job: Job, why: str) -> None:
         download_track.delay(str(track_id))
 
 
-@celery_app.task(name="app.tasks.expand.expand_job")
+# v53: nothing reads its result, and storing one made every enqueue wait on the result
+# backend: with Redis down, its 20 reconnect retries held a job create about 19s.
+@celery_app.task(name="app.tasks.expand.expand_job", ignore_result=True)
 def expand_job(job_id: str) -> None:
     db = SessionLocal()
     try:

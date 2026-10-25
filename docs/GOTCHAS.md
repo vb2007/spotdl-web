@@ -198,6 +198,14 @@ needed" claim — rather than silently deleted.
   service names alone misses it → *v50*
 
 **Auth, cookies & sessions**
+- A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
+  production, TCP on and off); a key is the fallback, valid only on job create, reading its own
+  job and `me` (an admin's key gets 401 everywhere else) → *v53*
+- Rate limits (logins per email + address and per address, IPv6 by /64; creates per user and
+  key) fail open at once on a Redis error (no retries); low limits on a slot go in `.env.agent`
+  plus a `run … --force-recreate api` → *v53*
+- FastAPI's default 422 echoes the body (a surrogate there was a 500 logging a password); a
+  stored task result made `.delay()` wait ~19 s on a dead Redis → *v53*
 - Upstream `vb2007.hu-api` hardcodes `Domain=localhost`; login must be server-to-server → *v03*
 - `Secure` cookies work over `http://localhost` in browsers but **not** in `httpx`/`TestClient` —
   tests need `base_url="https://testserver"` → *v03*
@@ -608,6 +616,8 @@ needed" claim — rather than silently deleted.
   others → *v28*
 
 **Frontend (SvelteKit)**
+- Job create's `already_queued` hint returns the existing job with 200: don't add it to the store
+  again; Spotify links are stored canonical → *v53*
 - `adapter-static` can't run a server load; routes use `ssr = false` + `prerender = true` **and**
   each needs its own explicit nginx `location` block (missing the second half shipped a `/login`
   404 for three versions) → *v09, v12*
@@ -740,6 +750,10 @@ needed" claim — rather than silently deleted.
   (recorded in the v39 section; v39.1 has no section of its own)
 
 **Testing & verification technique**
+- FastAPI's `app.routes` (0.141+) holds lazy `_IncludedRouter` wrappers: walk `original_router.routes`
+  to find every `APIRoute` → *v53*
+- Playwright's `request.newContext()` inside a test inherits the project's `storageState`; a slot's
+  own real-stack evidence jobs skew later e2e picks (delete them first) → *v53*
 - e2e names come from the compiled message files (`t()`); a saved language beats the browser
   locale, so setup/teardown clear both identities' language in the DB → *v46*
 - The hidden admin 404s carry no error `code`, so they still read like an unknown route → *v46*
@@ -5917,3 +5931,148 @@ independently-found production bug from the same conversation)
   of a workflow file issue", and no check on the PR. `docker run --rm -v "$PWD:/repo:ro" --workdir
   /repo rhysd/actionlint:1.7.7 -shellcheck=` reports it before a push (`context "job" is not
   allowed here`). It moved to the "Run pytest" step's `env:`.
+
+### v53 extension-api gotchas (learned building the extension's backend contract)
+
+- **The cookie spike: a Firefox MV3 extension's background `fetch(…, {credentials: 'include'})`
+  carries `SPOTDL_SESSION`.** Real Firefox 158.0.1 (headless, through geckodriver), the throwaway
+  spike extension (scratchpad only) installed with `host_permissions` for the app's origins, the
+  test user signed in through the app's own login form in the same profile (production: the
+  owner let `v5s3user@example.com` into `ALLOWED_EMAILS` for the run, 2026-10-24, then removed it;
+  its sign-in left a `users` row there with no jobs):
+
+  | Origin | Total Cookie Protection | `GET /api/auth/me` | same, with `X-Spotdl-Client` | `POST /api/jobs` (header, search text) |
+  |---|---|---|---|---|
+  | `http://127.0.0.1:5176` | on (`cookieBehavior=5`) | 200, the user | 200 | 422 `url_not_spotify` (authenticated) |
+  | `http://127.0.0.1:5176` | off (`cookieBehavior=4`) | 200 | 200 | 422 |
+  | `http://localhost:5176` | on | 200 | 200 | 422 |
+  | `http://localhost:5176` | off | 200 | 200 | 422 |
+  | any of the above, signed out | either | 401 | 401 | 401 |
+  | `https://spotdl.vb2007.hu` (production, 5.50.0) | on | 200, the user | 200 | not sent (no allowlist there yet) |
+  | `https://spotdl.vb2007.hu` | off | 200 | 200 | not sent |
+  | `https://spotdl.vb2007.hu`, signed out | either | 401 | 401 | |
+
+  So the cookie is `Secure` yet set and sent over plain-HTTP loopback (Firefox treats loopback as
+  a secure context), and `SameSite=Lax` doesn't stop a background request from an extension that
+  holds a host permission for the origin, GET or POST. TCP partitions cookies by top-level site;
+  an extension's background page isn't a third-party frame, so it reads the first-party jar either
+  way. v58's cookie path stands; the key stays the fallback.
+- **A Firefox match pattern has no port.** `permissions.contains({origins: ['http://127.0.0.1:5176/*']})`
+  answers `false` even with `http://127.0.0.1/*` granted (the pattern is invalid, not denied), and
+  the fetch works all the same. Check `scheme://host/*`. v58: declare host permissions without
+  ports.
+- **A key is no credential anywhere but job create, `GET /api/jobs/{id}` and `me`, so an admin's
+  key gets 401 on an admin route, not 403.** The plan asks for "non-admin answers"; a non-admin's
+  cookie gets 403 (404 on `/api/admin/stats` and the test-alert send), but a key never reaches
+  `require_admin` at all: every other route keeps `require_session` (cookie only), which answers
+  401 `not_authenticated` (owner's decision, 2026-10-24: keep 401). `test_api_keys.py`
+  parametrizes this over every route in the app, not only the admin ones. The job read was added
+  on the owner's decision the same day (the master plan's "read their own submission status"):
+  through a key it's the key's user's own jobs only, an admin's too (404 otherwise).
+- **FastAPI keeps an included router as a lazy `_IncludedRouter` in `app.routes`** (0.162 in the slot's
+  image, 0.141.1 in `uv.lock`/`requirements.txt`: both do). A test
+  walking `app.routes` for `APIRoute`s finds only the four built-in docs routes; descend through
+  each wrapper's `original_router.routes` (every router here carries its own prefix, and
+  `include_router` adds none).
+- **`hint: "already_queued"` answers 200 with the existing job, and creates nothing.** Owner-scoped,
+  canonical URL, an unarchived job still `expanding` or with a `pending`/`queued`/`downloading`/
+  `waiting` track. A settled, failed or cancelled job doesn't count, so re-submitting a finished
+  link still re-runs it (dedup then settles it at once). Two simultaneous identical submits
+  both created at first (the live review's 6 parallel posts made three jobs); the create now locks
+  the user's row before the check, so they serialize: one 201, five 200. It's `FOR NO KEY UPDATE`
+  (`with_for_update(key_share=True)`), not `FOR UPDATE`, on purpose: a concurrent login's session
+  insert takes a `KEY SHARE` lock on the same row, which `FOR UPDATE` would block. An
+  `expanding` job counts only for its first hour (a lost expansion would otherwise answer every
+  re-submit forever, and a key can't cancel it). A `spotify:` URI the web UI submits is stored as
+  typed (cookie requests keep today's behavior), so it never matches an `https` link's job. The web UI (the dashboard form and the incoming
+  overlay's "try again") shows a notice for it instead of adding the returned job a second time,
+  since that job is already on the page.
+- **Every Spotify link a job stores is canonical now, the web UI's too.** `https://open.spotify.com/<type>/<id>`
+  (no `intl-xx`, no `?si=`), so the hint matches a link however it was copied. Text that isn't
+  such a link keeps today's path (the web UI's search, an `/episode/` link) and is stored as typed.
+- **A cascade is resolved in the request, not in expansion.** One spotdl metadata call (`track`
+  or `album`) through `_ensure_spotify_client()`, bounded at 10 s on a small thread pool: an
+  ambiguous artist must reach the caller as a 409 with the candidates, and expansion has no one
+  to ask. spotdl's scraping client answers an unknown id with a bare `KeyError` (422
+  `cascade_not_found`); anything else is 503 `cascade_unavailable`.
+- **The rate limiter fails open.** A Redis error lets the login or create through (logged), since a
+  Redis outage shouldn't lock everyone out. In pytest there's no Redis at all, so every test not
+  using the `fake_redis` fixture (`tests/extension_support.py`) runs unlimited.
+- **Testing low limits on a slot: edit `.env.agent`, then recreate `api` through `run`.**
+  `agent_stack.sh <slot> up` rewrites `.env.agent` from `.env` (only `COPIED_KEYS`), so appending
+  `JOB_CREATE_RATE_LIMIT=4` and running `up` loses it; `run docker compose up -d --no-deps
+  --force-recreate api` keeps it. Put the original back the same way afterwards.
+- **Inside a Playwright test, `request.newContext()` gets the project's `storageState`.** Spec
+  18's "cookie-less" key check went out with the signed-in user's cookie, the API tried the
+  cookie first, and a revoked key "still worked" (200). Pass `storageState: {cookies: [],
+  origins: []}` for a request that must carry only a key, and check the answer came from the key
+  (a key's `me` has only `email`, `username`, `is_admin`).
+- **The dashboard form never sends bare words.** `submitLink.ts` refuses text without a link,
+  so the web UI's non-allowlisted submissions are a `spotify:` URI, a `<youtube>|<spotify>` pair or
+  another site's link (all kept for a cookie request without `X-Spotdl-Client`); search text only
+  arrives through the API.
+- **Real-stack evidence jobs on a slot leak into later e2e runs.** Spec 14 picks the admin's
+  largest job, archived ones included, so a cancelled 296-track artist job from a cascade check
+  replaced the seeded 14-track album and four keyboard tests failed. Cancelling and archiving
+  isn't enough: delete such jobs from the slot database (it's the slot's own) before `e2e`.
+- **Text Postgres or UTF-8 can't take reaches the API as JSON escapes.** A NUL (`\u0000`) and a
+  lone surrogate (`\ud800`) in a key label, a link or a login email each gave a 500 (a psycopg
+  `DataError`, or `UnicodeEncodeError` in the login bucket's hash) until refused up front:
+  `spotify_urls.storable` for links and logins, `api_keys.normalize_label` (also C1 controls and
+  bidi overrides, which reordered the key prefix in the revoke dialog). In a test, httpx can't
+  encode a lone surrogate (`json=` raises): send `content=json.dumps(...)`. And `str.strip()`
+  removes `\x85` (NEL) as whitespace.
+- **redis-py retries a dead connection with backoff by default** (6.x: three tries, exponential
+  with jitter), so 1 s socket timeouts still left a "fail-open" limiter stalling each request for
+  several seconds. `Retry(NoBackoff(), 0)` makes it fail at once.
+- **FastAPI's default 422 echoes the submitted body back (`input`), so a lone surrogate in it made
+  the 422 a 500, and that 500's traceback logged the whole body: a login's password, in plain
+  text.** Pre-existing on every endpoint; `app/errors.py`'s `validation_error_handler` now answers
+  `request_invalid` with each error's type, location and message only (still a list in
+  `detail`, which `api.ts` already maps). The same encode failure hid in `cascade_invalid`'s own
+  `params` (it echoed the value), and a NUL in a quoted cookie (`"\000…"`, which Starlette
+  unquotes) made `get_valid_session` a 500 on every route until it answered "no session".
+- **A broker error after the job row commits left a job `expanding` forever** (pre-existing), and
+  v53's hint then handed it back to every re-submit for an hour. Job create now marks it `failed`
+  and archived (it would otherwise sit in the incoming panel reading as an unreadable link) and
+  answers 503 `queue_unavailable`, so the next submit starts over. It's archived, not deleted
+  (soft archive is a locked decision), so a client hammering create through a Redis outage
+  leaves one hidden row per try: the rate limiter fails open in that same outage.
+- **`.delay()` on a task whose result is stored waits on the result backend first.** With Redis
+  stopped, `expand_job.delay` took about 19 s to raise (the Redis result backend's
+  `on_task_call` retries its connection 20 times), so the 503 above came after 19 s and the job
+  sat `expanding` meanwhile. Nothing reads `expand_job`'s result: `ignore_result=True` (as
+  `send_alert` already had) makes it fail in well under a second.
+- **A key label's character rule took eight review rounds; the principle that held is "no text
+  may be invisible".** Patching characters one by one kept losing: tag runs behind 🏴, joiner and
+  variation-selector runs (the known smuggling encodings: two selectors per byte, one joiner per
+  bit) and single ignorables after an ASCII word all made a label render exactly like another key's,
+  or carry hidden data. The rule now (`services/api_keys.py`): Unicode's Default_Ignorable_Code_Point
+  set is refused except in the one context a script or emoji needs it (ZWJ/ZWNJ around a virama,
+  ZWNJ between letters of a joining script such as Arabic, ZWJ between emoji, past a presentation
+  selector or skin tone as in ❤️‍🔥; VS15/VS16 after a non-ASCII symbol or punctuation, ℹ, or a
+  keycap digit; ideographic variation selectors after a CJK ideograph; Mongolian selectors within
+  Mongolian), and never more than 8 per label (`MAX_IGNORABLES`: enough for several emoji
+  sequences, and a bound on what they could encode). The residue is accepted on purpose: one
+  needless ignorable in a valid context (★️ vs ★, a ZWNJ after a non-joining Arabic letter) still
+  renders like the plain text, but a label is shown only to its owner and every key row and the
+  revoke dialog show the key's unique prefix beside it. Tag characters only as the three recommended
+  subdivision flags (England, Scotland, Wales); controls, surrogates, line/paragraph separators,
+  blank-drawing characters (U+2800, U+1D159, U+16FE4) and non-visible format characters refused
+  (the prepended number signs, which draw, stay); one visible character required. Space
+  separators trim at the ends and collapse inside (two spaces or an NBSP would look like one),
+  in the form too, which also counts code points like the backend (its `maxlength` counts UTF-16
+  units and once cut emoji labels mid-sequence, so it's only a 4x backstop). Python 3.12's tables
+  are Unicode 15.0, so newer emoji (🫩) read as unassigned (`Cn`): those, and private use (macOS's
+  Apple logo), count as visible.
+- **Job create caps the link or search at 2048 characters** (`submit_too_long`): the web UI's
+  cookie path had no bound, and a 20 MB "search" was stored, searched by worker-expand and echoed
+  into every listing of that user's jobs (a 60 MB `GET /api/jobs`).
+- **The login buckets key an IPv6 client by its /64** (one host holds a whole /64 and could rotate
+  through it); an IPv4-mapped address counts as its IPv4, a zone id is dropped.
+- **On a dev or slot stack every login shares one client address** (the Vite proxy's, or the
+  container peer: no Cloudflare in front), so the per-address login bucket counts every login of
+  every identity, successes included, against 5x LOGIN_RATE_LIMIT_FAILURES. Low test limits trip
+  it within a few logins, and buckets from an earlier, longer window survive an `api` recreate:
+  delete `spotdl:ratelimit:*` in the slot's Redis before a limits check.
+

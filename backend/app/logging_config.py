@@ -12,6 +12,8 @@ from celery import current_task
 from celery.signals import setup_logging
 from pythonjsonlogger.json import JsonFormatter as _BaseJsonFormatter
 
+from app.services.redaction import redact_api_keys
+
 # Matches `user:pass@` inside any URL-shaped string. Belt-and-braces on top of
 # app/services/proxies.py's redact() — that's only reliably applied at the one call site
 # in download.py that already knows a proxy was involved. This catches any *other* route a
@@ -23,7 +25,8 @@ _CREDENTIALED_URL = re.compile(r"://[^/@\s]+:[^/@\s]+@")
 
 
 def _redact(text: str) -> str:
-    return _CREDENTIALED_URL.sub("://[redacted]@", text)
+    # v53: and an API key's secret, the same net one layer out.
+    return redact_api_keys(_CREDENTIALED_URL.sub("://[redacted]@", text))
 
 
 class JsonFormatter(_BaseJsonFormatter):
