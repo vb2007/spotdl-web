@@ -5,6 +5,7 @@ from typing import Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -13,15 +14,12 @@ from app.errors import ApiError
 from app.models import DownloadedTrack, Job, JobSourceType, Proxy, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
 from app.services import app_settings, events, retry, track_listing
+from app.services.track_states import CANCELLABLE_TRACK_STATES, RETRYABLE_TRACK_STATES
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import track_attempt_to_dict, track_song_meta, track_to_dict
 from app.services.view_scope import View, resolve_view
 
 router = APIRouter(prefix="/api/tracks", tags=["tracks"])
-
-_TERMINAL_TRACK_STATES = {TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE, TrackState.CANCELLED}
-_RETRYABLE_TRACK_STATES = {TrackState.WAITING, TrackState.LOOKUP_FAILED}
-
 
 def _get_track_or_404(
     db: Session, track_id: uuid.UUID, user: User
@@ -138,15 +136,30 @@ def cancel_track(
 ) -> dict:
     """Same semantics as `DELETE /api/jobs/{id}` but for a single track — a track
     already `downloading` finishes but its result is discarded by `download_track`
-    once it notices the state changed underneath it."""
+    once it notices the state changed underneath it.
+
+    v56 (A2): a track with nothing left in flight (`track_states.TERMINAL_TRACK_STATES`,
+    `lookup_failed` included) answers 409 `track_not_cancellable` with its state, like a
+    settled job's cancel, instead of a silent no-op. The state is re-checked by the UPDATE
+    itself, so a track that settled since it was read is never relabelled `cancelled`."""
     track, owner_id, _archived_at = _get_track_or_404(db, track_id, user)
-    if track.state not in _TERMINAL_TRACK_STATES:
-        track.state = TrackState.CANCELLED
-        track.scheduled_at = None
-        db.commit()
-        events.publish_track_event(
-            owner_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
+    cancelled = db.execute(
+        update(Track)
+        .where(Track.id == track.id, Track.state.in_(CANCELLABLE_TRACK_STATES))
+        .values(state=TrackState.CANCELLED, scheduled_at=None)
+    ).rowcount
+    db.commit()
+    db.refresh(track)
+    if not cancelled:
+        raise ApiError(
+            409,
+            "track_not_cancellable",
+            f"Track is {track.state.value}, not cancellable",
+            {"state": track.state.value},
         )
+    events.publish_track_event(
+        owner_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
+    )
     return track_to_dict(track)
 
 
@@ -171,7 +184,7 @@ def retry_track(
     track, owner_id, archived_at = _get_track_or_404(db, track_id, user)
     if archived_at is not None:
         raise ApiError(409, "job_archived", "Job is archived; unarchive it first")
-    if track.state not in _RETRYABLE_TRACK_STATES:
+    if track.state not in RETRYABLE_TRACK_STATES:
         raise ApiError(
             409,
             "track_not_retryable",

@@ -15,20 +15,13 @@ from app.routers.auth import Principal, require_admin, require_session, require_
 from app.services import archive, events, job_listing, rate_limit, rollup, spotify_urls, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
+from app.services.track_states import CANCELLABLE_TRACK_STATES
 from app.services.view_scope import View, resolve_view
 from app.tasks.expand import expand_job
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
-
-# Every track state a cancel should touch — anything not already a terminal outcome.
-_CANCELLABLE_TRACK_STATES = [
-    state
-    for state in TrackState
-    if state not in (TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE, TrackState.CANCELLED)
-]
-
 
 class CreateJobRequest(BaseModel):
     url: str
@@ -439,7 +432,7 @@ def cancel_job(
     db.refresh(job, with_for_update=True)
     tracks = (
         db.query(Track)
-        .filter(Track.job_id == job_id, Track.state.in_(_CANCELLABLE_TRACK_STATES))
+        .filter(Track.job_id == job_id, Track.state.in_(CANCELLABLE_TRACK_STATES))
         .all()
     )
     for track in tracks:

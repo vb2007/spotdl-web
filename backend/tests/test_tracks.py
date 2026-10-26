@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from app.models import (
     DownloadedTrack,
     Job,
@@ -62,14 +64,22 @@ def test_cancel_track_marks_cancelled_and_clears_schedule(authenticated_client, 
     assert updated.scheduled_at is None
 
 
-def test_cancel_track_is_a_noop_on_terminal_states(authenticated_client, db_session, owner):
-    track = _make_track(db_session, owner, state=TrackState.COMPLETED)
+@pytest.mark.parametrize(
+    "state",
+    [TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE, TrackState.CANCELLED, TrackState.LOOKUP_FAILED],
+)
+def test_cancel_track_refuses_a_terminal_state_with_409(authenticated_client, db_session, owner, state):
+    """v56 (A2): a terminal track, `lookup_failed` included (the UI never offers cancel on
+    it), answers 409 with its state and stays as it is. Before v56 a `lookup_failed` track
+    was turned `cancelled`, and the other terminal states were a silent 200."""
+    track = _make_track(db_session, owner, state=state)
 
     response = authenticated_client.delete(f"/api/tracks/{track.id}")
 
-    assert response.status_code == 200
-    assert response.json()["state"] == "completed"
-    assert db_session.get(Track, track.id).state == TrackState.COMPLETED
+    assert response.status_code == 409
+    assert response.json()["code"] == "track_not_cancellable"
+    assert response.json()["params"] == {"state": state.value}
+    assert db_session.get(Track, track.id).state == state
 
 
 def test_cancel_unknown_track_returns_404(authenticated_client, db_session):

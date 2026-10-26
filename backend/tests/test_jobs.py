@@ -203,7 +203,11 @@ def test_cancel_job_marks_job_and_non_terminal_tracks_cancelled(authenticated_cl
         song_json={"name": "D"},
         state=TrackState.SKIPPED_DUPLICATE,
     )
-    db_session.add_all([downloading, waiting, completed, skipped])
+    # v56 (A2): not found is terminal, so a job cancel leaves it as it is.
+    not_found = Track(
+        job_id=job.id, spotify_track_id="e", song_json={"name": "E"}, state=TrackState.LOOKUP_FAILED
+    )
+    db_session.add_all([downloading, waiting, completed, skipped, not_found])
     db_session.commit()
 
     response = authenticated_client.delete(f"/api/jobs/{job_id}")
@@ -218,6 +222,7 @@ def test_cancel_job_marks_job_and_non_terminal_tracks_cancelled(authenticated_cl
         "cancelled": 2,
         "completed": 1,
         "skipped_duplicate": 1,
+        "lookup_failed": 1,
     }
 
     assert db_session.get(Track, downloading.id).state == TrackState.CANCELLED
@@ -226,6 +231,7 @@ def test_cancel_job_marks_job_and_non_terminal_tracks_cancelled(authenticated_cl
     # Already-terminal tracks are left exactly as they were.
     assert db_session.get(Track, completed.id).state == TrackState.COMPLETED
     assert db_session.get(Track, skipped.id).state == TrackState.SKIPPED_DUPLICATE
+    assert db_session.get(Track, not_found.id).state == TrackState.LOOKUP_FAILED
 
 
 def test_cancel_unknown_job_returns_404(authenticated_client, db_session):
