@@ -58,7 +58,7 @@ function row(entry, origin) {
 		// Why, in words: the toast's own sentence, never the app's raw code.
 		const reason = document.createElement('span');
 		reason.className = 'reason';
-		reason.textContent = errorText(entry);
+		reason.textContent = errorText({ ...entry, later: true });
 		link.append(reason);
 	}
 	li.append(link);

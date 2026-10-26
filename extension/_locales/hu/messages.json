@@ -147,22 +147,13 @@
 		"message": "A Spotify nem ismeri ezt az elemet"
 	},
 	"errorCascadeUnavailable": {
-		"message": "Nem sikerült beolvasni a Spotify adatait hozzá. Próbáld újra"
+		"message": "Nem sikerült lekérni az elem adatait a Spotifytól. Próbáld újra"
 	},
 	"errorCascadeInvalid": {
-		"message": "Ez a választás nem vonatkozhat erre az elemre"
+		"message": "Ez a lehetőség ennél az elemnél nem választható"
 	},
 	"errorQueueUnavailable": {
 		"message": "A spotdl várólistája most nem érhető el. Próbáld újra kicsit később"
-	},
-	"errorGeneric": {
-		"message": "Nem sikerült sorba állítani ($CODE$)",
-		"description": "CODE is the app's stable error code.",
-		"placeholders": {
-			"code": {
-				"content": "$1"
-			}
-		}
 	},
 	"optionsTitle": {
 		"message": "A spotdl-web bővítmény beállításai"
@@ -191,7 +182,7 @@
 		"message": "cím mentése"
 	},
 	"optionsAppReset": {
-		"message": "alapérték"
+		"message": "alapérték visszaállítása"
 	},
 	"optionsAppInvalid": {
 		"message": "Ezt a címet nem tudja használni a bővítmény. Adj meg egy https-címet, vagy http-t localhoston."
@@ -368,5 +359,25 @@
 			}
 		},
 		"description": "RESULT is one of the connection status sentences."
+	},
+	"errorFailed": {
+		"message": "Nem sikerült sorba állítani. Próbáld újra"
+	},
+	"statusFailed": {
+		"message": "Az alkalmazás hibával válaszolt. Próbáld újra"
+	},
+	"toastChooseArtistAgain": {
+		"message": "Több előadója van: nyisd meg újra a menüt, és válassz egyet"
+	},
+	"outcomeRateLimited": {
+		"message": "Akkor túl sok volt a beküldés"
+	},
+	"statusPermissionMissing": {
+		"message": "A Firefox még nem engedi, hogy a bővítmény elérje ezt: $ORIGIN$. Engedélyezd lent",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
 	}
 }

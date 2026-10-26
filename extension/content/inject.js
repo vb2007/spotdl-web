@@ -16,6 +16,8 @@ globalThis.spotdlInject = (() => {
 	const HOST_ATTR = 'data-spotdl-host';
 	const ICON_ATTR = 'data-spotdl-icon';
 	const SCAN_DELAY_MS = 120;
+	// How soon after a press on the icon its click must follow to count.
+	const CLICK_AFTER_PRESS_MS = 1500;
 	const TOAST_MS = 4500;
 	// How long a cascade's or an error's state stays on the icon before it goes back to idle.
 	const TRANSIENT_MS = 3000;
@@ -125,29 +127,54 @@ globalThis.spotdlInject = (() => {
 		button.type = 'button';
 		button.className = `spotdl-ext-btn spotdl-ext-btn--${kind}`;
 		button.setAttribute(ICON_ATTR, kind);
-		button.setAttribute('aria-haspopup', 'menu');
-		button.setAttribute('aria-expanded', 'false');
 		applyItem(button, item);
 		setState(button, itemStates.get(item.url) ?? 'idle');
-		// Spotify's rows and cards act on clicks, double-clicks and keys that bubble up to them
+		// Spotify's rows and cards act on clicks and double-clicks that bubble up to them
 		// (select, play, navigate): none of ours may reach them.
-		for (const type of ['pointerdown', 'mousedown', 'mouseup', 'dblclick', 'keyup', 'keypress']) {
+		for (const type of ['mousedown', 'mouseup', 'dblclick']) {
 			button.addEventListener(type, (event) => event.stopPropagation());
 		}
+		// A click counts only after a press on this button itself, or from the keyboard (a
+		// click with no pointer, `detail` 0, on the focused button). A page can't forward the
+		// user's click from elsewhere (an invisible <label for> over the page) onto it.
+		let pressedAt = 0;
+		button.addEventListener('pointerdown', (event) => {
+			event.stopPropagation();
+			if (trusted(event) && event.button === 0) pressedAt = Date.now();
+		});
 		button.addEventListener('click', (event) => {
 			event.preventDefault();
 			event.stopPropagation();
-			if (trusted(event)) submit(button, null);
+			if (!trusted(event)) return;
+			const fromKeyboard = event.detail === 0 && doc.activeElement === button;
+			const fromPress = Date.now() - pressedAt < CLICK_AFTER_PRESS_MS;
+			pressedAt = 0;
+			if (!fromKeyboard && !fromPress && !acceptSynthetic) return;
+			// The opener of an open menu: a click dismisses the menu, it doesn't queue.
+			if (menu && menu.button === button) closeMenu(true);
+			else submit(button, null);
 		});
+		// Only the keys the icon acts on stop here (Spotify's own Enter would play the row);
+		// arrows, Home/End and Tab still reach Spotify's tracklist grid navigation.
+		for (const type of ['keyup', 'keypress']) {
+			button.addEventListener(type, (event) => {
+				if (event.key === 'Enter' || event.key === ' ' || isMenuKey(event)) event.stopPropagation();
+			});
+		}
 		button.addEventListener('contextmenu', (event) => {
 			event.preventDefault();
 			event.stopPropagation();
 			if (trusted(event)) openMenu(button);
 		});
 		button.addEventListener('keydown', (event) => {
+			const ours = event.key === 'Enter' || event.key === ' ' || isMenuKey(event) || (event.key === 'Escape' && menu && menu.button === button);
+			if (!ours) return;
 			event.stopPropagation();
-			if (!trusted(event)) return;
-			if (event.key === 'Escape' && menu && menu.button === button) {
+			if (!trusted(event)) {
+				event.preventDefault();
+				return;
+			}
+			if (event.key === 'Escape') {
 				event.preventDefault();
 				closeMenu(true);
 				return;
@@ -240,6 +267,8 @@ globalThis.spotdlInject = (() => {
 				}
 			}
 		}
+		// A menu whose icon's row went away (virtualized out, or a navigation) closes with it.
+		if (menu && !menu.button.isConnected) closeMenu(false);
 	}
 
 	function scheduleScan() {
@@ -285,8 +314,12 @@ globalThis.spotdlInject = (() => {
 			const candidates = artistChoices(answer.candidates);
 			setState(button, 'idle');
 			// The row was recycled meanwhile, or no candidate is usable: nothing to ask.
-			if (stillOurs && candidates.length > 0) openMenu(button, candidates);
-			else if (stillOurs) showToast(button, t('errorGeneric', ['cascade_ambiguous']), 'error');
+			// Focus moved on (into Spotify's search box, say) while the app answered: the menu
+			// mustn't take it, or the next Enter would queue an artist nobody chose.
+			const focusStayed = [button, doc.body, doc.documentElement, null].includes(doc.activeElement);
+			if (stillOurs && candidates.length > 0 && focusStayed) openMenu(button, candidates);
+			else if (stillOurs && candidates.length > 0) showToast(button, t('toastChooseArtistAgain'), 'error');
+			else if (stillOurs) showToast(button, t('errorFailed'), 'error');
 			return;
 		}
 		const success = answer.outcome in SUCCESS_KEYS;
@@ -315,7 +348,7 @@ globalThis.spotdlInject = (() => {
 		const key = ERROR_KEYS[answer.code];
 		if (answer.code === 'rate_limited') return t('errorRateLimited', [String(answer.retryAfter ?? 60)]);
 		if (key) return t(key);
-		return t('errorGeneric', [answer.code ?? String(answer.status ?? '?')]);
+		return t('errorFailed');
 	}
 
 	// ---- the cascade menu --------------------------------------------------------------------
@@ -372,10 +405,18 @@ globalThis.spotdlInject = (() => {
 				closeMenu(true);
 				submit(button, choice.cascade ?? null, choice.override);
 			});
+			// As on the icon: a click counts only after a press on this entry (the keyboard
+			// path, onMenuKey, calls the chooser directly).
+			let pressedAt = 0;
+			entry.addEventListener('pointerdown', (event) => {
+				if (trusted(event) && event.button === 0) pressedAt = Date.now();
+			});
 			entry.addEventListener('click', (event) => {
 				event.preventDefault();
 				event.stopPropagation();
-				if (trusted(event)) choosers.get(entry)?.();
+				const fromPress = Date.now() - pressedAt < CLICK_AFTER_PRESS_MS;
+				pressedAt = 0;
+				if (trusted(event) && (fromPress || acceptSynthetic)) choosers.get(entry)?.();
 			});
 			el.append(entry);
 		}
@@ -395,6 +436,7 @@ globalThis.spotdlInject = (() => {
 		menu = { el, button };
 		// The opener stays visible and pressed while its menu is open (the menu lives in
 		// <body>, so the row's own :hover/:focus-within no longer shows it).
+		button.setAttribute('aria-haspopup', 'menu');
 		button.setAttribute('aria-expanded', 'true');
 		placeNear(el, button);
 		items()[0]?.focus();
@@ -440,7 +482,9 @@ globalThis.spotdlInject = (() => {
 		if (!menu) return;
 		const { el, button } = menu;
 		menu = null;
-		button.setAttribute('aria-expanded', 'false');
+		// Only while open: the button's own activation queues, it doesn't open a menu.
+		button.removeAttribute('aria-haspopup');
+		button.removeAttribute('aria-expanded');
 		el.remove();
 		if (refocus && button.isConnected) button.focus();
 	}

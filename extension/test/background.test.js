@@ -124,6 +124,8 @@ describe('what the app answers', () => {
 		['503 queue_unavailable', json(503, { code: 'queue_unavailable' }), { outcome: 'error', code: 'queue_unavailable' }],
 		['500 with no code', json(500, { detail: 'boom' }), { outcome: 'error', code: 'http_500' }],
 		['an HTML page', new Response('<html>nginx</html>', { status: 404 }), { outcome: 'error', code: 'not_an_app' }],
+		['another host’s HTML 401 (basic auth)', new Response('<h1>401 Authorization Required</h1>', { status: 401 }), { outcome: 'error', code: 'not_an_app' }],
+		['a JSON 401 without the app’s codes', json(401, { error: 'unauthorized' }), { outcome: 'error', code: 'not_an_app' }],
 		['nginx’s HTML 502 (the api down)', new Response('<html>502 Bad Gateway</html>', { status: 502 }), { outcome: 'error', code: 'unreachable' }],
 		['Cloudflare’s 530 (the tunnel down)', new Response('<html>error 1033</html>', { status: 530 }), { outcome: 'error', code: 'unreachable' }],
 	];

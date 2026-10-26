@@ -53,12 +53,16 @@ const FROM_AN_APP = new Set(['login_required', 'key_invalid']);
 // refuses it as not user-initiated: everything it needs is computed synchronously first.
 function saveOrigin(origin) {
 	const previous = $('app-origin').dataset.saved;
-	const asked =
-		origin === DEFAULT_ORIGIN ? Promise.resolve(true) : browser.permissions.request({ origins: [originPattern(origin)] });
-	return asked
-		.then(async (granted) => {
+	const pattern = originPattern(origin);
+	// Asked even for the default, whose access is declared but can be revoked in about:addons
+	// (an already granted origin answers at once, with no prompt).
+	const had = browser.permissions.contains({ origins: [pattern] });
+	const asked = browser.permissions.request({ origins: [pattern] });
+	return Promise.all([had, asked])
+		.then(async ([hadAccess, granted]) => {
 			if (!granted) {
 				setStatus($('app-status'), t('optionsAppDenied', [origin]), 'error');
+				$('app-grant').hidden = true;
 				return;
 			}
 			// Validated before it's saved: only an address that answers like a spotdl app.
@@ -68,6 +72,9 @@ function saveOrigin(origin) {
 				.catch(() => ({ outcome: 'error', code: 'extension_error' }));
 			if (result.outcome !== 'signed_in' && !FROM_AN_APP.has(result.code)) {
 				setStatus($('app-status'), t('optionsAppNotSaved', [connectionText(result)]), 'error');
+				// The access just granted for an address that isn't kept goes again.
+				const keep = [previous, DEFAULT_ORIGIN].some((o) => o && originPattern(o) === pattern);
+				if (!hadAccess && !keep) await browser.permissions.remove({ origins: [pattern] }).catch(() => {});
 				return;
 			}
 			await browser.storage.local.set({ [KEYS.origin]: origin });
@@ -104,7 +111,7 @@ $('app-reset').addEventListener('click', () => {
 });
 
 $('app-grant').addEventListener('click', () => {
-	const origin = normalizeOrigin($('app-origin').dataset.saved ?? '') ?? DEFAULT_ORIGIN;
+	const origin = normalizeOrigin($('app-origin').value) ?? normalizeOrigin($('app-origin').dataset.saved ?? '') ?? DEFAULT_ORIGIN;
 	browser.permissions
 		.request({ origins: [originPattern(origin)] })
 		.then(() => test())

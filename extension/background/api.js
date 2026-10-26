@@ -12,6 +12,8 @@ import { HISTORY_LIMIT, KEYS, originPattern, readSettings } from '../shared/conf
 const ITEM_URL = /^https:\/\/open\.spotify\.com\/(track|album|artist|playlist)\/[A-Za-z0-9]{22}$/;
 const CASCADES = { track: ['album', 'artist'], album: ['artist'], artist: [], playlist: [] };
 const TIMEOUT_MS = 30000;
+// What the app's own 401s carry (v53: no session; a key it doesn't know or that was revoked).
+const APP_401_CODES = new Set(['not_authenticated', 'api_key_invalid']);
 
 /** The answer for an error the extension decides on its own, before or instead of the app. */
 const fail = (code, extra = {}) => ({ outcome: 'error', code, ...extra });
@@ -58,17 +60,22 @@ async function authed(deps, path, init, origin = null) {
 
 	let via = 'cookie';
 	let answer = await request(deps, settings, path, init, 'cookie');
-	if (!answer.network && answer.status === 401 && settings.apiKey) {
+	// Only the app's own 401 (JSON, with its code) means "not signed in": any other host's
+	// HTML 401 (basic auth on an intranet) is no spotdl app, and gets no key either.
+	const appRefused = (a) => !a.network && a.status === 401 && APP_401_CODES.has(a.body?.code);
+	if (appRefused(answer) && settings.apiKey) {
 		via = 'key';
 		answer = await request(deps, settings, path, init, 'key');
-		if (!answer.network && answer.status === 401) return { error: fail('key_invalid', { origin: settings.origin }) };
+		if (appRefused(answer)) return { error: fail('key_invalid', { origin: settings.origin }) };
 	}
 	if (answer.network) return { error: fail('unreachable', { origin: settings.origin }) };
 	// A proxy's or tunnel's own error page (nginx's HTML 502 with the api down, Cloudflare's
 	// 502/530): the app is down, not missing.
 	if (answer.body === null && answer.status >= 500) return { error: fail('unreachable', { origin: settings.origin, status: answer.status }) };
-	if (answer.status === 401) return { error: fail('login_required', { origin: settings.origin }) };
-	if (answer.body === null) return { error: fail('not_an_app', { origin: settings.origin, status: answer.status }) };
+	if (appRefused(answer)) return { error: fail('login_required', { origin: settings.origin }) };
+	if (answer.body === null || answer.status === 401) {
+		return { error: fail('not_an_app', { origin: settings.origin, status: answer.status }) };
+	}
 	return { answer, via, origin: settings.origin };
 }
 

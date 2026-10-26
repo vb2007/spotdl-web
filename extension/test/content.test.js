@@ -312,7 +312,9 @@ describe('submitting and the cascade menu', () => {
 		key(window, document.activeElement, { key: 'Escape' });
 		assert.equal(document.querySelector('.spotdl-ext-menu'), null);
 		assert.equal(document.activeElement, button);
-		assert.equal(button.getAttribute('aria-expanded'), 'false');
+		// Only while open: the button's own activation queues, it opens no menu.
+		assert.equal(button.getAttribute('aria-expanded'), null);
+		assert.equal(button.getAttribute('aria-haspopup'), null);
 	});
 
 	it('a right-click opens it; artists and playlists offer just “Download”', () => {
@@ -401,7 +403,8 @@ describe('submitting and the cascade menu', () => {
 		[{ outcome: 'error', code: 'permission_missing', origin: 'https://spotdl.example' }, 'Let the extension reach your spotdl app, in its settings', 'error'],
 		[{ outcome: 'error', code: 'login_required' }, 'Log in to spotdl in this browser, or add an API key', 'error'],
 		[{ outcome: 'error', code: 'url_not_spotify' }, 'spotdl only takes Spotify track, album, artist and playlist links', 'error'],
-		[{ outcome: 'error', code: 'something_new' }, 'Couldn\'t queue it (something_new)', 'error'],
+		[{ outcome: 'error', code: 'something_new' }, 'Couldn\'t queue it. Try again', 'error'],
+		[{ outcome: 'error', code: 'extension_error' }, 'Couldn\'t queue it. Try again', 'error'],
 	];
 	for (const [answer, text, state] of TOASTS) {
 		it(`answer ${answer.code ?? answer.outcome} → “${text}”`, async () => {
@@ -445,7 +448,7 @@ describe('submitting and the cascade menu', () => {
 		document.querySelectorAll('.spotdl-ext-menu [role="menuitem"]')[2].click();
 		await settle(window, 20);
 		assert.equal(document.querySelector('.spotdl-ext-menu'), null);
-		assert.equal(document.querySelector('.spotdl-ext-toast').textContent, 'Couldn\'t queue it (cascade_ambiguous)');
+		assert.equal(document.querySelector('.spotdl-ext-toast').textContent, 'Couldn\'t queue it. Try again');
 		assert.equal(button.dataset.state, 'idle');
 	});
 
@@ -455,6 +458,60 @@ describe('submitting and the cascade menu', () => {
 		document.querySelector('[data-testid="entityTitle"]').textContent = 'Another Title';
 		await settle(window);
 		assert.equal(button.getAttribute('aria-label'), 'Queue the album “Another Title” in spotdl');
+	});
+
+	it('arrows, Home/End and Tab on an icon still reach Spotify’s grid; Enter and the menu keys don’t', () => {
+		const { window, document } = loadPage('album');
+		const button = icons(document, 'row')[0];
+		const reached = [];
+		document.querySelector('[data-testid="track-list"]').addEventListener('keydown', (e) => reached.push(e.key));
+		for (const k of ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab']) key(window, button, { key: k });
+		key(window, button, { key: 'Enter' });
+		key(window, button, { key: ' ' });
+		key(window, button, { key: 'ContextMenu' });
+		assert.deepEqual(reached, ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab']);
+	});
+
+	it('clicking the opener while its menu is open closes the menu, queuing nothing', async () => {
+		const { window, document, messages } = loadPage('album');
+		const button = icons(document, 'row')[0];
+		button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		assert.ok(document.querySelector('.spotdl-ext-menu'));
+		button.click();
+		await settle(window, 20);
+		assert.equal(document.querySelector('.spotdl-ext-menu'), null);
+		assert.deepEqual(messages, []);
+	});
+
+	it('candidates arriving after focus moved on don’t take it: a toast says to reopen the menu', async () => {
+		let answer;
+		const { window, document } = loadPage('album', {
+			sendMessage: () =>
+				new Promise((resolve) => {
+					answer = resolve;
+				}),
+		});
+		const button = icons(document, 'row')[0];
+		button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		document.querySelectorAll('.spotdl-ext-menu [role="menuitem"]')[2].click();
+		const search = document.createElement('input');
+		document.body.append(search);
+		search.focus();
+		answer({ outcome: 'ambiguous', candidates: [{ name: 'A', url: 'https://open.spotify.com/artist/0TnOYISbd1XYRBk9myaseg' }] });
+		await settle(window, 20);
+		assert.equal(document.activeElement, search);
+		assert.equal(document.querySelector('.spotdl-ext-menu'), null);
+		assert.equal(document.querySelector('.spotdl-ext-toast').textContent, 'It has more than one artist: open the menu again to choose one');
+	});
+
+	it('a menu whose row goes away closes with it', async () => {
+		const { window, document } = loadPage('album');
+		const button = icons(document, 'row')[0];
+		button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		assert.ok(document.querySelector('.spotdl-ext-menu'));
+		button.closest('[data-testid="tracklist-row"]').remove();
+		await settle(window);
+		assert.equal(document.querySelector('.spotdl-ext-menu'), null);
 	});
 
 	it('a queued tick survives its row being re-rendered', async () => {

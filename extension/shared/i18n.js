@@ -37,9 +37,10 @@ export function errorText(result) {
 		case 'not_an_app':
 			return t('errorNotAnApp', [result.origin ?? '']);
 		case 'rate_limited':
-			return t('errorRateLimited', [String(result.retryAfter ?? 60)]);
+			// The popup reads it later: "try again in 42 s" would be long stale.
+			return t(result.later ? 'outcomeRateLimited' : 'errorRateLimited', [String(result.retryAfter ?? 60)]);
 		default:
-			return ERROR_KEYS[result.code] ? t(ERROR_KEYS[result.code]) : t('errorGeneric', [result.code ?? '?']);
+			return ERROR_KEYS[result.code] ? t(ERROR_KEYS[result.code]) : t('errorFailed');
 	}
 }
 
@@ -54,7 +55,13 @@ export function connectionText(result) {
 			return t('statusLoginRequired');
 		case 'key_invalid':
 			return t('errorKeyInvalid');
-		default:
+		case 'permission_missing':
+			// Read on the settings page itself, where the grant button sits.
+			return t('statusPermissionMissing', [result.origin ?? '']);
+		case 'unreachable':
+		case 'not_an_app':
 			return errorText(result);
+		default:
+			return t('statusFailed');
 	}
 }

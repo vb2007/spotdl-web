@@ -155,15 +155,6 @@
 	"errorQueueUnavailable": {
 		"message": "spotdl's queue is unavailable. Try again shortly"
 	},
-	"errorGeneric": {
-		"message": "Couldn't queue it ($CODE$)",
-		"description": "CODE is the app's stable error code.",
-		"placeholders": {
-			"code": {
-				"content": "$1"
-			}
-		}
-	},
 	"optionsTitle": {
 		"message": "spotdl-web extension settings"
 	},
@@ -368,5 +359,25 @@
 			}
 		},
 		"description": "RESULT is one of the connection status sentences."
+	},
+	"errorFailed": {
+		"message": "Couldn't queue it. Try again"
+	},
+	"statusFailed": {
+		"message": "The app answered with an error. Try again"
+	},
+	"toastChooseArtistAgain": {
+		"message": "It has more than one artist: open the menu again to choose one"
+	},
+	"outcomeRateLimited": {
+		"message": "Too many submissions at the time"
+	},
+	"statusPermissionMissing": {
+		"message": "Firefox doesn't let the extension reach $ORIGIN$ yet: allow access below",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
 	}
 }
