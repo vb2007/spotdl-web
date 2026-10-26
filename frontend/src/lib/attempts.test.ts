@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TrackAttempt } from '$lib/api';
 import {
+	attemptPath,
 	attemptVia,
 	formatCountdown,
 	formatDuration,
@@ -149,5 +150,20 @@ describe('formatting in Hungarian', () => {
 			attempt(3, { network_path: 'proxy', proxy_label: 'http://5.6.7.8:2' })
 		]);
 		expect(summarizeVia(run.attempts)).toBe('proxyn át ×2, közvetlen · IPv4');
+	});
+});
+
+describe('attemptPath', () => {
+	it('keeps a pre-v29 proxied attempt proxied after its proxy is deleted (v56, A4)', () => {
+		const legacy = { network_path: null, outcome: 'failed' as const };
+		expect(
+			attemptPath(attempt(1, { ...legacy, proxy_id: 'p1', proxy_label: 'http://1.2.3.4:8080' }))
+		).toBe('proxy');
+		expect(
+			attemptPath(attempt(2, { ...legacy, proxy_id: null, proxy_label: 'http://1.2.3.4:8080' }))
+		).toBe('proxy');
+		expect(attemptPath(attempt(3, { ...legacy, proxy_id: null, proxy_label: null }))).toBe(
+			'direct'
+		);
 	});
 });

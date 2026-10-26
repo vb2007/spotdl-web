@@ -139,7 +139,10 @@ def record_attempt(
     # v56 (A4): the proxy may have been deleted while this attempt ran (its FK is now ON
     # DELETE SET NULL): the row then names no proxy rather than failing the whole commit
     # (and with it a completed download's ledger row).
-    proxy = db.get(Proxy, proxy_id) if proxy_id is not None else None
+    # FOR KEY SHARE: a delete waits for this commit (then nulls the new row's proxy_id).
+    proxy = (
+        db.get(Proxy, proxy_id, with_for_update={"key_share": True}) if proxy_id is not None else None
+    )
     if proxy is None:
         proxy_id = None
     # Derived from the row alone (outcome + network_path), so the counters can always be

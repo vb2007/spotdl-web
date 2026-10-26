@@ -722,3 +722,55 @@ def test_a_proxy_deleted_mid_attempt_still_lets_the_attempt_commit_on_real_conne
         row = db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).one()
         assert (row.proxy_id, row.proxy_label, row.network_path) == (None, None, NetworkPath.PROXY)
         assert db.get(Track, track_id).used_proxy_id is None
+
+
+def test_a_proxy_delete_waits_for_an_attempt_being_recorded_on_real_connections(committed_db):
+    """v56 (A4): record_attempt reads the proxy FOR KEY SHARE, so an admin's delete landing
+    while the attempt's transaction is open waits for its commit, then nulls the new row's
+    proxy_id; the row keeps the label (no ForeignKeyViolation, no lost download)."""
+    from concurrency import Gate, Thread, blocked_or_done
+    from sqlalchemy import event
+
+    from app.models import User
+
+    with committed_db() as db:
+        user = User(email="owner@example.com", is_admin=False)
+        db.add(user)
+        db.flush()
+        job = Job(source_url="https://open.spotify.com/track/abc", source_type=JobSourceType.TRACK, user_id=user.id)
+        db.add(job)
+        db.flush()
+        track = Track(job_id=job.id, spotify_track_id="lock", song_json={"name": "Lock"}, state=TrackState.DOWNLOADING)
+        proxy = Proxy(url="http://u:p@10.0.0.8:8080", source=ProxySource.MANUAL, enabled=True)
+        db.add_all([track, proxy])
+        db.commit()
+        track_id, proxy_id = track.id, proxy.id
+    gate = Gate("the attempt, recorded, before its commit")
+
+    def record():
+        with committed_db() as db:
+            event.listen(db, "before_commit", gate, once=True)
+            now = datetime.now(timezone.utc)
+            attempts.record_attempt(
+                db, track_id, now, now, TrackAttemptOutcome.COMPLETED, proxy_id=proxy_id, network_path=NetworkPath.PROXY
+            )
+            db.commit()
+
+    recorder = Thread(record, name="download_track's attempt")
+    gate.wait_reached()
+
+    def delete():
+        with committed_db() as db:
+            db.delete(db.get(Proxy, proxy_id))
+            db.commit()
+
+    deleter = Thread(delete, name="admin's proxy delete")
+    held_off = blocked_or_done(deleter)
+    gate.open()
+    recorder.join()
+    deleter.join()
+
+    assert held_off == "blocked"
+    with committed_db() as db:
+        row = db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).one()
+        assert (row.proxy_id, row.proxy_label) == (None, "http://10.0.0.8:8080")

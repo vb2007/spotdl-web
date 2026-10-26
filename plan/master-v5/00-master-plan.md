@@ -596,3 +596,13 @@ here.
     works once per ladder step. Each failed attempt advances the step, so it allows one immediate
     retry per failure (the breaker still bounds a streak). `lookup_failed` retries and an admin's
     stay unrestricted.
+  - **A7, widened:** the plan names only the pill and `/settings`. The dashboard's hold line (the
+    Waterfall, the only hold display a non-admin has) and a track's "next try" countdown had the
+    same skew, so they're fixed in v56 too. `/api/worker/status` also answers `server_time`, and
+    `api.serverToLocal()` places a server timestamp on the browser's clock. A proxy's
+    `cooldown_until` still meets the browser's clock as is.
+  - **A5, existing rows:** the bound only stops new values, and a stored value past ~739,000 days
+    still stops the archive sweep. v56's migration clamps existing rows (above 36500 → 36500,
+    below 1 → NULL). **So v56's migration does rewrite data**, against its plan's "(no data
+    rewrite)": out-of-range retention rows, plus the backfill of the new `proxy_label` column.
+    Take a `pg_backup` first, as the plan's Deploy notes already say.

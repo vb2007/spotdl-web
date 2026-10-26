@@ -144,7 +144,9 @@
 
 	let groups = $derived(groupAttempts(attempts));
 	let lastPath = $derived.by(() => {
-		const reached = attempts.filter((a) => a.network_path !== null || a.proxy_id !== null);
+		const reached = attempts.filter(
+			(a) => a.network_path !== null || a.proxy_id !== null || a.proxy_label !== null
+		);
 		if (!reached.length) return null;
 		// The strip names the family; the proxy's address is in the timeline's own entry.
 		return pathLabel(attemptPath(reached[reached.length - 1]));

@@ -339,7 +339,10 @@ def pick_proxy(db: Session) -> Proxy | None:
 
 
 def record_proxy_result(db: Session, proxy_id: uuid.UUID, success: bool) -> None:
-    proxy = db.get(Proxy, proxy_id)
+    # v56 (A4): FOR KEY SHARE, so a delete (ON DELETE SET NULL now lets it through) waits for
+    # this commit instead of making its UPDATE match no row (StaleDataError, a rolled-back
+    # download).
+    proxy = db.get(Proxy, proxy_id, with_for_update={"key_share": True})
     if proxy is None:
         return
 
