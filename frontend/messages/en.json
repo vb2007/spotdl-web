@@ -696,8 +696,8 @@
 			],
 			"selectors": ["countPlural"],
 			"match": {
-				"countPlural=one": "Cancelled after {processed} of {total} file.",
-				"countPlural=*": "Cancelled after {processed} of {total} files."
+				"countPlural=one": "Cancelled after {processed} of {total} file; the rest wait for the next sweep.",
+				"countPlural=*": "Cancelled after {processed} of {total} files; the rest wait for the next sweep."
 			}
 		}
 	],

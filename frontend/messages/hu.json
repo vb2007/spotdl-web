@@ -653,7 +653,7 @@
 			"declarations": ["input count", "input processed", "input total"],
 			"selectors": [],
 			"match": {
-				"*": "Leállítva {processed} / {total} fájl után."
+				"*": "Leállítva {processed} / {total} fájl után; a többi a következő rendezésre vár."
 			}
 		}
 	],
@@ -666,7 +666,7 @@
 			}
 		}
 	],
-	"library_last_cancelled": "A legutóbbi rendezést leállították: {when}",
+	"library_last_cancelled": "A legutóbbi rendezés leállt: {when}",
 	"library_sweep_problems": "A rendezés hibái",
 	"library_sweep_problems_hint": "Nem egy-egy fájlhoz tartoznak: maga a rendezés ütközött beléjük (az áthelyezések utáni nyilvántartásban, vagy összeomláskor). Amit már a helyére tett, az ott is marad.",
 	"library_not_filed": "Nem került a helyére",
