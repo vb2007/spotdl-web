@@ -215,6 +215,7 @@ needed" claim — rather than silently deleted.
 
 **Auth, cookies & sessions**
 - Admin routes: 404 (`require_admin_hidden`) where the path names an id, 403 elsewhere → *v56*
+- A `failed` job's cancel is the incoming overlay's "dismiss": a cancel rule must keep it → *v56*
 - A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
   production, TCP on and off); a key is the fallback, valid only on job create, reading its own
   job and `me` (an admin's key gets 401 everywhere else) → *v53*
@@ -361,6 +362,8 @@ needed" claim — rather than silently deleted.
 - `timedelta(days=10**9)` raises OverflowError: an unbounded `retention_days` stopped the archive
   sweep for every later user → *v56*
 - `attempts.py` must not import `serializers`/`proxies` (spotdl) — alerts.py imports it → *v56*
+- Two bulk UPDATEs of one job's tracks (cancel vs expand's claim) take the job row lock first, or
+  they can deadlock; a partial index on `state = 'waiting'` can't serve `state IN (…)` → *v56*
 - A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
   pre-boot value as "since boot" or every restart looks like an outage → *v36*
 - Celery's own "Task ... received/succeeded" log lines echo task *args*: anything secret-shaped
@@ -6587,3 +6590,22 @@ independently-found production bug from the same conversation)
   lock (two presses at once: one 200, one 429). The 429's `retry_after` is the later of the
   track's slot and the breaker's clear, 0 when it's due anyway. `lookup_failed` retries and an
   admin's are unrestricted.
+- **A `failed` job's cancel is a dismiss.** The first cut of A1 answered 409 for every job not
+  `expanding`/`active`/`waiting`, `failed` included. But `IncomingJobs.svelte` dismisses a failed
+  row (and finishes "try again") with `DELETE /api/jobs/{id}`, and specs 01/05 dismiss one: the
+  row could never be cleared. Caught by review and by the e2e run; the owner kept `failed`
+  cancellable (master plan Amendments).
+- **SET NULL opens a new window: a proxy deleted mid-download.** The FK used to block that delete
+  (a 500); now it succeeds, and the attempt row written when the download returns named a proxy
+  that no longer exists, a ForeignKeyViolation that rolled back the whole commit, a completed
+  download's ledger row with it. `record_attempt` now records no proxy when the row is gone
+  (reproduced on two real connections, the worker session holding the expired proxy).
+- **Bulk UPDATEs of the same rows need one lock order.** `cancel_job`'s `UPDATE … WHERE job_id`
+  and expand_job's claim `UPDATE … WHERE id IN (…)` can lock one job's tracks in different
+  orders. Both take the job's row lock first now (cancel_job always did), so they serialize.
+- **A partial index only serves a query whose predicate implies it.** `ix_tracks_scheduled_at_waiting`
+  (`WHERE state = 'waiting'`) can't serve `state IN ('waiting', 'pending')`; the planner fell back
+  to a scan. `ix_tracks_scheduled_at_due` covers both states (`EXPLAIN` shows it used).
+- **A clear that matches the lease alone.** A track worker-dl settles before expand_job clears its
+  marker isn't `pending` any more; matching on `pending` too left a completed track with a future
+  `scheduled_at`. Clearing matches the lease value only, which nothing else ever writes.
