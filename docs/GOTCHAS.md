@@ -6493,7 +6493,14 @@ independently-found production bug from the same conversation)
   default network IPv6 (`enable_ipv6`, a ULA subnet), so the probe answers True there and the
   rung is used as before. The skip applies to a network without IPv6 (or a container with it
   disabled: a compose `sysctls: net.ipv6.conf.all.disable_ipv6: 1` overlay on worker-dl, under the
-  realdl lock, reproduces it). The skipped rung's row records the path really used (proxy, or
+  realdl lock, reproduces it). Observed on dev with `socket.socket.connect` patched in an
+  in-process `download_track` run (`docker compose exec -w /app -e PYTHONPATH=/app worker-dl
+  python …`: from another directory Python imports the image's site-packages `app`, not the
+  bind mount, and `app.tasks.celery_app` must be imported before `app.tasks.download`): with
+  IPv6 disabled, the probe's UDP connect was the only `AF_INET6` socket and every TCP connect
+  was `AF_INET`; on the slot's network every TCP connect was `AF_INET6`, and that attempt then
+  timed out reaching `music.youtube.com` over IPv6 (`no_output`): this dev host's IPv6 egress
+  from the Docker ULA network is unreliable, and a route isn't a working path. The skipped rung's row records the path really used (proxy, or
   forced IPv4 with no proxy up) with a note, not a new `network_path` value. `conftest.py` pins
   the probe to routable so the suite's rungs don't depend on the machine.
 - **The cancel endpoints are still unconditional (v56's A1).** With the outcome now written
