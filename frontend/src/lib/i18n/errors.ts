@@ -65,7 +65,12 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	alerts_not_configured: () => m.error_alerts_not_configured(),
 	// The reason is the Matrix server's own (redacted) words: shown as sent, untranslated.
 	alert_send_failed: (p) => m.error_alert_send_failed({ reason: String(p.reason ?? '') }),
-	retention_days_invalid: () => m.error_retention_days_invalid(),
+	// v56 (A5): the server's own bound, the /account form's.
+	retention_out_of_range: (p) =>
+		m.error_retention_out_of_range({
+			min: formatNumber(Number(p.min)),
+			max: formatNumber(Number(p.max))
+		}),
 	// v53: keys (/account) and the limits on sign-in and submitting.
 	rate_limited: (p) => m.error_rate_limited(counted(Number(p.retry_after ?? 0))),
 	api_key_label_invalid: (p) =>

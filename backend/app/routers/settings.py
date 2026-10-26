@@ -24,6 +24,11 @@ class UpdateRetentionRequest(BaseModel):
     retention_days: int | None
 
 
+# v56 (A5): one day to about a hundred years, as /account allows.
+RETENTION_DAYS_MIN = 1
+RETENTION_DAYS_MAX = 36500
+
+
 class UpdateKeyboardRequest(BaseModel):
     keyboard_shortcuts: StrictBool
 
@@ -264,9 +269,15 @@ def update_retention_settings(
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
 ) -> dict:
-    if payload.retention_days is not None and payload.retention_days <= 0:
+    # v56 (A5): the client's own bound. Unbounded, a huge value overflowed the archive
+    # sweep's `timedelta(days=...)` and stopped it for every user after this one.
+    days = payload.retention_days
+    if days is not None and not RETENTION_DAYS_MIN <= days <= RETENTION_DAYS_MAX:
         raise ApiError(
-            400, "retention_days_invalid", "retention_days must be a positive integer or null"
+            422,
+            "retention_out_of_range",
+            f"retention_days must be {RETENTION_DAYS_MIN}-{RETENTION_DAYS_MAX}, or null",
+            {"min": RETENTION_DAYS_MIN, "max": RETENTION_DAYS_MAX},
         )
     row = user_settings.update_retention(db, user.id, payload.retention_days)
     db.commit()

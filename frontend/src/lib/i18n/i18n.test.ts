@@ -258,7 +258,7 @@ const BACKEND_CODES = [
 	'setting_out_of_range',
 	'alerts_not_configured',
 	'alert_send_failed',
-	'retention_days_invalid',
+	'retention_out_of_range',
 	// v53
 	'rate_limited',
 	'api_key_label_invalid',

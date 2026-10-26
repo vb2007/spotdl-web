@@ -48,7 +48,7 @@
 	"error_setting_out_of_range": "„{field}” értéke {min} és {max} között legyen",
 	"error_alerts_not_configured": "A Matrix-riasztások nincsenek beállítva (add meg: MATRIX_HOMESERVER_URL, MATRIX_ACCESS_TOKEN és MATRIX_ROOM_ID)",
 	"error_alert_send_failed": "A Matrix-üzenet nem ment el: {reason}",
-	"error_retention_days_invalid": "A megőrzés pozitív egész számú nap legyen, vagy soha",
+	"error_retention_out_of_range": "Egész számú napot adj meg {min} és {max} között, vagy soha.",
 	"error_request_invalid": "A szerver elutasította a kérést.",
 	"layout_skip_to_queue": "Ugrás a várólistára",
 	"layout_skip_to_content": "Ugrás a tartalomra",

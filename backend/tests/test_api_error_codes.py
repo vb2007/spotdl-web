@@ -124,7 +124,7 @@ def test_settings_errors_carry_codes_and_params(admin_client, db_session, monkey
     )
     assert body["params"] == {"field": "alert_spike_threshold", "min": 2, "max": 1000}
 
-    _error(admin_client.patch("/api/settings/retention", json={"retention_days": 0}), 400, "retention_days_invalid")
+    _error(admin_client.patch("/api/settings/retention", json={"retention_days": 0}), 422, "retention_out_of_range")
 
 
 @pytest.mark.parametrize(
