@@ -14,7 +14,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import DownloadedTrack, Job, JobSourceType, JobState, Proxy, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
-from app.services import app_settings, dedup, events, retry, rollup, track_listing
+from app.services import app_settings, events, retry, rollup, track_listing
 from app.services.track_states import CANCELLABLE_TRACK_STATES, RETRYABLE_TRACK_STATES, cancelled_used_proxy_id
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import track_attempt_to_dict, track_song_meta, track_to_dict
@@ -344,10 +344,10 @@ def download_track_file(
     # on an absolute, possibly-nonexistent path is purely lexical (no filesystem access
     # required), so this needs no volume mount into this container.
     downloads_root = Path(get_settings().download_output_dir).resolve()
-    # v57 (L6): every library root this install has used, not only the current one, so a
-    # track left under an earlier root stays downloadable. nginx's /internal-library/ aliases
-    # one fixed directory (the default root), so the path nginx gets is relative to that.
-    library_roots = [root.resolve() for root in dedup.known_library_roots(app_settings.get_library_settings(db))]
+    # v57 (L6): the whole library mount, not only the current library_target_dir, so a track
+    # left under an earlier root stays downloadable (the owner's mount rule keeps every library
+    # root inside it). nginx's /internal-library/ aliases exactly that directory, so the path
+    # nginx gets is relative to it.
     library_alias = Path(app_settings.DEFAULT_LIBRARY_TARGET_DIR).resolve()
     db.commit()
 
@@ -356,9 +356,7 @@ def download_track_file(
 
     if resolved.is_relative_to(downloads_root) and resolved != downloads_root:
         root, prefix = downloads_root, _INTERNAL_DOWNLOADS_PREFIX
-    elif any(resolved.is_relative_to(r) and resolved != r for r in library_roots) and resolved.is_relative_to(
-        library_alias
-    ):
+    elif resolved.is_relative_to(library_alias) and resolved != library_alias:
         root, prefix = library_alias, _INTERNAL_LIBRARY_PREFIX
     else:
         raise ApiError(404, "file_not_found", "File not found")

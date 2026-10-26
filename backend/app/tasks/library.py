@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -28,11 +29,25 @@ _MOVED_TRACK_STATES = (TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE)
 _SWEEP_LOCK_KEY = int.from_bytes(hashlib.sha256(b"spotdl-web:library-sweep").digest()[:8], "big", signed=True)
 
 
+# How long a delivery waits for a sweep that's finishing (review round 8): a start landing just
+# as the previous sweep commits idle, but before it releases the lock, would otherwise be
+# dropped and leave its row running with nothing behind it. A stale delivery beside a long
+# sweep still gives up after this.
+_SWEEP_LOCK_WAIT_SECONDS = 30.0
+
+
 @contextmanager
 def _sweep_lock() -> Iterator[bool]:
-    """Yields whether this delivery holds the sweep lock."""
+    """Yields whether this delivery holds the sweep lock, polling for up to
+    _SWEEP_LOCK_WAIT_SECONDS (never a blocking wait: no lock_timeout to leave on a pooled
+    connection)."""
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
-        held = conn.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": _SWEEP_LOCK_KEY}).scalar()
+        deadline = time.monotonic() + _SWEEP_LOCK_WAIT_SECONDS
+        while True:
+            held = conn.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": _SWEEP_LOCK_KEY}).scalar()
+            if held or time.monotonic() >= deadline:
+                break
+            time.sleep(0.5)
         try:
             yield bool(held)
         finally:
@@ -245,6 +260,10 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     for row in ledger_rows:
         groups.setdefault(Path(row.file_path), []).append(row)
     run.total = len(groups)
+    # Counted from this delivery's own work (review round 8): a sweep resumed by a redelivery
+    # after its worker died recounts only the files left, so the dead run's counts would read
+    # "cancelled after 450 of 200". Its moves are committed either way.
+    run.processed = run.moved = run.skipped_present = run.quarantined = 0
     db.commit()
     _publish_progress(run, admin_user_id)
 

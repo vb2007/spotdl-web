@@ -8,6 +8,7 @@ neither repointed nor still backed by a file: stranded, and reconcile_disk prune
 re-download. Both sides now take the file's advisory lock (dedup.file_lock / record_download).
 """
 
+import time
 import uuid
 from contextlib import nullcontext
 from pathlib import Path
@@ -141,8 +142,9 @@ def test_only_one_of_two_sweep_deliveries_runs(committed_db, tmp_path, monkeypat
 
     first = Thread(library_task.sort_library, str(uuid.uuid4()), name="first delivery")
     gate.wait_reached()
+    monkeypatch.setattr(library_task, "_SWEEP_LOCK_WAIT_SECONDS", 0.5)
     second = Thread(library_task.sort_library, str(uuid.uuid4()), name="second delivery")
-    second.join()  # returns at once: dropped, not waiting
+    second.join()  # gives up after the short wait: dropped
     gate.open()
     first.join()
 
@@ -150,5 +152,53 @@ def test_only_one_of_two_sweep_deliveries_runs(committed_db, tmp_path, monkeypat
     try:
         run = check.get(LibrarySortRun, 1)
         assert (run.state, run.total, run.processed, run.moved) == (LibrarySortState.IDLE, 1, 1, 1)
+    finally:
+        check.close()
+
+
+def test_a_start_landing_as_the_previous_sweep_finishes_still_runs(committed_db, tmp_path, monkeypatch):
+    """Review round 8 (reproduced live by holding the lock): a delivery that arrives while the
+    previous sweep has committed idle but still holds the lock waits for it, then sweeps, instead
+    of being dropped and leaving its row running with nothing behind it."""
+    source = tmp_path / "downloads" / "song.mp3"
+    source.parent.mkdir()
+    source.write_bytes(b"audio")
+    (tmp_path / "library").mkdir()
+    setup = committed_db()
+    app_settings.update_library_settings(
+        setup,
+        library_target_dir=str(tmp_path / "library"),
+        library_quarantine_enabled=False,
+        library_quarantine_dir=str(tmp_path / "quarantine"),
+    )
+    setup.add(DownloadedTrack(spotify_track_id="one", file_path=str(source), format="mp3", bitrate="320k"))
+    setup.add(LibrarySortRun(id=1, state=LibrarySortState.RUNNING, errors=[]))
+    setup.commit()
+    setup.close()
+    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "library")
+    monkeypatch.setattr(library_task, "SessionLocal", committed_db)
+    monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
+    monkeypatch.setattr(events, "publish_library_progress", lambda *args, **kwargs: None)
+    monkeypatch.setattr(alerts, "enqueue", lambda *args, **kwargs: None)
+
+    from sqlalchemy import text
+
+    from app.db import engine
+
+    holder = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
+    holder.execute(text("SELECT pg_advisory_lock(:key)"), {"key": library_task._SWEEP_LOCK_KEY})
+    try:
+        delivery = Thread(library_task.sort_library, str(uuid.uuid4()), name="new start's delivery")
+        time.sleep(1.0)  # it's polling, not dropped
+        assert not delivery.done
+        holder.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": library_task._SWEEP_LOCK_KEY})
+        delivery.join()
+    finally:
+        holder.close()
+
+    check = committed_db()
+    try:
+        run = check.get(LibrarySortRun, 1)
+        assert (run.state, run.moved) == (LibrarySortState.IDLE, 1)
     finally:
         check.close()

@@ -6787,7 +6787,12 @@ independently-found production bug from the same conversation)
   only guards the row, not the queue. `sort_library` now takes a session-level advisory lock on a
   connection of its own (autocommit, so never idle in a transaction) for the whole run; a
   delivery that can't take it is dropped. Real re-run: one delivery swept 30/30, the other logged
-  "another sweep holds the lock", no new staging file.
+  "another sweep holds the lock", no new staging file. Round 8: a loser polls for the lock for 30 s
+  before dropping, then re-checks the row; dropped at once, a start landing in the milliseconds
+  between the previous sweep's idle commit and its unlock wedged its own row `running` (live: a
+  start with the lock held 8 s from psql now waits and sweeps). A resumed sweep restarts its
+  counts, so its "N of M" never reads past 100%. File serving covers the whole mount, as dedup
+  and the sweep do.
 - **The library mount is a managed root too (round 7)**, known root or not: dedup and reconcile
   guard a row anywhere in it. `test_dedup.py`'s fixture points `library_mount` at `tmp_path` as
   well, for the same CI-host reason as the other roots.
