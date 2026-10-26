@@ -284,8 +284,8 @@ def test_download_track_success_marks_completed_and_upserts_ledger(db_session, m
     ledger_row = db_session.get(DownloadedTrack, "abc123")
     assert ledger_row is not None
     assert ledger_row.file_path == str(output_path)
-    assert ledger_row.format == "mp3"
-    assert ledger_row.bitrate == "320k"
+    assert ledger_row.format == "opus"
+    assert ledger_row.bitrate == "best"
 
     # "downloading" (progress=0, right before the attempt) then "completed" once durable.
     states = [args[3] for args, _ in published]

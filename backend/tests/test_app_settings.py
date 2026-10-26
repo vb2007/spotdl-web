@@ -3,6 +3,13 @@ from app.services import app_settings
 
 
 class _FakeSettings:
+    default_format = "m4a"
+    default_bitrate = "128k"
+
+
+class _LegacySettings:
+    """A pre-v54.2 `.env`: values the app no longer offers."""
+
     default_format = "mp3"
     default_bitrate = "320k"
 
@@ -13,9 +20,20 @@ def test_get_output_settings_creates_row_seeded_from_env(db_session, monkeypatch
     row = app_settings.get_output_settings(db_session)
     db_session.commit()
 
-    assert row.default_format == "mp3"
-    assert row.default_bitrate == "320k"
+    assert row.default_format == "m4a"
+    assert row.default_bitrate == "128k"
     assert row.output_template == app_settings.DEFAULT_OUTPUT_TEMPLATE
+
+
+def test_a_seed_the_app_no_longer_offers_falls_back_to_opus_best(db_session, monkeypatch):
+    """v54.2: the env only seeds a fresh row, so a stale mp3/320k there seeds the defaults
+    rather than a value the settings UI can't show (or a boot crash over it)."""
+    monkeypatch.setattr(app_settings, "get_settings", lambda: _LegacySettings())
+
+    row = app_settings.get_output_settings(db_session)
+    db_session.commit()
+
+    assert (row.default_format, row.default_bitrate) == ("opus", "best")
 
 
 def test_get_output_settings_returns_existing_row_without_reseeding(db_session, monkeypatch):
@@ -53,7 +71,7 @@ def test_update_output_settings_only_touches_given_fields(db_session, monkeypatc
     db_session.commit()
 
     assert row.default_format == "flac"
-    assert row.default_bitrate == "320k"
+    assert row.default_bitrate == "128k"
 
 
 def test_update_output_settings_creates_row_if_missing(db_session, monkeypatch):
@@ -63,7 +81,7 @@ def test_update_output_settings_creates_row_if_missing(db_session, monkeypatch):
     db_session.commit()
 
     assert row.default_bitrate == "256k"
-    assert row.default_format == "mp3"
+    assert row.default_format == "m4a"
 
 
 def test_get_library_settings_creates_row_seeded_with_defaults(db_session, monkeypatch):

@@ -506,12 +506,48 @@ def test_download_one_restores_the_cached_downloaders_progress_handler(monkeypat
     assert "get_new_tracker" not in vars(downloader.progress_handler)
 
 
-def test_get_supported_output_options_reflects_the_real_installed_spotdl():
-    # Not mocked -- this is the whole point of v13's fix: introspect the real installed
-    # spotdl's argparse choices instead of hardcoding a list that could silently drift.
+def test_get_supported_output_options_offers_only_what_the_source_can_back():
+    """v54.2. Not mocked: the curated list is checked against the real installed spotdl."""
     options = downloads.get_supported_output_options()
 
-    assert set(options["formats"]) == {"mp3", "flac", "ogg", "opus", "m4a", "wav"}
-    assert "320k" in options["bitrates"]
-    assert "auto" in options["bitrates"]
-    assert "disable" in options["bitrates"]
+    assert options == {
+        "formats": ["opus", "m4a", "mp3"],
+        "bitrates": ["best", "160k", "128k", "96k", "64k"],
+    }
+
+
+def test_get_supported_output_options_fails_loudly_if_spotdl_drops_a_value(monkeypatch):
+    monkeypatch.setattr(downloads, "FORMATS", ("opus", "m4a", "mp3", "wma"))
+
+    with pytest.raises(RuntimeError, match="wma"):
+        downloads.get_supported_output_options()
+
+
+@pytest.mark.parametrize(
+    "fmt,bitrate,expected",
+    [
+        # "best": no re-encode where the container allows (spotdl moves .m4a as is and
+        # remuxes an Opus .webm with -c:a copy), the source's own bitrate for mp3.
+        ("opus", "best", "disable"),
+        ("m4a", "best", "disable"),
+        ("mp3", "best", "auto"),
+        ("opus", "128k", "128k"),
+        ("mp3", "160k", "160k"),
+    ],
+)
+def test_get_downloader_hands_spotdl_its_own_value_for_best(monkeypatch, fmt, bitrate, expected):
+    built = {}
+
+    class _CapturingDownloader:
+        def __init__(self, options):
+            built.update(options)
+
+    monkeypatch.setattr(downloads, "Downloader", _CapturingDownloader)
+    monkeypatch.setattr(downloads, "get_settings", lambda: _FakeSettings())
+
+    downloads.get_downloader(fmt, bitrate, "/downloads", "{title}.{output-ext}")
+
+    assert built["format"] == fmt
+    assert built["bitrate"] == expected
+    # The copy path needs no ffmpeg_args (spotdl.utils.ffmpeg): never set here.
+    assert "ffmpeg_args" not in built

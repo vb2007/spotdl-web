@@ -17,6 +17,7 @@ from spotdl.utils.arguments import create_parser
 from app.config import get_settings
 from app.models import NetworkPath
 from app.services.expansion import _ensure_spotify_client
+from app.services.output_options import BITRATES, FORMATS, spotdl_bitrate
 from app.services.retry import NoOutputFileError, ProxyTransportError, is_proxy_transport_error
 
 # yt-dlp's own -4/-6 flags (see get_downloader below) -- confirmed against the installed
@@ -64,7 +65,9 @@ def get_downloader(
         settings = get_settings()
         options: DownloaderOptions = {
             "format": format,
-            "bitrate": bitrate,
+            # v54.2: "best" is ours (no re-encode where the container allows), mapped to
+            # spotdl's own value here; the cache key above keeps the stored one.
+            "bitrate": spotdl_bitrate(format, bitrate),
             "output": str(Path(output_dir) / output_template),
             "cookie_file": settings.cookie_file,
             # ProgressHandler defaults to a rich Live TUI display (simple_tui=False) —
@@ -116,23 +119,24 @@ def get_downloader(
 
 
 def get_supported_output_options() -> dict[str, list[str]]:
-    """The real, live set of --format/--bitrate values the installed spotdl accepts —
-    introspected from its own argparse definition (spotdl.utils.arguments.create_parser)
-    rather than a hardcoded list here that would silently drift the moment spotdl adds,
-    renames, or removes a choice. create_parser() only builds argparse groups (no argv
-    parsing, no I/O), so calling it purely for introspection is safe and cheap.
+    """The format/bitrate values the settings UI offers and the API accepts (v54.2): only
+    what YouTube's source can back (app.services.output_options), not spotdl's whole
+    --format/--bitrate range, most of which only inflates a ~130-160k source.
 
-    Uses ArgumentParser's private _option_string_actions map -- there's no public
-    argparse API for "give me this flag's choices" short of parsing --help text, and a
-    KeyError here (spotdl renaming/removing --format or --bitrate) is preferable to
-    silently falling back to a stale hardcoded list."""
+    Still checked against the installed spotdl's own argparse choices
+    (spotdl.utils.arguments.create_parser; building the parser does no argv parsing or I/O),
+    so a value spotdl stops accepting fails here, loudly, instead of at download time. Uses
+    ArgumentParser's private _option_string_actions map -- there's no public argparse API
+    for "give me this flag's choices"."""
     parser = create_parser()
-    format_action = parser._option_string_actions["--format"]
-    bitrate_action = parser._option_string_actions["--bitrate"]
-    return {
-        "formats": list(format_action.choices),
-        "bitrates": list(bitrate_action.choices),
-    }
+    spotdl_formats = set(parser._option_string_actions["--format"].choices)
+    spotdl_bitrates = set(parser._option_string_actions["--bitrate"].choices)
+    unknown = [f for f in FORMATS if f not in spotdl_formats] + [
+        spotdl_bitrate(f, b) for f in FORMATS for b in BITRATES if spotdl_bitrate(f, b) not in spotdl_bitrates
+    ]
+    if unknown:
+        raise RuntimeError(f"spotdl no longer accepts output option(s) {unknown!r}")
+    return {"formats": list(FORMATS), "bitrates": list(BITRATES)}
 
 
 class AgeRestrictedError(LookupError):

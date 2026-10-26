@@ -112,8 +112,10 @@ class Settings(BaseSettings):
     spotify_client_id: str | None = Field(default=None, alias="SPOTIFY_CLIENT_ID")
     spotify_client_secret: str | None = Field(default=None, alias="SPOTIFY_CLIENT_SECRET")
     download_output_dir: str = Field(default="/downloads", alias="DOWNLOAD_OUTPUT_DIR")
-    default_format: str = Field(default="mp3", alias="DEFAULT_FORMAT")
-    default_bitrate: str = Field(default="320k", alias="DEFAULT_BITRATE")
+    # v54.2: Opus at "best" (YouTube's stream kept as is, no re-encode); see
+    # app/services/output_options.py for what's offered and why nothing above the source is.
+    default_format: str = Field(default="opus", alias="DEFAULT_FORMAT")
+    default_bitrate: str = Field(default="best", alias="DEFAULT_BITRATE")
     cookie_file: str | None = Field(default=None, alias="COOKIE_FILE")
 
     # Retry engine (v06) — override hook for tests, comma-separated seconds
