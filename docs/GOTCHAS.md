@@ -860,6 +860,9 @@ needed" claim — rather than silently deleted.
   link; search rows lack `internal-track-link` → *v58*
 - Spotify's cookie banner sits near the top `z-index`: the extension's menu and toast use the
   maximum, or the banner swallows clicks on them → *v58*
+- The icon stops only the keys it acts on (Spotify's tracklist grid navigates with arrows
+  through it); a click counts only after a trusted press on the icon itself (a page's invisible
+  `<label for>` forwards real clicks) → *v58*
 - A fresh install's options page tests the default origin (production) on open; every
   extension request goes to the configured origin only (captured by principal) → *v58*
 
@@ -6923,6 +6926,27 @@ independently-found production bug from the same conversation)
   up" banner. The owner uses Spotify logged out (in LibreWolf, which blocks DRM, so Spotify blocks
   playback after login), so v58 doesn't target it (owner's decision, 2026-10-26; master-plan
   Amendment).
+- **Spotify's tracklist is a keyboard grid that includes the icon.** Once the grid has been
+  used with the keyboard, Spotify gives row buttons a roving `tabindex=-1`, and the arrows are
+  the only way to reach a row's icon. The icon's keydown first stopped every key, so
+  ArrowLeft/Right/Up/Down and Home died on it (live review). It now stops only the keys it acts
+  on: Enter, Space, the menu keys, and Esc while its menu is open. Arrows and Tab still go to
+  Spotify.
+- **`event.isTrusted` isn't enough against the host page.** A page script's synthetic
+  `.click()`/`dispatchEvent` is untrusted and ignored. But an invisible full-page
+  `<label for="<icon id>">` turned the user's real click anywhere into a *trusted* click on the
+  icon (live review: it queued a job). A click now counts only after a trusted `pointerdown` on
+  the icon itself within 1.5 s, or from the keyboard (`detail` 0 on the focused button). Menu
+  entries follow the same rule, and their keyboard path calls a chooser kept in a `WeakMap`,
+  never `.click()`.
+- **A 401 proves a spotdl app only when it's the app's own** (JSON with `code`
+  `not_authenticated` or `api_key_invalid`). An intranet's HTML basic-auth 401 was saved as the
+  app address. An HTML 5xx (nginx's 502 with `api` down, Cloudflare's 530) reads as
+  "unreachable", not "not a spotdl app".
+- **What the page can read.** The toast and the icons' `data-*` live in Spotify's DOM, so
+  in-page messages never name the app's address, and menu actions aren't stored on elements.
+  Which items got a tick (`data-state`) stays visible to Spotify's scripts. That's inherent to
+  showing the tick, and accepted.
 - **Automating the extension in real Firefox (scratchpad harness, not committed):**
   - `web-ext run --arg=--marionette --arg=--remote-allow-system-access`, then a small Marionette
     client over TCP (no geckodriver needed).
