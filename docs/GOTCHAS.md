@@ -853,6 +853,16 @@ needed" claim — rather than silently deleted.
   check right after an await can still see it focused: move focus before disabling (the
   library sweep's start) → *v52*
 
+**Browser extension (`extension/`)**
+- Spotify's DOM: rows `tracklist-row`, headers `action-bar-row` inside `album-page`/`artist-page`/
+  `playlist-page`, cards `data-encore-id="card"` by their `cardTitle` link only (a music video's
+  title is no link, and its subtitle names the artist), search's `top-result-card` by its first
+  link; search rows lack `internal-track-link` → *v58*
+- Spotify's cookie banner sits near the top `z-index`: the extension's menu and toast use the
+  maximum, or the banner swallows clicks on them → *v58*
+- A fresh install's options page tests the default origin (production) on open; every
+  extension request goes to the configured origin only (captured by principal) → *v58*
+
 **Testing & verification technique**
 - A `docker exec … python /tmp/x.py` imports the image's site-packages `app`, not the mounted
   `/app/app`: set `PYTHONPATH=/app` → *v56*
@@ -861,6 +871,10 @@ needed" claim — rather than silently deleted.
 - Playwright's `page.clock.install({ time })` skews the browser clock for countdown checks → *v56*
 - A rebase that re-parents a migration under one a slot already passed: alembic sees the head as
   applied and skips the new parent; downgrade to it, stamp the old parent, upgrade → *v56*
+- Driving `web-ext run`'s Firefox: BiDi and Marionette both refuse `moz-extension://` navigation
+  (load it from the chrome context with `--remote-allow-system-access`), the temporary add-on's
+  UUID can't be pinned by pref, content-script-made nodes are stale WebDriver references (click
+  by coordinates), and `browser.i18n` follows the UI locale only with its langpack installed → *v58*
 - A real download on a slot can finish in ~10 s, before six browser pages have logged in: hold
   the track `waiting` with `scheduled_at` a minute out, then start `realdl`. A Spotify id whose
   song is already on disk under the same name resolves instantly ("already exists" is the
@@ -6866,3 +6880,65 @@ independently-found production bug from the same conversation)
   and `reconcile_disk` writes sentinels: `test_dedup.py` keeps every managed root under `tmp_path`
   (an autouse fixture asserts it). `update_library_settings` keeps the old root as a known one, so
   a test that moves the library sets the row directly.
+
+### v58 firefox-extension gotchas (learned building the extension and running it on real open.spotify.com)
+
+- **The selectors that held (Firefox 158, Spotify signed out, 2026-10-26), all in
+  `extension/content/selectors.js`:**
+  - tracklist rows: `[data-testid="tracklist-row"]`. The track is the row's
+    `a[data-testid="internal-track-link"]` on album/playlist/artist pages; search's song rows have
+    a plain `a[href^="/track/"]` instead. The icon goes before the row's own
+    `[data-testid="more-button"]`;
+  - page headers: `[data-testid="action-bar-row"]`, its item the page's own address, and only when
+    the bar sits inside that type's `[data-testid="album-page"|"artist-page"|"playlist-page"]` (on a
+    navigation, the address changes before the old view goes, and a header icon would briefly name
+    the new page over the old one). The title is `[data-testid="entityTitle"]`;
+  - cards: `[data-encore-id="card"]`, identified **only** by the link around its
+    `[data-encore-id="cardTitle"]`. The first real run caught a music video card (artist page,
+    "Music videos") queuing *The Favors*, a whole artist: its title isn't a link, so "the first item
+    link in the card" was the subtitle's artist link. Show, episode, profile and genre cards carry
+    no item link of the four types and get no icon. Search's `[data-testid="top-result-card"]` has
+    no marked title: there its first link is its own.
+  - Class names are hashed (`e-101040-…`) and change; nothing reads them.
+- **Rows are virtualized and recycled.** A 50-track playlist renders about 47 rows (`aria-rowindex`
+  5–51 after a scroll), and React reuses row elements for other tracks. `scan()` retargets an icon
+  whose row now shows another track rather than adding one. A real scroll pass checked every row:
+  one icon each, naming that row's own track.
+- **The cookie path, re-checked in v58's real run:** the background's `fetch(…, {credentials:
+  'include'})` to `http://127.0.0.1:5177` carried the slot's session (fresh `web-ext` profile,
+  default Total Cookie Protection), as v53's spike found. The key retry sends `credentials:
+  'omit'`, so a stale cookie never decides the answer. `last_used_at` moved on the key's `me` and
+  again on a click 65 s later (it updates at most once a minute).
+- **Every create counts against the rate limit, an `already_queued` answer too** (v53's limiter
+  runs before the duplicate check). With `JOB_CREATE_RATE_LIMIT=6`, the sixth click of a minute
+  was the last one through, whatever the earlier five answered.
+- **Spotify's OneTrust cookie banner covered the cascade menu.** Its bottom entry ("Whole
+  artist") took the banner's click instead. The menu and toast now use `z-index: 2147483647`, and
+  the menu follows its icon on scroll (Spotify scrolls its own views mid-render) instead of
+  closing, closing only when the icon leaves the viewport.
+- **`permissions.request` must run inside the click handler, before any `await`,** or Firefox
+  refuses it as not user-initiated. The options page computes the origin pattern synchronously
+  first. A pattern has no port (v53), so `http://127.0.0.1:5177` asks for `http://127.0.0.1/*`.
+- **The now-playing bar shows a track only when logged in to Spotify.** Signed out, it's a "Sign
+  up" banner. The owner uses Spotify logged out (in LibreWolf, which blocks DRM, so Spotify blocks
+  playback after login), so v58 doesn't target it (owner's decision, 2026-10-26; master-plan
+  Amendment).
+- **Automating the extension in real Firefox (scratchpad harness, not committed):**
+  - `web-ext run --arg=--marionette --arg=--remote-allow-system-access`, then a small Marionette
+    client over TCP (no geckodriver needed).
+  - WebDriver BiDi's and Marionette's Navigate both refuse `moz-extension://` URLs ("not allowed
+    in this context"). From the chrome context, `gBrowser.selectedBrowser.loadURI(uri,
+    {triggeringPrincipal: systemPrincipal})` opens them.
+  - `extensions.webextensions.uuids` doesn't pin a temporary add-on's UUID. Read it with
+    `WebExtensionPolicy.getByID(id).mozExtensionHostname`.
+  - A WebDriver element reference to a node a content script created (the menu items) is stale
+    at once. Click by viewport coordinates.
+  - `extensions.webextOptionalPermissionPrompts=false` grants `permissions.request` without the
+    doorhanger.
+  - `browser.i18n` follows Firefox's UI locale, which needs its langpack (`firefox-i18n-hu` on
+    Arch): `intl.locale.requested=hu` alone leaves an en-US build in English.
+  - LibreWolf's `librewolf.cfg` turns off `devtools.debugger.remote-enabled`, so `web-ext run`
+    can't attach to it (ECONNREFUSED on the RDP port).
+  - The network capture: an `http-on-modify-request` observer in the chrome context, recording
+    each channel's `loadInfo.triggeringPrincipal`. An extension request carries the add-on's
+    principal (`addonId`), so the extension's traffic is told apart from the page's.
