@@ -148,6 +148,14 @@ class UnavailableVideoError(LookupError):
     changes, so terminal (`lookup_failed`) and still retryable by hand."""
 
 
+class NotYetReleasedError(LookupError):
+    """The matched YouTube video is a scheduled premiere or live event that hasn't aired
+    (v54.1): it has no formats until then, from any network. Production's track went round
+    the ladder as a breaker-feeding `no_output` with "Premieres in 102 days" on every
+    attempt. Terminal (`lookup_failed`) by the owner's call, like a video that isn't there;
+    "retry now" brings it back once it has aired."""
+
+
 # yt-dlp's own wording, matched case-insensitively. Distinct from its bot-check ("Sign in
 # to confirm you're not a bot") and its rate-limit text ("This content isn't available,
 # try again later", a bare "Video unavailable"), which *are* network-dependent and must
@@ -163,6 +171,14 @@ _UNAVAILABLE_MARKERS = (
     "video has been removed",
     "account associated with this video has been terminated",
     "members-only",
+)
+# YouTube's playability reason for an upcoming video, which yt-dlp raises verbatim
+# (`raise_no_formats(reason)`): "Premieres in 102 days", "Premiere will begin shortly",
+# "This live event will begin in 3 hours".
+_UPCOMING_MARKERS = (
+    "premieres in",
+    "premiere will begin",
+    "this live event will begin",
 )
 # Deliberately absent: geo-blocking ("not made this video available in your country",
 # yt-dlp's GeoRestrictedError). It depends on the egress IP, so the IPv6 and proxy rungs
@@ -195,6 +211,8 @@ def _swallowed_error_to_raise(exc: BaseException) -> Exception:
         return AgeRestrictedError(f"Age-restricted on YouTube (sign-in required): {exc}")
     if _chain_text_has(chain, _UNAVAILABLE_MARKERS):
         return UnavailableVideoError(f"Unavailable on YouTube: {detail}")
+    if _chain_text_has(chain, _UPCOMING_MARKERS):
+        return NotYetReleasedError(f"Not released yet on YouTube: {detail}")
     if isinstance(exc, LookupError):
         return exc
     return NoOutputFileError(f"spotdl returned no output file for this track ({detail})")

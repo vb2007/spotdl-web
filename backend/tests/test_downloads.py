@@ -347,14 +347,18 @@ def test_download_one_turns_a_dead_proxy_into_a_transport_error(monkeypatch):
     assert retry.classify_error(excinfo.value) == TrackErrorType.OTHER
 
 
-def test_download_one_checks_the_proxy_before_any_video_marker(monkeypatch):
+@pytest.mark.parametrize(
+    "ytdlp_text",
+    [
+        "ERROR: Unable to connect to proxy; video has been removed?",
+        "ERROR: Unable to connect to proxy; Premieres in 102 days?",
+    ],
+)
+def test_download_one_checks_the_proxy_before_any_video_marker(monkeypatch, ytdlp_text):
     """A dead proxy says nothing about the video, even if some other text on the chain
     happens to look like a hard failure."""
     monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
-    exc = _chained(
-        AudioProviderError("YT-DLP download error - url"),
-        RuntimeError("ERROR: Unable to connect to proxy; video has been removed?"),
-    )
+    exc = _chained(AudioProviderError("YT-DLP download error - url"), RuntimeError(ytdlp_text))
 
     with pytest.raises(retry.ProxyTransportError):
         downloads.download_one("a-song", _SwallowingDownloader(exc))
@@ -397,6 +401,47 @@ def test_download_one_makes_an_unavailable_video_terminal(monkeypatch, ytdlp_tex
         downloads.download_one("a-song", _SwallowingDownloader(exc))
 
     assert ytdlp_text[:20] in str(excinfo.value)
+    assert retry.classify_error(excinfo.value) == TrackErrorType.LOOKUP
+
+
+def test_download_one_makes_an_unreleased_premiere_terminal(monkeypatch):
+    """v54.1, production's exact chain: the matched video was a premiere 102 days out, and
+    every attempt went back on the ladder as a breaker-feeding no_output."""
+    from yt_dlp.utils import ExtractorError
+
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    exc = _chained(
+        AudioProviderError("YT-DLP download error - https://www.youtube.com/watch?v=h0971y4MFVg"),
+        ExtractorError("[youtube] h0971y4MFVg: Premieres in 102 days", expected=True),
+    )
+
+    with pytest.raises(downloads.NotYetReleasedError) as excinfo:
+        downloads.download_one("a-song", _SwallowingDownloader(exc))
+
+    message = str(excinfo.value)
+    assert message.startswith("Not released yet on YouTube: AudioProviderError: YT-DLP download error")
+    assert "Premieres in 102 days" in message
+    assert retry.classify_error(excinfo.value) == TrackErrorType.LOOKUP
+
+
+@pytest.mark.parametrize(
+    "ytdlp_text",
+    [
+        "Premieres in 102 days",
+        "Premieres in 3 hours",
+        "Premiere will begin shortly",
+        "This live event will begin in 3 hours.",
+        "This live event will begin in a few moments.",
+    ],
+)
+def test_download_one_recognises_every_upcoming_wording(monkeypatch, ytdlp_text):
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+    exc = _chained(AudioProviderError("YT-DLP download error - url"), RuntimeError(f"ERROR: [youtube] x: {ytdlp_text}"))
+
+    with pytest.raises(downloads.NotYetReleasedError, match="Not released yet on YouTube") as excinfo:
+        downloads.download_one("a-song", _SwallowingDownloader(exc))
+
+    assert ytdlp_text in str(excinfo.value)
     assert retry.classify_error(excinfo.value) == TrackErrorType.LOOKUP
 
 
