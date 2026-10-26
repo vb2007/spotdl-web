@@ -816,3 +816,22 @@ def test_sync_lets_a_file_line_take_the_target_of_a_manual_proxy_being_deleted(d
     proxies.sync_from_file()
 
     assert db_session.query(Proxy).filter(Proxy.source == ProxySource.FILE).count() == 1
+
+
+def test_sync_skips_a_file_url_identical_to_a_manual_proxy_being_deleted(db_session, tmp_path, monkeypatch):
+    """The exact URL is still taken (proxies.url is unique) until the finalizer removes the
+    manual row: syncing it would fail the whole boot sync's commit."""
+    proxy_file = tmp_path / "proxies.txt"
+    proxy_file.write_text("http://u:p@10.0.0.21:3128\nhttp://10.0.0.22:3128\n")
+    db_session.add(
+        Proxy(url="http://u:p@10.0.0.21:3128", source=ProxySource.MANUAL, enabled=True,
+              delete_requested_at=datetime.now(timezone.utc))
+    )
+    db_session.commit()
+    monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(proxies.get_settings(), "proxy_file", str(proxy_file))
+
+    proxies.sync_from_file()
+
+    files = [p.url for p in db_session.query(Proxy).filter(Proxy.source == ProxySource.FILE)]
+    assert files == ["http://10.0.0.22:3128"]

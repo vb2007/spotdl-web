@@ -160,8 +160,9 @@ def delete_proxy(
     v56 (A4, owner's decision): a manual proxy that nothing uses is deleted at once (204).
     One a download may be using right now (`proxies.proxy_in_use`) is marked instead (202,
     `deleting: true`): it's never picked again, and `finalize_proxy_deletions` deletes it once
-    that download is done. The row is locked first, so a pick (which locks its candidates)
-    and this decision can't interleave."""
+    that download is done. The row is locked first, and a pick locks the proxy it chose
+    (after its probe, until download_track commits it), so the two can't interleave: a pick
+    passes over a row this holds, and this waits for a picked one, then sees it in use."""
     # Read locked in one statement: a second delete (or the finalizer) removing the row
     # meanwhile is then a plain 404, not a refresh of a vanished row.
     proxy = db.query(Proxy).filter(Proxy.id == proxy_id).with_for_update().one_or_none()

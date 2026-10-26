@@ -790,7 +790,8 @@ export function expectedAttemptVia(attempt: TrackAttempt): string {
 	if (attempt.network_path === 'direct-ipv4') return 'direct · IPv4';
 	if (attempt.network_path === 'direct-ipv6') return 'direct · IPv6';
 	if (attempt.network_path === 'proxy') return `via proxy ${attempt.proxy_label ?? ''}`.trim();
-	if (attempt.proxy_id) return 'via proxy';
+	// v56: a deleted proxy leaves `proxy_id` null but keeps its label (attemptPath, A4).
+	if (attempt.proxy_id || attempt.proxy_label) return 'via proxy';
 	if (attempt.outcome === 'completed' || attempt.outcome === 'failed') return 'direct';
 	return 'no network';
 }

@@ -231,6 +231,10 @@ def sync_from_file() -> None:
             for p in rows
             if p.source == ProxySource.MANUAL and p.delete_requested_at is None
         }
+        # ...but its exact URL is still taken (proxies.url is unique) until it's gone.
+        deleting_urls = {
+            p.url for p in rows if p.source == ProxySource.MANUAL and p.delete_requested_at is not None
+        }
         listed = set(urls_in_file)
         # File rows the file no longer names, by target: each can take its target's
         # rotated credential.
@@ -252,6 +256,13 @@ def sync_from_file() -> None:
         skipped = 0
         for url in urls_in_file:
             target = connection_target(url)
+            if url in deleting_urls:
+                skipped += 1
+                logger.warning(
+                    "sync_from_file: skipping %s until its manual row's delete finishes",
+                    redact_text(target),
+                )
+                continue
             if target in claimed or target in manual_targets:
                 skipped += 1
                 logger.warning(
