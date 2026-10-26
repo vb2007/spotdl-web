@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.errors import ApiError
 from app.models import Proxy, ProxySource, User
-from app.routers.auth import require_admin
+from app.routers.auth import require_admin, require_admin_hidden
 from app.services.proxies import PROXY_URL_RE, connection_target, redact
 
 router = APIRouter(prefix="/api/proxies", tags=["proxies"])
@@ -117,7 +117,7 @@ def update_proxy(
     proxy_id: uuid.UUID,
     payload: UpdateProxyRequest,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    _: User = Depends(require_admin_hidden),
 ) -> dict:
     proxy = _get_proxy_or_404(db, proxy_id)
     # A disabled row can share a target with a live one (a row from before v44, or a
@@ -136,7 +136,7 @@ def delete_proxy(
     proxy_id: uuid.UUID,
     response: Response,
     db: Session = Depends(get_db),
-    _: User = Depends(require_admin),
+    _: User = Depends(require_admin_hidden),
 ) -> dict | None:
     """A source=manual proxy is hard-deleted -- there's no proxies.txt entry that could
     ever re-add it, so soft-disabling one (the original v13 behavior) just left a dead,

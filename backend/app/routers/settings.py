@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, StrictBool
 from sqlalchemy.orm import Session
 
@@ -8,7 +8,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.errors import ApiError
 from app.models import AppSettings, User, UserSettings
-from app.routers.auth import require_admin, require_session
+from app.routers.auth import require_admin, require_admin_hidden, require_session
 from app.services import alerts, app_settings, downloads, user_settings
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -214,17 +214,8 @@ def update_alert_settings(
     return _alert_settings_to_dict(row)
 
 
-def _require_admin_hidden(user: User = Depends(require_session)) -> User:
-    """v36's plan: a non-admin gets 404 on the test-alert endpoint, so its existence isn't
-    confirmed (the other admin-only routes here answer 403, via require_admin)."""
-    if not user.is_admin:
-        # v46: deliberately no `code` -- it must read exactly like an unknown route's 404.
-        raise HTTPException(status_code=404, detail="Not Found")
-    return user
-
-
 @router.post("/alerts/test")
-def send_test_alert(user: User = Depends(_require_admin_hidden)) -> dict:
+def send_test_alert(user: User = Depends(require_admin_hidden)) -> dict:
     """Sends one message straight to the room and reports whether it arrived, bypassing
     the category toggles and the cooldown -- the point is to check the wiring. Admin-only
     and synchronous (alerts.SEND_TIMEOUT_SECONDS per connect/read phase), never on a download

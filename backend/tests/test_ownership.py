@@ -112,10 +112,10 @@ def test_direct_id_endpoint_200s_for_the_real_owner(client, db_session, make_use
 
 
 @pytest.mark.parametrize("who", ["owner", "stranger"])
-def test_priority_endpoints_403_for_every_non_admin(who, client, db_session, make_user, session_cookie):
+def test_priority_endpoints_404_for_every_non_admin(who, client, db_session, make_user, session_cookie):
     """v48: priority and bump are admin-only, so they left the 404 sweep above. A non-admin
-    gets the same 403 on their own job and on someone else's, so the answer still confirms
-    nothing about a foreign job."""
+    gets the same answer on their own job and on someone else's, so it confirms nothing
+    about a foreign job: v56 (A6) made it an unknown route's 404 (v48's was 403)."""
     owner = make_user("owner@example.com")
     cookie = session_cookie("owner@example.com" if who == "owner" else "stranger@example.com")
     job = _make_job(db_session, owner)
@@ -123,7 +123,7 @@ def test_priority_endpoints_403_for_every_non_admin(who, client, db_session, mak
     patched = _as(client, cookie).patch(f"/api/jobs/{job.id}/priority", json={"priority": 1})
     bumped = _as(client, cookie).post(f"/api/jobs/{job.id}/bump")
 
-    assert (patched.status_code, bumped.status_code) == (403, 403)
+    assert (patched.status_code, bumped.status_code) == (404, 404)
 
 
 def test_admin_has_full_read_and_write_access_to_a_foreign_job(client, db_session, make_user, session_cookie):

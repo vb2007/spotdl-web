@@ -322,14 +322,15 @@ def _depends_on(route: APIRoute, target) -> bool:
 
 
 def _admin_routes() -> list[tuple[str, str]]:
-    from app.routers.auth import require_admin
+    from app.routers.admin import require_admin_hidden as stats_gate
+    from app.routers.auth import require_admin, require_admin_hidden
 
     found = []
     for route in _api_routes():
-        if _depends_on(route, require_admin):
+        # v56 (A6): require_admin answers a non-admin 403, require_admin_hidden 404 (and
+        # admin.py keeps its own copy of the latter for /api/admin/stats).
+        if any(_depends_on(route, gate) for gate in (require_admin, require_admin_hidden, stats_gate)):
             found.extend((m, route.path) for m in sorted(route.methods - {"HEAD", "OPTIONS"}))
-    # Admin-only through an in-handler check (a non-admin gets 404, CLAUDE.md's v2 list).
-    found += [("GET", "/api/admin/stats"), ("POST", "/api/settings/alerts/test")]
     return found
 
 

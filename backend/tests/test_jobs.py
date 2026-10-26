@@ -328,9 +328,10 @@ def test_bump_unknown_job_returns_404(admin_client, db_session):
     assert response.status_code == 404
 
 
-def test_priority_endpoints_403_for_a_non_admin_owner(authenticated_client, db_session, monkeypatch):
+def test_priority_endpoints_404_for_a_non_admin_owner(authenticated_client, db_session, monkeypatch):
     """v48 (owner decision): priority and bump are admin-only on the server too, not only
-    hidden in the UI -- even on the caller's own job."""
+    hidden in the UI -- even on the caller's own job. v56 (A6): the answer is an unknown
+    route's 404 (the path names an id), where v48 gave 403."""
     _stub_expand_job(monkeypatch)
     job_id = authenticated_client.post(
         "/api/jobs", json={"url": "https://open.spotify.com/track/abc"}
@@ -340,17 +341,17 @@ def test_priority_endpoints_403_for_a_non_admin_owner(authenticated_client, db_s
     bumped = authenticated_client.post(f"/api/jobs/{job_id}/bump")
 
     for response in (patched, bumped):
-        assert response.status_code == 403
-        assert response.json()["code"] == "admin_required"
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
     assert db_session.get(Job, uuid.UUID(job_id)).priority == 0
 
 
-def test_priority_endpoints_403_for_a_non_admin_whatever_the_id(authenticated_client):
-    """The admin check runs before the lookup: an unknown id answers the same 403, so a
+def test_priority_endpoints_404_for_a_non_admin_whatever_the_id(authenticated_client):
+    """The admin check runs before the lookup: an unknown id answers the same 404, so a
     non-admin learns nothing about which jobs exist."""
     job_id = uuid.uuid4()
-    assert authenticated_client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 1}).status_code == 403
-    assert authenticated_client.post(f"/api/jobs/{job_id}/bump").status_code == 403
+    assert authenticated_client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 1}).status_code == 404
+    assert authenticated_client.post(f"/api/jobs/{job_id}/bump").status_code == 404
 
 
 def test_priority_endpoints_require_session(client):

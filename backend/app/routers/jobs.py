@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.errors import ApiError
 from app.models import DownloadedTrack, Job, JobSourceType, JobState, Track, TrackState, User
-from app.routers.auth import Principal, require_admin, require_session, require_session_or_api_key
+from app.routers.auth import Principal, require_admin_hidden, require_session, require_session_or_api_key
 from app.services import archive, events, job_listing, rate_limit, rollup, spotify_urls, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
@@ -477,11 +477,11 @@ def set_job_priority(
     job_id: uuid.UUID,
     payload: SetPriorityRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(require_admin_hidden),
 ) -> dict:
     """Admin-only (v48, owner decision): priority reorders everyone's queue, so it is an
-    operator control, not a job owner's. A non-admin gets require_admin's 403 before the
-    job is looked up, the same answer for any id, so no job's existence is confirmed."""
+    operator control, not a job owner's. A non-admin gets require_admin_hidden's 404
+    (v56, A6) before the job is looked up, the same answer for any id."""
     job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
     job.priority = payload.priority
     db.commit()
@@ -494,7 +494,7 @@ def set_job_priority(
 def bump_job(
     job_id: uuid.UUID,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(require_admin_hidden),
 ) -> dict:
     """Moves this job to the front of the dispatch order — sets its priority one above
     the current highest, which is the only "move to front" interaction actually needed
