@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from app.models import DownloadedTrack
+from app.models import DownloadedTrack, LibrarySortRun, LibrarySortState
 from app.services import alerts, app_settings, dedup, events
 from app.services import library as library_service
 from app.tasks import library as library_task
@@ -65,10 +65,11 @@ def test_worker_dl_upsert_vs_sweep_move_of_the_same_file(committed_db, tmp_path,
         library_quarantine_dir=str(tmp_path / "quarantine"),
     )
     setup.add(DownloadedTrack(spotify_track_id="single", file_path=str(source), format="mp3", bitrate="320k"))
+    setup.add(LibrarySortRun(id=1, state=LibrarySortState.RUNNING, errors=[]))  # as the endpoint leaves it
     setup.commit()
     setup.close()
 
-    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path)
+    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "library")
     monkeypatch.setattr(library_task, "SessionLocal", committed_db)
     monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
     monkeypatch.setattr(events, "publish_library_progress", lambda *args, **kwargs: None)

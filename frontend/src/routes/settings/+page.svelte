@@ -256,6 +256,7 @@
 				[
 					'library_paths_overlap',
 					'library_path_not_absolute',
+					'library_path_invalid',
 					'library_dir_outside_mount'
 				].includes(err.code ?? '') &&
 				typeof field === 'string' &&

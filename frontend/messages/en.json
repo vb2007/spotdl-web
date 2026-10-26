@@ -33,6 +33,7 @@
 	"error_library_sort_running": "A library sort is already running",
 	"error_library_sort_not_running": "No library sweep is running.",
 	"error_library_path_not_absolute": "{field} must be a full path, starting with /.",
+	"error_library_path_invalid": "{field} holds a character no folder path can contain.",
 	"error_library_dir_outside_mount": "{field} must be {mount} or a folder inside it: that's where the library is mounted.",
 	"error_library_paths_overlap": "These folders overlap; a sweep would move files onto themselves.",
 	"error_library_paths_library_downloads_equal": "The library folder can't be the downloads folder.",

@@ -50,6 +50,9 @@ def check_library_paths(*, downloads_dir: str, library_dir: str, quarantine_dir:
     # A relative path would resolve against each container's own working directory, so the
     # overlap check couldn't mean anything for it.
     for field, value in (("library_target_dir", library_dir), ("library_quarantine_dir", quarantine_dir)):
+        # A NUL can't be in a path: every filesystem call on it raised, a 500 (live review).
+        if "\x00" in value:
+            raise ApiError(422, "library_path_invalid", f"{field} contains a NUL character", {"field": field})
         if not Path(value).is_absolute():
             raise ApiError(422, "library_path_not_absolute", f"{field} must be an absolute path", {"field": field})
     conflicts = library.path_conflicts(Path(downloads_dir), Path(library_dir), Path(quarantine_dir))

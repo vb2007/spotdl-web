@@ -144,7 +144,11 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     quarantine_dir = Path(settings_row.library_quarantine_dir)
     quarantine_enabled = settings_row.library_quarantine_enabled
     folder_template = settings_row.library_folder_template
-    library_roots = [root.resolve() for root in dedup.known_library_roots(settings_row)]
+    # The mount point too (review round 6): a root seeded as a folder inside it would otherwise
+    # leave the rest of the mount open to a move, and a move deletes its source.
+    library_roots = [
+        root.resolve() for root in [*dedup.known_library_roots(settings_row), library.library_mount()]
+    ]
 
     # v57 (L2): the settings were checked when saved and when the sweep was started, but a
     # value saved before v57 (or changed since the start) is checked here too. A library that
@@ -171,11 +175,21 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     # unattached mountpoint whose ledger files are all missing would put new files on the wrong
     # filesystem, and the next reconcile would take them as proof the volume is there. (A target
     # no ledger row points into at all still gets a sentinel: the documented gap.)
-    if not dedup.covered(target_dir, dedup.known_library_roots(settings_row)):
+    # The mount point's sentinel counts too, known root or not (read only here: reconcile_disk,
+    # which creates sentinels, sticks to the ledger's own roots).
+    if not dedup.covered(target_dir, [*dedup.known_library_roots(settings_row), library.library_mount()]):
+        # Every ledger file under the target or a root around it counts (review round 6, the
+        # same rule as reconcile_disk's): a new, empty folder on an unattached mountpoint must
+        # not look like a fresh volume while the mount's own rows say otherwise.
+        enclosing = [
+            root
+            for root in [*dedup.known_library_roots(settings_row), library.library_mount()]
+            if target_dir.is_relative_to(root)
+        ]
         under_target = [
             Path(path)
             for (path,) in db.query(DownloadedTrack.file_path).all()
-            if dedup.root_of(Path(path), [target_dir]) is not None
+            if any(Path(path).is_relative_to(root) for root in enclosing)
         ]
         db.commit()
         if not dedup.ensure_sentinel(target_dir, under_target, caller="library sweep"):
@@ -390,6 +404,16 @@ def sort_library(admin_user_id: str) -> None:
     db = SessionLocal()
     try:
         run = _get_run(db)
+        # v57 (live review): POST /api/library/sort sets the row running before it sends this.
+        # A delivery that finds it idle is stale: a message redelivered after its worker died
+        # (acks_late), arriving after an admin reset the wedged row by hand. Running it would
+        # be a sweep no page shows and no cancel reaches (409, "not running").
+        if run.state != LibrarySortState.RUNNING:
+            logger.warning(
+                "sort_library: the run row is %s, not running; dropping a stale delivery", run.state.value
+            )
+            db.commit()
+            return
         try:
             _run_sweep(db, run, admin_user_id)
         except Exception as exc:

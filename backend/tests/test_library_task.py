@@ -7,6 +7,7 @@ import pytest
 
 from app.models import (
     DownloadedTrack,
+    LibrarySortState,
     Job,
     JobSourceType,
     JobState,
@@ -25,7 +26,7 @@ _FAKE_TAGS = {"artists": ["Daft Punk"], "album_name": "Discovery", "year": 2001}
 def _library_mount_in_tmp(tmp_path, monkeypatch):
     """v57 (owner decision): the library dir must be under the library mount; here that's
     tmp_path, the same as every library dir these tests configure."""
-    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path)
+    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "library")
 
 
 @pytest.fixture(autouse=True)
@@ -99,6 +100,9 @@ def _capture_progress(monkeypatch):
 
 
 def _run(monkeypatch, db_session, admin_id=None):
+    # As POST /api/library/sort leaves it: the task drops a delivery that finds the row idle.
+    library_task._get_run(db_session).state = LibrarySortState.RUNNING
+    db_session.commit()
     monkeypatch.setattr(library_task, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
     library_task.sort_library(str(admin_id or uuid.uuid4()))
@@ -219,6 +223,8 @@ def test_sort_library_verification_failure_leaves_source_and_ledger_untouched(db
     monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
     monkeypatch.setattr(library_service, "copy_verify", lambda source, dest: False)
 
+    library_task._get_run(db_session).state = LibrarySortState.RUNNING
+    db_session.commit()
     library_task.sort_library(str(uuid.uuid4()))
 
     db_session.refresh(row)
@@ -741,6 +747,8 @@ def test_sort_library_leaves_every_row_on_a_shared_file_whose_copy_failed(
     monkeypatch.setattr(library_service, "copy_verify", _copy_verify)
     _capture_progress(monkeypatch)
 
+    library_task._get_run(db_session).state = LibrarySortState.RUNNING
+    db_session.commit()
     library_task.sort_library(str(uuid.uuid4()))
 
     assert len(calls) == 1
@@ -795,6 +803,8 @@ def test_sort_library_resets_to_idle_when_sync_and_archive_raises(db_session, tm
 
     monkeypatch.setattr(library_task, "_sync_tracks_and_archive_jobs", _boom)
 
+    library_task._get_run(db_session).state = LibrarySortState.RUNNING
+    db_session.commit()
     library_task.sort_library(str(uuid.uuid4()))
 
     run = library_task._get_run(db_session)
@@ -815,6 +825,8 @@ def test_sort_library_resets_to_idle_when_settings_load_raises(db_session, tmp_p
 
     monkeypatch.setattr(app_settings, "get_library_settings", _boom)
 
+    library_task._get_run(db_session).state = LibrarySortState.RUNNING
+    db_session.commit()
     library_task.sort_library(str(uuid.uuid4()))
 
     run = library_task._get_run(db_session)
@@ -957,9 +969,11 @@ def test_sort_library_refuses_to_run_with_overlapping_directories(db_session, tm
 
     run = library_task._get_run(db_session)
     assert run.state.value == "idle"
-    assert run.errors == [
-        {"file": "<sweep>", "error": "refused to start: library_target_dir is inside download_output_dir"}
-    ]
+    # The overlap first; a library inside the downloads dir is outside the mount too.
+    assert run.errors[0] == {
+        "file": "<sweep>",
+        "error": "refused to start: library_target_dir is inside download_output_dir",
+    }
     db_session.refresh(row)
     assert row.in_library is False and Path(row.file_path).exists()
 
@@ -1102,3 +1116,68 @@ def test_sort_library_fills_a_new_folder_inside_a_mounted_root(db_session, tmp_p
     db_session.refresh(row)
     assert row.file_path == str(tmp_path / "library" / "sorted" / "Daft Punk - Discovery - (2001)" / "track1.mp3")
     assert library_task._get_run(db_session).moved == 1
+
+
+def test_sort_library_drops_a_delivery_that_finds_the_run_idle(db_session, tmp_path, monkeypatch):
+    """Live review: a message redelivered after its worker died, arriving after an admin reset the
+    wedged row to idle, must not run a sweep no page shows and no cancel reaches."""
+    _configure(db_session, tmp_path)
+    row = _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+    monkeypatch.setattr(library_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
+
+    library_task.sort_library(str(uuid.uuid4()))  # the row was never set running
+
+    db_session.refresh(row)
+    assert row.in_library is False and Path(row.file_path).exists()
+    assert library_task._get_run(db_session).total == 0
+
+
+def test_sort_library_never_moves_a_file_elsewhere_in_the_mount(db_session, tmp_path, monkeypatch):
+    """Review round 6: with the library dir a folder inside the mount, a not-yet-filed row on a
+    file elsewhere in the mount (under no known root) is still library, never moved."""
+    _configure(db_session, tmp_path)
+    app_settings.get_library_settings(db_session).library_target_dir = str(tmp_path / "library" / "Sorted")
+    app_settings.get_library_settings(db_session).library_known_roots = [str(tmp_path / "library" / "Sorted")]
+    (tmp_path / "library" / dedup.SENTINEL_NAME).write_text("sentinel")
+    db_session.commit()
+    elsewhere = tmp_path / "library" / "Other" / "x.mp3"
+    elsewhere.parent.mkdir(parents=True)
+    elsewhere.write_bytes(b"library audio")
+    db_session.add(DownloadedTrack(spotify_track_id="other", file_path=str(elsewhere), format="mp3", bitrate="320k"))
+    db_session.commit()
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert elsewhere.read_bytes() == b"library audio"
+    other = db_session.get(DownloadedTrack, "other")
+    db_session.refresh(other)
+    assert other.in_library is True
+    assert library_task._get_run(db_session).moved == 0
+
+
+def test_sort_library_target_check_counts_the_mounts_rows(db_session, tmp_path, monkeypatch):
+    """Review round 6: a new, empty target folder on an unattached mountpoint (no sentinel) whose
+    rows all sit elsewhere in the mount must not get a sentinel; the sweep is refused."""
+    _configure(db_session, tmp_path)
+    target = tmp_path / "library" / "new"
+    target.mkdir()
+    app_settings.get_library_settings(db_session).library_target_dir = str(target)
+    db_session.commit()
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="filed", file_path=str(tmp_path / "library" / "A" / "a.mp3"), format="mp3", bitrate="320k", in_library=True
+        )
+    )
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert not (target / dedup.SENTINEL_NAME).exists()
+    assert library_task._get_run(db_session).errors[0]["error"].startswith("refused to start:")
+    db_session.refresh(row)
+    assert row.in_library is False

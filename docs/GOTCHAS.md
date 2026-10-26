@@ -6753,7 +6753,10 @@ independently-found production bug from the same conversation)
   round 4):** a file it just wrote proves the mount. Without it, a `/downloads` whose rows were all
   stale at 5.57.0's first boot would have stayed unconfirmed (and its stale tracks held) until
   someone created the file by hand; before v57 production's `quarantine/` folder kept `/downloads`
-  "non-empty", so this would have been a regression.
+  "non-empty", so this would have been a regression. It proves the directory is writable, not
+  that it's the right disk: if `DOWNLOADS_DIR` were a separately mounted disk that failed to
+  attach, the first download into the bare directory would create the sentinel there (round 6;
+  the old "non-empty" guard failed the same way after one download).
 - **The quarantine dir is checked on every save and every sweep start, on or off** (L2 as
   written; a review round briefly relaxed it, round 5 put it back).
 - **`copy_verify` places its copy with a hard link**, which fails on an existing name where a
@@ -6771,7 +6774,18 @@ independently-found production bug from the same conversation)
   list (nothing removes entries), and as a library root it would make every download read as
   "already in the library".
 - **Cancel can't unwedge a run.** It only sets the flag the sweep reads between files; a run left
-  `running` by a worker-expand that died mid-sweep still needs the row reset by hand.
+  `running` by a worker-expand that died mid-sweep still needs the row reset by hand (live review:
+  a `docker compose kill worker-expand` 0.8 s into a sweep). Its message stays unacked and comes
+  back after the 6 h visibility timeout: the task now drops a delivery that finds the row idle
+  (the hand reset), and one that finds it still `running` with the cancel flag set stops before
+  its first file. A killed copy leaves a hidden `.spotdl-copying-<hex>` in the library, never
+  cleaned up (nothing there is deleted).
+- **A sweep never moves anything inside the library mount**, known root or not (round 6): with
+  the library dir a folder inside the mount, a not-yet-filed row elsewhere in the mount is marked
+  filed, not moved (a move deletes its source). The sweep's target check also counts the mount's
+  rows and accepts the mount point's sentinel.
+- **A NUL in a library or quarantine path is a 422 `library_path_invalid`**, not the 500 every
+  filesystem call on it raised (live review).
 - **A file missing under a mounted root drops its row before the download (L5).**
   `is_already_downloaded` deletes the row (only while it still points at the missing path) and
   returns a miss, instead of holding the track on every rung. A missing file under a root

@@ -277,3 +277,13 @@ def test_update_library_settings_checks_the_quarantine_dir_even_while_quarantine
     )
     assert off.status_code == 422
     assert off.json()["params"]["field"] == "library_quarantine_dir"
+
+
+@pytest.mark.parametrize("field", ["library_target_dir", "library_quarantine_dir"])
+def test_update_library_settings_refuses_a_nul_in_a_path(admin_client, db_session, field):
+    """Live review: it was a 500 (every filesystem call raised on it)."""
+    response = admin_client.patch("/api/settings/library", json={field: "/mnt/raid1/media/music/a\u0000b"})
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "library_path_invalid"
+    assert response.json()["params"] == {"field": field}
