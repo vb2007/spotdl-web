@@ -578,4 +578,74 @@ def test_a_run_that_dies_after_its_claim_leaves_the_tracks_to_beat_once_its_leas
         db.commit()
     tick()
 
-    assert broker.by("beat") == _track_ids_in_order(committed_db, job_id)
+    # Their lease is one timestamp, so beat's order among them is arbitrary (only here).
+    assert sorted(broker.by("beat")) == sorted(_track_ids_in_order(committed_db, job_id))
+
+
+def test_a_track_settled_before_its_marker_is_cleared_keeps_no_marker(committed_db, monkeypatch):
+    """worker-dl can finish a sent track before expand_job's last write: that clear matches
+    the lease alone, so the completed track isn't left with a future `scheduled_at`."""
+    from sqlalchemy import update
+
+    job_id, _ = _committed_expanding_job(committed_db)
+    _real_sessions(committed_db, monkeypatch)
+    broker = _Broker(monkeypatch)
+    monkeypatch.setattr(expansion, "expand", lambda url: _songs(2))
+
+    def worker_finishes_the_first(n: int) -> None:
+        if n == 1:
+            with committed_db() as db:
+                db.execute(update(Track).where(Track.id == broker.sent[0][1]).values(state=TrackState.COMPLETED))
+                db.commit()
+
+    broker.during_expand = worker_finishes_the_first
+    expand_task.expand_job(str(job_id))
+
+    with committed_db() as db:
+        rows = sorted((t.state.value, t.scheduled_at) for t in db.query(Track).filter(Track.job_id == job_id))
+        assert rows == [("completed", None), ("pending", None)]
+
+
+def test_a_claim_waits_for_a_cancel_holding_the_job_and_then_sends_nothing(committed_db, monkeypatch):
+    """The claim takes the job's row lock first, as cancel_job does, so the two bulk
+    UPDATEs of the same tracks serialize (no deadlock). A cancel that commits first leaves
+    the claim nothing `pending` to send."""
+    job_id, user_id = _committed_expanding_job(committed_db)
+    _real_sessions(committed_db, monkeypatch)
+    broker = _Broker(monkeypatch)
+    monkeypatch.setattr(expansion, "expand", lambda url: _songs(3))
+    gate = Gate("cancel_job, tracks cancelled, before its commit")
+    claim_reached = Gate("expand_job, EXPANDED committed, before its claim")
+    real_dispatch = expand_task._dispatch_due
+
+    def dispatch(db, job, track_ids):
+        claim_reached()
+        return real_dispatch(db, job, track_ids)
+
+    monkeypatch.setattr(expand_task, "_dispatch_due", dispatch)
+    expander = Thread(expand_task.expand_job, str(job_id), name="expand_job")
+    claim_reached.wait_reached()
+
+    def cancel():
+        with committed_db() as db:
+            event.listen(db, "before_commit", gate, once=True)
+            jobs_router.cancel_job(job_id, db=db, user=db.get(User, user_id))
+
+    canceller = Thread(cancel, name="cancel_job")
+    gate.wait_reached()
+    claim_reached.open()
+    held_off = blocked_or_done(expander)
+    gate.open()
+    canceller.join()
+    expander.join()
+
+    assert held_off == "blocked"
+    assert broker.sent == []
+    _assert_cancelled_with_its_tracks_n(committed_db, job_id, 3)
+
+
+def _assert_cancelled_with_its_tracks_n(committed_db, job_id, n: int) -> None:
+    with committed_db() as db:
+        assert db.get(Job, job_id).state == JobState.CANCELLED
+        states = [t.state for t in db.query(Track).filter(Track.job_id == job_id)]
+        assert states == [TrackState.CANCELLED] * n

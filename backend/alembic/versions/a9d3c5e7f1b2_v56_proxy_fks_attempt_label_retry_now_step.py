@@ -1,4 +1,4 @@
-"""proxy FKs ON DELETE SET NULL; track_attempts.proxy_label; tracks.retry_now_step
+"""proxy FKs ON DELETE SET NULL; track_attempts.proxy_label; tracks.retry_now_step; due index
 
 Revision ID: a9d3c5e7f1b2
 Revises: f6b2d8e4a1c9
@@ -8,6 +8,10 @@ v56 (A4): deleting a manual proxy an attempt (or a track's `used_proxy_id`) refe
 500, the two FKs having no ON DELETE. Both become ON DELETE SET NULL. So that "which proxy" isn't
 lost with the row, every attempt now stores its proxy's redacted label (scheme://host:port, never
 a credential), written by `attempts.record_attempt`.
+
+v56 (E1): `ix_tracks_scheduled_at_due`, a partial index on `scheduled_at` for `waiting` and
+`pending` tracks: beat's dispatch query now takes both (expand_job's outbox marker), and the
+`waiting`-only index can't serve it.
 
 v56 (A8): `tracks.retry_now_step`, nullable, the ladder step at which a non-admin last used
 "retry now" (one per step). NULL for every existing track: nobody has used one under the rule.
@@ -53,6 +57,10 @@ def upgrade() -> None:
         op.create_foreign_key(name, table, 'proxies', [column], ['id'], ondelete='SET NULL')
     op.add_column('track_attempts', sa.Column('proxy_label', sa.Text(), nullable=True))
     op.add_column('tracks', sa.Column('retry_now_step', sa.Integer(), nullable=True))
+    op.create_index(
+        'ix_tracks_scheduled_at_due', 'tracks', ['scheduled_at'],
+        postgresql_where=sa.text("state IN ('waiting', 'pending')"),
+    )
     bind = op.get_bind()
     # One UPDATE per proxy (a handful of rows), never per attempt.
     for proxy_id, url in bind.execute(
@@ -66,6 +74,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
+    op.drop_index('ix_tracks_scheduled_at_due', table_name='tracks')
     op.drop_column('tracks', 'retry_now_step')
     op.drop_column('track_attempts', 'proxy_label')
     for name, table, column in _FKS:

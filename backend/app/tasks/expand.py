@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import case, update
+from sqlalchemy import case, select, update
 
 from app.db import SessionLocal
 from app.models import Job, JobState, Track, TrackState
@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 # v56 (E1): how long a run's claim on its tracks (below) keeps beat away. Only a run that died
-# between its claim and its sends ever lets one run out: beat then dispatches those tracks.
+# between its claim and its sends ever lets one run out: beat then dispatches those tracks (in
+# no particular order: they share the one lease timestamp).
 DISPATCH_LEASE = timedelta(minutes=10)
 
 
@@ -40,6 +41,7 @@ def _dispatch_due(db, job: Job, track_ids: list[uuid.UUID]) -> None:
     cancelled or downloaded meanwhile."""
     now = datetime.now(timezone.utc)
     lease = now + DISPATCH_LEASE
+    _lock_job(db, job)
     claimed = set(
         db.execute(
             update(Track)
@@ -69,28 +71,37 @@ def _dispatch_due(db, job: Job, track_ids: list[uuid.UUID]) -> None:
             sent,
             len(ordered),
         )
-        _set_marker(db, ordered[sent:], lease, datetime.now(timezone.utc))
-    _set_marker(db, ordered[:sent], lease, None)
+        _set_marker(db, job, ordered[sent:], lease, datetime.now(timezone.utc))
+    _set_marker(db, job, ordered[:sent], lease, None)
 
 
-def _set_marker(db, track_ids: list[uuid.UUID], lease: datetime, marker: datetime | None) -> None:
+def _lock_job(db, job: Job) -> None:
+    """The job's row lock, taken before this module's bulk UPDATEs of its tracks: cancel_job
+    takes it before its own, so the two serialize instead of locking the same track rows in
+    different orders (a deadlock)."""
+    db.execute(select(Job.id).where(Job.id == job.id).with_for_update())
+
+
+def _set_marker(db, job: Job, track_ids: list[uuid.UUID], lease: datetime, marker: datetime | None) -> None:
     """Ends this run's lease on `track_ids`: clears the marker (sent), or sets it due at
-    `marker`, a microsecond apart in `track_ids`' order, as `_mark_due` does."""
+    `marker`, a microsecond apart in `track_ids`' order, as `_mark_due` does.
+
+    A sent track may already be downloading or settled when its marker is cleared, so the
+    clear matches the lease alone (a track download_track rescheduled has another
+    `scheduled_at`). Only a still-`pending` one is put back due."""
     if not track_ids:
         return
+    where = [Track.id.in_(track_ids), Track.scheduled_at == lease]
     if marker is None:
         value = None
     else:
+        where.append(Track.state == TrackState.PENDING)
         value = case(
             {track_id: marker + timedelta(microseconds=index) for index, track_id in enumerate(track_ids)},
             value=Track.id,
         )
-    db.execute(
-        update(Track)
-        .where(Track.id.in_(track_ids), Track.state == TrackState.PENDING, Track.scheduled_at == lease)
-        .values(scheduled_at=value)
-        .execution_options(synchronize_session=False)
-    )
+    _lock_job(db, job)
+    db.execute(update(Track).where(*where).values(scheduled_at=value).execution_options(synchronize_session=False))
     db.commit()
 
 

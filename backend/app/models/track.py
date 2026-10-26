@@ -42,6 +42,13 @@ class Track(Base):
             "scheduled_at",
             postgresql_where=text("state = 'waiting'"),
         ),
+        # v56 (E1): beat's dispatch query also takes `pending` (expand_job's outbox marker),
+        # which the `waiting`-only index above can't serve.
+        Index(
+            "ix_tracks_scheduled_at_due",
+            "scheduled_at",
+            postgresql_where=text("state IN ('waiting', 'pending')"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
