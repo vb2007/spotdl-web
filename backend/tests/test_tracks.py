@@ -738,6 +738,59 @@ def test_download_track_file_serves_a_moved_track_via_library_root(authenticated
     )
 
 
+def test_download_track_file_serves_a_track_under_an_earlier_library_root(authenticated_client, db_session, owner):
+    """v57 (L6): after library_target_dir moves, a track filed under the old root stays
+    downloadable. It answered 404 before (only the current root was accepted)."""
+    from app.services import app_settings
+
+    old_root = app_settings.DEFAULT_LIBRARY_TARGET_DIR
+    app_settings.update_library_settings(db_session, library_target_dir="/srv/music-b")
+    db_session.commit()
+    track = _make_track(
+        db_session,
+        owner,
+        state=TrackState.COMPLETED,
+        output_path=f"{old_root}/Daft Punk - Discovery - (2001)/01 - One More Time.mp3",
+    )
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 200
+    assert (
+        response.headers["x-accel-redirect"]
+        == "/internal-library/Daft%20Punk%20-%20Discovery%20-%20%282001%29/01%20-%20One%20More%20Time.mp3"
+    )
+
+
+def test_download_track_file_refuses_a_library_path_under_no_known_root(authenticated_client, db_session, owner):
+    """v57 (L6): nginx's /internal-library/ aliases the default root, but a path inside it is
+    served only while it is also under a known library root."""
+    from app.services import app_settings
+
+    row = app_settings.get_library_settings(db_session)
+    row.library_target_dir = f"{app_settings.DEFAULT_LIBRARY_TARGET_DIR}/sorted"
+    row.library_known_roots = [row.library_target_dir]
+    db_session.commit()
+    inside_alias_only = _make_track(
+        db_session,
+        owner,
+        state=TrackState.COMPLETED,
+        output_path=f"{app_settings.DEFAULT_LIBRARY_TARGET_DIR}/elsewhere/song.mp3",
+    )
+    sorted_track = _make_track(
+        db_session,
+        owner,
+        state=TrackState.COMPLETED,
+        output_path=f"{app_settings.DEFAULT_LIBRARY_TARGET_DIR}/sorted/A - B - (2001)/song.mp3",
+    )
+
+    assert authenticated_client.get(f"/api/tracks/{inside_alias_only.id}/file").status_code == 404
+    response = authenticated_client.get(f"/api/tracks/{sorted_track.id}/file")
+    assert response.status_code == 200
+    # Relative to the alias nginx serves, so the subfolder is kept.
+    assert response.headers["x-accel-redirect"] == "/internal-library/sorted/A%20-%20B%20-%20%282001%29/song.mp3"
+
+
 def test_download_unknown_track_file_returns_404(authenticated_client, db_session):
     assert authenticated_client.get(f"/api/tracks/{uuid.uuid4()}/file").status_code == 404
 
