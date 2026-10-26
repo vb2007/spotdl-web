@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-26T00:00:00Z",
+  "title": "Design System: spotdl-web Firefox extension",
+  "extensions": {
+    "colorMeta": {
+      "spotify-green": { "role": "primary", "displayName": "Spotify Green", "canonical": "#1ed760" },
+      "settled": { "role": "primary", "displayName": "Settled Green", "canonical": "#5ad1a8" },
+      "spotify-error-rose": { "role": "secondary", "displayName": "Spotify Error Rose", "canonical": "#f3727f" },
+      "fail": { "role": "secondary", "displayName": "Fail Red", "canonical": "#e5595c" },
+      "spotify-glyph-grey": { "role": "neutral", "displayName": "Spotify Glyph Grey", "canonical": "#b3b3b3" },
+      "spotify-menu-surface": { "role": "neutral", "displayName": "Spotify Menu Surface", "canonical": "#282828" },
+      "spotify-toast-surface": { "role": "neutral", "displayName": "Toast Surface", "canonical": "#333333" },
+      "bg-0": { "role": "neutral", "displayName": "Well", "canonical": "#0a0c0e" },
+      "bg-1": { "role": "neutral", "displayName": "Panel", "canonical": "#191e23" },
+      "focus-ring": { "role": "neutral", "displayName": "Focus Amber", "canonical": "#ffd479" }
+    },
+    "shadows": [
+      { "name": "menu-lift", "value": "0 16px 24px rgba(0,0,0,0.3), 0 6px 8px rgba(0,0,0,0.2)", "purpose": "The in-page cascade menu." },
+      { "name": "toast-lift", "value": "0 8px 24px rgba(0,0,0,0.5)", "purpose": "The in-page toast." },
+      { "name": "card-disc", "value": "0 4px 12px rgba(0,0,0,0.35)", "purpose": "The icon's dark disc over cover art." }
+    ],
+    "motion": [
+      { "name": "icon-state", "value": "120ms ease-out", "purpose": "Icon opacity, colour and hover scale." },
+      { "name": "sending-spin", "value": "800ms linear infinite", "purpose": "The sending arc; static at 60% opacity under reduced motion." },
+      { "name": "toast-in", "value": "160ms cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Toast fades in with a 4px rise." }
+    ]
+  },
+  "components": [
+    {
+      "name": "In-page icon", "kind": "custom", "refersTo": "spotify-icon",
+      "description": "Subdued Spotify-idiom download glyph on rows, cards and headers.",
+      "html": "<button class=\"ds-icon\" aria-label=\"Download\" aria-haspopup=\"menu\"><svg viewBox=\"0 0 16 16\"><path d=\"M8 1.25v6.69\"/><path d=\"M5.25 5.5 8 8.25l2.75-2.75\"/><path d=\"M3 14.75v-2\"/><path d=\"M8 14.75v-3.5\"/><path d=\"M13 14.75v-2\"/></svg></button>",
+      "css": ".ds-icon{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:transparent;color:#b3b3b3;cursor:pointer;transition:color 120ms ease-out,transform 120ms ease-out}.ds-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.ds-icon:hover{color:#fff;transform:scale(1.04)}.ds-icon:focus-visible{color:#fff;outline:2px solid #fff;outline-offset:1px}"
+    },
+    {
+      "name": "Cascade menu", "kind": "custom", "refersTo": "spotify-menu",
+      "description": "Spotify's context-menu surface for album/artist cascades.",
+      "html": "<div class=\"ds-menu\" role=\"menu\"><div class=\"ds-menu-heading\">spotdl-web</div><button class=\"ds-menu-item\" role=\"menuitem\">This track</button><button class=\"ds-menu-item\" role=\"menuitem\">Whole album</button></div>",
+      "css": ".ds-menu{min-width:200px;max-width:320px;padding:4px;border-radius:4px;background:#282828;color:rgba(255,255,255,.9);font-size:14px;line-height:1.4;box-shadow:0 16px 24px rgba(0,0,0,.3),0 6px 8px rgba(0,0,0,.2)}.ds-menu-heading{padding:8px 12px 6px;color:#b3b3b3;font-size:12px;font-weight:700}.ds-menu-item{display:block;width:100%;min-height:40px;padding:10px 12px;border:0;border-radius:2px;background:transparent;color:inherit;font:inherit;text-align:start;cursor:pointer}.ds-menu-item:hover,.ds-menu-item:focus-visible{background:rgba(255,255,255,.1);color:#fff;outline:none}.ds-menu-item:focus-visible{box-shadow:inset 0 0 0 2px #fff}"
+    },
+    {
+      "name": "Toast", "kind": "custom", "refersTo": "spotify-toast",
+      "description": "Non-modal, pointer-events:none report of what the app answered.",
+      "html": "<div class=\"ds-toast\" role=\"status\"><svg viewBox=\"0 0 16 16\"><path d=\"M2.75 8.5 6.25 12l7-7.5\"/></svg><span>Queued</span></div>",
+      "css": ".ds-toast{display:inline-flex;align-items:flex-start;gap:8px;max-width:360px;padding:10px 14px;border-radius:6px;background:#333;color:#fff;font-size:14px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:none}.ds-toast svg{flex:none;width:16px;height:16px;margin-top:2px;fill:none;stroke:#1ed760;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}"
+    },
+    {
+      "name": "Page button", "kind": "button", "refersTo": "page-button",
+      "description": "Mono control on the options page and popup.",
+      "html": "<button class=\"ds-btn\">Save</button> <button class=\"ds-btn ds-btn-quiet\">Reset</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;min-height:1.875rem;padding:.25rem .75rem;border:1px solid #6a757e;border-radius:4px;background:#1c2227;color:#e8ecee;font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;font-size:.8125rem;font-weight:500;cursor:pointer}.ds-btn:hover{background:#262e34}.ds-btn:focus-visible{outline:2px solid #ffd479;outline-offset:2px}.ds-btn-quiet{border-color:transparent;background:transparent;color:#8b969d}.ds-btn-quiet:hover{background:#1c2227;color:#e8ecee}"
+    },
+    {
+      "name": "Page input", "kind": "input", "refersTo": "page-input",
+      "description": "Mono field in the bg-0 well.",
+      "html": "<input class=\"ds-input\" type=\"url\" placeholder=\"https://\">",
+      "css": ".ds-input{width:100%;min-height:2.25rem;padding:.375rem .625rem;border:1px solid #6a757e;border-radius:4px;background:#0a0c0e;color:#e8ecee;font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;font-size:.875rem}.ds-input::placeholder{color:#808b94}.ds-input:focus-visible{outline:2px solid #ffd479;outline-offset:2px}"
+    },
+    {
+      "name": "Status line in a panel", "kind": "card", "refersTo": "page-panel",
+      "description": "A panel with a mono label and a dot-led status sentence.",
+      "html": "<section class=\"ds-panel\"><h2 class=\"ds-label\">Connection</h2><p class=\"ds-status\">Signed in as test@example.com</p></section>",
+      "css": ".ds-panel{display:grid;gap:.75rem;padding:1rem 1.5rem 1.5rem;background:#191e23;border:1px solid #2b3339;border-radius:6px;color:#e8ecee;font-family:'IBM Plex Sans',-apple-system,'Segoe UI',sans-serif}.ds-label{margin:0;color:#808b94;font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;font-size:.6875rem;font-weight:500;letter-spacing:.12em;text-transform:uppercase}.ds-status{display:flex;align-items:baseline;gap:.5rem;margin:0;color:#e8ecee;font-size:.875rem}.ds-status::before{content:'';flex:none;width:.5rem;height:.5rem;border-radius:50%;background:#5ad1a8}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Polite Guest and the Spare Panel",
+    "keyCharacteristics": [
+      "In-page UI borrows Spotify's palette and inherits Spotify's font (`font-family: inherit`).",
+      "Extension pages are the app's dark well: `bg-0` page, `bg-1` panels on hairline borders, mono labels and controls, sans prose.",
+      "Stroked line glyphs only (`fill: none`, `stroke: currentColor`, round caps); state is a glyph swap plus a colour.",
+      "Flat everywhere except the floating in-page layers (menu, toast, card disc), which lift with soft black shadows.",
+      "Fully keyboard-operable, no AltGr anywhere."
+    ],
+    "rules": [
+      { "name": "The Two Worlds Rule", "section": "colors", "body": "Spotify's colours never appear on the extension pages, and the app's tokens never appear on open.spotify.com. The in-page CSS writes Spotify's values literally; the pages use only `page.css` custom properties." },
+      { "name": "The Amber-Is-Focus-Only Rule", "section": "colors", "body": "On the extension pages `focus-ring` (amber) is the keyboard focus outline and nothing else. Status uses green and red dots. In the app, amber means live state, and the extension has no live state to show." },
+      { "name": "The Mono Names, Sans Explains Rule", "section": "typography", "body": "If it's a label, a control or a value, set it in mono. If it's a sentence, set it in sans." },
+      { "name": "The Topmost Layer Rule", "section": "elevation", "body": "The menu and the toast sit at `z-index: 2147483647` so they stay above Spotify's own overlays, its cookie banner included. Nothing else in-page takes a z-index beyond the card icon's local `2`." }
+    ]
+  }
+}
