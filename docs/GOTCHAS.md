@@ -492,6 +492,24 @@ needed" claim — rather than silently deleted.
 - A real production breaker trip (2026-10-18 18:46 UTC) reached `breaker_events` but never the
   Matrix room; unexplained, and its logs were gone by the next deploy → *v48*
 
+- `download_track` owns a track only while it is still in the state it found on entry and no
+  attempt row has been recorded since (its entry token); every write to the track before the
+  download (claim, hold, dedup resolution) is conditional on that, and the outcome is written
+  under the row lock → *v55*
+- A reclaim of a still-running download is superseded by that download's real outcome (one row,
+  one counted attempt); the reclaim's reset and its rows commit together → *v55*
+- Postgres `now()` is the *transaction's* start: an ORM read after a commit opens a transaction
+  that idles across whatever follows (the whole download, before v55), and an `onupdate=now()`
+  column then records that start. Set the time explicitly where it must be the write's → *v55*
+- spotdl's "file already exists" skip returns the path exactly like a download; only the
+  tracker's `notify_download_skip` tells them apart → *v55*
+- Consecutive identical `held` rows collapse into one (`hold_count`), but one breaker trip holds
+  each track only once: it's repeated trips, a pause or an unmounted root that repeat a track's
+  hold → *v55*
+- The forced-IPv6 rung is skipped where `network_path.ipv6_routable()` (a cached UDP route
+  probe) says IPv6 can't work; dev and production networks have IPv6, so it's still used there →
+  *v55*
+
 **Live progress & SSE**
 - `view=others` drops the admin's own channel on the server, so the page never hears the admin's
   own downloads there: their amber needs a separate own-download check; a dropped run of own
@@ -4077,7 +4095,9 @@ confirmation, closing the yt-dlp-ejs pin gap, and fixing a job vanishing from th
   `chosen_path` from `pick_proxy`'s actual return value, falling back to a forced `DIRECT_IPV4` (not
   an unforced connection) so the fallback stays deterministic the same way attempt 1 already is.
   Re-verified against real Postgres with `pick_proxy` forced to return `None`.
-- **Accepted, not fixed: forcing the IPv6 rung unconditionally costs one extra ladder wait per
+- *(2026-10-26, v55: no longer accepted. Where IPv6 isn't routable the rung is skipped (a cached
+  UDP route probe, `network_path.ipv6_routable`), and attempt 2 takes the proxy rung.)*
+  **Accepted, not fixed: forcing the IPv6 rung unconditionally costs one extra ladder wait per
   retrying track in any environment where IPv6 isn't actually routable yet.** At the time this
   version shipped, that was every currently-deployed environment (production's daemon change was
   deliberately deferred). **Correction, v31:** production's own IPv6 rollout has since happened, as
@@ -4795,7 +4815,10 @@ independently-found production bug from the same conversation)
   set before `state=`, read from the page's snapshot (`begin_snapshot`, as in v34.2). The chips
   re-read it with a debounced 1-row request on a track *state change* only: a count spans tracks
   that aren't on the loaded page, so it can't be patched locally.
-- **Reclaim races (pre-existing, documented by v35's third review, not fixed):** beat's reclaim
+- *(2026-10-26, v55: every race in this entry is fixed: E2 re-checks the state in the reclaim
+  `UPDATE`, E3 lets the live download's outcome supersede the reclaim's row, E6 publishes the
+  cancel after its row with counters, E4 exits after the pacing sleep. See the v55 section.)*
+  **Reclaim races (pre-existing, documented by v35's third review, not fixed):** beat's reclaim
   `UPDATE` doesn't re-check `state` after its snapshot `SELECT`, so a track that commits
   `COMPLETED` in between is reset to `WAITING` (then dedup-skipped to `skipped_duplicate`) — the
   same "completed track rewritten" outcome (c) closes for redelivery, via another path. A reclaim
@@ -4805,7 +4828,9 @@ independently-found production bug from the same conversation)
   anyway, so its displayed counts update on the next reload. A track reclaimed while its message
   sits in `download_track`'s pacing sleep still downloads afterwards (the post-sleep check only
   looks for `cancelled`), and beat dispatches it again — pacing is off by default (`MAX_SEC=0`).
-- **Found while verifying, not fixed (pre-existing):** spotdl's `file already exists` skip is
+- *(2026-10-26, v55: all three fixed: E8 records the skip as `skipped_duplicate`, E9 clears
+  `last_error` on success, E7 holds no transaction across the download.)*
+  **Found while verifying, not fixed (pre-existing):** spotdl's `file already exists` skip is
   recorded as a `completed direct-ipv4` attempt and counts as one; a completed track keeps its
   last failure in `last_error`, so TrackRow still shows a red "last read" on it; and
   `download_track` reads `track.song_json` right after the `downloading` commit, which opens a
@@ -5683,7 +5708,9 @@ independently-found production bug from the same conversation)
   the runner's Docker credential, shared with another repository's concurrent release (its
   fix, a job-private `DOCKER_CONFIG`, is a separate change); that one did alert.
 - **A real breaker trip never reached the room.** Production tripped on 2026-10-18 at 18:46:47 UTC
-  (5 consecutive `no_output`, then ~460 `held` rows) and released at 19:16:47; `breaker_events`
+  (5 consecutive `no_output`, then ~460 `held` rows; *2026-10-26, v55: one trip holds each track
+  once, so these were most likely ~460 distinct tracks' queued messages, which v55's
+  same-track collapse doesn't shrink*) and released at 19:16:47; `breaker_events`
   has both rows, but the Matrix room has no trip or release message (its earlier trips, 10-12 to
   10-14, all alerted). The code path enqueues after the trip's commit and the send expires after
   300 s on `meta`; why it was lost can't be told: the next deploy (23:18) recreated every
@@ -6399,3 +6426,72 @@ independently-found production bug from the same conversation)
 - **Known limitation:** opus at "best" when YouTube serves no Opus stream (format 18 only, as under
   the old clients) is a libopus re-encode with no bitrate given. The attempt doesn't record which
   source format was used (a `tasks/download.py` change, left out of this patch).
+
+### v55 engine-races gotchas (learned closing the download engine's races, E2–E12)
+
+- **The ownership token.** `download_track` reads, on entry, the state it found (`pending` from
+  expand_job, `queued` from beat, `downloading` on a crash redelivery) and the track's newest
+  `attempt_number`. It owns the track while both still hold: a cancel changes the state, and
+  beat's reclaim always records a row. The `downloading` write is `UPDATE … WHERE state =
+  <entry state> AND NOT EXISTS (a newer row)`; the pacing check, the hold and the dedup
+  resolution check the same under the row lock. The plan's literal `state = 'queued'` would never
+  have matched a new job's first message (`pending`), so the guard is "the entry state", which is
+  `queued` for every beat dispatch. Only `download_track`'s own holds collapse into an existing
+  row, and worker-dl runs one invocation at a time, so a collapse can't hide a reclaim.
+- **E3, the recorded choice: the late outcome supersedes.** The reclaim keeps writing a counted
+  `failed` row (`attempts.RECLAIM_PREFIX`): when the invocation really died, that row is the only
+  record of its network attempt. A still-running invocation's outcome rewrites that row in place
+  (`record_attempt(supersede_reclaim_after=…)`) and moves the counters by the difference. The
+  reclaim's reset and its rows now commit in one transaction: v35 committed the reset first,
+  which let an outcome land in between, find no row, and count twice. The reclaim's `UPDATE`
+  already holds every row lock it needs, so the longer transaction adds no lock wait (no new
+  deadlock); a cancel of a reclaimed track waits until it commits.
+- **Reproducing a reclaim of a live download needs a long one.** A 23-minute track (Echoes)
+  downloaded in 21 s on dev, finishing before any 30 s beat tick saw it stale. A 63-minute one
+  (Sleep, *Dopesmoker*, `1K6A3m061BEzVMZwBy4cjy`) with `STALE_TRACK_AFTER_SECONDS=5` was
+  reclaimed mid-download, re-dispatched, reclaimed again as `queued`, and completed: one
+  `completed` row (the superseded reclaim row), one `held` row, `attempts_made=1,
+  failure_count=0`. Beat's `waiting` events still go out during the download (counters 1/1);
+  the completion's event corrects them.
+- **E7: `now()` is the transaction's start.** The completed row's `updated_at` (an `onupdate`
+  of `func.now()`) recorded the download's *start*, because the post-commit `track.song_json`
+  read opened the transaction the completion later committed. Everything the download needs is
+  now read before the `downloading` commit (the output-settings row too: an expired ORM row is
+  the same trap), and the completion sets `updated_at = finished_at` explicitly, after
+  `record_attempt` (its counter `UPDATE` with `synchronize_session="fetch"` expires the
+  attribute, dropping a value set before it). On dev, `pg_stat_activity` showed worker-dl's
+  sessions only ever `idle` during a real download.
+- **E8: spotdl's skip signal.** `search_and_download` with `overwrite="skip"` (its default)
+  returns the existing file's path exactly as a download does, after only a Spotify reinit.
+  `tracker.notify_download_skip()` is called on that path alone (spotdl 4.5.2,
+  `download/downloader.py`), so `download_one` captures it into `DownloadResult.skipped_existing`.
+  It's recorded like a dedup hit (`skipped_duplicate`, no path, no counter, no breaker or proxy
+  verdict), the ledger gets its row back, and the file is still tag-verified. Reproduced on dev by
+  deleting a downloaded track's ledger row and submitting it again. spotdl's `respect_skip_file`
+  branch (off by default) returns without the signal.
+- **E10, the recorded choice: null `scheduled_at` on the verdict.** "Never touch scheduled_at"
+  meant "never schedule a terminal track"; clearing a leftover keeps that, where teaching every
+  reader to ignore it would leave the API reporting a retry time. Migration `d9b3e5f7a1c2`
+  clears existing ones (a data rewrite of that one column on terminal rows, under the deploy's
+  pg_backup). Reproduced with a real "retry now" (which sets `scheduled_at`) followed by the
+  age-gate verdict.
+- **E11's premise.** While the breaker is tripped, beat dispatches nothing and `_hold` parks a
+  track until the trip ends, so one trip holds each already-queued message once: production's
+  ~460 rows were most likely ~460 tracks. The collapse (consecutive identical holds of one track,
+  `hold_count`) shrinks repeated trips, a manual pause and the unmounted-root hold (every 15 min).
+  The attempts API returns `hold_count`; the timeline still renders a collapsed row as one
+  `held` (no "×N") until the frontend reads it.
+- **E12: where IPv6 is routable.** The dev override and `docker-compose.prod.yml` both give the
+  default network IPv6 (`enable_ipv6`, a ULA subnet), so the probe answers True there and the
+  rung is used as before. The skip applies to a network without IPv6 (or a container with it
+  disabled: a compose `sysctls: net.ipv6.conf.all.disable_ipv6: 1` overlay on worker-dl, under the
+  realdl lock, reproduces it). The skipped rung's row records the path really used (proxy, or
+  forced IPv4 with no proxy up) with a note, not a new `network_path` value. `conftest.py` pins
+  the probe to routable so the suite's rungs don't depend on the machine.
+- **The cancel endpoints are still unconditional (v56's A1).** With the outcome now written
+  under the row lock, a cancel arriving during the post-download window waits for the outcome's
+  commit and then overwrites `completed` with `cancelled`, until v56 makes cancel re-check the
+  state.
+- **graphify's HTML view stops at 5000 nodes.** This slice took the graph past it, and
+  `graphify update .` deletes the tracked `graph.html` instead of updating it. Run it as
+  `GRAPHIFY_VIZ_NODE_LIMIT=10000 graphify update .`.

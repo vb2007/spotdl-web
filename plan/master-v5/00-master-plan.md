@@ -553,3 +553,26 @@ here.
     explicit exception to the "nothing is ever deleted on the library" invariant: replace only a
     ledger-recorded, app-downloaded file (the app's YouTube comment tag), never anything else.
     That slice's plan states it, and the owner approves it there.
+
+- **2026-10-26, v55: what the engine slice did where its plan text and the code differed.**
+  Recorded for the owner to confirm in review; none moves an item to another slice.
+  - **E5's guard is "the state found on entry", not literally `state = 'queued'`.** A message
+    is also sent for a `pending` track (expand_job's first dispatch) and redelivered for a
+    `downloading` one; a literal `queued` guard would never download a new job's first track.
+    For every beat dispatch the guard reads `queued`, as written. With the track's newest
+    attempt number it forms the invocation's claim (E4 reuses it), and review round 1 extended
+    it to the hold and the dedup resolution, the same race class.
+  - **E10's migration also clears existing leftovers.** `d9b3e5f7a1c2` nulls `scheduled_at` on
+    every `lookup_failed` row, a data rewrite the plan didn't name. It's covered by the
+    deploy's pre-migrate `pg_backup` and listed under the PR's Deploy notes.
+  - **E11's collapse doesn't shrink a single trip's rows.** One trip holds each queued track
+    once (beat dispatches nothing while tripped), so the 2026-10-18 trip's ~460 rows were most
+    likely ~460 tracks. The collapse is the plan's (consecutive identical holds of one track);
+    it shrinks repeated trips, a pause and the unmounted-root hold. The attempts API returns
+    `hold_count` (a one-line `serializers.py` addition), but the timeline (frontend, not v55's)
+    still renders a collapsed row as a single `held`, so "held ×N" now needs the frontend to
+    read `hold_count`. Open for the owner: accept, or schedule that frontend follow-up.
+  - **E12 records the skip in the row's note, not in `network_path`.** The row keeps the path
+    really used (proxy, or forced IPv4 with no proxy up), so the column stays truthful and no
+    enum value or migration is needed; the note reads "IPv6 isn't routable from this worker;
+    skipped the direct IPv6 rung".
