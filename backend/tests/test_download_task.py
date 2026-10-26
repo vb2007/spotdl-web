@@ -1930,3 +1930,99 @@ def _attempts_by_number(db_session, track):
         .order_by(TrackAttempt.attempt_number)
         .all()
     )
+
+
+# --- v55 (E12): the IPv6 rung where IPv6 isn't routable -------------------------------------
+
+
+@pytest.mark.parametrize("with_proxy", [True, False])
+@pytest.mark.parametrize("outcome", ["completed", "failed"])
+def test_attempt_two_skips_the_ipv6_rung_when_ipv6_isnt_routable(
+    db_session, monkeypatch, tmp_path, with_proxy, outcome
+):
+    """One failure behind it, so attempt 2: normally the forced-IPv6 rung. With no IPv6
+    route it goes straight to the proxy rung (a proxy if one is up, forced IPv4 otherwise),
+    the row's network_path is the path really used and its note says the rung was skipped.
+    The ladder delay a failure gets is the same as before."""
+    from app.services import network_path
+
+    monkeypatch.setattr(network_path, "ipv6_routable", lambda: False)
+    monkeypatch.setattr(
+        get_settings(), "ladder_seconds", [900, 3600, 14400, 43200, 86400], raising=False
+    )
+    track = _make_track(db_session)
+    track.attempt_count = 1
+    track.state = TrackState.QUEUED
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    _capture_events(monkeypatch)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    if with_proxy:
+        proxy = Proxy(url="http://203.0.113.5:8080", source=ProxySource.MANUAL, enabled=True)
+        db_session.add(proxy)
+        db_session.commit()
+        monkeypatch.setattr(proxies, "pick_proxy", lambda db: proxy)
+    paths = []
+
+    def fake_get_downloader(fmt, bitrate, output_dir, output_template, proxy=None, network_path=None):
+        paths.append((network_path, proxy))
+        return _FakeDownloader()
+
+    output_path = tmp_path / "song-a.mp3"
+    output_path.write_bytes(b"fake audio bytes")
+
+    def fake_download_one(song, downloader):
+        if outcome == "failed":
+            raise AudioProviderError("HTTP Error 429")
+        return downloads.DownloadResult(song, output_path)
+
+    monkeypatch.setattr(downloads, "get_downloader", fake_get_downloader)
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+    before = datetime.now(timezone.utc)
+
+    download_task.download_track(str(track.id))
+
+    expected_path = NetworkPath.PROXY if with_proxy else NetworkPath.DIRECT_IPV4
+    assert paths == [(expected_path, "http://203.0.113.5:8080" if with_proxy else None)]
+    row = _attempts(db_session, track)[-1]
+    assert row.network_path == expected_path
+    assert row.warning_message == download_task.IPV6_RUNG_SKIPPED
+    updated = db_session.get(Track, track.id)
+    if outcome == "failed":
+        # attempt_count 1 -> 2 and the 1h step, exactly what the IPv6 rung's failure got.
+        assert updated.attempt_count == 2
+        assert _aware(updated.scheduled_at) - before >= timedelta(seconds=3600) - timedelta(seconds=1)
+        assert _aware(updated.scheduled_at) - before <= timedelta(seconds=3600) + timedelta(seconds=5)
+    else:
+        assert updated.state == TrackState.COMPLETED
+
+
+def test_attempt_two_still_takes_the_ipv6_rung_when_ipv6_is_routable(db_session, monkeypatch, tmp_path):
+    from app.services import network_path
+
+    monkeypatch.setattr(network_path, "ipv6_routable", lambda: True)
+    track = _make_track(db_session)
+    track.attempt_count = 1
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    _capture_events(monkeypatch)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    picked = []
+    monkeypatch.setattr(proxies, "pick_proxy", lambda db: picked.append(True))
+    paths = []
+    output_path = tmp_path / "song-a.mp3"
+    output_path.write_bytes(b"fake audio bytes")
+    monkeypatch.setattr(
+        downloads,
+        "get_downloader",
+        lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: paths.append(network_path)
+        or _FakeDownloader(),
+    )
+    monkeypatch.setattr(downloads, "download_one", lambda song, downloader: downloads.DownloadResult(song, output_path))
+
+    download_task.download_track(str(track.id))
+
+    assert paths == [NetworkPath.DIRECT_IPV6]
+    assert picked == []
+    row = _attempts(db_session, track)[-1]
+    assert (row.network_path, row.warning_message) == (NetworkPath.DIRECT_IPV6, None)

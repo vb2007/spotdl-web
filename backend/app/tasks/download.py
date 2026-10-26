@@ -26,6 +26,15 @@ from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
+# v55 (E12): the note on an attempt that took the proxy rung early because IPv6 isn't
+# routable here (its network_path shows the proxy, or forced IPv4 with no proxy available).
+IPV6_RUNG_SKIPPED = "IPv6 isn't routable from this worker; skipped the direct IPv6 rung"
+
+
+def _notes(*notes: str | None) -> str | None:
+    """The non-empty notes for one attempt row's warning_message, or None."""
+    return "; ".join(note for note in notes if note) or None
+
 
 def pacing_delay() -> float:
     """Seconds to wait before this track's download attempt -- a uniform sample from
@@ -116,9 +125,10 @@ def _record_mid_download_cancel(
     owner_id: uuid.UUID,
     attempt_started_at: datetime,
     proxy_id: uuid.UUID | None,
-    chosen_path: NetworkPath,
+    chosen_path: NetworkPath | None,
     entry_attempt: int,
     track_meta: dict,
+    rung_note: str | None,
 ) -> None:
     """A cancel landed while the download ran: its network attempt is recorded as
     `cancelled`, then the `cancelled` event goes out. v55 (E6): the event comes after the
@@ -130,6 +140,7 @@ def _record_mid_download_cancel(
         attempt_started_at,
         datetime.now(timezone.utc),
         TrackAttemptOutcome.CANCELLED,
+        warning_message=rung_note if chosen_path is not None else None,
         proxy_id=proxy_id,
         network_path=chosen_path,
         supersede_reclaim_after=entry_attempt,
@@ -326,13 +337,19 @@ def download_track(track_id: str) -> None:
         # harmless since IPv4 is already the only routable family in every environment
         # this has shipped to so far, see docs/GOTCHAS.md's v29 entry). Attempt 2 is
         # direct, forced onto the *other* family. Only attempt 3+ reaches for a proxy.
+        # v55 (E12): where IPv6 isn't routable the forced-IPv6 attempt could only fail, after
+        # a whole ladder wait, so attempt 2 goes straight to the proxy rung instead. The
+        # ladder's delays are untouched; only the path changes, and the row says why.
+        rung_note = None
         if track.attempt_count == 0:
             chosen_path = NetworkPath.DIRECT_IPV4
             proxy = None
-        elif track.attempt_count == 1:
+        elif track.attempt_count == 1 and network_path_svc.ipv6_routable():
             chosen_path = NetworkPath.DIRECT_IPV6
             proxy = None
         else:
+            if track.attempt_count == 1:
+                rung_note = IPV6_RUNG_SKIPPED
             # pick_proxy returns None whenever every proxy is disabled/in cooldown -- a
             # routine state, not an edge case, for a handful of proxies. chosen_path must
             # be derived from what pick_proxy actually returned, not assumed, or a
@@ -463,7 +480,15 @@ def download_track(track_id: str) -> None:
                 if downloaded.skipped_existing:  # see the skip below: nothing went out
                     proxy_id, chosen_path = None, None
                 _record_mid_download_cancel(
-                    db, track, owner_id, attempt_started_at, proxy_id, chosen_path, entry_attempt, track_meta
+                    db,
+                    track,
+                    owner_id,
+                    attempt_started_at,
+                    proxy_id,
+                    chosen_path,
+                    entry_attempt,
+                    track_meta,
+                    rung_note,
                 )
                 return
 
@@ -590,7 +615,7 @@ def download_track(track_id: str) -> None:
                 finished_at,
                 TrackAttemptOutcome.COMPLETED,
                 proxy_id=proxy_id,
-                warning_message=f"tag warning: {tag_warning}" if tag_warning else None,
+                warning_message=_notes(rung_note, f"tag warning: {tag_warning}" if tag_warning else None),
                 network_path=chosen_path,
                 supersede_reclaim_after=entry_attempt,
             )
@@ -640,7 +665,15 @@ def download_track(track_id: str) -> None:
                 )
                 # Same stray-progress-event race as the success path above.
                 _record_mid_download_cancel(
-                    db, track, owner_id, attempt_started_at, proxy_id, chosen_path, entry_attempt, track_meta
+                    db,
+                    track,
+                    owner_id,
+                    attempt_started_at,
+                    proxy_id,
+                    chosen_path,
+                    entry_attempt,
+                    track_meta,
+                    rung_note,
                 )
                 return
             if proxy_id is not None and retry.is_proxy_transport_error(exc, via_proxy=True):
@@ -675,6 +708,7 @@ def download_track(track_id: str) -> None:
                 TrackAttemptOutcome.FAILED,
                 error_type=error_type,
                 error_message=error_message,
+                warning_message=rung_note,
                 proxy_id=proxy_id,
                 network_path=chosen_path,
                 supersede_reclaim_after=entry_attempt,
