@@ -56,6 +56,7 @@ def test_worker_dl_upsert_vs_sweep_move_of_the_same_file(committed_db, tmp_path,
     source = tmp_path / "downloads" / "01 - Daft Punk - One More Time.mp3"
     source.parent.mkdir()
     source.write_bytes(b"one more time")
+    (tmp_path / "library").mkdir()
     setup = committed_db()
     app_settings.update_library_settings(
         setup,

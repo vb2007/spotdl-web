@@ -231,6 +231,13 @@ def is_already_downloaded(spotify_track_id: str) -> Path | None:
             .delete(synchronize_session=False)
         )
         db.commit()
+        if not dropped:
+            # The sweep repointed the row, or worker-dl recorded a fresh download, between the
+            # re-read and the delete: whatever the row says now decides.
+            db.expire_all()
+            row = db.get(DownloadedTrack, spotify_track_id)
+            if row is not None and Path(row.file_path).exists():
+                return Path(row.file_path)
         if dropped:
             logger.info(
                 "dedup: %s's ledger file %s is gone from a mounted root; dropped the row and "

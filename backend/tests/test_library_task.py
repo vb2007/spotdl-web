@@ -54,6 +54,8 @@ def _owner(db_session, email="owner@example.com") -> User:
 
 
 def _configure(db_session, tmp_path, *, quarantine_enabled=True):
+    # v57 (round 2): the sweep refuses a target folder it can't confirm is mounted.
+    (tmp_path / "library").mkdir(exist_ok=True)
     app_settings.update_library_settings(
         db_session,
         library_target_dir=str(tmp_path / "library"),
@@ -1008,10 +1010,50 @@ def test_sort_library_creates_its_targets_sentinel(db_session, tmp_path, monkeyp
     """v57 (review round 1): a new library root the sweep fills is "mounted" at once, not only
     after worker-meta's next boot."""
     _configure(db_session, tmp_path)
-    (tmp_path / "library").mkdir()
     _make_ledger_row(db_session, tmp_path)
     _capture_progress(monkeypatch)
 
     _run(monkeypatch, db_session)
 
     assert (tmp_path / "library" / dedup.SENTINEL_NAME).is_file()
+
+
+def test_sort_library_refuses_a_target_that_looks_unmounted(db_session, tmp_path, monkeypatch):
+    """v57 (review round 2): the library mount didn't attach, so the target is an empty
+    mountpoint while ledger rows point into it. Filing into it would put new files on the wrong
+    filesystem, and the next reconcile would take them as proof the volume is mounted."""
+    _configure(db_session, tmp_path)
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="filed-before",
+            file_path=str(tmp_path / "library" / "A - B - (2001)" / "song.mp3"),
+            format="mp3",
+            bitrate="320k",
+            in_library=True,
+        )
+    )
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    run = library_task._get_run(db_session)
+    assert run.state.value == "idle" and run.total == 0
+    assert run.errors[0]["file"] == "<sweep>"
+    assert run.errors[0]["error"].startswith(f"refused to start: {tmp_path / 'library'} has no .spotdl-volume")
+    assert list((tmp_path / "library").iterdir()) == []
+    db_session.refresh(row)
+    assert row.in_library is False and Path(row.file_path).exists()
+
+
+def test_sort_library_refuses_a_target_folder_that_does_not_exist(db_session, tmp_path, monkeypatch):
+    _configure(db_session, tmp_path)
+    (tmp_path / "library").rmdir()
+    _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert not (tmp_path / "library").exists()
+    assert library_task._get_run(db_session).errors[0]["error"].startswith("refused to start:")

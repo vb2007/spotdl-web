@@ -160,7 +160,10 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
 
     # v57 (L4): the target gets its mount sentinel here too, not only at worker-meta's next boot,
     # so a library root this sweep is about to fill (a moved LIBRARY_DIR) counts as mounted at
-    # once. Same safety rule as reconcile_disk's.
+    # once. Same safety rule as reconcile_disk's. A target that still has none is refused:
+    # filling an unattached mountpoint would put the library's new files on the wrong
+    # filesystem, and the next reconcile would take them as proof the volume is there and give
+    # it a sentinel, which then reads every real library file as deleted.
     if not dedup.sentinel_present(target_dir):
         under_target = [
             Path(path)
@@ -168,7 +171,15 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
             if dedup.root_of(Path(path), [target_dir]) is not None
         ]
         db.commit()
-        dedup.ensure_sentinel(target_dir, under_target, caller="library sweep")
+        if not dedup.ensure_sentinel(target_dir, under_target, caller="library sweep"):
+            _record_error(
+                run,
+                "<sweep>",
+                f"refused to start: {target_dir} has no {dedup.SENTINEL_NAME}, so it isn't known to "
+                "be mounted (create the folder if it's new; worker-expand's log says more)",
+            )
+            _finish(db, run, admin_user_id)
+            return
 
     # v48 (review round 4): a fixed order, so which of two colliding files is filed and which
     # is flagged doesn't depend on how Postgres happens to return the rows -- the earlier

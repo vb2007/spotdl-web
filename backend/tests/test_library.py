@@ -163,7 +163,7 @@ def test_copy_verify_renames_a_partial_copy_off_the_destination_when_the_disk_fi
     assert exc_info.value.errno == errno.ENOSPC
     assert not dest.exists()
     leftovers = list(dest.parent.iterdir())
-    assert len(leftovers) == 1 and leftovers[0].name.startswith("source.mp3.copy-failed-")
+    assert len(leftovers) == 1 and leftovers[0].name.startswith("source.mp3.copy-failed-"), leftovers
     assert leftovers[0].read_bytes() == b"the "  # kept, never deleted
     assert source.read_bytes() == b"the whole real audio"
 
@@ -196,3 +196,43 @@ def test_copy_verify_keeps_a_complete_copy_whose_metadata_copy_failed(tmp_path, 
     assert library.copy_verify(source, dest) is True
     assert dest.read_bytes() == b"the whole real audio"
     assert [p.name for p in dest.parent.iterdir()] == ["source.mp3"]
+
+
+def test_copy_verify_never_leaves_an_unverified_file_at_the_destination(tmp_path, monkeypatch):
+    """v57 (review round 2): a worker killed mid-copy (OOM, a deploy) leaves its partial file at
+    the staging name, never the real one the next sweep's "already exists" check reads."""
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+
+    class _Killed(BaseException):
+        pass
+
+    def _killed_mid_copy(src, dst):
+        Path(dst).write_bytes(b"the wh")
+        raise _Killed
+
+    monkeypatch.setattr(library.shutil, "copy2", _killed_mid_copy)
+
+    with pytest.raises(_Killed):
+        library.copy_verify(source, dest)
+
+    assert not dest.exists()
+    assert [p.name.split("-")[0] for p in dest.parent.iterdir()] == ["source.mp3.copying"]
+
+
+def test_copy_verify_never_overwrites_a_destination_that_appeared_meanwhile(tmp_path, monkeypatch):
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+    real_copy2 = library.shutil.copy2
+
+    def _someone_else_wrote_dest(src, dst):
+        real_copy2(src, dst)
+        dest.write_bytes(b"another file")
+
+    monkeypatch.setattr(library.shutil, "copy2", _someone_else_wrote_dest)
+
+    with pytest.raises(FileExistsError):
+        library.copy_verify(source, dest)
+    assert dest.read_bytes() == b"another file"

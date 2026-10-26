@@ -32,6 +32,7 @@
 	"error_invalid_list_params": "A listakérés érvénytelen ({reason})",
 	"error_library_sort_running": "Már fut egy könyvtárrendezés",
 	"error_library_sort_not_running": "Nem fut könyvtárrendezés.",
+	"error_library_path_not_absolute": "„{field}” teljes elérési út legyen, /-rel kezdődve.",
 	"error_library_paths_overlap": "Ezek a mappák átfedik egymást; a rendezés önmagukra mozgatná a fájlokat.",
 	"error_library_paths_library_downloads_equal": "A könyvtár mappája nem lehet a letöltési mappa.",
 	"error_library_paths_library_downloads_inside": "A könyvtár mappája nem lehet a letöltési mappán belül.",

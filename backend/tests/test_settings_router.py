@@ -238,3 +238,14 @@ def test_update_library_settings_keeps_the_root_it_leaves(admin_client, db_sessi
     row = app_settings.get_library_settings(db_session)
     db_session.refresh(row)
     assert row.library_known_roots == ["/mnt/raid1/media/music", "/srv/new-music"]
+
+
+@pytest.mark.parametrize("patch", [{"library_target_dir": "music"}, {"library_quarantine_dir": "./quarantine"}])
+def test_update_library_settings_refuses_a_relative_directory(admin_client, db_session, patch):
+    """v57 (review round 2): a relative path resolves against each container's own working
+    directory, so the overlap check can't judge it."""
+    response = admin_client.patch("/api/settings/library", json=patch)
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "library_path_not_absolute"
+    assert response.json()["params"] == {"field": next(iter(patch))}

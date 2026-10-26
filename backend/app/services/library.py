@@ -105,28 +105,33 @@ def copy_verify(source: Path, dest: Path) -> bool:
     over it instead of retrying the copy. Renaming (not deleting) keeps the bytes
     available for manual inspection while freeing the real filename for a real retry.
 
-    v57 (L7): a copy that fails outright gets the same treatment. On a full disk `copy2` raises
-    ENOSPC with a truncated file already at `dest` (reproduced on a 2 MiB tmpfs: 2 MiB of an
-    8.6 MB source), before any checksum is taken, so v31's rename never ran and the next sweep
-    adopted the partial file as "already exists". It's renamed off `dest` (a rename needs no free
-    space) and the error is raised on for the sweep to record."""
+    v57 (L7): nothing unverified ever sits at `dest`. The copy goes to a staging name beside it
+    (`<name>.copying-<hex>`) and is renamed onto `dest` only once it verifies. On a full disk
+    `copy2` raised ENOSPC with a truncated file already at `dest` (reproduced on a 2 MiB tmpfs:
+    2 MiB of an 8.6 MB source) before any checksum was taken, and a worker killed mid-copy (an
+    OOM kill, a deploy) left the same; the next sweep then adopted the partial file as "already
+    exists". Now a failed copy is renamed to `<name>.copy-failed-<hex>` (a rename needs no free
+    space) and the error raised on, and a killed one stays at its staging name: neither is ever
+    at the real filename. A copy whose data verified but whose copystat failed (a mount that
+    refuses times or mode) is a good copy. If `dest` appeared meanwhile, the copy is left at its
+    staging name rather than overwrite anything in the library."""
     dest.parent.mkdir(parents=True, exist_ok=True)
-    existed = dest.exists()
+    tag = uuid.uuid4().hex[:8]
+    staging = dest.with_name(f"{dest.name}.copying-{tag}")
     try:
-        shutil.copy2(source, dest)
+        shutil.copy2(source, staging)
     except OSError:
-        if not existed and dest.exists():
-            # The data may all be there and only copystat (times, mode) failed, on a mount that
-            # refuses it: a verified copy is a copy.
-            if files_match(source, dest):
-                return True
-            dest.rename(dest.with_name(f"{dest.name}.copy-failed-{uuid.uuid4().hex[:8]}"))
-        raise
-    if files_match(source, dest):
-        return True
-    corrupt_dest = dest.with_name(f"{dest.name}.verify-failed-{uuid.uuid4().hex[:8]}")
-    dest.rename(corrupt_dest)
-    return False
+        if not (staging.exists() and files_match(source, staging)):
+            if staging.exists():
+                staging.rename(dest.with_name(f"{dest.name}.copy-failed-{tag}"))
+            raise
+    if not files_match(source, staging):
+        staging.rename(dest.with_name(f"{dest.name}.verify-failed-{tag}"))
+        return False
+    if dest.exists():
+        raise FileExistsError(f"{dest} appeared during the copy; the verified copy is left at {staging}")
+    staging.rename(dest)
+    return True
 
 
 def _quarantine_destination(quarantine_dir: Path, source: Path) -> Path:

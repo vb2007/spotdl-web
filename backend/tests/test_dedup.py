@@ -704,3 +704,29 @@ def test_the_file_lock_key_is_the_same_for_one_file_however_it_is_spelled(tmp_pa
     monkeypatch.chdir(tmp_path)
     assert dedup._file_lock_key(tmp_path / "a" / "song.mp3") == dedup._file_lock_key(Path("a/../a/./song.mp3"))
     assert dedup._file_lock_key(tmp_path / "a" / "song.mp3") != dedup._file_lock_key(tmp_path / "b" / "song.mp3")
+
+
+def test_is_already_downloaded_follows_a_repoint_that_lands_before_the_drop(db_session, monkeypatch, tmp_path):
+    """v57 (review round 2): the sweep repoints the row to a file that exists, between the
+    re-read and the guarded delete: that file is the duplicate, not a re-download."""
+    from sqlalchemy import update
+
+    library_dir = _mount(tmp_path / "library")
+    _library_with_row(db_session, monkeypatch, tmp_path, library_dir=library_dir, write_file=False)
+    moved_to = library_dir / "Elsewhere" / "song.mp3"
+    moved_to.parent.mkdir()
+    moved_to.write_bytes(b"audio")
+    real_root_of = dedup.root_of
+
+    def _repoint_lands_here(path, roots):
+        db_session.execute(
+            update(DownloadedTrack)
+            .where(DownloadedTrack.spotify_track_id == "moved-id")
+            .values(file_path=str(moved_to))
+            .execution_options(synchronize_session=False)
+        )
+        return real_root_of(path, roots)
+
+    monkeypatch.setattr(dedup, "root_of", _repoint_lands_here)
+
+    assert dedup.is_already_downloaded("moved-id") == moved_to

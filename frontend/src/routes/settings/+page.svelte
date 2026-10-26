@@ -248,11 +248,12 @@
 			libraryForm = { ...librarySettings };
 			librarySavedAt = new Date();
 		} catch (err) {
-			// v57 (L2): two folders overlap; the sentence goes under the field the server named.
+			// v57 (L2): two folders overlap, or one isn't a full path; the sentence goes under the
+			// field the server named.
 			const field = err instanceof api.ApiError ? err.params.field : undefined;
 			if (
 				err instanceof api.ApiError &&
-				err.code === 'library_paths_overlap' &&
+				(err.code === 'library_paths_overlap' || err.code === 'library_path_not_absolute') &&
 				typeof field === 'string' &&
 				field in libraryForm
 			) {

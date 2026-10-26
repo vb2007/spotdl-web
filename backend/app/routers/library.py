@@ -43,9 +43,15 @@ def _run_to_dict(run: LibrarySortRun) -> dict:
 def check_library_paths(
     *, downloads_dir: str, library_dir: str, quarantine_dir: str
 ) -> None:
-    """v57 (L2): 422 `library_paths_overlap` for the first way the sweep's directories overlap
+    """v57 (L2): 422 `library_path_not_absolute` for a relative library or quarantine dir, then
+    422 `library_paths_overlap` for the first way the sweep's directories overlap
     (library.path_conflicts), naming both settings and how they relate. Shared by the settings
     PATCH and the sweep's start."""
+    # A relative path would resolve against each container's own working directory, so the
+    # overlap check couldn't mean anything for it.
+    for field, value in (("library_target_dir", library_dir), ("library_quarantine_dir", quarantine_dir)):
+        if not Path(value).is_absolute():
+            raise ApiError(422, "library_path_not_absolute", f"{field} must be an absolute path", {"field": field})
     conflicts = library.path_conflicts(Path(downloads_dir), Path(library_dir), Path(quarantine_dir))
     if conflicts:
         conflict = conflicts[0]

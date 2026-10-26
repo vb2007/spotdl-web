@@ -6721,6 +6721,24 @@ independently-found production bug from the same conversation)
   empties it, which is what keeps the v48 47-row accident from recurring. The sweep also creates
   its own target's sentinel under the same rule, so a newly switched library root counts as
   mounted before worker-meta's next boot.
+- **A sweep refuses a target it can't confirm is mounted (review round 2).** If the sweep's
+  `ensure_sentinel` can't establish the target's sentinel (the folder is missing, or ledger rows
+  point into it and none of their files is there: an unattached RAID), it records "refused to
+  start" and moves nothing. Filing into an unattached mountpoint would have put the new files on
+  the wrong filesystem, and the next reconcile would have read them as proof the volume is there,
+  created the sentinel, and pruned every real library row. A new library folder has to exist
+  before its first sweep.
+- **The sentinel rule's one gap, accepted:** a root with *no* ledger rows gets its sentinel even
+  if it's an unattached mountpoint (an empty fresh volume looks the same). If the real volume
+  later mounts over it and a later mount fails again, the hidden sentinel shows through. Needs
+  two mount failures on a root the ledger didn't use at the first; requiring content instead
+  would leave every fresh root without one.
+- **`copy_verify` stages its copy (review round 2).** It copies to `<name>.copying-<hex>`, verifies,
+  then renames onto the destination, and never over an existing file: a worker killed mid-copy
+  leaves only the staging name, which no "already exists" check reads.
+- **Library and quarantine dirs must be absolute** (422 `library_path_not_absolute`): a relative
+  path resolves against each container's own working directory, so the overlap check can't
+  judge it.
 - **A not-yet-filed row already inside the library is filed where it is.** At its own computed
   destination, or anywhere in a known library root: the sweep reports it once and sets
   `in_library`, with nothing on disk touched. Skipping without marking re-reported it (and sent a
