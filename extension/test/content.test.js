@@ -637,6 +637,30 @@ describe('submitting and the cascade menu', () => {
 			assert.deepEqual(messages, []);
 		});
 
+		it('a glyph swapped during the press (a state change) doesn’t lose the click', async () => {
+			const { window, document, messages } = loadPage('album', { requirePress: true });
+			const button = icons(document, 'row')[0];
+			const glyph = button.querySelector('path');
+			glyph.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+			glyph.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0 }));
+			button.replaceChildren(button.firstChild.cloneNode(true)); // what setState does
+			button.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+			await settle(window, 20);
+			assert.equal(messages.length, 1);
+		});
+
+		it('a screen reader’s press after a dragged-off press on an open menu’s opener still queues', async () => {
+			const { window, document, messages } = loadPage('album', { requirePress: true });
+			const button = icons(document, 'row')[0];
+			button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+			button.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+			button.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0 }));
+			key(window, document.activeElement, { key: 'Escape' });
+			atPress(window, button);
+			await settle(window, 20);
+			assert.equal(messages.length, 1);
+		});
+
 		it('a screen reader’s press (mouse events, no pointer event) works on the icon and on a menu entry', async () => {
 			const { window, document, messages } = loadPage('album', { requirePress: true });
 			const button = icons(document, 'row')[0];

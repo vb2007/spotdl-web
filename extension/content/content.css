@@ -30,6 +30,7 @@
 }
 
 .spotdl-ext-btn svg {
+	pointer-events: none;
 	inline-size: 16px;
 	block-size: 16px;
 	fill: none;

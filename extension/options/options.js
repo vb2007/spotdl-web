@@ -17,6 +17,7 @@ function setStatus(el, text, tone) {
 // one landing late (a blackholed address timing out) would overwrite a newer result.
 let testRun = 0;
 let keyRun = 0;
+let originRun = 0;
 
 async function test() {
 	const run = ++testRun;
@@ -65,8 +66,10 @@ function saveOrigin(origin) {
 	// (an already granted origin answers at once, with no prompt).
 	const had = browser.permissions.contains({ origins: [pattern] });
 	const asked = browser.permissions.request({ origins: [pattern] });
+	const run = ++originRun;
 	return Promise.all([had, asked])
 		.then(async ([hadAccess, granted]) => {
+			if (run !== originRun) return;
 			if (!granted) {
 				setStatus($('app-status'), t('optionsAppDenied', [origin]), 'error');
 				$('app-grant').hidden = true;
@@ -77,6 +80,14 @@ function saveOrigin(origin) {
 			const result = await browser.runtime
 				.sendMessage({ type: 'me', origin })
 				.catch(() => ({ outcome: 'error', code: 'extension_error' }));
+			// A newer save came in while this address was checked: it decides, not this one
+			// (whose access goes, unless the newer address or the default needs the same host).
+			if (run !== originRun) {
+				const saved = normalizeOrigin($('app-origin').dataset.saved ?? '');
+				const keep = [saved, previous, DEFAULT_ORIGIN].some((o) => o && originPattern(o) === pattern);
+				if (!hadAccess && !keep) await browser.permissions.remove({ origins: [pattern] }).catch(() => {});
+				return;
+			}
 			if (result.outcome !== 'signed_in' && !FROM_AN_APP.has(result.code)) {
 				setStatus($('app-status'), t('optionsAppNotSaved', [connectionText(result)]), 'error');
 				// The access just granted for an address that isn't kept goes again.

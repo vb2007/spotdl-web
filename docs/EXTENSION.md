@@ -28,7 +28,7 @@ Open the extension's settings (the toolbar popup's *settings*, or `about:addons`
 | Setting | What it does |
 |---|---|
 | **App address** | Where your spotdl-web runs. Default `https://spotdl.vb2007.hu`. Any `https://` address works; plain `http://` only on `localhost`/`127.0.0.1` (a dev or agent stack). Saving another address asks Firefox for access to that host (the default's is declared up front). The address is checked with `GET /api/auth/me` first, and saved only if it answers like a spotdl app (signed in or not). |
-| **API key** (optional) | A key from the app's `/account` page (*Browser extension keys*). Checked on its own (no cookie) before it's kept. Kept in `storage.local` only, never synced, and tied to the app address it was saved for: it's never sent anywhere else, and saving another address removes it. |
+| **API key** (optional) | A key from the app's `/account` page (*Browser extension keys*). Checked on its own (no cookie) against the *saved* app address before it's kept, so save the address first. Kept in `storage.local` only, never synced, and tied to the app address it was saved for: it's never sent anywhere else, and saving another address removes it. |
 | **Connection** | *test connection* says who you're signed in as, and whether through your browser sign-in or the key. |
 | **open.spotify.com** | Whether the extension may add its icons there, with a button to allow it. |
 

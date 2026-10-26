@@ -90,8 +90,14 @@ globalThis.spotdlInject = (() => {
 
 	function onAnyPress(event) {
 		if (!trusted(event) || event.button !== 0) return;
-		if (event.type === 'mousedown' && lastPress && lastPress.target === event.target) return; // the same press
-		lastPress = { target: event.target, menuOwner: menu ? menu.button : null };
+		// The icon or entry pressed, not the glyph node under the pointer: a state change
+		// replaces the glyph mid-press, and a detached node is inside nothing.
+		const raw = event.target;
+		const target = (raw instanceof win.Element && raw.closest(`[${ICON_ATTR}], .spotdl-ext-menu-item`)) || raw;
+		const menuOwner = menu ? menu.button : null;
+		// pointerdown then mousedown of one press: the same press, unless the menu changed.
+		if (event.type === 'mousedown' && lastPress && lastPress.target === target && lastPress.menuOwner === menuOwner) return;
+		lastPress = { target, menuOwner };
 	}
 
 	// Takes the last press if it landed inside `el`, and clears it either way.
@@ -533,6 +539,8 @@ globalThis.spotdlInject = (() => {
 		if (!menu) return;
 		const { el, button } = menu;
 		menu = null;
+		// A press recorded while it was open no longer means "dismiss".
+		if (lastPress && lastPress.menuOwner === button) lastPress = { ...lastPress, menuOwner: null };
 		// Only while open: the button's own activation queues, it doesn't open a menu.
 		button.removeAttribute('aria-haspopup');
 		button.removeAttribute('aria-expanded');
