@@ -535,3 +535,21 @@ here.
   `downloads.NotYetReleasedError` (a `LookupError`, beside the age-gate and unavailable-video
   ones) covers it, with no schema or UI change. `5.54.1` sits between v54 and v55, so wave 2 keeps
   its planned `5.NN.0` versions.
+
+- **2026-10-26, v54.2: real source quality, released as `5.54.2` (owner's request).** The owner
+  found every download was a "320k" MP3. No YouTube stream is above ~130–160k without Premium, so
+  those were re-encodes ~2.5× the size, with a false bitrate. Since late September they also came
+  from a 360p video's ~96k AAC (format 18): v31.1's forced player clients had lost every
+  audio-only stream. Owner decisions:
+  - **Output:** Opus at a new default quality "best" (YouTube's stream kept as is, no re-encode).
+    The settings dropdowns offer only what the source can back: opus|m4a|mp3, and best|160k|128k|
+    96k|64k. A data migration moves the stored mp3/320k to opus/best.
+  - **Source:** `YOUTUBE_PLAYER_CLIENTS` defaults to yt-dlp's own `default`.
+  - **Slot 5:** `agent_stack.sh` gains it for out-of-wave patch slices, so one can be verified
+    while a wave holds 1–4. Wave agents keep 1–4.
+  - **Existing library files** (production: 2,303, 24.7 GB, all from the ~96–128k AAC source)
+    can't be converted back. Re-downloading them as Opus is a **separate "library upgrade" slice
+    after wave 2** (it touches v55's `tasks/download.py` and v57's library code). It needs an
+    explicit exception to the "nothing is ever deleted on the library" invariant: replace only a
+    ledger-recorded, app-downloaded file (the app's YouTube comment tag), never anything else.
+    That slice's plan states it, and the owner approves it there.

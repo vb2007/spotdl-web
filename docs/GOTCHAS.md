@@ -308,7 +308,9 @@ needed" claim — rather than silently deleted.
   `get_downloader`), independent of family/proxy forcing. The client list is a configurable
   setting (`YOUTUBE_PLAYER_CLIENTS`, default `android,web,mweb`), not hardcoded — this is exactly
   the kind of yt-dlp/YouTube arms-race surface that will need retuning again without a redeploy,
-  same reasoning `LADDER_SECONDS`/`PACING_*_SEC` already get → *v31.1*
+  same reasoning `LADDER_SECONDS`/`PACING_*_SEC` already get → *v31.1*. *(2026-10-26: the forced
+  list later lost every audio-only stream to YouTube's SABR-only experiment, so the default is now
+  yt-dlp's own `default`. See v54.2.)*
 - spotdl's `search_and_download` swallows **every** exception and returns a `None` path, so a
   search with no match, an age-gated video and a real 403 all used to look like the same retryable
   `no_output` (and all fed the breaker). `download_one` now captures the swallowed exception from
@@ -341,6 +343,12 @@ needed" claim — rather than silently deleted.
 - A matched video that is still an upcoming premiere or live event ("Premieres in 102 days") is
   `NotYetReleasedError`, terminal `lookup_failed` by the owner's call; before, it looped the
   ladder as a breaker-feeding `no_output` → *v54.1*
+- No YouTube stream is above ~130–160k without Premium, and spotdl re-encodes to whatever
+  `--bitrate` it's given: a "320k" MP3 is ~2.5× the size with a false bitrate. Offered now: opus|
+  m4a|mp3 at `best` (opus/m4a untouched) or a re-encode target ≤160k → *v54.2*
+- A forced `player_client` list can silently lose every audio-only stream (SABR), and
+  `bestaudio/best` then picks format 18, a 360p video with ~96k AAC. It shows only in the files: 44.1
+  kHz and nothing above ~16 kHz, where Opus is 48 kHz → *v54.2*
 
 **Celery, tasks & durability**
 - A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
@@ -6356,3 +6364,38 @@ independently-found production bug from the same conversation)
   the release date: a premiere can be months out and YouTube's reason is the same whatever the
   horizon. "Premiere will begin shortly" is terminal too; "retry now" brings any of them back once
   the video has aired. The reason stays in the attempt history ("Not released yet on YouTube: …").
+
+### v54.2 best-quality gotchas (learned checking whether "320k" downloads were really 320k)
+
+- **There is no 320k source.** Without Premium, YouTube and YouTube Music serve Opus 251 (~130–160k
+  VBR, 48 kHz) and AAC 140 (~130k, 44.1 kHz) at most. spotdl downloads that, then runs ffmpeg at the
+  configured `--bitrate` (`spotdl/download/downloader.py` ~741–772, `utils/ffmpeg.py` ~297), so
+  `mp3`/`320k` made every file ~2.5× the size, added a lossy generation, and told Plex a false
+  bitrate. Production: 2,303 files, 24.7 GB.
+- **"best" means no re-encode, and that's only possible for opus and m4a.** spotdl's own `disable`
+  moves an `.m4a` source into place as is and remuxes an Opus `.webm` with `-c:a copy` (only when no
+  `ffmpeg_args` are set). Verified bit-exact: the app's `.opus` and a raw `yt-dlp -f 251` download of
+  the same video have the same audio-packet MD5 (`ffmpeg -i X -map 0:a -c copy -f md5 -`). mp3 is
+  always a re-encode, so its "best" is spotdl's `auto` (the source's `abr`, else 128k). The UI says
+  which (`services/output_options.py`, the settings Quality select).
+- **The source itself had regressed to ~96k, and nothing errored.** From late September, v31.1's
+  forced `android,web,mweb` clients got no audio-only formats at all ("Some … formats have been
+  skipped as they are missing a URL. YouTube may have enabled the SABR-only streaming experiment"),
+  with or without Deno. `bestaudio/best` then quietly picked **format 18, a 360p video**, whose ~96k
+  AAC got re-encoded to "320k". yt-dlp's own `default` set (`tv_samsung, visionos, web` in 2026.10)
+  still got 251/140 from the same IP. **How to tell from files:** the sample rate (48 kHz is the
+  Opus stream; 44.1 kHz is AAC 140 or format 18) and the spectrum (a 4× `highpass=f=16500` plus
+  `volumedetect` read -55 to -91 dB on 92 sampled production files, -91 dB on a format-18 one, and -45 to -59 dB on the new Opus files). Production's
+  library was 2,293 of 2,303 at 44.1 kHz. The dev `downloads/` dates show the switch: 48 kHz until
+  2026-08-16, 44.1 kHz from 2026-09-28.
+- **A bare `yt-dlp` on the host isn't the app's yt-dlp.** The worker images float yt-dlp to latest
+  and wire spotdl's Deno (`--js-runtimes deno:/home/spotdl/.config/spotdl/deno` reproduces it). A
+  host CLI without a JS runtime hung, and the dev worker's older yt-dlp listed different formats
+  than a freshly built slot image. Probe formats inside a current worker container.
+- **A stale `DEFAULT_FORMAT`/`DEFAULT_BITRATE` in `.env` isn't a boot error.** They only seed a
+  fresh `app_settings` row, so a value the app no longer offers seeds `opus`/`best` instead
+  (`services/app_settings.py`), and the migration `a7c4e1b9d2f5` rewrites an existing row on such a
+  pair. Production's `.env` still sets both, which is harmless.
+- **Known limitation:** opus at "best" when YouTube serves no Opus stream (format 18 only, as under
+  the old clients) is a libopus re-encode with no bitrate given. The attempt doesn't record which
+  source format was used (a `tasks/download.py` change, left out of this patch).
