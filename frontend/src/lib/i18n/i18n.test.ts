@@ -305,8 +305,10 @@ describe('every error code', () => {
 
 	it('says a due retry_cooldown without a zero countdown (v56)', () => {
 		const due = new ApiError(429, 'the English detail', 'retry_cooldown', { retry_after: 0 });
-		expect(apiErrorText(due)).toBe('Already retried once at this step. It goes on the next pass.');
+		expect(apiErrorText(due)).toBe(
+			'“retry now” works once per wait. This track goes on the next pass.'
+		);
 		const later = new ApiError(429, 'the English detail', 'retry_cooldown', { retry_after: 3725 });
-		expect(apiErrorText(later)).toBe('Already retried once at this step. Next try in 1:02:05.');
+		expect(apiErrorText(later)).toBe('“retry now” works once per wait. Next try in 1:02:05.');
 	});
 });

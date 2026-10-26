@@ -249,7 +249,7 @@ def retry_track(
             raise ApiError(
                 429,
                 "retry_cooldown",
-                f"Already retried once at this step; it is tried again in {retry_after}s",
+                f"Retry now works once per wait; the next try is in {retry_after}s",
                 {"retry_after": retry_after},
                 headers={"Retry-After": str(retry_after)},
             )
