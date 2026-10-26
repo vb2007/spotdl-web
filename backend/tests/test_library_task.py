@@ -987,7 +987,7 @@ def test_sort_library_never_adopts_a_partial_copy_left_by_a_full_disk(db_session
     assert Path(row.file_path).read_bytes() == b"the real audio bytes"
     assert not dest.exists()
     assert not (tmp_path / "quarantine").exists()
-    assert len(list(dest.parent.glob("track1.mp3.copy-failed-*"))) == 2
+    assert len(list(dest.parent.glob(".spotdl-copy-failed-*"))) == 2
     run = library_task._get_run(db_session)
     assert run.quarantined == 0 and run.errors[0]["error"].startswith("[Errno 28]")
 
@@ -1085,3 +1085,20 @@ def test_sort_library_refuses_a_library_dir_outside_the_mount(db_session, tmp_pa
     ]
     db_session.refresh(row)
     assert row.in_library is False and Path(row.file_path).exists()
+
+
+def test_sort_library_fills_a_new_folder_inside_a_mounted_root(db_session, tmp_path, monkeypatch):
+    """Review round 4: a library dir switched to a folder inside the mount (the owner's rule for
+    L6) is covered by the mount point's sentinel; the sweep creates the folder."""
+    _configure(db_session, tmp_path)
+    (tmp_path / "library" / dedup.SENTINEL_NAME).write_text("sentinel")
+    app_settings.update_library_settings(db_session, library_target_dir=str(tmp_path / "library" / "sorted"))
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    db_session.refresh(row)
+    assert row.file_path == str(tmp_path / "library" / "sorted" / "Daft Punk - Discovery - (2001)" / "track1.mp3")
+    assert library_task._get_run(db_session).moved == 1

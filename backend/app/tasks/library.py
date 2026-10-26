@@ -154,9 +154,10 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     )
     refusals = [f"refused to start: {describe_conflict(conflict)}" for conflict in conflicts]
     # Owner decision (2026-10-26): only the library volume's mount point, or a folder inside it.
+    # After the overlap checks, in the same order as the API's.
     if library.outside_library_mount(target_dir):
-        refusals.insert(
-            0, f"refused to start: library_target_dir is outside the library mount {library.library_mount()}"
+        refusals.append(
+            f"refused to start: library_target_dir is outside the library mount {library.library_mount()}"
         )
     if refusals:
         for message in refusals:
@@ -164,13 +165,13 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
         _finish(db, run, admin_user_id)
         return
 
-    # v57 (L4): the target gets its mount sentinel here too, not only at worker-meta's next boot,
-    # so a library root this sweep is about to fill (a moved LIBRARY_DIR) counts as mounted at
-    # once. Same safety rule as reconcile_disk's. A target that still has none is refused:
-    # filling an unattached mountpoint would put the library's new files on the wrong
-    # filesystem, and the next reconcile would take them as proof the volume is there and give
-    # it a sentinel, which then reads every real library file as deleted.
-    if not dedup.sentinel_present(target_dir):
+    # v57 (L4): the target must be known to be mounted: its own sentinel, or one of an
+    # enclosing known root (the mount point, for a folder inside it, which is created as needed).
+    # Otherwise it gets one here under reconcile_disk's rule, or the sweep is refused: filling an
+    # unattached mountpoint whose ledger files are all missing would put new files on the wrong
+    # filesystem, and the next reconcile would take them as proof the volume is there. (A target
+    # no ledger row points into at all still gets a sentinel: the documented gap.)
+    if not dedup.covered(target_dir, dedup.known_library_roots(settings_row)):
         under_target = [
             Path(path)
             for (path,) in db.query(DownloadedTrack.file_path).all()

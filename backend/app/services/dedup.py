@@ -84,6 +84,14 @@ def sentinel_present(root: Path) -> bool:
     return (root / SENTINEL_NAME).is_file()
 
 
+def covered(path: Path, roots: Sequence[Path]) -> bool:
+    """Whether `path` lies under a managed root whose sentinel is there (v57, review round 4).
+    Any enclosing root counts, not only the most specific: under the owner's mount rule every
+    library root but the mount point itself is a folder inside it, so the mount point's sentinel
+    proves the volume for all of them, a subfolder removed by hand included."""
+    return any(sentinel_present(root) for root in roots if path.is_relative_to(root))
+
+
 def ensure_sentinel(root: Path, ledger_paths: Sequence[Path], *, caller: str = "reconcile_disk") -> bool:
     """Whether `root` is mounted, creating its sentinel when that's safe to decide (v57, L4):
     `ledger_paths` are the ledger's files under this root. A root with no sentinel gets one only
@@ -170,6 +178,12 @@ def record_download(
     lock_file_in(db, file_path)
     if not file_path.exists():
         raise LedgerFileMoved(f"{file_path} was moved by the library sweep before it was recorded")
+    # A file worker-dl just wrote proves its downloads root is mounted (review round 4): a root
+    # whose ledger rows were all stale at worker-meta's boot gets its sentinel here, at the next
+    # real download, instead of waiting for someone to create it by hand.
+    downloads = Path(get_settings().download_output_dir)
+    if file_path.is_relative_to(downloads) and not sentinel_present(downloads):
+        ensure_sentinel(downloads, [file_path], caller="worker-dl")
     db.merge(
         DownloadedTrack(
             spotify_track_id=spotify_track_id,
@@ -216,9 +230,10 @@ def is_already_downloaded(spotify_track_id: str) -> Path | None:
         path = Path(row.file_path)
         if path.exists():
             return path
-        root = root_of(path, managed_roots(db))
+        roots = managed_roots(db)
+        root = root_of(path, roots)
         db.commit()
-        if root is not None and not sentinel_present(root):
+        if root is not None and not covered(path, roots):
             raise LedgerRootUnavailable(root, path)
         # Only while the row still points where it was read: the sweep may have repointed it,
         # or worker-dl recorded a fresh download, since.
@@ -274,7 +289,11 @@ def reconcile_disk() -> None:
             root = root_of(Path(row.file_path), roots)
             if root is not None:
                 under[root].append(Path(row.file_path))
-        mounted = {root: ensure_sentinel(root, paths) for root, paths in under.items()}
+        # Outermost first: a root inside a mounted one is covered by its sentinel (covered()).
+        mounted: dict[Path, bool] = {}
+        for root in sorted(under, key=lambda r: len(r.parts)):
+            enclosing = [r for r in mounted if root.is_relative_to(r)]
+            mounted[root] = any(mounted[r] for r in enclosing) or ensure_sentinel(root, under[root])
 
         def unmounted_root(path: Path) -> Path | None:
             root = root_of(path, roots)

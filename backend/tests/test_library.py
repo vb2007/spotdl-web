@@ -99,7 +99,7 @@ def test_copy_verify_failure_leaves_both_files_in_place(tmp_path, monkeypatch):
     assert not dest.exists()
     siblings = list(dest.parent.iterdir())
     assert len(siblings) == 1
-    assert siblings[0].name.startswith(f"{dest.name}.verify-failed-")
+    assert siblings[0].name.startswith(".spotdl-verify-failed-")
     assert siblings[0].read_bytes() == b"the audio bytes"
     assert source.exists()
 
@@ -163,7 +163,7 @@ def test_copy_verify_renames_a_partial_copy_off_the_destination_when_the_disk_fi
     assert exc_info.value.errno == errno.ENOSPC
     assert not dest.exists()
     leftovers = list(dest.parent.iterdir())
-    assert len(leftovers) == 1 and leftovers[0].name.startswith("source.mp3.copy-failed-"), leftovers
+    assert len(leftovers) == 1 and leftovers[0].name.startswith(".spotdl-copy-failed-"), leftovers
     assert leftovers[0].read_bytes() == b"the "  # kept, never deleted
     assert source.read_bytes() == b"the whole real audio"
 
@@ -218,7 +218,7 @@ def test_copy_verify_never_leaves_an_unverified_file_at_the_destination(tmp_path
         library.copy_verify(source, dest)
 
     assert not dest.exists()
-    assert [p.name.split("-")[0] for p in dest.parent.iterdir()] == ["source.mp3.copying"]
+    assert [p.name[: len(".spotdl-copying-")] for p in dest.parent.iterdir()] == [".spotdl-copying-"]
 
 
 def test_copy_verify_never_overwrites_a_destination_that_appeared_meanwhile(tmp_path, monkeypatch):
@@ -255,7 +255,7 @@ def test_copy_verify_places_the_copy_without_replacing_a_file_created_at_the_las
     with pytest.raises(FileExistsError):
         library.copy_verify(source, dest)
     assert dest.read_bytes() == b"another file"
-    assert any(p.name.startswith("source.mp3.copying-") for p in dest.parent.iterdir())
+    assert any(p.name.startswith(".spotdl-copying-") for p in dest.parent.iterdir())
 
 
 def test_copy_verify_leaves_only_the_destination_name(tmp_path):
@@ -266,3 +266,14 @@ def test_copy_verify_leaves_only_the_destination_name(tmp_path):
     assert library.copy_verify(source, dest) is True
     assert [p.name for p in dest.parent.iterdir()] == ["source.mp3"]
     assert dest.read_bytes() == b"the whole real audio"
+
+
+def test_copy_verify_copes_with_a_filename_at_the_length_limit(tmp_path):
+    """Review round 4: the staging name doesn't grow with the destination's, so a 255-byte
+    filename (the ext4 limit) still copies."""
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"audio")
+    dest = tmp_path / "library" / ("x" * 251 + ".mp3")
+
+    assert library.copy_verify(source, dest) is True
+    assert dest.read_bytes() == b"audio"

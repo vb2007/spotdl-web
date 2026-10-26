@@ -6733,7 +6733,8 @@ independently-found production bug from the same conversation)
   later mounts over it and a later mount fails again, the hidden sentinel shows through. Needs
   two mount failures on a root the ledger didn't use at the first; requiring content instead
   would leave every fresh root without one.
-- **`copy_verify` stages its copy (review round 2).** It copies to `<name>.copying-<hex>`, verifies,
+- **`copy_verify` stages its copy (review round 2).** It copies to `.spotdl-copying-<hex>` (round 4: a
+  fixed short name; `<name>.copying-<hex>` could pass the 255-byte limit on a long filename), verifies,
   then renames onto the destination, and never over an existing file: a worker killed mid-copy
   leaves only the staging name, which no "already exists" check reads.
 - **The library dir must be `/mnt/raid1/media/music` or a folder inside it (owner decision,
@@ -6741,6 +6742,15 @@ independently-found production bug from the same conversation)
   serves; anywhere else is the saving container's own writable layer. A 422 on save
   (`library_dir_outside_mount`), and a "refused to start" from the sweep for a value saved before.
   The overlap checks run first, so each of L2's cases keeps its own message.
+- **An enclosing mounted root covers a folder root inside it (review round 4).** Under the mount
+  rule every library root but the mount point is a folder inside it, so `dedup.covered()` takes
+  any enclosing root's sentinel: a folder root removed by hand is "gone from a mounted volume"
+  (dropped, pruned), not held forever, and the sweep creates a new target folder itself.
+- **worker-dl's ledger upsert creates the downloads root's sentinel when it's missing (review
+  round 4):** a file it just wrote proves the mount. Without it, a `/downloads` whose rows were all
+  stale at 5.57.0's first boot would have stayed unconfirmed (and its stale tracks held) until
+  someone created the file by hand; before v57 production's `quarantine/` folder kept `/downloads`
+  "non-empty", so this would have been a regression.
 - **The quarantine dir is checked only while quarantine is on**, so an old, overlapping value
   that isn't used doesn't block every save; switching quarantine on checks it.
 - **`copy_verify` places its copy with a hard link**, which fails on an existing name where a
@@ -6781,7 +6791,7 @@ independently-found production bug from the same conversation)
   raised ENOSPC with 2 MiB of an 8.6 MB file already at the destination's exact name; the
   checksum rename never ran, and the next sweep would have read the partial file as "already
   exists" and quarantined (or deleted) the good source. A failed copy is now renamed off to
-  `<name>.copy-failed-<hex>` (a rename needs no free space) and the error re-raised.
+  `.spotdl-copy-failed-<hex>` (a rename needs no free space) and the error re-raised.
 - **Known library roots only grow (L6).** Changing `library_target_dir` keeps the old value in
   `app_settings.library_known_roots`; dedup, reconcile, the sweep's "never move a library file"
   check and file serving all cover every known root. File serving still goes through nginx's

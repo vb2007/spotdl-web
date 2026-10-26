@@ -730,3 +730,41 @@ def test_is_already_downloaded_follows_a_repoint_that_lands_before_the_drop(db_s
     monkeypatch.setattr(dedup, "root_of", _repoint_lands_here)
 
     assert dedup.is_already_downloaded("moved-id") == moved_to
+
+
+def test_record_download_gives_the_downloads_root_its_sentinel(db_session, tmp_path, monkeypatch):
+    """Review round 4: a root whose rows were all stale at worker-meta's boot got no sentinel;
+    the first real download proves the mount."""
+    downloads = tmp_path / "downloads"
+    downloads.mkdir()
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads)))
+    file_path = downloads / "song.mp3"
+    file_path.write_bytes(b"audio")
+
+    dedup.record_download(db_session, "abc123", file_path, format="mp3", bitrate="320k")
+
+    assert (downloads / dedup.SENTINEL_NAME).is_file()
+
+
+def test_a_folder_root_inside_a_mounted_root_counts_as_mounted(db_session, monkeypatch, tmp_path):
+    """Review round 4: every non-default library root is a folder inside the mount. One removed
+    by hand is gone from a mounted volume, so its rows drop and reconcile prunes them, rather
+    than holding the tracks forever."""
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads = _mount(tmp_path / "downloads")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads)))
+    mount = _mount(tmp_path / "music")
+    sorted_root = mount / "sorted"  # removed by hand: no folder, no sentinel of its own
+    _set_library(db_session, mount, earlier=[sorted_root])
+    db_session.add_all(
+        [
+            DownloadedTrack(spotify_track_id="a", file_path=str(sorted_root / "A" / "a.mp3"), format="mp3", bitrate="320k", in_library=True),
+            DownloadedTrack(spotify_track_id="b", file_path=str(sorted_root / "B" / "b.mp3"), format="mp3", bitrate="320k", in_library=True),
+        ]
+    )
+    db_session.commit()
+
+    assert dedup.is_already_downloaded("a") is None
+    assert db_session.get(DownloadedTrack, "a") is None
+    dedup.reconcile_disk()
+    assert db_session.get(DownloadedTrack, "b") is None

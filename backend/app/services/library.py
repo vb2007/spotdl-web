@@ -107,27 +107,29 @@ def copy_verify(source: Path, dest: Path) -> bool:
     available for manual inspection while freeing the real filename for a real retry.
 
     v57 (L7): nothing unverified ever sits at `dest`. The copy goes to a staging name beside it
-    (`<name>.copying-<hex>`) and is renamed onto `dest` only once it verifies. On a full disk
+    (`.spotdl-copying-<hex>`) and is placed at `dest` only once it verifies. On a full disk
     `copy2` raised ENOSPC with a truncated file already at `dest` (reproduced on a 2 MiB tmpfs:
     2 MiB of an 8.6 MB source) before any checksum was taken, and a worker killed mid-copy (an
     OOM kill, a deploy) left the same; the next sweep then adopted the partial file as "already
-    exists". Now a failed copy is renamed to `<name>.copy-failed-<hex>` (a rename needs no free
+    exists". Now a failed copy is renamed to `.spotdl-copy-failed-<hex>` (a rename needs no free
     space) and the error raised on, and a killed one stays at its staging name: neither is ever
-    at the real filename. A copy whose data verified but whose copystat failed (a mount that
+    at the real filename (review round 4: no longer `<name>.…`, which a long name can't take). A copy whose data verified but whose copystat failed (a mount that
     refuses times or mode) is a good copy. If `dest` appeared meanwhile, the copy is left at its
     staging name rather than overwrite anything in the library."""
     dest.parent.mkdir(parents=True, exist_ok=True)
+    # Short, fixed names (review round 4): a suffix on a long filename could pass the 255-byte
+    # limit and fail every copy of that file. Hidden, so a media scanner skips them.
     tag = uuid.uuid4().hex[:8]
-    staging = dest.with_name(f"{dest.name}.copying-{tag}")
+    staging = dest.with_name(f".spotdl-copying-{tag}")
     try:
         shutil.copy2(source, staging)
     except OSError:
         if not (staging.exists() and files_match(source, staging)):
             if staging.exists():
-                staging.rename(dest.with_name(f"{dest.name}.copy-failed-{tag}"))
+                staging.rename(dest.with_name(f".spotdl-copy-failed-{tag}"))
             raise
     if not files_match(source, staging):
-        staging.rename(dest.with_name(f"{dest.name}.verify-failed-{tag}"))
+        staging.rename(dest.with_name(f".spotdl-verify-failed-{tag}"))
         return False
     _place(staging, dest)
     return True
