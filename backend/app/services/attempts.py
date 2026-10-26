@@ -138,8 +138,9 @@ def record_attempt(
     reclaim and keep latest_attempt_number a working ownership token."""
     # v56 (A4): the proxy may have been deleted while this attempt ran (its FK is now ON
     # DELETE SET NULL): the row then names no proxy rather than failing the whole commit
-    # (and with it a completed download's ledger row).
-    # FOR KEY SHARE: a delete waits for this commit (then nulls the new row's proxy_id).
+    # (and with it a completed download's ledger row). FOR KEY SHARE: a delete waits for this
+    # commit (then nulls the new row's proxy_id). Taken before the track's row lock below: a
+    # delete locks the proxy, then its cascade the track, so the same order here can't deadlock.
     proxy = (
         db.get(Proxy, proxy_id, with_for_update={"key_share": True}) if proxy_id is not None else None
     )
