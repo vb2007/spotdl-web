@@ -6590,8 +6590,8 @@ independently-found production bug from the same conversation)
   `TrackRow`'s next-try countdown and the dashboard's own hold line still compare
   `breaker_tripped_until` with `Date.now()` (outside v56's scope, in its PR's "Found, not fixed").
   *(2026-10-26, v56 round 3, owner's decision: fixed in v56 too. The status also answers
-  `server_time`; `api.serverToLocal()` places a track's `scheduled_at` on the browser's clock. Other
-  displays of server timestamps (the Waterfall's per-track times, `/stats`) still use them as is.)*
+  `server_time`; `api.serverToLocal()` places a track's `scheduled_at` on the browser's clock. A proxy's
+  `cooldown_until` (`/settings`' countdown, `/stats`) still meets the browser's clock as is.)*
 - **Retry-now is once per ladder step for a non-admin (A8).** `tracks.retry_now_step` holds the
   `attempt_count` at which it was used; equal means used. The check runs under the track's row
   lock (two presses at once: one 200, one 429). The 429's `retry_after` is the later of the
