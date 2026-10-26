@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from spotdl.types.song import Song
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -263,10 +263,18 @@ def download_track(track_id: str) -> None:
                 track_id,
             )
             time.sleep(delay)
-            # A cancel can land during the wait. Without this the download runs anyway
-            # and only the post-download refresh further down discards the result.
-            db.refresh(track)
-            if track.state == TrackState.CANCELLED:
+            # A cancel or beat's stale reclaim can land during the wait. Without this the
+            # download ran anyway; a reclaimed track was then downloaded twice, once here and
+            # once by the message beat sends it again (v55, E4). Checked here, before the
+            # proxy rung's TCP probes, as well as by the claim further down.
+            owned = db.execute(
+                select(Track.id).where(
+                    Track.id == track.id,
+                    Track.state == entry_state,
+                    ~attempts.recorded_since(track.id, entry_attempt),
+                )
+            ).one_or_none()
+            if owned is None:
                 _give_up_claim(db, track, attempt_started_at, "during the pacing wait")
                 return
 

@@ -21,7 +21,7 @@ from app.models import (
     TrackState,
     User,
 )
-from app.services import app_settings, dedup, downloads, events, tagging
+from app.services import app_settings, dedup, downloads, events, proxies, tagging
 from app.tasks import beat as beat_task
 from app.tasks import download as download_task
 
@@ -157,3 +157,46 @@ def test_a_cancel_or_reclaim_just_before_the_downloading_write_wins(
         assert (track.attempts_made, track.failure_count) == (0, 0)
     # The reclaim publishes its own `waiting`; the task publishes nothing.
     assert [s for s, _ in real_task.published] == ([] if competitor == "cancel" else ["waiting"])
+
+
+# --- E4: a reclaim during the pacing sleep ------------------------------------------------
+
+
+def test_a_track_reclaimed_during_the_pacing_sleep_exits_before_the_proxy_probes(
+    committed_db, monkeypatch, real_task
+):
+    """Pacing on, a proxy-rung track: beat reclaims it during the sleep and dispatches it again.
+    The post-sleep check only looked for `cancelled`, so the task went on to TCP-probe the
+    proxies (network traffic for a track it no longer owns) before anything else noticed.
+    Now it exits right after the sleep."""
+    track_id = _committed_track(committed_db, attempt_count=2)
+    gate = Gate("download_track: in the pacing sleep")
+    monkeypatch.setattr(download_task, "pacing_delay", lambda: 1.0)
+    monkeypatch.setattr(download_task, "time", SimpleNamespace(sleep=lambda seconds: gate()))
+    probed = []
+    monkeypatch.setattr(proxies, "pick_proxy", lambda db: probed.append(True))
+
+    task = Thread(download_task.download_track, str(track_id), name="download_track")
+    gate.wait_reached()
+    _reclaim_and_redispatch(committed_db, track_id)
+    gate.open()
+    task.join()
+
+    assert probed == []
+    assert real_task.downloaded == []
+    with committed_db() as db:
+        assert db.get(Track, track_id).state == TrackState.QUEUED
+    assert _rows(committed_db, track_id) == [(TrackAttemptOutcome.HELD, None)]
+
+
+def test_a_track_still_owned_after_the_pacing_sleep_downloads(committed_db, monkeypatch, real_task):
+    """The control for the test above: nothing competes during the sleep, so it downloads."""
+    track_id = _committed_track(committed_db)
+    monkeypatch.setattr(download_task, "pacing_delay", lambda: 1.0)
+    monkeypatch.setattr(download_task, "time", SimpleNamespace(sleep=lambda seconds: None))
+
+    download_task.download_track(str(track_id))
+
+    assert len(real_task.downloaded) == 1
+    with committed_db() as db:
+        assert db.get(Track, track_id).state == TrackState.COMPLETED
