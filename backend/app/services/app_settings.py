@@ -49,6 +49,7 @@ def _get_or_create_settings_row(db: Session) -> AppSettings:
             library_folder_template=DEFAULT_LIBRARY_FOLDER_TEMPLATE,
             library_quarantine_enabled=True,
             library_quarantine_dir=DEFAULT_LIBRARY_QUARANTINE_DIR,
+            library_known_roots=[DEFAULT_LIBRARY_TARGET_DIR],
         )
         db.add(row)
         db.flush()
@@ -90,6 +91,13 @@ def update_library_settings(
 ) -> AppSettings:
     row = _get_or_create_settings_row(db)
     if library_target_dir is not None:
+        # v57 (L6): the root being left stays known, so the ledger rows still under it keep
+        # deduping and serving (app/services/dedup.py's known_library_roots).
+        known = [str(root) for root in row.library_known_roots]
+        for root in (row.library_target_dir, library_target_dir):
+            if root not in known:
+                known.append(root)
+        row.library_known_roots = known
         row.library_target_dir = library_target_dir
     if library_folder_template is not None:
         row.library_folder_template = library_folder_template
