@@ -1,7 +1,7 @@
 import uuid
 
 from concurrency import Gate, Thread, blocked_or_done
-from sqlalchemy import event
+from sqlalchemy import event, text
 
 from app.models import Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers import jobs as jobs_router
@@ -529,6 +529,16 @@ def test_a_broker_error_mid_enqueue_leaves_the_rest_to_beats_next_tick(committed
     expand_task.expand_job(str(job_id))  # doesn't raise: the rest is beat's
     ordered = _track_ids_in_order(committed_db, job_id)
     assert broker.by("expand_job") == ordered[:2]
+    with committed_db() as db:  # beat's order must come from the marker, not the heap
+        db.execute(text("UPDATE tracks SET song_json = song_json WHERE spotify_track_id IN ('song2', 'song3')"))
+        db.commit()
+        due = (
+            db.query(Track.spotify_track_id)
+            .filter(Track.job_id == job_id, Track.scheduled_at.is_not(None))
+            .order_by(Track.scheduled_at)
+            .all()
+        )
+        assert [song for (song,) in due] == ["song2", "song3", "song4"]
 
     tick()
     tick()

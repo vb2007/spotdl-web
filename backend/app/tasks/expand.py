@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import update
+from sqlalchemy import case, update
 
 from app.db import SessionLocal
 from app.models import Job, JobState, Track, TrackState
@@ -74,12 +74,21 @@ def _dispatch_due(db, job: Job, track_ids: list[uuid.UUID]) -> None:
 
 
 def _set_marker(db, track_ids: list[uuid.UUID], lease: datetime, marker: datetime | None) -> None:
+    """Ends this run's lease on `track_ids`: clears the marker (sent), or sets it due at
+    `marker`, a microsecond apart in `track_ids`' order, as `_mark_due` does."""
     if not track_ids:
         return
+    if marker is None:
+        value = None
+    else:
+        value = case(
+            {track_id: marker + timedelta(microseconds=index) for index, track_id in enumerate(track_ids)},
+            value=Track.id,
+        )
     db.execute(
         update(Track)
         .where(Track.id.in_(track_ids), Track.state == TrackState.PENDING, Track.scheduled_at == lease)
-        .values(scheduled_at=marker)
+        .values(scheduled_at=value)
         .execution_options(synchronize_session=False)
     )
     db.commit()
