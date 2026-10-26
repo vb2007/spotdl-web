@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -421,30 +421,48 @@ def cancel_job(
     """Cancels the job and every non-terminal track under it. A track already
     `downloading` isn't interrupted (spotdl's call is synchronous, not cleanly
     interruptible) — it's marked `cancelled` here and `download_track` discards its
-    result once the blocking call returns, rather than trying to stop it mid-flight."""
+    result once the blocking call returns, rather than trying to stop it mid-flight.
+
+    v56 (A1): only a job still in flight (`expanding`, `active` or `waiting`) can be
+    cancelled. Any other answers 409 `job_not_cancellable` with its rollup status and is
+    left exactly as it was: before v56 a finished job was relabelled `cancelled`."""
     job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
-    # v34.1: row-lock the job before reading its tracks. expand_job commits EXPANDED and
+    # v34.1: row-lock the job before touching its tracks. expand_job commits EXPANDED and
     # the new tracks in one transaction via a conditional UPDATE on this same row, so with
-    # the lock the two serialize: either that commit lands first (the query below then
+    # the lock the two serialize: either that commit lands first (the UPDATE below then
     # sees and cancels the new tracks) or this cancel does (its UPDATE then matches no
     # row and it cancels its own tracks). Without it, a commit landing between the query
     # and the commit below left a `cancelled` job whose tracks still downloaded.
     db.refresh(job, with_for_update=True)
-    tracks = (
-        db.query(Track)
-        .filter(Track.job_id == job_id, Track.state.in_(CANCELLABLE_TRACK_STATES))
-        .all()
-    )
-    for track in tracks:
-        track.state = TrackState.CANCELLED
-        track.scheduled_at = None
+    cancelled_tracks = []
+    if job.state in (JobState.EXPANDING, JobState.EXPANDED):
+        # One conditional UPDATE, not loaded rows written back: Postgres re-checks the
+        # state of a row another transaction held, so a last track completing meanwhile is
+        # never relabelled `cancelled` (and then leaves nothing here to cancel).
+        cancelled_tracks = db.execute(
+            update(Track)
+            .where(Track.job_id == job_id, Track.state.in_(CANCELLABLE_TRACK_STATES))
+            .values(state=TrackState.CANCELLED, scheduled_at=None)
+            .returning(Track.id, Track.song_json)
+        ).all()
+    # An expanded job with no track left in flight is settled: nothing to cancel. (Its
+    # cancellable tracks are exactly what makes a job `active`/`waiting`, rollup.py.)
+    if job.state != JobState.EXPANDING and not cancelled_tracks:
+        db.rollback()
+        status = rollup.derive_rollup(job.state, track_counts(db, job.id))
+        raise ApiError(
+            409,
+            "job_not_cancellable",
+            f"Job is {status.key}, not cancellable",
+            {"lifecycle": status.lifecycle, "outcome": status.outcome},
+        )
     job.state = JobState.CANCELLED
     db.commit()
     # Published to the job's *owner*, not the acting session -- an admin cancelling a
     # foreign job must update that owner's live view, not the admin's own channel.
-    for track in tracks:
+    for track_id, song_json in cancelled_tracks:
         events.publish_track_event(
-            job.user_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
+            job.user_id, track_id, job.id, TrackState.CANCELLED.value, **track_song_meta(song_json)
         )
     events.publish_job_event(job.user_id, job.id, job.state.value)
     # Read after the cancel commit above, not before -- counts must reflect the just
