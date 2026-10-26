@@ -23,6 +23,10 @@ class Proxy(Base):
     consecutive_failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_used_at: Mapped[datetime | None] = mapped_column(nullable=True)
     last_success_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # v56 (A4, owner's decision): an admin deleted this manual proxy while a download was
+    # using it. It's never picked again, and `finalize_proxy_deletions` removes the row once
+    # nothing uses it (services/proxies.py).
+    delete_requested_at: Mapped[datetime | None] = mapped_column(nullable=True)
     source: Mapped[ProxySource] = mapped_column(
         Enum(ProxySource, name="proxy_source", values_callable=lambda cls: [e.value for e in cls]),
         nullable=False,

@@ -17,12 +17,13 @@ from typing import TYPE_CHECKING, Iterator
 from urllib.parse import urlsplit
 
 from spotdl.providers.audio.ytmusic import YouTubeMusic
+from sqlalchemy import exists
 from sqlalchemy.orm import Session
 from ytmusicapi import YTMusic
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Proxy, ProxySource
+from app.models import Proxy, ProxySource, Track, TrackState
 # v31's redact_text, moved to the dependency-free redaction module in v36 (the alert
 # watchdog's own process uses it without importing spotdl); re-exported so every
 # `proxies.redact_text` call site is unchanged.
@@ -311,7 +312,17 @@ def pick_proxy(db: Session) -> Proxy | None:
             cooldown_until = cooldown_until.replace(tzinfo=timezone.utc)
         return cooldown_until <= now
 
-    candidates = [p for p in db.query(Proxy).filter(Proxy.enabled.is_(True)).all() if _cooldown_over(p)]
+    # v56 (A4): never a proxy whose delete is waiting, and locked until the caller commits
+    # (SKIP LOCKED: one a delete holds is passed over), so a delete can't land between this
+    # pick and the attempt that records it.
+    candidates = [
+        p
+        for p in db.query(Proxy)
+        .filter(Proxy.enabled.is_(True), Proxy.delete_requested_at.is_(None))
+        .with_for_update(skip_locked=True)
+        .all()
+        if _cooldown_over(p)
+    ]
     if not candidates:
         return None
 
@@ -336,6 +347,41 @@ def pick_proxy(db: Session) -> Proxy | None:
         )
         record_proxy_result(db, candidate.id, success=False)
     return None
+
+
+# v56 (A4): a proxy picked this recently may still be on its way to the `downloading` commit
+# that records it on the track (download_track), so it counts as in use.
+PROXY_IN_USE_GRACE = timedelta(seconds=60)
+
+
+def proxy_in_use(db: Session, proxy: Proxy, now: datetime) -> bool:
+    """Whether a download may be going through `proxy` right now: a track `downloading` with
+    it as its proxy, or a pick within PROXY_IN_USE_GRACE. Call with the proxy row locked."""
+    last_used_at = proxy.last_used_at
+    if last_used_at is not None and last_used_at > now - PROXY_IN_USE_GRACE:
+        return True
+    return db.query(
+        exists().where(Track.used_proxy_id == proxy.id, Track.state == TrackState.DOWNLOADING)
+    ).scalar()
+
+
+def finalize_proxy_deletions(db: Session) -> list[str]:
+    """Deletes every proxy whose delete was waiting and that nothing uses any more (v56, A4,
+    owner's decision). Returns the deleted ones' redacted URLs, for the log."""
+    now = datetime.now(timezone.utc)
+    waiting = (
+        db.query(Proxy)
+        .filter(Proxy.delete_requested_at.is_not(None))
+        .with_for_update(skip_locked=True)
+        .all()
+    )
+    deleted = []
+    for proxy in waiting:
+        if not proxy_in_use(db, proxy, now):
+            deleted.append(redact(proxy.url))
+            db.delete(proxy)
+    db.commit()
+    return deleted
 
 
 def record_proxy_result(db: Session, proxy_id: uuid.UUID, success: bool) -> None:

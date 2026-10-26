@@ -9,6 +9,9 @@ v56 (A4): deleting a manual proxy an attempt (or a track's `used_proxy_id`) refe
 lost with the row, every attempt now stores its proxy's redacted label (scheme://host:port, never
 a credential), written by `attempts.record_attempt`.
 
+v56 (A4, owner's decision): `proxies.delete_requested_at`, nullable: a delete that waits for the
+proxy's in-flight download (the row is never picked again and goes once nothing uses it).
+
 v56 (E1): `ix_tracks_scheduled_at_due`, a partial index on `scheduled_at` for `waiting` and
 `pending` tracks: beat's dispatch query now takes both (expand_job's outbox marker), and the
 `waiting`-only index can't serve it.
@@ -63,6 +66,7 @@ def upgrade() -> None:
         op.create_foreign_key(name, table, 'proxies', [column], ['id'], ondelete='SET NULL')
     op.add_column('track_attempts', sa.Column('proxy_label', sa.Text(), nullable=True))
     op.add_column('tracks', sa.Column('retry_now_step', sa.Integer(), nullable=True))
+    op.add_column('proxies', sa.Column('delete_requested_at', sa.DateTime(timezone=True), nullable=True))
     op.create_index(
         'ix_tracks_scheduled_at_due', 'tracks', ['scheduled_at'],
         postgresql_where=sa.text("state IN ('waiting', 'pending')"),
@@ -83,6 +87,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     op.drop_index('ix_tracks_scheduled_at_due', table_name='tracks')
+    op.drop_column('proxies', 'delete_requested_at')
     op.drop_column('tracks', 'retry_now_step')
     op.drop_column('track_attempts', 'proxy_label')
     for name, table, column in _FKS:

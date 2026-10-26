@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
@@ -8,6 +9,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import Proxy, ProxySource, User
 from app.routers.auth import require_admin, require_admin_hidden
+from app.services import proxies
 from app.services.proxies import PROXY_URL_RE, connection_target, redact
 
 router = APIRouter(prefix="/api/proxies", tags=["proxies"])
@@ -36,6 +38,8 @@ def _proxy_to_dict(proxy: Proxy) -> dict:
         "last_success_at": (
             proxy.last_success_at.isoformat() if proxy.last_success_at is not None else None
         ),
+        # v56 (A4): deleted while a download was using it; gone once that's done.
+        "deleting": proxy.delete_requested_at is not None,
     }
 
 
@@ -47,7 +51,8 @@ def _target_clash(
     that must never be shown. The detail names the target only, never a credential."""
     target = connection_target(url)
     for other in db.query(Proxy).all():
-        if other is exclude or (enabled_only and not other.enabled):
+        # v56: a row waiting to be deleted is on its way out (never picked again).
+        if other is exclude or other.delete_requested_at is not None or (enabled_only and not other.enabled):
             continue
         if connection_target(other.url) != target:
             continue
@@ -120,6 +125,8 @@ def update_proxy(
     _: User = Depends(require_admin_hidden),
 ) -> dict:
     proxy = _get_proxy_or_404(db, proxy_id)
+    if proxy.delete_requested_at is not None:
+        raise ApiError(409, "proxy_deleting", "This proxy is being deleted")
     # A disabled row can share a target with a live one (a row from before v44, or a
     # proxies.txt line sync skipped): turning it on would run both.
     if payload.enabled and not proxy.enabled:
@@ -145,13 +152,27 @@ def delete_proxy(
     (enabled=false), matching v07's never-hard-delete stance: the next sync_from_file()
     run re-enables it as long as it's still in proxies.txt, exactly like removing then
     re-adding the line, and hard-deleting it here would just lose that history for no
-    reason (the file is still the real source of truth for that row)."""
+    reason (the file is still the real source of truth for that row).
+
+    v56 (A4, owner's decision): a manual proxy that nothing uses is deleted at once (204).
+    One a download may be using right now (`proxies.proxy_in_use`) is marked instead (202,
+    `deleting: true`): it's never picked again, and `finalize_proxy_deletions` deletes it once
+    that download is done. The row is locked first, so a pick (which locks its candidates)
+    and this decision can't interleave."""
     proxy = _get_proxy_or_404(db, proxy_id)
     if proxy.source == ProxySource.MANUAL:
-        db.delete(proxy)
+        db.refresh(proxy, with_for_update=True)
+        now = datetime.now(timezone.utc)
+        if not proxies.proxy_in_use(db, proxy, now):
+            db.delete(proxy)
+            db.commit()
+            response.status_code = 204
+            return None
+        if proxy.delete_requested_at is None:
+            proxy.delete_requested_at = now
         db.commit()
-        response.status_code = 204
-        return None
+        response.status_code = 202
+        return _proxy_to_dict(proxy)
     proxy.enabled = False
     db.commit()
     return _proxy_to_dict(proxy)
