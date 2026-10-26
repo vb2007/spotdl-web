@@ -30,6 +30,8 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	not_authenticated: () => m.error_not_authenticated(),
 	admin_required: () => m.error_admin_required(),
 	job_not_found: () => m.error_job_not_found(),
+	// v56: a cancel of something already finished (A1, A2).
+	job_not_cancellable: () => m.error_job_not_cancellable(),
 	archive_nothing_selected: () => m.error_archive_nothing_selected(),
 	// The reason is the server's own diagnostic (a bad cursor, an unknown sort), kept as sent.
 	invalid_list_params: (p) => m.error_invalid_list_params({ reason: String(p.reason ?? '') }),
@@ -38,6 +40,8 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	job_archived: () => m.error_job_archived(),
 	track_not_retryable: (p) =>
 		m.error_track_not_retryable({ state: trackStateLabel(String(p.state)) }),
+	track_not_cancellable: (p) =>
+		m.error_track_not_cancellable({ state: trackStateLabel(String(p.state)) }),
 	file_not_found: () => m.error_file_not_found(),
 	download_failed: (p) => m.error_download_failed({ status: String(p.status ?? '') }),
 	file_empty: () => m.error_file_empty(),

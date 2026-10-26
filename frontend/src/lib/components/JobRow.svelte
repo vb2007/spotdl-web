@@ -147,7 +147,7 @@
 	}
 
 	// v43 (F08): a cancelled track can't be retried, so cancelling asks first.
-	// One question and its server re-read at a time: a second press meanwhile is ignored.
+	// One question and its cancel at a time: a second press meanwhile is ignored.
 	// v45: a row remounted while its question was open (a reload) is a new element: focus
 	// goes to the same job's row again, by id, and only then to the list's heading.
 	const remounted = () => rowItemById(job.id) ?? document.getElementById('queue-heading');
@@ -178,33 +178,21 @@
 		if (!confirmed) return keepFocus(destroyed ? remounted() : toggleButton);
 		// Another identity took over meanwhile: this answer belongs to the previous session.
 		if (queue.getResetCount() !== session) return;
-		// Decide on the job as the server has it now. The question can stay open while the job
-		// finishes, and cancel_job would then relabel a finished job "cancelled" (the footgun
-		// the in-flight gate above exists for). This narrows that to one round trip; closing it
-		// needs a conditional cancel in the backend (found, not fixed in v43). The row's own status trails the server (its
-		// refresh is debounced), and the row itself may have been remounted meanwhile (a
-		// stream reconnect reloads the list), so neither is the thing to ask.
-		let lifecycle = job.status.lifecycle;
-		try {
-			lifecycle = (await api.getJob(job.id)).status.lifecycle;
-		} catch {
-			// Unreadable: the last known state decides, and the server still checks ownership.
-		}
-		if (queue.getResetCount() !== session) return;
 		// A remounted row's button is gone: focus goes to the list instead. Its notice is
 		// module-level, so the remounted row shows it.
 		const landing = () => (destroyed ? remounted() : toggleButton);
-		if (!IN_FLIGHT_LIFECYCLES.has(lifecycle)) {
-			showNotice(m.job_notice_not_cancelled());
-			await keepFocus(landing());
-			return;
-		}
+		// v56 (A1): the server decides. The question can stay open while the job finishes, and
+		// cancel_job then answers 409 `job_not_cancellable` and leaves the finished job as it is
+		// (before v56 it relabelled it "cancelled", so this row re-read the job first).
 		try {
 			await queue.cancelJob(job.id);
 		} catch (err) {
 			// A session reset meanwhile: the answer belongs to the previous identity.
-			if (queue.getResetCount() === session)
-				showNotice(errorText(err, m.job_notice_cancel_failed), true);
+			if (queue.getResetCount() === session) {
+				if (err instanceof api.ApiError && err.code === 'job_not_cancellable')
+					showNotice(m.job_notice_not_cancelled());
+				else showNotice(errorText(err, m.job_notice_cancel_failed), true);
+			}
 		}
 		// The cancel button is gone with the in-flight controls: land on the row itself.
 		await keepFocus(landing());

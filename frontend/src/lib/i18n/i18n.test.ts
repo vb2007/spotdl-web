@@ -265,7 +265,10 @@ const BACKEND_CODES = [
 	'api_key_limit_reached',
 	'api_key_not_found',
 	'queue_unavailable',
-	'submit_too_long'
+	'submit_too_long',
+	// v56
+	'job_not_cancellable',
+	'track_not_cancellable'
 ];
 const CLIENT_CODES = [
 	'request_invalid',
