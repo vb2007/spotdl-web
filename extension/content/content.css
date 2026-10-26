@@ -116,7 +116,8 @@
 /* The cascade menu: Spotify's context-menu surface. */
 .spotdl-ext-menu {
 	position: fixed;
-	z-index: 2147483000;
+	/* Above the page’s own overlays (its cookie banner sits at the very top too). */
+	z-index: 2147483647;
 	box-sizing: border-box;
 	min-inline-size: 200px;
 	max-inline-size: min(320px, calc(100vw - 16px));
@@ -184,7 +185,7 @@
 /* The toast: non-modal, near the icon that caused it. */
 .spotdl-ext-toast {
 	position: fixed;
-	z-index: 2147483001;
+	z-index: 2147483647;
 	box-sizing: border-box;
 	display: flex;
 	align-items: flex-start;

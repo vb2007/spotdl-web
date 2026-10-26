@@ -104,13 +104,16 @@ globalThis.spotdlSelectors = (() => {
 		kind: 'card',
 		find: (root) => root.querySelectorAll('[data-encore-id="card"], [data-testid="top-result-card"]'),
 		identify(el) {
+			if (el.matches('[data-testid="top-result-card"]')) {
+				// Search's top result marks no title: its first item link is its own.
+				const found = firstItemLink(el, 'a[href]', ITEM_TYPES);
+				return found ? { ...found.item, title: text(found.link) } : null;
+			}
+			// Only the title's own link. A card whose title isn't a link (a music video) has
+			// only its subtitle's artist links, and those name someone else.
 			const title = el.querySelector('[data-encore-id="cardTitle"]');
-			const titleLink = title ? title.closest('a[href]') : null;
-			const fromTitle = linkItem(titleLink);
-			if (fromTitle && ITEM_TYPES.includes(fromTitle.type)) return { ...fromTitle, title: text(title) };
-			// No marked title (the top result): its first item link is the card's own.
-			const found = firstItemLink(el, 'a[href]', ITEM_TYPES);
-			return found ? { ...found.item, title: text(found.link) } : null;
+			const item = linkItem(title ? title.closest('a[href]') : null);
+			return item ? { ...item, title: text(title) } : null;
 		},
 		// Pinned to the card's corner by the stylesheet; the card is its positioning parent.
 		mount: (el) => ({ parent: el, before: null }),

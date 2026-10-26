@@ -466,8 +466,14 @@ globalThis.spotdlInject = (() => {
 		if (menu && !menu.el.contains(event.target) && event.target !== menu.button) closeMenu(false);
 	}
 
+	// A scroll or resize moves the menu with its icon (Spotify scrolls its own views on its
+	// own, mid-render); it closes only once the icon is gone or out of sight.
 	function onViewportChange(event) {
-		if (menu && !(event.target instanceof win.Node && menu.el.contains(event.target))) closeMenu(false);
+		if (!menu || (event.target instanceof win.Node && menu.el.contains(event.target))) return;
+		const rect = menu.button.getBoundingClientRect();
+		const visible = menu.button.isConnected && rect.bottom > 0 && rect.top < win.innerHeight;
+		if (visible) placeNear(menu.el, menu.button);
+		else closeMenu(false);
 	}
 
 	/**

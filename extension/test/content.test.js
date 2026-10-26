@@ -16,11 +16,12 @@ function census(document) {
 }
 
 // Counted by hand from each fixture: every tracklist row, the page header, and each album,
-// artist and playlist card (search's show, episode, genre and profile cards get none).
+// artist and playlist card (search's show, episode, genre and profile cards get none, and
+// neither do the artist page's 10 music videos).
 const EXPECTED = {
 	album: { 'header:album': 1, 'row:track': 18, 'card:album': 10 },
 	playlist: { 'header:playlist': 1, 'row:track': 25 },
-	artist: { 'header:artist': 1, 'row:track': 5, 'card:album': 20, 'card:playlist': 19, 'card:artist': 20 },
+	artist: { 'header:artist': 1, 'row:track': 5, 'card:album': 20, 'card:playlist': 19, 'card:artist': 10 },
 	search: { 'row:track': 4, 'card:album': 10, 'card:artist': 11, 'card:playlist': 20 },
 	home: { 'card:album': 30, 'card:artist': 10, 'card:playlist': 14 },
 };
@@ -97,6 +98,15 @@ describe('identity', () => {
 		const href = card.querySelector('[data-encore-id="cardTitle"]').closest('a').getAttribute('href');
 		assert.equal(button.dataset.spotdlUrl, `https://open.spotify.com${href.split('?')[0]}`);
 		assert.equal(button.dataset.spotdlType, 'album');
+	});
+
+	it('a music video card (its title is no link) gets no icon, never its artist’s', () => {
+		const { document } = loadPage('artist');
+		const videos = Array.from(document.querySelectorAll('[data-testid="video-card-image"]')).map((img) =>
+			img.closest('[data-encore-id="card"]'),
+		);
+		assert.equal(videos.length, 10);
+		for (const card of videos) assert.equal(card.querySelector('[data-spotdl-icon]'), null);
 	});
 
 	it('parseItem: intl paths and ?si= normalize, other hosts and types are refused', () => {
