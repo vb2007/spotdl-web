@@ -1,0 +1,250 @@
+/*
+ * The extension's in-page UI on open.spotify.com. It sits quietly in Spotify's own idiom
+ * (subdued grey glyph that brightens on hover, Spotify's green for a done state, its dark
+ * context-menu surface) rather than the app's instrument-panel world: this is a guest in
+ * someone else's interface. Every rule is scoped to a `spotdl-ext-` class or to the host
+ * attribute the script sets, so nothing leaks onto Spotify's own elements.
+ */
+
+.spotdl-ext-btn {
+	--spotdl-ext-size: 32px;
+	box-sizing: border-box;
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	justify-content: center;
+	inline-size: var(--spotdl-ext-size);
+	block-size: var(--spotdl-ext-size);
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: transparent;
+	color: #b3b3b3;
+	cursor: pointer;
+	opacity: 0;
+	transition:
+		opacity 120ms ease-out,
+		color 120ms ease-out,
+		transform 120ms ease-out;
+}
+
+.spotdl-ext-btn svg {
+	inline-size: 16px;
+	block-size: 16px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+/* Shown on the row's or card's hover and focus, always on a page header, and always once it
+   carries a state (a tick should stay visible after the pointer leaves). */
+[data-spotdl-host]:hover > * .spotdl-ext-btn,
+[data-spotdl-host]:hover > .spotdl-ext-btn,
+[data-spotdl-host]:focus-within .spotdl-ext-btn,
+[data-spotdl-host='header'] .spotdl-ext-btn,
+.spotdl-ext-btn:not([data-state='idle']) {
+	opacity: 1;
+}
+
+.spotdl-ext-btn:hover {
+	color: #fff;
+	transform: scale(1.04);
+}
+
+.spotdl-ext-btn:focus-visible {
+	opacity: 1;
+	color: #fff;
+	outline: 2px solid #fff;
+	outline-offset: 1px;
+}
+
+.spotdl-ext-btn[data-state='queued'],
+.spotdl-ext-btn[data-state='already_queued'],
+.spotdl-ext-btn[data-state='in_library'] {
+	color: #1ed760;
+}
+
+.spotdl-ext-btn[data-state='error'] {
+	color: #f3727f;
+}
+
+.spotdl-ext-btn[data-state='sending'] svg {
+	animation: spotdl-ext-spin 800ms linear infinite;
+}
+
+/* A row's icon sits in the trailing cell, beside "More options". */
+.spotdl-ext-btn--row {
+	margin-inline-end: 8px;
+}
+
+/* The page header's: the size of Spotify's own header actions. */
+.spotdl-ext-btn--header {
+	--spotdl-ext-size: 48px;
+	margin-inline-start: 8px;
+}
+
+.spotdl-ext-btn--header svg {
+	inline-size: 28px;
+	block-size: 28px;
+	stroke-width: 1.25;
+}
+
+/* A card's: pinned in the cover's top corner, on a dark disc so it reads over any artwork. */
+.spotdl-ext-btn--card {
+	position: absolute;
+	inset-block-start: 12px;
+	inset-inline-end: 12px;
+	z-index: 2;
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.spotdl-ext-btn--card:hover {
+	background: rgba(0, 0, 0, 0.8);
+}
+
+@keyframes spotdl-ext-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* The cascade menu: Spotify's context-menu surface. */
+.spotdl-ext-menu {
+	position: fixed;
+	z-index: 2147483000;
+	box-sizing: border-box;
+	min-inline-size: 200px;
+	max-inline-size: min(320px, calc(100vw - 16px));
+	max-block-size: calc(100vh - 16px);
+	overflow-y: auto;
+	padding: 4px;
+	border-radius: 4px;
+	background: #282828;
+	color: rgba(255, 255, 255, 0.9);
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.4;
+	box-shadow:
+		0 16px 24px rgba(0, 0, 0, 0.3),
+		0 6px 8px rgba(0, 0, 0, 0.2);
+}
+
+.spotdl-ext-menu-heading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px 6px;
+	color: #b3b3b3;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.spotdl-ext-menu-heading svg {
+	inline-size: 14px;
+	block-size: 14px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+}
+
+.spotdl-ext-menu-item {
+	display: block;
+	box-sizing: border-box;
+	inline-size: 100%;
+	min-block-size: 40px;
+	margin: 0;
+	padding: 10px 12px;
+	border: 0;
+	border-radius: 2px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.spotdl-ext-menu-item:hover,
+.spotdl-ext-menu-item:focus-visible {
+	background: rgba(255, 255, 255, 0.1);
+	color: #fff;
+	outline: none;
+}
+
+.spotdl-ext-menu-item:focus-visible {
+	box-shadow: inset 0 0 0 2px #fff;
+}
+
+/* The toast: non-modal, near the icon that caused it. */
+.spotdl-ext-toast {
+	position: fixed;
+	z-index: 2147483001;
+	box-sizing: border-box;
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	max-inline-size: min(360px, calc(100vw - 16px));
+	padding: 10px 14px;
+	border-radius: 6px;
+	background: #333;
+	color: #fff;
+	font-family: inherit;
+	font-size: 14px;
+	line-height: 1.4;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+	pointer-events: none;
+	animation: spotdl-ext-toast-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.spotdl-ext-toast svg {
+	flex: none;
+	inline-size: 16px;
+	block-size: 16px;
+	margin-block-start: 2px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.75;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.spotdl-ext-toast--ok svg {
+	color: #1ed760;
+}
+
+.spotdl-ext-toast--error svg {
+	color: #f3727f;
+}
+
+/* No icon to sit beside (it was re-rendered away): bottom centre, above the player bar. */
+.spotdl-ext-toast--docked {
+	inset-block-end: 104px;
+	inset-inline-start: 50%;
+	transform: translateX(-50%);
+}
+
+@keyframes spotdl-ext-toast-in {
+	from {
+		opacity: 0;
+		translate: 0 4px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.spotdl-ext-btn,
+	.spotdl-ext-toast {
+		transition: none;
+		animation: none;
+	}
+
+	.spotdl-ext-btn[data-state='sending'] svg {
+		animation: none;
+		opacity: 0.6;
+	}
+}
