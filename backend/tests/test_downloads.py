@@ -17,6 +17,9 @@ class _FakeTracker:
     def notify_error(self, message, traceback, finish=False):
         self.errors.append(traceback)
 
+    def notify_download_skip(self, status="Skipped"):
+        self.skipped = status
+
 
 class _FakeProgressHandler:
     def get_new_tracker(self, song):
@@ -270,7 +273,7 @@ def test_download_one_delegates_to_search_and_download(monkeypatch):
 
     result = downloads.download_one("a-song", downloader)
 
-    assert result == ("a-song", "fake-path")
+    assert result == downloads.DownloadResult("a-song", "fake-path", skipped_existing=False)
 
 
 def test_download_one_ensures_spotify_client_before_downloading(monkeypatch):
@@ -493,7 +496,23 @@ def test_download_one_returns_none_when_spotdl_reported_no_error(monkeypatch):
         def search_and_download(self, song):
             return (song, None)
 
-    assert downloads.download_one("a-song", _SilentNone(options={})) == ("a-song", None)
+    assert downloads.download_one("a-song", _SilentNone(options={})) == ("a-song", None, False)
+
+
+def test_download_one_reports_spotdls_file_already_exists_skip(monkeypatch):
+    """v55 (E8): spotdl's `overwrite="skip"` path returns the existing file's path exactly as a
+    real download does; its tracker's notify_download_skip is the only difference, and the
+    result carries it."""
+    monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
+
+    class _SkippingDownloader(_FakeDownloader):
+        def search_and_download(self, song):
+            self.progress_handler.get_new_tracker(song).notify_download_skip()
+            return (song, "existing-path")
+
+    result = downloads.download_one("a-song", _SkippingDownloader(options={}))
+
+    assert result == downloads.DownloadResult("a-song", "existing-path", skipped_existing=True)
 
 
 def test_download_one_restores_the_cached_downloaders_progress_handler(monkeypatch):

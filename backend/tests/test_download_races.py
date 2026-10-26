@@ -86,7 +86,7 @@ def real_task(committed_db, monkeypatch, tmp_path):
 
     def download_one(song, downloader):
         state.downloaded.append(song)
-        return song, output_path
+        return downloads.DownloadResult(song, output_path)
 
     monkeypatch.setattr(downloads, "download_one", download_one)
     monkeypatch.setattr(
@@ -231,7 +231,7 @@ def test_no_transaction_is_left_open_during_the_download(committed_db, monkeypat
                     )
                 ).scalars()
             )
-        return song, real_task.output_path
+        return downloads.DownloadResult(song, real_task.output_path)
 
     monkeypatch.setattr(downloads, "download_one", download_one)
 
@@ -272,7 +272,7 @@ def test_a_reclaim_of_a_live_download_counts_its_one_attempt_once(
         gate.wait_reached()
         if outcome == "failed":
             raise AudioProviderError("HTTP Error 429: Too Many Requests")
-        return song, real_task.output_path
+        return downloads.DownloadResult(song, real_task.output_path)
 
     monkeypatch.setattr(downloads, "download_one", download_one)
 

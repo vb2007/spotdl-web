@@ -431,7 +431,8 @@ def download_track(track_id: str) -> None:
             # of its own -- see proxies.force_proxy's docstring for why this has to patch
             # the client-construction classmethod rather than an already-built instance.
             with network_path_svc.force_family(chosen_path), proxies.force_proxy(proxy_url, downloader):
-                _, output_path = downloads.download_one(song, downloader)
+                downloaded = downloads.download_one(song, downloader)
+            output_path = downloaded.output_path
 
             # search_and_download is synchronous and not cleanly interruptible, so a
             # cancel requested while this was running couldn't stop it — it instead set
@@ -457,6 +458,8 @@ def download_track(track_id: str) -> None:
                 # right state without needing a reload. Caught by live real-stack
                 # testing, not by REST-polling: REST already reflected `cancelled`,
                 # only the live view was stuck.
+                if downloaded.skipped_existing:  # see the skip below: nothing went out
+                    proxy_id, chosen_path = None, None
                 _record_mid_download_cancel(
                     db, track, owner_id, attempt_started_at, proxy_id, chosen_path, entry_attempt, track_meta
                 )
@@ -487,6 +490,46 @@ def download_track(track_id: str) -> None:
                 raise retry.NoOutputFileError(
                     f"spotdl reported {output_path} but no file exists there"
                 )
+
+            if downloaded.skipped_existing:
+                # v55 (E8): spotdl's own "file already exists" skip. The file was there
+                # before this attempt and nothing went to YouTube, so it is recorded the way
+                # the dedup gate above records a ledger hit: `skipped_duplicate`, no network
+                # path, no counter, no proxy or breaker verdict. The ledger gains the row it
+                # was missing, so the next submission resolves at the gate.
+                track.state = TrackState.SKIPPED_DUPLICATE
+                track.output_path = str(output_path)
+                track.last_error = None
+                track.last_error_type = None
+                db.merge(
+                    DownloadedTrack(
+                        spotify_track_id=track.spotify_track_id,
+                        file_path=str(output_path),
+                        format=output_format,
+                        bitrate=output_bitrate,
+                        in_library=False,
+                    )
+                )
+                recorded = attempts.record_attempt(
+                    db,
+                    track.id,
+                    attempt_started_at,
+                    datetime.now(timezone.utc),
+                    TrackAttemptOutcome.SKIPPED_DUPLICATE,
+                    warning_message="spotdl found the file already in place; not downloaded again",
+                    supersede_reclaim_after=entry_attempt,
+                )
+                db.commit()
+                events.publish_track_event(
+                    owner_id,
+                    track.id,
+                    track.job_id,
+                    track.state.value,
+                    attempts_made=recorded.attempts_made,
+                    failure_count=recorded.failure_count,
+                    **track_meta,
+                )
+                return
 
             # ID3 integrity (v26): read tags back off the actual file rather than
             # trusting song_json, and repair anything missing before marking the track

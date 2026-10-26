@@ -8,6 +8,7 @@ output_template, proxy) rather than built per track (see get_downloader).
 import shlex
 import threading
 from pathlib import Path
+from typing import NamedTuple
 
 from spotdl.download.downloader import Downloader
 from spotdl.types.options import DownloaderOptions
@@ -222,7 +223,16 @@ def _swallowed_error_to_raise(exc: BaseException) -> Exception:
     return NoOutputFileError(f"spotdl returned no output file for this track ({detail})")
 
 
-def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]:
+class DownloadResult(NamedTuple):
+    song: Song
+    output_path: Path | None
+    # v55 (E8): spotdl found the output file already there and returned it without
+    # downloading (its "Skipping ... (file already exists)", `overwrite="skip"`, its default).
+    # Nothing went to YouTube, so the caller records no network attempt for it.
+    skipped_existing: bool = False
+
+
+def download_one(song: Song, downloader: Downloader) -> DownloadResult:
     """Must be called from a plain sync context — search_and_download raises
     DownloaderError if a asyncio event loop is already running in this thread.
 
@@ -231,7 +241,12 @@ def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]
     every one of them looks identical. The exception it swallowed is still handed to the
     song's progress tracker (`notify_error`), so it's captured there and raised in its
     place: a LookupError/age gate as the terminal error it really is, anything else as a
-    NoOutputFileError carrying the real reason."""
+    NoOutputFileError carrying the real reason.
+
+    The tracker's `notify_download_skip`, called only on spotdl's "file already exists"
+    skip (verified against the installed spotdl 4.5.2 source,
+    spotdl/download/downloader.py), is captured the same way: it is the one signal that
+    tells that skip apart from a real download, since both return the output path."""
 
     # search_and_download "reinitializes" the song (re-fetches missing metadata like
     # genres/album_id/track_number, common for album/playlist-expanded songs) via a live
@@ -241,6 +256,7 @@ def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]
     _ensure_spotify_client()
 
     swallowed: list[BaseException] = []
+    skipped: list[bool] = []
     handler = downloader.progress_handler
     original_get_new_tracker = handler.get_new_tracker
 
@@ -254,6 +270,13 @@ def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]
             return original_notify_error(message, traceback, finish)
 
         tracker.notify_error = notify_error
+        original_notify_download_skip = tracker.notify_download_skip
+
+        def notify_download_skip(*args, **kwargs):
+            skipped.append(True)
+            return original_notify_download_skip(*args, **kwargs)
+
+        tracker.notify_download_skip = notify_download_skip
         return tracker
 
     handler.get_new_tracker = capturing_get_new_tracker
@@ -272,4 +295,4 @@ def download_one(song: Song, downloader: Downloader) -> tuple[Song, Path | None]
         # plain connection error underneath is the proxy's failure (retry.
         # is_proxy_transport_error), which only the caller knows to look for.
         raise mapped from swallowed[-1]
-    return result_song, output_path
+    return DownloadResult(result_song, output_path, bool(skipped))
