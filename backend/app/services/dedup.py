@@ -87,7 +87,16 @@ def ensure_sentinel(root: Path, ledger_paths: Sequence[Path]) -> bool:
         logger.info("reconcile_disk: sentinel present in %s", root)
         return True
     if not root.is_dir():
-        logger.error("reconcile_disk: %s doesn't exist here: not mounted", root)
+        # Known roots only grow (a library dir saved once by mistake stays known), so a missing
+        # one nothing points into is only noted; one with ledger rows under it is the alarm.
+        if ledger_paths:
+            logger.error(
+                "reconcile_disk: %s doesn't exist here: not mounted (%d ledger rows under it)",
+                root,
+                len(ledger_paths),
+            )
+        else:
+            logger.info("reconcile_disk: %s doesn't exist here; no ledger rows under it", root)
         return False
     if ledger_paths and not any(path.exists() for path in ledger_paths):
         logger.error(
