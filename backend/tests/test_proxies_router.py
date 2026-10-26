@@ -240,3 +240,21 @@ def test_a_deleting_proxy_doesnt_block_adding_its_target_again(admin_client, db_
     db_session.commit()
 
     assert admin_client.post("/api/proxies", json={"url": "http://v:q@10.0.0.11:3128"}).status_code == 201
+
+
+def test_re_adding_a_deleting_proxys_url_says_it_is_being_deleted(admin_client, db_session):
+    from datetime import datetime, timezone
+
+    created = admin_client.post("/api/proxies", json={"url": "http://10.0.0.12:3128"}).json()
+    db_session.get(Proxy, uuid.UUID(created["id"])).delete_requested_at = datetime.now(timezone.utc)
+    db_session.commit()
+
+    again = admin_client.post("/api/proxies", json={"url": "http://10.0.0.12:3128"})
+    assert (again.status_code, again.json()["code"]) == (409, "proxy_deleting")
+
+
+def test_deleting_a_proxy_that_is_already_gone_is_a_404(admin_client, db_session):
+    created = admin_client.post("/api/proxies", json={"url": "http://10.0.0.13:3128"}).json()
+    assert admin_client.delete(f"/api/proxies/{created['id']}").status_code == 204
+    gone = admin_client.delete(f"/api/proxies/{created['id']}")
+    assert (gone.status_code, gone.json()["code"]) == (404, "proxy_not_found")

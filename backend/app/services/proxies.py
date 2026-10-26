@@ -225,7 +225,12 @@ def sync_from_file() -> None:
     try:
         rows = db.query(Proxy).all()
         existing = {p.url: p for p in rows if p.source == ProxySource.FILE}
-        manual_targets = {connection_target(p.url) for p in rows if p.source == ProxySource.MANUAL}
+        # v56 (A4): a manual row waiting to be deleted no longer holds its target.
+        manual_targets = {
+            connection_target(p.url)
+            for p in rows
+            if p.source == ProxySource.MANUAL and p.delete_requested_at is None
+        }
         listed = set(urls_in_file)
         # File rows the file no longer names, by target: each can take its target's
         # rotated credential.
@@ -312,14 +317,11 @@ def pick_proxy(db: Session) -> Proxy | None:
             cooldown_until = cooldown_until.replace(tzinfo=timezone.utc)
         return cooldown_until <= now
 
-    # v56 (A4): never a proxy whose delete is waiting, and locked until the caller commits
-    # (SKIP LOCKED: one a delete holds is passed over), so a delete can't land between this
-    # pick and the attempt that records it.
+    # v56 (A4): never a proxy whose delete is waiting.
     candidates = [
         p
         for p in db.query(Proxy)
         .filter(Proxy.enabled.is_(True), Proxy.delete_requested_at.is_(None))
-        .with_for_update(skip_locked=True)
         .all()
         if _cooldown_over(p)
     ]
@@ -338,9 +340,21 @@ def pick_proxy(db: Session) -> Proxy | None:
     # proxy-rung track from ever reaching a verdict), so it's cooled down like any failed
     # proxy and the next one is tried. None left means the caller's direct fallback.
     for candidate in candidates:
-        candidate.last_used_at = now
         if _probe_reachable(candidate.url):
-            return candidate
+            # v56 (A4): the one chosen is locked (until the caller commits) only after its
+            # probe, so no lock is held across the probes; SKIP LOCKED passes over one an
+            # admin's delete is deciding on, and a delete that waited sees it as just picked.
+            chosen = (
+                db.query(Proxy)
+                .filter(Proxy.id == candidate.id, Proxy.delete_requested_at.is_(None))
+                .with_for_update(skip_locked=True)
+                .populate_existing()
+                .one_or_none()
+            )
+            if chosen is None:
+                continue
+            chosen.last_used_at = now
+            return chosen
         logger.warning(
             "pick_proxy: %s didn't accept a TCP connection; cooling it down and trying the next",
             redact(candidate.url),

@@ -104,6 +104,9 @@ def create_proxy(
         )
 
     existing = db.query(Proxy).filter(Proxy.url == url).one_or_none()
+    if existing is not None and existing.delete_requested_at is not None:
+        # v56 (A4): the same URL, still waiting for its download: it can be added once it's gone.
+        raise ApiError(409, "proxy_deleting", "This proxy is being deleted")
     if existing is not None:
         raise ApiError(409, "proxy_url_exists", "A proxy with this URL already exists")
     clash = _target_clash(db, url)
@@ -159,9 +162,12 @@ def delete_proxy(
     `deleting: true`): it's never picked again, and `finalize_proxy_deletions` deletes it once
     that download is done. The row is locked first, so a pick (which locks its candidates)
     and this decision can't interleave."""
-    proxy = _get_proxy_or_404(db, proxy_id)
+    # Read locked in one statement: a second delete (or the finalizer) removing the row
+    # meanwhile is then a plain 404, not a refresh of a vanished row.
+    proxy = db.query(Proxy).filter(Proxy.id == proxy_id).with_for_update().one_or_none()
+    if proxy is None:
+        raise ApiError(404, "proxy_not_found", "Proxy not found")
     if proxy.source == ProxySource.MANUAL:
-        db.refresh(proxy, with_for_update=True)
         now = datetime.now(timezone.utc)
         if not proxies.proxy_in_use(db, proxy, now):
             db.delete(proxy)

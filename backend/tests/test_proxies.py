@@ -798,3 +798,21 @@ def test_a_delete_arriving_mid_pick_waits_and_then_defers_on_real_connections(co
     assert status == 202 and body["deleting"] is True
     with committed_db() as db:
         assert db.get(Proxy, proxy_id).delete_requested_at is not None
+
+
+def test_sync_lets_a_file_line_take_the_target_of_a_manual_proxy_being_deleted(db_session, tmp_path, monkeypatch):
+    """v56 (A4): a deleting manual row no longer holds its target, so proxies.txt's line for
+    it syncs (it would otherwise stay skipped until the next boot after the row is gone)."""
+    proxy_file = tmp_path / "proxies.txt"
+    proxy_file.write_text("http://10.0.0.20:3128\n")
+    db_session.add(
+        Proxy(url="http://u:p@10.0.0.20:3128", source=ProxySource.MANUAL, enabled=True,
+              delete_requested_at=datetime.now(timezone.utc))
+    )
+    db_session.commit()
+    monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(proxies.get_settings(), "proxy_file", str(proxy_file))
+
+    proxies.sync_from_file()
+
+    assert db_session.query(Proxy).filter(Proxy.source == ProxySource.FILE).count() == 1
