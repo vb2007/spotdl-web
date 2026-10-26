@@ -1,0 +1,15 @@
+{
+	"name": "spotdl-web-extension",
+	"private": true,
+	"type": "module",
+	"description": "spotdl-web's Firefox extension (its own version lives in manifest.json)",
+	"scripts": {
+		"test": "node --test \"test/**/*.test.js\"",
+		"lint": "web-ext lint --source-dir . --ignore-files 'test/**' 'node_modules/**' 'package.json' 'package-lock.json' 'web-ext-artifacts/**'",
+		"start": "web-ext run --source-dir . --ignore-files 'test/**' 'node_modules/**'"
+	},
+	"devDependencies": {
+		"jsdom": "30.1.3",
+		"web-ext": "10.8.0"
+	}
+}
