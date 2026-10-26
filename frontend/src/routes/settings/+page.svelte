@@ -96,6 +96,19 @@
 	}
 
 	// --- Output defaults ---------------------------------------------------------------
+	// v54.2: "best" keeps YouTube's stream as served for opus/m4a; mp3 is always a re-encode,
+	// so its "best" only matches the source's bitrate. The label and hint say which.
+	const BEST = 'best';
+	function qualityLabel(rate: string, format: string): string {
+		if (rate !== BEST) return m.settings_output_rate({ rate });
+		return format === 'mp3' ? m.settings_output_best_mp3() : m.settings_output_best();
+	}
+	function qualityHint(rate: string, format: string): string {
+		if (rate !== BEST) return m.settings_output_quality_reencode({ rate });
+		return format === 'mp3'
+			? m.settings_output_quality_mp3()
+			: m.settings_output_quality_untouched();
+	}
 
 	let outputSettings = $state<api.OutputSettings | null>(null);
 	let outputOptions = $state<api.OutputOptions | null>(null);
@@ -694,11 +707,15 @@
 									class="well"
 									bind:value={outputForm.default_bitrate}
 									disabled={outputSaving}
+									aria-describedby="output-quality-hint"
 								>
 									{#each outputOptions.bitrates as rate (rate)}
-										<option value={rate}>{rate}</option>
+										<option value={rate}>{qualityLabel(rate, outputForm.default_format)}</option>
 									{/each}
 								</select>
+								<p id="output-quality-hint" class="field-hint">
+									{qualityHint(outputForm.default_bitrate, outputForm.default_format)}
+								</p>
 							</label>
 
 							<div class="form-field wide">
