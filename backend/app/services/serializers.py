@@ -115,10 +115,9 @@ def _proxy_label(proxy_url: str | None) -> str | None:
         return "proxy"
 
 
-def track_attempt_to_dict(attempt: TrackAttempt, proxy_url: str | None = None) -> dict:
-    """`proxy_url` is the attempt's proxy's raw URL, joined in by the caller's own query
-    (never a per-row lookup). Only its `proxies.redact()` form leaves this function: the
-    raw URL can carry credentials (v35 (b))."""
+def track_attempt_to_dict(attempt: TrackAttempt) -> dict:
+    """`proxy_label` is the `proxies.redact()` form stored with the row (v56, A4: it outlives
+    the proxy). The raw URL, which can carry credentials (v35 (b)), never leaves the DB."""
     return {
         "id": str(attempt.id),
         "attempt_number": attempt.attempt_number,
@@ -130,7 +129,7 @@ def track_attempt_to_dict(attempt: TrackAttempt, proxy_url: str | None = None) -
         "error_message": attempt.error_message,
         "warning_message": attempt.warning_message,
         "proxy_id": str(attempt.proxy_id) if attempt.proxy_id is not None else None,
-        "proxy_label": _proxy_label(proxy_url),
+        "proxy_label": attempt.proxy_label,
         "network_path": attempt.network_path.value if attempt.network_path is not None else None,
         # v55 (E11): a `held` row stands for this many consecutive holds.
         "hold_count": attempt.hold_count,

@@ -76,7 +76,7 @@ class Track(Base):
         nullable=True,
     )
     used_proxy_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("proxies.id"), nullable=True
+        ForeignKey("proxies.id", ondelete="SET NULL"), nullable=True
     )
     output_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import get_db
 from app.errors import ApiError
-from app.models import DownloadedTrack, Job, JobSourceType, Proxy, Track, TrackAttempt, TrackState, User
+from app.models import DownloadedTrack, Job, JobSourceType, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
 from app.services import app_settings, events, retry, rollup, track_listing
 from app.services.track_states import CANCELLABLE_TRACK_STATES, RETRYABLE_TRACK_STATES
@@ -252,17 +252,16 @@ def list_track_attempts(
 ) -> list[dict]:
     """Per-attempt download history (v24) -- what each attempt tried (direct vs. which
     proxy) and what happened, oldest first. Same owner-scoped 404-not-403 gate as every
-    other direct-id track endpoint. The proxy is joined in the same query (v35) so each
-    row can carry its redacted label."""
+    other direct-id track endpoint. Each row carries its proxy's redacted label, stored
+    with the row since v56 (A4) so it outlives the proxy (v35 joined the proxy in)."""
     _track, _owner_id, _archived_at = _get_track_or_404(db, track_id, user)
     rows = (
-        db.query(TrackAttempt, Proxy.url)
-        .outerjoin(Proxy, TrackAttempt.proxy_id == Proxy.id)
+        db.query(TrackAttempt)
         .filter(TrackAttempt.track_id == track_id)
         .order_by(TrackAttempt.attempt_number)
         .all()
     )
-    return [track_attempt_to_dict(attempt, proxy_url) for attempt, proxy_url in rows]
+    return [track_attempt_to_dict(attempt) for attempt in rows]
 
 
 # v35 (e): HEAD too. The frontend probes with it before handing the URL to a real browser

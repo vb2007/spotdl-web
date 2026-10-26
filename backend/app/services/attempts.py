@@ -12,11 +12,12 @@ v35: this is also the only writer of `track_attempts.attempt_number` and of the
 import uuid
 from datetime import datetime
 from typing import NamedTuple
+from urllib.parse import urlsplit
 
 from sqlalchemy import Exists, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import NetworkPath, Track, TrackAttempt, TrackAttemptOutcome, TrackErrorType
+from app.models import NetworkPath, Proxy, Track, TrackAttempt, TrackAttemptOutcome, TrackErrorType
 
 # Outcomes that always mean this invocation went out to the network. A `cancelled` row
 # only counts when it carries a network_path, i.e. the cancel landed mid-download rather
@@ -78,6 +79,20 @@ def previous_was_transport_failure(db: Session, track_id: uuid.UUID, before: int
         and previous.outcome == TrackAttemptOutcome.FAILED
         and (previous.error_message or "").startswith(TRANSPORT_FAILURE_PREFIX)
     )
+
+
+def _proxy_label(proxy: Proxy | None) -> str | None:
+    """v56 (A4): the row's stored proxy label, `proxies.redact()`'s scheme://host:port
+    (never a credential), and "proxy" for a URL that doesn't parse, as the attempt history
+    always showed one. Not `proxies.redact()` itself: that module imports spotdl, which
+    alerts.py (an importer of this module) must not."""
+    if proxy is None:
+        return None
+    try:
+        parsed = urlsplit(proxy.url)
+        return f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
+    except ValueError:
+        return "proxy"
 
 
 class RecordedAttempt(NamedTuple):
@@ -203,6 +218,8 @@ def record_attempt(
             error_message=error_message,
             warning_message=warning_message,
             proxy_id=proxy_id,
+            # v56 (A4): stored, not joined at read time, so deleting the proxy keeps it.
+            proxy_label=_proxy_label(db.get(Proxy, proxy_id)) if proxy_id is not None else None,
             network_path=network_path,
         )
     )

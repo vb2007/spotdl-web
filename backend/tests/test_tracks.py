@@ -16,7 +16,7 @@ from app.models import (
     TrackErrorType,
     TrackState,
 )
-from app.services import retry
+from app.services import attempts, retry
 
 
 def _aware(dt: datetime) -> datetime:
@@ -235,17 +235,17 @@ def test_list_track_attempts_returns_history_oldest_first_with_expected_fields(
             network_path=NetworkPath.DIRECT_IPV4,
         )
     )
-    db_session.add(
-        TrackAttempt(
-            track_id=track.id,
-            attempt_number=2,
-            started_at=now - timedelta(hours=1),
-            finished_at=now - timedelta(hours=1),
-            outcome=TrackAttemptOutcome.FAILED,
-            proxy_id=proxy.id,
-            error_message="proxy also failed",
-            network_path=NetworkPath.PROXY,
-        )
+    db_session.commit()
+    # Through the real write path: it stores the proxy's label with the row (v56, A4).
+    attempts.record_attempt(
+        db_session,
+        track.id,
+        now - timedelta(hours=1),
+        now - timedelta(hours=1),
+        TrackAttemptOutcome.FAILED,
+        proxy_id=proxy.id,
+        error_message="proxy also failed",
+        network_path=NetworkPath.PROXY,
     )
     db_session.commit()
 
@@ -267,6 +267,48 @@ def test_list_track_attempts_returns_history_oldest_first_with_expected_fields(
     assert body[1]["proxy_label"] == "http://10.0.0.7:8080"
     assert "s3cret" not in response.text
     assert "user:" not in response.text
+
+
+def _proxied_attempt(db_session, owner, url: str):
+    track = _make_track(db_session, owner, state=TrackState.WAITING, attempt_count=1)
+    proxy = Proxy(url=url, source=ProxySource.MANUAL, enabled=True)
+    db_session.add(proxy)
+    db_session.commit()
+    track.used_proxy_id = proxy.id
+    now = datetime.now(timezone.utc)
+    attempts.record_attempt(
+        db_session, track.id, now, now, TrackAttemptOutcome.FAILED, proxy_id=proxy.id, network_path=NetworkPath.PROXY
+    )
+    db_session.commit()
+    return track, proxy
+
+
+def test_record_attempt_stores_the_redacted_proxy_label(db_session, owner):
+    """v56 (A4): captured at write time, without the credential."""
+    track, _proxy = _proxied_attempt(db_session, owner, "http://user:s3cret@10.0.0.7:8080")
+    row = db_session.query(TrackAttempt).filter(TrackAttempt.track_id == track.id).one()
+    assert row.proxy_label == "http://10.0.0.7:8080"
+
+
+def test_record_attempt_labels_an_unparseable_proxy_url_plainly(db_session, owner):
+    # sync_from_file doesn't validate URLs; a bad port must not fail the attempt's write.
+    track, _proxy = _proxied_attempt(db_session, owner, "http://user:s3cret@10.0.0.7:notaport")
+    row = db_session.query(TrackAttempt).filter(TrackAttempt.track_id == track.id).one()
+    assert row.proxy_label == "proxy"
+
+
+def test_deleting_a_used_proxy_keeps_its_label_on_the_history(admin_client, db_session, make_user):
+    """v56 (A4): before v56 this delete was a 500 (the FKs had no ON DELETE). Now the
+    references go NULL and every attempt keeps naming the proxy it went through."""
+    track, proxy = _proxied_attempt(db_session, make_user("owner@example.com"), "http://user:s3cret@10.0.0.7:8080")
+
+    assert admin_client.delete(f"/api/proxies/{proxy.id}").status_code == 204
+
+    db_session.expire_all()
+    assert db_session.get(Proxy, proxy.id) is None
+    assert db_session.get(Track, track.id).used_proxy_id is None
+    history = admin_client.get(f"/api/tracks/{track.id}/attempts").json()
+    assert [(row["proxy_id"], row["proxy_label"]) for row in history] == [(None, "http://10.0.0.7:8080")]
 
 
 def test_list_track_attempts_empty_for_a_track_with_no_history(authenticated_client, db_session, owner):
@@ -465,16 +507,8 @@ def test_attempt_with_a_malformed_proxy_url_still_lists(authenticated_client, db
     db_session.add(proxy)
     db_session.commit()
     now = datetime.now(timezone.utc)
-    db_session.add(
-        TrackAttempt(
-            track_id=track.id,
-            attempt_number=1,
-            started_at=now,
-            finished_at=now,
-            outcome=TrackAttemptOutcome.FAILED,
-            proxy_id=proxy.id,
-            network_path=NetworkPath.PROXY,
-        )
+    attempts.record_attempt(
+        db_session, track.id, now, now, TrackAttemptOutcome.FAILED, proxy_id=proxy.id, network_path=NetworkPath.PROXY
     )
     db_session.commit()
 
