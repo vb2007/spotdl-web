@@ -6506,7 +6506,8 @@ independently-found production bug from the same conversation)
 - **The cancel endpoints are still unconditional (v56's A1).** With the outcome now written
   under the row lock, a cancel arriving during the post-download window waits for the outcome's
   commit and then overwrites `completed` with `cancelled`, until v56 makes cancel re-check the
-  state.
+  state. The live UI then disagrees with the DB until a reload: the API's late `cancelled`
+  event reaches a row already `completed`, which the store doesn't move to another state.
 - **graphify's HTML view stops at 5000 nodes.** This slice took the graph past it, and
   `graphify update .` deletes the tracked `graph.html` instead of updating it. Run it as
   `GRAPHIFY_VIZ_NODE_LIMIT=10000 graphify update .`.

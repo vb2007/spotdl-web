@@ -578,3 +578,9 @@ here.
     really used (proxy, or forced IPv4 with no proxy up), so the column stays truthful and no
     enum value or migration is needed; the note reads "IPv6 isn't routable from this worker;
     skipped the direct IPv6 rung".
+  - **E6 needed a delimited edit in `frontend/src/lib/stores/queue.ts`** (outside v55's files,
+    a v54/v62/v68 hotspot). The live review found the worker's counter-carrying `cancelled`
+    event dropped by `patchOne`, because the API's counter-less `cancelled` lands first and a
+    terminal row ignored every later event, so the UI stayed off by one until a reload, which
+    is what E6 exists to stop. A same-state event on a terminal row now updates only its
+    counters; v62 rebases onto it.

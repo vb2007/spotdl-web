@@ -25,7 +25,8 @@ def stale_track_after() -> timedelta:
     LADDER_SECONDS already is — the 1800s production default would otherwise make manually
     confirming this sweep fires a 30-minute wait. With worker-dl's --concurrency=1,
     reclaiming a track that's genuinely still running just means a duplicate message,
-    which the dedup ledger already absorbs; the running invocation's real outcome then
+    which download_track's finished/waiting gates drop once the first invocation is done
+    (v35 (c), v34.1); the running invocation's real outcome then
     supersedes the reclaim's `failed` row (v55, E3), so its attempt is counted once."""
     return timedelta(seconds=get_settings().stale_track_after_seconds)
 
