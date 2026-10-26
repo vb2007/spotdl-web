@@ -146,7 +146,8 @@ def update_library_settings(
 ) -> dict:
     fields = payload.model_dump(exclude_unset=True)
     for key in ("library_target_dir", "library_folder_template", "library_quarantine_dir"):
-        if key in fields and not fields[key].strip():
+        # An explicit null was a 500 (review round 7): it's as blank as an empty string.
+        if key in fields and (fields[key] is None or not fields[key].strip()):
             raise ApiError(400, "setting_blank", f"{key} must not be blank", {"field": key})
 
     # v57 (L2): the directories as they'd be after this save, so a change to one is checked

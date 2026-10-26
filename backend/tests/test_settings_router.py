@@ -287,3 +287,12 @@ def test_update_library_settings_refuses_a_nul_in_a_path(admin_client, db_sessio
     assert response.status_code == 422
     assert response.json()["code"] == "library_path_invalid"
     assert response.json()["params"] == {"field": field}
+
+
+@pytest.mark.parametrize("field", ["library_target_dir", "library_folder_template", "library_quarantine_dir"])
+def test_update_library_settings_treats_null_as_blank(admin_client, db_session, field):
+    """Review round 7: an explicit null was a 500."""
+    response = admin_client.patch("/api/settings/library", json={field: None})
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "setting_blank"

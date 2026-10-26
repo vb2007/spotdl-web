@@ -35,6 +35,7 @@ def _no_file_lock_connection(monkeypatch):
     rollback-isolated test can't open. These tests are about what the sweep does with each
     file; the lock itself is proven on committed sessions in test_library_race.py."""
     monkeypatch.setattr(dedup, "file_lock", lambda path: nullcontext())
+    monkeypatch.setattr(library_task, "_sweep_lock", lambda: nullcontext(True))
 
 
 class _NonClosingSession:

@@ -5,6 +5,7 @@ import pytest
 
 from app.models import DownloadedTrack
 from app.services import app_settings, dedup
+from app.services import library as library_service
 
 
 @pytest.fixture(autouse=True)
@@ -15,6 +16,7 @@ def _roots_stay_in_tmp(db_session, tmp_path, monkeypatch):
     roots under tmp_path (a test's own get_settings patch replaces the first), and the guard
     below fails one that ends up managing a root anywhere else."""
     monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(tmp_path / "downloads-unused")))
+    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "mount-unused")
     _set_library(db_session, tmp_path / "library-unused")
     real_managed_roots = dedup.managed_roots
 

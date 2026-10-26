@@ -1,10 +1,15 @@
+import hashlib
 import logging
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sqlalchemy import text
+
 from app.config import get_settings
-from app.db import SessionLocal
+from app.db import SessionLocal, engine
 from app.models import DownloadedTrack, LibrarySortRun, LibrarySortState, Track, TrackState
 from app.services import alerts, app_settings, archive, dedup, events, library
 from app.tasks.celery_app import celery_app
@@ -15,6 +20,24 @@ logger = logging.getLogger(__name__)
 # state machine. Anything else (e.g. a stale WAITING track that shares this
 # spotify_track_id via a since-superseded dedup path) must never be repointed.
 _MOVED_TRACK_STATES = (TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE)
+
+
+# One sweep at a time, whatever the deliveries (v57, review round 7): a session-level advisory
+# lock, held for the whole run on a connection of its own in autocommit (never idle in a
+# transaction), released by the unlock or with the connection if the worker dies.
+_SWEEP_LOCK_KEY = int.from_bytes(hashlib.sha256(b"spotdl-web:library-sweep").digest()[:8], "big", signed=True)
+
+
+@contextmanager
+def _sweep_lock() -> Iterator[bool]:
+    """Yields whether this delivery holds the sweep lock."""
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        held = conn.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": _SWEEP_LOCK_KEY}).scalar()
+        try:
+            yield bool(held)
+        finally:
+            if held:
+                conn.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _SWEEP_LOCK_KEY})
 
 
 def _get_run(db) -> LibrarySortRun:
@@ -401,6 +424,17 @@ def sort_library(admin_user_id: str) -> None:
     ledger, or elsewhere outside that loop must still reset `run.state` back to IDLE,
     or `POST /api/library/sort`'s 409-if-running gate wedges permanently with no
     recovery short of a manual DB edit."""
+    with _sweep_lock() as held:
+        if not held:
+            # Another delivery is sweeping: a message redelivered after its worker died
+            # (acks_late) or after the 6 h visibility timeout, beside the sweep it belongs to or a
+            # newer one. Two at once raced each other's files (review round 7, live).
+            logger.warning("sort_library: another sweep holds the lock; dropping this delivery")
+            return
+        _sort_library_locked(admin_user_id)
+
+
+def _sort_library_locked(admin_user_id: str) -> None:
     db = SessionLocal()
     try:
         run = _get_run(db)

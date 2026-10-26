@@ -110,3 +110,45 @@ def test_worker_dl_upsert_vs_sweep_move_of_the_same_file(committed_db, tmp_path,
     assert dest.read_bytes() == b"one more time"
     stranded = {spotify_id: path for spotify_id, path in rows.items() if not Path(path).exists()}
     assert stranded == {}
+
+
+def test_only_one_of_two_sweep_deliveries_runs(committed_db, tmp_path, monkeypatch):
+    """Review round 7 (reproduced live): a redelivered sweep message and a new start both found
+    the row running and swept at once, racing each other's files. The second waits on nothing: it
+    can't take the sweep lock and is dropped."""
+    source = tmp_path / "downloads" / "song.mp3"
+    source.parent.mkdir()
+    source.write_bytes(b"audio")
+    (tmp_path / "library").mkdir()
+    setup = committed_db()
+    app_settings.update_library_settings(
+        setup,
+        library_target_dir=str(tmp_path / "library"),
+        library_quarantine_enabled=False,
+        library_quarantine_dir=str(tmp_path / "quarantine"),
+    )
+    setup.add(DownloadedTrack(spotify_track_id="one", file_path=str(source), format="mp3", bitrate="320k"))
+    setup.add(LibrarySortRun(id=1, state=LibrarySortState.RUNNING, errors=[]))
+    setup.commit()
+    setup.close()
+    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "library")
+    monkeypatch.setattr(library_task, "SessionLocal", committed_db)
+    monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
+    monkeypatch.setattr(events, "publish_library_progress", lambda *args, **kwargs: None)
+    monkeypatch.setattr(alerts, "enqueue", lambda *args, **kwargs: None)
+    gate = Gate("the first sweep, holding the sweep lock")
+    monkeypatch.setattr(library_task, "_run_sweep", gate.wrap(library_task._run_sweep))
+
+    first = Thread(library_task.sort_library, str(uuid.uuid4()), name="first delivery")
+    gate.wait_reached()
+    second = Thread(library_task.sort_library, str(uuid.uuid4()), name="second delivery")
+    second.join()  # returns at once: dropped, not waiting
+    gate.open()
+    first.join()
+
+    check = committed_db()
+    try:
+        run = check.get(LibrarySortRun, 1)
+        assert (run.state, run.total, run.processed, run.moved) == (LibrarySortState.IDLE, 1, 1, 1)
+    finally:
+        check.close()

@@ -68,10 +68,15 @@ def known_library_roots(settings_row: AppSettings) -> list[Path]:
 
 
 def managed_roots(db: Session) -> list[Path]:
-    """Every root a ledger row may legitimately point into: the downloads dir and every known
-    library root. Reads the settings row; the caller ends the transaction."""
+    """Every root a ledger row may legitimately point into: the downloads dir, every known
+    library root, and the library mount itself (review round 7: under the owner's mount rule the
+    whole mount is library, known root or not, so a row elsewhere in it is guarded too). Reads
+    the settings row; the caller ends the transaction."""
+    from app.services.library import library_mount  # library imports nothing from here
+
     downloads = Path(get_settings().download_output_dir)
-    return [downloads, *known_library_roots(app_settings.get_library_settings(db))]
+    roots = [downloads, *known_library_roots(app_settings.get_library_settings(db)), library_mount()]
+    return list(dict.fromkeys(roots))
 
 
 def root_of(path: Path, roots: Sequence[Path]) -> Path | None:

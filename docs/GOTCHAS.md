@@ -6780,6 +6780,17 @@ independently-found production bug from the same conversation)
   (the hand reset), and one that finds it still `running` with the cancel flag set stops before
   its first file. A killed copy leaves a hidden `.spotdl-copying-<hex>` in the library, never
   cleaned up (nothing there is deleted).
+- **One sweep at a time, whatever the deliveries (review round 7, reproduced live).** A sweep
+  message redelivered after its worker died, or after the 6 h visibility timeout, found the row
+  `running` (a new start had set it) and swept beside the new one: 87 "appeared during the copy"
+  errors and 87 orphaned `.spotdl-copying-*` copies (4.6 GB) in the test library. The 409 gate
+  only guards the row, not the queue. `sort_library` now takes a session-level advisory lock on a
+  connection of its own (autocommit, so never idle in a transaction) for the whole run; a
+  delivery that can't take it is dropped. Real re-run: one delivery swept 30/30, the other logged
+  "another sweep holds the lock", no new staging file.
+- **The library mount is a managed root too (round 7)**, known root or not: dedup and reconcile
+  guard a row anywhere in it. `test_dedup.py`'s fixture points `library_mount` at `tmp_path` as
+  well, for the same CI-host reason as the other roots.
 - **A sweep never moves anything inside the library mount**, known root or not (round 6): with
   the library dir a folder inside the mount, a not-yet-filed row elsewhere in the mount is marked
   filed, not moved (a move deletes its source). The sweep's target check also counts the mount's
