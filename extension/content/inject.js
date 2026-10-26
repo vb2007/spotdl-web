@@ -87,6 +87,10 @@ globalThis.spotdlInject = (() => {
 	// forward one from elsewhere (an invisible <label for> over the page), and nothing about
 	// it goes stale or depends on how long the press was held.
 	let lastPress = null; // { target, menuOwner }
+	// The icon the last trusted Enter/Space keydown landed on. A keyboard click (detail 0)
+	// counts only on that icon: a page script moving focus onto an icon while the user types
+	// in its own field would otherwise turn the user's Enter into a submission.
+	let lastKeyIcon = null;
 
 	function onAnyPress(event) {
 		if (!trusted(event) || event.button !== 0) return;
@@ -173,7 +177,8 @@ globalThis.spotdlInject = (() => {
 			event.preventDefault();
 			event.stopPropagation();
 			if (!trusted(event)) return;
-			const fromKeyboard = event.detail === 0 && doc.activeElement === button;
+			const fromKeyboard = event.detail === 0 && doc.activeElement === button && lastKeyIcon === button;
+			if (event.detail === 0) lastKeyIcon = null;
 			const press = fromKeyboard ? null : takePress(button);
 			if (!fromKeyboard && !press && !skipPressRule) return;
 			// The opener of an open menu (open when the press began, even if the press's
@@ -201,6 +206,7 @@ globalThis.spotdlInject = (() => {
 				event.preventDefault();
 				return;
 			}
+			if (event.key === 'Enter' || event.key === ' ') lastKeyIcon = button;
 			if (event.key === 'Escape') {
 				event.preventDefault();
 				closeMenu(true);
@@ -440,7 +446,12 @@ globalThis.spotdlInject = (() => {
 	function openMenu(button, candidates) {
 		const item = hostItem(button);
 		if (!item) return;
-		if (menu && menu.button === button && !candidates) return; // a Menu key's own contextmenu event
+		if (menu && menu.button === button && !candidates) {
+			// Opened again (a Menu key's own contextmenu event, a second right-click): focus
+			// goes back into the menu, never left on the icon beside an open menu.
+			if (!menu.el.contains(doc.activeElement)) items()[0]?.focus();
+			return;
+		}
 		closeMenu(false);
 
 		const el = doc.createElement('div');

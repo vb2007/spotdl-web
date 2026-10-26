@@ -207,6 +207,8 @@ describe('settings', () => {
 		assert.equal(normalizeOrigin(' https://spotdl.example.org/some/path?q '), 'https://spotdl.example.org');
 		assert.equal(normalizeOrigin('http://127.0.0.1:5177/'), 'http://127.0.0.1:5177');
 		assert.equal(normalizeOrigin('http://localhost:5173'), 'http://localhost:5173');
+		assert.equal(normalizeOrigin('127.0.0.1:5177'), 'http://127.0.0.1:5177');
+		assert.equal(normalizeOrigin('localhost:5173/'), 'http://localhost:5173');
 		for (const bad of ['http://spotdl.example.org', 'ftp://x', 'https://user:pw@spotdl.example.org', '', '   ', 'http://[', null]) {
 			assert.equal(normalizeOrigin(bad), null, String(bad));
 		}

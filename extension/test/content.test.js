@@ -622,9 +622,37 @@ describe('submitting and the cascade menu', () => {
 			other.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true, button: 0 }));
 			key(window, document.activeElement, { key: 'Escape' });
 			other.focus();
+			key(window, other, { key: 'Enter' });
 			other.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }));
 			await settle(window, 20);
 			assert.equal(messages.length, 2);
+		});
+
+		it('Enter typed elsewhere, with a page script moving focus onto an icon, queues nothing', async () => {
+			const { window, document, messages } = loadPage('album', { requirePress: true });
+			const button = icons(document, 'row')[0];
+			const input = document.createElement('input');
+			document.body.append(input);
+			input.focus();
+			key(window, input, { key: 'Enter' }); // the user's Enter, in the page's own field
+			button.focus(); // the page's script, during that keydown
+			button.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }));
+			await settle(window, 20);
+			assert.equal(messages.length, 0);
+			// Enter on the icon itself still queues.
+			key(window, button, { key: 'Enter' });
+			button.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }));
+			await settle(window, 20);
+			assert.equal(messages.length, 1);
+		});
+
+		it('a second right-click on an open menu’s icon puts focus back into the menu', () => {
+			const { window, document } = loadPage('album', { requirePress: true });
+			const button = icons(document, 'row')[0];
+			button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+			button.focus();
+			button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+			assert.ok(document.querySelector('.spotdl-ext-menu').contains(document.activeElement));
 		});
 
 		it('a real click on an open menu’s opener dismisses it', async () => {

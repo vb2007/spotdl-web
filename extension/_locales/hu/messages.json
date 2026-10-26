@@ -397,5 +397,8 @@
 	},
 	"optionsKeyAddressChanged": {
 		"message": "az alkalmazás címe megváltozott, miközben a kulcsot ellenőriztem. Mentsd el újra"
+	},
+	"statusKeyInvalid": {
+		"message": "A spotdl nem fogadta el ezt az API-kulcsot (elgépelt, vagy visszavonták az alkalmazásban)"
 	}
 }

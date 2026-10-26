@@ -40,9 +40,10 @@ async function test() {
 	return result;
 }
 
-async function showSettings() {
+async function showSettings({ address = true } = {}) {
 	const { origin, apiKey } = await readSettings(browser.storage);
-	$('app-origin').value = origin;
+	// Not when coming back to the tab: an address being typed stays.
+	if (address) $('app-origin').value = origin;
 	$('account-link').href = `${origin}/account`;
 	setStatus(
 		$('key-status'),
@@ -196,3 +197,8 @@ readSettings(browser.storage).then(({ origin }) => {
 	$('app-origin').dataset.saved = origin;
 });
 showSettings().then(test);
+// Brought forward again (a toast opened the settings while this tab was already open, or
+// the user comes back to it): what it shows is re-read, never left stale.
+document.addEventListener('visibilitychange', () => {
+	if (document.visibilityState === 'visible') showSettings({ address: false }).then(test);
+});

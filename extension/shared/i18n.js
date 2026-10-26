@@ -55,7 +55,8 @@ export function connectionText(result) {
 		case 'login_required':
 			return t('statusLoginRequired');
 		case 'key_invalid':
-			return t('errorKeyInvalid');
+			// Read on the settings page and the popup: no "check it in the settings".
+			return t('statusKeyInvalid');
 		case 'permission_missing':
 			// Read on the settings page itself, where the grant button sits.
 			return t('statusPermissionMissing', [result.origin ?? '']);

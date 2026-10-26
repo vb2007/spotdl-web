@@ -19,7 +19,10 @@ export function normalizeOrigin(input) {
 	if (typeof input !== 'string') return null;
 	let text = input.trim();
 	if (text === '') return null;
-	if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) text = `https://${text}`;
+	// No scheme: https, except on this computer (a dev or agent stack runs plain http).
+	if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(text)) {
+		text = /^(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(text) ? `http://${text}` : `https://${text}`;
+	}
 	let url;
 	try {
 		url = new URL(text);

@@ -397,5 +397,8 @@
 	},
 	"optionsKeyAddressChanged": {
 		"message": "the app address changed while the key was being checked. Save it again"
+	},
+	"statusKeyInvalid": {
+		"message": "spotdl refused this API key (mistyped, or revoked in the app)"
 	}
 }
