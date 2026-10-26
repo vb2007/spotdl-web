@@ -6607,6 +6607,9 @@ independently-found production bug from the same conversation)
   that no longer exists, a ForeignKeyViolation that rolled back the whole commit, a completed
   download's ledger row with it. `record_attempt` now records no proxy when the row is gone
   (reproduced on two real connections, the worker session holding the expired proxy).
+  *(2026-10-26, v56 round 3: `record_attempt` and `proxies.record_proxy_result` now read the
+  proxy `FOR KEY SHARE`, so a delete landing while the attempt's transaction is open waits for
+  its commit; only a delete committed before the read still leaves the row unlabelled.)*
 - **Bulk UPDATEs of the same rows need one lock order.** `cancel_job`'s `UPDATE … WHERE job_id`
   and expand_job's claim `UPDATE … WHERE id IN (…)` can lock one job's tracks in different
   orders. Both take the job's row lock first now (cancel_job always did), so they serialize.
