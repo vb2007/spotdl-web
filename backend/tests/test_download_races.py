@@ -135,8 +135,9 @@ def test_a_cancel_or_reclaim_just_before_the_downloading_write_wins(
 ):
     """The task has passed every gate and read its output settings; the competing write commits
     before its `downloading` write. A plain assignment overwrote it: the cancelled track was
-    downloaded and completed, the reclaimed one downloaded here and again by beat's new
-    message. The guarded transition matches no row, so the task exits without downloading."""
+    downloaded and completed, and the reclaimed one was downloaded by an invocation that no
+    longer owned it. The guarded transition matches no row, so the task exits without
+    downloading."""
     track_id = _committed_track(committed_db)
     gate = Gate("download_track: output settings read, before the downloading write")
     monkeypatch.setattr(app_settings, "get_output_settings", gate.wrap(app_settings.get_output_settings))

@@ -6437,15 +6437,22 @@ independently-found production bug from the same conversation)
   resolution check the same under the row lock. The plan's literal `state = 'queued'` would never
   have matched a new job's first message (`pending`), so the guard is "the entry state", which is
   `queued` for every beat dispatch. Only `download_track`'s own holds collapse into an existing
-  row, and worker-dl runs one invocation at a time, so a collapse can't hide a reclaim.
+  row, and worker-dl runs one invocation at a time, so a collapse can't hide a reclaim. One gap
+  is left, harmless: when the claim `UPDATE` waits on the row lock, Postgres re-checks the
+  row's own columns against the new version but runs the `NOT EXISTS` subquery on the
+  statement's original snapshot, so a reclaim *and* its re-dispatch both committing during that
+  wait read as still owned. The invocation then downloads, and beat's message later finds the
+  track `completed` or `waiting` and does nothing. The gate writes (`_lock_if_still_owned`) lock
+  first and read the rows afterwards, so they have no such gap.
 - **E3, the recorded choice: the late outcome supersedes.** The reclaim keeps writing a counted
   `failed` row (`attempts.RECLAIM_PREFIX`): when the invocation really died, that row is the only
   record of its network attempt. A still-running invocation's outcome rewrites that row in place
   (`record_attempt(supersede_reclaim_after=…)`) and moves the counters by the difference. The
   reclaim's reset and its rows now commit in one transaction: v35 committed the reset first,
   which let an outcome land in between, find no row, and count twice. The reclaim's `UPDATE`
-  already holds every row lock it needs, so the longer transaction adds no lock wait (no new
-  deadlock); a cancel of a reclaimed track waits until it commits.
+  already takes every row lock the loop needs, so no new lock-order cycle (no new deadlock), but
+  those locks are now held across the whole loop: a cancel or an outcome for a reclaimed track
+  waits until the reclaim commits (milliseconds per track).
 - **Reproducing a reclaim of a live download needs a long one.** A 23-minute track (Echoes)
   downloaded in 21 s on dev, finishing before any 30 s beat tick saw it stale. A 63-minute one
   (Sleep, *Dopesmoker*, `1K6A3m061BEzVMZwBy4cjy`) with `STALE_TRACK_AFTER_SECONDS=5` was
@@ -6478,7 +6485,8 @@ independently-found production bug from the same conversation)
 - **E11's premise.** While the breaker is tripped, beat dispatches nothing and `_hold` parks a
   track until the trip ends, so one trip holds each already-queued message once: production's
   ~460 rows were most likely ~460 tracks. The collapse (consecutive identical holds of one track,
-  `hold_count`) shrinks repeated trips, a manual pause and the unmounted-root hold (every 15 min).
+  `hold_count`) shrinks repeated trips (and pause/resume cycles: beat dispatches nothing while
+  paused either) and the unmounted-root hold (every 15 min).
   The attempts API returns `hold_count`; the timeline still renders a collapsed row as one
   `held` (no "×N") until the frontend reads it.
 - **E12: where IPv6 is routable.** The dev override and `docker-compose.prod.yml` both give the

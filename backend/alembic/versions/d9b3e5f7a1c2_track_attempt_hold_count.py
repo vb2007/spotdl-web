@@ -13,7 +13,7 @@ v55 (E10): a `lookup_failed` track's leftover scheduled_at (from an earlier ladd
 is cleared, as retry.record_failure now does on the verdict. This rewrites data (that one
 column, only on terminal rows, where nothing reads it), covered by the deploy's pre-migrate
 pg_backup. downgrade() can't restore the old values and leaves them NULL, which every
-reader already treated as "no retry".
+reader already treated as "no retry"; it drops hold_count, so a collapsed hold reads as one.
 """
 from typing import Sequence, Union
 

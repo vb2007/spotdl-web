@@ -568,10 +568,12 @@ here.
   - **E11's collapse doesn't shrink a single trip's rows.** One trip holds each queued track
     once (beat dispatches nothing while tripped), so the 2026-10-18 trip's ~460 rows were most
     likely ~460 tracks. The collapse is the plan's (consecutive identical holds of one track);
-    it shrinks repeated trips, a pause and the unmounted-root hold. The attempts API returns
+    it shrinks repeated trips (and pause/resume cycles) and the unmounted-root hold. The attempts API returns
     `hold_count` (a one-line `serializers.py` addition), but the timeline (frontend, not v55's)
-    still renders a collapsed row as a single `held`, so "held ×N" now needs the frontend to
-    read `hold_count`. Open for the owner: accept, or schedule that frontend follow-up.
+    still renders a collapsed row as a single `held`, so the "held ×N" it showed for N rows is
+    lost there until the frontend reads `hold_count`: a regression of displayed admin
+    information. Open for the owner before merge: accept it, or schedule that frontend
+    follow-up.
   - **E12 records the skip in the row's note, not in `network_path`.** The row keeps the path
     really used (proxy, or forced IPv4 with no proxy up), so the column stays truthful and no
     enum value or migration is needed; the note reads "IPv6 isn't routable from this worker;

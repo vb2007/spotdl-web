@@ -342,9 +342,9 @@ def download_track(track_id: str) -> None:
             )
             time.sleep(delay)
             # A cancel or beat's stale reclaim can land during the wait. Without this the
-            # download ran anyway; a reclaimed track was then downloaded twice, once here and
-            # once by the message beat sends it again (v55, E4). Checked here, before the
-            # proxy rung's TCP probes, as well as by the claim further down.
+            # attempt ran anyway on a track this invocation no longer owned, proxy-rung TCP
+            # probes included, while beat's new message waited behind it (v55, E4). Checked
+            # here, before those probes, as well as by the claim further down.
             owned = db.execute(
                 select(Track.id).where(
                     Track.id == track.id,
@@ -481,47 +481,6 @@ def download_track(track_id: str) -> None:
                 downloaded = downloads.download_one(song, downloader)
             output_path = downloaded.output_path
 
-            # search_and_download is synchronous and not cleanly interruptible, so a
-            # cancel requested while this was running couldn't stop it — it instead set
-            # this row's state directly (from a separate request/session) and left the
-            # download to just finish. db.refresh picks up that committed change; a
-            # cancelled track's result is discarded rather than overwritten back to a
-            # non-terminal state. v55: under the row lock, held to the commit below, so a
-            # cancel landing after this check waits for it instead of being overwritten by
-            # the outcome (review round 1).
-            db.refresh(track, with_for_update=True)
-            if track.state == TrackState.CANCELLED:
-                logger.info(
-                    "download_track: track %s was cancelled mid-download, discarding result",
-                    track_id,
-                )
-                # The progress callback above published `downloading` events straight
-                # through to 100% while the real (uninterruptible) download kept
-                # running after the cancel landed — it has no idea a cancel happened,
-                # it just reports spotdl's own tracker. Those stray events are already
-                # on the wire, so a live SSE client's last-known state for this track
-                # is one of them, not `cancelled`, even though the DB has been correct
-                # the whole time. Re-publishing here makes `cancelled` provably the
-                # last message for this track (nothing else publishes for it after
-                # download_one has returned), so a connected browser converges to the
-                # right state without needing a reload. Caught by live real-stack
-                # testing, not by REST-polling: REST already reflected `cancelled`,
-                # only the live view was stuck.
-                if downloaded.skipped_existing:  # see the skip below: nothing went out
-                    proxy_id, chosen_path = None, None
-                _record_mid_download_cancel(
-                    db,
-                    track,
-                    owner_id,
-                    attempt_started_at,
-                    proxy_id,
-                    chosen_path,
-                    entry_attempt,
-                    track_meta,
-                    rung_note,
-                )
-                return
-
             if output_path is None:
                 raise retry.NoOutputFileError(
                     "spotdl returned no output file for this track"
@@ -578,6 +537,50 @@ def download_track(track_id: str) -> None:
                     track_id,
                 )
                 tag_warning = "tag verification/repair failed unexpectedly"
+
+            # search_and_download is synchronous and not cleanly interruptible, so a
+            # cancel requested while this was running couldn't stop it — it instead set
+            # this row's state directly (from a separate request/session) and left the
+            # download to just finish. db.refresh picks up that committed change; a
+            # cancelled track's result is discarded rather than overwritten back to a
+            # non-terminal state. v55: under the row lock, held to the commit below, so a
+            # cancel landing after this check waits for it instead of being overwritten by
+            # the outcome (review round 1). Taken only here, after the file checks and the
+            # tag repair above (no DB, but a cover-art fetch can take seconds), so neither a
+            # cancel nor beat's reclaim waits on them (review round 2); a missing file
+            # raises into the failure path, which checks for a cancel the same way.
+            db.refresh(track, with_for_update=True)
+            if track.state == TrackState.CANCELLED:
+                logger.info(
+                    "download_track: track %s was cancelled mid-download, discarding result",
+                    track_id,
+                )
+                # The progress callback above published `downloading` events straight
+                # through to 100% while the real (uninterruptible) download kept
+                # running after the cancel landed — it has no idea a cancel happened,
+                # it just reports spotdl's own tracker. Those stray events are already
+                # on the wire, so a live SSE client's last-known state for this track
+                # is one of them, not `cancelled`, even though the DB has been correct
+                # the whole time. Re-publishing here makes `cancelled` provably the
+                # last message for this track (nothing else publishes for it after
+                # download_one has returned), so a connected browser converges to the
+                # right state without needing a reload. Caught by live real-stack
+                # testing, not by REST-polling: REST already reflected `cancelled`,
+                # only the live view was stuck.
+                if downloaded.skipped_existing:  # see the skip below: nothing went out
+                    proxy_id, chosen_path = None, None
+                _record_mid_download_cancel(
+                    db,
+                    track,
+                    owner_id,
+                    attempt_started_at,
+                    proxy_id,
+                    chosen_path,
+                    entry_attempt,
+                    track_meta,
+                    rung_note,
+                )
+                return
 
             if downloaded.skipped_existing:
                 # v55 (E8): spotdl's own "file already exists" skip. The file was there
