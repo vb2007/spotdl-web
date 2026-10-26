@@ -139,16 +139,18 @@ class Settings(BaseSettings):
     pacing_min_sec: int = Field(default=0, alias="PACING_MIN_SEC")
     pacing_max_sec: int = Field(default=0, alias="PACING_MAX_SEC")
 
-    # YouTube player client selection (v31.1) -- yt-dlp's own default client selection for
-    # this app's URLs currently lands on android_vr, which 403s outright while android/web/
-    # mweb all still succeed from the same IP (proven with real CLI tests against the
-    # deployed host -- see docs/GOTCHAS.md's v31.1 entry). Forwarded to yt-dlp's own
-    # `--extractor-args youtube:player_client=...` on every attempt, unconditionally --
-    # this is a client-selection concern, independent of network_path/proxy forcing.
-    # Configurable rather than hardcoded because this is exactly the kind of yt-dlp/
-    # YouTube arms-race surface that needs retuning without a redeploy, same reasoning
-    # LADDER_SECONDS/PACING_*_SEC above already get.
-    youtube_player_clients: str = Field(default="android,web,mweb", alias="YOUTUBE_PLAYER_CLIENTS")
+    # YouTube player client selection, forwarded to yt-dlp's own `--extractor-args
+    # youtube:player_client=...` on every attempt, independent of network_path/proxy forcing.
+    # v31.1 forced android,web,mweb because yt-dlp's default then landed on android_vr, which
+    # 403'd. v54.2 (2026-10-26) went back to "default": YouTube's SABR-only experiment had
+    # stripped every audio-only stream from android/web/mweb, so yt-dlp's bestaudio/best fell
+    # back to format 18 (a 360p video, ~96k AAC) and every download since late September was
+    # that, while yt-dlp's own default set (tv_samsung, visionos, web in 2026.10) still gets
+    # Opus 251 / AAC 140 from the same IP (real downloads, docs/GOTCHAS.md v54.2). "default"
+    # follows yt-dlp's own choice as it adapts; yt-dlp floats to latest (v23.1). Configurable
+    # because this is the arms-race surface that needs retuning without a redeploy, same
+    # reasoning as LADDER_SECONDS/PACING_*_SEC.
+    youtube_player_clients: str = Field(default="default", alias="YOUTUBE_PLAYER_CLIENTS")
 
     # Proxy rotation (v07) — plain file; v13 adds UI-managed (source=manual) proxies
     # alongside these file-sourced ones, both drawn from equally by pick_proxy().

@@ -18,6 +18,16 @@ def test_pacing_window_defaults_are_valid():
     assert settings.pacing_max_sec == 0
 
 
+def test_output_and_player_client_defaults(monkeypatch):
+    """v54.2: Opus at "best" (YouTube's stream untouched), and yt-dlp's own player-client
+    choice, which still gets the audio-only streams v31.1's forced list stopped getting."""
+    for key in ("DEFAULT_FORMAT", "DEFAULT_BITRATE", "YOUTUBE_PLAYER_CLIENTS"):
+        monkeypatch.delenv(key, raising=False)
+    settings = Settings(**_REQUIRED)
+    assert (settings.default_format, settings.default_bitrate) == ("opus", "best")
+    assert settings.youtube_player_clients == "default"
+
+
 def test_pacing_min_greater_than_max_is_rejected():
     """random.uniform tolerates reversed bounds and silently samples them anyway --
     MIN=5/MAX=0 would otherwise read as "pace by up to 5s" while meaning "off". v15
