@@ -320,6 +320,7 @@ scripts/agent_stack.sh <slot> down [--volumes]
 | 2 | `spotdlweb-s2` | `127.0.0.1:8002` | `127.0.0.1:5175` | `spotdlweb_s2` |
 | 3 | `spotdlweb-s3` | `127.0.0.1:8003` | `127.0.0.1:5176` | `spotdlweb_s3` |
 | 4 | `spotdlweb-s4` | `127.0.0.1:8004` | `127.0.0.1:5177` | `spotdlweb_s4` |
+| 5 | `spotdlweb-s5` | `127.0.0.1:8005` | `127.0.0.1:5178` | `spotdlweb_s5` (v54.2: out-of-wave patch slices only, so a patch can be verified while a wave holds 1–4) |
 | owner | the checkout's directory name | `127.0.0.1:8000` | `127.0.0.1:5173` | LAN `spotdlwebtest` |
 
 v52 (D6): `127.0.0.1` rather than `localhost`, which can resolve to `[::1]` first, where another
@@ -333,7 +334,7 @@ comment out the copied `.env`'s `DATABASE_URL`: the worktree's own plain `docker
 otherwise run the branch's migrations on the owner's `spotdlwebtest`, and without it every backend
 service refuses to start. The script refuses:
 
-- a slot other than 1–4;
+- a slot other than 1–5;
 - the shared main checkout (a slot runs only from a linked worktree);
 - a slot whose containers or database volume belong to another worktree (`env`, `up` and `down`
   hold a per-slot lock, `/tmp/spotdl-web-slot<slot>.lock`, so two worktrees can't claim one free

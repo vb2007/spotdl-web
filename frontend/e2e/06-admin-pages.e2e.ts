@@ -21,8 +21,9 @@ const ADMIN_GETS = [
 test.describe('admin', () => {
 	test.use({ storageState: ADMIN_STATE });
 
-	// Spec 6, admin half. The bitrate is changed, saved, re-read from a fresh page load and
-	// from the API, then put back.
+	// Spec 6, admin half. The quality (default_bitrate) is changed, saved, re-read from a fresh
+	// page load and from the API, then put back. v54.2: the select is labelled "Quality", lists
+	// only what YouTube's source can back, and its option text is a label, not the value.
 	test('/settings loads and a save round-trips; /library loads', async ({ page, baseURL }) => {
 		const original = (await (
 			await page.request.get('/api/settings/output')
@@ -31,10 +32,13 @@ test.describe('admin', () => {
 		try {
 			await page.goto('/settings');
 			const output = page.getByRole('region', { name: 'Output defaults' });
-			const bitrate = output.getByLabel('Bitrate');
+			const bitrate = output.getByLabel('Quality', { exact: true });
 			await expect(bitrate).toHaveValue(original.default_bitrate);
 
-			const options = await bitrate.getByRole('option').allTextContents();
+			const options = await bitrate
+				.locator('option')
+				.evaluateAll((els) => els.map((el) => (el as HTMLOptionElement).value));
+			expect(options).toEqual(['best', '160k', '128k', '96k', '64k']);
 			const next = options.find((o) => o !== original.default_bitrate);
 			expect(next, 'needs a second bitrate option to switch to').toBeDefined();
 			// Recorded before the save: a killed run is undone by the next setup.
@@ -49,7 +53,7 @@ test.describe('admin', () => {
 
 			await page.reload();
 			await expect(
-				page.getByRole('region', { name: 'Output defaults' }).getByLabel('Bitrate')
+				page.getByRole('region', { name: 'Output defaults' }).getByLabel('Quality', { exact: true })
 			).toHaveValue(next!);
 			const saved = (await (
 				await page.request.get('/api/settings/output')
@@ -210,7 +214,7 @@ test.describe('non-admin', () => {
 		const notice = { name: 'Only the admin can use this page' };
 		await page.goto('/settings');
 		await expect(page.getByRole('heading', notice)).toBeVisible();
-		await expect(page.getByLabel('Bitrate')).toHaveCount(0);
+		await expect(page.getByLabel('Quality', { exact: true })).toHaveCount(0);
 		await expect(page.getByRole('region', { name: 'Output defaults' })).toHaveCount(0);
 
 		await page.goto('/library');

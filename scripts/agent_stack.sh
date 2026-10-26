@@ -2,13 +2,14 @@
 # v50: the single entry point for a parallel agent stack (master v5, "Parallel execution model").
 #
 # Each implementation agent works in its own git worktree, with its own compose project, host
-# ports and local Postgres container. The slot (1-4) picks all of them:
+# ports and local Postgres container. The slot (1-5) picks all of them:
 #
 #   slot  project        api   web   database (container `postgres` in the project)
 #   1     spotdlweb-s1   8001  5174  spotdlweb_s1
 #   2     spotdlweb-s2   8002  5175  spotdlweb_s2
 #   3     spotdlweb-s3   8003  5176  spotdlweb_s3
 #   4     spotdlweb-s4   8004  5177  spotdlweb_s4
+#   5     spotdlweb-s5   8005  5178  spotdlweb_s5   (v54.2: out-of-wave patch slices; a wave uses 1-4)
 #
 # Usage: scripts/agent_stack.sh <slot> <command> [args...]
 #   env                 write .env.agent from the worktree's .env (test identities, slot ports,
@@ -66,8 +67,8 @@ SLOT=$1
 CMD=$2
 shift 2
 case "$SLOT" in
-1 | 2 | 3 | 4) ;;
-*) die "unknown slot '$SLOT': slots are 1-4" ;;
+1 | 2 | 3 | 4 | 5) ;;
+*) die "unknown slot '$SLOT': slots are 1-5" ;;
 esac
 
 PROJECT="spotdlweb-s$SLOT"
@@ -442,7 +443,7 @@ stray_worker_dl() {
 	running="$(docker ps --filter label=com.docker.compose.service=worker-dl \
 		--format '{{.Label "com.docker.compose.project"}} {{.Names}}')" ||
 		die "docker ps failed: can't check for another slot's worker-dl"
-	grep -E '^spotdlweb-s[1-4] ' <<<"$running" | grep -v "^$PROJECT " || true
+	grep -E '^spotdlweb-s[1-5] ' <<<"$running" | grep -v "^$PROJECT " || true
 }
 
 # Takes the host-wide lock (or fails naming its holder), then starts worker-dl and waits until

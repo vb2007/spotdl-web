@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.models import AppSettings
+from app.services import output_options
 
 # v28: was spotdl's own default ("{artists} - {title}.{output-ext}",
 # spotdl.utils.config.DEFAULT_CONFIG["output"]) until this version changed it to match
@@ -33,10 +34,16 @@ def _get_or_create_settings_row(db: Session) -> AppSettings:
     row = db.get(AppSettings, 1)
     if row is None:
         env = get_settings()
+        # v54.2: an env seed outside what the app now offers (a pre-v54.2 `.env`'s mp3/320k)
+        # seeds the defaults instead. The env only seeds a fresh row, so a boot-time check
+        # would crash a deploy over a value nothing reads.
+        fmt, rate = env.default_format, env.default_bitrate
+        if fmt not in output_options.FORMATS or rate not in output_options.BITRATES:
+            fmt, rate = output_options.DEFAULT_FORMAT, output_options.DEFAULT_BITRATE
         row = AppSettings(
             id=1,
-            default_format=env.default_format,
-            default_bitrate=env.default_bitrate,
+            default_format=fmt,
+            default_bitrate=rate,
             output_template=DEFAULT_OUTPUT_TEMPLATE,
             library_target_dir=DEFAULT_LIBRARY_TARGET_DIR,
             library_folder_template=DEFAULT_LIBRARY_FOLDER_TEMPLATE,

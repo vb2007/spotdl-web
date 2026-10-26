@@ -203,7 +203,7 @@ services:
     # above) — without `!override`, this would ADD to docker-compose.yml's `5173:80` mapping
     # instead of replacing it, leaving two host bindings on the same 127.0.0.1:5173 and a
     # "port is already allocated" error at container start.
-    # v50: the host side follows WEB_PORT (an agent slot's 5174-5177); the container side
+    # v50: the host side follows WEB_PORT (an agent slot's 5174-5178); the container side
     # stays Vite's 5173.
     ports: !override
       - "127.0.0.1:${WEB_PORT:-5173}:5173"

@@ -1,9 +1,11 @@
+import pytest
+
 from app.services import app_settings
 
 
 class _FakeSettings:
-    default_format = "mp3"
-    default_bitrate = "320k"
+    default_format = "m4a"
+    default_bitrate = "128k"
     download_output_dir = "/downloads"
 
 
@@ -14,50 +16,71 @@ def test_get_output_settings_seeds_from_env_defaults(admin_client, db_session, m
 
     assert response.status_code == 200
     assert response.json() == {
-        "default_format": "mp3",
-        "default_bitrate": "320k",
+        "default_format": "m4a",
+        "default_bitrate": "128k",
         "output_dir": "/downloads",
         "output_template": app_settings.DEFAULT_OUTPUT_TEMPLATE,
     }
 
 
-def test_get_output_options_reflects_the_real_installed_spotdl(admin_client, db_session):
-    # Not mocked -- this is the whole point: the endpoint introspects the real installed
-    # spotdl's argparse choices rather than a hardcoded guess.
+def test_get_output_options_offers_only_what_the_source_can_back(admin_client, db_session):
+    """v54.2: not spotdl's whole range. Nothing above YouTube's ~130-160k source, no
+    lossless containers for a lossy source, no spotdl-internal auto/disable/VBR values."""
     response = admin_client.get("/api/settings/output/options")
 
     assert response.status_code == 200
-    body = response.json()
-    assert "mp3" in body["formats"]
-    assert "flac" in body["formats"]
-    assert "320k" in body["bitrates"]
-    assert "disable" in body["bitrates"]
+    assert response.json() == {
+        "formats": ["opus", "m4a", "mp3"],
+        "bitrates": ["best", "160k", "128k", "96k", "64k"],
+    }
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("default_bitrate", "320k"),
+        ("default_bitrate", "192k"),
+        ("default_bitrate", "0"),
+        ("default_bitrate", "auto"),
+        ("default_bitrate", "disable"),
+        ("default_format", "flac"),
+        ("default_format", "wav"),
+        ("default_format", "ogg"),
+    ],
+)
+def test_update_output_settings_rejects_what_the_source_cannot_back(admin_client, db_session, monkeypatch, field, value):
+    monkeypatch.setattr(app_settings, "get_settings", lambda: _FakeSettings())
+
+    response = admin_client.patch("/api/settings/output", json={field: value})
+
+    assert response.status_code == 400
+    assert response.json()["code"] == ("unsupported_bitrate" if field == "default_bitrate" else "unsupported_format")
 
 
 def test_update_output_settings_persists_and_returns_partial_update(admin_client, db_session, monkeypatch):
     monkeypatch.setattr(app_settings, "get_settings", lambda: _FakeSettings())
 
-    updated = admin_client.patch("/api/settings/output", json={"default_format": "flac", "default_bitrate": "256k"})
+    updated = admin_client.patch("/api/settings/output", json={"default_format": "opus", "default_bitrate": "best"})
 
     assert updated.status_code == 200
     body = updated.json()
-    assert body["default_format"] == "flac"
-    assert body["default_bitrate"] == "256k"
+    assert body["default_format"] == "opus"
+    assert body["default_bitrate"] == "best"
     assert body["output_dir"] == "/downloads"
 
     refetched = admin_client.get("/api/settings/output")
-    assert refetched.json()["default_format"] == "flac"
+    assert refetched.json()["default_format"] == "opus"
 
 
 def test_update_output_settings_ignores_unset_fields(admin_client, db_session, monkeypatch):
     monkeypatch.setattr(app_settings, "get_settings", lambda: _FakeSettings())
-    admin_client.patch("/api/settings/output", json={"default_bitrate": "192k"})
+    admin_client.patch("/api/settings/output", json={"default_bitrate": "96k"})
 
-    response = admin_client.patch("/api/settings/output", json={"default_format": "flac"})
+    response = admin_client.patch("/api/settings/output", json={"default_format": "mp3"})
 
     body = response.json()
-    assert body["default_bitrate"] == "192k"
-    assert body["default_format"] == "flac"
+    assert body["default_bitrate"] == "96k"
+    assert body["default_format"] == "mp3"
 
 
 def test_update_output_settings_rejects_unsupported_format(admin_client, db_session, monkeypatch):

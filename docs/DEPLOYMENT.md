@@ -86,7 +86,7 @@ Diff your existing `.env` against `.env.example` and add whatever's new for v12:
 | `DOWNLOADS_DIR` | A real host path, e.g. `/home/vb2007/spotdl` (this host's actual value) — read only by `docker-compose.prod.yml`, see §3 |
 | `LIBRARY_DIR` (v28) | A real host path for the actual music library the sort & move sweep (on `worker-expand` since v34.1; `worker-meta` mounts it too, for `reconcile_disk`) writes into and `web` serves file downloads from read-only — e.g. `/mnt/raid1/media/music` (this host's actual value since 2026-10-11; before that it was the empty test folder `/mnt/raid1/media/test`). `docker-compose.prod.yml`'s `${LIBRARY_DIR:?...}` crash-loops the stack at `up` time if this is unset, by design. See the new "Set up the library directory" step below §3 |
 | `STALE_TRACK_AFTER_SECONDS` | Leave at the `.env.example` default (`1800`) for real production use — see §7's restart-survival test for why you might *temporarily* lower it during verification |
-| `YOUTUBE_PLAYER_CLIENTS` (v31.1) | Optional; `app/config.py` defaults to `android,web,mweb`, the same as `.env.example`. Retune only if a yt-dlp player client starts failing |
+| `YOUTUBE_PLAYER_CLIENTS` (v31.1, v54.2) | Optional; `app/config.py` defaults to `default` (yt-dlp's own client choice), the same as `.env.example`. v54.2 moved off v31.1's `android,web,mweb`, which by 2026-10 got no audio-only stream (GOTCHAS v54.2). Retune only if a yt-dlp player client starts failing |
 | `MATRIX_HOMESERVER_URL` / `MATRIX_ACCESS_TOKEN` / `MATRIX_ROOM_ID` (v36) | Optional; unset means app alerts are off. See [App alerts](#app-alerts-v36) |
 
 A key a newer version *requires* (`${VAR:?}` in a compose file) is named by the deploy's preflight
