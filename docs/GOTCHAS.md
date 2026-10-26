@@ -6619,3 +6619,9 @@ independently-found production bug from the same conversation)
 - **A clear that matches the lease alone.** A track worker-dl settles before expand_job clears its
   marker isn't `pending` any more; matching on `pending` too left a completed track with a future
   `scheduled_at`. Clearing matches the lease value only, which nothing else ever writes.
+- **The outbox's per-track CASE has a size ceiling.** `_due_case` binds two parameters per track and
+  the `IN` list one more, so one marker UPDATE carries about 3N binds (Postgres caps a statement at
+  65,535): past about 21,800 pending tracks in one job, the redelivery path's UPDATE fails and
+  those tracks stay unmarked. The largest real jobs are about a thousand tracks (a discography),
+  so it's accepted; chunk the UPDATE if jobs ever get that big. The success path is safe
+  regardless: `_mark_due` marks each track on its own ORM row before the claim.
