@@ -278,6 +278,10 @@ def record_breaker_release(db: Session, now: datetime, *, end_running: bool, man
 
 
 def record_success(db: Session, track: Track) -> None:
+    # v55 (E9): a completed track no longer carries its last failure (TrackRow showed it as a
+    # red "last error" beside a finished download). The attempt history keeps every one.
+    track.last_error = None
+    track.last_error_type = None
     # v44: a success can be the first thing to notice an expired pause (a message that was
     # already queued runs before beat's next tick); record that release before it's cleared.
     # Checked unlocked first, like beat: the ordinary success (no pause on record) never

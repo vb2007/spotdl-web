@@ -1584,6 +1584,28 @@ def _run_invocation(db_session, monkeypatch, track, *, outcome, captured=None, o
     return db_session.get(Track, track.id)
 
 
+def test_a_success_after_a_failure_clears_last_error(db_session, monkeypatch, tmp_path):
+    """v55 (E9): the track fails once, then succeeds. It used to keep the failure's
+    last_error/last_error_type, shown as a red "last error" on a completed row."""
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    _capture_events(monkeypatch)
+    output_path = tmp_path / "song-a.mp3"
+    output_path.write_bytes(b"fake audio bytes")
+
+    failed = _run_invocation(db_session, monkeypatch, track, outcome="failed")
+    assert (failed.last_error, failed.last_error_type) == ("boom", TrackErrorType.OTHER)
+    updated = _run_invocation(db_session, monkeypatch, track, outcome="completed", output_path=output_path)
+
+    assert updated.state == TrackState.COMPLETED
+    assert (updated.last_error, updated.last_error_type) == (None, None)
+    assert [row.outcome for row in _attempts(db_session, track)] == [
+        TrackAttemptOutcome.FAILED,
+        TrackAttemptOutcome.COMPLETED,
+    ]
+
+
 def test_first_try_success_counts_one_attempt_and_no_failures(db_session, monkeypatch, tmp_path):
     track = _make_track(db_session)
     _patch_common(monkeypatch, db_session)
