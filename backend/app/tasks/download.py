@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import (
-    DownloadedTrack,
     Job,
     NetworkPath,
     Track,
@@ -595,14 +594,13 @@ def download_track(track_id: str) -> None:
                 track.output_path = str(output_path)
                 track.last_error = None
                 track.last_error_type = None
-                db.merge(
-                    DownloadedTrack(
-                        spotify_track_id=track.spotify_track_id,
-                        file_path=str(output_path),
-                        format=output_format,
-                        bitrate=output_bitrate,
-                        in_library=False,
-                    )
+                # v57 (L3): under the file's advisory lock, like a fresh download's row below.
+                dedup.record_download(
+                    db,
+                    track.spotify_track_id,
+                    output_path,
+                    format=output_format,
+                    bitrate=output_bitrate,
                 )
                 recorded = attempts.record_attempt(
                     db,
@@ -630,18 +628,14 @@ def download_track(track_id: str) -> None:
 
             track.state = TrackState.COMPLETED
             track.output_path = str(output_path)
-            # in_library is set, not left out: merge copies only the attributes given, so a row
-            # whose library file went missing and was downloaded again kept in_library=True on
-            # its new /downloads path, and no sweep (which reads only in_library=False) would
-            # ever file it (v48).
-            db.merge(
-                DownloadedTrack(
-                    spotify_track_id=track.spotify_track_id,
-                    file_path=str(output_path),
-                    format=output_format,
-                    bitrate=output_bitrate,
-                    in_library=False,
-                )
+            # v57 (L3): under the file's advisory lock, so the library sweep can't delete the
+            # file between its re-read of the ledger and this row landing (dedup.record_download).
+            dedup.record_download(
+                db,
+                track.spotify_track_id,
+                output_path,
+                format=output_format,
+                bitrate=output_bitrate,
             )
             if proxy_id is not None:
                 proxies.record_proxy_result(db, proxy_id, success=True)
