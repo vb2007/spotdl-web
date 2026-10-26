@@ -550,7 +550,11 @@
 	{#if expanded}
 		<div class="detail" id={detailId}>
 			<div class="strip">
-				<span class="status {stateCond}">{STATUS_TEXT[track.state]()}</span>
+				<span class="status {stateCond}"
+					>{track.state === 'lookup_failed' && jobCancelled
+						? m.track_status_lookup_failed_job_cancelled()
+						: STATUS_TEXT[track.state]()}</span
+				>
 				{#if track.state === 'downloading' && track.progress !== undefined}
 					<span
 						class="progress"

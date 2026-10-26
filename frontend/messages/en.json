@@ -131,6 +131,7 @@
 	"track_status_completed": "downloaded",
 	"track_status_waiting": "waiting to retry",
 	"track_status_lookup_failed": "won't retry on its own · retry now to try again",
+	"track_status_lookup_failed_job_cancelled": "won't retry: its job was cancelled",
 	"track_status_skipped_duplicate": "already downloaded earlier · nothing fetched",
 	"track_status_cancelled": "cancelled · won't be downloaded",
 	"attempt_outcome_completed": "completed",

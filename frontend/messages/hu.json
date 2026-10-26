@@ -131,6 +131,7 @@
 	"track_status_completed": "letöltve",
 	"track_status_waiting": "újrapróbálásra vár",
 	"track_status_lookup_failed": "a rendszer magától nem próbálja újra · az „újra most” gombbal újrapróbálhatod",
+	"track_status_lookup_failed_job_cancelled": "a rendszer nem próbálja újra · a feladata meg lett szakítva",
 	"track_status_skipped_duplicate": "korábban már letöltődött · most nem kellett letölteni",
 	"track_status_cancelled": "megszakítva · nem töltődik le",
 	"attempt_outcome_completed": "letöltve",
