@@ -1,7 +1,7 @@
 """track_attempts.hold_count
 
 Revision ID: d9b3e5f7a1c2
-Revises: f6b2d8e4a1c9
+Revises: a7c4e1b9d2f5
 Create Date: 2026-10-26 00:00:00.000000
 
 v55 (E11): consecutive holds of one track (the breaker, a pause, an unmounted library root)
@@ -23,7 +23,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'd9b3e5f7a1c2'
-down_revision: Union[str, Sequence[str], None] = 'f6b2d8e4a1c9'
+down_revision: Union[str, Sequence[str], None] = 'a7c4e1b9d2f5'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
