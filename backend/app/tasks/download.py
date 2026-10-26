@@ -108,6 +108,43 @@ def _give_up_claim(db: Session, track: Track, attempt_started_at: datetime, when
     db.commit()
 
 
+def _record_mid_download_cancel(
+    db: Session,
+    track: Track,
+    owner_id: uuid.UUID,
+    attempt_started_at: datetime,
+    proxy_id: uuid.UUID | None,
+    chosen_path: NetworkPath,
+    entry_attempt: int,
+    track_meta: dict,
+) -> None:
+    """A cancel landed while the download ran: its network attempt is recorded as
+    `cancelled`, then the `cancelled` event goes out. v55 (E6): the event comes after the
+    row is committed and carries the counters it moved, so a live row's counts are right
+    without a reload (the event used to go out first, with none)."""
+    recorded = attempts.record_attempt(
+        db,
+        track.id,
+        attempt_started_at,
+        datetime.now(timezone.utc),
+        TrackAttemptOutcome.CANCELLED,
+        proxy_id=proxy_id,
+        network_path=chosen_path,
+        supersede_reclaim_after=entry_attempt,
+    )
+    db.commit()
+    events.publish_track_event(
+        owner_id,
+        track.id,
+        track.job_id,
+        TrackState.CANCELLED.value,
+        attempt_count=track.attempt_count,
+        attempts_made=recorded.attempts_made,
+        failure_count=recorded.failure_count,
+        **track_meta,
+    )
+
+
 @celery_app.task(name="app.tasks.download.download_track")
 def download_track(track_id: str) -> None:
     db = SessionLocal()
@@ -420,20 +457,9 @@ def download_track(track_id: str) -> None:
                 # right state without needing a reload. Caught by live real-stack
                 # testing, not by REST-polling: REST already reflected `cancelled`,
                 # only the live view was stuck.
-                events.publish_track_event(
-                    owner_id, track.id, track.job_id, track.state.value, **track_meta
+                _record_mid_download_cancel(
+                    db, track, owner_id, attempt_started_at, proxy_id, chosen_path, entry_attempt, track_meta
                 )
-                attempts.record_attempt(
-                    db,
-                    track.id,
-                    attempt_started_at,
-                    datetime.now(timezone.utc),
-                    TrackAttemptOutcome.CANCELLED,
-                    proxy_id=proxy_id,
-                    network_path=chosen_path,
-                    supersede_reclaim_after=entry_attempt,
-                )
-                db.commit()
                 return
 
             if output_path is None:
@@ -568,20 +594,9 @@ def download_track(track_id: str) -> None:
                     track_id,
                 )
                 # Same stray-progress-event race as the success path above.
-                events.publish_track_event(
-                    owner_id, track.id, track.job_id, track.state.value, **track_meta
+                _record_mid_download_cancel(
+                    db, track, owner_id, attempt_started_at, proxy_id, chosen_path, entry_attempt, track_meta
                 )
-                attempts.record_attempt(
-                    db,
-                    track.id,
-                    attempt_started_at,
-                    datetime.now(timezone.utc),
-                    TrackAttemptOutcome.CANCELLED,
-                    proxy_id=proxy_id,
-                    network_path=chosen_path,
-                    supersede_reclaim_after=entry_attempt,
-                )
-                db.commit()
                 return
             if proxy_id is not None and retry.is_proxy_transport_error(exc, via_proxy=True):
                 # v40.1: the attempt died at its proxy and never reached YouTube -- the

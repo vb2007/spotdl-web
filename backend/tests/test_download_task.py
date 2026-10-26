@@ -1260,6 +1260,45 @@ def test_download_track_discards_failure_when_cancelled_mid_download(db_session,
     assert rows[0].error_message is None
 
 
+@pytest.mark.parametrize("download_result", ["success", "failure"])
+def test_a_mid_download_cancel_publishes_after_its_row_with_counters(db_session, monkeypatch, download_result):
+    """v55 (E6): the `cancelled` event goes out once its attempt row is committed, and carries
+    the counters that row moved (one attempt, no failure), so a live row isn't off by one
+    until reload. It used to go out first, with no counters at all."""
+    track = _make_track(db_session)
+    track.attempt_count = 1  # one earlier failure: the event says which attempt this was
+    track.attempts_made, track.failure_count = 1, 1
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    seen = []
+
+    def publish(owner_id, track_id, job_id, state, **kwargs):
+        rows = db_session.query(TrackAttempt).filter(TrackAttempt.track_id == track.id).count()
+        seen.append((state, rows, kwargs))
+
+    monkeypatch.setattr(events, "publish_track_event", publish)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda *args, **kwargs: _FakeDownloader())
+
+    def fake_download_one(song, downloader):
+        db_session.query(Track).filter(Track.id == track.id).update(
+            {"state": TrackState.CANCELLED, "scheduled_at": None}
+        )
+        db_session.commit()
+        if download_result == "failure":
+            raise RuntimeError("provider exploded after cancel")
+        return song, Path("/downloads/song-a.mp3")
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    download_task.download_track(str(track.id))
+
+    state, rows_at_publish, kwargs = seen[-1]
+    assert state == "cancelled"
+    assert rows_at_publish == 1
+    assert (kwargs["attempt_count"], kwargs["attempts_made"], kwargs["failure_count"]) == (1, 2, 1)
+
+
 def test_download_track_retry_falls_back_to_direct_when_no_proxy_available(db_session, monkeypatch, tmp_path):
     track = _make_track(db_session)
     track.attempt_count = 2  # v29: proxy is now the third rung
