@@ -110,8 +110,10 @@ $('app-reset').addEventListener('click', () => {
 	void saveOrigin(DEFAULT_ORIGIN);
 });
 
+// The saved address only (what the failed test was about): a typed, unsaved one is granted
+// through saving, which gives the access back if the address doesn't validate.
 $('app-grant').addEventListener('click', () => {
-	const origin = normalizeOrigin($('app-origin').value) ?? normalizeOrigin($('app-origin').dataset.saved ?? '') ?? DEFAULT_ORIGIN;
+	const origin = normalizeOrigin($('app-origin').dataset.saved ?? '') ?? DEFAULT_ORIGIN;
 	browser.permissions
 		.request({ origins: [originPattern(origin)] })
 		.then(() => test())
@@ -124,6 +126,15 @@ $('key-form').addEventListener('submit', async (event) => {
 	if (!looksLikeApiKey(value)) {
 		setStatus($('key-status'), t('optionsKeyInvalid'), 'error');
 		$('api-key').focus();
+		return;
+	}
+	// Checked on its own (no cookie) before it's kept.
+	setStatus($('key-status'), t('popupChecking'), null);
+	const checked = await browser.runtime
+		.sendMessage({ type: 'checkKey', key: value })
+		.catch(() => ({ outcome: 'error', code: 'extension_error' }));
+	if (checked.outcome !== 'signed_in') {
+		setStatus($('key-status'), t('optionsKeyNotSaved', [connectionText(checked)]), 'error');
 		return;
 	}
 	const { origin } = await readSettings(browser.storage);

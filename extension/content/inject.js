@@ -55,6 +55,7 @@ globalThis.spotdlInject = (() => {
 		cascade_unavailable: 'errorCascadeUnavailable',
 		cascade_invalid: 'errorCascadeInvalid',
 		queue_unavailable: 'errorQueueUnavailable',
+		server_error: 'errorServer',
 		not_an_app: 'toastNotAnApp',
 	};
 
@@ -68,6 +69,9 @@ globalThis.spotdlInject = (() => {
 	const hosts = new WeakMap();
 	// Items queued from this tab (by canonical URL), so a re-rendered row keeps its tick.
 	const itemStates = new Map();
+	// Items with a request in flight (by canonical URL): a row re-rendered meanwhile shows
+	// "sending", can't send twice, and gets the answer.
+	const inflight = new Set();
 	let menu = null; // { el, button }
 	// Each menu entry's action (kept here, not on the element, which the page can see).
 	const choosers = new WeakMap();
@@ -128,7 +132,7 @@ globalThis.spotdlInject = (() => {
 		button.className = `spotdl-ext-btn spotdl-ext-btn--${kind}`;
 		button.setAttribute(ICON_ATTR, kind);
 		applyItem(button, item);
-		setState(button, itemStates.get(item.url) ?? 'idle');
+		setState(button, shownState(item.url));
 		// Spotify's rows and cards act on clicks and double-clicks that bubble up to them
 		// (select, play, navigate): none of ours may reach them.
 		for (const type of ['mousedown', 'mouseup', 'dblclick']) {
@@ -230,7 +234,7 @@ globalThis.spotdlInject = (() => {
 				// A recycled row now showing another track.
 				if (menu && menu.button === own) closeMenu(false);
 				applyItem(own, item);
-				setState(own, itemStates.get(item.url) ?? 'idle');
+				setState(own, shownState(item.url));
 			} else if (hosts.get(host)?.item.title !== item.title) {
 				// Same item, new title text (a header whose page re-rendered after the address
 				// changed): the label follows.
@@ -287,12 +291,24 @@ globalThis.spotdlInject = (() => {
 		return entry && entry.button === button ? entry.item : null;
 	}
 
-	async function submit(button, cascade, override) {
-		if (button.dataset.state === 'sending') return;
-		const item = hostItem(button);
-		if (!item) return;
+	function shownState(url) {
+		return inflight.has(url) ? 'sending' : (itemStates.get(url) ?? 'idle');
+	}
+
+	// The icon showing `url` now: the one clicked, or the one a re-render put in its place.
+	function iconFor(url) {
+		for (const candidate of doc.querySelectorAll(`[${ICON_ATTR}]`)) {
+			if (candidate.dataset.spotdlUrl === url && hostItem(candidate)) return candidate;
+		}
+		return null;
+	}
+
+	async function submit(clicked, cascade, override) {
+		const item = hostItem(clicked);
+		if (!item || inflight.has(item.url)) return;
 		const url = override ? override.url : item.url;
-		setState(button, 'sending');
+		inflight.add(item.url);
+		setState(clicked, 'sending');
 		let answer;
 		try {
 			answer = await api.sendMessage({
@@ -307,19 +323,20 @@ globalThis.spotdlInject = (() => {
 			answer = { outcome: 'error', code: 'extension_error' };
 		}
 		answer = answer ?? { outcome: 'error', code: 'extension_error' };
-		// The row may have been recycled for another item while the request ran.
-		const stillOurs = button.isConnected && button.dataset.spotdlUrl === item.url;
+		inflight.delete(item.url);
+		// The row may have been recycled, or re-rendered with a new icon, while it ran.
+		const button = iconFor(item.url);
+		const stillOurs = button !== null;
 
 		if (answer.outcome === 'ambiguous') {
 			const candidates = artistChoices(answer.candidates);
-			setState(button, 'idle');
-			// The row was recycled meanwhile, or no candidate is usable: nothing to ask.
-			// Focus moved on (into Spotify's search box, say) while the app answered: the menu
-			// mustn't take it, or the next Enter would queue an artist nobody chose.
-			const focusStayed = [button, doc.body, doc.documentElement, null].includes(doc.activeElement);
-			if (stillOurs && candidates.length > 0 && focusStayed) openMenu(button, candidates);
-			else if (stillOurs && candidates.length > 0) showToast(button, t('toastChooseArtistAgain'), 'error');
-			else if (stillOurs) showToast(button, t('errorFailed'), 'error');
+			if (stillOurs) setState(button, shownState(item.url));
+			// The menu opens only while focus is still on the icon (where choosing put it):
+			// anywhere else, even the page's <body> after a click on empty space, the user has
+			// moved on, and the next Enter or Space would queue an artist nobody chose.
+			if (stillOurs && candidates.length > 0 && doc.activeElement === button) openMenu(button, candidates);
+			else if (candidates.length > 0) showToast(button, t('toastChooseArtistAgain'), 'error');
+			else showToast(button, t('errorFailed'), 'error');
 			return;
 		}
 		const success = answer.outcome in SUCCESS_KEYS;
@@ -329,13 +346,12 @@ globalThis.spotdlInject = (() => {
 			setState(button, success ? answer.outcome : 'error');
 			if (!success || !direct) {
 				win.setTimeout(() => {
-					if (button.dataset.spotdlUrl === item.url && button.dataset.state !== 'sending') {
-						setState(button, itemStates.get(item.url) ?? 'idle');
-					}
+					const now = iconFor(item.url);
+					if (now && now.dataset.state !== 'sending') setState(now, shownState(item.url));
 				}, TRANSIENT_MS);
 			}
 		}
-		showToast(stillOurs ? button : null, message(answer, cascade, override), success ? 'ok' : 'error');
+		showToast(button, message(answer, cascade, override), success ? 'ok' : 'error');
 	}
 
 	function message(answer, cascade, override) {

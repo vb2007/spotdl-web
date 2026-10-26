@@ -379,5 +379,17 @@
 				"content": "$1"
 			}
 		}
+	},
+	"errorServer": {
+		"message": "Your spotdl app had an error. Try again"
+	},
+	"optionsKeyNotSaved": {
+		"message": "Not saved: $RESULT$",
+		"description": "RESULT is one of the connection status sentences.",
+		"placeholders": {
+			"result": {
+				"content": "$1"
+			}
+		}
 	}
 }

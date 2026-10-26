@@ -14,6 +14,7 @@ const CASCADES = { track: ['album', 'artist'], album: ['artist'], artist: [], pl
 const TIMEOUT_MS = 30000;
 // What the app's own 401s carry (v53: no session; a key it doesn't know or that was revoked).
 const APP_401_CODES = new Set(['not_authenticated', 'api_key_invalid']);
+const GATEWAY_DOWN = new Set([502, 503, 504]);
 
 /** The answer for an error the extension decides on its own, before or instead of the app. */
 const fail = (code, extra = {}) => ({ outcome: 'error', code, ...extra });
@@ -71,7 +72,12 @@ async function authed(deps, path, init, origin = null) {
 	if (answer.network) return { error: fail('unreachable', { origin: settings.origin }) };
 	// A proxy's or tunnel's own error page (nginx's HTML 502 with the api down, Cloudflare's
 	// 502/530): the app is down, not missing.
-	if (answer.body === null && answer.status >= 500) return { error: fail('unreachable', { origin: settings.origin, status: answer.status }) };
+	if (answer.body === null && answer.status >= 500) {
+		// A gateway's page (nginx 502/504 with the api down, Cloudflare's 52x/530): the app is
+		// down. Any other bare 5xx is the app's own crash (Starlette's plain-text 500).
+		const code = GATEWAY_DOWN.has(answer.status) || answer.status >= 520 ? 'unreachable' : 'server_error';
+		return { error: fail(code, { origin: settings.origin, status: answer.status }) };
+	}
 	if (appRefused(answer)) return { error: fail('login_required', { origin: settings.origin }) };
 	if (answer.body === null || answer.status === 401) {
 		return { error: fail('not_an_app', { origin: settings.origin, status: answer.status }) };
@@ -145,6 +151,35 @@ export async function me(deps, { origin: asked = null } = {}) {
 		origin,
 		status: answer.status,
 	});
+}
+
+/**
+ * Tries a key on its own (no cookie) against the saved app, before the options page keeps it:
+ * logged in, the cookie would answer first and a mistyped or revoked key would go unnoticed
+ * until the day it's needed.
+ */
+export async function checkKey(deps, key) {
+	if (typeof key !== 'string' || !/^sdw_[A-Za-z0-9_-]{8,}$/.test(key)) return fail('key_invalid');
+	const settings = { ...(await readSettings(deps.storage)), apiKey: key };
+	let granted = false;
+	try {
+		granted = await deps.permissions.contains({ origins: [originPattern(settings.origin)] });
+	} catch {
+		granted = false;
+	}
+	if (!granted) return fail('permission_missing', { origin: settings.origin });
+	const answer = await request(deps, settings, '/api/auth/me', { method: 'GET' }, 'key');
+	if (answer.network) return fail('unreachable', { origin: settings.origin });
+	if (answer.status === 401 && APP_401_CODES.has(answer.body?.code)) return fail('key_invalid', { origin: settings.origin });
+	if (answer.status === 200 && typeof answer.body?.email === 'string') {
+		return {
+			outcome: 'signed_in',
+			via: 'key',
+			origin: settings.origin,
+			user: { email: answer.body.email, username: answer.body.username ?? null },
+		};
+	}
+	return fail(answer.body === null ? 'not_an_app' : 'server_error', { origin: settings.origin, status: answer.status });
 }
 
 /**

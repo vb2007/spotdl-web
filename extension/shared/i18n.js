@@ -25,6 +25,7 @@ const ERROR_KEYS = {
 	cascade_unavailable: 'errorCascadeUnavailable',
 	cascade_invalid: 'errorCascadeInvalid',
 	queue_unavailable: 'errorQueueUnavailable',
+	server_error: 'errorServer',
 };
 
 /** The sentence an error answer reads as: never its raw code alone. */
@@ -60,6 +61,7 @@ export function connectionText(result) {
 			return t('statusPermissionMissing', [result.origin ?? '']);
 		case 'unreachable':
 		case 'not_an_app':
+		case 'server_error':
 			return errorText(result);
 		default:
 			return t('statusFailed');

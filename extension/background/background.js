@@ -1,7 +1,7 @@
 // The background script: the extension's only network client. The content script, the popup
 // and the options page all ask it through runtime messages.
 import { normalizeOrigin } from '../shared/config.js';
-import { history, me, remember, submit } from './api.js';
+import { checkKey, history, me, remember, submit } from './api.js';
 
 const deps = {
 	fetch: (...args) => fetch(...args),
@@ -51,6 +51,8 @@ browser.runtime.onMessage.addListener((message, sender) => {
 			return onSubmit(message);
 		case 'me':
 			return me(deps, { origin: typeof message.origin === 'string' ? normalizeOrigin(message.origin) : null });
+		case 'checkKey':
+			return checkKey(deps, message.key);
 		case 'history':
 			return history(deps.storage);
 		default:

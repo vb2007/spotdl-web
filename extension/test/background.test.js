@@ -2,7 +2,7 @@
 // answer of the app (v53's contract) maps to, and what is never sent at all.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { history, me, remember, submit } from '../background/api.js';
+import { checkKey, history, me, remember, submit } from '../background/api.js';
 import { DEFAULT_ORIGIN, normalizeOrigin, originPattern } from '../shared/config.js';
 
 const TRACK = 'https://open.spotify.com/track/0DiWol3AO6WpXZgp0goxAV';
@@ -126,6 +126,7 @@ describe('what the app answers', () => {
 		['an HTML page', new Response('<html>nginx</html>', { status: 404 }), { outcome: 'error', code: 'not_an_app' }],
 		['another host’s HTML 401 (basic auth)', new Response('<h1>401 Authorization Required</h1>', { status: 401 }), { outcome: 'error', code: 'not_an_app' }],
 		['a JSON 401 without the app’s codes', json(401, { error: 'unauthorized' }), { outcome: 'error', code: 'not_an_app' }],
+		['the app’s own crash (Starlette’s plain-text 500)', new Response('Internal Server Error', { status: 500 }), { outcome: 'error', code: 'server_error' }],
 		['nginx’s HTML 502 (the api down)', new Response('<html>502 Bad Gateway</html>', { status: 502 }), { outcome: 'error', code: 'unreachable' }],
 		['Cloudflare’s 530 (the tunnel down)', new Response('<html>error 1033</html>', { status: 530 }), { outcome: 'error', code: 'unreachable' }],
 	];
@@ -239,6 +240,21 @@ describe('settings', () => {
 
 	it('an IPv6 loopback address isn’t offered (no host permission covers it)', () => {
 		assert.equal(normalizeOrigin('http://[::1]:5177'), null);
+	});
+
+	it('checkKey tries the key alone (no cookie) before it is saved', async () => {
+		const ok = setup({ answers: [json(200, { email: 'a@example.com', username: 'a', is_admin: false })] });
+		const result = await checkKey(ok.deps, 'sdw_abcdefgh_newkey');
+		assert.equal(result.outcome, 'signed_in');
+		assert.equal(result.via, 'key');
+		assert.equal(ok.calls.length, 1);
+		assert.equal(ok.calls[0].init.credentials, 'omit');
+		assert.equal(ok.calls[0].init.headers.Authorization, 'Bearer sdw_abcdefgh_newkey');
+		const refused = setup({ answers: [json(401, { code: 'api_key_invalid' })] });
+		assert.equal((await checkKey(refused.deps, 'sdw_abcdefgh_revoked')).code, 'key_invalid');
+		const malformed = setup();
+		assert.equal((await checkKey(malformed.deps, 'not a key')).code, 'key_invalid');
+		assert.equal(malformed.calls.length, 0);
 	});
 
 	it('a stored origin that isn’t valid falls back to the default', async () => {

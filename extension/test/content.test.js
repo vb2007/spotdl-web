@@ -504,6 +504,45 @@ describe('submitting and the cascade menu', () => {
 		assert.equal(document.querySelector('.spotdl-ext-toast').textContent, 'It has more than one artist: open the menu again to choose one');
 	});
 
+	it('candidates arriving after a click on empty page space (focus on <body>) don’t take it either', async () => {
+		let answer;
+		const { window, document, messages } = loadPage('album', {
+			sendMessage: (m) => (m.cascade === 'artist' ? new Promise((resolve) => (answer = resolve)) : { outcome: 'queued' }),
+		});
+		const button = icons(document, 'row')[0];
+		button.focus();
+		key(window, button, { key: 'F10', shiftKey: true });
+		key(window, document.activeElement, { key: 'End' });
+		key(window, document.activeElement, { key: 'Enter' });
+		document.activeElement.blur();
+		assert.equal(document.activeElement, document.body);
+		answer({ outcome: 'ambiguous', candidates: [{ name: 'A', url: 'https://open.spotify.com/artist/0TnOYISbd1XYRBk9myaseg' }] });
+		await settle(window, 20);
+		assert.equal(document.querySelector('.spotdl-ext-menu'), null);
+		key(window, document.body, { key: ' ' });
+		assert.equal(messages.length, 1);
+	});
+
+	it('a request in flight survives its row being re-rendered: no second send, the answer lands on the new icon', async () => {
+		let answer;
+		const { window, document, messages } = loadPage('album', {
+			sendMessage: () => new Promise((resolve) => (answer = resolve)),
+		});
+		icons(document, 'row')[0].click();
+		const list = document.querySelector('[data-testid="track-list"]');
+		const fresh = list.cloneNode(true);
+		for (const stale of fresh.querySelectorAll('[data-spotdl-icon]')) stale.remove();
+		list.replaceWith(fresh);
+		await settle(window);
+		const again = icons(document, 'row')[0];
+		assert.equal(again.dataset.state, 'sending');
+		again.click();
+		assert.equal(messages.length, 1);
+		answer({ outcome: 'queued' });
+		await settle(window, 20);
+		assert.equal(icons(document, 'row')[0].dataset.state, 'queued');
+	});
+
 	it('a menu whose row goes away closes with it', async () => {
 		const { window, document } = loadPage('album');
 		const button = icons(document, 'row')[0];

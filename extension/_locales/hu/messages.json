@@ -54,7 +54,7 @@
 		}
 	},
 	"iconHint": {
-		"message": "Több lehetőség: jobb kattintás, Shift+F10 vagy a Menü billentyű",
+		"message": "Több lehetőség: jobb kattintás, Shift+F10 vagy a menübillentyű",
 		"description": "Tooltip and description on the icon."
 	},
 	"menuLabel": {
@@ -262,7 +262,7 @@
 		"message": "tesztelés…"
 	},
 	"statusSignedIn": {
-		"message": "Bejelentkezve mint $NAME$ ($VIA$).",
+		"message": "Bejelentkezve: $NAME$ ($VIA$).",
 		"description": "NAME is the username or email; VIA is viaCookie or viaKey.",
 		"placeholders": {
 			"name": {
@@ -376,6 +376,18 @@
 		"message": "A Firefox még nem engedi, hogy a bővítmény elérje ezt: $ORIGIN$. Engedélyezd lent",
 		"placeholders": {
 			"origin": {
+				"content": "$1"
+			}
+		}
+	},
+	"errorServer": {
+		"message": "A spotdl-alkalmazásod hibába ütközött. Próbáld újra"
+	},
+	"optionsKeyNotSaved": {
+		"message": "Nincs mentve: $RESULT$",
+		"description": "RESULT is one of the connection status sentences.",
+		"placeholders": {
+			"result": {
 				"content": "$1"
 			}
 		}
