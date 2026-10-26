@@ -838,15 +838,25 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 	}
 }
 
-// v56 (A7): every worker answer gets `breaker_clears_at` on arrival (see WorkerStatus).
+// v56 (A7): every worker answer gets `breaker_clears_at` on arrival (see WorkerStatus). One
+// trip keeps one deadline while each answer agrees with it to within 2s: recomputed from every
+// 5s poll, network jitter could move it across a minute and make the pill's live region (which
+// names the clock time) speak again. Global worker state, the same for every user.
+let lastClear: { trip: string; at: number } | null = null;
+
 async function workerAnswer(path: string, init?: RequestInit): Promise<WorkerStatus> {
 	const status: Omit<WorkerStatus, 'breaker_clears_at'> = await request(path, init);
 	const remaining = status.breaker_active ? status.breaker_remaining_seconds : null;
-	return {
-		...status,
-		breaker_clears_at:
-			remaining === null ? null : new Date(Date.now() + remaining * 1000).toISOString()
-	};
+	const trip = status.breaker_tripped_until;
+	if (remaining === null || trip === null) {
+		lastClear = null;
+		return { ...status, breaker_clears_at: null };
+	}
+	const at = Date.now() + remaining * 1000;
+	if (!lastClear || lastClear.trip !== trip || Math.abs(lastClear.at - at) > 2000) {
+		lastClear = { trip, at };
+	}
+	return { ...status, breaker_clears_at: new Date(lastClear.at).toISOString() };
 }
 
 export function workerStatus(): Promise<WorkerStatus> {
