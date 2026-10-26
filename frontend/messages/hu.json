@@ -458,7 +458,7 @@
 	"settings_output_best": "legjobb — forrás, újrakódolás nélkül",
 	"settings_output_best_mp3": "legjobb — a forrás bitrátája",
 	"settings_output_rate": "{rate} (újrakódolva)",
-	"settings_output_quality_untouched": "Pontosan úgy marad, ahogy a YouTube adja, nagyjából 130–160 kbps-on. Prémium nélkül ennél jobb nincs.",
+	"settings_output_quality_untouched": "A YouTube saját {codec} adatfolyama (nagyjából 130–160 kbps), változatlanul. Csak akkor konvertálva, ha a YouTube nem kínál ilyet.",
 	"settings_output_quality_mp3": "Az MP3 mindig újrakódolt; a legjobb a forrás bitrátáját tartja.",
 	"settings_output_quality_reencode": "Újrakódolás {rate} bitrátára: kisebb fájl, egy veszteséges lépéssel több.",
 	"settings_output_template": "Fájlnévsablon",

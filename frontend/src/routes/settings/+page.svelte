@@ -105,9 +105,8 @@
 	}
 	function qualityHint(rate: string, format: string): string {
 		if (rate !== BEST) return m.settings_output_quality_reencode({ rate });
-		return format === 'mp3'
-			? m.settings_output_quality_mp3()
-			: m.settings_output_quality_untouched();
+		if (format === 'mp3') return m.settings_output_quality_mp3();
+		return m.settings_output_quality_untouched({ codec: format === 'm4a' ? 'AAC' : 'Opus' });
 	}
 
 	let outputSettings = $state<api.OutputSettings | null>(null);
@@ -701,9 +700,10 @@
 								</div>
 							</div>
 
-							<label class="form-field">
-								<span class="label">{m.settings_output_bitrate()}</span>
+							<div class="form-field">
+								<label class="label" for="output-quality">{m.settings_output_bitrate()}</label>
 								<select
+									id="output-quality"
 									class="well"
 									bind:value={outputForm.default_bitrate}
 									disabled={outputSaving}
@@ -716,7 +716,7 @@
 								<p id="output-quality-hint" class="field-hint">
 									{qualityHint(outputForm.default_bitrate, outputForm.default_format)}
 								</p>
-							</label>
+							</div>
 
 							<div class="form-field wide">
 								<label class="label" for="output-template">{m.settings_output_template()}</label>

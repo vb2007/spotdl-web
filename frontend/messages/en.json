@@ -477,7 +477,7 @@
 	"settings_output_best": "best — source, no re-encode",
 	"settings_output_best_mp3": "best — source bitrate",
 	"settings_output_rate": "{rate} (re-encode)",
-	"settings_output_quality_untouched": "Kept exactly as YouTube serves it, about 130–160 kbps. Nothing better exists without Premium.",
+	"settings_output_quality_untouched": "YouTube's own {codec} stream (about 130–160 kbps), kept as is. Converted only if YouTube doesn't offer one.",
 	"settings_output_quality_mp3": "MP3 is always re-encoded; best matches the source's bitrate.",
 	"settings_output_quality_reencode": "Re-encoded to {rate}: smaller files, one more lossy step.",
 	"settings_output_template": "Filename template",
