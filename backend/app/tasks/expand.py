@@ -75,6 +75,14 @@ def _dispatch_due(db, job: Job, track_ids: list[uuid.UUID]) -> None:
     _set_marker(db, job, ordered[:sent], lease, None)
 
 
+def _due_case(track_ids: list[uuid.UUID], at: datetime):
+    """A marker per track, a microsecond apart in `track_ids`' order (as `_mark_due`)."""
+    return case(
+        {track_id: at + timedelta(microseconds=index) for index, track_id in enumerate(track_ids)},
+        value=Track.id,
+    )
+
+
 def _lock_job(db, job: Job) -> None:
     """The job's row lock, taken before this module's bulk UPDATEs of its tracks: cancel_job
     takes it before its own, so the two serialize instead of locking the same track rows in
@@ -96,10 +104,7 @@ def _set_marker(db, job: Job, track_ids: list[uuid.UUID], lease: datetime, marke
         value = None
     else:
         where.append(Track.state == TrackState.PENDING)
-        value = case(
-            {track_id: marker + timedelta(microseconds=index) for index, track_id in enumerate(track_ids)},
-            value=Track.id,
-        )
+        value = _due_case(track_ids, marker)
     _lock_job(db, job)
     db.execute(update(Track).where(*where).values(scheduled_at=value).execution_options(synchronize_session=False))
     db.commit()
@@ -112,16 +117,26 @@ def _enqueue_pending_tracks(db, job: Job, why: str) -> None:
     E1), so one this run can't send is beat's. A pending track that the interrupted run
     did enqueue gets a second message; download_track drops any message whose track has
     already moved on to `waiting`/`lookup_failed`, so it can't jump the retry ladder."""
-    pending = (
-        db.query(Track)
+    pending = [
+        track_id
+        for (track_id,) in db.query(Track.id)
         .filter(Track.job_id == job.id, Track.state == TrackState.PENDING)
         .order_by(Track.scheduled_at.asc().nulls_last())
-        .all()
-    )
+    ]
     logger.info("expand_job: job %s %s; enqueueing %d pending tracks", job.id, why, len(pending))
-    _mark_due(pending, datetime.now(timezone.utc))
+    if not pending:
+        return
+    # A conditional UPDATE, not the loaded rows written back: one may have been dispatched
+    # and rescheduled since (worker-dl's `waiting` slot must stay as it set it).
+    _lock_job(db, job)
+    db.execute(
+        update(Track)
+        .where(Track.id.in_(pending), Track.state == TrackState.PENDING)
+        .values(scheduled_at=_due_case(pending, datetime.now(timezone.utc)))
+        .execution_options(synchronize_session=False)
+    )
     db.commit()
-    _dispatch_due(db, job, [track.id for track in pending])
+    _dispatch_due(db, job, pending)
 
 
 # v53: nothing reads its result, and storing one made every enqueue wait on the result
