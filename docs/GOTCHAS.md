@@ -452,7 +452,9 @@ needed" claim — rather than silently deleted.
   leaves a bad partial file sitting at the real destination name, and the next sweep run treats it
   as "already there," quarantining or deleting the actually-good source over it. Fixed by having
   `copy_verify` rename (never delete) its own failed copy off the exact destination filename on a
-  checksum mismatch, freeing that name for a real retry → *v31*
+  checksum mismatch, freeing that name for a real retry → *v31*. *(2026-10-26, v57: only a
+  mismatch was covered. A copy that fails outright (ENOSPC) raised with the partial file still at
+  the destination; `copy_verify` now renames that one off too.)*
 - A per-row loop that mutates the filesystem (delete/quarantine a source file) and the DB row for it
   must commit the DB change *before* the filesystem mutation, not after — committing after leaves a
   crash-window where the file's real location and the DB's belief about it disagree, and nothing
@@ -506,6 +508,18 @@ needed" claim — rather than silently deleted.
   notice → *v48*
 - `reconcile_disk()` skips `/downloads` rows only while `/downloads` is empty, which an emptying
   sweep makes it; the first boot after a new download prunes every row whose file is gone → *v48*
+  *(2026-10-26, v57: replaced by the `.spotdl-volume` mount sentinel; see the v57 entries.)*
+- A root is "mounted" only while its `.spotdl-volume` sentinel is there. The app creates it only
+  where it can tell (no ledger row under the root, or at least one of their files present); a
+  mounted root whose every ledger file is really gone needs it created by hand → *v57*
+- The library sweep and worker-dl's ledger upsert serialize per file on a Postgres advisory lock
+  (`dedup.file_lock` / `record_download`); the sweep's lock needs its own connection, since its
+  session commits the repoint before it deletes the source → *v57*
+- Known library roots only grow (`app_settings.library_known_roots`): dedup, reconcile and file
+  serving cover every root the install has used, and nginx's `/internal-library/` still aliases
+  only `/mnt/raid1/media/music` → *v57*
+- CI runs pytest on the production host, where `/mnt/raid1/media/music` is the real library: a
+  test reaching `reconcile_disk` must keep every managed root under `tmp_path` → *v57*
 - Priority and bump are admin-only on the server since v48 (403 before the job lookup, the same
   for any id), not only hidden in the UI → *v48* *(2026-10-26, v56: now 404, the A6 rule below.)*
 - A library sweep archives only the sweeping admin's own settled jobs; every user's moved
@@ -5083,13 +5097,16 @@ independently-found production bug from the same conversation)
   repoints `library_target_dir`, rows still under the old root fall outside both. They're fine
   while that old root stays mounted (it's the same `/mnt/raid1/media/music` mount today). The
   damage query has the same blind spot in reverse: after a repoint it reports old-root rows as
-  `ledger_back_in_downloads`.
+  `ledger_back_in_downloads`. *(2026-10-26, v57: every library root the install has used is
+  guarded now, `app_settings.library_known_roots`.)*
 - **The guard covers the downloads root too, and that can stall a track.** If `/downloads` is
   ever genuinely empty (a sort moved everything and no `quarantine/` dir exists) while a ledger
   row still points at a hand-deleted file there, the track is held every ladder step, forever,
   with an error each time, and `reconcile_disk` skips the same row for the same reason. Fix it
   by hand: delete that ledger row. Accepted as the safe direction (plan: "a silent re-download
-  is not an option").
+  is not an option"). *(2026-10-26, v57: fixed. "Mounted" is the root's `.spotdl-volume`
+  sentinel, not "non-empty", and a file missing under a mounted root drops its row and downloads
+  again.)*
 - **A miss re-reads the row before deciding** (blind review round 1). The sweep commits a
   repoint and then unlinks the source, so a check that read the old `/downloads` path just
   before saw neither file. Same fix as `reconcile_disk`'s v34.1 recheck: `db.refresh(row)`.
@@ -5664,7 +5681,8 @@ independently-found production bug from the same conversation)
   the default quarantine dir is `/downloads/quarantine`, which keeps it non-empty for good), so
   the deploys after it skipped the stranded rows. The first boot with any new download waiting would have pruned all of them,
   and each track would have re-downloaded when next requested. That is why the repair is a
-  migration: every backend service waits for `migrate`, so it lands before `reconcile_disk()`.
+  migration: every backend service waits for `migrate`, so it lands before `reconcile_disk()`. *(2026-10-26, v57: the "empty means unmounted" guard is gone; a
+  mount sentinel decides.)*
 - **A completed download's ledger merge never set `in_library`.** `db.merge` copies only the
   attributes given, so a row whose library file went missing and was downloaded again kept
   `in_library=True` on its new `/downloads` path, and no sweep (it reads only `in_library=False`)
@@ -6685,3 +6703,49 @@ independently-found production bug from the same conversation)
   head, so `alembic upgrade head` did nothing and `hold_count` was never added. Repair: `alembic
   downgrade d9b3e5f7a1c2` (runs only v56's downgrade), `alembic stamp a7c4e1b9d2f5`, `alembic
   upgrade head`. Production never sees this: it only ever runs the merged chain.
+
+### v57 library-hardening gotchas (learned closing the sweep and dedup edge cases)
+
+- **"Mounted" is a sentinel file now, never "non-empty".** Every managed root (the downloads dir
+  and every known library root) carries `.spotdl-volume`. `reconcile_disk()` creates it where
+  that's safe to decide: the root exists and either no ledger row points into it, or at least
+  one of those files is really there. A root whose every ledger file is missing looks exactly
+  like an unattached mountpoint, so it gets none, its rows are skipped, and the log says to
+  create the file by hand once the mount is checked. Proven on slot 3: first boot logged
+  "sentinel created" for `/downloads` and `/mnt/raid1/media/music`, later boots "sentinel
+  present"; `/downloads` emptied (only the sentinel left) pruned a stale row; an empty
+  mountpoint and a missing root were each skipped with a line. A sweep never touches the
+  sentinel (it walks ledger rows, not the tree), so `/downloads` stays "mounted" after a sweep
+  empties it, which is what keeps the v48 47-row accident from recurring.
+- **A file missing under a mounted root drops its row before the download (L5).**
+  `is_already_downloaded` deletes the row (only while it still points at the missing path) and
+  returns a miss, instead of holding the track on every rung. A missing file under a root
+  without a sentinel still holds (v38).
+- **The sweep vs worker-dl race needed a lock that outlives a commit (L3).** The sweep commits
+  its repoint and only then deletes the source (v28's crash-safety order), so a transaction-level
+  lock in the sweep's own session would end at that commit. `dedup.file_lock` holds
+  `pg_advisory_xact_lock` on a connection of its own for repoint, commit and delete; worker-dl's
+  `record_download` takes the same key in its own transaction and re-checks that the file still
+  exists. If the sweep won, the attempt fails as an ordinary error (`LedgerFileMoved`: the ladder
+  retries it, the breaker isn't fed) rather than recording a row on a dead path.
+  `tests/test_library_race.py` fails without the lock (a strict xfail) and passes with it. A
+  `db_session` test can't open that second connection (conftest flags it), so the sweep's unit
+  tests stub `file_lock`.
+- **v31's `copy_verify` fix missed the disk-full case (L7).** On a 2 MiB tmpfs, `shutil.copy2`
+  raised ENOSPC with 2 MiB of an 8.6 MB file already at the destination's exact name; the
+  checksum rename never ran, and the next sweep would have read the partial file as "already
+  exists" and quarantined (or deleted) the good source. A failed copy is now renamed off to
+  `<name>.copy-failed-<hex>` (a rename needs no free space) and the error re-raised.
+- **Known library roots only grow (L6).** Changing `library_target_dir` keeps the old value in
+  `app_settings.library_known_roots`; dedup, reconcile, the sweep's "never move a library file"
+  check and file serving all cover every known root. File serving still goes through nginx's
+  single `/internal-library/` alias (`/mnt/raid1/media/music`), so the backend now computes the
+  path relative to that alias: a root elsewhere answers 404, not a different file at the same
+  relative path.
+- **Quarantine inside `/downloads` stays valid (owner decision, 2026-10-26).** See the master
+  plan's Amendments: L2's literal "not inside the downloads dir" would have refused every
+  production sweep.
+- **CI's pytest runs on the production host.** `/mnt/raid1/media/music` there is the real library,
+  and `reconcile_disk` writes sentinels: `test_dedup.py` keeps every managed root under `tmp_path`
+  (an autouse fixture asserts it). `update_library_settings` keeps the old root as a known one, so
+  a test that moves the library sets the row directly.

@@ -610,3 +610,12 @@ here.
     it, `DELETE /api/proxies/{id}` on a proxy in use marks it (`proxies.delete_requested_at`, a new
     column in v56's migration): it's never picked again, a periodic task deletes it once nothing
     uses it, and `/settings` shows it as "deleting" meanwhile. An idle proxy still goes at once.
+- **2026-10-26, v57: a quarantine folder inside the downloads folder stays valid (owner's
+  decision).** L2 says to reject a quarantine dir "equal to, inside, or containing" the downloads
+  dir, but the shipped default, and production's value, is `/downloads/quarantine`, and
+  production mounts nowhere else writable outside the downloads and library volumes. Applied
+  literally, every production sweep would have been refused until a new mount existed. The rule
+  as built: the library may not equal, sit inside or contain the downloads dir; the quarantine
+  dir may not equal, sit inside or contain the library, nor equal or contain the downloads dir.
+  A subfolder of the downloads dir is fine, since the sweep walks ledger rows, never the
+  downloads tree.
