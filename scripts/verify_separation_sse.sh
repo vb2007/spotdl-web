@@ -50,17 +50,18 @@
 #   SPOTDL_WEB_TEST_TRACK_URL     default: a single well-known Spotify track (small,
 #                                  fast to expand) -- override if the default ever stops
 #                                  resolving
-#   SPOTDL_WEB_CAPTURE_SECONDS    how long each curl -N stays open (default: 40). Must
+#   SPOTDL_WEB_CAPTURE_SECONDS    how long each curl -N stays open (default: 60). Must
 #                                  comfortably exceed the ~2s pre-sleep + up to 15s of
-#                                  expansion-wait polling + the cancel + a 3s settle sleep
-#                                  (~20s worst case) with real margin left over, or a slow
+#                                  expansion-wait polling (twice with an admin, v54: A's job
+#                                  and the admin's own) + the cancels + a 3s settle sleep
+#                                  (~35s worst case) with real margin left over, or a slow
 #                                  expand can silently truncate the capture window before
 #                                  the events it's waiting for ever land
 set -euo pipefail
 
 BASE_URL="${SPOTDL_WEB_BASE_URL:-http://127.0.0.1:${API_PORT:-8000}}"
 TEST_TRACK_URL="${SPOTDL_WEB_TEST_TRACK_URL:-https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT}"
-CAPTURE_SECONDS="${SPOTDL_WEB_CAPTURE_SECONDS:-40}"
+CAPTURE_SECONDS="${SPOTDL_WEB_CAPTURE_SECONDS:-60}"
 
 : "${SPOTDL_WEB_USER_A_EMAIL:?set SPOTDL_WEB_USER_A_EMAIL}"
 : "${SPOTDL_WEB_USER_A_PASSWORD:?set SPOTDL_WEB_USER_A_PASSWORD}"

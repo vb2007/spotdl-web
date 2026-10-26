@@ -40,6 +40,17 @@ async function expectView(page: Page, view: 'mine' | 'all' | 'others'): Promise<
 	await expect(jobToggle(page, user.title)).toHaveCount(view === 'mine' ? 0 : 1);
 }
 
+/** A worker poll that fails (the network gone) leaves no unhandled rejection behind: two
+ * failed 5s polls. In the admin's others view the poll also forks the own-download check. */
+async function expectNoUnhandledRejection(page: Page): Promise<void> {
+	const pageErrors: string[] = [];
+	page.on('pageerror', (error) => pageErrors.push(error.message));
+	await page.route('**/api/worker/status', (route) => route.abort());
+	await page.waitForTimeout(11_000);
+	await page.unroute('**/api/worker/status');
+	expect(pageErrors).toEqual([]);
+}
+
 test.describe('admin', () => {
 	test.use({ storageState: ADMIN_STATE });
 
@@ -173,6 +184,14 @@ test.describe('admin', () => {
 		}
 	});
 
+	test('a failed worker poll in the others view leaves no unhandled rejection', async ({
+		page
+	}) => {
+		await page.goto('/?view=others');
+		await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
+		await expectNoUnhandledRejection(page);
+	});
+
 	test('a link submitted in the others view is not shown there; a notice says where it went', async ({
 		page,
 		baseURL
@@ -240,11 +259,6 @@ test.describe('non-admin', () => {
 		// The page never even asks for another view (the server would refuse it anyway).
 		expect(listings.filter((u) => /[?&](view|all_users)=/.test(u))).toEqual([]);
 
-		// A worker poll that fails (the network gone) leaves no unhandled rejection behind.
-		const pageErrors: string[] = [];
-		page.on('pageerror', (error) => pageErrors.push(error.message));
-		await page.route('**/api/worker/status', (route) => route.abort());
-		await page.waitForTimeout(11_000);
-		expect(pageErrors).toEqual([]);
+		await expectNoUnhandledRejection(page);
 	});
 });

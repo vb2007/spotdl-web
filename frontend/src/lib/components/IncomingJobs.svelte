@@ -320,7 +320,8 @@
 	}
 
 	function isOwn(job: Job): boolean {
-		return !othersShown || job.owner_email === sessionEmail;
+		// Case-insensitive, the store's and the page's one rule for "the viewer's".
+		return !othersShown || job.owner_email.toLowerCase() === sessionEmail.toLowerCase();
 	}
 </script>
 

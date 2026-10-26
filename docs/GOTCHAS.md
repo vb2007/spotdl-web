@@ -487,12 +487,6 @@ needed" claim — rather than silently deleted.
   messages must still heartbeat on schedule (the tunnel's idle timeout) → *v54*
 - SSE payloads name no owner (v17), so in `view=all` the page can't tell whose a new lane is: one
   throttled bulk lookup (the view's `downloading` listing, owners embedded) places lanes → *v54*
-- SvelteKit's `replaceState` leaves `page.url` at the last navigation and records that stale URL
-  in the history entry, so a later Back navigates to it: read a query-string state from `location`
-  → *v54*
-- A Back/Forward between two entries of the same route reuses the mounted page (no remount), and
-  `navigating` is still set inside `afterNavigate`: adopt the popped entry's state there, never
-  write the page's own over it → *v54*
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
   Tunnel closes the connection → *v08*
 - `get_message(ignore_subscribe_messages=True)` returns `None` immediately after subscribe, so the
@@ -641,6 +635,12 @@ needed" claim — rather than silently deleted.
   others → *v28*
 
 **Frontend (SvelteKit)**
+- SvelteKit's `replaceState` leaves `page.url` at the last navigation and records that stale URL
+  in the history entry, so a later Back navigates to it: read a query-string state from `location`
+  → *v54*
+- A Back/Forward between two entries of the same route reuses the mounted page (no remount), and
+  `navigating` is still set inside `afterNavigate`: adopt the popped entry's state there, never
+  write the page's own over it → *v54*
 - `svelte/no-navigation-without-resolve` rejects `replaceState(resolve('/') + '?view=…')`, any
   form: the query-string write carries a reasoned `eslint-disable-next-line` → *v54*
 - Job create's `already_queued` hint returns the existing job with 200: don't add it to the store
@@ -6285,10 +6285,11 @@ independently-found production bug from the same conversation)
   warms the page in every view" needs a second signal.** The stream drops every message on
   `channel_for(me)` (the plan's design: payloads stay owner-less, filtering is by channel only), so
   under `others` no event of the admin's own ever reaches the store. `queue.ownReceivingElsewhere`
-  asks `GET /api/tracks?state=downloading&view=mine` on each resync and on the page's existing 5 s
+  asks `GET /api/tracks?state=downloading&include_archived=true` (no `view`: mine is the default)
+  on each resync and on the page's existing 5 s
   worker poll, in `others` only, and the layout's ambient field reads `queue.viewerReceiving`. So
   the field can take up to 5 s to warm or cool for an own download seen from `others`.
-  _(Corrected 2026-10-26, v54 review rounds 4–7: the store-internal count is asked for one row
+  _(Corrected 2026-10-26, v54 review rounds 4–8: the store-internal count is asked for one row
   (`limit=1`), on the poll only while that poll's own answer says the worker is busy (`busy` is
   "any track `downloading`", so idle means 0); each check takes its place in line when it
   starts, and the newest one that lands wins, so a failed poll discards nothing.)_
