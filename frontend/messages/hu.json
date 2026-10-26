@@ -31,6 +31,16 @@
 	"error_archive_nothing_selected": "Nincs kiválasztva archiválandó feladat",
 	"error_invalid_list_params": "A listakérés érvénytelen ({reason})",
 	"error_library_sort_running": "Már fut egy könyvtárrendezés",
+	"error_library_sort_not_running": "Nem fut könyvtárrendezés.",
+	"error_library_paths_overlap": "Ezek a mappák átfedik egymást; a rendezés önmagukra mozgatná a fájlokat.",
+	"error_library_paths_library_downloads_equal": "A könyvtár mappája nem lehet a letöltési mappa.",
+	"error_library_paths_library_downloads_inside": "A könyvtár mappája nem lehet a letöltési mappán belül.",
+	"error_library_paths_library_downloads_contains": "A könyvtár mappája nem tartalmazhatja a letöltési mappát.",
+	"error_library_paths_quarantine_library_equal": "A karanténmappa nem lehet a könyvtár mappája.",
+	"error_library_paths_quarantine_library_inside": "A karanténmappa nem lehet a könyvtár mappáján belül.",
+	"error_library_paths_quarantine_library_contains": "A karanténmappa nem tartalmazhatja a könyvtár mappáját.",
+	"error_library_paths_quarantine_downloads_equal": "A karanténmappa nem lehet maga a letöltési mappa; egy azon belüli mappa megfelel.",
+	"error_library_paths_quarantine_downloads_contains": "A karanténmappa nem tartalmazhatja a letöltési mappát.",
 	"error_track_not_found": "Nincs ilyen szám",
 	"error_job_archived": "A feladat archiválva van; előbb hozd vissza",
 	"error_track_not_retryable": "A szám állapota „{state}”, így nem próbálható újra",
@@ -632,6 +642,31 @@
 	"library_count_quarantined": "karanténba tett duplikátum",
 	"library_count_errors": "hiba",
 	"library_nothing_to_move": "Nincs mit áthelyezni: egy letöltés sem várt arra, hogy a könyvtárba kerüljön.",
+	"library_cancel": "rendezés leállítása",
+	"library_cancelling": "leállítás…",
+	"library_cancel_confirm_title": "Leállítod a rendezést?",
+	"library_cancel_confirm_body": "A mostani fájl után áll le. A már a helyükre került fájlok a könyvtárban maradnak, és a számaik is velük mennek; a többi a letöltések között marad a következő rendezésig.",
+	"library_cancel_confirm_keep": "hadd fusson",
+	"library_stopping": "Leáll a mostani fájl után…",
+	"library_cancelled_after": [
+		{
+			"declarations": ["input count", "input processed", "input total"],
+			"selectors": [],
+			"match": {
+				"*": "Leállítva {processed} / {total} fájl után."
+			}
+		}
+	],
+	"library_state_cancelled": [
+		{
+			"declarations": ["input count", "input n", "input movedN"],
+			"selectors": [],
+			"match": {
+				"*": "A rendezés leállt: {movedN} áthelyezve, {n} hiba."
+			}
+		}
+	],
+	"library_last_cancelled": "A legutóbbi rendezést leállították: {when}",
 	"library_sweep_problems": "A rendezés hibái",
 	"library_sweep_problems_hint": "Nem egy-egy fájlhoz tartoznak: maga a rendezés ütközött beléjük (az áthelyezések utáni nyilvántartásban, vagy összeomláskor). Amit már a helyére tett, az ott is marad.",
 	"library_not_filed": "Nem került a helyére",

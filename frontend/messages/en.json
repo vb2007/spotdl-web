@@ -31,6 +31,16 @@
 	"error_archive_nothing_selected": "No jobs were chosen to archive",
 	"error_invalid_list_params": "{reason}",
 	"error_library_sort_running": "A library sort is already running",
+	"error_library_sort_not_running": "No library sweep is running.",
+	"error_library_paths_overlap": "These folders overlap; a sweep would move files onto themselves.",
+	"error_library_paths_library_downloads_equal": "The library folder can't be the downloads folder.",
+	"error_library_paths_library_downloads_inside": "The library folder can't be inside the downloads folder.",
+	"error_library_paths_library_downloads_contains": "The library folder can't contain the downloads folder.",
+	"error_library_paths_quarantine_library_equal": "The quarantine folder can't be the library folder.",
+	"error_library_paths_quarantine_library_inside": "The quarantine folder can't be inside the library folder.",
+	"error_library_paths_quarantine_library_contains": "The quarantine folder can't contain the library folder.",
+	"error_library_paths_quarantine_downloads_equal": "The quarantine folder can't be the downloads folder itself; a folder inside it is fine.",
+	"error_library_paths_quarantine_downloads_contains": "The quarantine folder can't contain the downloads folder.",
 	"error_track_not_found": "Track not found",
 	"error_job_archived": "Job is archived; unarchive it first",
 	"error_track_not_retryable": "Track is {state}, not retryable",
@@ -670,6 +680,43 @@
 	"library_count_quarantined": "duplicates quarantined",
 	"library_count_errors": "errors",
 	"library_nothing_to_move": "Nothing to move: no download was waiting to go into the library.",
+	"library_cancel": "cancel sweep",
+	"library_cancelling": "stopping…",
+	"library_cancel_confirm_title": "Cancel the sweep?",
+	"library_cancel_confirm_body": "It stops after the file it's on. Files already filed stay in the library, and their tracks follow them; the rest stay in downloads for the next sweep.",
+	"library_cancel_confirm_keep": "keep sweeping",
+	"library_stopping": "Stopping after the current file…",
+	"library_cancelled_after": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"input processed",
+				"input total"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "Cancelled after {processed} of {total} file.",
+				"countPlural=*": "Cancelled after {processed} of {total} files."
+			}
+		}
+	],
+	"library_state_cancelled": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"input n",
+				"input movedN"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "Sweep cancelled: {movedN} moved, {n} error.",
+				"countPlural=*": "Sweep cancelled: {movedN} moved, {n} errors."
+			}
+		}
+	],
+	"library_last_cancelled": "Last sweep cancelled {when}",
 	"library_sweep_problems": "Sweep problems",
 	"library_sweep_problems_hint": "Not about one file: the sweep itself hit these (bookkeeping after the moves, or a crash). Files it already filed stay filed.",
 	"library_not_filed": "Not filed",

@@ -26,6 +26,22 @@ const field = (params: Params) => {
 	return FIELD_LABEL[name]?.() ?? name;
 };
 
+// v57 (L2): one whole sentence per way two of the sweep's folders can overlap (the backend's
+// field, other and relation), so each language words its own grammar.
+const PATHS_OVERLAP: Record<string, () => string> = {
+	library_target_dir_download_output_dir_equal: m.error_library_paths_library_downloads_equal,
+	library_target_dir_download_output_dir_inside: m.error_library_paths_library_downloads_inside,
+	library_target_dir_download_output_dir_contains: m.error_library_paths_library_downloads_contains,
+	library_quarantine_dir_library_target_dir_equal: m.error_library_paths_quarantine_library_equal,
+	library_quarantine_dir_library_target_dir_inside: m.error_library_paths_quarantine_library_inside,
+	library_quarantine_dir_library_target_dir_contains:
+		m.error_library_paths_quarantine_library_contains,
+	library_quarantine_dir_download_output_dir_equal:
+		m.error_library_paths_quarantine_downloads_equal,
+	library_quarantine_dir_download_output_dir_contains:
+		m.error_library_paths_quarantine_downloads_contains
+};
+
 const BY_CODE: Record<string, (params: Params) => string> = {
 	invalid_credentials: () => m.error_invalid_credentials(),
 	not_authenticated: () => m.error_not_authenticated(),
@@ -38,6 +54,9 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	// The reason is the server's own diagnostic (a bad cursor, an unknown sort), kept as sent.
 	invalid_list_params: (p) => m.error_invalid_list_params({ reason: String(p.reason ?? '') }),
 	library_sort_running: () => m.error_library_sort_running(),
+	library_sort_not_running: () => m.error_library_sort_not_running(),
+	library_paths_overlap: (p) =>
+		(PATHS_OVERLAP[`${p.field}_${p.other}_${p.relation}`] ?? m.error_library_paths_overlap)(),
 	track_not_found: () => m.error_track_not_found(),
 	job_archived: () => m.error_job_archived(),
 	track_not_retryable: (p) =>
