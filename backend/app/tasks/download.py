@@ -431,6 +431,7 @@ def download_track(track_id: str) -> None:
                     TrackAttemptOutcome.CANCELLED,
                     proxy_id=proxy_id,
                     network_path=chosen_path,
+                    supersede_reclaim_after=entry_attempt,
                 )
                 db.commit()
                 return
@@ -520,6 +521,7 @@ def download_track(track_id: str) -> None:
                 proxy_id=proxy_id,
                 warning_message=f"tag warning: {tag_warning}" if tag_warning else None,
                 network_path=chosen_path,
+                supersede_reclaim_after=entry_attempt,
             )
             # v55 (E7): the completion's own time, set after record_attempt (its counter
             # UPDATE expires the attribute). The onupdate now() would be this transaction's
@@ -577,6 +579,7 @@ def download_track(track_id: str) -> None:
                     TrackAttemptOutcome.CANCELLED,
                     proxy_id=proxy_id,
                     network_path=chosen_path,
+                    supersede_reclaim_after=entry_attempt,
                 )
                 db.commit()
                 return
@@ -614,6 +617,7 @@ def download_track(track_id: str) -> None:
                 error_message=error_message,
                 proxy_id=proxy_id,
                 network_path=chosen_path,
+                supersede_reclaim_after=entry_attempt,
             )
             db.commit()
             events.publish_track_event(

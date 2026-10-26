@@ -30,6 +30,11 @@ _NETWORK_OUTCOMES = {TrackAttemptOutcome.COMPLETED, TrackAttemptOutcome.FAILED}
 # alerts.py must not import spotdl (see its module docstring).
 TRANSPORT_FAILURE_PREFIX = "proxy failed to carry the request: "
 
+# v55 (E3): every `failed` row beat's stale reclaim writes for a track stuck `downloading`
+# starts with this. If that invocation was still alive, its real outcome later supersedes the
+# row (record_attempt's `supersede_reclaim_after`), so one network attempt is counted once.
+RECLAIM_PREFIX = "reclaimed: "
+
 
 def latest_attempt_number(db: Session, track_id: uuid.UUID) -> int:
     """The track's newest attempt_number (0 with no rows). v55 (E4/E5): download_track reads
@@ -87,26 +92,50 @@ def record_attempt(
     warning_message: str | None = None,
     proxy_id: uuid.UUID | None = None,
     network_path: NetworkPath | None = None,
+    supersede_reclaim_after: int | None = None,
 ) -> RecordedAttempt:
     """Adds one `track_attempts` row and returns its attempt_number together with the
     track's counters after it.
 
-    The counter UPDATE runs first so it takes the track's row lock before the number is
-    read: beat's stale-track reclaim (worker-meta) and download_track (worker-dl) can
-    write rows for the same track concurrently, and the lock serializes them so `max + 1`
-    is never computed twice. The unique constraint on (track_id, attempt_number) backs
-    this up. `synchronize_session="fetch"` keeps an already-loaded Track in this session
-    (download_track's) in step with the new counter values."""
+    The track's row lock is taken first, before anything is read: beat's stale-track
+    reclaim (worker-meta) and download_track (worker-dl) can write rows for the same track
+    concurrently, and the lock serializes them so `max + 1` is never computed twice. The
+    unique constraint on (track_id, attempt_number) backs this up. `synchronize_session=
+    "fetch"` keeps an already-loaded Track in this session (download_track's) in step with
+    the new counter values.
+
+    v55 (E3) `supersede_reclaim_after`: the caller's entry token (latest_attempt_number).
+    If beat reclaimed the track while this invocation was still running, the `failed` row
+    the reclaim wrote on its behalf is rewritten into this real outcome instead of a second
+    row being added, and the counters move by the difference: one network attempt, counted
+    once. A reclaim of an invocation that really died keeps its row, the only record of it."""
     # Derived from the row alone (outcome + network_path), so the counters can always be
     # recomputed from track_attempts -- the migration's backfill uses the same rule.
     attempted = outcome in _NETWORK_OUTCOMES or network_path is not None
     failed = outcome == TrackAttemptOutcome.FAILED
+    db.execute(select(Track.id).where(Track.id == track_id).with_for_update())
+    reclaim_row: TrackAttempt | None = None
+    if supersede_reclaim_after is not None:
+        reclaim_row = db.execute(
+            select(TrackAttempt)
+            .where(
+                TrackAttempt.track_id == track_id,
+                TrackAttempt.attempt_number > supersede_reclaim_after,
+                TrackAttempt.outcome == TrackAttemptOutcome.FAILED,
+                TrackAttempt.network_path.is_(None),
+                TrackAttempt.error_message.startswith(RECLAIM_PREFIX),
+            )
+            .order_by(TrackAttempt.attempt_number)
+            .limit(1)
+        ).scalar_one_or_none()
+    # The reclaim row was counted as a failed network attempt.
+    superseded = int(reclaim_row is not None)
     attempts_made, failure_count = db.execute(
         update(Track)
         .where(Track.id == track_id)
         .values(
-            attempts_made=Track.attempts_made + (1 if attempted else 0),
-            failure_count=Track.failure_count + (1 if failed else 0),
+            attempts_made=Track.attempts_made + int(attempted) - superseded,
+            failure_count=Track.failure_count + int(failed) - superseded,
             # Not a change to the track itself: without this the column's onupdate would
             # bump it, and a stray message's row on an already-cancelled track would
             # restart its job's archive clock. Paths that do change the track flush that
@@ -116,6 +145,17 @@ def record_attempt(
         .returning(Track.attempts_made, Track.failure_count)
         .execution_options(synchronize_session="fetch")
     ).one()
+    if reclaim_row is not None:
+        reclaim_row.started_at = started_at
+        reclaim_row.finished_at = finished_at
+        reclaim_row.outcome = outcome
+        reclaim_row.error_type = error_type
+        reclaim_row.error_message = error_message
+        reclaim_row.warning_message = warning_message
+        reclaim_row.proxy_id = proxy_id
+        reclaim_row.network_path = network_path
+        db.flush()
+        return RecordedAttempt(reclaim_row.attempt_number, attempts_made, failure_count)
     attempt_number = db.execute(
         select(func.coalesce(func.max(TrackAttempt.attempt_number), 0) + 1).where(
             TrackAttempt.track_id == track_id

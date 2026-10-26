@@ -9,20 +9,25 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from concurrency import Gate, Thread
-from sqlalchemy import text
+from concurrency import Gate, Thread, blocked_or_done
+from spotdl.providers.audio.base import AudioProviderError
+from sqlalchemy import event, text
+
+from app.config import get_settings
 
 from app.models import (
     Job,
     JobSourceType,
     JobState,
+    NetworkPath,
     Track,
     TrackAttempt,
     TrackAttemptOutcome,
+    TrackErrorType,
     TrackState,
     User,
 )
-from app.services import app_settings, dedup, downloads, events, proxies, tagging
+from app.services import app_settings, attempts, dedup, downloads, events, proxies, tagging
 from app.tasks import beat as beat_task
 from app.tasks import download as download_task
 
@@ -238,3 +243,76 @@ def test_no_transaction_is_left_open_during_the_download(committed_db, monkeypat
         attempt = db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).one()
         assert track.state == TrackState.COMPLETED
         assert track.updated_at >= attempt.finished_at
+
+
+# --- E3: a reclaim of a live download counts its attempt once ------------------------------
+
+
+@pytest.mark.parametrize("outcome", ["completed", "failed"])
+def test_a_reclaim_of_a_live_download_counts_its_one_attempt_once(
+    committed_db, monkeypatch, real_task, outcome
+):
+    """Beat reclaims the track while its download is still running (stale threshold 0), and
+    the download's real outcome lands while the reclaim's transaction is still open: it waits
+    on the reclaim's row lock, then rewrites the reclaim's `failed` row instead of adding a
+    second. Before, the one network attempt was counted twice (the reclaim's row plus the real
+    one), and a success read `failures: 1`."""
+    monkeypatch.setattr(get_settings(), "stale_track_after_seconds", 0, raising=False)
+    track_id = _committed_track(committed_db)
+    gate = Gate("reclaim: rows written, before its commit")
+    reclaimers = []
+
+    def reclaim():
+        with committed_db() as db:
+            event.listen(db, "before_commit", gate, once=True)
+            beat_task._reclaim_stale_tracks(db)
+
+    def download_one(song, downloader):
+        reclaimers.append(Thread(reclaim, name="stale-track reclaim"))
+        gate.wait_reached()
+        if outcome == "failed":
+            raise AudioProviderError("HTTP Error 429: Too Many Requests")
+        return song, real_task.output_path
+
+    monkeypatch.setattr(downloads, "download_one", download_one)
+
+    task = Thread(download_task.download_track, str(track_id), name="download_track")
+    assert blocked_or_done(task) == "blocked"  # its outcome waits on the reclaim's row lock
+    gate.open()
+    task.join()
+    reclaimers[0].join()
+
+    with committed_db() as db:
+        track = db.get(Track, track_id)
+        rows = db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).all()
+        assert [(row.outcome.value, row.network_path) for row in rows] == [
+            (outcome, NetworkPath.DIRECT_IPV4)
+        ]
+        if outcome == "completed":
+            assert track.state == TrackState.COMPLETED
+            assert (track.attempts_made, track.failure_count) == (1, 0)
+        else:
+            assert track.state == TrackState.WAITING
+            assert rows[0].error_type == TrackErrorType.AUDIO_PROVIDER
+            assert (track.attempts_made, track.failure_count) == (1, 1)
+            assert track.attempt_count == 1  # one rung climbed, not two
+    # The task's final event carries the corrected counters.
+    assert real_task.published[-1][0] == ("completed" if outcome == "completed" else "waiting")
+    final = real_task.published[-1][1]
+    assert (final["attempts_made"], final["failure_count"]) == ((1, 0) if outcome == "completed" else (1, 1))
+
+
+def test_a_reclaim_of_a_dead_download_keeps_its_failed_row(committed_db, monkeypatch, real_task):
+    """The other half of E3: the invocation really died (nothing ever supersedes the row), so the
+    reclaim's `failed` row stays the one record of its network attempt."""
+    track_id = _committed_track(committed_db, state=TrackState.DOWNLOADING)
+
+    with committed_db() as db:
+        beat_task._reclaim_stale_tracks(db)
+
+    with committed_db() as db:
+        track = db.get(Track, track_id)
+        row = db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).one()
+        assert row.outcome == TrackAttemptOutcome.FAILED
+        assert row.error_message.startswith(attempts.RECLAIM_PREFIX)
+        assert (track.state, track.attempts_made, track.failure_count) == (TrackState.WAITING, 1, 1)
