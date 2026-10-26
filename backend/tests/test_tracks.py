@@ -192,6 +192,128 @@ def test_retry_track_rejects_when_job_is_archived(authenticated_client, db_sessi
     assert db_session.get(Track, track.id).state == TrackState.LOOKUP_FAILED
 
 
+def test_a_non_admins_second_retry_now_in_one_step_gets_429(authenticated_client, db_session, owner):
+    """v56 (A8, #69): once per ladder step. The first press dispatches without resetting
+    the step; the second, while still at that step, is refused with the time left until
+    the track is tried anyway."""
+    track = _make_track(
+        db_session, owner, state=TrackState.WAITING, scheduled_at=datetime.now(timezone.utc) + timedelta(hours=4), attempt_count=2
+    )
+
+    first = authenticated_client.post(f"/api/tracks/{track.id}/retry")
+    assert first.status_code == 200
+    assert first.json()["attempt_count"] == 2
+    # Not dispatched yet (the breaker holds it, or beat's next pass hasn't come), but due.
+    db_session.refresh(track)
+    track.scheduled_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    db_session.commit()
+
+    second = authenticated_client.post(f"/api/tracks/{track.id}/retry")
+
+    assert second.status_code == 429
+    assert second.json()["code"] == "retry_cooldown"
+    assert 595 <= second.json()["params"]["retry_after"] <= 600
+    assert second.headers["retry-after"] == str(second.json()["params"]["retry_after"])
+    db_session.expire_all()
+    assert _aware(db_session.get(Track, track.id).scheduled_at) > datetime.now(timezone.utc) + timedelta(minutes=9)
+
+
+def test_a_non_admin_may_retry_now_again_at_the_next_step(authenticated_client, db_session, owner):
+    track = _make_track(db_session, owner, state=TrackState.WAITING, scheduled_at=datetime.now(timezone.utc), attempt_count=2)
+    assert authenticated_client.post(f"/api/tracks/{track.id}/retry").status_code == 200
+    # The dispatched attempt failed: the ladder moved on a step (retry.record_failure).
+    db_session.refresh(track)
+    track.attempt_count = 3
+    track.scheduled_at = datetime.now(timezone.utc) + timedelta(hours=12)
+    db_session.commit()
+
+    assert authenticated_client.post(f"/api/tracks/{track.id}/retry").status_code == 200
+
+
+def test_retry_cooldown_counts_to_the_breakers_clear_when_that_is_later(authenticated_client, db_session, owner):
+    track = _make_track(db_session, owner, state=TrackState.WAITING, scheduled_at=datetime.now(timezone.utc), attempt_count=1)
+    assert authenticated_client.post(f"/api/tracks/{track.id}/retry").status_code == 200
+    retry.get_worker_state(db_session).breaker_tripped_until = datetime.now(timezone.utc) + timedelta(hours=2)
+    db_session.commit()
+
+    second = authenticated_client.post(f"/api/tracks/{track.id}/retry")
+
+    assert second.status_code == 429
+    assert 2 * 3600 - 5 <= second.json()["params"]["retry_after"] <= 2 * 3600
+
+
+def test_an_admins_retry_now_is_unrestricted(admin_client, db_session, make_user):
+    track = _make_track(
+        db_session, make_user("owner@example.com"), state=TrackState.WAITING, scheduled_at=datetime.now(timezone.utc) + timedelta(hours=4), attempt_count=2
+    )
+
+    answers = [admin_client.post(f"/api/tracks/{track.id}/retry").status_code for _ in range(3)]
+
+    assert answers == [200, 200, 200]
+    db_session.expire_all()
+    assert db_session.get(Track, track.id).retry_now_step is None
+
+
+def test_a_non_admins_lookup_failed_retry_is_unrestricted(authenticated_client, db_session, owner):
+    """The rule covers skipping a ladder wait. A not-found has none; retrying it is how a
+    user asks for another search, so it isn't limited (and it doesn't use up the step)."""
+    track = _make_track(db_session, owner, state=TrackState.LOOKUP_FAILED, attempt_count=2)
+    assert authenticated_client.post(f"/api/tracks/{track.id}/retry").status_code == 200
+    db_session.expire_all()
+    assert db_session.get(Track, track.id).retry_now_step is None
+
+
+def test_two_retry_now_presses_at_once_dispatch_once_on_real_connections(committed_db, monkeypatch):
+    """v56 (A8) on two real connections: the second press waits on the first's row lock, then
+    sees the step used and answers 429. Without the lock both read the step unused."""
+    from concurrency import Gate, Thread, blocked_or_done
+    from sqlalchemy import event
+
+    from app.errors import ApiError
+    from app.models import User
+    from app.routers import tracks as tracks_router
+
+    monkeypatch.setattr(tracks_router.events, "publish_track_event", lambda *a, **kw: None)
+    with committed_db() as db:
+        user = User(email="owner@example.com", is_admin=False)
+        db.add(user)
+        db.flush()
+        job = Job(source_url="https://open.spotify.com/track/abc", source_type=JobSourceType.TRACK, user_id=user.id)
+        db.add(job)
+        db.flush()
+        track = Track(
+            job_id=job.id,
+            spotify_track_id="race",
+            song_json={"name": "Race"},
+            state=TrackState.WAITING,
+            scheduled_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            attempt_count=1,
+        )
+        db.add(track)
+        db.commit()
+        user_id, track_id = user.id, track.id
+    gate = Gate("the first retry-now, before its commit")
+
+    def press(gated: bool):
+        with committed_db() as db:
+            if gated:
+                event.listen(db, "before_commit", gate, once=True)
+            return tracks_router.retry_track(track_id, db=db, user=db.get(User, user_id))
+
+    first = Thread(press, True, name="first press")
+    gate.wait_reached()
+    second = Thread(press, False, name="second press")
+    held_off = blocked_or_done(second)
+    gate.open()
+
+    assert first.join()["state"] == "waiting"
+    with pytest.raises(ApiError) as refused:
+        second.join()
+    assert held_off == "blocked"
+    assert refused.value.status_code == 429
+    assert refused.value.code == "retry_cooldown"
+
+
 def test_retry_unknown_track_returns_404(authenticated_client, db_session):
     assert authenticated_client.post(f"/api/tracks/{uuid.uuid4()}/retry").status_code == 404
 

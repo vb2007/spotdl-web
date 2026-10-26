@@ -268,7 +268,8 @@ const BACKEND_CODES = [
 	'submit_too_long',
 	// v56
 	'job_not_cancellable',
-	'track_not_cancellable'
+	'track_not_cancellable',
+	'retry_cooldown'
 ];
 const CLIENT_CODES = [
 	'request_invalid',
@@ -300,5 +301,12 @@ describe('every error code', () => {
 		expect(hungarian).not.toBe('the English detail');
 		expect(hungarian).not.toBe(english);
 		expect(hungarian).not.toMatch(/\{\w+\}/);
+	});
+
+	it('says a due retry_cooldown without a zero countdown (v56)', () => {
+		const due = new ApiError(429, 'the English detail', 'retry_cooldown', { retry_after: 0 });
+		expect(apiErrorText(due)).toBe('Already retried once at this step. It goes on the next pass.');
+		const later = new ApiError(429, 'the English detail', 'retry_cooldown', { retry_after: 3725 });
+		expect(apiErrorText(later)).toBe('Already retried once at this step. Next try in 1:02:05.');
 	});
 });

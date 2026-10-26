@@ -33,6 +33,8 @@
 	"error_job_archived": "A feladat archiválva van; előbb hozd vissza",
 	"error_track_not_retryable": "A szám állapota „{state}”, így nem próbálható újra",
 	"error_track_not_cancellable": "A szám állapota „{state}”, így nem szakítható meg",
+	"error_retry_cooldown": "Ebben a lépésben már volt egy azonnali újrapróbálás. Következő próbálkozás: {time}.",
+	"error_retry_cooldown_due": "Ebben a lépésben már volt egy azonnali újrapróbálás. A következő körben indul.",
 	"error_file_not_found": "A fájl nem található",
 	"error_download_failed": "A letöltés nem sikerült ({status})",
 	"error_file_empty": "A letöltött fájl üres – a letöltés nem fejeződött be.",

@@ -404,8 +404,10 @@
 			if (queue.getResetCount() !== session) return;
 			showNotice(breakerHeld ? m.track_notice_retry_held() : m.track_notice_retry_queued());
 		} catch (err) {
+			// v56 (A8): a second "retry now" in one ladder step is a rule, not a failure.
+			const cooldown = err instanceof api.ApiError && err.code === 'retry_cooldown';
 			if (queue.getResetCount() === session)
-				showNotice(errorText(err, m.track_notice_retry_failed), true);
+				showNotice(errorText(err, m.track_notice_retry_failed), !cooldown);
 		}
 	}
 

@@ -1,4 +1,4 @@
-"""proxy FKs ON DELETE SET NULL; track_attempts.proxy_label
+"""proxy FKs ON DELETE SET NULL; track_attempts.proxy_label; tracks.retry_now_step
 
 Revision ID: a9d3c5e7f1b2
 Revises: f6b2d8e4a1c9
@@ -9,10 +9,13 @@ v56 (A4): deleting a manual proxy an attempt (or a track's `used_proxy_id`) refe
 lost with the row, every attempt now stores its proxy's redacted label (scheme://host:port, never
 a credential), written by `attempts.record_attempt`.
 
+v56 (A8): `tracks.retry_now_step`, nullable, the ladder step at which a non-admin last used
+"retry now" (one per step). NULL for every existing track: nobody has used one under the rule.
+
 Data: no existing value is changed or dropped. The new column is backfilled once for every
 attempt that has a proxy, from that proxy's URL, with the same rule as `proxies.redact()` (a
-frozen copy here, as migrations don't import app code). `downgrade()` drops the column (the
-labels of proxies deleted meanwhile go with it) and restores the plain FKs; the NULLs a deletion
+frozen copy here, as migrations don't import app code). `downgrade()` drops both columns (the
+labels of proxies deleted meanwhile go with them) and restores the plain FKs; the NULLs a deletion
 left stay NULL, which those accept.
 """
 from typing import Sequence, Union
@@ -49,6 +52,7 @@ def upgrade() -> None:
         op.drop_constraint(name, table, type_='foreignkey')
         op.create_foreign_key(name, table, 'proxies', [column], ['id'], ondelete='SET NULL')
     op.add_column('track_attempts', sa.Column('proxy_label', sa.Text(), nullable=True))
+    op.add_column('tracks', sa.Column('retry_now_step', sa.Integer(), nullable=True))
     bind = op.get_bind()
     # One UPDATE per proxy (a handful of rows), never per attempt.
     for proxy_id, url in bind.execute(
@@ -62,6 +66,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema."""
+    op.drop_column('tracks', 'retry_now_step')
     op.drop_column('track_attempts', 'proxy_label')
     for name, table, column in _FKS:
         op.drop_constraint(name, table, type_='foreignkey')

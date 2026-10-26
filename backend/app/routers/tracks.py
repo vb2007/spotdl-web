@@ -1,3 +1,4 @@
+import math
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -192,6 +193,17 @@ def cancel_track(
     return track_to_dict(track)
 
 
+def _seconds_until_tried(db: Session, track: Track, now: datetime) -> int:
+    """When a `waiting` track is dispatched without anyone's help: its own slot, or the
+    breaker's clear if that comes later (beat dispatches nothing while it holds). 0 when
+    it's due and nothing holds it."""
+    worker_state = retry.get_worker_state(db)
+    times = [track.scheduled_at] if track.scheduled_at is not None else []
+    if retry.breaker_tripped(worker_state, now):
+        times.append(worker_state.breaker_tripped_until)
+    return max([0] + [math.ceil((at - now).total_seconds()) for at in times])
+
+
 @router.post("/{track_id}/retry")
 def retry_track(
     track_id: uuid.UUID,
@@ -209,8 +221,16 @@ def retry_track(
     can have a `waiting`/`lookup_failed` track that got there any way other than *this*
     endpoint reviving one — so this is the one place that gate actually needs to live to
     keep "archived means settled, not just hidden" true. An archived job must be
-    unarchived first, exactly like a re-download would need it visible again anyway."""
+    unarchived first, exactly like a re-download would need it visible again anyway.
+
+    v56 (A8, #69): a non-admin may retry-now a `waiting` track once per ladder step
+    (`attempt_count`). It dispatches on the next beat pass and leaves the step as it is, so
+    the ladder keeps climbing; a second press in the same step answers 429 `retry_cooldown`
+    with the seconds until the track is tried anyway. An admin's retry is unrestricted, and so
+    is anyone's retry of a `lookup_failed` track (another search after a not-found)."""
     track, owner_id, archived_at = _get_track_or_404(db, track_id, user)
+    # Locked, so two presses at once can't both pass the per-step check below.
+    db.refresh(track, with_for_update=True)
     if archived_at is not None:
         raise ApiError(409, "job_archived", "Job is archived; unarchive it first")
     if track.state not in RETRYABLE_TRACK_STATES:
@@ -222,6 +242,18 @@ def retry_track(
         )
 
     now = datetime.now(timezone.utc)
+    if track.state == TrackState.WAITING and not user.is_admin:
+        if track.retry_now_step == track.attempt_count:
+            retry_after = _seconds_until_tried(db, track, now)
+            db.rollback()
+            raise ApiError(
+                429,
+                "retry_cooldown",
+                f"Already retried once at this step; it is tried again in {retry_after}s",
+                {"retry_after": retry_after},
+                headers={"Retry-After": str(retry_after)},
+            )
+        track.retry_now_step = track.attempt_count
     track.state = TrackState.WAITING
     track.scheduled_at = now
     db.commit()

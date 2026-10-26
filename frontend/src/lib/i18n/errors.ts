@@ -2,6 +2,7 @@ import { ApiError } from '$lib/api';
 import * as m from '$lib/paraglide/messages';
 import { counted, formatNumber } from './format';
 import { trackStateLabel } from './labels';
+import { formatCountdown } from '$lib/attempts';
 
 /** v46: an API error in the active language, by its stable `code` (backend/app/errors.py),
  * never by matching the English `detail`. A code this table doesn't know (a newer backend, or
@@ -42,6 +43,13 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 		m.error_track_not_retryable({ state: trackStateLabel(String(p.state)) }),
 	track_not_cancellable: (p) =>
 		m.error_track_not_cancellable({ state: trackStateLabel(String(p.state)) }),
+	// v56 (A8): a non-admin's second "retry now" in one ladder step.
+	retry_cooldown: (p) => {
+		const seconds = Number(p.retry_after ?? 0);
+		return seconds > 0
+			? m.error_retry_cooldown({ time: formatCountdown(seconds * 1000) })
+			: m.error_retry_cooldown_due();
+	},
 	file_not_found: () => m.error_file_not_found(),
 	download_failed: (p) => m.error_download_failed({ status: String(p.status ?? '') }),
 	file_empty: () => m.error_file_empty(),
