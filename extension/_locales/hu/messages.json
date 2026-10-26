@@ -1,0 +1,348 @@
+{
+	"extName": {
+		"message": "spotdl-web"
+	},
+	"extDescription": {
+		"message": "Spotify-számok, -albumok, -előadók és -listák sorba állítása a spotdl-web alkalmazásodban, közvetlenül az open.spotify.com-ról."
+	},
+	"actionTitle": {
+		"message": "spotdl-web"
+	},
+	"iconTrack": {
+		"message": "A szám sorba állítása a spotdl-ben"
+	},
+	"iconTrackNamed": {
+		"message": "„$TITLE$” szám sorba állítása a spotdl-ben",
+		"description": "The icon's accessible name; TITLE is the track's name as Spotify shows it.",
+		"placeholders": {
+			"title": {
+				"content": "$1"
+			}
+		}
+	},
+	"iconAlbum": {
+		"message": "Az album sorba állítása a spotdl-ben"
+	},
+	"iconAlbumNamed": {
+		"message": "„$TITLE$” album sorba állítása a spotdl-ben",
+		"placeholders": {
+			"title": {
+				"content": "$1"
+			}
+		}
+	},
+	"iconArtist": {
+		"message": "Az előadó sorba állítása a spotdl-ben"
+	},
+	"iconArtistNamed": {
+		"message": "„$TITLE$” előadó sorba állítása a spotdl-ben",
+		"placeholders": {
+			"title": {
+				"content": "$1"
+			}
+		}
+	},
+	"iconPlaylist": {
+		"message": "A lista sorba állítása a spotdl-ben"
+	},
+	"iconPlaylistNamed": {
+		"message": "„$TITLE$” lista sorba állítása a spotdl-ben",
+		"placeholders": {
+			"title": {
+				"content": "$1"
+			}
+		}
+	},
+	"iconHint": {
+		"message": "Több lehetőség: jobb kattintás, Shift+F10 vagy a Menü billentyű",
+		"description": "Tooltip and description on the icon."
+	},
+	"menuLabel": {
+		"message": "Sorba állítás a spotdl-ben"
+	},
+	"menuThisTrack": {
+		"message": "Ez a szám"
+	},
+	"menuThisAlbum": {
+		"message": "Ez az album"
+	},
+	"menuWholeAlbum": {
+		"message": "Az egész album"
+	},
+	"menuWholeArtist": {
+		"message": "Az előadó összes száma"
+	},
+	"menuDownload": {
+		"message": "Letöltés"
+	},
+	"menuChooseArtist": {
+		"message": "Melyik előadó?"
+	},
+	"toastQueued": {
+		"message": "Sorba állítva a spotdl-ben"
+	},
+	"toastQueuedAlbum": {
+		"message": "Az egész album sorba állítva a spotdl-ben"
+	},
+	"toastQueuedArtist": {
+		"message": "Az előadó összes száma sorba állítva a spotdl-ben"
+	},
+	"toastQueuedNamed": {
+		"message": "$NAME$ sorba állítva a spotdl-ben",
+		"placeholders": {
+			"name": {
+				"content": "$1"
+			}
+		}
+	},
+	"toastAlreadyQueued": {
+		"message": "Ez már a sorodban van: még töltjük"
+	},
+	"toastInLibrary": {
+		"message": "Már megvan a könyvtárban, így azonnal kész"
+	},
+	"errorLoginRequired": {
+		"message": "Jelentkezz be a spotdl-be ebben a böngészőben, vagy adj meg egy API-kulcsot"
+	},
+	"errorKeyInvalid": {
+		"message": "A spotdl nem fogadta el az API-kulcsot. Ellenőrizd a bővítmény beállításaiban"
+	},
+	"errorPermissionMissing": {
+		"message": "Engedd meg a bővítménynek, hogy elérje ezt: $ORIGIN$ (a beállításaiban)",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
+	},
+	"errorUnreachable": {
+		"message": "Nem érem el a spotdl-t itt: $ORIGIN$",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
+	},
+	"errorNotAnApp": {
+		"message": "$ORIGIN$ nem úgy válaszol, mint egy spotdl-alkalmazás",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
+	},
+	"errorRateLimited": {
+		"message": "Túl sok beküldés. Próbáld újra $SECONDS$ mp múlva",
+		"description": "SECONDS is the server's Retry-After.",
+		"placeholders": {
+			"seconds": {
+				"content": "$1"
+			}
+		}
+	},
+	"errorUrlNotSpotify": {
+		"message": "A spotdl csak Spotify-szám-, -album-, -előadó- és -listalinket fogad el"
+	},
+	"errorCascadeNotFound": {
+		"message": "A Spotify nem ismeri ezt az elemet"
+	},
+	"errorCascadeUnavailable": {
+		"message": "Nem sikerült beolvasni a Spotify adatait hozzá. Próbáld újra"
+	},
+	"errorCascadeInvalid": {
+		"message": "Ez a választás nem vonatkozhat erre az elemre"
+	},
+	"errorQueueUnavailable": {
+		"message": "A spotdl várólistája most nem érhető el. Próbáld újra kicsit később"
+	},
+	"errorGeneric": {
+		"message": "Nem sikerült sorba állítani ($CODE$)",
+		"description": "CODE is the app's stable error code.",
+		"placeholders": {
+			"code": {
+				"content": "$1"
+			}
+		}
+	},
+	"optionsTitle": {
+		"message": "A spotdl-web bővítmény beállításai"
+	},
+	"optionsHeading": {
+		"message": "spotdl-web"
+	},
+	"optionsIntro": {
+		"message": "Az open.spotify.com letöltésikonja az elem linkjét küldi el a spotdl-web alkalmazásodnak. Semmi más nem hagyja el a böngészőt, és semmi sem megy máshová, csak az alábbi alkalmazásnak."
+	},
+	"optionsAppHeading": {
+		"message": "Alkalmazás"
+	},
+	"optionsAppLabel": {
+		"message": "Az alkalmazás címe"
+	},
+	"optionsAppHint": {
+		"message": "Alapérték: $DEFAULT$. Sima http csak ezen a gépen működik (localhost, 127.0.0.1).",
+		"placeholders": {
+			"default": {
+				"content": "$1"
+			}
+		}
+	},
+	"optionsAppSave": {
+		"message": "cím mentése"
+	},
+	"optionsAppReset": {
+		"message": "alapérték"
+	},
+	"optionsAppInvalid": {
+		"message": "Ezt a címet nem tudja használni a bővítmény. Adj meg egy https-címet, vagy http-t localhoston."
+	},
+	"optionsAppDenied": {
+		"message": "A Firefox nem adott hozzáférést ehhez: $ORIGIN$, ezért a címet nem mentettem.",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
+	},
+	"optionsAppSaved": {
+		"message": "Mentve. $RESULT$",
+		"description": "RESULT is one of the connection status sentences.",
+		"placeholders": {
+			"result": {
+				"content": "$1"
+			}
+		}
+	},
+	"optionsAuthHeading": {
+		"message": "Bejelentkezés"
+	},
+	"optionsAuthCookie": {
+		"message": "A bővítmény a spotdl-bejelentkezésedet használja ebben a Firefoxban: lépj be az alkalmazásba bármelyik lapon, és az ikon működik."
+	},
+	"optionsAuthKey": {
+		"message": "Ahová ez a bejelentkezés nem ér el (privát ablak, bezáráskor törölt sütik), adj neki egy API-kulcsot az alkalmazás fiókoldaláról. Csak ebben a böngészőben marad, sosem szinkronizálódik."
+	},
+	"optionsKeyLabel": {
+		"message": "API-kulcs (nem kötelező)"
+	},
+	"optionsKeySave": {
+		"message": "kulcs mentése"
+	},
+	"optionsKeyClear": {
+		"message": "kulcs törlése"
+	},
+	"optionsKeyInvalid": {
+		"message": "A kulcs így kezdődik: sdw_. Másold ki a teljes kulcsot az alkalmazás fiókoldaláról."
+	},
+	"optionsKeySaved": {
+		"message": "Kulcs elmentve."
+	},
+	"optionsKeyCleared": {
+		"message": "Kulcs törölve."
+	},
+	"optionsKeyStored": {
+		"message": "Van mentett kulcs (vége: …$END$).",
+		"description": "END is the key's last 4 characters.",
+		"placeholders": {
+			"end": {
+				"content": "$1"
+			}
+		}
+	},
+	"optionsKeyNone": {
+		"message": "Nincs mentett kulcs."
+	},
+	"optionsAccountLink": {
+		"message": "a fiókoldal megnyitása"
+	},
+	"optionsTestHeading": {
+		"message": "Kapcsolat"
+	},
+	"optionsTest": {
+		"message": "kapcsolat tesztelése"
+	},
+	"optionsTesting": {
+		"message": "tesztelés…"
+	},
+	"statusSignedIn": {
+		"message": "Bejelentkezve mint $NAME$ ($VIA$).",
+		"description": "NAME is the username or email; VIA is viaCookie or viaKey.",
+		"placeholders": {
+			"name": {
+				"content": "$1"
+			},
+			"via": {
+				"content": "$2"
+			}
+		}
+	},
+	"viaCookie": {
+		"message": "a böngésző bejelentkezésével"
+	},
+	"viaKey": {
+		"message": "az API-kulccsal"
+	},
+	"statusLoginRequired": {
+		"message": "Elértem az alkalmazást, de nem vagy bejelentkezve. Jelentkezz be a spotdl-be ebben a böngészőben, vagy adj meg egy API-kulcsot."
+	},
+	"optionsSpotifyHeading": {
+		"message": "open.spotify.com"
+	},
+	"optionsSpotifyGranted": {
+		"message": "A bővítmény megjelenítheti az ikonját az open.spotify.com-on."
+	},
+	"optionsSpotifyMissing": {
+		"message": "A bővítmény még nem kapott engedélyt az open.spotify.com-ra, így ott nem jelenik meg az ikon."
+	},
+	"optionsSpotifyGrant": {
+		"message": "engedélyezés az open.spotify.com-on"
+	},
+	"popupRecent": {
+		"message": "Legutóbbiak"
+	},
+	"popupEmpty": {
+		"message": "Még nem küldtél semmit. Használd a letöltésikont az open.spotify.com-on."
+	},
+	"popupOpenApp": {
+		"message": "a spotdl megnyitása"
+	},
+	"popupSettings": {
+		"message": "beállítások"
+	},
+	"popupChecking": {
+		"message": "A kapcsolat ellenőrzése…"
+	},
+	"popupCascadeAlbum": {
+		"message": "egész album"
+	},
+	"popupCascadeArtist": {
+		"message": "az előadó összes száma"
+	},
+	"typeTrack": {
+		"message": "szám"
+	},
+	"typeAlbum": {
+		"message": "album"
+	},
+	"typeArtist": {
+		"message": "előadó"
+	},
+	"typePlaylist": {
+		"message": "lista"
+	},
+	"outcomeQueued": {
+		"message": "sorba állítva"
+	},
+	"outcomeAlreadyQueued": {
+		"message": "már a sorban"
+	},
+	"outcomeInLibrary": {
+		"message": "a könyvtárban"
+	},
+	"outcomeError": {
+		"message": "nincs sorba állítva"
+	},
+	"optionsAppGrant": {
+		"message": "hozzáférés engedélyezése"
+	}
+}
