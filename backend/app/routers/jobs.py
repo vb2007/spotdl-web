@@ -424,8 +424,10 @@ def cancel_job(
     result once the blocking call returns, rather than trying to stop it mid-flight.
 
     v56 (A1): only a job still in flight (`expanding`, `active` or `waiting`) can be
-    cancelled. Any other answers 409 `job_not_cancellable` with its rollup status and is
-    left exactly as it was: before v56 a finished job was relabelled `cancelled`."""
+    cancelled, plus a `failed` one (owner's decision, 2026-10-26): it has no tracks, and
+    cancelling it is how the incoming overlay's "dismiss" clears it. Any other (settled, or
+    already cancelled) answers 409 `job_not_cancellable` with its rollup status and is left
+    exactly as it was: before v56 a finished job was relabelled `cancelled`."""
     job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
     # v34.1: row-lock the job before touching its tracks. expand_job commits EXPANDED and
     # the new tracks in one transaction via a conditional UPDATE on this same row, so with
@@ -447,7 +449,7 @@ def cancel_job(
         ).all()
     # An expanded job with no track left in flight is settled: nothing to cancel. (Its
     # cancellable tracks are exactly what makes a job `active`/`waiting`, rollup.py.)
-    if job.state != JobState.EXPANDING and not cancelled_tracks:
+    if job.state not in (JobState.EXPANDING, JobState.FAILED) and not cancelled_tracks:
         db.rollback()
         status = rollup.derive_rollup(job.state, track_counts(db, job.id))
         raise ApiError(

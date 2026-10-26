@@ -242,7 +242,6 @@ def test_cancel_job_marks_job_and_non_terminal_tracks_cancelled(authenticated_cl
         (JobState.EXPANDED, (TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE), "settled", "complete"),
         (JobState.EXPANDED, (TrackState.COMPLETED, TrackState.LOOKUP_FAILED), "settled", "partial"),
         (JobState.CANCELLED, (TrackState.CANCELLED,), "cancelled", None),
-        (JobState.FAILED, (), "failed", None),
     ],
 )
 def test_cancel_job_refuses_a_job_not_in_flight_with_409(
@@ -267,6 +266,19 @@ def test_cancel_job_refuses_a_job_not_in_flight_with_409(
     assert db_session.get(Job, job.id).state == job_state
     assert sorted(t.state for t in db_session.query(Track).filter(Track.job_id == job.id)) == sorted(track_states)
     assert published == []
+
+
+def test_cancel_job_still_dismisses_a_failed_job(authenticated_client, db_session, owner):
+    """v56 (A1, owner's decision): a failed expansion has no tracks, and cancelling it is
+    the incoming overlay's "dismiss" (and the end of its "try again"), so it stays allowed."""
+    job = _make_job_with_tracks(db_session, owner, states=())
+    job.state = JobState.FAILED
+    db_session.commit()
+
+    response = authenticated_client.delete(f"/api/jobs/{job.id}")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == {"lifecycle": "cancelled", "outcome": None}
 
 
 @pytest.mark.parametrize("in_flight", [TrackState.PENDING, TrackState.QUEUED, TrackState.DOWNLOADING, TrackState.WAITING])
