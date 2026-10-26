@@ -1069,6 +1069,7 @@ def test_download_track_dropped_connection_on_a_direct_rung_still_feeds_the_brea
         LookupError("No results found for song: Scooter - C.I.F.L. - Remastered"),
         downloads.AgeRestrictedError("Age-restricted on YouTube (sign-in required): ..."),
         downloads.UnavailableVideoError("Unavailable on YouTube: ..."),
+        downloads.NotYetReleasedError("Not released yet on YouTube: ... Premieres in 102 days"),
     ],
 )
 def test_download_track_terminal_verdict_via_proxy_credits_the_proxy(db_session, monkeypatch, exc):

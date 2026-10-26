@@ -544,7 +544,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_alembic_env_py",
-      "community": 41,
+      "community": 19,
       "norm_label": "env.py"
     },
     {
@@ -554,7 +554,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_alembic_env_run_migrations_offline",
-      "community": 41,
+      "community": 19,
       "norm_label": "run_migrations_offline()"
     },
     {
@@ -564,7 +564,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_alembic_env_run_migrations_online",
-      "community": 41,
+      "community": 19,
       "norm_label": "run_migrations_online()"
     },
     {
@@ -1204,7 +1204,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_py",
-      "community": 255,
+      "community": 67,
       "norm_label": "config.py"
     },
     {
@@ -1214,7 +1214,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_check_not_production_database",
-      "community": 255,
+      "community": 67,
       "norm_label": "check_not_production_database()"
     },
     {
@@ -1224,7 +1224,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings",
-      "community": 57,
+      "community": 67,
       "norm_label": "settings"
     },
     {
@@ -1234,7 +1234,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "basesettings",
-      "community": 57,
+      "community": 67,
       "norm_label": "basesettings"
     },
     {
@@ -1244,7 +1244,7 @@
       "source_location": "L177",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_comma_separated",
-      "community": 57,
+      "community": 67,
       "norm_label": "._split_comma_separated()"
     },
     {
@@ -1254,7 +1254,7 @@
       "source_location": "L184",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "community": 46,
+      "community": 67,
       "norm_label": "._split_ladder_seconds()"
     },
     {
@@ -1264,7 +1264,7 @@
       "source_location": "L190",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_check_pacing_window",
-      "community": 57,
+      "community": 67,
       "norm_label": "._check_pacing_window()"
     },
     {
@@ -1274,7 +1274,7 @@
       "source_location": "L206",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_check_dev_not_on_production_database",
-      "community": 255,
+      "community": 67,
       "norm_label": "._check_dev_not_on_production_database()"
     },
     {
@@ -1284,7 +1284,7 @@
       "source_location": "L215",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_check_admin_email_is_allowlisted",
-      "community": 57,
+      "community": 67,
       "norm_label": "._check_admin_email_is_allowlisted()"
     },
     {
@@ -1304,7 +1304,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
-      "community": 255,
+      "community": 19,
       "norm_label": "refuses a dev-marked process pointed at the production database. fails closed: i"
     },
     {
@@ -1314,7 +1314,7 @@
       "source_location": "L191",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_191",
-      "community": 57,
+      "community": 67,
       "norm_label": "rejects a pacing window that can't mean what it says. random.uniform happily"
     },
     {
@@ -1324,7 +1324,7 @@
       "source_location": "L207",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_207",
-      "community": 255,
+      "community": 67,
       "norm_label": "get_settings() runs at import in every backend process (db.py, main.py,"
     },
     {
@@ -1334,7 +1334,7 @@
       "source_location": "L216",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_216",
-      "community": 57,
+      "community": 67,
       "norm_label": "admin_email gates who services.users.get_or_create_user marks is_admin;"
     },
     {
@@ -1434,7 +1434,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "httpexception",
-      "community": 19,
+      "community": 130,
       "norm_label": "httpexception"
     },
     {
@@ -1634,7 +1634,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_main_py",
-      "community": 5,
+      "community": 56,
       "norm_label": "main.py"
     },
     {
@@ -1764,7 +1764,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_models_downloaded_track_py",
-      "community": 3,
+      "community": 19,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -1884,7 +1884,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_models_proxy_py",
-      "community": 19,
+      "community": 66,
       "norm_label": "proxy.py"
     },
     {
@@ -1944,7 +1944,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_models_track_py",
-      "community": 62,
+      "community": 19,
       "norm_label": "track.py"
     },
     {
@@ -1954,7 +1954,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_models_track_trackstate",
-      "community": 19,
+      "community": 62,
       "norm_label": "trackstate"
     },
     {
@@ -2054,7 +2054,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
-      "community": 19,
+      "community": 130,
       "norm_label": "user.py"
     },
     {
@@ -2074,7 +2074,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "community": 130,
+      "community": 78,
       "norm_label": "row created on first successful login (v17). the `allowed_emails` env allowlist"
     },
     {
@@ -2114,7 +2114,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_models_worker_state_py",
-      "community": 27,
+      "community": 19,
       "norm_label": "worker_state.py"
     },
     {
@@ -2244,7 +2244,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_routers_admin_py",
-      "community": 19,
+      "community": 130,
       "norm_label": "admin.py"
     },
     {
@@ -2254,7 +2254,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_routers_admin_require_admin_hidden",
-      "community": 19,
+      "community": 130,
       "norm_label": "require_admin_hidden()"
     },
     {
@@ -2264,7 +2264,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_routers_admin_admin_stats",
-      "community": 19,
+      "community": 130,
       "norm_label": "admin_stats()"
     },
     {
@@ -2284,7 +2284,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_routers_admin_rationale_15",
-      "community": 19,
+      "community": 130,
       "norm_label": "admin-only, answering a non-admin exactly like a route that doesn't exist (v44's"
     },
     {
@@ -2294,7 +2294,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_routers_admin_rationale_33",
-      "community": 19,
+      "community": 130,
       "norm_label": "v44: global download observability (every user's attempts together, hence     ad"
     },
     {
@@ -2514,7 +2514,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_routers_health_py",
-      "community": 46,
+      "community": 19,
       "norm_label": "health.py"
     },
     {
@@ -2524,7 +2524,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_routers_health_health",
-      "community": 46,
+      "community": 19,
       "norm_label": "health()"
     },
     {
@@ -4004,7 +4004,7 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_alerts_matrixconfig",
-      "community": 246,
+      "community": 153,
       "norm_label": "matrixconfig"
     },
     {
@@ -4024,7 +4024,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_alerts_alertsnotconfigured",
-      "community": 246,
+      "community": 295,
       "norm_label": "alertsnotconfigured"
     },
     {
@@ -4044,7 +4044,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_alerts_alertsenderror",
-      "community": 246,
+      "community": 295,
       "norm_label": "alertsenderror"
     },
     {
@@ -4114,7 +4114,7 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_alerts_send_now",
-      "community": 246,
+      "community": 295,
       "norm_label": "send_now()"
     },
     {
@@ -4384,7 +4384,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_alerts_rationale_110",
-      "community": 246,
+      "community": 295,
       "norm_label": "carries only a redacted, token-free description of what went wrong."
     },
     {
@@ -4404,7 +4404,7 @@
       "source_location": "L164",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_alerts_rationale_164",
-      "community": 246,
+      "community": 295,
       "norm_label": "one put to the room. raises alertsnotconfigured or alertsenderror; never retries"
     },
     {
@@ -5644,7 +5644,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_expansion_py",
-      "community": 228,
+      "community": 19,
       "norm_label": "expansion.py"
     },
     {
@@ -5654,7 +5654,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_expansion_ensure_spotify_client",
-      "community": 228,
+      "community": 164,
       "norm_label": "_ensure_spotify_client()"
     },
     {
@@ -5664,7 +5664,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_expansion_expand",
-      "community": 228,
+      "community": 164,
       "norm_label": "expand()"
     },
     {
@@ -5684,7 +5684,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_expansion_rationale_1",
-      "community": 228,
+      "community": 19,
       "norm_label": "thin wrapper around spotdl's url-expansion logic.  never import spotdl.utils.sea"
     },
     {
@@ -5694,7 +5694,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_expansion_rationale_24",
-      "community": 228,
+      "community": 164,
       "norm_label": "spotifyclient is a process-wide singleton that raises if .init() runs twice, so"
     },
     {
@@ -5704,7 +5704,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_expansion_rationale_48",
-      "community": 228,
+      "community": 164,
       "norm_label": "turn a spotify url (track/album/playlist/artist) or a search term into songs."
     },
     {
@@ -6054,7 +6054,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_pagination_invalidcursor",
-      "community": 63,
+      "community": 58,
       "norm_label": "invalidcursor"
     },
     {
@@ -7414,7 +7414,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_serializers_py",
-      "community": 58,
+      "community": 77,
       "norm_label": "serializers.py"
     },
     {
@@ -7424,7 +7424,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_serializers_track_counts_by_job",
-      "community": 58,
+      "community": 77,
       "norm_label": "track_counts_by_job()"
     },
     {
@@ -7544,7 +7544,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_serializers_rationale_1",
-      "community": 58,
+      "community": 77,
       "norm_label": "shared rest projections for job/track \u2014 deliberate projections rather than expos"
     },
     {
@@ -7554,7 +7554,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_serializers_rationale_19",
-      "community": 58,
+      "community": 77,
       "norm_label": "one grouped aggregate covering every requested job -- replaces the per-job query"
     },
     {
@@ -7814,7 +7814,7 @@
       "source_location": "L132",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_services_spotify_urls_fetch",
-      "community": 228,
+      "community": 164,
       "norm_label": "_fetch()"
     },
     {
@@ -8324,7 +8324,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_upstream_auth_py",
-      "community": 50,
+      "community": 293,
       "norm_label": "upstream_auth.py"
     },
     {
@@ -8334,7 +8334,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_upstream_auth_login",
-      "community": 50,
+      "community": 293,
       "norm_label": "login()"
     },
     {
@@ -8344,7 +8344,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_upstream_auth_fetch_username",
-      "community": 50,
+      "community": 293,
       "norm_label": "_fetch_username()"
     },
     {
@@ -8364,7 +8364,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_upstream_auth_rationale_14",
-      "community": 50,
+      "community": 293,
       "norm_label": "check credentials against vb2007.hu-api, and best-effort fetch the username via"
     },
     {
@@ -8374,7 +8374,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_services_upstream_auth_rationale_41",
-      "community": 50,
+      "community": 293,
       "norm_label": "`isauthenticated`'s `get /user` reads the `vb-auth` cookie itself -- extracted"
     },
     {
@@ -8764,7 +8764,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_tasks_celery_app_py",
-      "community": 211,
+      "community": 19,
       "norm_label": "celery_app.py"
     },
     {
@@ -8784,7 +8784,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_app_tasks_celery_app_sync_proxies_on_boot",
-      "community": 211,
+      "community": 19,
       "norm_label": "_sync_proxies_on_boot()"
     },
     {
@@ -8974,7 +8974,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_tasks_expand_py",
-      "community": 19,
+      "community": 77,
       "norm_label": "expand.py"
     },
     {
@@ -8984,7 +8984,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_tasks_expand_enqueue_pending_tracks",
-      "community": 19,
+      "community": 77,
       "norm_label": "_enqueue_pending_tracks()"
     },
     {
@@ -9004,7 +9004,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_tasks_expand_expand_job",
-      "community": 19,
+      "community": 77,
       "norm_label": "expand_job()"
     },
     {
@@ -9014,7 +9014,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_tasks_expand_rationale_17",
-      "community": 19,
+      "community": 77,
       "norm_label": "enqueues `job`'s tracks still `pending`. for a job whose expanded commit landed"
     },
     {
@@ -9447,7 +9447,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_test_database_urls",
-      "community": 255,
+      "community": 67,
       "norm_label": "_test_database_urls()"
     },
     {
@@ -9737,7 +9737,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_rationale_48",
-      "community": 255,
+      "community": 67,
       "norm_label": "(server url on its maintenance database, this run's own database url), from"
     },
     {
@@ -11207,7 +11207,7 @@
       "source_location": "L387",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_test_api_keys_test_a_nul_in_the_session_cookie_is_no_session_and_falls_back_to_the_key",
-      "community": 28,
+      "community": 5,
       "norm_label": "test_a_nul_in_the_session_cookie_is_no_session_and_falls_back_to_the_key()"
     },
     {
@@ -11367,7 +11367,7 @@
       "source_location": "L388",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_test_api_keys_rationale_388",
-      "community": 28,
+      "community": 5,
       "norm_label": "live review: starlette unquotes `\"\\\\000\"` in a quoted cookie into a nul postgres"
     },
     {
@@ -12077,7 +12077,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_py",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_config.py"
     },
     {
@@ -12087,7 +12087,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_pacing_window_defaults_are_valid",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_pacing_window_defaults_are_valid()"
     },
     {
@@ -12097,7 +12097,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_pacing_min_greater_than_max_is_rejected",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_pacing_min_greater_than_max_is_rejected()"
     },
     {
@@ -12107,7 +12107,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_pacing_negative_values_are_rejected",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_pacing_negative_values_are_rejected()"
     },
     {
@@ -12117,7 +12117,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_pacing_min_equal_to_max_is_allowed",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_pacing_min_equal_to_max_is_allowed()"
     },
     {
@@ -12127,7 +12127,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_admin_email_missing_is_rejected",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_admin_email_missing_is_rejected()"
     },
     {
@@ -12137,7 +12137,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_admin_email_not_in_allowed_emails_is_rejected",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_admin_email_not_in_allowed_emails_is_rejected()"
     },
     {
@@ -12147,7 +12147,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_admin_email_matching_is_allowed",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_admin_email_matching_is_allowed()"
     },
     {
@@ -12157,7 +12157,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_dev_marker_with_production_database_is_refused",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_dev_marker_with_production_database_is_refused()"
     },
     {
@@ -12167,7 +12167,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_dev_marker_with_production_dbname_query_param_is_refused",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_dev_marker_with_production_dbname_query_param_is_refused()"
     },
     {
@@ -12177,7 +12177,7 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_dev_marker_with_dev_database_passes",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_dev_marker_with_dev_database_passes()"
     },
     {
@@ -12187,7 +12187,7 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_no_marker_with_production_database_passes",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_no_marker_with_production_database_passes()"
     },
     {
@@ -12197,7 +12197,7 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_dev_marker_with_unparseable_or_nameless_url_is_refused",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_dev_marker_with_unparseable_or_nameless_url_is_refused()"
     },
     {
@@ -12207,7 +12207,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_unrecognized_marker_is_refused",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_unrecognized_marker_is_refused()"
     },
     {
@@ -12217,7 +12217,7 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_test_guard_error_never_echoes_the_password",
-      "community": 57,
+      "community": 67,
       "norm_label": "test_guard_error_never_echoes_the_password()"
     },
     {
@@ -12227,7 +12227,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_rationale_22",
-      "community": 57,
+      "community": 67,
       "norm_label": "random.uniform tolerates reversed bounds and silently samples them anyway --"
     },
     {
@@ -12237,7 +12237,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_rationale_52",
-      "community": 57,
+      "community": 67,
       "norm_label": "an admin who isn't allowlisted could never log in -- a deployment nobody can"
     },
     {
@@ -12247,7 +12247,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_rationale_70",
-      "community": 57,
+      "community": 67,
       "norm_label": "v32: local dev's worker-meta once pruned a real production ledger row because de"
     },
     {
@@ -12257,7 +12257,7 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_config_rationale_103",
-      "community": 57,
+      "community": 67,
       "norm_label": "fail closed: in dev, \"can't tell which database\" must never read as \"safe\"."
     },
     {
@@ -12697,7 +12697,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_nonclosingsession",
-      "community": 291,
+      "community": 49,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -12707,7 +12707,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_nonclosingsession_init",
-      "community": 291,
+      "community": 49,
       "norm_label": ".__init__()"
     },
     {
@@ -12717,7 +12717,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_nonclosingsession_getattr",
-      "community": 291,
+      "community": 49,
       "norm_label": ".__getattr__()"
     },
     {
@@ -12727,7 +12727,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_nonclosingsession_close",
-      "community": 291,
+      "community": 49,
       "norm_label": ".close()"
     },
     {
@@ -12807,7 +12807,7 @@
       "source_location": "L141",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_fakedownloadssettings",
-      "community": 291,
+      "community": 23,
       "norm_label": "_fakedownloadssettings"
     },
     {
@@ -12817,7 +12817,7 @@
       "source_location": "L142",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_fakedownloadssettings_init",
-      "community": 291,
+      "community": 23,
       "norm_label": ".__init__()"
     },
     {
@@ -12827,7 +12827,7 @@
       "source_location": "L146",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_moved_ledger_row",
-      "community": 291,
+      "community": 23,
       "norm_label": "_moved_ledger_row()"
     },
     {
@@ -12837,7 +12837,7 @@
       "source_location": "L178",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_test_download_track_resolves_a_moved_track_as_a_duplicate_of_its_library_file",
-      "community": 291,
+      "community": 23,
       "norm_label": "test_download_track_resolves_a_moved_track_as_a_duplicate_of_its_library_file()"
     },
     {
@@ -12847,7 +12847,7 @@
       "source_location": "L201",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_test_download_track_holds_a_moved_track_when_the_library_root_is_not_mounted",
-      "community": 291,
+      "community": 23,
       "norm_label": "test_download_track_holds_a_moved_track_when_the_library_root_is_not_mounted()"
     },
     {
@@ -13007,7 +13007,7 @@
       "source_location": "L712",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_test_download_track_unknown_track_is_a_noop",
-      "community": 291,
+      "community": 49,
       "norm_label": "test_download_track_unknown_track_is_a_noop()"
     },
     {
@@ -13097,7 +13097,7 @@
       "source_location": "L947",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_chained_no_output",
-      "community": 175,
+      "community": 210,
       "norm_label": "_chained_no_output()"
     },
     {
@@ -13137,7 +13137,7 @@
       "source_location": "L1043",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_test_download_track_dropped_connection_on_a_direct_rung_still_feeds_the_breaker",
-      "community": 175,
+      "community": 23,
       "norm_label": "test_download_track_dropped_connection_on_a_direct_rung_still_feeds_the_breaker()"
     },
     {
@@ -13287,7 +13287,7 @@
       "source_location": "L1479",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_run_invocation",
-      "community": 23,
+      "community": 175,
       "norm_label": "_run_invocation()"
     },
     {
@@ -13307,7 +13307,7 @@
       "source_location": "L1526",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_test_two_failures_then_success_counts_three_attempts_and_two_failures",
-      "community": 23,
+      "community": 175,
       "norm_label": "test_two_failures_then_success_counts_three_attempts_and_two_failures()"
     },
     {
@@ -13337,7 +13337,7 @@
       "source_location": "L1602",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_test_ladder_step_ignores_held_and_cancelled_rows",
-      "community": 23,
+      "community": 175,
       "norm_label": "test_ladder_step_ignores_held_and_cancelled_rows()"
     },
     {
@@ -13377,7 +13377,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_rationale_53",
-      "community": 291,
+      "community": 49,
       "norm_label": "wraps db_session so download_track's db.close() doesn't detach objects the test"
     },
     {
@@ -13397,7 +13397,7 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_rationale_147",
-      "community": 291,
+      "community": 23,
       "norm_label": "v38: the real dedup gate (not a stub) over a ledger row the library sort moved."
     },
     {
@@ -13407,7 +13407,7 @@
       "source_location": "L181",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_rationale_181",
-      "community": 291,
+      "community": 23,
       "norm_label": "v38: worker-dl now sees the library, so a resubmitted moved track is a duplicate"
     },
     {
@@ -13417,7 +13417,7 @@
       "source_location": "L204",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_rationale_204",
-      "community": 291,
+      "community": 23,
       "norm_label": "v38: an unmounted library root must not read as \"file gone\". the track is held a"
     },
     {
@@ -13507,7 +13507,7 @@
       "source_location": "L948",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_rationale_948",
-      "community": 175,
+      "community": 210,
       "norm_label": "download_one's real shape: a nooutputfileerror raised from what spotdl swallowed"
     },
     {
@@ -13547,7 +13547,7 @@
       "source_location": "L1044",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_rationale_1044",
-      "community": 175,
+      "community": 23,
       "norm_label": "the same error without a proxy is ambiguous, so it keeps its old classification."
     },
     {
@@ -13617,7 +13617,7 @@
       "source_location": "L1480",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_rationale_1480",
-      "community": 23,
+      "community": 175,
       "norm_label": "one download_track invocation for `track`, shaped by `outcome`: \"held\" (breaker"
     },
     {
@@ -13627,7 +13627,7 @@
       "source_location": "L1603",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_rationale_1603",
-      "community": 23,
+      "community": 175,
       "norm_label": "v35's ladder pin: `failures` real failures, each preceded by a breaker hold, plu"
     },
     {
@@ -16547,7 +16547,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_logging_config_py",
-      "community": 67,
+      "community": 57,
       "norm_label": "test_logging_config.py"
     },
     {
@@ -16557,7 +16557,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_logging_config_format",
-      "community": 67,
+      "community": 57,
       "norm_label": "_format()"
     },
     {
@@ -16577,7 +16577,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_logging_config_make_record",
-      "community": 67,
+      "community": 57,
       "norm_label": "_make_record()"
     },
     {
@@ -16587,7 +16587,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_logging_config_test_plain_message_passes_through_unchanged",
-      "community": 67,
+      "community": 57,
       "norm_label": "test_plain_message_passes_through_unchanged()"
     },
     {
@@ -16597,7 +16597,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_logging_config_test_credentialed_url_in_message_is_redacted",
-      "community": 67,
+      "community": 57,
       "norm_label": "test_credentialed_url_in_message_is_redacted()"
     },
     {
@@ -16607,7 +16607,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_logging_config_test_credentialed_url_in_exception_traceback_is_redacted",
-      "community": 67,
+      "community": 57,
       "norm_label": "test_credentialed_url_in_exception_traceback_is_redacted()"
     },
     {
@@ -16617,7 +16617,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_logging_config_test_no_task_context_outside_a_running_task",
-      "community": 67,
+      "community": 57,
       "norm_label": "test_no_task_context_outside_a_running_task()"
     },
     {
@@ -16627,7 +16627,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_logging_config_test_task_context_injected_when_running_inside_a_task",
-      "community": 67,
+      "community": 57,
       "norm_label": "test_task_context_injected_when_running_inside_a_task()"
     },
     {
@@ -16637,7 +16637,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_backend_tests_test_logging_config_rationale_1",
-      "community": 67,
+      "community": 57,
       "norm_label": "structured json logging (v12). the one contract that matters most here: a creden"
     },
     {
@@ -19557,7 +19557,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest",
-      "community": 67,
+      "community": 57,
       "norm_label": "_fakerequest"
     },
     {
@@ -19567,7 +19567,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest_init",
-      "community": 67,
+      "community": 57,
       "norm_label": ".__init__()"
     },
     {
@@ -19577,7 +19577,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest_is_disconnected",
-      "community": 67,
+      "community": 57,
       "norm_label": ".is_disconnected()"
     },
     {
@@ -19777,7 +19777,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_39",
-      "community": 67,
+      "community": 57,
       "norm_label": "disconnects once `polls` loop turns have run: 0 ends the loop after the (p)subsc"
     },
     {
@@ -33578,7 +33578,7 @@
       "source_location": "L163",
       "_origin": "ast",
       "id": "frontend_src_lib_api_trackwithjob",
-      "community": 13,
+      "community": 50,
       "norm_label": "trackwithjob"
     },
     {
@@ -33618,7 +33618,7 @@
       "source_location": "L214",
       "_origin": "ast",
       "id": "frontend_src_lib_api_streamevent",
-      "community": 13,
+      "community": 50,
       "norm_label": "streamevent"
     },
     {
@@ -33868,7 +33868,7 @@
       "source_location": "L416",
       "_origin": "ast",
       "id": "frontend_src_lib_api_jobspage",
-      "community": 13,
+      "community": 50,
       "norm_label": "jobspage"
     },
     {
@@ -33878,7 +33878,7 @@
       "source_location": "L426",
       "_origin": "ast",
       "id": "frontend_src_lib_api_trackspage",
-      "community": 13,
+      "community": 50,
       "norm_label": "trackspage"
     },
     {
@@ -33898,7 +33898,7 @@
       "source_location": "L442",
       "_origin": "ast",
       "id": "frontend_src_lib_api_apierror",
-      "community": 36,
+      "community": 44,
       "norm_label": "apierror"
     },
     {
@@ -33908,7 +33908,7 @@
       "source_location": "L443",
       "_origin": "ast",
       "id": "frontend_src_lib_api_apierror_constructor",
-      "community": 36,
+      "community": 44,
       "norm_label": ".constructor()"
     },
     {
@@ -34906,7 +34906,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_i18n_format",
-      "community": 36,
+      "community": 253,
       "norm_label": "$lib/i18n/format"
     },
     {
@@ -34917,7 +34917,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_chordindicator",
-      "community": 44,
+      "community": 31,
       "norm_label": "$lib/components/chordindicator.svelte"
     },
     {
@@ -35303,7 +35303,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_languageswitch",
-      "community": 44,
+      "community": 36,
       "norm_label": "$lib/components/languageswitch.svelte"
     },
     {
@@ -35324,7 +35324,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_scope_others_frontend_src_lib_paraglide_runtime_js",
-      "community": 44,
+      "community": 36,
       "norm_label": "$lib/paraglide/runtime"
     },
     {
@@ -35516,7 +35516,7 @@
       "source_location": "L242",
       "_origin": "ast",
       "id": "frontend_src_lib_components_trackrow_dismisstimeonescape",
-      "community": 31,
+      "community": 69,
       "norm_label": "dismisstimeonescape()"
     },
     {
@@ -35546,7 +35546,7 @@
       "source_location": "L279",
       "_origin": "ast",
       "id": "frontend_src_lib_components_trackrow_formattimestamp",
-      "community": 69,
+      "community": 80,
       "norm_label": "formattimestamp()"
     },
     {
@@ -35943,7 +35943,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_stats_outcomebar",
-      "community": 6,
+      "community": 44,
       "norm_label": "$lib/components/stats/outcomebar.svelte"
     },
     {
@@ -36013,7 +36013,7 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_errors_knowscode",
-      "community": 36,
+      "community": 44,
       "norm_label": "knowscode()"
     },
     {
@@ -36023,7 +36023,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_browserregion",
-      "community": 36,
+      "community": 253,
       "norm_label": "browserregion()"
     },
     {
@@ -36033,7 +36033,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formatlocale",
-      "community": 36,
+      "community": 253,
       "norm_label": "formatlocale()"
     },
     {
@@ -36043,7 +36043,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_pairsupported",
-      "community": 36,
+      "community": 253,
       "norm_label": "pairsupported()"
     },
     {
@@ -36053,7 +36053,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_regionlocale",
-      "community": 36,
+      "community": 253,
       "norm_label": "regionlocale()"
     },
     {
@@ -36063,7 +36063,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_clockoptions",
-      "community": 36,
+      "community": 253,
       "norm_label": "clockoptions()"
     },
     {
@@ -36073,7 +36073,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_regionclockoptions",
-      "community": 36,
+      "community": 253,
       "norm_label": "regionclockoptions()"
     },
     {
@@ -36103,7 +36103,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_todate",
-      "community": 36,
+      "community": 253,
       "norm_label": "todate()"
     },
     {
@@ -36113,7 +36113,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formatclock",
-      "community": 36,
+      "community": 253,
       "norm_label": "formatclock()"
     },
     {
@@ -36123,7 +36123,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formattime",
-      "community": 36,
+      "community": 253,
       "norm_label": "formattime()"
     },
     {
@@ -36133,7 +36133,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formatdatetime",
-      "community": 36,
+      "community": 80,
       "norm_label": "formatdatetime()"
     },
     {
@@ -36143,7 +36143,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_clockexample",
-      "community": 36,
+      "community": 253,
       "norm_label": "clockexample()"
     },
     {
@@ -36153,7 +36153,7 @@
       "source_location": "L138",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_keepreadings",
-      "community": 36,
+      "community": 253,
       "norm_label": "keepreadings()"
     },
     {
@@ -37413,7 +37413,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_dismissconfirm",
-      "community": 6,
+      "community": 44,
       "norm_label": "dismissconfirm()"
     },
     {
@@ -37584,7 +37584,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test",
-      "community": 13,
+      "community": 50,
       "norm_label": "queue.test.ts"
     },
     {
@@ -37594,7 +37594,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_listjobspage",
-      "community": 13,
+      "community": 50,
       "norm_label": "listjobspage"
     },
     {
@@ -37604,7 +37604,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_listtrackspage",
-      "community": 13,
+      "community": 50,
       "norm_label": "listtrackspage"
     },
     {
@@ -37614,7 +37614,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_getjob",
-      "community": 13,
+      "community": 50,
       "norm_label": "getjob"
     },
     {
@@ -37624,7 +37624,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_canceljob",
-      "community": 13,
+      "community": 50,
       "norm_label": "canceljob"
     },
     {
@@ -37634,7 +37634,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_deferred",
-      "community": 13,
+      "community": 50,
       "norm_label": "deferred()"
     },
     {
@@ -37644,7 +37644,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_job",
-      "community": 13,
+      "community": 50,
       "norm_label": "job()"
     },
     {
@@ -37654,7 +37654,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_downloadingtrack",
-      "community": 13,
+      "community": 50,
       "norm_label": "downloadingtrack()"
     },
     {
@@ -37664,7 +37664,7 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_jobspage",
-      "community": 13,
+      "community": 50,
       "norm_label": "jobspage()"
     },
     {
@@ -37674,7 +37674,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_trackspage",
-      "community": 13,
+      "community": 50,
       "norm_label": "trackspage()"
     },
     {
@@ -37684,7 +37684,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_trackevent",
-      "community": 13,
+      "community": 50,
       "norm_label": "trackevent()"
     },
     {
@@ -37694,7 +37694,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_routelists",
-      "community": 13,
+      "community": 50,
       "norm_label": "routelists()"
     },
     {
@@ -37704,7 +37704,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_hydrationcalls",
-      "community": 13,
+      "community": 50,
       "norm_label": "hydrationcalls()"
     },
     {
@@ -37714,7 +37714,7 @@
       "source_location": "L380",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_fakestorage",
-      "community": 13,
+      "community": 50,
       "norm_label": "fakestorage()"
     },
     {
@@ -37724,7 +37724,7 @@
       "source_location": "L394",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_hardreload",
-      "community": 13,
+      "community": 50,
       "norm_label": "hardreload()"
     },
     {
@@ -37734,7 +37734,7 @@
       "source_location": "L492",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_countscalls",
-      "community": 13,
+      "community": 50,
       "norm_label": "countscalls()"
     },
     {
@@ -37744,7 +37744,7 @@
       "source_location": "L590",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_settled",
-      "community": 13,
+      "community": 50,
       "norm_label": "settled()"
     },
     {
@@ -37754,7 +37754,7 @@
       "source_location": "L597",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_loadjobspage",
-      "community": 13,
+      "community": 50,
       "norm_label": "loadjobspage()"
     },
     {
@@ -37764,7 +37764,7 @@
       "source_location": "L706",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_owned",
-      "community": 13,
+      "community": 50,
       "norm_label": "owned()"
     },
     {
@@ -37774,7 +37774,7 @@
       "source_location": "L713",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_test_routeactive",
-      "community": 13,
+      "community": 50,
       "norm_label": "routeactive()"
     },
     {
@@ -37941,7 +37941,7 @@
       "label": "queue",
       "file_type": "code",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1632",
+      "source_location": "L1639",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_queue",
       "community": 34,
@@ -38126,7 +38126,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_scope_others_frontend_src_app_css",
-      "community": 211,
+      "community": 19,
       "norm_label": "../app.css"
     },
     {
@@ -38266,7 +38266,7 @@
       "source_location": "L90",
       "_origin": "ast",
       "id": "frontend_src_routes_library_page_formatwhen",
-      "community": 36,
+      "community": 80,
       "norm_label": "formatwhen()"
     },
     {
@@ -38486,7 +38486,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_parallel_stacks_scripts_agent_seed_py",
-      "community": 46,
+      "community": 19,
       "norm_label": "agent_seed.py"
     },
     {
@@ -38496,7 +38496,7 @@
       "source_location": "L68",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_parallel_stacks_scripts_agent_seed_stand_in",
-      "community": 46,
+      "community": 19,
       "norm_label": "stand_in()"
     },
     {
@@ -38516,7 +38516,7 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_parallel_stacks_scripts_agent_seed_add_job",
-      "community": 46,
+      "community": 19,
       "norm_label": "add_job()"
     },
     {
@@ -38526,7 +38526,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_parallel_stacks_scripts_agent_seed_rationale_1",
-      "community": 46,
+      "community": 19,
       "norm_label": "v50: the e2e fixture for an agent slot's fresh database (`scripts/agent_stack.sh"
     },
     {
@@ -51070,7 +51070,7 @@
       "source_location": "L6",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_alembic_env_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
       "confidence_score": 1.0
     },
     {
@@ -51081,7 +51081,7 @@
       "source_location": "L7",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_alembic_env_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
       "confidence_score": 1.0
     },
     {
@@ -51112,7 +51112,7 @@
       "source_location": "L1",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_alembic_env_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_logging_config_rationale_33",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_logging_config_py",
       "confidence_score": 1.0
     },
     {
@@ -51834,314 +51834,6 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/stream.py",
-      "source_location": "L8",
-      "weight": 1.0,
-      "source": "backend_app_routers_stream",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L10",
-      "weight": 1.0,
-      "source": "backend_app_routers_tracks",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/health.py",
-      "source_location": "L9",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_health_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/alerts.py",
-      "source_location": "L53",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_alerts_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/app_settings.py",
-      "source_location": "L16",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_app_settings_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/dedup.py",
-      "source_location": "L8",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_dedup_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/downloads.py",
-      "source_location": "L17",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_downloads_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/events.py",
-      "source_location": "L26",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_events_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/expansion.py",
-      "source_location": "L13",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_expansion_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/proxies.py",
-      "source_location": "L23",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_proxies_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/retry.py",
-      "source_location": "L18",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_retry_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/upstream_auth.py",
-      "source_location": "L6",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_upstream_auth_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/users.py",
-      "source_location": "L10",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_users_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/tasks/beat.py",
-      "source_location": "L6",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_beat_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/tasks/celery_app.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_celery_app_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/tasks/download.py",
-      "source_location": "L10",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_download_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_alerts.py",
-      "source_location": "L11",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_tests_test_alerts_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_config.py",
-      "source_location": "L4",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_tests_test_config_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_users.py",
-      "source_location": "L1",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_tests_test_users_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/main.py",
-      "source_location": "L5",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_main_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/auth.py",
-      "source_location": "L8",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/rate_limit.py",
-      "source_location": "L24",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_services_rate_limit_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/conftest.py",
-      "source_location": "L22",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_extension_jobs.py",
-      "source_location": "L9",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_test_extension_jobs_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/agent_seed.py",
-      "source_location": "L25",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_parallel_stacks_scripts_agent_seed_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/db.py",
-      "source_location": "L8",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L10",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_settings_split_ladder_seconds",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/config.py",
@@ -52601,6 +52293,314 @@
       "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_get_settings"
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/stream.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "backend_app_routers_stream",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/tracks.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "backend_app_routers_tracks",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/health.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_health_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/alerts.py",
+      "source_location": "L53",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_alerts_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/app_settings.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_app_settings_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_dedup_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/downloads.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_downloads_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/events.py",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_events_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/expansion.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_expansion_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/proxies.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_proxies_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/retry.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_retry_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/upstream_auth.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_upstream_auth_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/users.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_users_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/beat.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_beat_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/celery_app.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_celery_app_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_download_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_alerts.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_tests_test_alerts_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_config.py",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_tests_test_config_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_users.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_tests_test_users_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/main.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_main_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/rate_limit.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_services_rate_limit_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_extension_jobs.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_test_extension_jobs_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/agent_seed.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_parallel_stacks_scripts_agent_seed_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/db.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_config_rationale_25",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/db.py",
@@ -52871,6 +52871,39 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/jobs.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "backend_app_routers_jobs",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/tracks.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "backend_app_routers_tracks",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/job_listing.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "backend_app_services_job_listing",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "INFERRED",
@@ -52880,6 +52913,17 @@
       "weight": 1.0,
       "source": "backend_app_services_job_listing_list_jobs",
       "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/track_listing.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "backend_app_services_track_listing",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -52893,6 +52937,138 @@
       "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot"
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/app_settings.py",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_app_settings_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/breaker_event.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_breaker_event_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/downloaded_track.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_downloaded_track_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/job.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_job_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/library_sort_run.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_library_sort_run_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/proxy.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_proxy_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/session.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_session_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/track_attempt.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_track_attempt_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/track.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_track_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/user.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/user_settings.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_user_settings_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/worker_state.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_models_worker_state_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "INFERRED",
@@ -52902,6 +53078,204 @@
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_routers_admin_admin_stats",
       "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/admin.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_admin_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/health.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_health_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/library.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_library_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/proxies.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/worker.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_worker_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/dedup.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_dedup_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/proxies.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_proxies_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/alerts.py",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_alerts_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/beat.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_beat_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/download.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_download_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/library.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_library_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/models/api_key.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_models_api_key_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/account_keys.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_account_keys_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L9",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/tasks/expand.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_tasks_expand_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L144",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "scripts/agent_seed.py",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_parallel_stacks_scripts_agent_seed_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_begin_snapshot",
+      "confidence_score": 1.0
     },
     {
       "relation": "references",
@@ -52925,347 +53299,6 @@
       "confidence_score": 1.0
     },
     {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/jobs.py",
-      "source_location": "L11",
-      "weight": 1.0,
-      "source": "backend_app_routers_jobs",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/tracks.py",
-      "source_location": "L11",
-      "weight": 1.0,
-      "source": "backend_app_routers_tracks",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/job_listing.py",
-      "source_location": "L25",
-      "weight": 1.0,
-      "source": "backend_app_services_job_listing",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/track_listing.py",
-      "source_location": "L18",
-      "weight": 1.0,
-      "source": "backend_app_services_track_listing",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/app_settings.py",
-      "source_location": "L4",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_app_settings_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/breaker_event.py",
-      "source_location": "L8",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_breaker_event_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/downloaded_track.py",
-      "source_location": "L6",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_downloaded_track_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/job.py",
-      "source_location": "L8",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_job_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/library_sort_run.py",
-      "source_location": "L8",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_library_sort_run_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/proxy.py",
-      "source_location": "L8",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_proxy_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/session.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_session_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/track_attempt.py",
-      "source_location": "L8",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_track_attempt_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/track.py",
-      "source_location": "L9",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_track_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/user.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/user_settings.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_user_settings_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/worker_state.py",
-      "source_location": "L6",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_models_worker_state_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/admin.py",
-      "source_location": "L6",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_admin_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/health.py",
-      "source_location": "L10",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_health_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/library.py",
-      "source_location": "L6",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_library_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/proxies.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L8",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/worker.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_worker_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/dedup.py",
-      "source_location": "L9",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_dedup_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/proxies.py",
-      "source_location": "L24",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_proxies_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/tasks/alerts.py",
-      "source_location": "L3",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_alerts_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/tasks/beat.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_beat_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/tasks/download.py",
-      "source_location": "L11",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_download_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/tasks/library.py",
-      "source_location": "L6",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_tasks_library_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/models/api_key.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_models_api_key_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/account_keys.py",
-      "source_location": "L14",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_account_keys_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/auth.py",
-      "source_location": "L9",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "indirect_call",
       "context": "argument",
       "confidence": "INFERRED",
@@ -53275,39 +53308,6 @@
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_require_session_for_streaming",
       "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db"
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/tasks/expand.py",
-      "source_location": "L6",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_tasks_expand_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/conftest.py",
-      "source_location": "L144",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "scripts/agent_seed.py",
-      "source_location": "L26",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_parallel_stacks_scripts_agent_seed_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_app_db_get_db",
-      "confidence_score": 1.0
     },
     {
       "relation": "references",
@@ -53880,6 +53880,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/alert_watchdog.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_alert_watchdog_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_logging_config_py",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/logging_config.py",
@@ -54023,17 +54034,6 @@
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_logging_config_rationale_56",
       "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_logging_config_configure_celery_logging",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/alert_watchdog.py",
-      "source_location": "L10",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_alert_watchdog_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_logging_config_rationale_33",
       "confidence_score": 1.0
     },
     {
@@ -55161,7 +55161,7 @@
       "source_location": "L64",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_get_proxy_or_404",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_proxy_proxy",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_proxy_py",
       "confidence_score": 1.0
     },
     {
@@ -55172,7 +55172,7 @@
       "source_location": "L24",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_proxy_to_dict",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_proxy_proxy",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_proxy_py",
       "confidence_score": 1.0
     },
     {
@@ -55183,7 +55183,7 @@
       "source_location": "L42",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_target_clash",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_proxy_proxy",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_proxy_py",
       "confidence_score": 1.0
     },
     {
@@ -55194,7 +55194,7 @@
       "source_location": "L298",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_services_proxies_pick_proxy",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_proxy_proxy",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_proxy_py",
       "confidence_score": 1.0
     },
     {
@@ -56194,6 +56194,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/app/services/track_listing.py",
+      "source_location": "L121",
+      "weight": 1.0,
+      "source": "backend_app_services_track_listing_list_tracks",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_trackstate"
+    },
+    {
       "relation": "references",
       "context": "parameter_type",
       "confidence": "EXTRACTED",
@@ -56201,7 +56212,7 @@
       "source_location": "L200",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_services_retry_record_failure",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_py",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_trackstate",
       "confidence_score": 1.0
     },
     {
@@ -56212,7 +56223,7 @@
       "source_location": "L280",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_services_retry_record_success",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_py",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_trackstate",
       "confidence_score": 1.0
     },
     {
@@ -56223,7 +56234,7 @@
       "source_location": "L228",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_services_retry_record_transport_failure",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_py",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_trackstate",
       "confidence_score": 1.0
     },
     {
@@ -56234,7 +56245,7 @@
       "source_location": "L91",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_services_serializers_track_to_dict",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_py",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_trackstate",
       "confidence_score": 1.0
     },
     {
@@ -56245,19 +56256,8 @@
       "source_location": "L47",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_tasks_download_hold",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_py",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_trackstate",
       "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "INFERRED",
-      "confidence_score": 0.8,
-      "source_file": "backend/app/services/track_listing.py",
-      "source_location": "L121",
-      "weight": 1.0,
-      "source": "backend_app_services_track_listing_list_tracks",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_track_trackstate"
     },
     {
       "relation": "uses",
@@ -56489,6 +56489,523 @@
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
       "target": "home_vb2007_code_spotdl_web_backend_app_models_user_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/admin.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_admin_admin_stats",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/admin.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_admin_require_admin_hidden",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/library.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_library_sort_status",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/library.py",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_library_start_sort",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/proxies.py",
+      "source_location": "L81",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_create_proxy",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/proxies.py",
+      "source_location": "L135",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_delete_proxy",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/proxies.py",
+      "source_location": "L72",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_list_proxies",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/proxies.py",
+      "source_location": "L116",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_update_proxy",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L183",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_alert_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L336",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_clock_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L281",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_keyboard_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L309",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_language_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L126",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_library_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L74",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_output_options",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L64",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_output_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L250",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_retention_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L212",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_require_admin_hidden",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L222",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_send_test_alert",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L193",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_alert_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L348",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_clock_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L294",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_keyboard_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L321",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_language_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L136",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_library_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L84",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_output_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/settings.py",
+      "source_location": "L262",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_retention_settings",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/worker.py",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_worker_pause_worker",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/worker.py",
+      "source_location": "L73",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_worker_release_breaker",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/worker.py",
+      "source_location": "L62",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_worker_resume_worker",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/worker.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_routers_worker_worker_status",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/services/users.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_app_services_users_get_or_create_user",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_archive.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_tests_test_archive_owner",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_library_task.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_tests_test_library_task_owner",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_retry.py",
+      "source_location": "L14",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_backend_tests_test_retry_owner",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/account_keys.py",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_account_keys_create_api_key",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/account_keys.py",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_account_keys_list_api_keys",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/account_keys.py",
+      "source_location": "L70",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_account_keys_revoke_api_key",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L57",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_require_admin",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L42",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_require_session",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/app/routers/auth.py",
+      "source_location": "L114",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_require_session_for_streaming",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L432",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_admin_user",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L421",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_owner",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L22",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_beat_task_owner",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L426",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_beat_task_test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_owner",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L1700",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_test_a_redelivery_before_the_first_deliverys_ack_is_a_noop_on_real_connections",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L364",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_expand_task_committed_expanding_job",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_expand_task_owner",
+      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_py",
       "confidence_score": 1.0
     },
     {
@@ -56973,523 +57490,6 @@
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_migration_relink_stranded_track",
       "target": "home_vb2007_code_spotdl_web_backend_app_models_user_user"
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/admin.py",
-      "source_location": "L25",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_admin_admin_stats",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/admin.py",
-      "source_location": "L14",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_admin_require_admin_hidden",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/library.py",
-      "source_location": "L39",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_library_sort_status",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/library.py",
-      "source_location": "L51",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_library_start_sort",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/proxies.py",
-      "source_location": "L81",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_create_proxy",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/proxies.py",
-      "source_location": "L135",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_delete_proxy",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/proxies.py",
-      "source_location": "L72",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_list_proxies",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/proxies.py",
-      "source_location": "L116",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_proxies_update_proxy",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L183",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_alert_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L336",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_clock_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L281",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_keyboard_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L309",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_language_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L126",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_library_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L74",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_output_options",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L64",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_output_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L250",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_get_retention_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L212",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_require_admin_hidden",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L222",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_send_test_alert",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L193",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_alert_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L348",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_clock_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L294",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_keyboard_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L321",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_language_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L136",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_library_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L84",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_output_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/settings.py",
-      "source_location": "L262",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_settings_update_retention_settings",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/worker.py",
-      "source_location": "L51",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_worker_pause_worker",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/worker.py",
-      "source_location": "L73",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_worker_release_breaker",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/worker.py",
-      "source_location": "L62",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_worker_resume_worker",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/worker.py",
-      "source_location": "L39",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_routers_worker_worker_status",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/services/users.py",
-      "source_location": "L18",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_app_services_users_get_or_create_user",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_archive.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_tests_test_archive_owner",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_library_task.py",
-      "source_location": "L34",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_tests_test_library_task_owner",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_retry.py",
-      "source_location": "L14",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_backend_tests_test_retry_owner",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/account_keys.py",
-      "source_location": "L36",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_account_keys_create_api_key",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/account_keys.py",
-      "source_location": "L28",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_account_keys_list_api_keys",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "parameter_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/account_keys.py",
-      "source_location": "L70",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_account_keys_revoke_api_key",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/auth.py",
-      "source_location": "L57",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_require_admin",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/auth.py",
-      "source_location": "L42",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_require_session",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/app/routers/auth.py",
-      "source_location": "L114",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_app_routers_auth_require_session_for_streaming",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/conftest.py",
-      "source_location": "L432",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_admin_user",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/conftest.py",
-      "source_location": "L421",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_owner",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_beat_task.py",
-      "source_location": "L22",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_beat_task_owner",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_beat_task.py",
-      "source_location": "L426",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_beat_task_test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L35",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_owner",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L1700",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_test_a_redelivery_before_the_first_deliverys_ack_is_a_noop_on_real_connections",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "calls",
-      "context": "call",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L364",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_expand_task_committed_expanding_job",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "references",
-      "context": "return_type",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L12",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_expand_task_owner",
-      "target": "home_vb2007_code_spotdl_web_backend_app_models_user_rationale_11",
-      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -68918,61 +68918,6 @@
       "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_gate"
     },
     {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_jobs.py",
-      "source_location": "L4",
-      "weight": 1.0,
-      "source": "backend_tests_test_jobs",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_gate_init",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/conftest.py",
-      "source_location": "L143",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_gate_init",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_beat_task.py",
-      "source_location": "L4",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_beat_task_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_gate_init",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_download_task.py",
-      "source_location": "L7",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_gate_init",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_expand_task.py",
-      "source_location": "L3",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_expand_task_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_gate_init",
-      "confidence_score": 1.0
-    },
-    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/concurrency.py",
@@ -69225,6 +69170,17 @@
       "confidence_score": 1.0
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_jobs.py",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "backend_tests_test_jobs",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_blocked_or_done",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "INFERRED",
@@ -69236,12 +69192,34 @@
       "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_blocked_or_done"
     },
     {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/conftest.py",
+      "source_location": "L143",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_conftest_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_blocked_or_done",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/concurrency.py",
       "source_location": "L137",
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_rationale_137",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_blocked_or_done",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_beat_task.py",
+      "source_location": "L4",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_beat_task_py",
       "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_blocked_or_done",
       "confidence_score": 1.0
     },
@@ -69255,6 +69233,28 @@
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_beat_task_test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections",
       "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_blocked_or_done"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_download_task.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_download_task_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_blocked_or_done",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_expand_task.py",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_test_expand_task_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_pytest_postgres_backend_tests_concurrency_blocked_or_done",
+      "confidence_score": 1.0
     },
     {
       "relation": "calls",
@@ -70787,6 +70787,28 @@
       "confidence_score": 0.5
     },
     {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_api_keys.py",
+      "source_location": "L16",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_test_api_keys_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_extension_support_fakeredis",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_extension_jobs.py",
+      "source_location": "L15",
+      "weight": 1.0,
+      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_test_extension_jobs_py",
+      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_extension_support_fakeredis",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
@@ -70850,28 +70872,6 @@
       "weight": 1.0,
       "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_extension_support_fakeredis_incr",
       "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_extension_support_fakeredis_get",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_api_keys.py",
-      "source_location": "L16",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_test_api_keys_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_extension_support_fakeredis_ttl",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "imports_from",
-      "context": "import",
-      "confidence": "EXTRACTED",
-      "source_file": "backend/tests/test_extension_jobs.py",
-      "source_location": "L15",
-      "weight": 1.0,
-      "source": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_test_extension_jobs_py",
-      "target": "home_vb2007_code_spotdl_web_wt_dev_extension_api_backend_tests_extension_support_fakeredis_ttl",
       "confidence_score": 1.0
     },
     {
@@ -110432,7 +110432,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1622",
+      "source_location": "L1629",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_canceljob"
@@ -110443,7 +110443,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1626",
+      "source_location": "L1633",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_setjobpriority"
@@ -110454,7 +110454,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1625",
+      "source_location": "L1632",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_bumpjob"
@@ -110465,7 +110465,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1627",
+      "source_location": "L1634",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_archivejobs"
@@ -110476,7 +110476,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1628",
+      "source_location": "L1635",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_unarchivejobs"
@@ -110487,7 +110487,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1623",
+      "source_location": "L1630",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_canceltrack"
@@ -110498,7 +110498,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1624",
+      "source_location": "L1631",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_api_retrytrack"
@@ -112035,7 +112035,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1632",
+      "source_location": "L1639",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue",
       "target": "frontend_src_lib_stores_queue_queue",
@@ -116880,7 +116880,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L882",
+      "source_location": "L889",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_keyboard_lists_resetlists",
@@ -117727,7 +117727,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L883",
+      "source_location": "L890",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_keyboard_registry_resetkeyboard",
@@ -118008,7 +118008,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L878",
+      "source_location": "L885",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_stores_confirm_dismissconfirm",
@@ -118248,7 +118248,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1469",
+      "source_location": "L1476",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_stores_progresscache_rememberprogress",
@@ -118259,7 +118259,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L1396",
+      "source_location": "L1403",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_stores_progresscache_forgetprogress",
@@ -118270,7 +118270,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L522",
+      "source_location": "L526",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_stores_progresscache_recallprogress",
@@ -118281,7 +118281,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L876",
+      "source_location": "L883",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_stores_progresscache_clearprogress",
@@ -118581,7 +118581,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/lib/stores/queue.ts",
-      "source_location": "L879",
+      "source_location": "L886",
       "weight": 1.0,
       "source": "frontend_src_lib_stores_queue_createqueuestore",
       "target": "frontend_src_lib_stores_rownotices_clearrownotices",
@@ -129553,5 +129553,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "e7959024c330b3d769a99d80ade4a1ffcc255634"
+  "built_at_commit": "b9b121a3a4e89514468a1a114d32ede32bb07104"
 }

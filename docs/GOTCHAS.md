@@ -338,6 +338,9 @@ needed" claim — rather than silently deleted.
   egress IP, so another rung can change it. Each exclusion has a negative test → *v40.1*
 - `alerts.py` runs in the watchdog process and must not import spotdl, even indirectly through
   `retry.py`. A constant both of them need lives in a light module (`attempts.py`) → *v40.1*
+- A matched video that is still an upcoming premiere or live event ("Premieres in 102 days") is
+  `NotYetReleasedError`, terminal `lookup_failed` by the owner's call; before, it looped the
+  ladder as a breaker-feeding `no_output` → *v54.1*
 
 **Celery, tasks & durability**
 - A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
@@ -6338,3 +6341,18 @@ independently-found production bug from the same conversation)
   `afterNavigate` wrote its own `others` over the entry. It reproduced 5 of 6 times in Playwright
   and never in a slower script. `afterNavigate` now adopts the popped entry's view on a popstate,
   and the mount-time sync skips while another navigation is in flight.
+
+### v54.1 premiere-terminal gotchas (learned from a production track stuck on an unaired premiere)
+
+- **An upcoming premiere looked like a rate limit.** Production's "End Of An Era" (Dua Lipa)
+  matched `h097ly4MFVg`, a YouTube premiere 102 days out. yt-dlp raises YouTube's playability
+  reason verbatim (`raise_no_formats(reason)` in `extractor/youtube/_video.py`): `ExtractorError:
+  [youtube] h097ly4MFVg: Premieres in 102 days`. Nothing in `_swallowed_error_to_raise` knew it,
+  so every attempt (direct, IPv6, proxy) became `no_output`: back on the 24h ladder, feeding the
+  breaker, spending proxy rungs. The markers are `premieres in`, `premiere will begin` and `this
+  live event will begin`, checked after the dead-proxy check like the age-gate and
+  unavailable-video ones.
+- **Terminal even when it airs soon.** The owner asked for "not found" treatment, not a wait until
+  the release date: a premiere can be months out and YouTube's reason is the same whatever the
+  horizon. "Premiere will begin shortly" is terminal too; "retry now" brings any of them back once
+  the video has aired. The reason stays in the attempt history ("Not released yet on YouTube: …").

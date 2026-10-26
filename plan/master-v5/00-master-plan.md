@@ -526,3 +526,12 @@ here.
 
     `v69-user-access.md` carries the tasks, the files (`tasks/{download,expand,beat}.py`,
     `services/rollup.py`, `models/job.py`, `i18n/labels.ts`) and the Done-when evidence.
+
+- **2026-10-26, v54.1: an unreleased premiere is terminal, released as `5.54.1` (owner's
+  request).** Production had a track whose matched YouTube video is a premiere 102 days out
+  (`Premieres in 102 days`). It went round the ladder as a breaker-feeding `no_output`, on every
+  rung, proxy included. The owner asked for it to be handled like a track that isn't on YouTube:
+  terminal `lookup_failed`, cleanly marked, never looped, as a separate patch PR.
+  `downloads.NotYetReleasedError` (a `LookupError`, beside the age-gate and unavailable-video
+  ones) covers it, with no schema or UI change. `5.54.1` sits between v54 and v55, so wave 2 keeps
+  its planned `5.NN.0` versions.
