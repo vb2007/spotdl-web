@@ -750,9 +750,10 @@ export async function cancelUnlessSettled(
 	const owner = await request.newContext({ baseURL, storageState });
 	try {
 		const job = (await (await owner.get(`/api/jobs/${jobId}`)).json()) as Job;
-		if (job.status.lifecycle !== 'settled') {
+		if (job.status.lifecycle !== 'settled' && job.status.lifecycle !== 'cancelled') {
 			const cancelled = await owner.delete(`/api/jobs/${jobId}`);
-			expect.soft(cancelled.status(), `cancelling unsettled job ${jobId}`).toBe(200);
+			// v56 (A1): 409 when it finished between the read and the cancel; nothing to clean.
+			expect.soft([200, 409], `cancelling unsettled job ${jobId}`).toContain(cancelled.status());
 		}
 	} finally {
 		await owner.dispose();
