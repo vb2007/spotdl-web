@@ -1,4 +1,4 @@
-"""proxy FKs ON DELETE SET NULL; track_attempts.proxy_label; tracks.retry_now_step; due index
+"""proxy FKs SET NULL; attempt proxy_label; retry_now_step; due index; retention clamp
 
 Revision ID: a9d3c5e7f1b2
 Revises: f6b2d8e4a1c9
@@ -16,7 +16,13 @@ v56 (E1): `ix_tracks_scheduled_at_due`, a partial index on `scheduled_at` for `w
 v56 (A8): `tracks.retry_now_step`, nullable, the ladder step at which a non-admin last used
 "retry now" (one per step). NULL for every existing track: nobody has used one under the rule.
 
-Data: no existing value is changed or dropped. The new column is backfilled once for every
+v56 (A5, owner's decision): `user_settings.retention_days` is clamped to the API's new bound,
+1-36500: above 36500 becomes 36500, below 1 becomes NULL (never archive, as a non-positive value
+was refused anyway). A value past ~739,000 days stopped the hourly archive sweep for every
+later user (OverflowError), and the bound only stops new ones. **This rewrites data** (only
+out-of-range rows; normally none): take a `pg_backup` first. `downgrade()` doesn't restore them.
+
+Data otherwise: no existing value is changed or dropped. The new column is backfilled once for every
 attempt that has a proxy, from that proxy's URL, with the same rule as `proxies.redact()` (a
 frozen copy here, as migrations don't import app code). `downgrade()` drops both columns (the
 labels of proxies deleted meanwhile go with them) and restores the plain FKs; the NULLs a deletion
@@ -62,6 +68,8 @@ def upgrade() -> None:
         postgresql_where=sa.text("state IN ('waiting', 'pending')"),
     )
     bind = op.get_bind()
+    bind.execute(sa.text("UPDATE user_settings SET retention_days = 36500 WHERE retention_days > 36500"))
+    bind.execute(sa.text("UPDATE user_settings SET retention_days = NULL WHERE retention_days < 1"))
     # One UPDATE per proxy (a handful of rows), never per attempt.
     for proxy_id, url in bind.execute(
         sa.text("SELECT id, url FROM proxies WHERE id IN (SELECT DISTINCT proxy_id FROM track_attempts)")

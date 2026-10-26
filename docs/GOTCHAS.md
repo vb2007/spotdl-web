@@ -360,7 +360,9 @@ needed" claim — rather than silently deleted.
 - `expand_job`'s tracks carry an outbox marker (`pending` + `scheduled_at`) under a lease, so a
   broker error mid-enqueue is beat's next tick, never a stranded track → *v56*
 - `timedelta(days=10**9)` raises OverflowError: an unbounded `retention_days` stopped the archive
-  sweep for every later user → *v56*
+  sweep for every later user (v56 bounds new values and clamps old rows) → *v56*
+- A server timestamp compared with `Date.now()` is a skewed countdown: use the worker status's
+  `server_time` offset (`api.serverToLocal`) or a server-computed remaining time → *v56*
 - `attempts.py` must not import `serializers`/`proxies` (spotdl) — alerts.py imports it → *v56*
 - Two bulk UPDATEs of one job's tracks (cancel vs expand's claim) take the job row lock first, or
   they can deadlock; a partial index on `state = 'waiting'` can't serve `state IN (…)` → *v56*
@@ -6573,6 +6575,8 @@ independently-found production bug from the same conversation)
   hourly archive sweep for every user after it (A5). 1–36500 now, else 422. A production row
   stored before v56 with a larger value would still break the sweep: check with
   `SELECT count(*) FROM user_settings WHERE retention_days > 36500 OR retention_days < 1`.
+  *(2026-10-26, v56 round 3, owner's decision: the v56 migration clamps such rows, above 36500 to
+  36500 and below 1 to NULL; proven on the slot DB, where a 10**9 row made the sweep raise.)*
 - **The attempt's proxy label is captured, not joined.** v35 joined `proxies.url` at read time,
   so deleting a proxy would have erased "which proxy" (and the FK made deleting a used one a 500).
   `record_attempt` stores the redacted label; the migration backfills existing rows with a frozen
@@ -6585,6 +6589,9 @@ independently-found production bug from the same conversation)
   main's pill showed "worker ready" during a real hold; now it counts down the server's time.
   `TrackRow`'s next-try countdown and the dashboard's own hold line still compare
   `breaker_tripped_until` with `Date.now()` (outside v56's scope, in its PR's "Found, not fixed").
+  *(2026-10-26, v56 round 3, owner's decision: fixed in v56 too. The status also answers
+  `server_time`; `api.serverToLocal()` places a track's `scheduled_at` on the browser's clock. Other
+  displays of server timestamps (the Waterfall's per-track times, `/stats`) still use them as is.)*
 - **Retry-now is once per ladder step for a non-admin (A8).** `tracks.retry_now_step` holds the
   `attempt_count` at which it was used; equal means used. The check runs under the track's row
   lock (two presses at once: one 200, one 429). The 429's `retry_after` is the later of the
