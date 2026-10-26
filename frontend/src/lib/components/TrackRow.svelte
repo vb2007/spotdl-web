@@ -130,18 +130,15 @@
 	// waiting track's real next try is the later of its own slot and the breaker's clear.
 	let nextTry = $derived.by((): { at: string; heldByBreaker: boolean } | null => {
 		if (track.state !== 'waiting' || !track.scheduled_at) return null;
-		const breakerUntil = $workerStatus?.breaker_tripped_until ?? null;
-		// An expired trip can keep its timestamp until beat's next tick, a success or a release
-		// clears it (v44), so it only counts while it's still in the future (the backend's own
-		// `breaker_active` test).
-		if (
-			breakerUntil &&
-			Date.parse(breakerUntil) > Date.now() &&
-			Date.parse(breakerUntil) > Date.parse(track.scheduled_at)
-		) {
+		// v56 (A7): both on this browser's clock: the track's slot is the server's timestamp,
+		// placed with the server's clock offset, and the breaker's clear comes from the
+		// server's remaining time. Whether the hold runs is the server's answer (#63).
+		const slot = api.serverToLocal(track.scheduled_at);
+		const breakerUntil = $workerStatus?.breaker_active ? $workerStatus.breaker_clears_at : null;
+		if (breakerUntil && Date.parse(breakerUntil) > Date.parse(slot)) {
 			return { at: breakerUntil, heldByBreaker: true };
 		}
-		return { at: track.scheduled_at, heldByBreaker: false };
+		return { at: slot, heldByBreaker: false };
 	});
 	let workerPaused = $derived($workerStatus?.paused ?? false);
 
@@ -404,10 +401,13 @@
 			if (queue.getResetCount() !== session) return;
 			showNotice(breakerHeld ? m.track_notice_retry_held() : m.track_notice_retry_queued());
 		} catch (err) {
-			// v56 (A8): a second "retry now" in one ladder step is a rule, not a failure.
-			const cooldown = err instanceof api.ApiError && err.code === 'retry_cooldown';
+			// v56: a second "retry now" in one ladder step (A8), or a track under a cancelled job
+			// (A2), is a rule, not a failure.
+			const refused =
+				err instanceof api.ApiError &&
+				(err.code === 'retry_cooldown' || err.code === 'job_cancelled');
 			if (queue.getResetCount() === session)
-				showNotice(errorText(err, m.track_notice_retry_failed), !cooldown);
+				showNotice(errorText(err, m.track_notice_retry_failed), !refused);
 		}
 	}
 

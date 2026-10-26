@@ -198,7 +198,7 @@
 	"job_count_cancelled": "{count} cancelled",
 	"job_progress_label": "Track progress: {breakdown}",
 	"job_cancel_title": "Cancel this job?",
-	"job_cancel_body": "Its tracks that haven't downloaded yet (any not found included) are cancelled; one downloading right now finishes but stays cancelled. Files already downloaded stay. This can't be undone, but the link can be submitted again.",
+	"job_cancel_body": "Its tracks that haven't downloaded yet are cancelled; one downloading right now finishes but stays cancelled. Tracks not found stay as they are, and files already downloaded stay. This can't be undone, but the link can be submitted again.",
 	"job_cancel_confirm": "cancel job",
 	"job_cancel_keep": "keep job",
 	"job_notice_not_cancelled": "Not cancelled: nothing in it is still to come.",
