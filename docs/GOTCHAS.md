@@ -216,6 +216,8 @@ needed" claim — rather than silently deleted.
 **Auth, cookies & sessions**
 - Admin routes: 404 (`require_admin_hidden`) where the path names an id, 403 elsewhere → *v56*
 - A `failed` job's cancel is the incoming overlay's "dismiss": a cancel rule must keep it → *v56*
+- Deleting a proxy a download is using waits for it (`delete_requested_at`, never picked, removed
+  by `finalize_proxy_deletions` once idle); `pick_proxy` locks its candidates SKIP LOCKED → *v56*
 - A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
   production, TCP on and off); a key is the fallback, valid only on job create, reading its own
   job and `me` (an admin's key gets 401 everywhere else) → *v53*
@@ -6625,3 +6627,15 @@ independently-found production bug from the same conversation)
   those tracks stay unmarked. The largest real jobs are about a thousand tracks (a discography),
   so it's accepted; chunk the UPDATE if jobs ever get that big. The success path is safe
   regardless: `_mark_due` marks each track on its own ORM row before the claim.
+
+- **A used proxy's delete waits for its download (owner's decision).** ON DELETE SET NULL made a
+  used proxy deletable, and every review round then found another millisecond window where the
+  delete met a download through that proxy (an FK violation, a StaleDataError, a lock-order
+  deadlock with v55's track locking). Locks alone kept chasing corners, so the delete no longer
+  races the download at all. `DELETE /api/proxies/{id}` deletes an idle proxy at once (204). One in
+  use (`proxy_in_use`: a track `downloading` through it, or picked in the last 60s, which covers
+  pick → the `downloading` commit) gets `delete_requested_at` instead (202, `deleting: true`).
+  `pick_proxy` skips it and locks its candidates `FOR UPDATE SKIP LOCKED` (a delete deciding
+  meanwhile holds the row, so the pick passes over it). `finalize_proxy_deletions` (beat, every
+  30s) deletes it once idle, and `/settings` shows it as "deleting" until then. On the slot it was
+  gone 17s after its download ended.

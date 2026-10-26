@@ -606,3 +606,7 @@ here.
     below 1 → NULL). **So v56's migration does rewrite data**, against its plan's "(no data
     rewrite)": out-of-range retention rows, plus the backfill of the new `proxy_label` column.
     Take a `pg_backup` first, as the plan's Deploy notes already say.
+  - **A4, a used proxy's delete waits for its download:** rather than racing a download through
+    it, `DELETE /api/proxies/{id}` on a proxy in use marks it (`proxies.delete_requested_at`, a new
+    column in v56's migration): it's never picked again, a periodic task deletes it once nothing
+    uses it, and `/settings` shows it as "deleting" meanwhile. An idle proxy still goes at once.
