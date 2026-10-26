@@ -1488,7 +1488,19 @@ function createQueueStore() {
 			const idx = items.findIndex((t) => t.id === event.track_id);
 			if (idx === -1) return items;
 			const existing = items[idx];
-			if (TRULY_TERMINAL_STATES.has(existing.state)) return items;
+			if (TRULY_TERMINAL_STATES.has(existing.state)) {
+				// v55 (E6, delimited): the worker's own event for the state the row already
+				// shows still carries the counters its attempt row moved (a cancel's arrives
+				// after the API's counter-less `cancelled`), so take those; nothing else.
+				if (event.state !== existing.state) return items;
+				const counted = { ...existing } as T;
+				if (event.attempt_count !== undefined) counted.attempt_count = event.attempt_count;
+				if (event.attempts_made !== undefined) counted.attempts_made = event.attempts_made;
+				if (event.failure_count !== undefined) counted.failure_count = event.failure_count;
+				const copy = [...items];
+				copy[idx] = counted;
+				return copy;
+			}
 			const next = { ...existing, state: event.state } as T;
 			if (event.scheduled_at !== undefined) next.scheduled_at = event.scheduled_at;
 			if (event.error !== undefined) next.last_error = event.error;
