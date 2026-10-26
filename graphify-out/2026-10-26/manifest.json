@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1792971942.108131,
-    "ast_hash": "dfcb6ebe53993f7b4b9f62dec3e4db59",
+    "mtime": 1792972851.869,
+    "ast_hash": "206d2b8b2c289ff207598891318f8fe3",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -1865,8 +1865,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/19-others-view.e2e.ts": {
-    "mtime": 1792967010.8856356,
-    "ast_hash": "92762b762e4301b1df05a85241233f20",
+    "mtime": 1792972859.7560413,
+    "ast_hash": "1626e24c7341ddf7e57052d6a3773945",
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/c05ab61eb258e8dd.json": {
