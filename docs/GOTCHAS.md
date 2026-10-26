@@ -216,8 +216,6 @@ needed" claim — rather than silently deleted.
 **Auth, cookies & sessions**
 - Admin routes: 404 (`require_admin_hidden`) where the path names an id, 403 elsewhere → *v56*
 - A `failed` job's cancel is the incoming overlay's "dismiss": a cancel rule must keep it → *v56*
-- Deleting a proxy a download is using waits for it (`delete_requested_at`, never picked, removed
-  by `finalize_proxy_deletions` once idle); `pick_proxy` locks its candidates SKIP LOCKED → *v56*
 - A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
   production, TCP on and off); a key is the fallback, valid only on job create, reading its own
   job and `me` (an admin's key gets 401 everywhere else) → *v53*
@@ -366,6 +364,8 @@ needed" claim — rather than silently deleted.
 - A server timestamp compared with `Date.now()` is a skewed countdown: use the worker status's
   `server_time` offset (`api.serverToLocal`) or a server-computed remaining time → *v56*
 - `attempts.py` must not import `serializers`/`proxies` (spotdl) — alerts.py imports it → *v56*
+- Deleting a proxy a download is using waits for it (`delete_requested_at`, never picked, removed
+  by `finalize_proxy_deletions` once idle); `pick_proxy` locks only its chosen proxy → *v56*
 - Two bulk UPDATEs of one job's tracks (cancel vs expand's claim) take the job row lock first, or
   they can deadlock; a partial index on `state = 'waiting'` can't serve `state IN (…)` → *v56*
 - A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
@@ -6634,7 +6634,9 @@ independently-found production bug from the same conversation)
   races the download at all. `DELETE /api/proxies/{id}` deletes an idle proxy at once (204). One in
   use (`proxy_in_use`: a track `downloading` through it, or picked in the last 60s, which covers
   pick → the `downloading` commit) gets `delete_requested_at` instead (202, `deleting: true`).
-  `pick_proxy` skips it and locks its candidates `FOR UPDATE SKIP LOCKED` (a delete deciding
-  meanwhile holds the row, so the pick passes over it). `finalize_proxy_deletions` (beat, every
+  `pick_proxy` skips it, and after a candidate's probe locks only that one `FOR UPDATE SKIP
+  LOCKED` (a delete deciding meanwhile holds the row, so the pick passes over it; no lock is held
+  across the probes). `used_proxy_id` names the current attempt's proxy only (a direct attempt
+  clears it), or `proxy_in_use` would see a direct download as going through the old proxy. `finalize_proxy_deletions` (beat, every
   30s) deletes it once idle, and `/settings` shows it as "deleting" until then. On the slot it was
   gone 17s after its download ended.
