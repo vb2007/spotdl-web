@@ -3,7 +3,7 @@
 		"message": "spotdl-web"
 	},
 	"extDescription": {
-		"message": "Spotify-számok, -albumok, -előadók és -listák sorba állítása a spotdl-web alkalmazásodban, közvetlenül az open.spotify.com-ról."
+		"message": "Spotify-számok, -albumok, -előadók és lejátszási listák sorba állítása a spotdl-web alkalmazásodban, közvetlenül az open.spotify.com-ról."
 	},
 	"actionTitle": {
 		"message": "spotdl-web"
@@ -43,10 +43,10 @@
 		}
 	},
 	"iconPlaylist": {
-		"message": "A lista sorba állítása a spotdl-ben"
+		"message": "A lejátszási lista sorba állítása a spotdl-ben"
 	},
 	"iconPlaylistNamed": {
-		"message": "„$TITLE$” lista sorba állítása a spotdl-ben",
+		"message": "„$TITLE$” lejátszási lista sorba állítása a spotdl-ben",
 		"placeholders": {
 			"title": {
 				"content": "$1"
@@ -141,7 +141,7 @@
 		}
 	},
 	"errorUrlNotSpotify": {
-		"message": "A spotdl csak Spotify-szám-, -album-, -előadó- és -listalinket fogad el"
+		"message": "A spotdl csak Spotify-szám-, -album-, -előadó- és lejátszásilista-linket fogad el"
 	},
 	"errorCascadeNotFound": {
 		"message": "A Spotify nem ismeri ezt az elemet"
@@ -325,7 +325,7 @@
 		"message": "előadó"
 	},
 	"typePlaylist": {
-		"message": "lista"
+		"message": "lejátszási lista"
 	},
 	"outcomeQueued": {
 		"message": "sorba állítva"

@@ -252,6 +252,8 @@ describe('settings', () => {
 		assert.equal(ok.calls[0].init.headers.Authorization, 'Bearer sdw_abcdefgh_newkey');
 		const refused = setup({ answers: [json(401, { code: 'api_key_invalid' })] });
 		assert.equal((await checkKey(refused.deps, 'sdw_abcdefgh_revoked')).code, 'key_invalid');
+		const down = setup({ answers: [new Response('<html>502 Bad Gateway</html>', { status: 502 })] });
+		assert.equal((await checkKey(down.deps, 'sdw_abcdefgh_newkey')).code, 'unreachable');
 		const malformed = setup();
 		assert.equal((await checkKey(malformed.deps, 'not a key')).code, 'key_invalid');
 		assert.equal(malformed.calls.length, 0);

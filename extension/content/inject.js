@@ -16,8 +16,6 @@ globalThis.spotdlInject = (() => {
 	const HOST_ATTR = 'data-spotdl-host';
 	const ICON_ATTR = 'data-spotdl-icon';
 	const SCAN_DELAY_MS = 120;
-	// How soon after a press on the icon its click must follow to count.
-	const CLICK_AFTER_PRESS_MS = 1500;
 	const TOAST_MS = 4500;
 	// How long a cascade's or an error's state stays on the icon before it goes back to idle.
 	const TRANSIENT_MS = 3000;
@@ -79,7 +77,29 @@ globalThis.spotdlInject = (() => {
 	// a menu entry (isTrusted false) must never queue anything in their account. Tests,
 	// which can only dispatch synthetic events, opt in through start().
 	let acceptSynthetic = false;
+	// Tests only: also accept a click with no press before it (jsdom's `.click()`).
+	let skipPressRule = false;
 	const trusted = (event) => event.isTrusted || acceptSynthetic;
+	// The last trusted press anywhere on the page (pointerdown, or mousedown: a screen
+	// reader's "press" action sends mousedown/mouseup/click with no pointer event), and whose
+	// menu was open when it began. A click on an icon or a menu entry counts only when that
+	// press landed inside it: every real click starts with its own press, so a page can't
+	// forward one from elsewhere (an invisible <label for> over the page), and nothing about
+	// it goes stale or depends on how long the press was held.
+	let lastPress = null; // { target, menuOwner }
+
+	function onAnyPress(event) {
+		if (!trusted(event) || event.button !== 0) return;
+		if (event.type === 'mousedown' && lastPress && lastPress.target === event.target) return; // the same press
+		lastPress = { target: event.target, menuOwner: menu ? menu.button : null };
+	}
+
+	// Takes the last press if it landed inside `el`, and clears it either way.
+	function takePress(el) {
+		const press = lastPress && el.contains(lastPress.target) ? lastPress : null;
+		lastPress = null;
+		return press;
+	}
 	let toast = null; // { el, timer }
 
 	const t = (key, subs) => {
@@ -138,35 +158,21 @@ globalThis.spotdlInject = (() => {
 		for (const type of ['mouseup', 'dblclick']) {
 			button.addEventListener(type, (event) => event.stopPropagation());
 		}
-		// A click counts only after a press on this button itself, or from the keyboard (a
-		// click with no pointer, `detail` 0, on the focused button). A page can't forward the
-		// user's click from elsewhere (an invisible <label for> over the page) onto it.
-		// A press is a trusted pointerdown or mousedown on the button (a screen reader's
-		// "press" action sends mousedown/mouseup/click, with no pointer event).
-		let pressedAt = 0;
-		// Set by a press while this button's own menu is open: that click dismisses the menu.
-		let dismissing = false;
-		const onPress = (event) => {
-			event.stopPropagation();
-			if (!trusted(event) || event.button !== 0) return;
-			pressedAt = Date.now();
-			if (menu && menu.button === button) dismissing = true;
-		};
-		button.addEventListener('pointerdown', onPress);
-		button.addEventListener('mousedown', onPress);
+		for (const type of ['pointerdown', 'mousedown']) {
+			button.addEventListener(type, (event) => event.stopPropagation());
+		}
+		// A click counts from the keyboard (`detail` 0, on the focused button) or after a
+		// press inside this button (onAnyPress).
 		button.addEventListener('click', (event) => {
 			event.preventDefault();
 			event.stopPropagation();
-			const wasDismissing = dismissing;
-			dismissing = false;
 			if (!trusted(event)) return;
 			const fromKeyboard = event.detail === 0 && doc.activeElement === button;
-			const fromPress = Date.now() - pressedAt < CLICK_AFTER_PRESS_MS;
-			pressedAt = 0;
-			if (!fromKeyboard && !fromPress && !acceptSynthetic) return;
-			// The opener of an open menu (even if the press already closed it, through focus
-			// moving onto the button): a click dismisses the menu, it never queues.
-			if (wasDismissing || (menu && menu.button === button)) closeMenu(true);
+			const press = fromKeyboard ? null : takePress(button);
+			if (!fromKeyboard && !press && !skipPressRule) return;
+			// The opener of an open menu (open when the press began, even if the press's
+			// focus move has closed it since): the click dismisses it, it never queues.
+			if ((press && press.menuOwner === button) || (menu && menu.button === button)) closeMenu(true);
 			else submit(button, null);
 		});
 		// Only the keys the icon acts on stop here (Spotify's own Enter would play the row);
@@ -453,18 +459,13 @@ globalThis.spotdlInject = (() => {
 				closeMenu(true);
 				submit(button, choice.cascade ?? null, choice.override);
 			});
-			// As on the icon: a click counts only after a press on this entry (the keyboard
+			// As on the icon: a click counts only after a press inside this entry (the keyboard
 			// path, onMenuKey, calls the chooser directly).
-			let pressedAt = 0;
-			entry.addEventListener('pointerdown', (event) => {
-				if (trusted(event) && event.button === 0) pressedAt = Date.now();
-			});
 			entry.addEventListener('click', (event) => {
 				event.preventDefault();
 				event.stopPropagation();
-				const fromPress = Date.now() - pressedAt < CLICK_AFTER_PRESS_MS;
-				pressedAt = 0;
-				if (trusted(event) && (fromPress || acceptSynthetic)) choosers.get(entry)?.();
+				const press = takePress(entry);
+				if (trusted(event) && (press || skipPressRule)) choosers.get(entry)?.();
 			});
 			el.append(entry);
 		}
@@ -610,6 +611,7 @@ globalThis.spotdlInject = (() => {
 	 */
 	function start(window, browserApi, selectorSet, options = {}) {
 		acceptSynthetic = options.acceptSyntheticEvents === true;
+		skipPressRule = acceptSynthetic && options.requirePress !== true;
 		win = window;
 		doc = window.document;
 		api = browserApi;
@@ -618,6 +620,9 @@ globalThis.spotdlInject = (() => {
 		observer = new win.MutationObserver(scheduleScan);
 		observer.observe(doc.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['href'] });
 		win.addEventListener('popstate', scheduleScan);
+		// Before onOutsidePointer: a press records which menu was open as it began.
+		win.addEventListener('pointerdown', onAnyPress, true);
+		win.addEventListener('mousedown', onAnyPress, true);
 		doc.addEventListener('pointerdown', onOutsidePointer, true);
 		doc.addEventListener('scroll', onViewportChange, true);
 		win.addEventListener('resize', onViewportChange);

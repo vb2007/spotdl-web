@@ -2,7 +2,7 @@
 // where icons go, what item each one names, and that re-renders never duplicate them.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { icons, loadPage, settle } from './support.js';
+import { atPress, icons, loadPage, realClick, settle } from './support.js';
 
 const ITEM_URL = /^https:\/\/open\.spotify\.com\/(track|album|artist|playlist)\/[A-Za-z0-9]{22}$/;
 
@@ -587,6 +587,69 @@ describe('submitting and the cascade menu', () => {
 		await settle(window, 20);
 		assert.equal(messages.length, 1);
 		assert.equal(document.querySelector('.spotdl-ext-toast').textContent, 'Your last choice for this is still on its way: wait for its answer');
+	});
+
+	describe('the click rule (a press inside the element first)', () => {
+		it('a real click on the icon queues; a click forwarded from a press elsewhere doesn’t', async () => {
+			const { window, document, messages } = loadPage('album', { requirePress: true });
+			const button = icons(document, 'row')[0];
+			// A press on something else (an invisible <label for>), then a click on the icon.
+			document.body.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+			button.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+			await settle(window, 20);
+			assert.equal(messages.length, 0);
+			realClick(window, button.querySelector('path'));
+			await settle(window, 20);
+			assert.equal(messages.length, 1);
+		});
+
+		it('a press on the open menu’s opener that ends elsewhere leaves nothing stale', async () => {
+			const { window, document, messages } = loadPage('album', { requirePress: true });
+			const button = icons(document, 'row')[0];
+			button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+			// Press on the opener, drag off: no click.
+			button.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+			// A click on empty space closes the menu.
+			document.body.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+			assert.equal(document.querySelector('.spotdl-ext-menu'), null);
+			// The next real click on the icon queues.
+			realClick(window, button);
+			await settle(window, 20);
+			assert.equal(messages.length, 1);
+			// And so does Enter, after another press-and-drag-off with the menu open.
+			const other = icons(document, 'row')[1];
+			other.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+			other.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+			key(window, document.activeElement, { key: 'Escape' });
+			other.focus();
+			other.dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }));
+			await settle(window, 20);
+			assert.equal(messages.length, 2);
+		});
+
+		it('a real click on an open menu’s opener dismisses it', async () => {
+			const { window, document, messages } = loadPage('album', { requirePress: true });
+			const button = icons(document, 'header')[0];
+			button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+			realClick(window, button.querySelector('path'), { focus: button });
+			await settle(window, 20);
+			assert.equal(document.querySelector('.spotdl-ext-menu'), null);
+			assert.deepEqual(messages, []);
+		});
+
+		it('a screen reader’s press (mouse events, no pointer event) works on the icon and on a menu entry', async () => {
+			const { window, document, messages } = loadPage('album', { requirePress: true });
+			const button = icons(document, 'row')[0];
+			atPress(window, button);
+			await settle(window, 20);
+			assert.equal(messages.length, 1);
+			const other = icons(document, 'row')[1];
+			other.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+			atPress(window, document.querySelectorAll('.spotdl-ext-menu [role="menuitem"]')[1]);
+			await settle(window, 20);
+			assert.equal(messages.length, 2);
+			assert.equal(messages[1].cascade, 'album');
+		});
 	});
 
 	it('a menu whose row goes away closes with it', async () => {

@@ -861,8 +861,9 @@ needed" claim — rather than silently deleted.
 - Spotify's cookie banner sits near the top `z-index`: the extension's menu and toast use the
   maximum, or the banner swallows clicks on them → *v58*
 - The icon stops only the keys it acts on (Spotify's tracklist grid navigates with arrows
-  through it); a click counts only after a trusted press on the icon itself (a page's invisible
-  `<label for>` forwards real clicks) → *v58*
+  through it); a click counts only when the last trusted press (pointerdown or mousedown)
+  landed inside that icon or menu entry (a page's invisible `<label for>` forwards real clicks)
+  → *v58*
 - A fresh install's options page tests the default origin (production) on open; every
   extension request goes to the configured origin only (captured by principal) → *v58*
 
@@ -6935,10 +6936,15 @@ independently-found production bug from the same conversation)
 - **`event.isTrusted` isn't enough against the host page.** A page script's synthetic
   `.click()`/`dispatchEvent` is untrusted and ignored. But an invisible full-page
   `<label for="<icon id>">` turned the user's real click anywhere into a *trusted* click on the
-  icon (live review: it queued a job). A click now counts only after a trusted `pointerdown` on
-  the icon itself within 1.5 s, or from the keyboard (`detail` 0 on the focused button). Menu
-  entries follow the same rule, and their keyboard path calls a chooser kept in a `WeakMap`,
-  never `.click()`.
+  icon (live review: it queued a job). A click now counts only when the page's last trusted
+  press (`pointerdown`, or `mousedown`: a screen reader's "press" sends mouse events with no
+  pointer event) landed inside that same icon or menu entry, or from the keyboard (`detail` 0
+  on the focused button). Every real click starts with its own press, so nothing goes stale
+  and a slow press-and-hold still counts. Two earlier versions failed review: a 1.5 s
+  press-to-click window dropped slow presses, and a per-button "dismissing" flag outlived a
+  press dragged off the icon. The same press also records which menu was open as it began, so
+  a click on an open menu's opener dismisses it, even after the press's focus move. The menu's
+  keyboard path calls a chooser kept in a `WeakMap`, never `.click()`.
 - **A 401 proves a spotdl app only when it's the app's own** (JSON with `code`
   `not_authenticated` or `api_key_invalid`). An intranet's HTML basic-auth 401 was saved as the
   app address. An HTML 5xx (nginx's 502 with `api` down, Cloudflare's 530) reads as

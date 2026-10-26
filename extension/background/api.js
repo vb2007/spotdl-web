@@ -47,10 +47,12 @@ async function request(deps, settings, path, init, auth) {
 
 /**
  * Sends one request the way the extension authenticates: the cookie, then (on a 401) the key.
- * Answers `{answer, via}`, or `{error}` with an extension-side code.
+ * `onlyKey` tries that key alone, with no cookie (checking a key before it's kept). Answers
+ * `{answer, via}`, or `{error}` with an extension-side code.
  */
-async function authed(deps, path, init, origin = null) {
+async function authed(deps, path, init, origin = null, onlyKey = null) {
 	const settings = await readSettings(deps.storage, origin);
+	if (onlyKey !== null) settings.apiKey = onlyKey;
 	let granted = false;
 	try {
 		granted = await deps.permissions.contains({ origins: [originPattern(settings.origin)] });
@@ -59,12 +61,13 @@ async function authed(deps, path, init, origin = null) {
 	}
 	if (!granted) return { error: fail('permission_missing', { origin: settings.origin }) };
 
-	let via = 'cookie';
-	let answer = await request(deps, settings, path, init, 'cookie');
 	// Only the app's own 401 (JSON, with its code) means "not signed in": any other host's
 	// HTML 401 (basic auth on an intranet) is no spotdl app, and gets no key either.
 	const appRefused = (a) => !a.network && a.status === 401 && APP_401_CODES.has(a.body?.code);
-	if (appRefused(answer) && settings.apiKey) {
+	let via = onlyKey !== null ? 'key' : 'cookie';
+	let answer = await request(deps, settings, path, init, via);
+	if (onlyKey !== null && appRefused(answer)) return { error: fail('key_invalid', { origin: settings.origin }) };
+	if (onlyKey === null && appRefused(answer) && settings.apiKey) {
 		via = 'key';
 		answer = await request(deps, settings, path, init, 'key');
 		if (appRefused(answer)) return { error: fail('key_invalid', { origin: settings.origin }) };
@@ -135,8 +138,8 @@ export async function submit(deps, { url, cascade = null }) {
  * Who the extension is signed in as (`GET /api/auth/me`), and through what. `origin` asks an
  * address that isn't saved yet (the options page validating one).
  */
-export async function me(deps, { origin: asked = null } = {}) {
-	const sent = await authed(deps, '/api/auth/me', { method: 'GET' }, asked);
+export async function me(deps, { origin: asked = null, key = null } = {}) {
+	const sent = await authed(deps, '/api/auth/me', { method: 'GET' }, asked, key);
 	if (sent.error) return sent.error;
 	const { answer, via, origin } = sent;
 	if (answer.status === 200 && typeof answer.body.email === 'string') {
@@ -160,26 +163,7 @@ export async function me(deps, { origin: asked = null } = {}) {
  */
 export async function checkKey(deps, key) {
 	if (typeof key !== 'string' || !/^sdw_[A-Za-z0-9_-]{8,}$/.test(key)) return fail('key_invalid');
-	const settings = { ...(await readSettings(deps.storage)), apiKey: key };
-	let granted = false;
-	try {
-		granted = await deps.permissions.contains({ origins: [originPattern(settings.origin)] });
-	} catch {
-		granted = false;
-	}
-	if (!granted) return fail('permission_missing', { origin: settings.origin });
-	const answer = await request(deps, settings, '/api/auth/me', { method: 'GET' }, 'key');
-	if (answer.network) return fail('unreachable', { origin: settings.origin });
-	if (answer.status === 401 && APP_401_CODES.has(answer.body?.code)) return fail('key_invalid', { origin: settings.origin });
-	if (answer.status === 200 && typeof answer.body?.email === 'string') {
-		return {
-			outcome: 'signed_in',
-			via: 'key',
-			origin: settings.origin,
-			user: { email: answer.body.email, username: answer.body.username ?? null },
-		};
-	}
-	return fail(answer.body === null ? 'not_an_app' : 'server_error', { origin: settings.origin, status: answer.status });
+	return me(deps, { key });
 }
 
 /**

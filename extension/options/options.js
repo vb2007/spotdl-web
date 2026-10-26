@@ -13,7 +13,13 @@ function setStatus(el, text, tone) {
 	else delete el.dataset.tone;
 }
 
+// Only the newest connection test, and the newest key check, may write their answer: an older
+// one landing late (a blackholed address timing out) would overwrite a newer result.
+let testRun = 0;
+let keyRun = 0;
+
 async function test() {
+	const run = ++testRun;
 	const status = $('test-status');
 	const button = $('test');
 	button.disabled = true;
@@ -25,6 +31,7 @@ async function test() {
 	} catch {
 		result = { outcome: 'error', code: 'extension_error' };
 	}
+	if (run !== testRun) return result;
 	setStatus(status, connectionText(result), result.outcome === 'signed_in' ? 'ok' : 'error');
 	$('app-grant').hidden = result.code !== 'permission_missing';
 	button.disabled = false;
@@ -129,10 +136,13 @@ $('key-form').addEventListener('submit', async (event) => {
 		return;
 	}
 	// Checked on its own (no cookie) before it's kept.
+	const run = ++keyRun;
 	setStatus($('key-status'), t('popupChecking'), null);
 	const checked = await browser.runtime
 		.sendMessage({ type: 'checkKey', key: value })
 		.catch(() => ({ outcome: 'error', code: 'extension_error' }));
+	// "remove key", or another save, came in while this check ran: it no longer decides.
+	if (run !== keyRun) return;
 	if (checked.outcome !== 'signed_in') {
 		setStatus($('key-status'), t('optionsKeyNotSaved', [connectionText(checked)]), 'error');
 		return;
@@ -152,6 +162,7 @@ $('key-form').addEventListener('submit', async (event) => {
 });
 
 $('key-clear').addEventListener('click', async () => {
+	keyRun++;
 	await browser.storage.local.remove([KEYS.apiKey, KEYS.apiKeyOrigin]);
 	$('api-key').value = '';
 	await showSettings();
