@@ -582,5 +582,5 @@ here.
     a v54/v62/v68 hotspot). The live review found the worker's counter-carrying `cancelled`
     event dropped by `patchOne`, because the API's counter-less `cancelled` lands first and a
     terminal row ignored every later event, so the UI stayed off by one until a reload, which
-    is what E6 exists to stop. A same-state event on a terminal row now updates only its
-    counters; v62 rebases onto it.
+    is what E6 exists to stop. A `cancelled` event on a cancelled row now updates only its
+    counters (no other state, no other field); v62 rebases onto it.

@@ -1489,10 +1489,10 @@ function createQueueStore() {
 			if (idx === -1) return items;
 			const existing = items[idx];
 			if (TRULY_TERMINAL_STATES.has(existing.state)) {
-				// v55 (E6, delimited): the worker's own event for the state the row already
-				// shows still carries the counters its attempt row moved (a cancel's arrives
-				// after the API's counter-less `cancelled`), so take those; nothing else.
-				if (event.state !== existing.state) return items;
+				// v55 (E6, delimited): a mid-download cancel's own event from the worker carries
+				// the counters its attempt row moved, and arrives after the API's counter-less
+				// `cancelled`, so a cancelled row takes those; nothing else, from nothing else.
+				if (existing.state !== 'cancelled' || event.state !== 'cancelled') return items;
 				const counted = { ...existing } as T;
 				if (event.attempt_count !== undefined) counted.attempt_count = event.attempt_count;
 				if (event.attempts_made !== undefined) counted.attempts_made = event.attempts_made;

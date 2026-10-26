@@ -1148,4 +1148,24 @@ describe('v55 (E6) a cancelled row takes the worker’s counters', () => {
 		await queue.applyEvent(trackEvent('t1', 'downloading', 40));
 		expect(get(queue.page).items[0]).toMatchObject({ state: 'cancelled', attempts_made: 1 });
 	});
+
+	it('only a cancelled row takes them: a completed row ignores a same-state event', async () => {
+		listTracksPage.mockResolvedValue(
+			tracksPage([{ ...downloadingTrack('t1'), state: 'completed' }])
+		);
+		getJob.mockResolvedValue(job('job-1', 'expanded', 'settled'));
+		queue.setFilters({ scope: 'tracks' });
+		await vi.runAllTimersAsync();
+
+		await queue.applyEvent({
+			...trackEvent('t1', 'completed'),
+			attempts_made: 99,
+			failure_count: 42
+		});
+		expect(get(queue.page).items[0]).toMatchObject({
+			state: 'completed',
+			attempts_made: 0,
+			failure_count: 0
+		});
+	});
 });
