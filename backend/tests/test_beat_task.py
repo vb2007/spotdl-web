@@ -408,18 +408,11 @@ def test_reclaim_counts_an_attempt_only_when_the_track_was_downloading(
     assert (published[0]["attempts_made"], published[0]["failure_count"]) == expected
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="v55 (E2): the reclaim UPDATE doesn't re-check state, so a track that completes "
-    "after the sweep's stale snapshot is reset to waiting",
-)
 def test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections(committed_db, monkeypatch):
     """v51, on two real connections: the stale sweep reads its snapshot (the track is
     `downloading`, stuck past the threshold), the download then commits `completed`, and only
-    then does the sweep's UPDATE run. A completed track must stay completed. It doesn't yet:
-    E2 is v55's to fix, and this test turns green (failing as XPASS, until v55 drops the
-    marker) when the UPDATE re-checks the state."""
+    then does the sweep's UPDATE run. A completed track must stay completed (v55, E2: the
+    UPDATE re-checks the snapshotted state), and the sweep records no attempt for it."""
     monkeypatch.setattr(events, "publish_track_event", lambda *args, **kwargs: None)
     stuck_since = datetime.now(timezone.utc) - beat_task.stale_track_after() - timedelta(minutes=1)
     with committed_db() as db:
@@ -466,3 +459,55 @@ def test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections
 
     with committed_db() as db:
         assert db.get(Track, track_id).state == TrackState.COMPLETED
+        assert db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).count() == 0
+
+
+def test_reclaim_leaves_a_queued_track_that_started_downloading_after_its_snapshot(committed_db, monkeypatch):
+    """v55 (E2), the other snapshotted state: the sweep snapshots a track stuck `queued`, its
+    message then starts and commits `downloading` (fresh updated_at), and only then does the
+    sweep's UPDATE run. The download owns the track now; the sweep must not reset it to
+    `waiting` or write a `held` row for it."""
+    monkeypatch.setattr(events, "publish_track_event", lambda *args, **kwargs: None)
+    stuck_since = datetime.now(timezone.utc) - beat_task.stale_track_after() - timedelta(minutes=1)
+    with committed_db() as db:
+        user = User(email="owner@example.com", is_admin=False)
+        db.add(user)
+        db.flush()
+        job = Job(
+            source_url="https://open.spotify.com/track/abc",
+            source_type=JobSourceType.TRACK,
+            user_id=user.id,
+            state=JobState.EXPANDED,
+        )
+        db.add(job)
+        db.flush()
+        track = Track(job_id=job.id, spotify_track_id="abc123", song_json={"name": "Song A"},
+                      state=TrackState.QUEUED, updated_at=stuck_since)
+        db.add(track)
+        db.commit()
+        track_id = track.id
+    gate = Gate("reclaim: stale snapshot read, before its UPDATE")
+
+    def reclaim():
+        with committed_db() as db:
+            event.listen(db, "do_orm_execute", lambda state: state.is_update and gate())
+            beat_task._reclaim_stale_tracks(db)
+
+    reclaimer = Thread(reclaim, name="stale-track reclaim")
+    gate.wait_reached()
+
+    def start_downloading():  # download_track's guarded `downloading` write
+        with committed_db() as db:
+            track = db.get(Track, track_id)
+            track.state = TrackState.DOWNLOADING
+            db.commit()
+
+    starter = Thread(start_downloading, name="download's downloading commit")
+    blocked_or_done(starter)
+    gate.open()
+    reclaimer.join()
+    starter.join()
+
+    with committed_db() as db:
+        assert db.get(Track, track_id).state == TrackState.DOWNLOADING
+        assert db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).count() == 0

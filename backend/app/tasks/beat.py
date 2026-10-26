@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, or_, select, update
 
 from app.config import get_settings
 from app.db import SessionLocal
@@ -52,9 +52,27 @@ def _reclaim_stale_tracks(db) -> None:
     if not stale_before:
         return
 
+    # v55 (E2): the UPDATE re-checks each row's snapshotted state and staleness, so a track
+    # that moved on after the snapshot (a download committing `completed`, a queued message
+    # starting its `downloading` write) is left alone. Postgres re-evaluates this WHERE on
+    # the newest row version once a concurrent writer's lock is released, so the check holds
+    # even when the two commits race on the same row.
+    stuck_ids_by_state = {
+        state: [track_id for track_id, (snap, _) in stale_before.items() if snap == state]
+        for state in (TrackState.DOWNLOADING, TrackState.QUEUED)
+    }
     reclaimed = db.execute(
         update(Track)
-        .where(Track.id.in_(stale_before.keys()))
+        .where(
+            or_(
+                *(
+                    and_(Track.id.in_(ids), Track.state == state)
+                    for state, ids in stuck_ids_by_state.items()
+                    if ids
+                )
+            ),
+            Track.updated_at < stale_cutoff,
+        )
         .values(state=TrackState.WAITING, scheduled_at=now)
         .returning(Track.id, Track.job_id, Track.song_json)
     ).all()
