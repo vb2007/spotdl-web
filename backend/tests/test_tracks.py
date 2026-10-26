@@ -638,3 +638,45 @@ def test_attempt_with_a_malformed_proxy_url_still_lists(authenticated_client, db
 
     assert response.status_code == 200
     assert response.json()[0]["proxy_label"] == "proxy"
+
+
+def test_a_proxy_deleted_mid_attempt_still_lets_the_attempt_commit_on_real_connections(committed_db):
+    """v56 (A4): with ON DELETE SET NULL an admin can delete a manual proxy while a download
+    runs through it. download_track's session already loaded that proxy (picking it), so the
+    attempt row it writes afterwards must not name the gone proxy (a ForeignKeyViolation
+    would roll back the whole commit, a completed download's ledger row with it)."""
+    from app.models import User
+
+    with committed_db() as db:
+        user = User(email="owner@example.com", is_admin=False)
+        db.add(user)
+        db.flush()
+        job = Job(source_url="https://open.spotify.com/track/abc", source_type=JobSourceType.TRACK, user_id=user.id)
+        db.add(job)
+        db.flush()
+        track = Track(job_id=job.id, spotify_track_id="mid", song_json={"name": "Mid"}, state=TrackState.DOWNLOADING)
+        proxy = Proxy(url="http://u:p@10.0.0.9:8080", source=ProxySource.MANUAL, enabled=True)
+        db.add_all([track, proxy])
+        db.commit()
+        track_id, proxy_id = track.id, proxy.id
+
+    worker = committed_db()
+    try:
+        worker.get(Proxy, proxy_id)  # picked: in the worker session's identity map
+        worker.get(Track, track_id).used_proxy_id = proxy_id
+        worker.commit()  # expires both
+        with committed_db() as admin:  # the admin's delete, while the download runs
+            admin.delete(admin.get(Proxy, proxy_id))
+            admin.commit()
+        now = datetime.now(timezone.utc)
+        attempts.record_attempt(
+            worker, track_id, now, now, TrackAttemptOutcome.COMPLETED, proxy_id=proxy_id, network_path=NetworkPath.PROXY
+        )
+        worker.commit()
+    finally:
+        worker.close()
+
+    with committed_db() as db:
+        row = db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).one()
+        assert (row.proxy_id, row.proxy_label, row.network_path) == (None, None, NetworkPath.PROXY)
+        assert db.get(Track, track_id).used_proxy_id is None

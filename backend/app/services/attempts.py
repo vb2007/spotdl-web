@@ -136,6 +136,12 @@ def record_attempt(
     note) extends that row, its finished_at and hold_count, instead of adding one per hold:
     "held N times from T1 to T2". Beat's reclaim never passes it, so its rows stay one per
     reclaim and keep latest_attempt_number a working ownership token."""
+    # v56 (A4): the proxy may have been deleted while this attempt ran (its FK is now ON
+    # DELETE SET NULL): the row then names no proxy rather than failing the whole commit
+    # (and with it a completed download's ledger row).
+    proxy = db.get(Proxy, proxy_id) if proxy_id is not None else None
+    if proxy is None:
+        proxy_id = None
     # Derived from the row alone (outcome + network_path), so the counters can always be
     # recomputed from track_attempts -- the migration's backfill uses the same rule.
     attempted = outcome in _NETWORK_OUTCOMES or network_path is not None
@@ -194,6 +200,7 @@ def record_attempt(
         reclaim_row.error_message = error_message
         reclaim_row.warning_message = warning_message
         reclaim_row.proxy_id = proxy_id
+        reclaim_row.proxy_label = _proxy_label(proxy)
         reclaim_row.network_path = network_path
         db.flush()
         return RecordedAttempt(reclaim_row.attempt_number, attempts_made, failure_count)
@@ -219,7 +226,7 @@ def record_attempt(
             warning_message=warning_message,
             proxy_id=proxy_id,
             # v56 (A4): stored, not joined at read time, so deleting the proxy keeps it.
-            proxy_label=_proxy_label(db.get(Proxy, proxy_id)) if proxy_id is not None else None,
+            proxy_label=_proxy_label(proxy),
             network_path=network_path,
         )
     )
