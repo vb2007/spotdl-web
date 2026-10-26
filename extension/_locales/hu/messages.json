@@ -99,7 +99,7 @@
 		"message": "Ez már a sorodban van: még töltjük"
 	},
 	"toastInLibrary": {
-		"message": "Már megvan a könyvtárban, így azonnal kész"
+		"message": "Már megvan a könyvtárban: nincs mit letölteni"
 	},
 	"errorLoginRequired": {
 		"message": "Jelentkezz be a spotdl-be ebben a böngészőben, vagy adj meg egy API-kulcsot"
@@ -171,7 +171,7 @@
 		"message": "spotdl-web"
 	},
 	"optionsIntro": {
-		"message": "Az open.spotify.com letöltésikonja az elem linkjét küldi el a spotdl-web alkalmazásodnak. Semmi más nem hagyja el a böngészőt, és semmi sem megy máshová, csak az alábbi alkalmazásnak."
+		"message": "Az open.spotify.com letöltésikonja az elem linkjét küldi el a spotdl-web alkalmazásodnak. Semmi más nem hagyja el a böngészőt, és semmi sem megy máshová, csak az alábbi alkalmazáshoz."
 	},
 	"optionsAppHeading": {
 		"message": "Alkalmazás"
@@ -235,7 +235,13 @@
 		"message": "A kulcs így kezdődik: sdw_. Másold ki a teljes kulcsot az alkalmazás fiókoldaláról."
 	},
 	"optionsKeySaved": {
-		"message": "Kulcs elmentve."
+		"message": "Kulcs elmentve (vége: …$END$).",
+		"description": "END is the key's last 4 characters.",
+		"placeholders": {
+			"end": {
+				"content": "$1"
+			}
+		}
 	},
 	"optionsKeyCleared": {
 		"message": "Kulcs törölve."

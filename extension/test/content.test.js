@@ -307,9 +307,12 @@ describe('submitting and the cascade menu', () => {
 		assert.deepEqual(items, ['This album', 'Whole artist']);
 		key(window, document.activeElement, { key: 'ArrowUp' });
 		assert.equal(document.activeElement.textContent, 'Whole artist');
+		assert.equal(button.getAttribute('aria-haspopup'), 'menu');
+		assert.equal(button.getAttribute('aria-expanded'), 'true');
 		key(window, document.activeElement, { key: 'Escape' });
 		assert.equal(document.querySelector('.spotdl-ext-menu'), null);
 		assert.equal(document.activeElement, button);
+		assert.equal(button.getAttribute('aria-expanded'), 'false');
 	});
 
 	it('a right-click opens it; artists and playlists offer just “Download”', () => {
@@ -392,7 +395,7 @@ describe('submitting and the cascade menu', () => {
 
 	const TOASTS = [
 		[{ outcome: 'already_queued' }, 'Already in your queue: it\'s still downloading', 'already_queued'],
-		[{ outcome: 'in_library' }, 'Already in the library, so it\'s done at once', 'in_library'],
+		[{ outcome: 'in_library' }, 'Already in the library: nothing to download', 'in_library'],
 		[{ outcome: 'error', code: 'rate_limited', retryAfter: 42 }, 'Too many submissions. Try again in 42 s', 'error'],
 		[{ outcome: 'error', code: 'unreachable', origin: 'https://spotdl.example' }, 'Can\'t reach spotdl at https://spotdl.example', 'error'],
 		[{ outcome: 'error', code: 'login_required' }, 'Log in to spotdl in this browser, or add an API key', 'error'],

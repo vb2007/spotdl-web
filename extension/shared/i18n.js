@@ -16,6 +16,33 @@ export function localize(root = document) {
 	}
 }
 
+// The same sentences the in-page toast uses (content/inject.js's ERROR_KEYS).
+const ERROR_KEYS = {
+	login_required: 'errorLoginRequired',
+	key_invalid: 'errorKeyInvalid',
+	url_not_spotify: 'errorUrlNotSpotify',
+	cascade_not_found: 'errorCascadeNotFound',
+	cascade_unavailable: 'errorCascadeUnavailable',
+	cascade_invalid: 'errorCascadeInvalid',
+	queue_unavailable: 'errorQueueUnavailable',
+};
+
+/** The sentence an error answer reads as: never its raw code alone. */
+export function errorText(result) {
+	switch (result.code) {
+		case 'permission_missing':
+			return t('errorPermissionMissing', [result.origin ?? '']);
+		case 'unreachable':
+			return t('errorUnreachable', [result.origin ?? '']);
+		case 'not_an_app':
+			return t('errorNotAnApp', [result.origin ?? '']);
+		case 'rate_limited':
+			return t('errorRateLimited', [String(result.retryAfter ?? 60)]);
+		default:
+			return ERROR_KEYS[result.code] ? t(ERROR_KEYS[result.code]) : t('errorGeneric', [result.code ?? '?']);
+	}
+}
+
 /** The sentence a `me` answer (or its error) reads as, on the options page and the popup. */
 export function connectionText(result) {
 	if (result.outcome === 'signed_in') {
@@ -27,15 +54,7 @@ export function connectionText(result) {
 			return t('statusLoginRequired');
 		case 'key_invalid':
 			return t('errorKeyInvalid');
-		case 'permission_missing':
-			return t('errorPermissionMissing', [result.origin ?? '']);
-		case 'unreachable':
-			return t('errorUnreachable', [result.origin ?? '']);
-		case 'not_an_app':
-			return t('errorNotAnApp', [result.origin ?? '']);
-		case 'rate_limited':
-			return t('errorRateLimited', [String(result.retryAfter ?? 60)]);
 		default:
-			return t('errorGeneric', [result.code ?? '?']);
+			return errorText(result);
 	}
 }

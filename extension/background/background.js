@@ -23,6 +23,9 @@ async function onSubmit(message) {
 			cascade,
 			outcome: result.outcome,
 			code: result.code ?? null,
+			// What the popup's sentence for an error needs (no secret, nothing from the page).
+			origin: result.origin ?? null,
+			retryAfter: result.retryAfter ?? null,
 			jobId: result.job?.id ?? null,
 			via: result.via ?? null,
 			at: new Date().toISOString(),

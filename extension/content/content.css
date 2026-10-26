@@ -45,8 +45,18 @@
 [data-spotdl-host]:hover > .spotdl-ext-btn,
 [data-spotdl-host]:focus-within .spotdl-ext-btn,
 [data-spotdl-host='header'] .spotdl-ext-btn,
-.spotdl-ext-btn:not([data-state='idle']) {
+.spotdl-ext-btn:not([data-state='idle']),
+.spotdl-ext-btn[aria-expanded='true'] {
 	opacity: 1;
+}
+
+.spotdl-ext-btn[aria-expanded='true'] {
+	color: #fff;
+	background: rgba(255, 255, 255, 0.1);
+}
+
+.spotdl-ext-btn--card[aria-expanded='true'] {
+	background: rgba(0, 0, 0, 0.85);
 }
 
 .spotdl-ext-btn:hover {

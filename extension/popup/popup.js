@@ -1,7 +1,7 @@
 // The toolbar popup: the connection's state and the last 10 submissions (kept in
 // storage.local by the background script, never sent anywhere).
 import { readSettings } from '../shared/config.js';
-import { connectionText, localize, t } from '../shared/i18n.js';
+import { connectionText, errorText, localize, t } from '../shared/i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const TYPE_KEYS = { track: 'typeTrack', album: 'typeAlbum', artist: 'typeArtist', playlist: 'typePlaylist' };
@@ -48,12 +48,19 @@ function row(entry, origin) {
 	outcome.className = 'outcome';
 	const ok = entry.outcome in OUTCOME_KEYS;
 	outcome.dataset.tone = ok ? 'ok' : 'error';
-	outcome.textContent = ok ? t(OUTCOME_KEYS[entry.outcome]) : `${t('outcomeError')} · ${entry.code ?? '?'}`;
+	outcome.textContent = t(ok ? OUTCOME_KEYS[entry.outcome] : 'outcomeError');
 	const when = document.createElement('time');
 	when.dateTime = entry.at;
 	when.textContent = ago(entry.at);
 	meta.append(outcome, when);
 	link.append(title, meta);
+	if (!ok) {
+		// Why, in words: the toast's own sentence, never the app's raw code.
+		const reason = document.createElement('span');
+		reason.className = 'reason';
+		reason.textContent = errorText(entry);
+		link.append(reason);
+	}
 	li.append(link);
 	return li;
 }

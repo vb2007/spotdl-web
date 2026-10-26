@@ -99,7 +99,7 @@
 		"message": "Already in your queue: it's still downloading"
 	},
 	"toastInLibrary": {
-		"message": "Already in the library, so it's done at once"
+		"message": "Already in the library: nothing to download"
 	},
 	"errorLoginRequired": {
 		"message": "Log in to spotdl in this browser, or add an API key"
@@ -235,7 +235,13 @@
 		"message": "A key starts with sdw_. Copy the whole key from the app's account page."
 	},
 	"optionsKeySaved": {
-		"message": "Key saved."
+		"message": "Key saved (ending …$END$).",
+		"description": "END is the key's last 4 characters.",
+		"placeholders": {
+			"end": {
+				"content": "$1"
+			}
+		}
 	},
 	"optionsKeyCleared": {
 		"message": "Key removed."

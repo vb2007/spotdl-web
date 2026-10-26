@@ -105,7 +105,7 @@ $('key-form').addEventListener('submit', async (event) => {
 	await browser.storage.local.set({ [KEYS.apiKey]: value });
 	$('api-key').value = '';
 	await showSettings();
-	setStatus($('key-status'), `${t('optionsKeySaved')} ${t('optionsKeyStored', [value.slice(-4)])}`, 'ok');
+	setStatus($('key-status'), t('optionsKeySaved', [value.slice(-4)]), 'ok');
 	await test();
 });
 

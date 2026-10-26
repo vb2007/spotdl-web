@@ -27,7 +27,8 @@ globalThis.spotdlInject = (() => {
 		idle: ['M8 1.25v6.69', 'M5.25 5.5 8 8.25l2.75-2.75', 'M3 14.75v-2', 'M8 14.75v-3.5', 'M13 14.75v-2'],
 		sending: ['M8 2.25a5.75 5.75 0 1 1-5.75 5.75'],
 		done: ['M2.75 8.5 6.25 12l7-7.5'],
-		error: ['M8 3.5v5.25', 'M8 11.75v.5'],
+		// A circled "!": a recognisable shape at 16px, not a bare speck.
+		error: ['M8 1.75a6.25 6.25 0 1 1 0 12.5a6.25 6.25 0 0 1 0-12.5', 'M8 4.75v4', 'M8 11.1v.15'],
 	};
 	const STATE_GLYPH = {
 		idle: 'idle',
@@ -65,7 +66,7 @@ globalThis.spotdlInject = (() => {
 	const hosts = new WeakMap();
 	// Items queued from this tab (by canonical URL), so a re-rendered row keeps its tick.
 	const itemStates = new Map();
-	let menu = null; // { el, button, opened }
+	let menu = null; // { el, button }
 	let toast = null; // { el, timer }
 
 	const t = (key, subs) => {
@@ -117,6 +118,8 @@ globalThis.spotdlInject = (() => {
 		button.type = 'button';
 		button.className = `spotdl-ext-btn spotdl-ext-btn--${kind}`;
 		button.setAttribute(ICON_ATTR, kind);
+		button.setAttribute('aria-haspopup', 'menu');
+		button.setAttribute('aria-expanded', 'false');
 		applyItem(button, item);
 		setState(button, itemStates.get(item.url) ?? 'idle');
 		// Spotify's rows and cards act on clicks, double-clicks and keys that bubble up to them
@@ -366,6 +369,9 @@ globalThis.spotdlInject = (() => {
 		});
 		doc.body.append(el);
 		menu = { el, button };
+		// The opener stays visible and pressed while its menu is open (the menu lives in
+		// <body>, so the row's own :hover/:focus-within no longer shows it).
+		button.setAttribute('aria-expanded', 'true');
 		placeNear(el, button);
 		items()[0]?.focus();
 	}
@@ -409,6 +415,7 @@ globalThis.spotdlInject = (() => {
 		if (!menu) return;
 		const { el, button } = menu;
 		menu = null;
+		button.setAttribute('aria-expanded', 'false');
 		el.remove();
 		if (refocus && button.isConnected) button.focus();
 	}
