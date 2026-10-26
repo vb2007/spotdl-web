@@ -13,7 +13,7 @@ import uuid
 from datetime import datetime
 from typing import NamedTuple
 
-from sqlalchemy import func, select, update
+from sqlalchemy import Exists, func, select, update
 from sqlalchemy.orm import Session
 
 from app.models import NetworkPath, Track, TrackAttempt, TrackAttemptOutcome, TrackErrorType
@@ -29,6 +29,27 @@ _NETWORK_OUTCOMES = {TrackAttemptOutcome.COMPLETED, TrackAttemptOutcome.FAILED}
 # apart in track_attempts without a new error_type. Here rather than in retry.py because
 # alerts.py must not import spotdl (see its module docstring).
 TRANSPORT_FAILURE_PREFIX = "proxy failed to carry the request: "
+
+
+def latest_attempt_number(db: Session, track_id: uuid.UUID) -> int:
+    """The track's newest attempt_number (0 with no rows). v55 (E4/E5): download_track reads
+    it on entry as its ownership token. Every other writer that takes a track away from a
+    running invocation (beat's reclaim) records a row, so a newer number means this
+    invocation no longer owns the track."""
+    return db.execute(
+        select(func.coalesce(func.max(TrackAttempt.attempt_number), 0)).where(
+            TrackAttempt.track_id == track_id
+        )
+    ).scalar_one()
+
+
+def recorded_since(track_id: uuid.UUID, attempt_number: int) -> Exists:
+    """`EXISTS` a row newer than `attempt_number` (see latest_attempt_number)."""
+    return (
+        select(TrackAttempt.id)
+        .where(TrackAttempt.track_id == track_id, TrackAttempt.attempt_number > attempt_number)
+        .exists()
+    )
 
 
 def previous_was_transport_failure(db: Session, track_id: uuid.UUID) -> bool:

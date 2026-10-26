@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from spotdl.types.song import Song
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -83,6 +84,30 @@ def _hold(
     )
 
 
+def _give_up_claim(db: Session, track: Track, attempt_started_at: datetime, when: str) -> None:
+    """This invocation lost the track to a cancel or a reclaim (v55, E4/E5) and exits without
+    downloading. A cancel gets its `cancelled` row as before; a reclaim already recorded its
+    own row for the track, and beat dispatches it again, so nothing more is written."""
+    db.refresh(track)
+    if track.state == TrackState.CANCELLED:
+        logger.info("download_track: track %s was cancelled %s, skipping", track.id, when)
+        attempts.record_attempt(
+            db,
+            track.id,
+            attempt_started_at,
+            datetime.now(timezone.utc),
+            TrackAttemptOutcome.CANCELLED,
+        )
+    else:
+        logger.info(
+            "download_track: track %s was taken from this invocation %s (now %s), skipping",
+            track.id,
+            when,
+            track.state.value,
+        )
+    db.commit()
+
+
 @celery_app.task(name="app.tasks.download.download_track")
 def download_track(track_id: str) -> None:
     db = SessionLocal()
@@ -150,6 +175,13 @@ def download_track(track_id: str) -> None:
                 track.state.value,
             )
             return
+
+        # v55 (E4/E5): what this invocation found, as its claim on the track. A message is
+        # sent for a `pending` (expand_job) or `queued` (beat) track, and a crash redelivery
+        # finds it `downloading`; it may only go on to download while the track is still in
+        # that state and nothing has recorded a row for it since (beat's reclaim always does).
+        entry_state = track.state
+        entry_attempt = attempts.latest_attempt_number(db, track.id)
 
         # Covers the race where this task was already enqueued just before the breaker
         # tripped (or the worker was paused) — dispatch_due_tracks is the primary gate and
@@ -235,19 +267,7 @@ def download_track(track_id: str) -> None:
             # and only the post-download refresh further down discards the result.
             db.refresh(track)
             if track.state == TrackState.CANCELLED:
-                logger.info(
-                    "download_track: track %s was cancelled during the pacing wait, "
-                    "skipping",
-                    track_id,
-                )
-                attempts.record_attempt(
-                    db,
-                    track.id,
-                    attempt_started_at,
-                    datetime.now(timezone.utc),
-                    TrackAttemptOutcome.CANCELLED,
-                )
-                db.commit()
+                _give_up_claim(db, track, attempt_started_at, "during the pacing wait")
                 return
 
         output_settings = app_settings.get_output_settings(db)
@@ -285,29 +305,32 @@ def download_track(track_id: str) -> None:
             proxy_id = proxy.id if proxy is not None else None
             proxy_url = proxy.url if proxy is not None else None
             db.commit()
-            # A cancel committed during the probes would otherwise be overwritten by the
-            # DOWNLOADING write below (the commit above reloaded track.state).
-            if track.state == TrackState.CANCELLED:
-                logger.info(
-                    "download_track: track %s was cancelled while picking a proxy, skipping",
-                    track_id,
-                )
-                attempts.record_attempt(
-                    db,
-                    track.id,
-                    attempt_started_at,
-                    datetime.now(timezone.utc),
-                    TrackAttemptOutcome.CANCELLED,
-                )
-                db.commit()
-                return
         if proxy is None:
             proxy_id = None
             proxy_url = None
 
-        track.state = TrackState.DOWNLOADING
+        # v55 (E5): a conditional transition, not a plain assignment. A cancel or a reclaim
+        # committed at any point since this invocation started (during the proxy probes
+        # included) makes it match no row, where the old assignment overwrote it.
+        claim = {"state": TrackState.DOWNLOADING}
         if proxy_id is not None:
-            track.used_proxy_id = proxy_id
+            claim["used_proxy_id"] = proxy_id
+        claimed = db.execute(
+            update(Track)
+            .where(
+                Track.id == track.id,
+                Track.state == entry_state,
+                ~attempts.recorded_since(track.id, entry_attempt),
+            )
+            .values(**claim)
+            .returning(Track.id)
+            .execution_options(synchronize_session=False)
+        ).one_or_none()
+        if claimed is None:
+            db.rollback()
+            _give_up_claim(db, track, attempt_started_at, "before its download started")
+            return
+        if proxy_id is not None:
             logger.info(
                 "download_track: track %s attempting via proxy %s",
                 track_id,
