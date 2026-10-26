@@ -411,8 +411,8 @@ def test_download_one_makes_an_unreleased_premiere_terminal(monkeypatch):
 
     monkeypatch.setattr(downloads, "_ensure_spotify_client", lambda: None)
     exc = _chained(
-        AudioProviderError("YT-DLP download error - https://www.youtube.com/watch?v=h0971y4MFVg"),
-        ExtractorError("[youtube] h0971y4MFVg: Premieres in 102 days", expected=True),
+        AudioProviderError("YT-DLP download error - https://www.youtube.com/watch?v=h097ly4MFVg"),
+        ExtractorError("[youtube] h097ly4MFVg: Premieres in 102 days", expected=True),
     )
 
     with pytest.raises(downloads.NotYetReleasedError) as excinfo:

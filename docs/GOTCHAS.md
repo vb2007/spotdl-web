@@ -6345,9 +6345,9 @@ independently-found production bug from the same conversation)
 ### v54.1 premiere-terminal gotchas (learned from a production track stuck on an unaired premiere)
 
 - **An upcoming premiere looked like a rate limit.** Production's "End Of An Era" (Dua Lipa)
-  matched `h0971y4MFVg`, a YouTube premiere 102 days out. yt-dlp raises YouTube's playability
+  matched `h097ly4MFVg`, a YouTube premiere 102 days out. yt-dlp raises YouTube's playability
   reason verbatim (`raise_no_formats(reason)` in `extractor/youtube/_video.py`): `ExtractorError:
-  [youtube] h0971y4MFVg: Premieres in 102 days`. Nothing in `_swallowed_error_to_raise` knew it,
+  [youtube] h097ly4MFVg: Premieres in 102 days`. Nothing in `_swallowed_error_to_raise` knew it,
   so every attempt (direct, IPv6, proxy) became `no_output`: back on the 24h ladder, feeding the
   breaker, spending proxy rungs. The markers are `premieres in`, `premiere will begin` and `this
   live event will begin`, checked after the dead-proxy check like the age-gate and
