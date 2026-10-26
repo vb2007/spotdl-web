@@ -178,8 +178,9 @@
 	}
 
 	// v57 (L1): stopping a sweep keeps every file it already filed, so it asks, like the start.
-	// One question and its request at a time, like the start; the button stays enabled while
-	// the question is open, so "keep sweeping" hands focus straight back to it.
+	// One question and its request at a time, like the start. The button stays enabled while the
+	// question is open, so the dialog can give focus back to it on "keep sweeping"; the heading
+	// is only the fallback when focus has fallen to <body>.
 	let onCancelRunning = false;
 	async function onCancel() {
 		if (onCancelRunning) return;

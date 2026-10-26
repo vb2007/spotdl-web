@@ -277,8 +277,8 @@ def download_track(track_id: str) -> None:
             existing_path = dedup.is_already_downloaded(track.spotify_track_id)
         except dedup.LedgerRootUnavailable as exc:
             logger.error(
-                "download_track: track %s's ledger file %s is under %s, which is missing or "
-                "empty in this worker; holding it as waiting rather than downloading it again",
+                "download_track: track %s's ledger file %s is under %s, which has no mount "
+                "sentinel in this worker; holding it as waiting rather than downloading it again",
                 track_id,
                 exc.path,
                 exc.root,
@@ -289,7 +289,7 @@ def download_track(track_id: str) -> None:
                 owner_id,
                 attempt_started_at,
                 now + retry.next_delay(0),
-                f"{exc.root} is missing or empty; rescheduled without attempting",
+                f"{exc.root} has no {dedup.SENTINEL_NAME} (not mounted?); rescheduled without attempting",
                 entry_state,
                 entry_attempt,
             )

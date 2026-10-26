@@ -6718,7 +6718,19 @@ independently-found production bug from the same conversation)
   present"; `/downloads` emptied (only the sentinel left) pruned a stale row; an empty
   mountpoint and a missing root were each skipped with a line. A sweep never touches the
   sentinel (it walks ledger rows, not the tree), so `/downloads` stays "mounted" after a sweep
-  empties it, which is what keeps the v48 47-row accident from recurring.
+  empties it, which is what keeps the v48 47-row accident from recurring. The sweep also creates
+  its own target's sentinel under the same rule, so a newly switched library root counts as
+  mounted before worker-meta's next boot.
+- **A not-yet-filed row already inside the library is filed where it is.** At its own computed
+  destination, or anywhere in a known library root: the sweep reports it once and sets
+  `in_library`, with nothing on disk touched. Skipping without marking re-reported it (and sent a
+  "finished with errors" alert) on every later sweep.
+- **A known root around the downloads dir is ignored.** `known_library_roots()` leaves out any root
+  equal to, inside or around `download_output_dir`: a value saved before L2's check stays in the
+  list (nothing removes entries), and as a library root it would make every download read as
+  "already in the library".
+- **Cancel can't unwedge a run.** It only sets the flag the sweep reads between files; a run left
+  `running` by a worker-expand that died mid-sweep still needs the row reset by hand.
 - **A file missing under a mounted root drops its row before the download (L5).**
   `is_already_downloaded` deletes the row (only while it still points at the missing path) and
   returns a miss, instead of holding the track on every rung. A missing file under a root
@@ -6729,7 +6741,11 @@ independently-found production bug from the same conversation)
   `pg_advisory_xact_lock` on a connection of its own for repoint, commit and delete; worker-dl's
   `record_download` takes the same key in its own transaction and re-checks that the file still
   exists. If the sweep won, the attempt fails as an ordinary error (`LedgerFileMoved`: the ladder
-  retries it, the breaker isn't fed) rather than recording a row on a dead path.
+  retries it, the breaker isn't fed) rather than recording a row on a dead path. The cost, accepted:
+  the audio is in the library by then but this Spotify id has no ledger row, so its next attempt
+  is a real download (worker-dl can't tell where the sweep put the file without the basename
+  relinking v48 rejected). It needs spotdl's skip-existing to hand back exactly the file being
+  swept, inside the sweep's lock window; before v57 the same race stranded the row instead.
   `tests/test_library_race.py` fails without the lock (a strict xfail) and passes with it. A
   `db_session` test can't open that second connection (conftest flags it), so the sweep's unit
   tests stub `file_lock`.

@@ -177,3 +177,22 @@ def test_path_relation_resolves_before_comparing(tmp_path):
     assert library.path_relation(tmp_path / "downloads" / ".." / "downloads" / "x", tmp_path / "downloads") == "inside"
     assert library.path_relation(tmp_path, tmp_path / "downloads") == "contains"
     assert library.path_relation(tmp_path / "library", tmp_path / "downloads") is None
+
+
+def test_copy_verify_keeps_a_complete_copy_whose_metadata_copy_failed(tmp_path, monkeypatch):
+    """v57 (review round 1): copy2 can raise in copystat after every byte landed (a mount that
+    refuses times or mode). That copy verifies, so it's a success, not a renamed full-size
+    leftover on the library filesystem every sweep."""
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+
+    def _copystat_fails(src, dst):
+        Path(dst).write_bytes(Path(src).read_bytes())
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(library.shutil, "copy2", _copystat_fails)
+
+    assert library.copy_verify(source, dest) is True
+    assert dest.read_bytes() == b"the whole real audio"
+    assert [p.name for p in dest.parent.iterdir()] == ["source.mp3"]

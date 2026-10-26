@@ -50,6 +50,13 @@ def _repoint(db, rows: list[DownloadedTrack], source: Path, dest: Path) -> list[
     return moved
 
 
+def _mark_in_place(db, rows: list[DownloadedTrack]) -> None:
+    """v57 (L2): rows whose file is already inside the library are filed where they are."""
+    for row in rows:
+        row.in_library = True
+    db.commit()
+
+
 def _sync_tracks_and_archive_jobs(db, moved_spotify_ids: set[str], admin_user_id: str) -> None:
     """Repoints every affected Track.output_path to the ledger's new location (the
     ledger row itself is already repointed by the caller) -- every user's, since the
@@ -151,6 +158,18 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
         _finish(db, run, admin_user_id)
         return
 
+    # v57 (L4): the target gets its mount sentinel here too, not only at worker-meta's next boot,
+    # so a library root this sweep is about to fill (a moved LIBRARY_DIR) counts as mounted at
+    # once. Same safety rule as reconcile_disk's.
+    if not dedup.sentinel_present(target_dir):
+        under_target = [
+            Path(path)
+            for (path,) in db.query(DownloadedTrack.file_path).all()
+            if dedup.root_of(Path(path), [target_dir]) is not None
+        ]
+        db.commit()
+        dedup.ensure_sentinel(target_dir, under_target, caller="library sweep")
+
     # v48 (review round 4): a fixed order, so which of two colliding files is filed and which
     # is flagged doesn't depend on how Postgres happens to return the rows -- the earlier
     # download wins.
@@ -218,15 +237,19 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
             # there" and quarantined or deleted: the library's only copy. A source anywhere
             # else in a library root is skipped too: nothing on the library filesystem is ever
             # moved or deleted by a sweep.
+            # The rows are marked filed (nothing on disk changes), so the next sweep doesn't
+            # report the same file again.
             resolved_source = source.resolve()
             if dest.resolve() == resolved_source:
+                _mark_in_place(db, rows)
                 _record_error(
-                    run, file_path, "destination is the source file itself; skipped, nothing moved"
+                    run, file_path, "destination is the source file itself; marked filed, nothing moved"
                 )
                 continue
             if any(resolved_source.is_relative_to(root) for root in library_roots):
+                _mark_in_place(db, rows)
                 _record_error(
-                    run, file_path, "source is already inside the library; skipped, nothing moved"
+                    run, file_path, "source is already inside the library; marked filed, nothing moved"
                 )
                 continue
 

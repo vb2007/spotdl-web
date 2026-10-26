@@ -116,6 +116,10 @@ def copy_verify(source: Path, dest: Path) -> bool:
         shutil.copy2(source, dest)
     except OSError:
         if not existed and dest.exists():
+            # The data may all be there and only copystat (times, mode) failed, on a mount that
+            # refuses it: a verified copy is a copy.
+            if files_match(source, dest):
+                return True
             dest.rename(dest.with_name(f"{dest.name}.copy-failed-{uuid.uuid4().hex[:8]}"))
         raise
     if files_match(source, dest):

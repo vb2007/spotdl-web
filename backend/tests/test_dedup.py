@@ -686,3 +686,21 @@ def test_record_download_refuses_a_file_that_moved_away(db_session, tmp_path):
         dedup.record_download(db_session, "abc123", tmp_path / "moved.mp3", format="mp3", bitrate="320k")
     db_session.rollback()
     assert db_session.get(DownloadedTrack, "abc123") is None
+
+
+def test_known_library_roots_leave_out_a_root_overlapping_the_downloads_dir(db_session, tmp_path, monkeypatch):
+    """v57 (review round 1): an old root equal to, inside or around the downloads dir is never
+    a library root (dedup, reconcile, file serving and the sweep all read this list)."""
+    downloads = tmp_path / "downloads"
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads)))
+    _set_library(db_session, tmp_path / "library", earlier=[tmp_path, downloads, downloads / "lib", tmp_path / "old"])
+
+    roots = dedup.known_library_roots(app_settings.get_library_settings(db_session))
+
+    assert roots == [tmp_path / "library", tmp_path / "old"]
+
+
+def test_the_file_lock_key_is_the_same_for_one_file_however_it_is_spelled(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert dedup._file_lock_key(tmp_path / "a" / "song.mp3") == dedup._file_lock_key(Path("a/../a/./song.mp3"))
+    assert dedup._file_lock_key(tmp_path / "a" / "song.mp3") != dedup._file_lock_key(tmp_path / "b" / "song.mp3")

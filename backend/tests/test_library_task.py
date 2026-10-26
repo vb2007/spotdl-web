@@ -896,9 +896,14 @@ def test_sort_library_skips_a_source_that_is_its_own_destination(db_session, tmp
     assert not (tmp_path / "quarantine").exists()
     run = library_task._get_run(db_session)
     assert run.errors == [
-        {"file": str(dest), "error": "destination is the source file itself; skipped, nothing moved"}
+        {"file": str(dest), "error": "destination is the source file itself; marked filed, nothing moved"}
     ]
     assert (run.processed, run.moved, run.quarantined, run.skipped_present) == (1, 0, 0, 0)
+    # Filed where it is (review round 1): the next sweep doesn't report it again.
+    db_session.refresh(row)
+    assert row.in_library is True and row.file_path == str(dest)
+    _run(monkeypatch, db_session)
+    assert library_task._get_run(db_session).total == 0  # nothing left to consider
 
 
 def test_sort_library_never_moves_a_source_already_inside_the_library(db_session, tmp_path, monkeypatch):
@@ -920,8 +925,9 @@ def test_sort_library_never_moves_a_source_already_inside_the_library(db_session
     assert not (tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "loose.mp3").exists()
     run = library_task._get_run(db_session)
     assert run.errors == [
-        {"file": str(elsewhere), "error": "source is already inside the library; skipped, nothing moved"}
+        {"file": str(elsewhere), "error": "source is already inside the library; marked filed, nothing moved"}
     ]
+    assert db_session.get(DownloadedTrack, "loose").in_library is True
 
 
 def test_sort_library_refuses_to_run_with_overlapping_directories(db_session, tmp_path, monkeypatch):
@@ -975,3 +981,37 @@ def test_sort_library_never_adopts_a_partial_copy_left_by_a_full_disk(db_session
     assert len(list(dest.parent.glob("track1.mp3.copy-failed-*"))) == 2
     run = library_task._get_run(db_session)
     assert run.quarantined == 0 and run.errors[0]["error"].startswith("[Errno 28]")
+
+
+def test_sort_library_ignores_a_known_root_that_overlaps_the_downloads_dir(db_session, tmp_path, monkeypatch):
+    """v57 (review round 1): a known root around the downloads dir (a value saved before L2's
+    check; the list can't be edited) must not make every download read as "already inside the
+    library"."""
+    downloads = tmp_path / "downloads"
+    _configure(db_session, tmp_path)
+    row_settings = app_settings.get_library_settings(db_session)
+    row_settings.library_known_roots = [str(tmp_path / "library"), str(tmp_path)]
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    monkeypatch.setattr(library_task, "get_settings", lambda: SimpleNamespace(download_output_dir=str(downloads)))
+    monkeypatch.setattr(dedup, "get_settings", lambda: SimpleNamespace(download_output_dir=str(downloads)))
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    db_session.refresh(row)
+    assert row.in_library is True
+    assert library_task._get_run(db_session).moved == 1
+
+
+def test_sort_library_creates_its_targets_sentinel(db_session, tmp_path, monkeypatch):
+    """v57 (review round 1): a new library root the sweep fills is "mounted" at once, not only
+    after worker-meta's next boot."""
+    _configure(db_session, tmp_path)
+    (tmp_path / "library").mkdir()
+    _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert (tmp_path / "library" / dedup.SENTINEL_NAME).is_file()

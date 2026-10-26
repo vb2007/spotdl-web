@@ -9,6 +9,7 @@ ledger upsert serialize per file on a Postgres advisory lock (L3).
 
 import hashlib
 import logging
+import os
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
@@ -51,9 +52,19 @@ class LedgerFileMoved(Exception):
 
 
 def known_library_roots(settings_row: AppSettings) -> list[Path]:
-    """The current library_target_dir first, then every earlier one (v57, L6)."""
+    """The current library_target_dir first, then every earlier one (v57, L6). A root that
+    overlaps the downloads dir (equal, inside or around it: a value saved before L2's check,
+    or the migration's seed of one) is never a library root: it would make every download
+    read as "already in the library", and the list can't be edited."""
+    from app.services.library import path_relation  # library imports nothing from here
+
+    downloads = Path(get_settings().download_output_dir)
     roots = [settings_row.library_target_dir, *settings_row.library_known_roots]
-    return [Path(root) for root in dict.fromkeys(str(root) for root in roots)]
+    return [
+        Path(root)
+        for root in dict.fromkeys(str(root) for root in roots)
+        if path_relation(Path(root), downloads) is None
+    ]
 
 
 def managed_roots(db: Session) -> list[Path]:
@@ -73,7 +84,7 @@ def sentinel_present(root: Path) -> bool:
     return (root / SENTINEL_NAME).is_file()
 
 
-def ensure_sentinel(root: Path, ledger_paths: Sequence[Path]) -> bool:
+def ensure_sentinel(root: Path, ledger_paths: Sequence[Path], *, caller: str = "reconcile_disk") -> bool:
     """Whether `root` is mounted, creating its sentinel when that's safe to decide (v57, L4):
     `ledger_paths` are the ledger's files under this root. A root with no sentinel gets one only
     if it exists and either no ledger row points into it (nothing could be pruned there) or at
@@ -84,25 +95,27 @@ def ensure_sentinel(root: Path, ledger_paths: Sequence[Path]) -> bool:
     leaves it to one that can."""
     sentinel = root / SENTINEL_NAME
     if sentinel.is_file():
-        logger.info("reconcile_disk: sentinel present in %s", root)
+        logger.info("%s: sentinel present in %s", caller, root)
         return True
     if not root.is_dir():
         # Known roots only grow (a library dir saved once by mistake stays known), so a missing
         # one nothing points into is only noted; one with ledger rows under it is the alarm.
         if ledger_paths:
             logger.error(
-                "reconcile_disk: %s doesn't exist here: not mounted (%d ledger rows under it)",
+                "%s: %s doesn't exist here: not mounted (%d ledger rows under it)",
+                caller,
                 root,
                 len(ledger_paths),
             )
         else:
-            logger.info("reconcile_disk: %s doesn't exist here; no ledger rows under it", root)
+            logger.info("%s: %s doesn't exist here; no ledger rows under it", caller, root)
         return False
     if ledger_paths and not any(path.exists() for path in ledger_paths):
         logger.error(
-            "reconcile_disk: %s has no %s and none of the %d ledger files under it exist: it "
+            "%s: %s has no %s and none of the %d ledger files under it exist: it "
             "looks unmounted, so no sentinel was created. If it is mounted and those files are "
             "really gone, create %s by hand",
+            caller,
             root,
             SENTINEL_NAME,
             len(ledger_paths),
@@ -112,15 +125,17 @@ def ensure_sentinel(root: Path, ledger_paths: Sequence[Path]) -> bool:
     try:
         sentinel.write_text(_SENTINEL_TEXT)
     except OSError as exc:
-        logger.error("reconcile_disk: couldn't create %s: %s", sentinel, exc)
+        logger.error("%s: couldn't create %s: %s", caller, sentinel, exc)
         return False
-    logger.info("reconcile_disk: sentinel created in %s", root)
+    logger.info("%s: sentinel created in %s", caller, root)
     return True
 
 
 def _file_lock_key(path: Path) -> int:
-    # A signed 64-bit key, namespaced so it can't meet another advisory lock's key.
-    digest = hashlib.sha256(f"spotdl-web:file:{path}".encode()).digest()
+    # A signed 64-bit key, namespaced so it can't meet another advisory lock's key. The path is
+    # made absolute and normalized first, so "a/../b", "./b" and "b" lock the same file.
+    normalized = os.path.normpath(os.path.abspath(path))
+    digest = hashlib.sha256(f"spotdl-web:file:{normalized}".encode()).digest()
     return int.from_bytes(digest[:8], "big", signed=True)
 
 
