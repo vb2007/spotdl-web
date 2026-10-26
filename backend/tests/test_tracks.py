@@ -82,6 +82,36 @@ def test_cancel_track_refuses_a_terminal_state_with_409(authenticated_client, db
     assert db_session.get(Track, track.id).state == state
 
 
+def test_get_track_returns_the_track_with_its_job_summary(authenticated_client, db_session, owner):
+    """v56 (A3)."""
+    track = _make_track(
+        db_session, owner, state=TrackState.WAITING, scheduled_at=datetime.now(timezone.utc), attempt_count=2
+    )
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == str(track.id)
+    assert body["state"] == "waiting"
+    assert body["title"] == "Song A"
+    assert body["attempt_count"] == 2
+    assert body["job"] == {
+        "id": str(track.job_id),
+        "source_url": "https://open.spotify.com/track/abc",
+        "source_type": "track",
+        "owner_email": owner.email,
+        "owner_username": owner.username,
+        "title": "Song A",
+    }
+
+
+def test_get_unknown_track_returns_404_and_needs_a_session(client, authenticated_client):
+    assert authenticated_client.get(f"/api/tracks/{uuid.uuid4()}").status_code == 404
+    authenticated_client.cookies.clear()
+    assert authenticated_client.get(f"/api/tracks/{uuid.uuid4()}").status_code == 401
+
+
 def test_cancel_unknown_track_returns_404(authenticated_client, db_session):
     assert authenticated_client.delete(f"/api/tracks/{uuid.uuid4()}").status_code == 404
 

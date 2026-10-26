@@ -110,7 +110,7 @@
 
 	const CANCELLABLE_STATES = new Set<TrackState>(['pending', 'queued', 'downloading', 'waiting']);
 	// v41 (F24, owner's call): a lookup_failed track is already terminal, so it offers
-	// "retry now" only. The backend still accepts a cancel; the UI no longer asks for one.
+	// "retry now" only. v56 (A2): the backend refuses its cancel too (track_states.py).
 	const RETRYABLE_STATES = new Set<TrackState>(['waiting', 'lookup_failed']);
 	// The only two states download_track ever sets `output_path` from (backend/app/tasks/
 	// download.py) -- every other state never had a file, so the action simply doesn't
@@ -348,19 +348,13 @@
 		// Another identity took over meanwhile: this answer belongs to the previous session.
 		if (queue.getResetCount() !== session) return;
 		// The server's current state decides, not this row's: the row may be stale (its stream
-		// down, or remounted with old props), and the backend would still cancel a track that
-		// turned lookup_failed meanwhile, which v41 deliberately offers no cancel for. One read
-		// of the job's cancellable tracks (no per-row loop).
+		// down, or remounted with old props). It also says whether the cancel lands mid-download,
+		// which the notices below need. v56 (A3): one read of this track alone, where it used to
+		// be up to 1000 of the job's.
 		let current: TrackState | null | undefined;
 		try {
-			const page = await api.listJobTracksPage(jobId, {
-				state: [...CANCELLABLE_STATES],
-				limit: 1000
-			});
-			const found = page.items.find((t) => t.id === track.id)?.state;
-			// Past the read's 1000-row cap (a big discography), absence proves nothing: the row's
-			// last known state decides there, as before v43.
-			current = found ?? (page.next_cursor !== null && canCancel ? track.state : null);
+			const state = (await api.getTrack(track.id)).state;
+			current = CANCELLABLE_STATES.has(state) ? state : null;
 		} catch {
 			current = undefined;
 		}
@@ -391,8 +385,12 @@
 			}
 		} catch (err) {
 			// A session reset meanwhile: the answer belongs to the previous identity.
-			if (queue.getResetCount() === session)
-				showNotice(errorText(err, m.track_notice_cancel_failed), true);
+			if (queue.getResetCount() === session) {
+				// v56 (A2): it settled between the read above and the cancel; the server left it.
+				if (err instanceof api.ApiError && err.code === 'track_not_cancellable')
+					showNotice(m.track_notice_not_cancelled_settled());
+				else showNotice(errorText(err, m.track_notice_cancel_failed), true);
+			}
 		}
 		// "cancel track" leaves with the cancellable state: land on the row itself.
 		await keepFocus(landing());

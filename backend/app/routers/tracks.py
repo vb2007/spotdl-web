@@ -13,7 +13,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import DownloadedTrack, Job, JobSourceType, Proxy, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
-from app.services import app_settings, events, retry, track_listing
+from app.services import app_settings, events, retry, rollup, track_listing
 from app.services.track_states import CANCELLABLE_TRACK_STATES, RETRYABLE_TRACK_STATES
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import track_attempt_to_dict, track_song_meta, track_to_dict
@@ -126,6 +126,35 @@ def list_tracks(
         )
     except (track_listing.InvalidListParams, InvalidCursor) as exc:
         raise ApiError(400, "invalid_list_params", str(exc), {"reason": str(exc)}) from exc
+
+
+@router.get("/{track_id}")
+def get_track(
+    track_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """v56 (A3): one track as the server has it now, with its job's summary embedded in the
+    same shape as `GET /api/tracks`'s items. The track row's cancel used to re-read up to
+    1000 tracks of the job to find this one. Same owner-scoped 404-not-403 gate as every
+    other direct-id track endpoint; an admin reads anyone's."""
+    track, _owner_id, _archived_at = _get_track_or_404(db, track_id, user)
+    job, owner_email, owner_username = (
+        db.query(Job, User.email, User.username)
+        .join(User, Job.user_id == User.id)
+        .filter(Job.id == track.job_id)
+        .one()
+    )
+    body = track_to_dict(track)
+    body["job"] = {
+        "id": str(job.id),
+        "source_url": job.source_url,
+        "source_type": job.source_type.value,
+        "owner_email": owner_email,
+        "owner_username": owner_username,
+        "title": rollup.job_title(db, job),
+    }
+    return body
 
 
 @router.delete("/{track_id}")

@@ -759,6 +759,11 @@ export function unarchiveJobs(jobIds: string[]): Promise<{ unarchived_ids: strin
 	});
 }
 
+/** v56 (A3): one track as the server has it now (owner or admin; anyone else a 404). */
+export function getTrack(trackId: string): Promise<TrackWithJob> {
+	return request(`/api/tracks/${trackId}`);
+}
+
 export function cancelTrack(trackId: string): Promise<Track> {
 	return request(`/api/tracks/${trackId}`, { method: 'DELETE' });
 }
