@@ -1859,3 +1859,74 @@ def test_a_stray_message_for_a_cancelled_track_leaves_updated_at_alone(db_sessio
     updated = db_session.get(Track, track.id)
     assert [row.outcome for row in _attempts(db_session, track)] == [TrackAttemptOutcome.CANCELLED]
     assert updated.updated_at == before
+
+
+# --- v55 (E11): consecutive holds collapse into one row -------------------------------------
+
+
+def test_a_ten_tick_breaker_hold_over_three_tracks_writes_three_rows(db_session, monkeypatch):
+    """Ten ticks of a tripped breaker, each re-sending the same three queued tracks' messages:
+    one `held` row per track, its hold_count 10 and its span the first hold to the last,
+    where it used to be 30 rows."""
+    _patch_common(monkeypatch, db_session)
+    _capture_events(monkeypatch)
+    tracks = [_make_track(db_session) for _ in range(3)]
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(hours=1)
+    db_session.commit()
+
+    for _ in range(10):
+        for track in tracks:
+            track.state = TrackState.QUEUED
+            db_session.commit()
+            download_task.download_track(str(track.id))
+
+    rows = db_session.query(TrackAttempt).filter(TrackAttempt.track_id.in_([t.id for t in tracks])).all()
+    assert len(rows) == 3
+    assert {row.track_id for row in rows} == {t.id for t in tracks}
+    for row in rows:
+        assert (row.outcome, row.hold_count, row.attempt_number) == (TrackAttemptOutcome.HELD, 10, 1)
+        assert row.finished_at > row.started_at
+    for track in tracks:
+        updated = db_session.get(Track, track.id)
+        assert (updated.state, updated.attempts_made, updated.failure_count) == (TrackState.WAITING, 0, 0)
+
+
+def test_a_hold_after_an_attempt_or_another_reason_starts_a_new_row(db_session, monkeypatch):
+    """Only *consecutive identical* holds collapse: a real attempt in between, or a hold for a
+    different reason, keeps the order of events readable."""
+    from app.services import attempts
+
+    track = _make_track(db_session)
+    now = datetime.now(timezone.utc)
+
+    def hold(reason):
+        attempts.record_attempt(
+            db_session, track.id, now, now, TrackAttemptOutcome.HELD, warning_message=reason, collapse_hold=True
+        )
+        db_session.commit()
+
+    hold("circuit breaker active")
+    hold("circuit breaker active")
+    attempts.record_attempt(db_session, track.id, now, now, TrackAttemptOutcome.FAILED, error_message="boom")
+    db_session.commit()
+    hold("circuit breaker active")
+    hold("/library is missing or empty")
+
+    rows = _attempts_by_number(db_session, track)
+    assert [(row.outcome, row.hold_count) for row in rows] == [
+        (TrackAttemptOutcome.HELD, 2),
+        (TrackAttemptOutcome.FAILED, 1),
+        (TrackAttemptOutcome.HELD, 1),
+        (TrackAttemptOutcome.HELD, 1),
+    ]
+    assert [row.attempt_number for row in rows] == [1, 2, 3, 4]
+
+
+def _attempts_by_number(db_session, track):
+    return (
+        db_session.query(TrackAttempt)
+        .filter(TrackAttempt.track_id == track.id)
+        .order_by(TrackAttempt.attempt_number)
+        .all()
+    )

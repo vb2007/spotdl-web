@@ -59,7 +59,8 @@ def _hold(
     that eventually follows read attempt_count >= 1 and wrongly reach for a proxy, breaking
     "attempt 1 is always direct". v35: recorded as `held`, not `failed`, so it counts as
     neither an attempt nor a failure, and it gets its own attempt_number rather than sharing
-    the next real attempt's."""
+    the next real attempt's. v55 (E11): a hold straight after an identical one extends that
+    row (hold_count) instead of adding another."""
     track.state = TrackState.WAITING
     track.scheduled_at = scheduled_at
     attempts.record_attempt(
@@ -69,6 +70,7 @@ def _hold(
         datetime.now(timezone.utc),
         TrackAttemptOutcome.HELD,
         warning_message=reason,
+        collapse_hold=True,
     )
     db.commit()
     events.publish_track_event(

@@ -40,7 +40,8 @@ def latest_attempt_number(db: Session, track_id: uuid.UUID) -> int:
     """The track's newest attempt_number (0 with no rows). v55 (E4/E5): download_track reads
     it on entry as its ownership token. Every other writer that takes a track away from a
     running invocation (beat's reclaim) records a row, so a newer number means this
-    invocation no longer owns the track."""
+    invocation no longer owns the track. Only download_track's own holds are collapsed into
+    an existing row (E11), and worker-dl never runs two invocations at once."""
     return db.execute(
         select(func.coalesce(func.max(TrackAttempt.attempt_number), 0)).where(
             TrackAttempt.track_id == track_id
@@ -93,6 +94,7 @@ def record_attempt(
     proxy_id: uuid.UUID | None = None,
     network_path: NetworkPath | None = None,
     supersede_reclaim_after: int | None = None,
+    collapse_hold: bool = False,
 ) -> RecordedAttempt:
     """Adds one `track_attempts` row and returns its attempt_number together with the
     track's counters after it.
@@ -108,7 +110,12 @@ def record_attempt(
     If beat reclaimed the track while this invocation was still running, the `failed` row
     the reclaim wrote on its behalf is rewritten into this real outcome instead of a second
     row being added, and the counters move by the difference: one network attempt, counted
-    once. A reclaim of an invocation that really died keeps its row, the only record of it."""
+    once. A reclaim of an invocation that really died keeps its row, the only record of it.
+
+    v55 (E11) `collapse_hold`: a `held` row right after an identical `held` row (same
+    note) extends that row, its finished_at and hold_count, instead of adding one per hold:
+    "held N times from T1 to T2". Beat's reclaim never passes it, so its rows stay one per
+    reclaim and keep latest_attempt_number a working ownership token."""
     # Derived from the row alone (outcome + network_path), so the counters can always be
     # recomputed from track_attempts -- the migration's backfill uses the same rule.
     attempted = outcome in _NETWORK_OUTCOMES or network_path is not None
@@ -128,7 +135,21 @@ def record_attempt(
             .order_by(TrackAttempt.attempt_number)
             .limit(1)
         ).scalar_one_or_none()
-    # The reclaim row was counted as a failed network attempt.
+    latest_hold: TrackAttempt | None = None
+    if collapse_hold and outcome == TrackAttemptOutcome.HELD:
+        latest = db.execute(
+            select(TrackAttempt)
+            .where(TrackAttempt.track_id == track_id)
+            .order_by(TrackAttempt.attempt_number.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if (
+            latest is not None
+            and latest.outcome == TrackAttemptOutcome.HELD
+            and latest.warning_message == warning_message
+        ):
+            latest_hold = latest
+    # The reclaim row was counted as a failed network attempt; a hold counts as nothing.
     superseded = int(reclaim_row is not None)
     attempts_made, failure_count = db.execute(
         update(Track)
@@ -156,6 +177,11 @@ def record_attempt(
         reclaim_row.network_path = network_path
         db.flush()
         return RecordedAttempt(reclaim_row.attempt_number, attempts_made, failure_count)
+    if latest_hold is not None:
+        latest_hold.finished_at = finished_at
+        latest_hold.hold_count += 1
+        db.flush()
+        return RecordedAttempt(latest_hold.attempt_number, attempts_made, failure_count)
     attempt_number = db.execute(
         select(func.coalesce(func.max(TrackAttempt.attempt_number), 0) + 1).where(
             TrackAttempt.track_id == track_id
