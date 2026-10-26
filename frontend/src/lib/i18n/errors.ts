@@ -60,6 +60,7 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 			? m.error_proxy_target_exists_file({ target: String(p.target) })
 			: m.error_proxy_target_exists_manual({ target: String(p.target) }),
 	proxy_not_found: () => m.error_proxy_not_found(),
+	proxy_deleting: () => m.error_proxy_deleting(),
 	proxy_url_required: () => m.error_proxy_url_required(),
 	proxy_url_invalid: () => m.error_proxy_url_invalid(),
 	proxy_url_exists: () => m.error_proxy_url_exists(),
