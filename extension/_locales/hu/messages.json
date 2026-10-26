@@ -350,5 +350,23 @@
 	},
 	"optionsAppGrant": {
 		"message": "hozzáférés engedélyezése"
+	},
+	"toastUnreachable": {
+		"message": "Nem érem el a spotdl-alkalmazásodat"
+	},
+	"toastPermissionMissing": {
+		"message": "Engedd meg a bővítménynek, hogy elérje a spotdl-alkalmazásodat (a beállításaiban)"
+	},
+	"toastNotAnApp": {
+		"message": "A beállításokban megadott cím nem úgy válaszol, mint egy spotdl-alkalmazás"
+	},
+	"optionsAppNotSaved": {
+		"message": "Nincs mentve: $RESULT$",
+		"placeholders": {
+			"result": {
+				"content": "$1"
+			}
+		},
+		"description": "RESULT is one of the connection status sentences."
 	}
 }

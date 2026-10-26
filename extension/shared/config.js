@@ -3,11 +3,12 @@
 export const DEFAULT_ORIGIN = 'https://spotdl.vb2007.hu';
 
 // storage.local only: an API key is a secret, and nothing here is ever synced.
-export const KEYS = { origin: 'appOrigin', apiKey: 'apiKey', submissions: 'submissions' };
+// A key is stored with the origin it was saved for, and goes nowhere else.
+export const KEYS = { origin: 'appOrigin', apiKey: 'apiKey', apiKeyOrigin: 'apiKeyOrigin', submissions: 'submissions' };
 
 export const HISTORY_LIMIT = 10;
 
-const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]']);
+const LOOPBACK = new Set(['localhost', '127.0.0.1']);
 
 /**
  * The app origin typed into the options page, normalized (`https://host[:port]`), or `null`
@@ -46,10 +47,15 @@ export function looksLikeApiKey(value) {
 	return typeof value === 'string' && /^sdw_[A-Za-z0-9_-]{8,}$/.test(value.trim());
 }
 
-export async function readSettings(storage) {
-	const stored = await storage.local.get([KEYS.origin, KEYS.apiKey]);
-	return {
-		origin: normalizeOrigin(stored[KEYS.origin] ?? '') ?? DEFAULT_ORIGIN,
-		apiKey: typeof stored[KEYS.apiKey] === 'string' && stored[KEYS.apiKey] !== '' ? stored[KEYS.apiKey] : null,
-	};
+/**
+ * The saved settings. `origin` overrides the saved address (the options page checking one
+ * before saving it). The key comes back only for the origin it was saved for, so it's never
+ * sent to an address typed later.
+ */
+export async function readSettings(storage, origin = null) {
+	const stored = await storage.local.get([KEYS.origin, KEYS.apiKey, KEYS.apiKeyOrigin]);
+	const target = origin ?? normalizeOrigin(stored[KEYS.origin] ?? '') ?? DEFAULT_ORIGIN;
+	const key = typeof stored[KEYS.apiKey] === 'string' && stored[KEYS.apiKey] !== '' ? stored[KEYS.apiKey] : null;
+	const keyOrigin = normalizeOrigin(stored[KEYS.apiKeyOrigin] ?? '') ?? DEFAULT_ORIGIN;
+	return { origin: target, apiKey: key && keyOrigin === target ? key : null, storedKey: key, keyOrigin };
 }

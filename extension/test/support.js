@@ -22,7 +22,7 @@ export function getMessage(key, substitutions = []) {
  * A fixture page with selectors.js and inject.js running in it. `mutate(document)` runs before
  * the scripts start (to break a selector). Collects every console error and uncaught error.
  */
-export function loadPage(name, { mutate, sendMessage } = {}) {
+export function loadPage(name, { mutate, sendMessage, onlyTrusted = false } = {}) {
 	const html = read(`test/fixtures/${name}.html`);
 	const url = /<meta name="fixture-url" content="([^"]+)"/.exec(html)[1];
 	const errors = [];
@@ -43,7 +43,9 @@ export function loadPage(name, { mutate, sendMessage } = {}) {
 			return sendMessage ? sendMessage(message) : { outcome: 'queued', via: 'cookie' };
 		},
 	};
-	window.spotdlInject.start(window, api, window.spotdlSelectors);
+	// jsdom can only dispatch synthetic events: accept them, unless the test checks that a
+	// page's synthetic event is ignored (`onlyTrusted: true` keeps the real rule).
+	window.spotdlInject.start(window, api, window.spotdlSelectors, { acceptSyntheticEvents: !onlyTrusted });
 	return { window, document: window.document, inject: window.spotdlInject, messages, errors };
 }
 

@@ -397,7 +397,8 @@ describe('submitting and the cascade menu', () => {
 		[{ outcome: 'already_queued' }, 'Already in your queue: it\'s still downloading', 'already_queued'],
 		[{ outcome: 'in_library' }, 'Already in the library: nothing to download', 'in_library'],
 		[{ outcome: 'error', code: 'rate_limited', retryAfter: 42 }, 'Too many submissions. Try again in 42 s', 'error'],
-		[{ outcome: 'error', code: 'unreachable', origin: 'https://spotdl.example' }, 'Can\'t reach spotdl at https://spotdl.example', 'error'],
+		[{ outcome: 'error', code: 'unreachable', origin: 'https://spotdl.example' }, 'Can\'t reach your spotdl app', 'error'],
+		[{ outcome: 'error', code: 'permission_missing', origin: 'https://spotdl.example' }, 'Let the extension reach your spotdl app, in its settings', 'error'],
 		[{ outcome: 'error', code: 'login_required' }, 'Log in to spotdl in this browser, or add an API key', 'error'],
 		[{ outcome: 'error', code: 'url_not_spotify' }, 'spotdl only takes Spotify track, album, artist and playlist links', 'error'],
 		[{ outcome: 'error', code: 'something_new' }, 'Couldn\'t queue it (something_new)', 'error'],
@@ -412,6 +413,49 @@ describe('submitting and the cascade menu', () => {
 			assert.equal(button.dataset.state, state);
 		});
 	}
+
+	it('the app’s address never lands in the page (the toast is readable by Spotify’s scripts)', async () => {
+		for (const code of ['unreachable', 'permission_missing', 'not_an_app']) {
+			const { window, document } = loadPage('album', { sendMessage: () => ({ outcome: 'error', code, origin: 'https://secret.example' }) });
+			icons(document, 'header')[0].click();
+			await settle(window, 20);
+			assert.ok(document.querySelector('.spotdl-ext-toast'), code);
+			assert.ok(!document.body.innerHTML.includes('secret.example'), code);
+		}
+	});
+
+	it('a page script’s synthetic click, right-click or key does nothing', async () => {
+		const { window, document, messages } = loadPage('album', { onlyTrusted: true });
+		const button = icons(document, 'row')[0];
+		button.click();
+		button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		key(window, button, { key: 'F10', shiftKey: true });
+		await settle(window, 20);
+		assert.deepEqual(messages, []);
+		assert.equal(document.querySelector('.spotdl-ext-menu'), null);
+		assert.equal(button.dataset.state, 'idle');
+	});
+
+	it('an ambiguous answer with no usable candidate opens no empty menu', async () => {
+		const { window, document } = loadPage('album', {
+			sendMessage: () => ({ outcome: 'ambiguous', candidates: [{ name: 'x', url: 'https://evil.example/artist/0TnOYISbd1XYRBk9myaseg' }] }),
+		});
+		const button = icons(document, 'row')[0];
+		button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		document.querySelectorAll('.spotdl-ext-menu [role="menuitem"]')[2].click();
+		await settle(window, 20);
+		assert.equal(document.querySelector('.spotdl-ext-menu'), null);
+		assert.equal(document.querySelector('.spotdl-ext-toast').textContent, 'Couldn\'t queue it (cascade_ambiguous)');
+		assert.equal(button.dataset.state, 'idle');
+	});
+
+	it('a header whose page re-renders under the same address takes the new title', async () => {
+		const { window, document } = loadPage('album');
+		const button = icons(document, 'header')[0];
+		document.querySelector('[data-testid="entityTitle"]').textContent = 'Another Title';
+		await settle(window);
+		assert.equal(button.getAttribute('aria-label'), 'Queue the album “Another Title” in spotdl');
+	});
 
 	it('a queued tick survives its row being re-rendered', async () => {
 		const { window, document } = loadPage('album');

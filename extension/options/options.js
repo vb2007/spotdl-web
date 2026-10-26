@@ -46,28 +46,45 @@ async function showSettings() {
 	$('spotify-grant').hidden = granted;
 }
 
+// The answers that come from a spotdl app (signed in or not): an address worth saving.
+const FROM_AN_APP = new Set(['login_required', 'key_invalid']);
+
 // permissions.request must run inside the click's own handler, before any await, or Firefox
 // refuses it as not user-initiated: everything it needs is computed synchronously first.
 function saveOrigin(origin) {
 	const previous = $('app-origin').dataset.saved;
 	const asked =
 		origin === DEFAULT_ORIGIN ? Promise.resolve(true) : browser.permissions.request({ origins: [originPattern(origin)] });
-	return asked.then(async (granted) => {
-		if (!granted) {
-			setStatus($('app-status'), t('optionsAppDenied', [origin]), 'error');
-			return;
-		}
-		await browser.storage.local.set({ [KEYS.origin]: origin });
-		// The old non-default origin's access goes with it (the default's is declared).
-		if (previous && previous !== origin && previous !== DEFAULT_ORIGIN) {
-			const stillNeeded = originPattern(previous) === originPattern(origin);
-			if (!stillNeeded) await browser.permissions.remove({ origins: [originPattern(previous)] }).catch(() => {});
-		}
-		$('app-origin').dataset.saved = origin;
-		await showSettings();
-		const result = await test();
-		setStatus($('app-status'), t('optionsAppSaved', [connectionText(result)]), result.outcome === 'signed_in' ? 'ok' : 'error');
-	});
+	return asked
+		.then(async (granted) => {
+			if (!granted) {
+				setStatus($('app-status'), t('optionsAppDenied', [origin]), 'error');
+				return;
+			}
+			// Validated before it's saved: only an address that answers like a spotdl app.
+			setStatus($('app-status'), t('popupChecking'), null);
+			const result = await browser.runtime
+				.sendMessage({ type: 'me', origin })
+				.catch(() => ({ outcome: 'error', code: 'extension_error' }));
+			if (result.outcome !== 'signed_in' && !FROM_AN_APP.has(result.code)) {
+				setStatus($('app-status'), t('optionsAppNotSaved', [connectionText(result)]), 'error');
+				return;
+			}
+			await browser.storage.local.set({ [KEYS.origin]: origin });
+			// A key belongs to the app it came from: another address drops it.
+			const { storedKey, keyOrigin } = await readSettings(browser.storage);
+			if (storedKey && keyOrigin !== origin) await browser.storage.local.remove([KEYS.apiKey, KEYS.apiKeyOrigin]);
+			// The old non-default origin's access goes with it (the default's is declared).
+			if (previous && previous !== origin && previous !== DEFAULT_ORIGIN) {
+				const stillNeeded = originPattern(previous) === originPattern(origin);
+				if (!stillNeeded) await browser.permissions.remove({ origins: [originPattern(previous)] }).catch(() => {});
+			}
+			$('app-origin').dataset.saved = origin;
+			await showSettings();
+			const tested = await test();
+			setStatus($('app-status'), t('optionsAppSaved', [connectionText(tested)]), tested.outcome === 'signed_in' ? 'ok' : 'error');
+		})
+		.catch(() => setStatus($('app-status'), t('optionsAppDenied', [origin]), 'error'));
 }
 
 $('app-form').addEventListener('submit', (event) => {
@@ -102,7 +119,8 @@ $('key-form').addEventListener('submit', async (event) => {
 		$('api-key').focus();
 		return;
 	}
-	await browser.storage.local.set({ [KEYS.apiKey]: value });
+	const { origin } = await readSettings(browser.storage);
+	await browser.storage.local.set({ [KEYS.apiKey]: value, [KEYS.apiKeyOrigin]: origin });
 	$('api-key').value = '';
 	await showSettings();
 	setStatus($('key-status'), t('optionsKeySaved', [value.slice(-4)]), 'ok');
@@ -110,7 +128,7 @@ $('key-form').addEventListener('submit', async (event) => {
 });
 
 $('key-clear').addEventListener('click', async () => {
-	await browser.storage.local.remove(KEYS.apiKey);
+	await browser.storage.local.remove([KEYS.apiKey, KEYS.apiKeyOrigin]);
 	$('api-key').value = '';
 	await showSettings();
 	setStatus($('key-status'), t('optionsKeyCleared'), null);

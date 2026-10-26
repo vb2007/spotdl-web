@@ -350,5 +350,23 @@
 	},
 	"optionsAppGrant": {
 		"message": "allow access"
+	},
+	"toastUnreachable": {
+		"message": "Can't reach your spotdl app"
+	},
+	"toastPermissionMissing": {
+		"message": "Let the extension reach your spotdl app, in its settings"
+	},
+	"toastNotAnApp": {
+		"message": "The address in the settings doesn't answer like a spotdl app"
+	},
+	"optionsAppNotSaved": {
+		"message": "Not saved: $RESULT$",
+		"placeholders": {
+			"result": {
+				"content": "$1"
+			}
+		},
+		"description": "RESULT is one of the connection status sentences."
 	}
 }

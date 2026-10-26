@@ -124,6 +124,8 @@ describe('what the app answers', () => {
 		['503 queue_unavailable', json(503, { code: 'queue_unavailable' }), { outcome: 'error', code: 'queue_unavailable' }],
 		['500 with no code', json(500, { detail: 'boom' }), { outcome: 'error', code: 'http_500' }],
 		['an HTML page', new Response('<html>nginx</html>', { status: 404 }), { outcome: 'error', code: 'not_an_app' }],
+		['nginx’s HTML 502 (the api down)', new Response('<html>502 Bad Gateway</html>', { status: 502 }), { outcome: 'error', code: 'unreachable' }],
+		['Cloudflare’s 530 (the tunnel down)', new Response('<html>error 1033</html>', { status: 530 }), { outcome: 'error', code: 'unreachable' }],
 	];
 	for (const [name, answer, expected] of cases) {
 		it(name, async () => {
@@ -210,6 +212,31 @@ describe('settings', () => {
 	it('originPattern drops the port (a Firefox match pattern has none)', () => {
 		assert.equal(originPattern('http://127.0.0.1:5177'), 'http://127.0.0.1/*');
 		assert.equal(originPattern('https://spotdl.vb2007.hu'), 'https://spotdl.vb2007.hu/*');
+	});
+
+	it('a key saved for one app is never sent to another address', async () => {
+		const { deps, calls } = setup({
+			answers: [json(401, { code: 'not_authenticated' })],
+			stored: { appOrigin: 'https://other.example', apiKey: 'sdw_abcdefgh_prodkey', apiKeyOrigin: DEFAULT_ORIGIN },
+		});
+		assert.equal((await submit(deps, { url: TRACK })).code, 'login_required');
+		assert.equal(calls.length, 1);
+		assert.equal(calls[0].init.headers.Authorization, undefined);
+	});
+
+	it('me can check an address before it is saved, without the saved key', async () => {
+		const { deps, calls } = setup({
+			answers: [json(401, { code: 'not_authenticated' })],
+			stored: { apiKey: 'sdw_abcdefgh_prodkey', apiKeyOrigin: DEFAULT_ORIGIN },
+		});
+		const result = await me(deps, { origin: 'http://127.0.0.1:5177' });
+		assert.equal(result.code, 'login_required');
+		assert.equal(calls.length, 1);
+		assert.equal(calls[0].url, 'http://127.0.0.1:5177/api/auth/me');
+	});
+
+	it('an IPv6 loopback address isn’t offered (no host permission covers it)', () => {
+		assert.equal(normalizeOrigin('http://[::1]:5177'), null);
 	});
 
 	it('a stored origin that isn’t valid falls back to the default', async () => {

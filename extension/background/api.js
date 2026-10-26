@@ -46,8 +46,8 @@ async function request(deps, settings, path, init, auth) {
  * Sends one request the way the extension authenticates: the cookie, then (on a 401) the key.
  * Answers `{answer, via}`, or `{error}` with an extension-side code.
  */
-async function authed(deps, path, init) {
-	const settings = await readSettings(deps.storage);
+async function authed(deps, path, init, origin = null) {
+	const settings = await readSettings(deps.storage, origin);
 	let granted = false;
 	try {
 		granted = await deps.permissions.contains({ origins: [originPattern(settings.origin)] });
@@ -64,6 +64,9 @@ async function authed(deps, path, init) {
 		if (!answer.network && answer.status === 401) return { error: fail('key_invalid', { origin: settings.origin }) };
 	}
 	if (answer.network) return { error: fail('unreachable', { origin: settings.origin }) };
+	// A proxy's or tunnel's own error page (nginx's HTML 502 with the api down, Cloudflare's
+	// 502/530): the app is down, not missing.
+	if (answer.body === null && answer.status >= 500) return { error: fail('unreachable', { origin: settings.origin, status: answer.status }) };
 	if (answer.status === 401) return { error: fail('login_required', { origin: settings.origin }) };
 	if (answer.body === null) return { error: fail('not_an_app', { origin: settings.origin, status: answer.status }) };
 	return { answer, via, origin: settings.origin };
@@ -115,9 +118,12 @@ export async function submit(deps, { url, cascade = null }) {
 	return fail(typeof data.code === 'string' ? data.code : `http_${answer.status}`, { via, status: answer.status, origin });
 }
 
-/** Who the extension is signed in as (`GET /api/auth/me`), and through what. */
-export async function me(deps) {
-	const sent = await authed(deps, '/api/auth/me', { method: 'GET' });
+/**
+ * Who the extension is signed in as (`GET /api/auth/me`), and through what. `origin` asks an
+ * address that isn't saved yet (the options page validating one).
+ */
+export async function me(deps, { origin: asked = null } = {}) {
+	const sent = await authed(deps, '/api/auth/me', { method: 'GET' }, asked);
 	if (sent.error) return sent.error;
 	const { answer, via, origin } = sent;
 	if (answer.status === 200 && typeof answer.body.email === 'string') {
@@ -134,7 +140,10 @@ export async function me(deps) {
 	});
 }
 
-/** The popup's list: the newest submissions first, at most HISTORY_LIMIT. */
+/**
+ * The popup's list: the newest submissions first, at most HISTORY_LIMIT. Callers serialize it
+ * (background.js): it reads, then writes.
+ */
 export async function remember(storage, entry) {
 	const stored = await storage.local.get(KEYS.submissions);
 	const list = Array.isArray(stored[KEYS.submissions]) ? stored[KEYS.submissions] : [];

@@ -45,15 +45,15 @@ globalThis.spotdlInject = (() => {
 	const ERROR_KEYS = {
 		login_required: 'errorLoginRequired',
 		key_invalid: 'errorKeyInvalid',
-		permission_missing: 'errorPermissionMissing',
-		unreachable: 'errorUnreachable',
+		permission_missing: 'toastPermissionMissing',
+		unreachable: 'toastUnreachable',
 		rate_limited: 'errorRateLimited',
 		url_not_spotify: 'errorUrlNotSpotify',
 		cascade_not_found: 'errorCascadeNotFound',
 		cascade_unavailable: 'errorCascadeUnavailable',
 		cascade_invalid: 'errorCascadeInvalid',
 		queue_unavailable: 'errorQueueUnavailable',
-		not_an_app: 'errorNotAnApp',
+		not_an_app: 'toastNotAnApp',
 	};
 
 	let doc = null;
@@ -67,6 +67,13 @@ globalThis.spotdlInject = (() => {
 	// Items queued from this tab (by canonical URL), so a re-rendered row keeps its tick.
 	const itemStates = new Map();
 	let menu = null; // { el, button }
+	// Each menu entry's action (kept here, not on the element, which the page can see).
+	const choosers = new WeakMap();
+	// Only the user's own input acts: a page script's synthetic click or key on an icon or
+	// a menu entry (isTrusted false) must never queue anything in their account. Tests,
+	// which can only dispatch synthetic events, opt in through start().
+	let acceptSynthetic = false;
+	const trusted = (event) => event.isTrusted || acceptSynthetic;
 	let toast = null; // { el, timer }
 
 	const t = (key, subs) => {
@@ -130,15 +137,21 @@ globalThis.spotdlInject = (() => {
 		button.addEventListener('click', (event) => {
 			event.preventDefault();
 			event.stopPropagation();
-			submit(button, null);
+			if (trusted(event)) submit(button, null);
 		});
 		button.addEventListener('contextmenu', (event) => {
 			event.preventDefault();
 			event.stopPropagation();
-			openMenu(button);
+			if (trusted(event)) openMenu(button);
 		});
 		button.addEventListener('keydown', (event) => {
 			event.stopPropagation();
+			if (!trusted(event)) return;
+			if (event.key === 'Escape' && menu && menu.button === button) {
+				event.preventDefault();
+				closeMenu(true);
+				return;
+			}
 			if (isMenuKey(event)) {
 				event.preventDefault();
 				openMenu(button);
@@ -191,6 +204,10 @@ globalThis.spotdlInject = (() => {
 				if (menu && menu.button === own) closeMenu(false);
 				applyItem(own, item);
 				setState(own, itemStates.get(item.url) ?? 'idle');
+			} else if (hosts.get(host)?.item.title !== item.title) {
+				// Same item, new title text (a header whose page re-rendered after the address
+				// changed): the label follows.
+				applyItem(own, item);
 			}
 			hosts.set(host, { button: own, item });
 			return;
@@ -264,9 +281,12 @@ globalThis.spotdlInject = (() => {
 		// The row may have been recycled for another item while the request ran.
 		const stillOurs = button.isConnected && button.dataset.spotdlUrl === item.url;
 
-		if (answer.outcome === 'ambiguous' && stillOurs) {
+		if (answer.outcome === 'ambiguous') {
+			const candidates = artistChoices(answer.candidates);
 			setState(button, 'idle');
-			openMenu(button, answer.candidates ?? []);
+			// The row was recycled meanwhile, or no candidate is usable: nothing to ask.
+			if (stillOurs && candidates.length > 0) openMenu(button, candidates);
+			else if (stillOurs) showToast(button, t('errorGeneric', ['cascade_ambiguous']), 'error');
 			return;
 		}
 		const success = answer.outcome in SUCCESS_KEYS;
@@ -291,11 +311,9 @@ globalThis.spotdlInject = (() => {
 			if (answer.outcome === 'queued' && cascade) return t(CASCADE_SUCCESS_KEYS[cascade]);
 			return t(SUCCESS_KEYS[answer.outcome]);
 		}
+		// No app address in the page's DOM: Spotify's scripts can read the toast.
 		const key = ERROR_KEYS[answer.code];
 		if (answer.code === 'rate_limited') return t('errorRateLimited', [String(answer.retryAfter ?? 60)]);
-		if (key === 'errorUnreachable' || key === 'errorPermissionMissing' || key === 'errorNotAnApp') {
-			return t(key, [answer.origin ?? '']);
-		}
 		if (key) return t(key);
 		return t('errorGeneric', [answer.code ?? String(answer.status ?? '?')]);
 	}
@@ -319,6 +337,13 @@ globalThis.spotdlInject = (() => {
 		return [{ text: t('menuDownload'), cascade: null }];
 	}
 
+	// The 409's candidates, reduced to real artist links.
+	function artistChoices(candidates) {
+		return (Array.isArray(candidates) ? candidates : [])
+			.filter((c) => c && typeof c.name === 'string' && selectors.parseItem(c.url)?.type === 'artist')
+			.map((c) => ({ text: c.name, override: { url: selectors.parseItem(c.url).url, name: c.name } }));
+	}
+
 	function openMenu(button, candidates) {
 		const item = hostItem(button);
 		if (!item) return;
@@ -335,11 +360,7 @@ globalThis.spotdlInject = (() => {
 		heading.append(svg(GLYPHS.idle), doc.createTextNode(candidates ? t('menuChooseArtist') : t('menuLabel')));
 		el.append(heading);
 
-		const choices = candidates
-			? candidates
-					.filter((c) => c && typeof c.name === 'string' && selectors.parseItem(c.url)?.type === 'artist')
-					.map((c) => ({ text: c.name, override: { url: selectors.parseItem(c.url).url, name: c.name } }))
-			: menuChoices(item);
+		const choices = candidates ?? menuChoices(item);
 		for (const choice of choices) {
 			const entry = doc.createElement('button');
 			entry.type = 'button';
@@ -347,11 +368,14 @@ globalThis.spotdlInject = (() => {
 			entry.setAttribute('role', 'menuitem');
 			entry.tabIndex = -1;
 			entry.textContent = choice.text;
+			choosers.set(entry, () => {
+				closeMenu(true);
+				submit(button, choice.cascade ?? null, choice.override);
+			});
 			entry.addEventListener('click', (event) => {
 				event.preventDefault();
 				event.stopPropagation();
-				closeMenu(true);
-				submit(button, choice.cascade ?? null, choice.override);
+				if (trusted(event)) choosers.get(entry)?.();
 			});
 			el.append(entry);
 		}
@@ -382,6 +406,7 @@ globalThis.spotdlInject = (() => {
 
 	function onMenuKey(event) {
 		event.stopPropagation();
+		if (!trusted(event)) return undefined;
 		const list = items();
 		const at = list.indexOf(doc.activeElement);
 		const move = (index) => {
@@ -404,7 +429,7 @@ globalThis.spotdlInject = (() => {
 			case 'Enter':
 			case ' ':
 				event.preventDefault();
-				if (at >= 0) list[at].click();
+				if (at >= 0) choosers.get(list[at])?.();
 				return undefined;
 			default:
 				return undefined;
@@ -486,8 +511,10 @@ globalThis.spotdlInject = (() => {
 	/**
 	 * Starts watching `window`'s document. `browserApi` is `{sendMessage, getMessage}`
 	 * (runtime.sendMessage and i18n.getMessage in the extension; stubs in tests).
+	 * `options.acceptSyntheticEvents` is for the tests only.
 	 */
-	function start(window, browserApi, selectorSet) {
+	function start(window, browserApi, selectorSet, options = {}) {
+		acceptSynthetic = options.acceptSyntheticEvents === true;
 		win = window;
 		doc = window.document;
 		api = browserApi;

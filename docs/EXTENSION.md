@@ -27,8 +27,8 @@ Open the extension's settings (the toolbar popup's *settings*, or `about:addons`
 
 | Setting | What it does |
 |---|---|
-| **App address** | Where your spotdl-web runs. Default `https://spotdl.vb2007.hu`. Any `https://` address works; plain `http://` only on `localhost`/`127.0.0.1` (a dev or agent stack). Saving another address asks Firefox for access to that host (the default's is declared up front). The new address is checked with `GET /api/auth/me`. |
-| **API key** (optional) | A key from the app's `/account` page (*Browser extension keys*). Kept in `storage.local` only, never synced. |
+| **App address** | Where your spotdl-web runs. Default `https://spotdl.vb2007.hu`. Any `https://` address works; plain `http://` only on `localhost`/`127.0.0.1` (a dev or agent stack). Saving another address asks Firefox for access to that host (the default's is declared up front). The address is checked with `GET /api/auth/me` first, and saved only if it answers like a spotdl app (signed in or not). |
+| **API key** (optional) | A key from the app's `/account` page (*Browser extension keys*). Kept in `storage.local` only, never synced, and tied to the app address it was saved for: it's never sent anywhere else, and saving another address removes it. |
 | **Connection** | *test connection* says who you're signed in as, and whether through your browser sign-in or the key. |
 | **open.spotify.com** | Whether the extension may add its icons there, with a button to allow it. |
 
@@ -55,7 +55,8 @@ page, even when its user is an admin.
   tracks, search songs), in an album, artist or playlist page's action bar, and in the corner of
   album, artist and playlist cards (shelves, search, the top result). Rows and cards show it on
   hover or keyboard focus; page headers always do. It's a real button: Tab reaches it.
-- **Click** (or Enter/Space) queues that item.
+- **Click** (or Enter/Space) queues that item. Only your own input counts: a page script's
+  synthetic click or key on an icon is ignored.
 - **Right-click**, **Shift+F10** or the **Menu key** opens the cascade menu:
   - a track: *This track · Whole album · Whole artist*;
   - an album: *This album · Whole artist*;
@@ -73,7 +74,7 @@ page, even when its user is an admin.
   | Already in your queue | You have an unfinished job for that link. The app returned it, and nothing new was made. |
   | Already in the library | The track is in the shared library: the job resolves at once, nothing is downloaded. |
   | Too many submissions. Try again in N s | The app's per-user rate limit. |
-  | Can't reach spotdl at … | The app's address doesn't answer. |
+  | Can't reach your spotdl app | The app's address doesn't answer, or answers with a proxy's error page (the app or its tunnel is down). The settings name the address; the page never sees it. |
   | Log in to spotdl… / the API key was refused | See "How it signs in". The settings open. |
 
 - **The popup** (toolbar button) shows the connection's state and your last 10 submissions, with
