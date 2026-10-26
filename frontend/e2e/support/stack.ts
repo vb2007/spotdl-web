@@ -326,7 +326,7 @@ elif row is None:
 }
 
 /** Removes a TEST-NET proxy a killed run may have left (else the next create answers 409),
- * switching it off if it can't be deleted (a used proxy can't, v43's found-not-fixed). */
+ * switching it off if it can't be deleted (before v56 a used proxy couldn't be). */
 export async function removeTestProxy(context: APIRequestContext, url: string): Promise<void> {
 	const proxies = (await (await context.get('/api/proxies')).json()) as {
 		id: string;

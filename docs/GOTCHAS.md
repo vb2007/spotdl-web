@@ -6637,6 +6637,8 @@ independently-found production bug from the same conversation)
   `pick_proxy` skips it, and after a candidate's probe locks only that one `FOR UPDATE SKIP
   LOCKED` (a delete deciding meanwhile holds the row, so the pick passes over it; no lock is held
   across the probes). `used_proxy_id` names the current attempt's proxy only (a direct attempt
-  clears it), or `proxy_in_use` would see a direct download as going through the old proxy. `finalize_proxy_deletions` (beat, every
+  clears it), or `proxy_in_use` would see a direct download as going through the old proxy. A
+  track cancelled mid-download within the stale-track window also counts as using its proxy: a
+  cancel lets the download run to its end, and the delete must wait for it too. `finalize_proxy_deletions` (beat, every
   30s) deletes it once idle, and `/settings` shows it as "deleting" until then. On the slot it was
   gone 17s after its download ended.

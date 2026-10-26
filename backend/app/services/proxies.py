@@ -364,7 +364,9 @@ def pick_proxy(db: Session) -> Proxy | None:
             )
             if chosen is None:
                 continue
-            chosen.last_used_at = now
+            # Stamped now, not when the pick began: the probes before it can take seconds, and
+            # proxy_in_use's grace counts from here.
+            chosen.last_used_at = datetime.now(timezone.utc)
             return chosen
         logger.warning(
             "pick_proxy: %s didn't accept a TCP connection; cooling it down and trying the next",
@@ -381,12 +383,19 @@ PROXY_IN_USE_GRACE = timedelta(seconds=60)
 
 def proxy_in_use(db: Session, proxy: Proxy, now: datetime) -> bool:
     """Whether a download may be going through `proxy` right now: a track `downloading` with
-    it as its proxy, or a pick within PROXY_IN_USE_GRACE. Call with the proxy row locked."""
+    it as its proxy, one cancelled mid-download within the stale-track window (its download
+    runs on to the end, cancel's own semantics), or a pick within PROXY_IN_USE_GRACE. Call
+    with the proxy row locked."""
     last_used_at = proxy.last_used_at
     if last_used_at is not None and last_used_at > now - PROXY_IN_USE_GRACE:
         return True
+    still_running = timedelta(seconds=get_settings().stale_track_after_seconds)
     return db.query(
-        exists().where(Track.used_proxy_id == proxy.id, Track.state == TrackState.DOWNLOADING)
+        exists().where(
+            Track.used_proxy_id == proxy.id,
+            (Track.state == TrackState.DOWNLOADING)
+            | ((Track.state == TrackState.CANCELLED) & (Track.updated_at > now - still_running)),
+        )
     ).scalar()
 
 

@@ -914,10 +914,10 @@ export function setProxyEnabled(proxyId: string, enabled: boolean): Promise<Prox
 	});
 }
 
-/** A manual proxy is hard-deleted (204, no body); a file-sourced proxy is only
- * soft-disabled (200, returns the updated row) -- see the backend's own docstring for
- * why. `undefined` back means "the row is really gone." */
-/** Undefined when it's gone (204); the proxy, `deleting`, when a download is using it (202). */
+/** A manual proxy is hard-deleted (204, no body: `undefined` back means "the row is really
+ * gone"), or, while a download is using it, marked `deleting` (202, the row; v56, A4); a
+ * file-sourced proxy is only soft-disabled (200, the updated row) -- see the backend's own
+ * docstring for why. */
 export function deleteProxy(proxyId: string): Promise<Proxy | undefined> {
 	return request(`/api/proxies/${proxyId}`, { method: 'DELETE' });
 }

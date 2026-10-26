@@ -835,3 +835,21 @@ def test_sync_skips_a_file_url_identical_to_a_manual_proxy_being_deleted(db_sess
 
     files = [p.url for p in db_session.query(Proxy).filter(Proxy.source == ProxySource.FILE)]
     assert files == ["http://10.0.0.22:3128"]
+
+
+def test_a_proxy_behind_a_cancelled_download_still_running_is_in_use(db_session):
+    """A cancel leaves the download running to its end (cancel's semantics), so a proxy a
+    track used and was cancelled on moments ago still counts as in use; one cancelled longer
+    ago than the stale-track window doesn't."""
+    from app.models import TrackState
+
+    now = datetime.now(timezone.utc)
+    proxy = Proxy(url="http://10.0.0.30:3128", source=ProxySource.MANUAL, enabled=True, last_used_at=now - timedelta(hours=1))
+    db_session.add(proxy)
+    db_session.commit()
+    track = _downloading_through(db_session, proxy)
+    track.state = TrackState.CANCELLED
+    db_session.commit()
+
+    assert proxies.proxy_in_use(db_session, proxy, now) is True
+    assert proxies.proxy_in_use(db_session, proxy, now + timedelta(hours=2)) is False
