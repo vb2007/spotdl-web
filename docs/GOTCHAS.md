@@ -6754,7 +6754,8 @@ independently-found production bug from the same conversation)
   template), dated 2026-10-01/02, and the ledger points at those. The August files belonged to
   the shared dev/prod database's ledger; v32 (2026-10-01) gave dev its own empty
   `spotdlwebtest`, so the tracks downloaded again under the new name and were swept, and the old
-  files were left with no row. Benign: nothing points at them, and deleting them is the owner's
+  files were left with no row (read-only check of `spotdlwebtest`: no row names an August file,
+  and its oldest ledger row is 2026-10-01 10:43, the day v32 created it). Benign: nothing points at them, and deleting them is the owner's
   call. Reproduced on a fresh slot database to rule out a live cause: a 2-track album downloaded
   for real by one user (2 files), the same album by a second user (2 `skipped_duplicate`, still
   2 files), then one file deleted by hand and the track resubmitted (L5's case, one `completed
