@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 from concurrency import Gate, Thread
+from sqlalchemy import text
 
 from app.models import (
     Job,
@@ -200,3 +201,40 @@ def test_a_track_still_owned_after_the_pacing_sleep_downloads(committed_db, monk
     assert len(real_task.downloaded) == 1
     with committed_db() as db:
         assert db.get(Track, track_id).state == TrackState.COMPLETED
+
+
+# --- E7: no transaction idles during the download -----------------------------------------
+
+
+def test_no_transaction_is_left_open_during_the_download(committed_db, monkeypatch, real_task):
+    """Observed from Postgres itself while the (faked) network call runs: the task's session
+    holds no transaction. Reading song_json after the `downloading` commit used to open one
+    that sat `idle in transaction` for the whole download. The completed row's updated_at is
+    then the completion's, never earlier than its attempt's finished_at."""
+    from app.db import engine
+
+    track_id = _committed_track(committed_db)
+    seen = []
+
+    def download_one(song, downloader):
+        with engine.connect() as conn:
+            seen.extend(
+                conn.execute(
+                    text(
+                        "SELECT state FROM pg_stat_activity WHERE datname = current_database() "
+                        "AND pid <> pg_backend_pid() AND state LIKE 'idle in transaction%'"
+                    )
+                ).scalars()
+            )
+        return song, real_task.output_path
+
+    monkeypatch.setattr(downloads, "download_one", download_one)
+
+    download_task.download_track(str(track_id))
+
+    assert seen == []
+    with committed_db() as db:
+        track = db.get(Track, track_id)
+        attempt = db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).one()
+        assert track.state == TrackState.COMPLETED
+        assert track.updated_at >= attempt.finished_at

@@ -323,12 +323,23 @@ def download_track(track_id: str) -> None:
         claim = {"state": TrackState.DOWNLOADING}
         if proxy_id is not None:
             claim["used_proxy_id"] = proxy_id
+        # v55 (E7): everything the download needs, read here, so nothing touches the ORM
+        # between the commit below and the post-download refresh. Reading an expired row (or
+        # the output settings row) after that commit opened a transaction that sat
+        # `idle in transaction` for the whole download, and the completed row's updated_at
+        # (Postgres' now(), the transaction's start) read as the download's start.
+        track_uuid, job_id = track.id, track.job_id
+        song_json, attempt_count = track.song_json, track.attempt_count
+        output_format = output_settings.default_format
+        output_bitrate = output_settings.default_bitrate
+        output_template = output_settings.output_template
+        track_meta = track_song_meta(song_json)
         claimed = db.execute(
             update(Track)
             .where(
-                Track.id == track.id,
+                Track.id == track_uuid,
                 Track.state == entry_state,
-                ~attempts.recorded_since(track.id, entry_attempt),
+                ~attempts.recorded_since(track_uuid, entry_attempt),
             )
             .values(**claim)
             .returning(Track.id)
@@ -345,27 +356,26 @@ def download_track(track_id: str) -> None:
                 proxies.redact(proxy_url),
             )
         db.commit()
-        track_meta = track_song_meta(track.song_json)
         events.publish_track_event(
             owner_id,
-            track.id,
-            track.job_id,
-            track.state.value,
+            track_uuid,
+            job_id,
+            TrackState.DOWNLOADING.value,
             progress=0,
-            attempt_count=track.attempt_count,
+            attempt_count=attempt_count,
             **track_meta,
         )
 
         try:
-            song = Song.from_dict(track.song_json)
+            song = Song.from_dict(song_json)
             # output_dir stays env-sourced (never DB-editable, see app_settings.py's
             # docstring) -- the directory a container can actually write to is fixed by
             # its volume mount at deploy time, not by an app-level setting.
             downloader = downloads.get_downloader(
-                output_settings.default_format,
-                output_settings.default_bitrate,
+                output_format,
+                output_bitrate,
                 get_settings().download_output_dir,
-                output_settings.output_template,
+                output_template,
                 proxy=proxy_url,
                 network_path=chosen_path,
             )
@@ -373,7 +383,7 @@ def download_track(track_id: str) -> None:
             # rebind this per attempt rather than threading track/job ids through
             # get_downloader's cache key.
             downloader.progress_handler.update_callback = events.make_progress_callback(
-                owner_id, track.id, track.job_id, attempt_count=track.attempt_count, **track_meta
+                owner_id, track_uuid, job_id, attempt_count=attempt_count, **track_meta
             )
             # force_family covers ytmusicapi's search calls too, which have no
             # family-forcing knob of their own (see network_path.py's docstring) -- yt-dlp's
@@ -492,24 +502,29 @@ def download_track(track_id: str) -> None:
                 DownloadedTrack(
                     spotify_track_id=track.spotify_track_id,
                     file_path=str(output_path),
-                    format=output_settings.default_format,
-                    bitrate=output_settings.default_bitrate,
+                    format=output_format,
+                    bitrate=output_bitrate,
                     in_library=False,
                 )
             )
             if proxy_id is not None:
                 proxies.record_proxy_result(db, proxy_id, success=True)
             retry.record_success(db, track)
+            finished_at = datetime.now(timezone.utc)
             attempts.record_attempt(
                 db,
                 track.id,
                 attempt_started_at,
-                datetime.now(timezone.utc),
+                finished_at,
                 TrackAttemptOutcome.COMPLETED,
                 proxy_id=proxy_id,
                 warning_message=f"tag warning: {tag_warning}" if tag_warning else None,
                 network_path=chosen_path,
             )
+            # v55 (E7): the completion's own time, set after record_attempt (its counter
+            # UPDATE expires the attribute). The onupdate now() would be this transaction's
+            # start, the refresh above, a little before the attempt's finished_at.
+            track.updated_at = finished_at
             db.commit()
             events.publish_track_event(
                 owner_id,
