@@ -69,6 +69,26 @@ def test_record_failure_lookup_is_terminal_and_never_reschedules(db_session):
     assert track.attempt_count == 0
 
 
+def test_a_lookup_verdict_after_a_ladder_failure_clears_the_retry_time(db_session):
+    """v55 (E10): the track waited out a ladder step (scheduled_at set), then its next attempt
+    came back terminal. The leftover scheduled_at used to stay, and the API reported it as the
+    track's next retry."""
+    from app.services.serializers import track_to_dict
+
+    track = _make_track(db_session)
+    retry.record_failure(db_session, track, TrackErrorType.AUDIO_PROVIDER, "rate limited")
+    db_session.commit()
+    assert track.scheduled_at is not None
+
+    retry.record_failure(db_session, track, TrackErrorType.LOOKUP, "no result found")
+    db_session.commit()
+
+    assert track.state == TrackState.LOOKUP_FAILED
+    assert track.scheduled_at is None
+    assert track.attempt_count == 1  # the terminal verdict climbs no rung
+    assert track_to_dict(track)["scheduled_at"] is None
+
+
 def test_record_failure_audio_provider_advances_ladder_and_breaker(db_session):
     track = _make_track(db_session)
     before = datetime.now(timezone.utc)

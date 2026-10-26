@@ -202,8 +202,13 @@ def record_failure(db: Session, track: Track, error_type: TrackErrorType, messag
     track.last_error_type = error_type
 
     if error_type == TrackErrorType.LOOKUP:
-        # Terminal — never touch scheduled_at, never retried.
+        # Terminal, never retried: no retry time is ever set for it. v55 (E10): one left
+        # over from an earlier ladder failure is cleared too, rather than every reader
+        # having to know to ignore it (the API reported it as the track's next retry). The
+        # rule this keeps is the original one: nothing schedules a terminal track, so beat
+        # (which reads only `waiting` rows) and the rollup never see a due time for it.
         track.state = TrackState.LOOKUP_FAILED
+        track.scheduled_at = None
         return
 
     # next_delay reads attempt_count as "failures before this one" (0 on the very first
