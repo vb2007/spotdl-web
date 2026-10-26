@@ -56,6 +56,9 @@
 	// Never for a non-admin, whatever the URL says or an earlier admin session on this tab
 	// left in the store.
 	const VIEWS: readonly View[] = ['mine', 'all', 'others'];
+	// One rule for "is this the viewer's", the store's (`queue.setViewer`): case-insensitive.
+	const myEmail = $derived(data.session?.email?.toLowerCase());
+	const isMe = (email: string) => email.toLowerCase() === myEmail;
 	// `location`, not `route.url`: a Back to an entry `replaceState` rewrote navigates to the URL
 	// SvelteKit recorded for it (the one before the rewrite), so `route.url` can name a view the
 	// admin has since left; the address bar can't. The page is client-only (`ssr = false`).
@@ -72,13 +75,14 @@
 		untrack(() => (isAdmin ? (viewInUrl() ?? viewInEntry() ?? queue.getView()) : 'mine'))
 	);
 
-	// v54: an in-app navigation to `/` while here (`g d`) would drop `?view=`; put it back. A
+	// v54: an in-app navigation to a bare `/` while here (`g d`) would drop `?view=`; put it back. A
 	// Back/Forward to another dashboard entry while this page is still mounted reuses it, so
 	// that entry's own view (its URL, else its state) is adopted instead of overwritten.
+	// A link or `goto` to `/?view=…` names its view too, and is adopted the same way.
 	afterNavigate((navigation) => {
 		if (navigation.type === 'enter') return;
-		if (navigation.type === 'popstate' && isAdmin) {
-			const left = viewInUrl() ?? viewInEntry();
+		if (isAdmin) {
+			const left = navigation.type === 'popstate' ? (viewInUrl() ?? viewInEntry()) : viewInUrl();
 			if (left !== null && left !== view) {
 				onViewChange(left);
 				return;
@@ -793,7 +797,7 @@
 						<button type="button" class="state-action" onclick={clearSearchAndFilters}
 							>{m.dashboard_empty_clear()}</button
 						>
-					{:else if $incomingJobs.some((j) => j.state === 'expanding' && (view !== 'mine' || j.owner_email === data.session?.email))}
+					{:else if $incomingJobs.some((j) => j.state === 'expanding' && (view !== 'mine' || isMe(j.owner_email)))}
 						<h3 class="state-title">
 							{view === 'all'
 								? m.dashboard_reading_any()
@@ -832,7 +836,7 @@
 							job={item as Job}
 							{view}
 							{isAdmin}
-							own={view === 'mine' || (item as Job).owner_email === data.session?.email}
+							own={view === 'mine' || isMe((item as Job).owner_email)}
 						/>
 					{/each}
 				</ul>
@@ -865,7 +869,7 @@
 										{track}
 										jobId={group.job.id}
 										{isAdmin}
-										elsewhere={view !== 'mine' && group.job.owner_email !== data.session?.email}
+										elsewhere={view !== 'mine' && !isMe(group.job.owner_email)}
 									/>
 								{/each}
 							</ul>

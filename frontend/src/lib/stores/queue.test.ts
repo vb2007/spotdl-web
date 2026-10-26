@@ -802,7 +802,7 @@ describe('v54: the three-way view and whose lanes warm the page (U1)', () => {
 		expect(get(queue.viewerReceiving)).toBe(false);
 	});
 
-	it('all: an SSE lane (no owner in the payload) is placed by one debounced lookup, once', async () => {
+	it('all: an SSE lane (no owner in the payload) is placed by one throttled lookup, once', async () => {
 		queue.setView('all');
 		queue.setViewer('me@example.com');
 		routeActive({});
@@ -1054,5 +1054,41 @@ describe('v54 review round 4', () => {
 		expect(get(queue.viewerReceiving)).toBe(false);
 		await queue.refreshOwnElsewhere(true);
 		expect(listTracksPage.mock.calls.at(-1)?.[0]).toMatchObject({ view: 'mine', limit: 1 });
+	});
+});
+
+describe('v54 review round 7', () => {
+	function owned(id: string, email: string): TrackWithJob {
+		const t = downloadingTrack(id);
+		return { ...t, job: { ...t.job, owner_email: email } };
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		queue.reset();
+		vi.resetAllMocks();
+		listJobsPage.mockResolvedValue(jobsPage([]));
+		listTracksPage.mockResolvedValue(tracksPage([]));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('others: a poll that fails after a resync started discards nothing', async () => {
+		queue.setView('others');
+		const own = deferred<TracksPage>();
+		listTracksPage.mockImplementation((params = {}) =>
+			params.view === 'mine' ? own.promise : Promise.resolve(tracksPage([]))
+		);
+		const reloading = queue.reload();
+		// A newer poll is sent, and its worker-status request fails.
+		const failed = Promise.reject(new Error('offline'));
+		const polling = queue.refreshOwnElsewhere(failed);
+		await polling;
+		// The resync's (older, but the only one to land) answer still counts.
+		own.resolve(tracksPage([owned('mine-1', 'me@example.com')]));
+		await reloading;
+		expect(get(queue.viewerReceiving)).toBe(true);
 	});
 });

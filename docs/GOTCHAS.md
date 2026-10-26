@@ -6288,6 +6288,10 @@ independently-found production bug from the same conversation)
   asks `GET /api/tracks?state=downloading&view=mine` on each resync and on the page's existing 5 s
   worker poll, in `others` only, and the layout's ambient field reads `queue.viewerReceiving`. So
   the field can take up to 5 s to warm or cool for an own download seen from `others`.
+  _(Corrected 2026-10-26, v54 review rounds 4–7: the store-internal count is asked for one row
+  (`limit=1`), on the poll only while that poll's own answer says the worker is busy (`busy` is
+  "any track `downloading`", so idle means 0); each check takes its place in line when it
+  starts, and the newest one that lands wins, so a failed poll discards nothing.)_
 - **A filtered stream can go silent for longer than the heartbeat interval.** The heartbeat was
   "no message within 15 s"; with the admin's own progress ticks arriving every second and all of
   them dropped under `others`, nothing would have been written at all. `_event_stream` now also

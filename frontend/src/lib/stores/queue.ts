@@ -417,7 +417,7 @@ function createQueueStore() {
 	async function hydrateLive(): Promise<void> {
 		const seq = ++liveHydrateSeq;
 		const startedAt = liveEventCounter;
-		// A poll that starts after this snapshot is newer than it, and wins.
+		// Its place in line among the own-download answers (see `applyOwnElsewhere`).
 		const ownSeq = view === 'others' ? ++ownElsewhereSeq : null;
 		const [incomingResult, activeResult, ownResult] = await Promise.allSettled([
 			api.listJobsPage({ status: ['expanding', 'failed'], view, limit: HYDRATE_LIMIT }),
@@ -432,10 +432,8 @@ function createQueueStore() {
 			view === 'others' ? ownDownloading() : Promise.resolve(null)
 		]);
 		if (seq !== liveHydrateSeq) return;
-		// A failed check keeps the last value, as `refreshOwnElsewhere`'s does; a poll from
-		// before this resync can't overwrite it, nor can this overwrite a later poll's.
-		if (ownSeq === ownElsewhereSeq && ownResult.status === 'fulfilled') {
-			ownReceivingElsewhere.set(ownResult.value ?? 0);
+		if (ownSeq !== null && ownResult.status === 'fulfilled') {
+			applyOwnElsewhere(ownSeq, ownResult.value ?? 0);
 		}
 		if (incomingResult.status === 'fulfilled') {
 			mergeIncoming(incomingResult.value, startedAt);
@@ -571,14 +569,22 @@ function createQueueStore() {
 	 * stream drops the viewer's channel), so their own download still warms the page there.
 	 * Always 0 in `mine` and `all`, whose lanes already show them. */
 	const ownReceivingElsewhere = writable(0);
+	/** Every own-download check (a resync's, a poll's) takes the next number when it starts;
+	 * the newest one that actually lands wins, and a failed one discards nothing. */
 	let ownElsewhereSeq = 0;
+	let ownElsewhereApplied = 0;
+
+	function applyOwnElsewhere(seq: number, n: number): void {
+		if (seq <= ownElsewhereApplied) return;
+		ownElsewhereApplied = seq;
+		ownReceivingElsewhere.set(n);
+	}
 
 	/** Re-reads `ownReceivingElsewhere`, in `others` only (the page calls it on its 5s worker
 	 * poll; the view's own events can't say when the viewer's download starts or ends). With
 	 * the worker idle (`workerBusy` false) nobody is downloading, so it asks nothing. One
 	 * request otherwise; a failed one keeps the last value. The page passes the poll's own
-	 * answer, still pending: this call's place in line is when the poll was sent, so a resync
-	 * that starts after it wins over it. */
+	 * answer, still pending: this call's place in line is when the poll was sent. */
 	async function refreshOwnElsewhere(workerBusy: boolean | Promise<boolean> = true): Promise<void> {
 		if (view !== 'others') return;
 		const seq = ++ownElsewhereSeq;
@@ -589,14 +595,14 @@ function createQueueStore() {
 		} catch {
 			return;
 		}
-		if (seq !== ownElsewhereSeq || epoch !== storeEpoch) return;
+		if (epoch !== storeEpoch) return;
 		if (!busy) {
-			ownReceivingElsewhere.set(0);
+			applyOwnElsewhere(seq, 0);
 			return;
 		}
 		try {
 			const n = await ownDownloading();
-			if (seq === ownElsewhereSeq && epoch === storeEpoch) ownReceivingElsewhere.set(n);
+			if (epoch === storeEpoch) applyOwnElsewhere(seq, n);
 		} catch {
 			// Kept: the stream and the next poll say more.
 		}
@@ -623,7 +629,8 @@ function createQueueStore() {
 		laneOwnersTimer = undefined;
 		laneOwnersSeq++;
 		lanesLookedUp.clear();
-		ownElsewhereSeq++;
+		// Everything in flight belongs to the previous view or identity.
+		ownElsewhereApplied = ++ownElsewhereSeq;
 		ownReceivingElsewhere.set(0);
 	}
 

@@ -113,6 +113,18 @@ test.describe('admin', () => {
 		await page.goBack();
 		await expect(page.getByText(t(m.dashboard_count_loading))).toHaveCount(0);
 		await expectView(page, 'mine');
+
+		// An in-app link to `/?view=…` while the dashboard is mounted names its view too.
+		await switched(page, () =>
+			page.evaluate(() => {
+				const a = document.createElement('a');
+				a.href = '/?view=all';
+				document.body.append(a);
+				a.click();
+				a.remove();
+			})
+		);
+		await expectView(page, 'all');
 	});
 
 	test('a "try again" that lands after a switch into others puts nothing of the admin\u2019s there', async ({
