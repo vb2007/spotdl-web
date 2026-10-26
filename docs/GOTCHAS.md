@@ -6627,7 +6627,6 @@ independently-found production bug from the same conversation)
   those tracks stay unmarked. The largest real jobs are about a thousand tracks (a discography),
   so it's accepted; chunk the UPDATE if jobs ever get that big. The success path is safe
   regardless: `_mark_due` marks each track on its own ORM row before the claim.
-
 - **A used proxy's delete waits for its download (owner's decision).** ON DELETE SET NULL made a
   used proxy deletable, and every review round then found another millisecond window where the
   delete met a download through that proxy (an FK violation, a StaleDataError, a lock-order
