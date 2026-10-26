@@ -1092,3 +1092,32 @@ describe('v54 review round 7', () => {
 		expect(get(queue.viewerReceiving)).toBe(true);
 	});
 });
+
+describe('v54 review round 9', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		queue.reset();
+		vi.resetAllMocks();
+		listJobsPage.mockResolvedValue(jobsPage([]));
+		listTracksPage.mockResolvedValue(tracksPage([]));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('others: a remount starts cold until its resync says otherwise', async () => {
+		queue.setView('others');
+		listTracksPage.mockImplementation(async (params = {}) =>
+			tracksPage(params.view === 'mine' ? [downloadingTrack('mine-1')] : [])
+		);
+		await queue.reload();
+		expect(get(queue.viewerReceiving)).toBe(true);
+		// The page is left and mounted again, still in others; the download ended meanwhile.
+		queue.beginResync();
+		expect(get(queue.viewerReceiving)).toBe(false);
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		await queue.reload();
+		expect(get(queue.viewerReceiving)).toBe(false);
+	});
+});

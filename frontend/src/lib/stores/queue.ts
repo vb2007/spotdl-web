@@ -400,6 +400,10 @@ function createQueueStore() {
 	 * fresh mount, which no longer fetches eagerly (see `reload`). */
 	function beginResync(): void {
 		page.update((p) => ({ ...p, loading: true, error: null, moreError: null }));
+		// v54: what the others view knew about the viewer's own download is from before this
+		// mount (the download may have ended meanwhile); the resync asks again.
+		ownElsewhereApplied = ++ownElsewhereSeq;
+		ownReceivingElsewhere.set(0);
 	}
 
 	/** v34: one bulk request per overlay, issued in parallel -- never a per-row loop. Both
@@ -641,7 +645,10 @@ function createQueueStore() {
 		if (view === 'mine') return;
 		const seq = ++laneOwnersSeq;
 		const epoch = storeEpoch;
-		const asked = Object.keys(get(liveActive));
+		const lanes = get(liveActive);
+		// Lanes that have ended since are forgotten, so a long-lived tab doesn't collect them.
+		for (const id of lanesLookedUp) if (!(id in lanes)) lanesLookedUp.delete(id);
+		const asked = Object.keys(lanes);
 		for (const id of asked) lanesLookedUp.add(id);
 		let listed: TracksPage;
 		try {
