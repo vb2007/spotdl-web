@@ -585,3 +585,14 @@ here.
     terminal row ignored every later event, so the UI stayed off by one until a reload, which
     is what E6 exists to stop. A `cancelled` event on a cancelled row now updates only its
     counters (no other state, no other field); v62 rebases onto it.
+
+- **2026-10-26, v56: a `failed` job stays cancellable; A8's rule confirmed (owner's decisions).**
+  - **A1:** the plan lets only an `expanding`/`active`/`waiting` job be cancelled. A `failed` job
+    (an expansion error, zero tracks) is cancelled too: that cancel is how the incoming overlay's
+    "dismiss" and the end of its "try again" clear it (`IncomingJobs.svelte`), and as written they
+    would have answered 409 forever. Settled and already-cancelled jobs answer 409
+    `job_not_cancellable`.
+  - **A8:** the plan's rule is kept as written: a non-admin's "retry now" on a `waiting` track
+    works once per ladder step. Each failed attempt advances the step, so it allows one immediate
+    retry per failure (the breaker still bounds a streak). `lookup_failed` retries and an admin's
+    stay unrestricted.
