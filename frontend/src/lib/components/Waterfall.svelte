@@ -15,7 +15,12 @@
 	 * v42 (F04, F05): the idle line tells the truth about *why* nothing is receiving.
 	 * `breakerUntil` is set only while the breaker is actually holding (the caller drops a
 	 * past timestamp), `paused` is the worker's own flag, and `link` is this page's SSE
-	 * stream: while it is down, nothing on the panel can be trusted to be current. */
+	 * stream: while it is down, nothing on the panel can be trusted to be current.
+	 *
+	 * v54 (U1): in the admin's all/others views the lanes can be other users' downloads,
+	 * which are receiving but not *for this viewer*: they keep their meter in a neutral
+	 * "elsewhere" tone and name their owner, and only the viewer's own lanes (`track.mine`)
+	 * take amber or light the panel's edge. A lane not yet placed reads as elsewhere. */
 	let {
 		tracks,
 		busy = false,
@@ -88,7 +93,7 @@
 
 <section
 	class="panel waterfall"
-	class:live={tracks.length > 0 && link === 'live'}
+	class:live={tracks.some((t) => t.mine) && link === 'live'}
 	class:held={tracks.length === 0 && idle === 'holding'}
 	aria-labelledby="waterfall-heading"
 >
@@ -151,12 +156,18 @@
 	{:else}
 		<ul class="lanes" class:stale={link !== 'live'}>
 			{#each tracks as track (track.id)}
-				<li class="lane">
+				<li class="lane" class:elsewhere={!track.mine}>
 					<div class="meta">
 						<span class="title" id="lane-title-{track.id}"
 							>{track.title ?? m.waterfall_unknown_title()}</span
 						>
-						<span class="artist">{track.artists?.join(', ') ?? m.waterfall_unknown_artist()}</span>
+						<span class="byline">
+							{#if !track.mine && track.owner}
+								<span class="owner mono">{track.owner}</span>
+							{/if}
+							<span class="artist">{track.artists?.join(', ') ?? m.waterfall_unknown_artist()}</span
+							>
+						</span>
 					</div>
 					<div
 						class="meter well"
@@ -341,6 +352,22 @@
 		color: var(--text-muted);
 	}
 
+	/* v54 (U1): another user's download, receiving but not for this viewer (§2): the meter
+	   keeps moving in a quiet slate, without the amber, glow or sheen, and the owner's name
+	   says whose it is, so colour isn't the only cue. */
+	.lane.elsewhere .fill {
+		background: linear-gradient(90deg, var(--line-bright), var(--text-dim));
+		box-shadow: none;
+	}
+
+	.lane.elsewhere .fill::after {
+		display: none;
+	}
+
+	.lane.elsewhere .pct {
+		color: var(--text-muted);
+	}
+
 	.lane {
 		display: grid;
 		/* v47: the title gets the larger share (it was a third, cut at ~280px of 950). */
@@ -362,12 +389,31 @@
 		text-overflow: ellipsis;
 	}
 
+	.byline {
+		display: flex;
+		align-items: baseline;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+
 	.artist {
+		min-width: 0;
 		font-size: var(--fs-detail);
 		color: var(--text-muted);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	/* The owner tag as the job rows have it: muted meta, never shrunk to nothing. */
+	.owner {
+		flex: none;
+		max-width: 50%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		color: var(--text-muted);
+		font-size: var(--fs-meta);
 	}
 
 	.meter {

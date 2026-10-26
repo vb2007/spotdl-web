@@ -1,6 +1,7 @@
 import asyncio
 import uuid
 
+import pytest
 import redis.asyncio as aioredis
 
 from app.models import User
@@ -8,7 +9,7 @@ from app.routers import stream as stream_router
 from app.services.events import ADMIN_CHANNEL_PATTERN, channel_for
 
 
-async def _fake_event_stream(request, user, all_users):
+async def _fake_event_stream(request, user, view):
     yield 'data: {"type": "track.state", "state": "downloading"}\n\n'
 
 
@@ -35,16 +36,29 @@ def test_stream_returns_sse_headers_and_forwarded_events(authenticated_client, m
 
 
 class _FakeRequest:
+    """Disconnects once `polls` loop turns have run: 0 ends the loop after the (p)subscribe
+    call, before any get_message wait, for the tests about which channel gets subscribed."""
+
+    def __init__(self, polls: int = 0):
+        self.polls = polls
+
     async def is_disconnected(self) -> bool:
-        # Ends the loop after the (p)subscribe call, before any get_message wait --
-        # these tests are about which channel gets subscribed to, not the forward loop.
-        return True
+        if self.polls <= 0:
+            return True
+        self.polls -= 1
+        return False
 
 
 class _FakePubSub:
-    def __init__(self):
+    """`messages` are replayed in order, shaped as redis-py delivers them: `channel` as
+    bytes, a `pmessage` while pattern-subscribed and a `message` otherwise."""
+
+    def __init__(self, messages: list[tuple[str, str]] | None = None):
         self.subscribed: list[str] = []
         self.psubscribed: list[str] = []
+        self.unsubscribed: list[str] = []
+        self.punsubscribed: list[str] = []
+        self._messages = list(messages or [])
 
     async def subscribe(self, channel: str) -> None:
         self.subscribed.append(channel)
@@ -53,21 +67,26 @@ class _FakePubSub:
         self.psubscribed.append(pattern)
 
     async def unsubscribe(self, channel: str) -> None:
-        pass
+        self.unsubscribed.append(channel)
 
     async def punsubscribe(self, pattern: str) -> None:
-        pass
+        self.punsubscribed.append(pattern)
 
-    async def get_message(self, **kwargs) -> None:
-        return None
+    async def get_message(self, **kwargs) -> dict | None:
+        if not self._messages:
+            return None
+        channel, data = self._messages.pop(0)
+        if self.psubscribed:
+            return {"type": "pmessage", "pattern": self.psubscribed[0].encode(), "channel": channel.encode(), "data": data.encode()}
+        return {"type": "message", "pattern": None, "channel": channel.encode(), "data": data.encode()}
 
     async def aclose(self) -> None:
         pass
 
 
 class _FakeRedisClient:
-    def __init__(self):
-        self._pubsub = _FakePubSub()
+    def __init__(self, messages=None):
+        self._pubsub = _FakePubSub(messages)
 
     def pubsub(self) -> _FakePubSub:
         return self._pubsub
@@ -76,42 +95,87 @@ class _FakeRedisClient:
         pass
 
 
-def _drive(monkeypatch, user: User, all_users: bool) -> _FakePubSub:
-    fake_client = _FakeRedisClient()
+def _drive(monkeypatch, user: User, view: str, messages=None) -> tuple[_FakePubSub, list[str]]:
+    fake_client = _FakeRedisClient(messages)
     monkeypatch.setattr(aioredis.Redis, "from_url", lambda url: fake_client)
+    sent: list[str] = []
 
     async def _run():
-        async for _ in stream_router._event_stream(_FakeRequest(), user, all_users):
-            pass
+        request = _FakeRequest(polls=len(messages or []))
+        async for chunk in stream_router._event_stream(request, user, view):
+            sent.append(chunk)
 
     asyncio.run(_run())
-    return fake_client._pubsub
+    return fake_client._pubsub, sent
 
 
 def test_event_stream_subscribes_to_the_users_own_channel(monkeypatch):
     user = User(id=uuid.uuid4(), email="a@example.com", is_admin=False)
 
-    pubsub = _drive(monkeypatch, user, all_users=False)
+    pubsub, _ = _drive(monkeypatch, user, "mine")
 
     assert pubsub.subscribed == [channel_for(user.id)]
     assert pubsub.psubscribed == []
+    assert pubsub.unsubscribed == [channel_for(user.id)]
 
 
 def test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern(monkeypatch):
     admin = User(id=uuid.uuid4(), email="admin@example.com", is_admin=True)
 
-    pubsub = _drive(monkeypatch, admin, all_users=True)
+    pubsub, _ = _drive(monkeypatch, admin, "all")
 
     assert pubsub.psubscribed == [ADMIN_CHANNEL_PATTERN]
     assert pubsub.subscribed == []
+    assert pubsub.punsubscribed == [ADMIN_CHANNEL_PATTERN]
 
 
-def test_event_stream_non_admin_all_users_flag_is_ignored(monkeypatch):
+def test_event_stream_admin_others_psubscribes_and_unsubscribes_like_all(monkeypatch):
+    admin = User(id=uuid.uuid4(), email="admin@example.com", is_admin=True)
+
+    pubsub, _ = _drive(monkeypatch, admin, "others")
+
+    assert pubsub.psubscribed == [ADMIN_CHANNEL_PATTERN]
+    assert pubsub.subscribed == []
+    assert pubsub.punsubscribed == [ADMIN_CHANNEL_PATTERN]
+    assert pubsub.unsubscribed == []
+
+
+@pytest.mark.parametrize("view", ["all", "others"])
+def test_event_stream_non_admin_all_users_flag_is_ignored(monkeypatch, view):
     """v17's threat model: a client-supplied scope flag is never trusted -- a non-admin
-    passing all_users=true still only ever gets their own channel."""
+    passing all_users=true (v54: or view=all/others) still only ever gets their own channel."""
     user = User(id=uuid.uuid4(), email="a@example.com", is_admin=False)
 
-    pubsub = _drive(monkeypatch, user, all_users=True)
+    pubsub, _ = _drive(monkeypatch, user, view)
 
     assert pubsub.subscribed == [channel_for(user.id)]
     assert pubsub.psubscribed == []
+
+
+def test_event_stream_others_drops_the_admins_own_channel_and_keeps_the_rest(monkeypatch):
+    admin = User(id=uuid.uuid4(), email="admin@example.com", is_admin=True)
+    other = uuid.uuid4()
+    messages = [
+        (channel_for(other), '{"n": 1}'),
+        (channel_for(admin.id), '{"n": 2}'),
+        (channel_for(other), '{"n": 3}'),
+    ]
+
+    _, others_sent = _drive(monkeypatch, admin, "others", messages)
+    _, all_sent = _drive(monkeypatch, admin, "all", messages)
+
+    assert others_sent == ['data: {"n": 1}\n\n', 'data: {"n": 3}\n\n']
+    assert all_sent == ['data: {"n": 1}\n\n', 'data: {"n": 2}\n\n', 'data: {"n": 3}\n\n']
+
+
+def test_event_stream_others_heartbeats_through_a_run_of_dropped_messages(monkeypatch):
+    """A steady run of the admin's own events, all dropped, must not keep the wire silent
+    past the heartbeat interval (the tunnel closes an idle connection)."""
+    admin = User(id=uuid.uuid4(), email="admin@example.com", is_admin=True)
+    clock = iter(range(0, 1000, 10))
+    monkeypatch.setattr(stream_router.time, "monotonic", lambda: next(clock))
+    messages = [(channel_for(admin.id), "{}")] * 4
+
+    _, sent = _drive(monkeypatch, admin, "others", messages)
+
+    assert sent and all(chunk == ": heartbeat\n\n" for chunk in sent)

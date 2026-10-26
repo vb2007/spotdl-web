@@ -232,6 +232,21 @@ second colour vocabulary for a new component — map any new state onto one of t
 | **Fail** (terminal only)      | `--fail` / `--fail-edge`                                            | **Terminal failure only** — `lookup_failed` ("not found"), a failed job, a partial job with a real gap, a paused worker (it needs a human), a failed row action's notice, error lines; `--fail-edge` outlines destructive controls | Held back deliberately — never used for `waiting`/backoff, which is expected and recoverable                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | **Idle**                      | `--text-muted` (via `.cond-idle`); `--line-bright` as a bar segment | Not receiving (`pending`, `queued`, `cancelled`, and any active job whose tracks aren't downloading)                                                                                                                               | No dedicated hue — idle borrows the muted text colour rather than inventing a sixth signal colour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
+> **v54 (2026-10-25, U1): live means live _for this viewer_.** The admin's all-users view, and v54's
+> new other-users view, show other people's downloads. Those are receiving, but not for the person
+> looking, so none of them takes amber anywhere: not the ambient field, not the Waterfall's edge or
+> lane, not a job row's badge or bar segment, not a track row, not an incoming row's pulse. Another
+> user's Waterfall lane keeps its moving meter in an **"elsewhere"** treatment (a `--line-bright` →
+> `--text-dim` slate fill, no glow or sheen, the percentage in `--text-muted`) and names its owner
+> in the job rows' owner-tag style, so colour is never the only cue; their rows read as idle. The
+> viewer's own download warms the page in **every** view, including other-users, whose stream
+> leaves the viewer's own events out: there the page asks (on resync and on its 5s worker poll)
+> whether the viewer has a download of their own receiving. The Waterfall's edge stays neutral
+> there: it marks a lane on the panel, and that view shows none of the viewer's. For the same reason
+> its idle line can read "no signal here — worker busy elsewhere" while the field is warm: true of
+> the panel, whose view leaves the viewer's own download out (accepted, no new copy). This closes
+> §8.3.
+
 `--signal-ink` (`#2a1c05`, a dark ink for text on an amber fill) and `--fail-dim` (`#5c2f30`) are
 defined in `:root` but consumed nowhere as of v47: nothing sets text on amber, and the controls that
 once edged in `--fail-dim` moved to `--fail-edge` (v42) or became words (v43). They stay in the
@@ -589,8 +604,10 @@ stream.** Navigating away closes it but leaves `queue.activeTracks` at its last 
 other route that store is stale and must never light the page. Any future consumer of `activeTracks`
 outside `/` has the same problem. On re-entering `/`, the stale value still holds until the new
 stream's `onopen` resync replaces it, so the field (like the Waterfall's border) can begin warming
-for a moment before settling to the truth. In the admin's all-users view, other users' downloads
-count as "receiving" here (§8.3).
+for a moment before settling to the truth. _(2026-10-25, v54: the layout now reads
+`queue.viewerReceiving`, the viewer's own receiving downloads only, in every view; other users'
+downloads in the admin's all/other-users views no longer warm the field. §2's v54 note; §8.3 is
+closed.)_
 
 **Contrast budget.** The peaks aren't a matter of taste. The old ellipse's centre sat off-screen,
 so the brightest pixel anyone saw was its top edge, and that edge dims as the viewport grows
@@ -743,16 +760,19 @@ counts, so "1,662 of 1,000+" and "150+ tracks" are gone, and a search, filter or
 announces the new size once). The log's own tools sit at the head's right, apart from the view
 controls: **show archived** (a toggle chip) and **clear log**, outlined in `--fail-edge` at rest so
 it never reads as one more toggle (it asks first, see Confirmation). Then the find row (scope switch,
-search, the admin's mine/all users), the refine row (chips, sort), a divider, and the list or its
+search, the admin's mine / all users / other users (v54: three ways, `Shift+V` cycles them, and
+`?view=` keeps one across a reload)), the refine row (chips, sort), a divider, and the list or its
 state:
 
 - **Loading:** three still placeholder rows on the row grid (no shimmer); the head says "Loading…".
 - **Error:** "Couldn't load the queue", the server's own words, and **try again** (`queue.reload()`).
   A failed **load more** is not this state: the loaded rows stay, a "Couldn't load more" line
   appears above the button, and the button retries that page.
-- **Empty**, four cases: a search or filter miss ("No jobs match "…"" + **clear search and
-  filters**), the admin's all-users view ("Nobody has anything queued"), a link still being read
-  ("Your link is being read", or "A link is being read" in all-users view), and a user's own empty
+- **Empty**, five cases: a search or filter miss ("No jobs match "…"" + **clear search and
+  filters**), the admin's all-users view ("Nobody has anything queued"), its other-users view
+  ("Nobody else has anything queued", v54), a link still being read ("Your link is being read", "A
+  link is being read" in all-users view, "Another user's link is being read" in other-users view),
+  and a user's own empty
   queue ("Your queue is empty", what happens to a pasted link, where archived jobs went, and **paste
   a link**, which focuses the submit box).
 
@@ -1221,6 +1241,9 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
    and live edge and the ambient field turn amber for a download that isn't the admin's own. That
    bends §6's "this session's own active track" wording, but in that view the admin has chosen to
    watch everyone's queue, and what's on screen is genuinely receiving. Left as is.
+   **Closed 2026-10-25 (v54, U1):** v54's other-users view would have made this permanent, so only
+   the viewer's own downloads warm the page now, in every view; other users' lanes take the
+   "elsewhere" treatment (§2's v54 note).
 4. **(v47, 2026-10-19) `/settings` is about 4000px tall on a phone.** Five sections of real forms in
    one page (§6 Secondary pages, F19's no-sub-routes choice); the anchor index is the way through.
    Not split in v47 (no new surfaces in a polish slice).

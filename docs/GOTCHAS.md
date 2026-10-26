@@ -482,6 +482,11 @@ needed" claim — rather than silently deleted.
   Matrix room; unexplained, and its logs were gone by the next deploy → *v48*
 
 **Live progress & SSE**
+- `view=others` drops the admin's own channel on the server, so the page never hears the admin's
+  own downloads there: their amber needs a separate own-download check; a dropped run of own
+  messages must still heartbeat on schedule (the tunnel's idle timeout) → *v54*
+- SSE payloads name no owner (v17), so in `view=all` the page can't tell whose a new lane is: one
+  throttled bulk lookup (the view's `downloading` listing, owners embedded) places lanes → *v54*
 - SSE needs `Cache-Control: no-cache`, `X-Accel-Buffering: no`, and a 15s heartbeat or Cloudflare
   Tunnel closes the connection → *v08*
 - `get_message(ignore_subscribe_messages=True)` returns `None` immediately after subscribe, so the
@@ -630,6 +635,14 @@ needed" claim — rather than silently deleted.
   others → *v28*
 
 **Frontend (SvelteKit)**
+- SvelteKit's `replaceState` leaves `page.url` at the last navigation and records that stale URL
+  in the history entry, so a later Back navigates to it: read a query-string state from `location`
+  → *v54*
+- A Back/Forward between two entries of the same route reuses the mounted page (no remount), and
+  `navigating` is still set inside `afterNavigate`: adopt the popped entry's state there, never
+  write the page's own over it → *v54*
+- `svelte/no-navigation-without-resolve` rejects `replaceState(resolve('/') + '?view=…')`, any
+  form: the query-string write carries a reasoned `eslint-disable-next-line` → *v54*
 - Job create's `already_queued` hint returns the existing job with 200: don't add it to the store
   again; Spotify links are stored canonical → *v53*
 - `adapter-static` can't run a server load; routes use `ssr = false` + `prerender = true` **and**
@@ -773,6 +786,10 @@ needed" claim — rather than silently deleted.
   library sweep's start) → *v52*
 
 **Testing & verification technique**
+- A real download on a slot can finish in ~10 s, before six browser pages have logged in: hold
+  the track `waiting` with `scheduled_at` a minute out, then start `realdl`. A Spotify id whose
+  song is already on disk under the same name resolves instantly ("already exists" is the
+  filename), check `in_ledger` and the title first → *v54*
 - FastAPI's `app.routes` (0.141+) holds lazy `_IncludedRouter` wrappers: walk `original_router.routes`
   to find every `APIRoute` → *v53*
 - Playwright's `request.newContext()` inside a test inherits the project's `storageState`; a slot's
@@ -6261,3 +6278,63 @@ independently-found production bug from the same conversation)
   file and a byte-for-byte revert, an open page kept `vite-error-overlay` (vite-plugin-svelte skips
   the unchanged output, so no update clears it), and it intercepts every click: in a kept-open tab
   that looks exactly like "the dialog doesn't open". Esc or a reload clears it. Not v52's doing.
+
+### v54 scope-others gotchas (learned building the admin's mine/all/others view)
+
+- **`others` hides the admin's own downloads from the page, so U1's "the viewer's own download
+  warms the page in every view" needs a second signal.** The stream drops every message on
+  `channel_for(me)` (the plan's design: payloads stay owner-less, filtering is by channel only), so
+  under `others` no event of the admin's own ever reaches the store. `queue.ownReceivingElsewhere`
+  asks `GET /api/tracks?state=downloading&include_archived=true` (no `view`: mine is the default)
+  on each resync and on the page's existing 5 s
+  worker poll, in `others` only, and the layout's ambient field reads `queue.viewerReceiving`. So
+  the field can take up to 5 s to warm or cool for an own download seen from `others`.
+  _(Corrected 2026-10-26, v54 review rounds 4–8: the store-internal count is asked for one row
+  (`limit=1`), on the poll only while that poll's own answer says the worker is busy (`busy` is
+  "any track `downloading`", so idle means 0); each check takes its place in line when it
+  starts, and the newest one that lands wins, so a failed poll discards nothing.)_
+- **A filtered stream can go silent for longer than the heartbeat interval.** The heartbeat was
+  "no message within 15 s"; with the admin's own progress ticks arriving every second and all of
+  them dropped under `others`, nothing would have been written at all. `_event_stream` now also
+  writes a heartbeat when 15 s pass since the last write, dropped messages or not.
+- **Whose lane is it, in `all`?** The SSE payloads carry no owner, so a lane that arrives by event
+  is unplaced until `resolveLaneOwners` (throttled to one per 250 ms, one bulk request: the view's own
+  `downloading` listing, which embeds `owner_*`; the page tells the store the viewer's email, so the
+  same listing says whose lane is the viewer's). Until then it reads as elsewhere (neutral), so the
+  admin's own lane in `all` turns amber a moment after it appears. _(Corrected 2026-10-25, v54
+  review round 2: the first version also asked `view=mine` and compared ids, two snapshots that
+  could disagree.)_
+  `lanesLookedUp` keeps a lane the lookup couldn't list (it left `downloading`) from asking again
+  on every progress tick. _(Corrected 2026-10-26, v54 review round 4: the lookup is throttled, not
+  debounced: ticks closer than 250 ms kept pushing a debounced one back. An unlisted lane stays
+  unplaced rather than "not the viewer's", and any return to `downloading` asks again.)_
+- **"Live" on a row was "receiving", not "receiving for you".** v47 made a job's badge and bar
+  amber while one of its tracks downloads; in `all` that lit other users' rows too, which the
+  first real-download probe showed. `JobRow`'s `own`, `TrackRow`'s `elsewhere` (threaded through
+  `JobTrackList`) and `IncomingJobs`' pulse now follow the viewer, like the field and the Waterfall.
+- **Verifying U1 needs a real download, timed.** The probe (six real browser pages, three views,
+  two identities, en/hu, desktop/mobile) missed the first download: it finished while the pages
+  were still logging in. Holding the track `waiting` a minute out let the pages settle first. A
+  second id turned out to be a song already on disk under the same filename and settled in 0.2 s.
+- **`replaceState` and `page.url` disagree, and history remembers the wrong one.** SvelteKit's
+  `replaceState(url, state)` rewrites the address bar but leaves `page.url` at the last real
+  navigation, and stores that stale `page.url` in the history entry (`PAGE_URL_KEY`). A Back to
+  the entry then navigates to the stale URL: a hard load at `?view=others`, a switch to mine (the
+  bar reads `/`), a trip to `/account` and Back came back as others. Both the "is the URL already
+  right" check and the mount-time read take `window.location` (the page is `ssr = false`).
+  `replaceState` in `onMount` of a hard load also throws in dev ("before router is initialized":
+  `started` is set after mount and after the first `afterNavigate`), so the mount-time sync waits
+  a `setTimeout`.
+- **"Mine" leaves no query string, so the history entry has to say it another way.** A `/` entry
+  left in mine looked exactly like a fresh `g d` to `/` (which keeps the store's view, v42), so a
+  Back to it opened whatever view the admin used last. The view now also goes into the entry's
+  page state (`replaceState(url, { view })`, `App.PageState.view`); SvelteKit restores it on a
+  popstate before the page renders (`client.js`, `page.state = popped.state`), and a link or
+  `goto` arrives with `{}`. Naming `?view=mine` instead would have changed every admin dashboard
+  URL that specs 14 and 17 assert.
+- **Three quick Backs raced the page's own URL sync.** The live reviewer's rapid Back sequence
+  (dashboard → account → dashboard → account, then Back ×3) landed on the first `/` entry while
+  the second dashboard was still mounted: a same-route popstate reuses the component, and its
+  `afterNavigate` wrote its own `others` over the entry. It reproduced 5 of 6 times in Playwright
+  and never in a slower script. `afterNavigate` now adopts the popped entry's view on a popstate,
+  and the mount-time sync skips while another navigation is in flight.

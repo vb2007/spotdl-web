@@ -10,15 +10,16 @@
 	import { counted } from '$lib/i18n/format';
 	import { errorText } from '$lib/i18n/errors';
 
-	/** `allUsers`: the admin's all-users scope, where rows can be someone else's -- they
-	 * then carry their owner, and "try again" (which submits as *this* session) is offered
-	 * only on the viewer's own. */
+	/** `view`: the admin's scope. In `all` and `others` (v54) rows can be someone else's --
+	 * they then carry their owner, and "try again" (which submits as *this* session) is
+	 * offered only on the viewer's own. */
 	let {
 		jobs,
-		allUsers = false,
+		view = 'mine',
 		sessionEmail = '',
 		isAdmin = false
-	}: { jobs: Job[]; allUsers?: boolean; sessionEmail?: string; isAdmin?: boolean } = $props();
+	}: { jobs: Job[]; view?: api.View; sessionEmail?: string; isAdmin?: boolean } = $props();
+	let othersShown = $derived(view !== 'mine');
 
 	// v46: functions, not strings, so a language switch re-renders them. The failure line is
 	// one sentence per source type: Hungarian inflects the noun ("ezt az albumot").
@@ -43,13 +44,13 @@
 	// appeared (a slow artist submitted before a quick bad link fails later, and must not
 	// fold away behind it). Rows already failed on load tie, and fall back to created_at.
 	const failedSeenAt = new SvelteMap<string, number>();
-	let seenInScope: boolean | null = null;
+	let seenInScope: api.View | null = null;
 	$effect(() => {
 		// A scope switch reloads the whole overlay: everything in it is "already failed on
 		// load" again, so stamps from the previous scope mustn't outrank it.
-		if (seenInScope !== allUsers) {
+		if (seenInScope !== view) {
 			failedSeenAt.clear();
-			seenInScope = allUsers;
+			seenInScope = view;
 		}
 		// One stamp per batch, so rows arriving together tie (and fall back to created_at).
 		const now = Date.now();
@@ -319,7 +320,8 @@
 	}
 
 	function isOwn(job: Job): boolean {
-		return !allUsers || job.owner_email === sessionEmail;
+		// Case-insensitive, the store's and the page's one rule for "the viewer's".
+		return !othersShown || job.owner_email.toLowerCase() === sessionEmail.toLowerCase();
 	}
 </script>
 
@@ -328,7 +330,7 @@
 		<span class="dot fail" aria-hidden="true"></span>
 		<span class="mono state">{UNREADABLE[job.source_type]?.() ?? job.source_type}</span>
 		<span class="url mono" title={job.source_url}>{job.source_url}</span>
-		{#if allUsers}
+		{#if othersShown}
 			<span class="owner mono" title={job.owner_email}
 				>{api.displayName(job.owner_username, job.owner_email)}</span
 			>
@@ -385,14 +387,15 @@
 			{#each tuning as job (job.id)}
 				<li class="row">
 					<!-- Without the live link the row may be stale: no amber, no pulse. -->
-					<span class="dot" class:stale={$link !== 'live'} aria-hidden="true"></span>
+					<!-- v54 (U1): another user's link being read is not live for this viewer. -->
+					<span class="dot" class:stale={$link !== 'live' || !isOwn(job)} aria-hidden="true"></span>
 					<span class="mono state"
 						>{m.incoming_tuning({
 							source: SOURCE_LABEL[job.source_type]?.() ?? job.source_type
 						})}</span
 					>
 					<span class="url mono" title={job.source_url}>{job.source_url}</span>
-					{#if allUsers}
+					{#if othersShown}
 						<span class="owner mono" title={job.owner_email}
 							>{api.displayName(job.owner_username, job.owner_email)}</span
 						>

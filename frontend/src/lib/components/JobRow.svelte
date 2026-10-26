@@ -12,7 +12,14 @@
 	import { formatNumber, keepReadings } from '$lib/i18n/format';
 	import { jobStatusLabel } from '$lib/i18n/labels';
 
-	let { job, allUsers, isAdmin }: { job: Job; allUsers: boolean; isAdmin: boolean } = $props();
+	// v54: `all` and `others` both show rows that can be someone else's, so both name the owner.
+	// `own` (U1): whether the job is the viewer's; only their own may read as receiving (amber).
+	let {
+		job,
+		view,
+		isAdmin,
+		own = true
+	}: { job: Job; view: api.View; isAdmin: boolean; own?: boolean } = $props();
 
 	const { expanded } = queue;
 	let isOpen = $derived(job.id in $expanded);
@@ -43,8 +50,11 @@
 	// is mostly tracks queued behind the one download the worker runs at a time (or held by
 	// the breaker), so it is amber only while one of its own tracks is downloading; and
 	// nothing is while `/`'s link is down, since the row is a snapshot that no longer updates.
+	// v54 (U1): and only on the viewer's own job; another user's reads as idle, in every view.
 	let receiving = $derived(
-		$link === 'live' && (statusToken === 'expanding' || (job.track_counts.downloading ?? 0) > 0)
+		own &&
+			$link === 'live' &&
+			(statusToken === 'expanding' || (job.track_counts.downloading ?? 0) > 0)
 	);
 	let cond = $derived(
 		statusToken === 'settled:partial' && !(job.track_counts.lookup_failed ?? 0)
@@ -103,7 +113,7 @@
 		const fail = c.lookup_failed ?? 0;
 		const idle = c.cancelled ?? 0;
 		return [
-			{ cond: $link === 'live' ? 'cond-live' : 'cond-idle', n: downloading },
+			{ cond: $link === 'live' && own ? 'cond-live' : 'cond-idle', n: downloading },
 			{ cond: 'cond-idle', n: lined },
 			{ cond: 'cond-waiting', n: waiting },
 			{ cond: 'cond-settled', n: settled },
@@ -292,7 +302,7 @@
 				<span class="source-type mono"
 					>{SOURCE_TYPE_LABEL[job.source_type]?.() ?? job.source_type}</span
 				>
-				{#if allUsers}
+				{#if view !== 'mine'}
 					<span class="owner mono" title={job.owner_email}
 						>{api.displayName(job.owner_username, job.owner_email)}</span
 					>
@@ -382,6 +392,7 @@
 		<JobTrackList
 			jobId={job.id}
 			{isAdmin}
+			elsewhere={!own}
 			total={totalTracks}
 			unreadable={job.status.lifecycle === 'failed' ? (isAdmin ? (job.error ?? '') : '') : null}
 		/>

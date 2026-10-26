@@ -188,10 +188,13 @@ def test_scope_track_all_users_flag_from_non_admin_is_ignored(client, db_session
 
     client.cookies.clear()
     client.cookies.update(owner_cookie)
-    response = client.get("/api/jobs", params={"scope": "track", "all_users": "true"})
-    assert response.status_code == 200
-    job_ids = {i["job"]["id"] for i in response.json()["items"]}
-    assert job_ids == {str(job_owner.id)}
+    # v54: the three-way `view` is normalized to `mine` for a non-admin just the same.
+    for flag in ({"all_users": "true"}, {"view": "all"}, {"view": "others"}):
+        response = client.get("/api/jobs", params={"scope": "track", **flag})
+        assert response.status_code == 200
+        job_ids = {i["job"]["id"] for i in response.json()["items"]}
+        assert job_ids == {str(job_owner.id)}, flag
+        assert response.json()["counts_by_state"] == {"completed": 1}, flag
 
 
 def test_scope_track_on_jobs_endpoint_matches_get_tracks_endpoint(authenticated_client, db_session, owner):

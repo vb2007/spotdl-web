@@ -15,6 +15,7 @@ from app.routers.auth import require_session
 from app.services import app_settings, events, retry, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import track_attempt_to_dict, track_song_meta, track_to_dict
+from app.services.view_scope import View, resolve_view
 
 router = APIRouter(prefix="/api/tracks", tags=["tracks"])
 
@@ -98,20 +99,22 @@ def list_tracks(
     dir: Literal["asc", "desc"] = "desc",
     limit: int = DEFAULT_LIMIT,
     cursor: str | None = None,
-    all_users: bool = False,
+    view: View | None = None,
+    all_users: bool | None = None,
 ) -> dict:
     """Tracks across every job the caller can see, one page at a time, each with its
     parent job embedded -- the v18 replacement for the old "every track, unpaginated"
     shape (removed, not deprecated: that shape is exactly what made the UI unusable once
     real usage accumulated 100+ historical jobs, see git history on this endpoint for the
     original incident). Identical query to `GET /api/jobs?scope=track`; see
-    `track_listing.list_tracks`."""
+    `track_listing.list_tracks`. `view`/`all_users` as on `GET /api/jobs` (v54)."""
+    view = resolve_view(view, all_users, is_admin=user.is_admin)
     try:
         return track_listing.list_tracks(
             db,
             user_id=user.id,
             is_admin=user.is_admin,
-            all_users=all_users,
+            view=view,
             q=q,
             job_status_tokens=status,
             track_states=state,
