@@ -6949,12 +6949,13 @@ independently-found production bug from the same conversation)
   `not_authenticated` or `api_key_invalid`). An intranet's HTML basic-auth 401 was saved as the
   app address. An HTML 5xx (nginx's 502 with `api` down, Cloudflare's 530) reads as
   "unreachable", not "not a spotdl app".
-- **What's left of "the page drives the extension":** Spotify's own script could `focus()` an
-  icon while the user types, so the user's real Enter would activate it. That needs a hostile
-  open.spotify.com, which already decides every item's link anyway. Accepted. The candidate
-  menu itself never takes focus unless focus is still on its icon (not even from `<body>`), and
-  a request in flight belongs to the item, not the button, so a re-rendered row neither sends
-  twice nor loses the answer.
+- **A page can move focus too.** The final live review had a page script `focus()` an icon
+  from its own field's Enter keydown. Firefox then sent the user's Enter activation to the
+  icon: a trusted click, `detail` 0, on the focused button, and it queued. A keyboard click now
+  also needs the trusted Enter/Space keydown to have landed on that same icon. The candidate
+  menu never takes focus unless focus is still on its icon (not even from `<body>`). A request
+  in flight belongs to the item, not the button, so a re-rendered row neither sends twice nor
+  loses the answer.
 - **What the page can read.** The toast and the icons' `data-*` live in Spotify's DOM, so
   in-page messages never name the app's address, and menu actions aren't stored on elements.
   Which items got a tick (`data-state`) stays visible to Spotify's scripts. That's inherent to

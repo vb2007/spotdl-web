@@ -55,8 +55,9 @@ page, even when its user is an admin.
   tracks, search songs), in an album, artist or playlist page's action bar, and in the corner of
   album, artist and playlist cards (shelves, search, the top result). Rows and cards show it on
   hover or keyboard focus; page headers always do. It's a real button: Tab reaches it.
-- **Click** (or Enter/Space) queues that item. Only your own input counts: a page script's
-  synthetic click or key on an icon is ignored.
+- **Click** (or Enter/Space) queues that item. Only your own input on the icon counts: a page
+  script's synthetic click or key, a click forwarded from elsewhere, or your Enter typed into
+  another field while a script moves focus onto an icon, all queue nothing.
 - **Right-click**, **Shift+F10** or the **Menu key** opens the cascade menu:
   - a track: *This track · Whole album · Whole artist*;
   - an album: *This album · Whole artist*;
