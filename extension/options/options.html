@@ -1,0 +1,83 @@
+<!doctype html>
+<!--
+THESIS: the extension's settings read as one more panel of the app's instrument rack, not a
+browser-settings form: three readings (where the app is, how it signs in, whether the link
+works) each with its own live status line.
+OWN-WORLD: frontend/src/DESIGN.md's tokens by value: bg-0 well, bg-1 panels on hairline
+borders, mono labels and controls, sans prose, green/red status dots, amber never.
+STORY: the owner opens it once, confirms "signed in as … through your sign-in in this
+browser", and leaves; a key is the fallback for when that sign-in can't reach.
+FIRST VIEWPORT: wordmark and one privacy sentence, then the App panel (address input + save),
+Signing in (cookie sentence, key input), Connection (test + its status).
+FORM: an extension of the established surface (no concept roll), the app's panel stack.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title data-i18n="optionsTitle">spotdl-web extension settings</title>
+		<link rel="stylesheet" href="../shared/page.css" />
+		<link rel="stylesheet" href="options.css" />
+		<script type="module" src="options.js"></script>
+	</head>
+	<body>
+		<main class="options">
+			<header class="masthead">
+				<h1 class="wordmark" data-i18n="optionsHeading">spotdl-web</h1>
+				<p class="muted intro" data-i18n="optionsIntro"></p>
+			</header>
+
+			<section class="panel" aria-labelledby="app-heading">
+				<h2 class="label" id="app-heading" data-i18n="optionsAppHeading"></h2>
+				<form id="app-form" class="row" novalidate>
+					<div class="field">
+						<label for="app-origin" data-i18n="optionsAppLabel"></label>
+						<input id="app-origin" type="url" inputmode="url" autocomplete="off" spellcheck="false" aria-describedby="app-hint app-status" />
+					</div>
+					<div class="actions">
+						<button type="submit" data-i18n="optionsAppSave"></button>
+						<button type="button" class="quiet" id="app-reset" data-i18n="optionsAppReset"></button>
+					</div>
+				</form>
+				<p class="hint muted" id="app-hint"></p>
+				<p class="status" id="app-status" role="status"></p>
+				<button type="button" id="app-grant" hidden data-i18n="optionsAppGrant"></button>
+			</section>
+
+			<section class="panel" aria-labelledby="auth-heading">
+				<h2 class="label" id="auth-heading" data-i18n="optionsAuthHeading"></h2>
+				<p data-i18n="optionsAuthCookie"></p>
+				<p class="muted" data-i18n="optionsAuthKey"></p>
+				<form id="key-form" class="row" novalidate>
+					<div class="field">
+						<label for="api-key" data-i18n="optionsKeyLabel"></label>
+						<input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sdw_…" aria-describedby="key-status" />
+					</div>
+					<div class="actions">
+						<button type="submit" data-i18n="optionsKeySave"></button>
+						<button type="button" class="quiet" id="key-clear" data-i18n="optionsKeyClear"></button>
+					</div>
+				</form>
+				<p class="status" id="key-status" role="status"></p>
+				<p><a id="account-link" target="_blank" rel="noopener" data-i18n="optionsAccountLink"></a></p>
+			</section>
+
+			<section class="panel" aria-labelledby="test-heading">
+				<h2 class="label" id="test-heading" data-i18n="optionsTestHeading"></h2>
+				<div class="row">
+					<p class="status" id="test-status" role="status" aria-live="polite"></p>
+					<button type="button" id="test" data-i18n="optionsTest"></button>
+				</div>
+			</section>
+
+			<section class="panel" aria-labelledby="spotify-heading">
+				<h2 class="label" id="spotify-heading" data-i18n="optionsSpotifyHeading"></h2>
+				<div class="row">
+					<p class="status" id="spotify-status" role="status"></p>
+					<button type="button" id="spotify-grant" hidden data-i18n="optionsSpotifyGrant"></button>
+				</div>
+			</section>
+		</main>
+	</body>
+</html>
