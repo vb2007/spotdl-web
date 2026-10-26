@@ -947,3 +947,31 @@ def test_sort_library_refuses_to_run_with_overlapping_directories(db_session, tm
     ]
     db_session.refresh(row)
     assert row.in_library is False and Path(row.file_path).exists()
+
+
+def test_sort_library_never_adopts_a_partial_copy_left_by_a_full_disk(db_session, tmp_path, monkeypatch):
+    """v57 (L7): a copy that fails with ENOSPC is recorded as an error, and the next sweep
+    tries the copy again instead of reading the partial file as "already in the library" and
+    quarantining the good source over it."""
+    _configure(db_session, tmp_path)
+    row = _make_ledger_row(db_session, tmp_path)
+    dest = tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "track1.mp3"
+
+    def _disk_full_copy(source, target):
+        Path(target).write_bytes(b"the r")
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(library_service.shutil, "copy2", _disk_full_copy)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+    _run(monkeypatch, db_session)
+
+    db_session.refresh(row)
+    assert row.in_library is False
+    assert Path(row.file_path).read_bytes() == b"the real audio bytes"
+    assert not dest.exists()
+    assert not (tmp_path / "quarantine").exists()
+    assert len(list(dest.parent.glob("track1.mp3.copy-failed-*"))) == 2
+    run = library_task._get_run(db_session)
+    assert run.quarantined == 0 and run.errors[0]["error"].startswith("[Errno 28]")

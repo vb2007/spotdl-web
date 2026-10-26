@@ -103,9 +103,21 @@ def copy_verify(source: Path, dest: Path) -> bool:
     the real expected filename would be silently adopted as "the file already exists"
     next time, causing that later sweep to quarantine or delete a perfectly good source
     over it instead of retrying the copy. Renaming (not deleting) keeps the bytes
-    available for manual inspection while freeing the real filename for a real retry."""
+    available for manual inspection while freeing the real filename for a real retry.
+
+    v57 (L7): a copy that fails outright gets the same treatment. On a full disk `copy2` raises
+    ENOSPC with a truncated file already at `dest` (reproduced on a 2 MiB tmpfs: 2 MiB of an
+    8.6 MB source), before any checksum is taken, so v31's rename never ran and the next sweep
+    adopted the partial file as "already exists". It's renamed off `dest` (a rename needs no free
+    space) and the error is raised on for the sweep to record."""
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(source, dest)
+    existed = dest.exists()
+    try:
+        shutil.copy2(source, dest)
+    except OSError:
+        if not existed and dest.exists():
+            dest.rename(dest.with_name(f"{dest.name}.copy-failed-{uuid.uuid4().hex[:8]}"))
+        raise
     if files_match(source, dest):
         return True
     corrupt_dest = dest.with_name(f"{dest.name}.verify-failed-{uuid.uuid4().hex[:8]}")

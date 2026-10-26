@@ -1,4 +1,7 @@
+import errno
 from pathlib import Path
+
+import pytest
 
 from app.services import library
 
@@ -137,3 +140,40 @@ def test_read_sort_tags_returns_none_for_unsupported_format(tmp_path):
     source.write_bytes(b"not a real wav file")
 
     assert library.read_sort_tags(source) is None
+
+
+def _disk_full_copy(source, dest):
+    """shutil.copy2 on a full disk: part of the file written, then ENOSPC (as on a 2 MiB tmpfs)."""
+    Path(dest).write_bytes(Path(source).read_bytes()[:4])
+    raise OSError(28, "No space left on device")
+
+
+def test_copy_verify_renames_a_partial_copy_off_the_destination_when_the_disk_fills(tmp_path, monkeypatch):
+    """v57 (L7): the copy raises before any checksum. The partial file must not stay at the
+    destination's exact name, where the next sweep's folder+filename check would adopt it."""
+
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+    monkeypatch.setattr(library.shutil, "copy2", _disk_full_copy)
+
+    with pytest.raises(OSError) as exc_info:
+        library.copy_verify(source, dest)
+
+    assert exc_info.value.errno == errno.ENOSPC
+    assert not dest.exists()
+    leftovers = list(dest.parent.iterdir())
+    assert len(leftovers) == 1 and leftovers[0].name.startswith("source.mp3.copy-failed-")
+    assert leftovers[0].read_bytes() == b"the "  # kept, never deleted
+    assert source.read_bytes() == b"the whole real audio"
+
+
+def test_path_relation_resolves_before_comparing(tmp_path):
+    """v57 (L2): `..` and a symlinked alias compare as the directory they name."""
+    (tmp_path / "downloads").mkdir()
+    (tmp_path / "alias").symlink_to(tmp_path / "downloads")
+
+    assert library.path_relation(tmp_path / "alias", tmp_path / "downloads") == "equal"
+    assert library.path_relation(tmp_path / "downloads" / ".." / "downloads" / "x", tmp_path / "downloads") == "inside"
+    assert library.path_relation(tmp_path, tmp_path / "downloads") == "contains"
+    assert library.path_relation(tmp_path / "library", tmp_path / "downloads") is None
