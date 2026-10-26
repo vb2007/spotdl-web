@@ -269,7 +269,8 @@ const BACKEND_CODES = [
 	// v56
 	'job_not_cancellable',
 	'track_not_cancellable',
-	'retry_cooldown'
+	'retry_cooldown',
+	'job_cancelled'
 ];
 const CLIENT_CODES = [
 	'request_invalid',
@@ -308,6 +309,12 @@ describe('every error code', () => {
 		expect(apiErrorText(due)).toBe(
 			'“retry now” works once per wait. This track goes on the next pass.'
 		);
+		// `paused` arrives as a JSON boolean, whatever ApiError's params type says.
+		const paused = new ApiError(429, 'the English detail', 'retry_cooldown', {
+			retry_after: 0,
+			paused: true as unknown as string
+		});
+		expect(apiErrorText(paused)).toContain('Downloads are paused');
 		const later = new ApiError(429, 'the English detail', 'retry_cooldown', { retry_after: 3725 });
 		expect(apiErrorText(later)).toBe('“retry now” works once per wait. Next try in 1:02:05.');
 	});

@@ -33,6 +33,7 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	job_not_found: () => m.error_job_not_found(),
 	// v56: a cancel of something already finished (A1, A2).
 	job_not_cancellable: () => m.error_job_not_cancellable(),
+	job_cancelled: () => m.error_job_cancelled(),
 	archive_nothing_selected: () => m.error_archive_nothing_selected(),
 	// The reason is the server's own diagnostic (a bad cursor, an unknown sort), kept as sent.
 	invalid_list_params: (p) => m.error_invalid_list_params({ reason: String(p.reason ?? '') }),
@@ -45,6 +46,7 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 		m.error_track_not_cancellable({ state: trackStateLabel(String(p.state)) }),
 	// v56 (A8): a non-admin's second "retry now" in one ladder step.
 	retry_cooldown: (p) => {
+		if (String(p.paused) === 'true') return m.error_retry_cooldown_paused();
 		const seconds = Number(p.retry_after ?? 0);
 		return seconds > 0
 			? m.error_retry_cooldown({ time: formatCountdown(seconds * 1000) })

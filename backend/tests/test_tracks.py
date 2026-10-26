@@ -7,6 +7,7 @@ from app.models import (
     DownloadedTrack,
     Job,
     JobSourceType,
+    JobState,
     NetworkPath,
     Proxy,
     ProxySource,
@@ -213,6 +214,7 @@ def test_a_non_admins_second_retry_now_in_one_step_gets_429(authenticated_client
     assert second.status_code == 429
     assert second.json()["code"] == "retry_cooldown"
     assert 595 <= second.json()["params"]["retry_after"] <= 600
+    assert second.json()["params"]["paused"] is False
     assert second.headers["retry-after"] == str(second.json()["params"]["retry_after"])
     db_session.expire_all()
     assert _aware(db_session.get(Track, track.id).scheduled_at) > datetime.now(timezone.utc) + timedelta(minutes=9)
@@ -240,6 +242,46 @@ def test_retry_cooldown_counts_to_the_breakers_clear_when_that_is_later(authenti
 
     assert second.status_code == 429
     assert 2 * 3600 - 5 <= second.json()["params"]["retry_after"] <= 2 * 3600
+
+
+def test_retry_cooldown_says_when_downloads_are_paused(authenticated_client, db_session, owner):
+    """A manual pause has no end time, so the 429 says so instead of "the next pass"."""
+    track = _make_track(db_session, owner, state=TrackState.WAITING, scheduled_at=datetime.now(timezone.utc), attempt_count=1)
+    assert authenticated_client.post(f"/api/tracks/{track.id}/retry").status_code == 200
+    retry.get_worker_state(db_session).paused = True
+    db_session.commit()
+
+    second = authenticated_client.post(f"/api/tracks/{track.id}/retry")
+
+    assert second.status_code == 429
+    assert second.json()["params"]["paused"] is True
+
+
+@pytest.mark.parametrize("track_state", [TrackState.LOOKUP_FAILED, TrackState.WAITING])
+def test_retry_refuses_a_track_whose_job_was_cancelled(authenticated_client, db_session, owner, track_state):
+    """v56 (A2): a job cancel leaves a not-found track as it is; retrying it must not start a
+    download under a job that says cancelled (and can no longer be cancelled)."""
+    track = _make_track(db_session, owner, state=track_state)
+    db_session.get(Job, track.job_id).state = JobState.CANCELLED
+    db_session.commit()
+
+    response = authenticated_client.post(f"/api/tracks/{track.id}/retry")
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "job_cancelled"
+    db_session.expire_all()
+    assert db_session.get(Track, track.id).state == track_state
+
+
+def test_a_cancel_then_a_retry_of_its_not_found_track_is_refused_end_to_end(authenticated_client, db_session, owner):
+    track = _make_track(db_session, owner, state=TrackState.LOOKUP_FAILED)
+    waiting = Track(job_id=track.job_id, spotify_track_id="w", song_json={"name": "W"}, state=TrackState.WAITING)
+    db_session.add(waiting)
+    db_session.get(Job, track.job_id).state = JobState.EXPANDED
+    db_session.commit()
+
+    assert authenticated_client.delete(f"/api/jobs/{track.job_id}").status_code == 200
+    assert authenticated_client.post(f"/api/tracks/{track.id}/retry").status_code == 409
 
 
 def test_an_admins_retry_now_is_unrestricted(admin_client, db_session, make_user):

@@ -6,13 +6,13 @@ from typing import Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
 from app.errors import ApiError
-from app.models import DownloadedTrack, Job, JobSourceType, Track, TrackAttempt, TrackState, User
+from app.models import DownloadedTrack, Job, JobSourceType, JobState, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
 from app.services import app_settings, events, retry, rollup, track_listing
 from app.services.track_states import CANCELLABLE_TRACK_STATES, RETRYABLE_TRACK_STATES
@@ -229,10 +229,19 @@ def retry_track(
     with the seconds until the track is tried anyway. An admin's retry is unrestricted, and so
     is anyone's retry of a `lookup_failed` track (another search after a not-found)."""
     track, owner_id, archived_at = _get_track_or_404(db, track_id, user)
+    # v56 (A2): a job cancel leaves its not-found tracks as they are, so one can sit under a
+    # cancelled job; retrying it would download for a job that says "cancelled" and can no
+    # longer be cancelled. The job is read under a share lock, so a cancel committing
+    # meanwhile is seen (and a retry committing first is cancelled by it).
+    job_state = db.execute(
+        select(Job.state).where(Job.id == track.job_id).with_for_update(read=True)
+    ).scalar_one()
     # Locked, so two presses at once can't both pass the per-step check below.
     db.refresh(track, with_for_update=True)
     if archived_at is not None:
         raise ApiError(409, "job_archived", "Job is archived; unarchive it first")
+    if job_state == JobState.CANCELLED:
+        raise ApiError(409, "job_cancelled", "Job is cancelled; submit the link again")
     if track.state not in RETRYABLE_TRACK_STATES:
         raise ApiError(
             409,
@@ -245,12 +254,15 @@ def retry_track(
     if track.state == TrackState.WAITING and not user.is_admin:
         if track.retry_now_step == track.attempt_count:
             retry_after = _seconds_until_tried(db, track, now)
+            # A manual pause has no end time: nothing dispatches until someone resumes.
+            paused = bool(retry.get_worker_state(db).paused)
             db.rollback()
             raise ApiError(
                 429,
                 "retry_cooldown",
-                f"Retry now works once per wait; the next try is in {retry_after}s",
-                {"retry_after": retry_after},
+                f"Retry now works once per wait; the next try is in {retry_after}s"
+                + (" once downloads resume" if paused else ""),
+                {"retry_after": retry_after, "paused": paused},
                 headers={"Retry-After": str(retry_after)},
             )
         track.retry_now_step = track.attempt_count
