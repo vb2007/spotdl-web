@@ -9,7 +9,10 @@ def test_worker_status_defaults(authenticated_client, db_session):
     response = authenticated_client.get("/api/worker/status")
 
     assert response.status_code == 200
-    assert response.json() == {
+    body = response.json()
+    server_time = datetime.fromisoformat(body.pop("server_time"))
+    assert abs((server_time - datetime.now(timezone.utc)).total_seconds()) < 5
+    assert body == {
         "paused": False,
         "breaker_active": False,
         "breaker_remaining_seconds": None,

@@ -226,6 +226,8 @@ export interface WorkerStatus {
 	breaker_clears_at: string | null;
 	/** The server's own timestamp: identifies a trip (equality), never a clock reading. */
 	breaker_tripped_until: string | null;
+	/** v56 (A7): the server's clock when it answered (`serverToLocal` uses it). */
+	server_time: string;
 	breaker_trip_count: number;
 	consecutive_failures: number;
 	/** v20: true if *any* user's track is currently `downloading` -- global, not scoped
@@ -843,9 +845,19 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 // 5s poll, network jitter could move it across a minute and make the pill's live region (which
 // names the clock time) speak again. Global worker state, the same for every user.
 let lastClear: { trip: string; at: number } | null = null;
+// v56 (A7): how far the server's clock is ahead of this browser's, from the last worker answer
+// (every page polls it). 0 until one arrives.
+let serverAheadMs = 0;
+
+/** A timestamp of the server's (a track's `scheduled_at`), placed on this browser's clock, so a
+ * countdown to it is right however far this clock is off (#63). */
+export function serverToLocal(iso: string): string {
+	return new Date(Date.parse(iso) - serverAheadMs).toISOString();
+}
 
 async function workerAnswer(path: string, init?: RequestInit): Promise<WorkerStatus> {
 	const status: Omit<WorkerStatus, 'breaker_clears_at'> = await request(path, init);
+	serverAheadMs = Date.parse(status.server_time) - Date.now();
 	const remaining = status.breaker_active ? status.breaker_remaining_seconds : null;
 	const trip = status.breaker_tripped_until;
 	if (remaining === null || trip === null) {

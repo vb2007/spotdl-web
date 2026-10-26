@@ -19,6 +19,9 @@ def _status_dict(worker_state: WorkerState, busy: bool) -> dict:
     now = datetime.now(timezone.utc)
     breaker_active = retry.breaker_tripped(worker_state, now)
     return {
+        # v56 (A7): the server's clock at answer time, so the client can place the server's
+        # own timestamps (a track's `scheduled_at`) on its clock however far that is off.
+        "server_time": now.isoformat(),
         "paused": worker_state.paused,
         "breaker_active": breaker_active,
         "breaker_remaining_seconds": (
