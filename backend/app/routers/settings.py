@@ -152,11 +152,10 @@ def update_library_settings(
     # v57 (L2): the directories as they'd be after this save, so a change to one is checked
     # against the others' current values.
     current = app_settings.get_library_settings(db)
-    quarantine_on = fields.get("library_quarantine_enabled", current.library_quarantine_enabled)
     check_library_paths(
         downloads_dir=get_settings().download_output_dir,
         library_dir=fields.get("library_target_dir", current.library_target_dir),
-        quarantine_dir=fields.get("library_quarantine_dir", current.library_quarantine_dir) if quarantine_on else None,
+        quarantine_dir=fields.get("library_quarantine_dir", current.library_quarantine_dir),
     )
 
     row = app_settings.update_library_settings(db, **fields)

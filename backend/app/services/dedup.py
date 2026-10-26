@@ -284,11 +284,15 @@ def reconcile_disk() -> None:
         roots = managed_roots(db)
         db.commit()
 
+        # Every ledger file under a root counts for it, nested roots' included (review round 5):
+        # an outer root judged only on the rows whose most specific root it is could look empty,
+        # get a sentinel while its volume is unattached, and vouch for every root inside it.
         under: dict[Path, list[Path]] = {root: [] for root in roots}
         for row in rows:
-            root = root_of(Path(row.file_path), roots)
-            if root is not None:
-                under[root].append(Path(row.file_path))
+            path = Path(row.file_path)
+            for root in roots:
+                if path.is_relative_to(root):
+                    under[root].append(path)
         # Outermost first: a root inside a mounted one is covered by its sentinel (covered()).
         mounted: dict[Path, bool] = {}
         for root in sorted(under, key=lambda r: len(r.parts)):

@@ -270,14 +270,10 @@ def test_update_library_settings_allows_a_folder_inside_the_mount(admin_client, 
     assert response.status_code == 200
 
 
-def test_update_library_settings_ignores_an_unused_quarantine_dir(admin_client, db_session):
-    """Review round 3: with quarantine off, its folder isn't checked (an old, overlapping value
-    mustn't block every save); switching quarantine on checks it."""
+def test_update_library_settings_checks_the_quarantine_dir_even_while_quarantine_is_off(admin_client, db_session):
+    """L2 as written (review round 5): the quarantine dir is checked on every save, used or not."""
     off = admin_client.patch(
         "/api/settings/library", json={"library_quarantine_enabled": False, "library_quarantine_dir": "/downloads"}
     )
-    assert off.status_code == 200
-
-    on = admin_client.patch("/api/settings/library", json={"library_quarantine_enabled": True})
-    assert on.status_code == 422
-    assert on.json()["params"]["field"] == "library_quarantine_dir"
+    assert off.status_code == 422
+    assert off.json()["params"]["field"] == "library_quarantine_dir"

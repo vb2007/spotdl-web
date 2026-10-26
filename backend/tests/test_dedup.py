@@ -768,3 +768,25 @@ def test_a_folder_root_inside_a_mounted_root_counts_as_mounted(db_session, monke
     assert db_session.get(DownloadedTrack, "a") is None
     dedup.reconcile_disk()
     assert db_session.get(DownloadedTrack, "b") is None
+
+
+def test_an_outer_root_counts_the_rows_of_the_roots_inside_it(db_session, monkeypatch, tmp_path):
+    """Review round 5: every library row sits under a folder root inside the mount, and the
+    library volume didn't attach (an empty mountpoint, no sentinel). The mount point must not
+    look row-less, get a sentinel and vouch for the folder root: its rows would all be pruned."""
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads = _mount(tmp_path / "downloads")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads)))
+    mount = tmp_path / "music"
+    mount.mkdir()  # unattached: empty, no sentinel
+    sorted_root = mount / "Sorted"
+    _set_library(db_session, sorted_root, earlier=[mount])
+    db_session.add(
+        DownloadedTrack(spotify_track_id="a", file_path=str(sorted_root / "A" / "a.mp3"), format="mp3", bitrate="320k", in_library=True)
+    )
+    db_session.commit()
+
+    dedup.reconcile_disk()
+
+    assert not (mount / dedup.SENTINEL_NAME).exists()
+    assert db_session.get(DownloadedTrack, "a") is not None

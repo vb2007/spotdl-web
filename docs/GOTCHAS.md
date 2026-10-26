@@ -6735,7 +6735,7 @@ independently-found production bug from the same conversation)
   would leave every fresh root without one.
 - **`copy_verify` stages its copy (review round 2).** It copies to `.spotdl-copying-<hex>` (round 4: a
   fixed short name; `<name>.copying-<hex>` could pass the 255-byte limit on a long filename), verifies,
-  then renames onto the destination, and never over an existing file: a worker killed mid-copy
+  then places it at the destination with a hard link (round 3), never over an existing file: a worker killed mid-copy
   leaves only the staging name, which no "already exists" check reads.
 - **The library dir must be `/mnt/raid1/media/music` or a folder inside it (owner decision,
   2026-10-26).** That's where every compose file mounts the library and the only directory nginx
@@ -6745,14 +6745,17 @@ independently-found production bug from the same conversation)
 - **An enclosing mounted root covers a folder root inside it (review round 4).** Under the mount
   rule every library root but the mount point is a folder inside it, so `dedup.covered()` takes
   any enclosing root's sentinel: a folder root removed by hand is "gone from a mounted volume"
-  (dropped, pruned), not held forever, and the sweep creates a new target folder itself.
+  (dropped, pruned), not held forever, and the sweep creates a new target folder itself when an
+  enclosing known root has its sentinel. The sentinel rule counts every ledger file under a root,
+  nested roots' included (round 5): judged only on the rows whose most specific root it is, an
+  unattached mount point looked empty, got a sentinel, and vouched for every folder inside it.
 - **worker-dl's ledger upsert creates the downloads root's sentinel when it's missing (review
   round 4):** a file it just wrote proves the mount. Without it, a `/downloads` whose rows were all
   stale at 5.57.0's first boot would have stayed unconfirmed (and its stale tracks held) until
   someone created the file by hand; before v57 production's `quarantine/` folder kept `/downloads`
   "non-empty", so this would have been a regression.
-- **The quarantine dir is checked only while quarantine is on**, so an old, overlapping value
-  that isn't used doesn't block every save; switching quarantine on checks it.
+- **The quarantine dir is checked on every save and every sweep start, on or off** (L2 as
+  written; a review round briefly relaxed it, round 5 put it back).
 - **`copy_verify` places its copy with a hard link**, which fails on an existing name where a
   rename would silently replace a library file; the staging name is dropped only after the link
   (a filesystem without hard links falls back to a check and a rename).
