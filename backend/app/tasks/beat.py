@@ -177,7 +177,9 @@ def dispatch_due_tracks() -> None:
         due_rows = db.execute(
             select(Track, Job.user_id)
             .join(Job, Track.job_id == Job.id)
-            .where(Track.state == TrackState.WAITING, Track.scheduled_at <= now)
+            # v56 (E1): `pending` too, with expand_job's outbox marker (tasks/expand.py): a
+            # track its broker send never reached is due here, never stranded.
+            .where(Track.state.in_((TrackState.WAITING, TrackState.PENDING)), Track.scheduled_at <= now)
             .order_by(Job.priority.desc(), Track.scheduled_at.asc())
             .with_for_update(skip_locked=True, of=Track)
         ).all()
