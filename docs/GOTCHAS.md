@@ -4955,7 +4955,7 @@ independently-found production bug from the same conversation)
   does the same as the existing Output/Library panels (the page itself isn't admin-gated). The
   settings redesign is v43.
 - **Test-alert is 404 for a non-admin, per the plan.** Every other admin-only route answers 403
-  (`require_admin`). The alert settings GET/PATCH keep 403 to match their siblings.
+  (`require_admin`). The alert settings GET/PATCH keep 403 to match their siblings. *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)*
 
 ### v37 e2e-harness gotchas
 
@@ -5689,7 +5689,7 @@ independently-found production bug from the same conversation)
   accepted a job's owner. Both now depend on `require_admin`, which answers 403 before the job
   lookup, so a non-admin gets the same 403 for their own job, a foreign one, and an unknown id
   (live on dev: 403 `admin_required` ×3, priority unchanged; the admin still 200/404). They left
-  `test_ownership.py`'s 404 sweep for a 403 test of their own.
+  `test_ownership.py`'s 404 sweep for a 403 test of their own. *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)*
 - **The ambient glow's glide runs on WAAPI once the pointer stops (owner answer to v40's open
   question), and stays a rAF loop while it moves.** The first version retargeted a Web Animation
   on every move. At a real mouse's one move per frame that cost 0.90ms/frame against the loop's
@@ -6094,7 +6094,7 @@ independently-found production bug from the same conversation)
   401 `not_authenticated` (owner's decision, 2026-10-24: keep 401). `test_api_keys.py`
   parametrizes this over every route in the app, not only the admin ones. The job read was added
   on the owner's decision the same day (the master plan's "read their own submission status"):
-  through a key it's the key's user's own jobs only, an admin's too (404 otherwise).
+  through a key it's the key's user's own jobs only, an admin's too (404 otherwise). *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)*
 - **FastAPI keeps an included router as a lazy `_IncludedRouter` in `app.routes`** (0.162 in the slot's
   image, 0.141.1 in `uv.lock`/`requirements.txt`: both do). A test
   walking `app.routes` for `APIRoute`s finds only the four built-in docs routes; descend through

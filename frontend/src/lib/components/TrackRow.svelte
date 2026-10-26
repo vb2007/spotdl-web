@@ -28,12 +28,21 @@
 
 	// v54 (U1): `elsewhere`, another user's track in the admin's all/others view: receiving, but
 	// not for this viewer, so it reads idle, never amber (DESIGN.md §2).
+	// v56 (A2): `jobCancelled`, the track's job was cancelled: a not-found track it left behind
+	// can't be retried (the server answers 409 job_cancelled), so it offers no "retry now".
 	let {
 		track,
 		jobId,
 		isAdmin,
-		elsewhere = false
-	}: { track: LiveTrack; jobId: string; isAdmin: boolean; elsewhere?: boolean } = $props();
+		elsewhere = false,
+		jobCancelled = false
+	}: {
+		track: LiveTrack;
+		jobId: string;
+		isAdmin: boolean;
+		elsewhere?: boolean;
+		jobCancelled?: boolean;
+	} = $props();
 
 	let expanded = $state(false);
 	const detailId = $derived(`track-detail-${track.id}`);
@@ -119,7 +128,7 @@
 	// 404s and surfaces through the same notice as any other action error.
 	const DOWNLOADABLE_STATES = new Set<TrackState>(['completed', 'skipped_duplicate']);
 
-	let canRetry = $derived(RETRYABLE_STATES.has(track.state));
+	let canRetry = $derived(RETRYABLE_STATES.has(track.state) && !jobCancelled);
 	let canDownload = $derived(DOWNLOADABLE_STATES.has(track.state));
 	let canCancel = $derived(CANCELLABLE_STATES.has(track.state));
 	let rowButton: HTMLButtonElement | undefined = $state();

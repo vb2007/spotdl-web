@@ -19,13 +19,16 @@
 		isAdmin,
 		total,
 		unreadable = null,
-		elsewhere = false
+		elsewhere = false,
+		jobCancelled = false
 	}: {
 		jobId: string;
 		isAdmin: boolean;
 		total: number;
 		unreadable?: string | null;
 		elsewhere?: boolean;
+		// v56: its tracks offer no "retry now" (the server refuses one, job_cancelled).
+		jobCancelled?: boolean;
 	} = $props();
 
 	const { expanded } = queue;
@@ -106,7 +109,7 @@
 			})}
 		>
 			{#each state.items as track (track.id)}
-				<TrackRow {track} {jobId} {isAdmin} {elsewhere} />
+				<TrackRow {track} {jobId} {isAdmin} {elsewhere} {jobCancelled} />
 			{/each}
 		</ul>
 		<!-- Not after a failed re-read: the rows above are stale, and a next page would be

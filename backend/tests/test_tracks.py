@@ -774,3 +774,25 @@ def test_a_proxy_delete_waits_for_an_attempt_being_recorded_on_real_connections(
     with committed_db() as db:
         row = db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).one()
         assert (row.proxy_id, row.proxy_label) == (None, "http://10.0.0.8:8080")
+
+
+def test_an_attempt_written_without_a_label_still_shows_its_existing_proxy(authenticated_client, db_session, owner):
+    """v56 (A4): an old worker still running during the deploy writes attempts after the
+    migration's backfill, without a label; while their proxy exists, the history names it."""
+    track = _make_track(db_session, owner, state=TrackState.WAITING)
+    proxy = Proxy(url="http://user:s3cret@10.0.0.40:8080", source=ProxySource.MANUAL, enabled=True)
+    db_session.add(proxy)
+    db_session.commit()
+    now = datetime.now(timezone.utc)
+    db_session.add(
+        TrackAttempt(
+            track_id=track.id, attempt_number=1, started_at=now, finished_at=now,
+            outcome=TrackAttemptOutcome.FAILED, proxy_id=proxy.id, network_path=NetworkPath.PROXY,
+        )
+    )
+    db_session.commit()
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/attempts")
+
+    assert response.json()[0]["proxy_label"] == "http://10.0.0.40:8080"
+    assert "s3cret" not in response.text

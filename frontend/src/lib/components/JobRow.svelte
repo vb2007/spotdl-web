@@ -381,6 +381,7 @@
 			jobId={job.id}
 			{isAdmin}
 			elsewhere={!own}
+			jobCancelled={job.status.lifecycle === 'cancelled'}
 			total={totalTracks}
 			unreadable={job.status.lifecycle === 'failed' ? (isAdmin ? (job.error ?? '') : '') : null}
 		/>
