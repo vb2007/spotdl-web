@@ -166,3 +166,75 @@ def test_library_settings_endpoints_require_session(client):
 def test_library_settings_endpoints_reject_non_admin(authenticated_client):
     assert authenticated_client.get("/api/settings/library").status_code == 403
     assert authenticated_client.patch("/api/settings/library", json={}).status_code == 403
+
+
+# v57 (L2): the library, quarantine and downloads dirs may not overlap in a way that lets a sweep
+# act on its own output. The downloads dir is the env's (`/downloads` in the suite); the
+# defaults are library `/mnt/raid1/media/music` and quarantine `/downloads/quarantine`.
+@pytest.mark.parametrize(
+    ("patch", "field", "other", "relation"),
+    [
+        ({"library_target_dir": "/downloads"}, "library_target_dir", "download_output_dir", "equal"),
+        ({"library_target_dir": "/downloads/sorted"}, "library_target_dir", "download_output_dir", "inside"),
+        ({"library_target_dir": "/"}, "library_target_dir", "download_output_dir", "contains"),
+        ({"library_target_dir": "/downloads/../downloads/"}, "library_target_dir", "download_output_dir", "equal"),
+        ({"library_quarantine_dir": "/mnt/raid1/media/music"}, "library_quarantine_dir", "library_target_dir", "equal"),
+        (
+            {"library_quarantine_dir": "/mnt/raid1/media/music/quarantine"},
+            "library_quarantine_dir",
+            "library_target_dir",
+            "inside",
+        ),
+        ({"library_quarantine_dir": "/mnt/raid1"}, "library_quarantine_dir", "library_target_dir", "contains"),
+        ({"library_quarantine_dir": "/downloads"}, "library_quarantine_dir", "download_output_dir", "equal"),
+        ({"library_quarantine_dir": "/srv"}, None, None, None),
+        (
+            {"library_target_dir": "/srv/music", "library_quarantine_dir": "/srv"},
+            "library_quarantine_dir",
+            "library_target_dir",
+            "contains",
+        ),
+    ],
+)
+def test_update_library_settings_refuses_overlapping_directories(
+    admin_client, db_session, patch, field, other, relation
+):
+    before = admin_client.get("/api/settings/library").json()
+
+    response = admin_client.patch("/api/settings/library", json=patch)
+
+    if field is None:
+        assert response.status_code == 200
+        return
+    assert response.status_code == 422
+    assert response.json()["code"] == "library_paths_overlap"
+    assert response.json()["params"] == {"field": field, "other": other, "relation": relation}
+    assert admin_client.get("/api/settings/library").json() == before
+
+
+def test_update_library_settings_refuses_a_quarantine_containing_the_downloads_dir(admin_client, db_session):
+    response = admin_client.patch("/api/settings/library", json={"library_quarantine_dir": "/"})
+
+    assert response.status_code == 422
+    # The library is inside "/" too; the first conflict found is the one reported.
+    assert response.json()["params"]["field"] == "library_quarantine_dir"
+    assert response.json()["params"]["relation"] == "contains"
+
+
+def test_update_library_settings_allows_a_quarantine_inside_the_downloads_dir(admin_client, db_session):
+    """Owner decision (2026-10-26): `/downloads/quarantine` is the shipped default and stays valid."""
+    response = admin_client.patch("/api/settings/library", json={"library_quarantine_dir": "/downloads/q2"})
+
+    assert response.status_code == 200
+    assert response.json()["library_quarantine_dir"] == "/downloads/q2"
+
+
+def test_update_library_settings_keeps_the_root_it_leaves(admin_client, db_session):
+    """v57 (L6): a moved library_target_dir keeps the old one as a known root."""
+    from app.services import app_settings
+
+    admin_client.patch("/api/settings/library", json={"library_target_dir": "/srv/new-music"}).raise_for_status()
+
+    row = app_settings.get_library_settings(db_session)
+    db_session.refresh(row)
+    assert row.library_known_roots == ["/mnt/raid1/media/music", "/srv/new-music"]

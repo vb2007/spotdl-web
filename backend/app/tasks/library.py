@@ -3,9 +3,10 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from app.config import get_settings
 from app.db import SessionLocal
 from app.models import DownloadedTrack, LibrarySortRun, LibrarySortState, Track, TrackState
-from app.services import alerts, app_settings, archive, events, library
+from app.services import alerts, app_settings, archive, dedup, events, library
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -108,12 +109,47 @@ def _publish_progress(run: LibrarySortRun, admin_user_id: str, **kwargs) -> None
     )
 
 
+_RELATION_TEXT = {"equal": "the same directory as", "inside": "inside", "contains": "a parent of"}
+
+
+def describe_conflict(conflict: dict) -> str:
+    """One library.path_conflicts entry in words, for a report row or an API error detail."""
+    return f"{conflict['field']} is {_RELATION_TEXT[conflict['relation']]} {conflict['other']}"
+
+
+def _cancel_requested(db, run: LibrarySortRun) -> bool:
+    # Re-read from the row: POST /api/library/sort/cancel sets it from another session.
+    db.refresh(run, ["cancel_requested"])
+    return run.cancel_requested
+
+
+def _finish(db, run: LibrarySortRun, admin_user_id: str) -> None:
+    run.state = LibrarySortState.IDLE
+    run.finished_at = datetime.now(timezone.utc)
+    db.commit()
+    _publish_progress(run, admin_user_id, done=True)
+    _alert_sweep_finished(run)
+
+
 def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     settings_row = app_settings.get_library_settings(db)
     target_dir = Path(settings_row.library_target_dir)
     quarantine_dir = Path(settings_row.library_quarantine_dir)
     quarantine_enabled = settings_row.library_quarantine_enabled
     folder_template = settings_row.library_folder_template
+    library_roots = [root.resolve() for root in dedup.known_library_roots(settings_row)]
+
+    # v57 (L2): the settings were checked when saved and when the sweep was started, but a
+    # value saved before v57 (or changed since the start) is checked here too. A library that
+    # overlaps the downloads dir would have the sweep moving files onto themselves.
+    conflicts = library.path_conflicts(
+        Path(get_settings().download_output_dir), target_dir, quarantine_dir
+    )
+    if conflicts:
+        for conflict in conflicts:
+            _record_error(run, "<sweep>", f"refused to start: {describe_conflict(conflict)}")
+        _finish(db, run, admin_user_id)
+        return
 
     # v48 (review round 4): a fixed order, so which of two colliding files is filed and which
     # is flagged doesn't depend on how Postgres happens to return the rows -- the earlier
@@ -158,6 +194,13 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
         moved_spotify_ids.update(row.spotify_track_id for row in rows)
 
     for source, rows in groups.items():
+        # v57 (L1): between files only, never mid-file, so every file already moved keeps its
+        # committed repoint and the tracks still follow it below.
+        if _cancel_requested(db, run):
+            run.cancelled = True
+            db.commit()
+            logger.info("library: sweep cancelled after %d of %d files", run.processed, run.total)
+            break
         file_path = str(source)
         try:
             if not source.exists():
@@ -170,6 +213,22 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 continue
 
             dest = library.destination_path(target_dir, folder_template, tags, source)
+
+            # v57 (L2): a source already at its own destination would be read as "already
+            # there" and quarantined or deleted: the library's only copy. A source anywhere
+            # else in a library root is skipped too: nothing on the library filesystem is ever
+            # moved or deleted by a sweep.
+            resolved_source = source.resolve()
+            if dest.resolve() == resolved_source:
+                _record_error(
+                    run, file_path, "destination is the source file itself; skipped, nothing moved"
+                )
+                continue
+            if any(resolved_source.is_relative_to(root) for root in library_roots):
+                _record_error(
+                    run, file_path, "source is already inside the library; skipped, nothing moved"
+                )
+                continue
 
             claimant = claimed_destinations.get(dest)
             if claimant is not None:
@@ -188,15 +247,18 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 # quarantine/delete below leaks a redundant source file (recoverable
                 # manually), instead of losing track of the real, already-correct file
                 # the way committing only at the end of the row would.
-                rows = _repoint(db, rows, source, dest)
-                db.commit()
-                _mark_filed(rows, dest)
-                if quarantine_enabled:
-                    library.quarantine(source, quarantine_dir)
-                    run.quarantined += 1
-                else:
-                    source.unlink()
-                    run.skipped_present += 1
+                # v57 (L3): the re-read, the repoint and the source's removal hold the file's
+                # lock, so worker-dl can't record a row on this file in between.
+                with dedup.file_lock(source):
+                    rows = _repoint(db, rows, source, dest)
+                    db.commit()
+                    _mark_filed(rows, dest)
+                    if quarantine_enabled:
+                        library.quarantine(source, quarantine_dir)
+                        run.quarantined += 1
+                    else:
+                        source.unlink()
+                        run.skipped_present += 1
             else:
                 if not library.copy_verify(source, dest):
                     # v31: copy_verify itself renames the corrupt copy off dest's exact
@@ -211,12 +273,13 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                     continue
                 # Same crash-safety ordering as the conflict branch above: the ledger
                 # is repointed and committed to the *verified* copy before the source
-                # is ever deleted.
-                rows = _repoint(db, rows, source, dest)
-                db.commit()
-                _mark_filed(rows, dest)
-                source.unlink()
-                run.moved += 1
+                # is ever deleted. Under the file's lock, as above (v57, L3).
+                with dedup.file_lock(source):
+                    rows = _repoint(db, rows, source, dest)
+                    db.commit()
+                    _mark_filed(rows, dest)
+                    source.unlink()
+                    run.moved += 1
         except Exception as exc:
             logger.exception("library: error processing %s", file_path)
             _record_error(run, file_path, str(exc))
@@ -241,11 +304,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
             )
             db.commit()
 
-    run.state = LibrarySortState.IDLE
-    run.finished_at = datetime.now(timezone.utc)
-    db.commit()
-    _publish_progress(run, admin_user_id, done=True)
-    _alert_sweep_finished(run)
+    _finish(db, run, admin_user_id)
 
 
 def _alert_sweep_finished(run: LibrarySortRun, crash: str | None = None) -> None:
@@ -259,6 +318,8 @@ def _alert_sweep_finished(run: LibrarySortRun, crash: str | None = None) -> None
     )
     if crash is not None:
         text = f"Library sweep failed: {crash} ({counts})."
+    elif run.cancelled:
+        text = f"Library sweep cancelled after {run.processed} of {run.total} files: {counts}."
     elif run.errors:
         first = run.errors[0]
         text = (

@@ -132,3 +132,46 @@ def quarantine(source: Path, quarantine_dir: Path) -> Path:
     dest = _quarantine_destination(quarantine_dir, source)
     shutil.move(str(source), str(dest))
     return dest
+
+
+def path_relation(a: Path, b: Path) -> str | None:
+    """How directory `a` sits relative to directory `b` once both are resolved (v57, L2):
+    "equal", "inside" (a is under b), "contains" (b is under a), or None when they're apart.
+    `resolve()` follows a symlink that exists and is lexical past one that doesn't, so an alias
+    of the same directory compares equal and the api container (which mounts no root) can
+    still answer."""
+    a, b = a.resolve(), b.resolve()
+    if a == b:
+        return "equal"
+    if a.is_relative_to(b):
+        return "inside"
+    if b.is_relative_to(a):
+        return "contains"
+    return None
+
+
+def path_conflicts(downloads_dir: Path, library_dir: Path, quarantine_dir: Path) -> list[dict]:
+    """Every way the three sweep directories overlap that would let a sweep act on its own
+    output (v57, L2), as {"field", "other", "relation"} (`relation` is `field`'s position
+    relative to `other`). The library may not equal, sit inside or contain the downloads dir;
+    the quarantine dir may not equal, sit inside or contain the library, nor equal or contain
+    the downloads dir. A quarantine dir *inside* the downloads dir is allowed (owner decision,
+    2026-10-26): it's the shipped default, `/downloads/quarantine`, production mounts nowhere
+    else it could go, and the sweep walks ledger rows, never the downloads tree."""
+    conflicts = []
+    relation = path_relation(library_dir, downloads_dir)
+    if relation is not None:
+        conflicts.append(
+            {"field": "library_target_dir", "other": "download_output_dir", "relation": relation}
+        )
+    relation = path_relation(quarantine_dir, library_dir)
+    if relation is not None:
+        conflicts.append(
+            {"field": "library_quarantine_dir", "other": "library_target_dir", "relation": relation}
+        )
+    relation = path_relation(quarantine_dir, downloads_dir)
+    if relation in ("equal", "contains"):
+        conflicts.append(
+            {"field": "library_quarantine_dir", "other": "download_output_dir", "relation": relation}
+        )
+    return conflicts
