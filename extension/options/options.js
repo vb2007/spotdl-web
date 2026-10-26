@@ -137,7 +137,13 @@ $('key-form').addEventListener('submit', async (event) => {
 		setStatus($('key-status'), t('optionsKeyNotSaved', [connectionText(checked)]), 'error');
 		return;
 	}
+	// Tied to the address it was checked against, and only while that is still the saved one
+	// (the address may have been changed while the check ran).
 	const { origin } = await readSettings(browser.storage);
+	if (checked.origin !== origin) {
+		setStatus($('key-status'), t('optionsKeyNotSaved', [t('optionsKeyAddressChanged')]), 'error');
+		return;
+	}
 	await browser.storage.local.set({ [KEYS.apiKey]: value, [KEYS.apiKeyOrigin]: origin });
 	$('api-key').value = '';
 	await showSettings();

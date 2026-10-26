@@ -391,5 +391,11 @@
 				"content": "$1"
 			}
 		}
+	},
+	"toastStillSending": {
+		"message": "Your last choice for this is still on its way: wait for its answer"
+	},
+	"optionsKeyAddressChanged": {
+		"message": "the app address changed while the key was being checked. Save it again"
 	}
 }

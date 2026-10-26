@@ -543,6 +543,52 @@ describe('submitting and the cascade menu', () => {
 		assert.equal(icons(document, 'row')[0].dataset.state, 'queued');
 	});
 
+	it('a press on the open menu’s opener (its glyph, with the focus move a real click makes) dismisses, never queues', async () => {
+		const { window, document, messages } = loadPage('album');
+		const button = icons(document, 'header')[0];
+		button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		assert.ok(document.querySelector('.spotdl-ext-menu'));
+		const glyph = button.querySelector('path');
+		glyph.dispatchEvent(new window.PointerEvent('pointerdown', { bubbles: true, button: 0 }));
+		glyph.dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true, button: 0 }));
+		button.focus(); // what the browser does on mousedown: focusout leaves the menu for the opener
+		glyph.dispatchEvent(new window.MouseEvent('click', { bubbles: true, button: 0, detail: 1 }));
+		await settle(window, 20);
+		assert.equal(document.querySelector('.spotdl-ext-menu'), null);
+		assert.deepEqual(messages, []);
+	});
+
+	it('two icons for one item: the clicked one shows the answer, both end up ticked', async () => {
+		let answer;
+		const { window, document } = loadPage('album', { sendMessage: () => new Promise((resolve) => (answer = resolve)) });
+		// A second row for the first track (a playlist holding it twice).
+		const row = document.querySelector('[data-testid="tracklist-row"]');
+		const twin = row.cloneNode(true);
+		twin.querySelectorAll('[data-spotdl-icon]').forEach((b) => b.remove());
+		twin.removeAttribute('data-spotdl-host');
+		row.parentElement.append(twin);
+		await settle(window);
+		const [first, second] = icons(document, 'row').filter((b) => b.dataset.spotdlUrl === icons(document, 'row')[0].dataset.spotdlUrl);
+		second.click();
+		assert.equal(first.dataset.state, 'sending');
+		answer({ outcome: 'queued' });
+		await settle(window, 20);
+		assert.equal(second.dataset.state, 'queued');
+		assert.equal(first.dataset.state, 'queued');
+	});
+
+	it('a second choice while the first is in flight says so instead of vanishing', async () => {
+		const { window, document, messages } = loadPage('album', { sendMessage: () => new Promise(() => {}) });
+		const button = icons(document, 'row')[0];
+		button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		document.querySelectorAll('.spotdl-ext-menu [role="menuitem"]')[2].click();
+		button.dispatchEvent(new window.MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		document.querySelectorAll('.spotdl-ext-menu [role="menuitem"]')[1].click();
+		await settle(window, 20);
+		assert.equal(messages.length, 1);
+		assert.equal(document.querySelector('.spotdl-ext-toast').textContent, 'Your last choice for this is still on its way: wait for its answer');
+	});
+
 	it('a menu whose row goes away closes with it', async () => {
 		const { window, document } = loadPage('album');
 		const button = icons(document, 'row')[0];

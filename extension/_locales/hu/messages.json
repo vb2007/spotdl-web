@@ -96,7 +96,7 @@
 		}
 	},
 	"toastAlreadyQueued": {
-		"message": "Ez már a sorodban van: még töltjük"
+		"message": "Már a várólistádon van: még töltődik"
 	},
 	"toastInLibrary": {
 		"message": "Már megvan a könyvtárban: nincs mit letölteni"
@@ -391,5 +391,11 @@
 				"content": "$1"
 			}
 		}
+	},
+	"toastStillSending": {
+		"message": "Az előző választásod még úton van: várd meg a választ"
+	},
+	"optionsKeyAddressChanged": {
+		"message": "az alkalmazás címe megváltozott, miközben a kulcsot ellenőriztem. Mentsd el újra"
 	}
 }

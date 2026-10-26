@@ -135,27 +135,38 @@ globalThis.spotdlInject = (() => {
 		setState(button, shownState(item.url));
 		// Spotify's rows and cards act on clicks and double-clicks that bubble up to them
 		// (select, play, navigate): none of ours may reach them.
-		for (const type of ['mousedown', 'mouseup', 'dblclick']) {
+		for (const type of ['mouseup', 'dblclick']) {
 			button.addEventListener(type, (event) => event.stopPropagation());
 		}
 		// A click counts only after a press on this button itself, or from the keyboard (a
 		// click with no pointer, `detail` 0, on the focused button). A page can't forward the
 		// user's click from elsewhere (an invisible <label for> over the page) onto it.
+		// A press is a trusted pointerdown or mousedown on the button (a screen reader's
+		// "press" action sends mousedown/mouseup/click, with no pointer event).
 		let pressedAt = 0;
-		button.addEventListener('pointerdown', (event) => {
+		// Set by a press while this button's own menu is open: that click dismisses the menu.
+		let dismissing = false;
+		const onPress = (event) => {
 			event.stopPropagation();
-			if (trusted(event) && event.button === 0) pressedAt = Date.now();
-		});
+			if (!trusted(event) || event.button !== 0) return;
+			pressedAt = Date.now();
+			if (menu && menu.button === button) dismissing = true;
+		};
+		button.addEventListener('pointerdown', onPress);
+		button.addEventListener('mousedown', onPress);
 		button.addEventListener('click', (event) => {
 			event.preventDefault();
 			event.stopPropagation();
+			const wasDismissing = dismissing;
+			dismissing = false;
 			if (!trusted(event)) return;
 			const fromKeyboard = event.detail === 0 && doc.activeElement === button;
 			const fromPress = Date.now() - pressedAt < CLICK_AFTER_PRESS_MS;
 			pressedAt = 0;
 			if (!fromKeyboard && !fromPress && !acceptSynthetic) return;
-			// The opener of an open menu: a click dismisses the menu, it doesn't queue.
-			if (menu && menu.button === button) closeMenu(true);
+			// The opener of an open menu (even if the press already closed it, through focus
+			// moving onto the button): a click dismisses the menu, it never queues.
+			if (wasDismissing || (menu && menu.button === button)) closeMenu(true);
 			else submit(button, null);
 		});
 		// Only the keys the icon acts on stop here (Spotify's own Enter would play the row);
@@ -295,19 +306,36 @@ globalThis.spotdlInject = (() => {
 		return inflight.has(url) ? 'sending' : (itemStates.get(url) ?? 'idle');
 	}
 
-	// The icon showing `url` now: the one clicked, or the one a re-render put in its place.
-	function iconFor(url) {
-		for (const candidate of doc.querySelectorAll(`[${ICON_ATTR}]`)) {
-			if (candidate.dataset.spotdlUrl === url && hostItem(candidate)) return candidate;
-		}
-		return null;
+	// Every icon showing `url` now (one item can have two: search's top result and its row,
+	// a track twice in a playlist).
+	function iconsFor(url) {
+		return Array.from(doc.querySelectorAll(`[${ICON_ATTR}]`)).filter(
+			(candidate) => candidate.dataset.spotdlUrl === url && hostItem(candidate),
+		);
+	}
+
+	// The icon an answer belongs to: the one clicked while it still shows the item, else the
+	// one a re-render put in its place.
+	function iconFor(url, clicked) {
+		if (clicked && clicked.isConnected && clicked.dataset.spotdlUrl === url && hostItem(clicked)) return clicked;
+		return iconsFor(url)[0] ?? null;
+	}
+
+	function setStates(url, state) {
+		for (const icon of iconsFor(url)) setState(icon, state);
 	}
 
 	async function submit(clicked, cascade, override) {
 		const item = hostItem(clicked);
-		if (!item || inflight.has(item.url)) return;
+		if (!item) return;
+		if (inflight.has(item.url)) {
+			// One request per item at a time: say so, rather than drop the choice unseen.
+			showToast(clicked, t('toastStillSending'), 'error');
+			return;
+		}
 		const url = override ? override.url : item.url;
 		inflight.add(item.url);
+		setStates(item.url, 'sending');
 		setState(clicked, 'sending');
 		let answer;
 		try {
@@ -325,12 +353,12 @@ globalThis.spotdlInject = (() => {
 		answer = answer ?? { outcome: 'error', code: 'extension_error' };
 		inflight.delete(item.url);
 		// The row may have been recycled, or re-rendered with a new icon, while it ran.
-		const button = iconFor(item.url);
+		const button = iconFor(item.url, clicked);
 		const stillOurs = button !== null;
 
 		if (answer.outcome === 'ambiguous') {
 			const candidates = artistChoices(answer.candidates);
-			if (stillOurs) setState(button, shownState(item.url));
+			setStates(item.url, shownState(item.url));
 			// The menu opens only while focus is still on the icon (where choosing put it):
 			// anywhere else, even the page's <body> after a click on empty space, the user has
 			// moved on, and the next Enter or Space would queue an artist nobody chose.
@@ -342,12 +370,16 @@ globalThis.spotdlInject = (() => {
 		const success = answer.outcome in SUCCESS_KEYS;
 		const direct = !cascade && !override;
 		if (success && direct) itemStates.set(item.url, answer.outcome);
+		// Every icon of the item shows the answer; a transient one (an error, a cascade's) goes
+		// back to the item's own state after a moment.
+		setStates(item.url, success && direct ? answer.outcome : shownState(item.url));
 		if (stillOurs) {
 			setState(button, success ? answer.outcome : 'error');
 			if (!success || !direct) {
 				win.setTimeout(() => {
-					const now = iconFor(item.url);
-					if (now && now.dataset.state !== 'sending') setState(now, shownState(item.url));
+					for (const now of iconsFor(item.url)) {
+						if (now.dataset.state !== 'sending') setState(now, shownState(item.url));
+					}
 				}, TRANSIENT_MS);
 			}
 		}
@@ -444,7 +476,9 @@ globalThis.spotdlInject = (() => {
 			});
 		}
 		el.addEventListener('focusout', (event) => {
-			if (menu && menu.el === el && !el.contains(event.relatedTarget) && event.relatedTarget !== null) {
+			const to = event.relatedTarget;
+			// Focus going to the opener is the opener's click, which dismisses the menu itself.
+			if (menu && menu.el === el && to !== null && !el.contains(to) && !menu.button.contains(to)) {
 				closeMenu(false);
 			}
 		});
@@ -555,7 +589,8 @@ globalThis.spotdlInject = (() => {
 	// ---- lifecycle ----------------------------------------------------------------------------
 
 	function onOutsidePointer(event) {
-		if (menu && !menu.el.contains(event.target) && event.target !== menu.button) closeMenu(false);
+		// A press on the opener (its glyph included) is left to the opener's click.
+		if (menu && !menu.el.contains(event.target) && !menu.button.contains(event.target)) closeMenu(false);
 	}
 
 	// A scroll or resize moves the menu with its icon (Spotify scrolls its own views on its
