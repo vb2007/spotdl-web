@@ -227,5 +227,12 @@ test.describe('non-admin', () => {
 		}
 		// The page never even asks for another view (the server would refuse it anyway).
 		expect(listings.filter((u) => /[?&](view|all_users)=/.test(u))).toEqual([]);
+
+		// A worker poll that fails (the network gone) leaves no unhandled rejection behind.
+		const pageErrors: string[] = [];
+		page.on('pageerror', (error) => pageErrors.push(error.message));
+		await page.route('**/api/worker/status', (route) => route.abort());
+		await page.waitForTimeout(11_000);
+		expect(pageErrors).toEqual([]);
 	});
 });

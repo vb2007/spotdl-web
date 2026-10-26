@@ -517,6 +517,9 @@
 	 * subscribed to mid-flight. The new stream's `onopen` loads the new scope. */
 	async function onViewChange(next: View) {
 		if (next === view || !isAdmin) return;
+		// Leaving `/` already: the switch would reach neither this page's history entry nor a
+		// page that keeps it.
+		if (navigating.to && navigating.to.route.id !== route.route.id) return;
 		view = next;
 		// Mid-navigation the browser's current entry may already be the one being navigated to:
 		// writing into it would lose that entry's own view; `afterNavigate` settles it instead.
@@ -571,7 +574,10 @@
 		// v54 (U1): in the others view, whether the admin's own download (which that view's
 		// stream leaves out) is receiving, so it still warms the page; asked only while this
 		// poll's own answer says the worker is busy, and not once the page is gone.
-		queue.refreshOwnElsewhere(refreshed.then((status) => status.busy && !unmounted));
+		// Only there: the store awaits (and catches) this fork of the poll, so it never goes
+		// unhandled when the poll fails.
+		if (queue.getView() === 'others')
+			queue.refreshOwnElsewhere(refreshed.then((status) => status.busy && !unmounted));
 		refreshed
 			.then(() => {
 				unreachedPolls = 0;
