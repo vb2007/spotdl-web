@@ -215,6 +215,16 @@ export type StreamEvent = TrackStateEvent | JobStateEvent | LibraryProgressEvent
 
 export interface WorkerStatus {
 	paused: boolean;
+	/** v56 (A7): the breaker's pause is running, decided on the server's clock. */
+	breaker_active: boolean;
+	/** v56 (A7): how long it runs yet, from the server (null when it isn't running). */
+	breaker_remaining_seconds: number | null;
+	/** v56 (A7): when it clears on *this* browser's clock: the time this answer arrived plus
+	 * `breaker_remaining_seconds`, so a countdown is right however far this clock is off.
+	 * Added here, not sent. Never compare `breaker_tripped_until` (the server's clock) with
+	 * `Date.now()`: that is #63's skewed countdown. */
+	breaker_clears_at: string | null;
+	/** The server's own timestamp: identifies a trip (equality), never a clock reading. */
 	breaker_tripped_until: string | null;
 	breaker_trip_count: number;
 	consecutive_failures: number;
@@ -828,20 +838,31 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 	}
 }
 
+// v56 (A7): every worker answer gets `breaker_clears_at` on arrival (see WorkerStatus).
+async function workerAnswer(path: string, init?: RequestInit): Promise<WorkerStatus> {
+	const status: Omit<WorkerStatus, 'breaker_clears_at'> = await request(path, init);
+	const remaining = status.breaker_active ? status.breaker_remaining_seconds : null;
+	return {
+		...status,
+		breaker_clears_at:
+			remaining === null ? null : new Date(Date.now() + remaining * 1000).toISOString()
+	};
+}
+
 export function workerStatus(): Promise<WorkerStatus> {
-	return request('/api/worker/status');
+	return workerAnswer('/api/worker/status');
 }
 
 export function pauseWorker(): Promise<WorkerStatus> {
-	return request('/api/worker/pause', { method: 'POST' });
+	return workerAnswer('/api/worker/pause', { method: 'POST' });
 }
 
 export function resumeWorker(): Promise<WorkerStatus> {
-	return request('/api/worker/resume', { method: 'POST' });
+	return workerAnswer('/api/worker/resume', { method: 'POST' });
 }
 
 export function releaseBreaker(): Promise<WorkerStatus> {
-	return request('/api/worker/breaker/release', { method: 'POST' });
+	return workerAnswer('/api/worker/breaker/release', { method: 'POST' });
 }
 
 export function getAdminStats(window: StatsWindow): Promise<AdminStats> {

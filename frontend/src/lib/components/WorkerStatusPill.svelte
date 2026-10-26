@@ -12,12 +12,10 @@
 	// breaker-aware countdown read the same store).
 	const { status } = worker;
 
-	let breakerUntil = $derived(
-		$status?.breaker_tripped_until != null &&
-			new Date($status.breaker_tripped_until).getTime() > Date.now()
-			? $status.breaker_tripped_until
-			: null
-	);
+	// v56 (A7): the server says whether the hold runs and for how long; the countdown runs on
+	// this browser's clock from that (api.ts's `breaker_clears_at`), so a skewed clock no
+	// longer shows a wrong time, or no hold at all.
+	let breakerUntil = $derived($status?.breaker_active ? $status.breaker_clears_at : null);
 	let paused = $derived($status?.paused ?? false);
 
 	// v42 (F07): the live region holds one fixed sentence per state, so it speaks when the
