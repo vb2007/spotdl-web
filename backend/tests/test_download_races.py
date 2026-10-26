@@ -27,7 +27,7 @@ from app.models import (
     TrackState,
     User,
 )
-from app.services import app_settings, attempts, dedup, downloads, events, proxies, tagging
+from app.services import app_settings, attempts, dedup, downloads, events, proxies, retry, tagging
 from app.tasks import beat as beat_task
 from app.tasks import download as download_task
 
@@ -316,3 +316,37 @@ def test_a_reclaim_of_a_dead_download_keeps_its_failed_row(committed_db, monkeyp
         assert row.outcome == TrackAttemptOutcome.FAILED
         assert row.error_message.startswith(attempts.RECLAIM_PREFIX)
         assert (track.state, track.attempts_made, track.failure_count) == (TrackState.WAITING, 1, 1)
+
+
+# --- review round 1: the gate writes before the claim are guarded the same way ---------------
+
+
+@pytest.mark.parametrize("gate_write", ["breaker hold", "duplicate"])
+def test_a_cancel_just_before_a_gate_write_stays_cancelled(committed_db, monkeypatch, real_task, gate_write):
+    """The breaker hold and the dedup resolution wrote the state they decided on over whatever
+    had committed since entry: a track cancelled in that window came back as `waiting` (and
+    downloaded after the hold) or `skipped_duplicate`. Both now write only while the track is
+    still this invocation's, under its row lock."""
+    track_id = _committed_track(committed_db)
+    gate = Gate(f"download_track: decided on the {gate_write}, before writing it")
+    if gate_write == "breaker hold":
+        with committed_db() as db:
+            retry.get_worker_state(db).breaker_tripped_until = datetime(2099, 1, 1, tzinfo=timezone.utc)
+            db.commit()
+        monkeypatch.setattr(retry, "breaker_active", gate.wrap(retry.breaker_active))
+    else:
+        monkeypatch.setattr(
+            dedup, "is_already_downloaded", gate.wrap(lambda spotify_track_id: real_task.output_path)
+        )
+
+    task = Thread(download_task.download_track, str(track_id), name="download_track")
+    gate.wait_reached()
+    _cancel(committed_db, track_id)
+    gate.open()
+    task.join()
+
+    with committed_db() as db:
+        track = db.get(Track, track_id)
+        assert (track.state, track.scheduled_at, track.output_path) == (TrackState.CANCELLED, None, None)
+    assert _rows(committed_db, track_id) == [(TrackAttemptOutcome.CANCELLED, None)]
+    assert real_task.downloaded == []

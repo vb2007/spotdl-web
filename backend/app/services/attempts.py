@@ -58,13 +58,18 @@ def recorded_since(track_id: uuid.UUID, attempt_number: int) -> Exists:
     )
 
 
-def previous_was_transport_failure(db: Session, track_id: uuid.UUID) -> bool:
+def previous_was_transport_failure(db: Session, track_id: uuid.UUID, before: int) -> bool:
     """Whether this track's latest real attempt was itself a proxy transport failure. Holds
-    never touched the network, so they're skipped. Call before recording the current
-    attempt."""
+    never touched the network, so they're skipped. `before` is the caller's entry token
+    (latest_attempt_number): a row beat's reclaim wrote since then stands for the current
+    attempt itself (v55, E3), not the previous one."""
     previous = db.execute(
         select(TrackAttempt.outcome, TrackAttempt.error_message)
-        .where(TrackAttempt.track_id == track_id, TrackAttempt.outcome != TrackAttemptOutcome.HELD)
+        .where(
+            TrackAttempt.track_id == track_id,
+            TrackAttempt.outcome != TrackAttemptOutcome.HELD,
+            TrackAttempt.attempt_number <= before,
+        )
         .order_by(TrackAttempt.attempt_number.desc())
         .limit(1)
     ).first()

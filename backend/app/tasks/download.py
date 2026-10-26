@@ -54,6 +54,18 @@ def pacing_delay() -> float:
     return random.uniform(low, settings.pacing_max_sec)
 
 
+def _lock_if_still_owned(db: Session, track: Track, entry_state: TrackState, entry_attempt: int) -> bool:
+    """Row-locks the track, reloaded, and says whether this invocation still owns it: the
+    state it found on entry, and no row recorded since (v55, E4/E5). A write made under the
+    lock can't be overtaken by a cancel or a reclaim: theirs waits for this transaction, and
+    one that committed first is seen here. The same claim as the `downloading` write, for
+    the gate writes before it (review round 1: the same plain-assignment race)."""
+    db.refresh(track, with_for_update=True)
+    return track.state == entry_state and not db.execute(
+        select(attempts.recorded_since(track.id, entry_attempt))
+    ).scalar()
+
+
 def _hold(
     db: Session,
     track: Track,
@@ -61,6 +73,8 @@ def _hold(
     attempt_started_at: datetime,
     scheduled_at: datetime,
     reason: str,
+    entry_state: TrackState,
+    entry_attempt: int,
 ) -> None:
     """Puts a track back to `waiting` until `scheduled_at` without attempting it.
 
@@ -69,7 +83,11 @@ def _hold(
     "attempt 1 is always direct". v35: recorded as `held`, not `failed`, so it counts as
     neither an attempt nor a failure, and it gets its own attempt_number rather than sharing
     the next real attempt's. v55 (E11): a hold straight after an identical one extends that
-    row (hold_count) instead of adding another."""
+    row (hold_count) instead of adding another. A track cancelled since entry stays
+    cancelled: a plain write here turned it back to `waiting`, to download after the hold."""
+    if not _lock_if_still_owned(db, track, entry_state, entry_attempt):
+        _give_up_claim(db, track, attempt_started_at, "before its hold")
+        return
     track.state = TrackState.WAITING
     track.scheduled_at = scheduled_at
     attempts.record_attempt(
@@ -246,6 +264,8 @@ def download_track(track_id: str) -> None:
                 attempt_started_at,
                 worker_state.breaker_tripped_until or (now + retry.next_delay(0)),
                 "circuit breaker active; rescheduled without attempting",
+                entry_state,
+                entry_attempt,
             )
             return
 
@@ -271,11 +291,19 @@ def download_track(track_id: str) -> None:
                 attempt_started_at,
                 now + retry.next_delay(0),
                 f"{exc.root} is missing or empty; rescheduled without attempting",
+                entry_state,
+                entry_attempt,
             )
             return
         if existing_path is not None:
+            if not _lock_if_still_owned(db, track, entry_state, entry_attempt):
+                _give_up_claim(db, track, attempt_started_at, "before its duplicate resolved")
+                return
             track.state = TrackState.SKIPPED_DUPLICATE
             track.output_path = str(existing_path)
+            # v55 (E9): a resolved track keeps no stale failure.
+            track.last_error = None
+            track.last_error_type = None
             attempts.record_attempt(
                 db,
                 track.id,
@@ -458,8 +486,10 @@ def download_track(track_id: str) -> None:
             # this row's state directly (from a separate request/session) and left the
             # download to just finish. db.refresh picks up that committed change; a
             # cancelled track's result is discarded rather than overwritten back to a
-            # non-terminal state.
-            db.refresh(track)
+            # non-terminal state. v55: under the row lock, held to the commit below, so a
+            # cancel landing after this check waits for it instead of being overwritten by
+            # the outcome (review round 1).
+            db.refresh(track, with_for_update=True)
             if track.state == TrackState.CANCELLED:
                 logger.info(
                     "download_track: track %s was cancelled mid-download, discarding result",
@@ -518,46 +548,6 @@ def download_track(track_id: str) -> None:
                     f"spotdl reported {output_path} but no file exists there"
                 )
 
-            if downloaded.skipped_existing:
-                # v55 (E8): spotdl's own "file already exists" skip. The file was there
-                # before this attempt and nothing went to YouTube, so it is recorded the way
-                # the dedup gate above records a ledger hit: `skipped_duplicate`, no network
-                # path, no counter, no proxy or breaker verdict. The ledger gains the row it
-                # was missing, so the next submission resolves at the gate.
-                track.state = TrackState.SKIPPED_DUPLICATE
-                track.output_path = str(output_path)
-                track.last_error = None
-                track.last_error_type = None
-                db.merge(
-                    DownloadedTrack(
-                        spotify_track_id=track.spotify_track_id,
-                        file_path=str(output_path),
-                        format=output_format,
-                        bitrate=output_bitrate,
-                        in_library=False,
-                    )
-                )
-                recorded = attempts.record_attempt(
-                    db,
-                    track.id,
-                    attempt_started_at,
-                    datetime.now(timezone.utc),
-                    TrackAttemptOutcome.SKIPPED_DUPLICATE,
-                    warning_message="spotdl found the file already in place; not downloaded again",
-                    supersede_reclaim_after=entry_attempt,
-                )
-                db.commit()
-                events.publish_track_event(
-                    owner_id,
-                    track.id,
-                    track.job_id,
-                    track.state.value,
-                    attempts_made=recorded.attempts_made,
-                    failure_count=recorded.failure_count,
-                    **track_meta,
-                )
-                return
-
             # ID3 integrity (v26): read tags back off the actual file rather than
             # trusting song_json, and repair anything missing before marking the track
             # completed. Guarded broadly -- a tag-repair bug must never turn a
@@ -588,6 +578,50 @@ def download_track(track_id: str) -> None:
                     track_id,
                 )
                 tag_warning = "tag verification/repair failed unexpectedly"
+
+            if downloaded.skipped_existing:
+                # v55 (E8): spotdl's own "file already exists" skip. The file was there
+                # before this attempt and nothing went to YouTube, so it is recorded the way
+                # the dedup gate above records a ledger hit: `skipped_duplicate`, no network
+                # path, no counter, no proxy or breaker verdict. The ledger gains the row it
+                # was missing, so the next submission resolves at the gate. Its tags were
+                # verified (and repaired) above like a fresh download's, as before v55.
+                track.state = TrackState.SKIPPED_DUPLICATE
+                track.output_path = str(output_path)
+                track.last_error = None
+                track.last_error_type = None
+                db.merge(
+                    DownloadedTrack(
+                        spotify_track_id=track.spotify_track_id,
+                        file_path=str(output_path),
+                        format=output_format,
+                        bitrate=output_bitrate,
+                        in_library=False,
+                    )
+                )
+                recorded = attempts.record_attempt(
+                    db,
+                    track.id,
+                    attempt_started_at,
+                    datetime.now(timezone.utc),
+                    TrackAttemptOutcome.SKIPPED_DUPLICATE,
+                    warning_message=_notes(
+                        "spotdl found the file already in place; not downloaded again",
+                        f"tag warning: {tag_warning}" if tag_warning else None,
+                    ),
+                    supersede_reclaim_after=entry_attempt,
+                )
+                db.commit()
+                events.publish_track_event(
+                    owner_id,
+                    track.id,
+                    track.job_id,
+                    track.state.value,
+                    attempts_made=recorded.attempts_made,
+                    failure_count=recorded.failure_count,
+                    **track_meta,
+                )
+                return
 
             track.state = TrackState.COMPLETED
             track.output_path = str(output_path)
@@ -656,7 +690,8 @@ def download_track(track_id: str) -> None:
                 exc_info=(type(exc), log_exc, exc.__traceback__),
             )
             db.rollback()
-            track = db.get(Track, uuid.UUID(track_id))
+            # v55: locked, like the success path's refresh.
+            track = db.get(Track, uuid.UUID(track_id), with_for_update=True, populate_existing=True)
             if track.state == TrackState.CANCELLED:
                 logger.info(
                     "download_track: track %s was cancelled before this failure landed, "
@@ -682,7 +717,7 @@ def download_track(track_id: str) -> None:
                 # breaker hears nothing (see retry.ProxyTransportError).
                 error_type = TrackErrorType.OTHER
                 error_message = attempts.TRANSPORT_FAILURE_PREFIX + error_message
-                if attempts.previous_was_transport_failure(db, track.id):
+                if attempts.previous_was_transport_failure(db, track.id, entry_attempt):
                     # One rung-free retry only (see record_transport_failure's docstring):
                     # the second in a row climbs the ladder. Still OTHER, so still no
                     # breaker.
