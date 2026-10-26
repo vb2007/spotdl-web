@@ -247,6 +247,7 @@ const BACKEND_CODES = [
 	'library_sort_not_running',
 	'library_paths_overlap',
 	'library_path_not_absolute',
+	'library_dir_outside_mount',
 	'track_not_found',
 	'job_archived',
 	'track_not_retryable',

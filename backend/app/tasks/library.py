@@ -150,11 +150,17 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     # value saved before v57 (or changed since the start) is checked here too. A library that
     # overlaps the downloads dir would have the sweep moving files onto themselves.
     conflicts = library.path_conflicts(
-        Path(get_settings().download_output_dir), target_dir, quarantine_dir
+        Path(get_settings().download_output_dir), target_dir, quarantine_dir if quarantine_enabled else None
     )
-    if conflicts:
-        for conflict in conflicts:
-            _record_error(run, "<sweep>", f"refused to start: {describe_conflict(conflict)}")
+    refusals = [f"refused to start: {describe_conflict(conflict)}" for conflict in conflicts]
+    # Owner decision (2026-10-26): only the library volume's mount point, or a folder inside it.
+    if library.outside_library_mount(target_dir):
+        refusals.insert(
+            0, f"refused to start: library_target_dir is outside the library mount {library.library_mount()}"
+        )
+    if refusals:
+        for message in refusals:
+            _record_error(run, "<sweep>", message)
         _finish(db, run, admin_user_id)
         return
 

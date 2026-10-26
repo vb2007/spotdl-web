@@ -6736,6 +6736,16 @@ independently-found production bug from the same conversation)
 - **`copy_verify` stages its copy (review round 2).** It copies to `<name>.copying-<hex>`, verifies,
   then renames onto the destination, and never over an existing file: a worker killed mid-copy
   leaves only the staging name, which no "already exists" check reads.
+- **The library dir must be `/mnt/raid1/media/music` or a folder inside it (owner decision,
+  2026-10-26).** That's where every compose file mounts the library and the only directory nginx
+  serves; anywhere else is the saving container's own writable layer. A 422 on save
+  (`library_dir_outside_mount`), and a "refused to start" from the sweep for a value saved before.
+  The overlap checks run first, so each of L2's cases keeps its own message.
+- **The quarantine dir is checked only while quarantine is on**, so an old, overlapping value
+  that isn't used doesn't block every save; switching quarantine on checks it.
+- **`copy_verify` places its copy with a hard link**, which fails on an existing name where a
+  rename would silently replace a library file; the staging name is dropped only after the link
+  (a filesystem without hard links falls back to a check and a rename).
 - **Library and quarantine dirs must be absolute** (422 `library_path_not_absolute`): a relative
   path resolves against each container's own working directory, so the overlap check can't
   judge it.

@@ -348,7 +348,7 @@ def download_track_file(
     # track left under an earlier root stays downloadable. nginx's /internal-library/ aliases
     # one fixed directory (the default root), so the path nginx gets is relative to that.
     library_roots = [root.resolve() for root in dedup.known_library_roots(app_settings.get_library_settings(db))]
-    library_alias = Path(app_settings.DEFAULT_LIBRARY_TARGET_DIR)
+    library_alias = Path(app_settings.DEFAULT_LIBRARY_TARGET_DIR).resolve()
     db.commit()
 
     resolved = raw_path if raw_path.is_absolute() else (downloads_root / raw_path)

@@ -236,3 +236,33 @@ def test_copy_verify_never_overwrites_a_destination_that_appeared_meanwhile(tmp_
     with pytest.raises(FileExistsError):
         library.copy_verify(source, dest)
     assert dest.read_bytes() == b"another file"
+
+
+def test_copy_verify_places_the_copy_without_replacing_a_file_created_at_the_last_moment(tmp_path, monkeypatch):
+    """Review round 3: the final step is a hard link, which fails on an existing name where a
+    rename would overwrite a library file."""
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+    real_link = library.os.link
+
+    def _dest_appears_first(src, dst):
+        Path(dst).write_bytes(b"another file")
+        return real_link(src, dst)
+
+    monkeypatch.setattr(library.os, "link", _dest_appears_first)
+
+    with pytest.raises(FileExistsError):
+        library.copy_verify(source, dest)
+    assert dest.read_bytes() == b"another file"
+    assert any(p.name.startswith("source.mp3.copying-") for p in dest.parent.iterdir())
+
+
+def test_copy_verify_leaves_only_the_destination_name(tmp_path):
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+
+    assert library.copy_verify(source, dest) is True
+    assert [p.name for p in dest.parent.iterdir()] == ["source.mp3"]
+    assert dest.read_bytes() == b"the whole real audio"

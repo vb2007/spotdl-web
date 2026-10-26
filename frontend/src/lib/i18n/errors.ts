@@ -56,6 +56,8 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	library_sort_running: () => m.error_library_sort_running(),
 	library_sort_not_running: () => m.error_library_sort_not_running(),
 	library_path_not_absolute: (p) => m.error_library_path_not_absolute({ field: field(p) }),
+	library_dir_outside_mount: (p) =>
+		m.error_library_dir_outside_mount({ field: field(p), mount: String(p.mount ?? '') }),
 	library_paths_overlap: (p) =>
 		(PATHS_OVERLAP[`${p.field}_${p.other}_${p.relation}`] ?? m.error_library_paths_overlap)(),
 	track_not_found: () => m.error_track_not_found(),

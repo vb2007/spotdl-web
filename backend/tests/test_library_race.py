@@ -68,13 +68,21 @@ def test_worker_dl_upsert_vs_sweep_move_of_the_same_file(committed_db, tmp_path,
     setup.commit()
     setup.close()
 
+    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path)
     monkeypatch.setattr(library_task, "SessionLocal", committed_db)
     monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
     monkeypatch.setattr(events, "publish_library_progress", lambda *args, **kwargs: None)
     monkeypatch.setattr(alerts, "enqueue", lambda *args, **kwargs: None)
     # The sweep stops after its repoint is committed, just before it deletes the source.
     gate = Gate("sweep between its repoint commit and its delete of the source")
-    monkeypatch.setattr(Path, "unlink", gate.wrap(Path.unlink))
+    real_unlink = Path.unlink
+
+    def _unlink(self, *args, **kwargs):
+        if self == source:  # copy_verify also drops its staging name, before the lock
+            gate()
+        return real_unlink(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", _unlink)
 
     sweep = Thread(library_task.sort_library, str(uuid.uuid4()), name="sweep")
     gate.wait_reached()

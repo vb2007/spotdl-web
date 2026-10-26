@@ -619,3 +619,12 @@ here.
   dir may not equal, sit inside or contain the library, nor equal or contain the downloads dir.
   A subfolder of the downloads dir is fine, since the sweep walks ledger rows, never the
   downloads tree.
+
+- **2026-10-26, v57: the library dir must be the library mount or a folder inside it (owner's
+  decision).** Every compose file mounts the library volume at `/mnt/raid1/media/music` (the host
+  path behind it is `LIBRARY_DIR`), and nginx's `/internal-library/` serves only that directory.
+  A `library_target_dir` anywhere else is a container's own writable layer: the sweep would file
+  downloads there and delete their sources, worker-dl and worker-meta can't see them, and a
+  recreate discards them. Saving one is a 422 (`library_dir_outside_mount`), and the sweep refuses
+  to start on one. "Switching LIBRARY_DIR" (L6) therefore means a folder inside the mount, or a
+  new host path behind the same mount point; the known-roots list covers the former.

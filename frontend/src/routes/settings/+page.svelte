@@ -253,7 +253,11 @@
 			const field = err instanceof api.ApiError ? err.params.field : undefined;
 			if (
 				err instanceof api.ApiError &&
-				(err.code === 'library_paths_overlap' || err.code === 'library_path_not_absolute') &&
+				[
+					'library_paths_overlap',
+					'library_path_not_absolute',
+					'library_dir_outside_mount'
+				].includes(err.code ?? '') &&
 				typeof field === 'string' &&
 				field in libraryForm
 			) {

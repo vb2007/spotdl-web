@@ -22,6 +22,13 @@ _FAKE_TAGS = {"artists": ["Daft Punk"], "album_name": "Discovery", "year": 2001}
 
 
 @pytest.fixture(autouse=True)
+def _library_mount_in_tmp(tmp_path, monkeypatch):
+    """v57 (owner decision): the library dir must be under the library mount; here that's
+    tmp_path, the same as every library dir these tests configure."""
+    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path)
+
+
+@pytest.fixture(autouse=True)
 def _no_file_lock_connection(monkeypatch):
     """v57 (L3): the sweep's per-file advisory lock lives on a connection of its own, which a
     rollback-isolated test can't open. These tests are about what the sweep does with each
@@ -1057,3 +1064,24 @@ def test_sort_library_refuses_a_target_folder_that_does_not_exist(db_session, tm
 
     assert not (tmp_path / "library").exists()
     assert library_task._get_run(db_session).errors[0]["error"].startswith("refused to start:")
+
+
+def test_sort_library_refuses_a_library_dir_outside_the_mount(db_session, tmp_path, monkeypatch):
+    """v57 (owner decision, 2026-10-26): a library dir outside the volume's mount point is the
+    container's own writable layer; the sweep files nothing there."""
+    _configure(db_session, tmp_path)
+    row = _make_ledger_row(db_session, tmp_path)
+    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "mnt" / "music")
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    run = library_task._get_run(db_session)
+    assert run.errors == [
+        {
+            "file": "<sweep>",
+            "error": f"refused to start: library_target_dir is outside the library mount {tmp_path / 'mnt' / 'music'}",
+        }
+    ]
+    db_session.refresh(row)
+    assert row.in_library is False and Path(row.file_path).exists()
