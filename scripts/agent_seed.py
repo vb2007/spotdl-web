@@ -5,7 +5,7 @@ it has accumulated: ledger rows (with files) for every track a default run submi
 resolves as a duplicate and never downloads, and the e2e admin's history. A slot's database
 starts empty, so this recreates both, idempotently. Run it with `scripts/agent_stack.sh <slot>
 seed`, which pipes it into the slot's `worker-meta` (it has the database and both file roots
-mounted). It refuses any database but a slot's (`spotdlweb_s1`..`spotdlweb_s4`), so it never
+mounted). It refuses any database but a slot's (`spotdlweb_s1`..`spotdlweb_s5`), so it never
 writes fixtures into the owner's `spotdlwebtest`.
 
 Stand-in files are one-second silent MP3s: "already exists" is folder + filename only, so a
@@ -94,8 +94,8 @@ def stand_in(path: Path, title: str) -> None:
 
 settings = get_settings()
 database = make_url(settings.database_url).database or ""
-if settings.spotdl_env != "dev" or not re.fullmatch(r"spotdlweb_s[1-4]", database):
-    sys.exit(f"agent_seed: refusing database {database!r}: only an agent slot's (spotdlweb_s1-4)")
+if settings.spotdl_env != "dev" or not re.fullmatch(r"spotdlweb_s[1-5]", database):
+    sys.exit(f"agent_seed: refusing database {database!r}: only an agent slot's (spotdlweb_s1-5)")
 db = SessionLocal()
 # What the connection really reached (a `?dbname=` in the URL would override its path).
 connected = db.execute(text("select current_database()")).scalar()

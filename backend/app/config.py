@@ -96,7 +96,7 @@ class Settings(BaseSettings):
     # localhost and 127.0.0.1 (different origins to a browser even though they're the same
     # machine); the default covers both. Production sets this to the real Cloudflare
     # Tunnel hostname (see .env.example). v50: the default follows WEB_PORT, the published web
-    # port (an agent slot's 5174-5177, scripts/agent_stack.sh), and is 5173 without it.
+    # port (an agent slot's 5174-5178, scripts/agent_stack.sh), and is 5173 without it.
     frontend_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
             f"http://{host}:{os.environ.get('WEB_PORT') or '5173'}"
