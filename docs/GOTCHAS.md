@@ -520,6 +520,8 @@ needed" claim — rather than silently deleted.
   only `/mnt/raid1/media/music` → *v57*
 - CI runs pytest on the production host, where `/mnt/raid1/media/music` is the real library: a
   test reaching `reconcile_disk` must keep every managed root under `tmp_path` → *v57*
+- `graphify update` drops `graphify-out/graph.html` past 5000 nodes; run it with
+  `GRAPHIFY_VIZ_NODE_LIMIT=8000` → *v57*
 - Priority and bump are admin-only on the server since v48 (403 before the job lookup, the same
   for any id), not only hidden in the UI → *v48* *(2026-10-26, v56: now 404, the A6 rule below.)*
 - A library sweep archives only the sweeping admin's own settled jobs; every user's moved
@@ -6745,6 +6747,23 @@ independently-found production bug from the same conversation)
 - **Quarantine inside `/downloads` stays valid (owner decision, 2026-10-26).** See the master
   plan's Amendments: L2's literal "not inside the downloads dir" would have refused every
   production sweep.
+- **L8: the six dev "duplicates" are orphans of a filename change, not a second download.** The
+  `./downloads` copies (Mr. Brightside, Africa, Take on Me, Hotel California, two Bohemian
+  Rhapsodys, Shape of You) are named `Artist - Title.mp3`, dated 2026-08-01 to 08-15: spotdl's
+  default template before v28. Their library copies are `NN - Artist - Title.mp3` (v28's
+  template), dated 2026-10-01/02, and the ledger points at those. The August files belonged to
+  the shared dev/prod database's ledger; v32 (2026-10-01) gave dev its own empty
+  `spotdlwebtest`, so the tracks downloaded again under the new name and were swept, and the old
+  files were left with no row. Benign: nothing points at them, and deleting them is the owner's
+  call. Reproduced on a fresh slot database to rule out a live cause: a 2-track album downloaded
+  for real by one user (2 files), the same album by a second user (2 `skipped_duplicate`, still
+  2 files), then one file deleted by hand and the track resubmitted (L5's case, one `completed
+  direct-ipv4` attempt): still 2 files, one per track.
+- **The L5 run, real:** `/downloads` holding only its sentinel, the ledger row on a hand-deleted
+  file, and the resubmitted track recorded one attempt, `completed direct-ipv4`, no `held`.
+- **graphify's HTML view stops at 5000 nodes.** The graph reached 5091 here and `graphify update`
+  deleted the tracked `graphify-out/graph.html`; `GRAPHIFY_VIZ_NODE_LIMIT=8000 graphify update .`
+  keeps it.
 - **CI's pytest runs on the production host.** `/mnt/raid1/media/music` there is the real library,
   and `reconcile_disk` writes sentinels: `test_dedup.py` keeps every managed root under `tmp_path`
   (an autouse fixture asserts it). `update_library_settings` keeps the old root as a known one, so
