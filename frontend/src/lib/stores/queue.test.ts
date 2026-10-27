@@ -1121,3 +1121,51 @@ describe('v54 review round 9', () => {
 		expect(get(queue.viewerReceiving)).toBe(false);
 	});
 });
+
+describe('v55 (E6) a cancelled row takes the worker’s counters', () => {
+	it('the API’s cancel lands first, the worker’s later cancelled event still moves the counts', async () => {
+		listTracksPage.mockResolvedValue(tracksPage([downloadingTrack('t1')]));
+		getJob.mockResolvedValue(job('job-1', 'cancelled', 'cancelled'));
+		queue.setFilters({ scope: 'tracks' });
+		await vi.runAllTimersAsync();
+
+		// The cancel endpoint's own event: no counters.
+		await queue.applyEvent(trackEvent('t1', 'cancelled'));
+		expect(get(queue.page).items[0]).toMatchObject({ state: 'cancelled', attempts_made: 0 });
+		// The worker's, once its attempt row exists.
+		await queue.applyEvent({
+			...trackEvent('t1', 'cancelled'),
+			attempt_count: 0,
+			attempts_made: 1,
+			failure_count: 0
+		});
+		expect(get(queue.page).items[0]).toMatchObject({
+			state: 'cancelled',
+			attempts_made: 1,
+			failure_count: 0
+		});
+		// A finished row still never moves to another state (a stray progress tick).
+		await queue.applyEvent(trackEvent('t1', 'downloading', 40));
+		expect(get(queue.page).items[0]).toMatchObject({ state: 'cancelled', attempts_made: 1 });
+	});
+
+	it('only a cancelled row takes them: a completed row ignores a same-state event', async () => {
+		listTracksPage.mockResolvedValue(
+			tracksPage([{ ...downloadingTrack('t1'), state: 'completed' }])
+		);
+		getJob.mockResolvedValue(job('job-1', 'expanded', 'settled'));
+		queue.setFilters({ scope: 'tracks' });
+		await vi.runAllTimersAsync();
+
+		await queue.applyEvent({
+			...trackEvent('t1', 'completed'),
+			attempts_made: 99,
+			failure_count: 42
+		});
+		expect(get(queue.page).items[0]).toMatchObject({
+			state: 'completed',
+			attempts_made: 0,
+			failure_count: 0
+		});
+	});
+});

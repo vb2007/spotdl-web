@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, or_, select, update
 
 from app.config import get_settings
 from app.db import SessionLocal
@@ -24,8 +24,10 @@ def stale_track_after() -> timedelta:
     STALE_TRACK_AFTER_SECONDS can be shortened for verification the same way
     LADDER_SECONDS already is — the 1800s production default would otherwise make manually
     confirming this sweep fires a 30-minute wait. With worker-dl's --concurrency=1,
-    reclaiming a track that's genuinely still running just means a duplicate attempt,
-    which the dedup ledger already absorbs."""
+    reclaiming a track that's genuinely still running just means a duplicate message,
+    which download_track's finished/waiting gates drop once the first invocation is done
+    (v35 (c), v34.1); the running invocation's real outcome then
+    supersedes the reclaim's `failed` row (v55, E3), so its attempt is counted once."""
     return timedelta(seconds=get_settings().stale_track_after_seconds)
 
 
@@ -52,20 +54,39 @@ def _reclaim_stale_tracks(db) -> None:
     if not stale_before:
         return
 
+    # v55 (E2): the UPDATE re-checks each row's snapshotted state and staleness, so a track
+    # that moved on after the snapshot (a download committing `completed`, a queued message
+    # starting its `downloading` write) is left alone. Postgres re-evaluates this WHERE on
+    # the newest row version once a concurrent writer's lock is released, so the check holds
+    # even when the two commits race on the same row.
+    stuck_ids_by_state = {
+        state: [track_id for track_id, (snap, _) in stale_before.items() if snap == state]
+        for state in (TrackState.DOWNLOADING, TrackState.QUEUED)
+    }
     reclaimed = db.execute(
         update(Track)
-        .where(Track.id.in_(stale_before.keys()))
+        .where(
+            or_(
+                *(
+                    and_(Track.id.in_(ids), Track.state == state)
+                    for state, ids in stuck_ids_by_state.items()
+                    if ids
+                )
+            ),
+            Track.updated_at < stale_cutoff,
+        )
         .values(state=TrackState.WAITING, scheduled_at=now)
         .returning(Track.id, Track.job_id, Track.song_json)
     ).all()
-    db.commit()
     if not reclaimed:
+        db.commit()
         return
 
     # One bulk lookup for every reclaimed track's owner, never a per-row query
     # (CLAUDE.md invariant) -- the RETURNING clause above only has job_id to offer.
     job_ids = {job_id for _, job_id, _ in reclaimed}
     owner_by_job = dict(db.execute(select(Job.id, Job.user_id).where(Job.id.in_(job_ids))).all())
+    recorded_by_track = {}
     for track_id, job_id, song_json in reclaimed:
         stuck_state, stuck_since = stale_before[track_id]
         logger.warning(
@@ -87,15 +108,15 @@ def _reclaim_stale_tracks(db) -> None:
                 stuck_since,
                 now,
                 TrackAttemptOutcome.FAILED,
-                error_message=f"reclaimed: stuck past staleness threshold ({threshold})",
+                error_message=f"{attempts.RECLAIM_PREFIX}stuck past staleness threshold ({threshold})",
             )
         else:
             # v35: stuck `queued` means its message hadn't reached the network yet (it
             # never ran, or is still in download_track's pacing wait) -- rescheduled
             # without an attempt, which is what `held` records. Neither an attempt nor a
             # failure, and not rendered as one. A message that hasn't started yet is then
-            # dropped by download_track's waiting gate; one mid-pacing-wait still runs
-            # and records its own row (pre-existing, see docs/GOTCHAS.md's v35 section).
+            # dropped by download_track's waiting gate; one mid-pacing-wait sees this row
+            # after its sleep and exits without downloading (v55, E4).
             recorded = attempts.record_attempt(
                 db,
                 track_id,
@@ -103,14 +124,18 @@ def _reclaim_stale_tracks(db) -> None:
                 now,
                 TrackAttemptOutcome.HELD,
                 warning_message=(
-                    f"reclaimed: still queued past staleness threshold ({threshold})"
+                    f"{attempts.RECLAIM_PREFIX}still queued past staleness threshold ({threshold})"
                 ),
             )
-        # v35: commit per track. record_attempt's counter UPDATE takes this track's row
-        # lock, and holding several across the loop could deadlock against cancel_job
-        # locking the same job's tracks in another order. One lock at a time can't form a
-        # cycle, and the event below only goes out once its counters are committed.
-        db.commit()
+        recorded_by_track[track_id] = recorded
+    # v55 (E3): one commit for the reset and its rows. v35 committed the reset first and each
+    # row after, which left a window where a still-running download's real outcome could land
+    # between them, find no reclaim row to supersede, and be counted a second time. The UPDATE
+    # above already holds every reclaimed row's lock, so record_attempt's locks wait on
+    # nothing new (the deadlock v35 avoided needed a lock taken per track inside the loop).
+    db.commit()
+    for track_id, job_id, song_json in reclaimed:
+        recorded = recorded_by_track[track_id]
         events.publish_track_event(
             owner_by_job[job_id],
             track_id,

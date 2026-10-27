@@ -90,4 +90,7 @@ class TrackAttempt(Base):
         ),
         nullable=True,
     )
+    # v55 (E11): how many consecutive holds this `held` row stands for, from started_at to
+    # finished_at (attempts.record_attempt's collapse_hold). 1 on every other row.
+    hold_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)

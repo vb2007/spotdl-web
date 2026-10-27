@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from spotdl.types.song import Song
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -25,6 +26,15 @@ from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
+# v55 (E12): the note on an attempt that took the proxy rung early because IPv6 isn't
+# routable here (its network_path shows the proxy, or forced IPv4 with no proxy available).
+IPV6_RUNG_SKIPPED = "IPv6 isn't routable from this worker; skipped the direct IPv6 rung"
+
+
+def _notes(*notes: str | None) -> str | None:
+    """The non-empty notes for one attempt row's warning_message, or None."""
+    return "; ".join(note for note in notes if note) or None
+
 
 def pacing_delay() -> float:
     """Seconds to wait before this track's download attempt -- a uniform sample from
@@ -44,6 +54,18 @@ def pacing_delay() -> float:
     return random.uniform(low, settings.pacing_max_sec)
 
 
+def _lock_if_still_owned(db: Session, track: Track, entry_state: TrackState, entry_attempt: int) -> bool:
+    """Row-locks the track, reloaded, and says whether this invocation still owns it: the
+    state it found on entry, and no row recorded since (v55, E4/E5). A write made under the
+    lock can't be overtaken by a cancel or a reclaim: theirs waits for this transaction, and
+    one that committed first is seen here. The same claim as the `downloading` write, for
+    the gate writes before it (review round 1: the same plain-assignment race)."""
+    db.refresh(track, with_for_update=True)
+    return track.state == entry_state and not db.execute(
+        select(attempts.recorded_since(track.id, entry_attempt))
+    ).scalar()
+
+
 def _hold(
     db: Session,
     track: Track,
@@ -51,6 +73,8 @@ def _hold(
     attempt_started_at: datetime,
     scheduled_at: datetime,
     reason: str,
+    entry_state: TrackState,
+    entry_attempt: int,
 ) -> None:
     """Puts a track back to `waiting` until `scheduled_at` without attempting it.
 
@@ -58,7 +82,12 @@ def _hold(
     that eventually follows read attempt_count >= 1 and wrongly reach for a proxy, breaking
     "attempt 1 is always direct". v35: recorded as `held`, not `failed`, so it counts as
     neither an attempt nor a failure, and it gets its own attempt_number rather than sharing
-    the next real attempt's."""
+    the next real attempt's. v55 (E11): a hold straight after an identical one extends that
+    row (hold_count) instead of adding another. A track cancelled since entry stays
+    cancelled: a plain write here turned it back to `waiting`, to download after the hold."""
+    if not _lock_if_still_owned(db, track, entry_state, entry_attempt):
+        _give_up_claim(db, track, attempt_started_at, "before its hold")
+        return
     track.state = TrackState.WAITING
     track.scheduled_at = scheduled_at
     attempts.record_attempt(
@@ -68,6 +97,7 @@ def _hold(
         datetime.now(timezone.utc),
         TrackAttemptOutcome.HELD,
         warning_message=reason,
+        collapse_hold=True,
     )
     db.commit()
     events.publish_track_event(
@@ -80,6 +110,69 @@ def _hold(
         attempts_made=track.attempts_made,
         failure_count=track.failure_count,
         **track_song_meta(track.song_json),
+    )
+
+
+def _give_up_claim(db: Session, track: Track, attempt_started_at: datetime, when: str) -> None:
+    """This invocation lost the track to a cancel or a reclaim (v55, E4/E5) and exits without
+    downloading. A cancel gets its `cancelled` row as before; a reclaim already recorded its
+    own row for the track, and beat dispatches it again, so nothing more is written."""
+    db.refresh(track)
+    if track.state == TrackState.CANCELLED:
+        logger.info("download_track: track %s was cancelled %s, skipping", track.id, when)
+        attempts.record_attempt(
+            db,
+            track.id,
+            attempt_started_at,
+            datetime.now(timezone.utc),
+            TrackAttemptOutcome.CANCELLED,
+        )
+    else:
+        logger.info(
+            "download_track: track %s was taken from this invocation %s (now %s), skipping",
+            track.id,
+            when,
+            track.state.value,
+        )
+    db.commit()
+
+
+def _record_mid_download_cancel(
+    db: Session,
+    track: Track,
+    owner_id: uuid.UUID,
+    attempt_started_at: datetime,
+    proxy_id: uuid.UUID | None,
+    chosen_path: NetworkPath | None,
+    entry_attempt: int,
+    track_meta: dict,
+    rung_note: str | None,
+) -> None:
+    """A cancel landed while the download ran: its network attempt is recorded as
+    `cancelled`, then the `cancelled` event goes out. v55 (E6): the event comes after the
+    row is committed and carries the counters it moved, so a live row's counts are right
+    without a reload (the event used to go out first, with none)."""
+    recorded = attempts.record_attempt(
+        db,
+        track.id,
+        attempt_started_at,
+        datetime.now(timezone.utc),
+        TrackAttemptOutcome.CANCELLED,
+        warning_message=rung_note if chosen_path is not None else None,
+        proxy_id=proxy_id,
+        network_path=chosen_path,
+        supersede_reclaim_after=entry_attempt,
+    )
+    db.commit()
+    events.publish_track_event(
+        owner_id,
+        track.id,
+        track.job_id,
+        TrackState.CANCELLED.value,
+        attempt_count=track.attempt_count,
+        attempts_made=recorded.attempts_made,
+        failure_count=recorded.failure_count,
+        **track_meta,
     )
 
 
@@ -151,6 +244,13 @@ def download_track(track_id: str) -> None:
             )
             return
 
+        # v55 (E4/E5): what this invocation found, as its claim on the track. A message is
+        # sent for a `pending` (expand_job) or `queued` (beat) track, and a crash redelivery
+        # finds it `downloading`; it may only go on to download while the track is still in
+        # that state and nothing has recorded a row for it since (beat's reclaim always does).
+        entry_state = track.state
+        entry_attempt = attempts.latest_attempt_number(db, track.id)
+
         # Covers the race where this task was already enqueued just before the breaker
         # tripped (or the worker was paused) — dispatch_due_tracks is the primary gate and
         # normally won't enqueue in this state at all.
@@ -164,6 +264,8 @@ def download_track(track_id: str) -> None:
                 attempt_started_at,
                 worker_state.breaker_tripped_until or (now + retry.next_delay(0)),
                 "circuit breaker active; rescheduled without attempting",
+                entry_state,
+                entry_attempt,
             )
             return
 
@@ -189,11 +291,19 @@ def download_track(track_id: str) -> None:
                 attempt_started_at,
                 now + retry.next_delay(0),
                 f"{exc.root} is missing or empty; rescheduled without attempting",
+                entry_state,
+                entry_attempt,
             )
             return
         if existing_path is not None:
+            if not _lock_if_still_owned(db, track, entry_state, entry_attempt):
+                _give_up_claim(db, track, attempt_started_at, "before its duplicate resolved")
+                return
             track.state = TrackState.SKIPPED_DUPLICATE
             track.output_path = str(existing_path)
+            # v55 (E9): a resolved track keeps no stale failure.
+            track.last_error = None
+            track.last_error_type = None
             attempts.record_attempt(
                 db,
                 track.id,
@@ -231,23 +341,19 @@ def download_track(track_id: str) -> None:
                 track_id,
             )
             time.sleep(delay)
-            # A cancel can land during the wait. Without this the download runs anyway
-            # and only the post-download refresh further down discards the result.
-            db.refresh(track)
-            if track.state == TrackState.CANCELLED:
-                logger.info(
-                    "download_track: track %s was cancelled during the pacing wait, "
-                    "skipping",
-                    track_id,
+            # A cancel or beat's stale reclaim can land during the wait. Without this the
+            # attempt ran anyway on a track this invocation no longer owned, proxy-rung TCP
+            # probes included, while beat's new message waited behind it (v55, E4). Checked
+            # here, before those probes, as well as by the claim further down.
+            owned = db.execute(
+                select(Track.id).where(
+                    Track.id == track.id,
+                    Track.state == entry_state,
+                    ~attempts.recorded_since(track.id, entry_attempt),
                 )
-                attempts.record_attempt(
-                    db,
-                    track.id,
-                    attempt_started_at,
-                    datetime.now(timezone.utc),
-                    TrackAttemptOutcome.CANCELLED,
-                )
-                db.commit()
+            ).one_or_none()
+            if owned is None:
+                _give_up_claim(db, track, attempt_started_at, "during the pacing wait")
                 return
 
         output_settings = app_settings.get_output_settings(db)
@@ -259,13 +365,19 @@ def download_track(track_id: str) -> None:
         # harmless since IPv4 is already the only routable family in every environment
         # this has shipped to so far, see docs/GOTCHAS.md's v29 entry). Attempt 2 is
         # direct, forced onto the *other* family. Only attempt 3+ reaches for a proxy.
+        # v55 (E12): where IPv6 isn't routable the forced-IPv6 attempt could only fail, after
+        # a whole ladder wait, so attempt 2 goes straight to the proxy rung instead. The
+        # ladder's delays are untouched; only the path changes, and the row says why.
+        rung_note = None
         if track.attempt_count == 0:
             chosen_path = NetworkPath.DIRECT_IPV4
             proxy = None
-        elif track.attempt_count == 1:
+        elif track.attempt_count == 1 and network_path_svc.ipv6_routable():
             chosen_path = NetworkPath.DIRECT_IPV6
             proxy = None
         else:
+            if track.attempt_count == 1:
+                rung_note = IPV6_RUNG_SKIPPED
             # pick_proxy returns None whenever every proxy is disabled/in cooldown -- a
             # routine state, not an edge case, for a handful of proxies. chosen_path must
             # be derived from what pick_proxy actually returned, not assumed, or a
@@ -285,56 +397,69 @@ def download_track(track_id: str) -> None:
             proxy_id = proxy.id if proxy is not None else None
             proxy_url = proxy.url if proxy is not None else None
             db.commit()
-            # A cancel committed during the probes would otherwise be overwritten by the
-            # DOWNLOADING write below (the commit above reloaded track.state).
-            if track.state == TrackState.CANCELLED:
-                logger.info(
-                    "download_track: track %s was cancelled while picking a proxy, skipping",
-                    track_id,
-                )
-                attempts.record_attempt(
-                    db,
-                    track.id,
-                    attempt_started_at,
-                    datetime.now(timezone.utc),
-                    TrackAttemptOutcome.CANCELLED,
-                )
-                db.commit()
-                return
         if proxy is None:
             proxy_id = None
             proxy_url = None
 
-        track.state = TrackState.DOWNLOADING
+        # v55 (E5): a conditional transition, not a plain assignment. A cancel or a reclaim
+        # committed at any point since this invocation started (during the proxy probes
+        # included) makes it match no row, where the old assignment overwrote it.
+        claim = {"state": TrackState.DOWNLOADING}
         if proxy_id is not None:
-            track.used_proxy_id = proxy_id
+            claim["used_proxy_id"] = proxy_id
+        # v55 (E7): everything the download needs, read here, so nothing touches the ORM
+        # between the commit below and the post-download refresh. Reading an expired row (or
+        # the output settings row) after that commit opened a transaction that sat
+        # `idle in transaction` for the whole download, and the completed row's updated_at
+        # (Postgres' now(), the transaction's start) read as the download's start.
+        track_uuid, job_id = track.id, track.job_id
+        song_json, attempt_count = track.song_json, track.attempt_count
+        output_format = output_settings.default_format
+        output_bitrate = output_settings.default_bitrate
+        output_template = output_settings.output_template
+        track_meta = track_song_meta(song_json)
+        claimed = db.execute(
+            update(Track)
+            .where(
+                Track.id == track_uuid,
+                Track.state == entry_state,
+                ~attempts.recorded_since(track_uuid, entry_attempt),
+            )
+            .values(**claim)
+            .returning(Track.id)
+            .execution_options(synchronize_session=False)
+        ).one_or_none()
+        if claimed is None:
+            db.rollback()
+            _give_up_claim(db, track, attempt_started_at, "before its download started")
+            return
+        if proxy_id is not None:
             logger.info(
                 "download_track: track %s attempting via proxy %s",
                 track_id,
                 proxies.redact(proxy_url),
             )
         db.commit()
-        track_meta = track_song_meta(track.song_json)
         events.publish_track_event(
             owner_id,
-            track.id,
-            track.job_id,
-            track.state.value,
+            track_uuid,
+            job_id,
+            TrackState.DOWNLOADING.value,
             progress=0,
-            attempt_count=track.attempt_count,
+            attempt_count=attempt_count,
             **track_meta,
         )
 
         try:
-            song = Song.from_dict(track.song_json)
+            song = Song.from_dict(song_json)
             # output_dir stays env-sourced (never DB-editable, see app_settings.py's
             # docstring) -- the directory a container can actually write to is fixed by
             # its volume mount at deploy time, not by an app-level setting.
             downloader = downloads.get_downloader(
-                output_settings.default_format,
-                output_settings.default_bitrate,
+                output_format,
+                output_bitrate,
                 get_settings().download_output_dir,
-                output_settings.output_template,
+                output_template,
                 proxy=proxy_url,
                 network_path=chosen_path,
             )
@@ -342,7 +467,7 @@ def download_track(track_id: str) -> None:
             # rebind this per attempt rather than threading track/job ids through
             # get_downloader's cache key.
             downloader.progress_handler.update_callback = events.make_progress_callback(
-                owner_id, track.id, track.job_id, attempt_count=track.attempt_count, **track_meta
+                owner_id, track_uuid, job_id, attempt_count=attempt_count, **track_meta
             )
             # force_family covers ytmusicapi's search calls too, which have no
             # family-forcing knob of their own (see network_path.py's docstring) -- yt-dlp's
@@ -353,46 +478,8 @@ def download_track(track_id: str) -> None:
             # of its own -- see proxies.force_proxy's docstring for why this has to patch
             # the client-construction classmethod rather than an already-built instance.
             with network_path_svc.force_family(chosen_path), proxies.force_proxy(proxy_url, downloader):
-                _, output_path = downloads.download_one(song, downloader)
-
-            # search_and_download is synchronous and not cleanly interruptible, so a
-            # cancel requested while this was running couldn't stop it — it instead set
-            # this row's state directly (from a separate request/session) and left the
-            # download to just finish. db.refresh picks up that committed change; a
-            # cancelled track's result is discarded rather than overwritten back to a
-            # non-terminal state.
-            db.refresh(track)
-            if track.state == TrackState.CANCELLED:
-                logger.info(
-                    "download_track: track %s was cancelled mid-download, discarding result",
-                    track_id,
-                )
-                # The progress callback above published `downloading` events straight
-                # through to 100% while the real (uninterruptible) download kept
-                # running after the cancel landed — it has no idea a cancel happened,
-                # it just reports spotdl's own tracker. Those stray events are already
-                # on the wire, so a live SSE client's last-known state for this track
-                # is one of them, not `cancelled`, even though the DB has been correct
-                # the whole time. Re-publishing here makes `cancelled` provably the
-                # last message for this track (nothing else publishes for it after
-                # download_one has returned), so a connected browser converges to the
-                # right state without needing a reload. Caught by live real-stack
-                # testing, not by REST-polling: REST already reflected `cancelled`,
-                # only the live view was stuck.
-                events.publish_track_event(
-                    owner_id, track.id, track.job_id, track.state.value, **track_meta
-                )
-                attempts.record_attempt(
-                    db,
-                    track.id,
-                    attempt_started_at,
-                    datetime.now(timezone.utc),
-                    TrackAttemptOutcome.CANCELLED,
-                    proxy_id=proxy_id,
-                    network_path=chosen_path,
-                )
-                db.commit()
-                return
+                downloaded = downloads.download_one(song, downloader)
+            output_path = downloaded.output_path
 
             if output_path is None:
                 raise retry.NoOutputFileError(
@@ -451,6 +538,94 @@ def download_track(track_id: str) -> None:
                 )
                 tag_warning = "tag verification/repair failed unexpectedly"
 
+            # search_and_download is synchronous and not cleanly interruptible, so a
+            # cancel requested while this was running couldn't stop it — it instead set
+            # this row's state directly (from a separate request/session) and left the
+            # download to just finish. db.refresh picks up that committed change; a
+            # cancelled track's result is discarded rather than overwritten back to a
+            # non-terminal state. v55: under the row lock, held to the commit below, so a
+            # cancel landing after this check waits for it instead of being overwritten by
+            # the outcome (review round 1). Taken only here, after the file checks and the
+            # tag repair above (no DB, but a cover-art fetch can take seconds), so neither a
+            # cancel nor beat's reclaim waits on them (review round 2); a missing file
+            # raises into the failure path, which checks for a cancel the same way.
+            db.refresh(track, with_for_update=True)
+            if track.state == TrackState.CANCELLED:
+                logger.info(
+                    "download_track: track %s was cancelled mid-download, discarding result",
+                    track_id,
+                )
+                # The progress callback above published `downloading` events straight
+                # through to 100% while the real (uninterruptible) download kept
+                # running after the cancel landed — it has no idea a cancel happened,
+                # it just reports spotdl's own tracker. Those stray events are already
+                # on the wire, so a live SSE client's last-known state for this track
+                # is one of them, not `cancelled`, even though the DB has been correct
+                # the whole time. Re-publishing here makes `cancelled` provably the
+                # last message for this track (nothing else publishes for it after
+                # download_one has returned), so a connected browser converges to the
+                # right state without needing a reload. Caught by live real-stack
+                # testing, not by REST-polling: REST already reflected `cancelled`,
+                # only the live view was stuck.
+                if downloaded.skipped_existing:  # see the skip below: nothing went out
+                    proxy_id, chosen_path = None, None
+                _record_mid_download_cancel(
+                    db,
+                    track,
+                    owner_id,
+                    attempt_started_at,
+                    proxy_id,
+                    chosen_path,
+                    entry_attempt,
+                    track_meta,
+                    rung_note,
+                )
+                return
+
+            if downloaded.skipped_existing:
+                # v55 (E8): spotdl's own "file already exists" skip. The file was there
+                # before this attempt and nothing went to YouTube, so it is recorded the way
+                # the dedup gate above records a ledger hit: `skipped_duplicate`, no network
+                # path, no counter, no proxy or breaker verdict. The ledger gains the row it
+                # was missing, so the next submission resolves at the gate. Its tags were
+                # verified (and repaired) above like a fresh download's, as before v55.
+                track.state = TrackState.SKIPPED_DUPLICATE
+                track.output_path = str(output_path)
+                track.last_error = None
+                track.last_error_type = None
+                db.merge(
+                    DownloadedTrack(
+                        spotify_track_id=track.spotify_track_id,
+                        file_path=str(output_path),
+                        format=output_format,
+                        bitrate=output_bitrate,
+                        in_library=False,
+                    )
+                )
+                recorded = attempts.record_attempt(
+                    db,
+                    track.id,
+                    attempt_started_at,
+                    datetime.now(timezone.utc),
+                    TrackAttemptOutcome.SKIPPED_DUPLICATE,
+                    warning_message=_notes(
+                        "spotdl found the file already in place; not downloaded again",
+                        f"tag warning: {tag_warning}" if tag_warning else None,
+                    ),
+                    supersede_reclaim_after=entry_attempt,
+                )
+                db.commit()
+                events.publish_track_event(
+                    owner_id,
+                    track.id,
+                    track.job_id,
+                    track.state.value,
+                    attempts_made=recorded.attempts_made,
+                    failure_count=recorded.failure_count,
+                    **track_meta,
+                )
+                return
+
             track.state = TrackState.COMPLETED
             track.output_path = str(output_path)
             # in_library is set, not left out: merge copies only the attributes given, so a row
@@ -461,24 +636,30 @@ def download_track(track_id: str) -> None:
                 DownloadedTrack(
                     spotify_track_id=track.spotify_track_id,
                     file_path=str(output_path),
-                    format=output_settings.default_format,
-                    bitrate=output_settings.default_bitrate,
+                    format=output_format,
+                    bitrate=output_bitrate,
                     in_library=False,
                 )
             )
             if proxy_id is not None:
                 proxies.record_proxy_result(db, proxy_id, success=True)
             retry.record_success(db, track)
+            finished_at = datetime.now(timezone.utc)
             attempts.record_attempt(
                 db,
                 track.id,
                 attempt_started_at,
-                datetime.now(timezone.utc),
+                finished_at,
                 TrackAttemptOutcome.COMPLETED,
                 proxy_id=proxy_id,
-                warning_message=f"tag warning: {tag_warning}" if tag_warning else None,
+                warning_message=_notes(rung_note, f"tag warning: {tag_warning}" if tag_warning else None),
                 network_path=chosen_path,
+                supersede_reclaim_after=entry_attempt,
             )
+            # v55 (E7): the completion's own time, set after record_attempt (its counter
+            # UPDATE expires the attribute). The onupdate now() would be this transaction's
+            # start, the refresh above, a little before the attempt's finished_at.
+            track.updated_at = finished_at
             db.commit()
             events.publish_track_event(
                 owner_id,
@@ -512,7 +693,8 @@ def download_track(track_id: str) -> None:
                 exc_info=(type(exc), log_exc, exc.__traceback__),
             )
             db.rollback()
-            track = db.get(Track, uuid.UUID(track_id))
+            # v55: locked, like the success path's refresh.
+            track = db.get(Track, uuid.UUID(track_id), with_for_update=True, populate_existing=True)
             if track.state == TrackState.CANCELLED:
                 logger.info(
                     "download_track: track %s was cancelled before this failure landed, "
@@ -520,19 +702,17 @@ def download_track(track_id: str) -> None:
                     track_id,
                 )
                 # Same stray-progress-event race as the success path above.
-                events.publish_track_event(
-                    owner_id, track.id, track.job_id, track.state.value, **track_meta
-                )
-                attempts.record_attempt(
+                _record_mid_download_cancel(
                     db,
-                    track.id,
+                    track,
+                    owner_id,
                     attempt_started_at,
-                    datetime.now(timezone.utc),
-                    TrackAttemptOutcome.CANCELLED,
-                    proxy_id=proxy_id,
-                    network_path=chosen_path,
+                    proxy_id,
+                    chosen_path,
+                    entry_attempt,
+                    track_meta,
+                    rung_note,
                 )
-                db.commit()
                 return
             if proxy_id is not None and retry.is_proxy_transport_error(exc, via_proxy=True):
                 # v40.1: the attempt died at its proxy and never reached YouTube -- the
@@ -540,7 +720,7 @@ def download_track(track_id: str) -> None:
                 # breaker hears nothing (see retry.ProxyTransportError).
                 error_type = TrackErrorType.OTHER
                 error_message = attempts.TRANSPORT_FAILURE_PREFIX + error_message
-                if attempts.previous_was_transport_failure(db, track.id):
+                if attempts.previous_was_transport_failure(db, track.id, entry_attempt):
                     # One rung-free retry only (see record_transport_failure's docstring):
                     # the second in a row climbs the ladder. Still OTHER, so still no
                     # breaker.
@@ -566,8 +746,10 @@ def download_track(track_id: str) -> None:
                 TrackAttemptOutcome.FAILED,
                 error_type=error_type,
                 error_message=error_message,
+                warning_message=rung_note,
                 proxy_id=proxy_id,
                 network_path=chosen_path,
+                supersede_reclaim_after=entry_attempt,
             )
             db.commit()
             events.publish_track_event(

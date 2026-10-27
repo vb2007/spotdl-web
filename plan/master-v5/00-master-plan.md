@@ -154,6 +154,7 @@ files.
 | F8 | "Clear log" is enabled on an empty queue | #69 | v62 |
 | F9 | Cross-tab identity change detected by poll, not push | #63 | v62 |
 | F10 | Stale progress cache after a re-run that doesn't bump `attempt_count` | #49 | v62 |
+| F11 | The timeline's "×N" counts `held` rows, not holds: since v55 (E11) a collapsed row carries `hold_count` and renders as one plain `held`. `groupAttempts` (`lib/attempts.ts`) and `TrackRow.svelte` should count `hold_count` | v55 Amendment, PR #86 | v62 (owner, 2026-10-27) |
 
 ### UI debt (impeccable) → v67 unless noted
 
@@ -306,7 +307,7 @@ files.
 | **v59** | 3 | `dev-alert-delivery` | O1, O2, O4, O5, O6: reproduce the lost alert, a Postgres alert outbox with retries, worker-down, log throttling, alert history on `/stats` |
 | **v60** | 3 | `dev-pipeline-resilience` | P1–P8, O3, X1–X4. Workflows, compose logging and docs only, so no bump |
 | **v61** | 3 | `dev-extension-release` | AMO unlisted signing, a GitHub release with the XPI, `updates.json`, CI lint/tests, extension version check, install docs |
-| **v62** | 3 | `dev-frontend-store-fixes` | F1–F10 |
+| **v62** | 3 | `dev-frontend-store-fixes` | F1–F11 |
 | **v63** | 4 | `dev-watch-jobs` | Watched playlist/artist jobs (scheduled re-expand, new tracks only), "re-run expansion", "retry all failed" |
 | **v64** | 4 | `dev-job-export` | Streamed zip of a job's present files, plus an `.m3u8` |
 | **v65** | 4 | `dev-pwa-share-target` | Installable PWA, a Web Share Target → `/share`, a login round-trip |
@@ -553,3 +554,34 @@ here.
     explicit exception to the "nothing is ever deleted on the library" invariant: replace only a
     ledger-recorded, app-downloaded file (the app's YouTube comment tag), never anything else.
     That slice's plan states it, and the owner approves it there.
+
+- **2026-10-26, v55: what the engine slice did where its plan text and the code differed.**
+  Recorded for the owner to confirm in review; none moves an item to another slice.
+  - **E5's guard is "the state found on entry", not literally `state = 'queued'`.** A message
+    is also sent for a `pending` track (expand_job's first dispatch) and redelivered for a
+    `downloading` one; a literal `queued` guard would never download a new job's first track.
+    For every beat dispatch the guard reads `queued`, as written. With the track's newest
+    attempt number it forms the invocation's claim (E4 reuses it), and review round 1 extended
+    it to the hold and the dedup resolution, the same race class.
+  - **E10's migration also clears existing leftovers.** `d9b3e5f7a1c2` nulls `scheduled_at` on
+    every `lookup_failed` row, a data rewrite the plan didn't name. It's covered by the
+    deploy's pre-migrate `pg_backup` and listed under the PR's Deploy notes.
+  - **E11's collapse doesn't shrink a single trip's rows.** One trip holds each queued track
+    once (beat dispatches nothing while tripped), so the 2026-10-18 trip's ~460 rows were most
+    likely ~460 tracks. The collapse is the plan's (consecutive identical holds of one track);
+    it shrinks repeated trips (and pause/resume cycles) and the unmounted-root hold. The attempts API returns
+    `hold_count` (a one-line `serializers.py` addition), but the timeline (frontend, not v55's)
+    still renders a collapsed row as a single `held`, so the "held ×N" it showed for N rows is
+    lost there until the frontend reads `hold_count`: a regression of displayed admin
+    information. **Owner decision (2026-10-27): a frontend follow-up in v62**, ledger item F11.
+    Until v62 merges, a collapsed hold shows as one `held` in the timeline.
+  - **E12 records the skip in the row's note, not in `network_path`.** The row keeps the path
+    really used (proxy, or forced IPv4 with no proxy up), so the column stays truthful and no
+    enum value or migration is needed; the note reads "IPv6 isn't routable from this worker;
+    skipped the direct IPv6 rung".
+  - **E6 needed a delimited edit in `frontend/src/lib/stores/queue.ts`** (outside v55's files,
+    a v54/v62/v68 hotspot). The live review found the worker's counter-carrying `cancelled`
+    event dropped by `patchOne`, because the API's counter-less `cancelled` lands first and a
+    terminal row ignored every later event, so the UI stayed off by one until a reload, which
+    is what E6 exists to stop. A `cancelled` event on a cancelled row now updates only its
+    counters (no other state, no other field); v62 rebases onto it.

@@ -284,6 +284,17 @@ def _rate_limits_off(monkeypatch):
     monkeypatch.setattr(get_settings(), "job_create_rate_limit", 0)
 
 
+@pytest.fixture(autouse=True)
+def _ipv6_routable(monkeypatch):
+    """v55 (E12): download_track's rung choice asks network_path.ipv6_routable(), a real
+    socket probe of the machine running the suite. Pinned to "routable" so the ladder's rungs
+    (v29/v35's pins included) don't depend on where the suite runs; a test of the skip turns
+    it off, and test_network_path.py keeps its own reference to the real function."""
+    from app.services import network_path
+
+    monkeypatch.setattr(network_path, "ipv6_routable", lambda: True)
+
+
 @pytest.fixture()
 def db_session():
     """One outer transaction per test, rolled back at the end. The code under test commits and

@@ -15,11 +15,15 @@ family-forcing knob:
   families must never run concurrently in the same process. `_active_lock` turns a
   violation of that invariant into a loud `RuntimeError` instead of one attempt silently
   leaking its forced family into another's.
+
+v55 (E12): `ipv6_routable` tells download_track whether the forced-IPv6 rung can work at all
+here. Where it can't, that rung cost a whole ladder wait for a guaranteed failure.
 """
 
 import contextlib
 import socket
 import threading
+import time
 from typing import Iterator
 
 from app.models import NetworkPath
@@ -28,6 +32,12 @@ _FAMILY_BY_PATH = {
     NetworkPath.DIRECT_IPV4: socket.AF_INET,
     NetworkPath.DIRECT_IPV6: socket.AF_INET6,
 }
+
+# Google Public DNS. Never actually contacted: a UDP connect() only asks the kernel for a
+# route and sends nothing.
+_IPV6_PROBE_ADDRESS = ("2001:4860:4860::8888", 53)
+IPV6_PROBE_TTL_SECONDS = 300
+_ipv6_probe: tuple[float, bool] | None = None
 
 _real_getaddrinfo = socket.getaddrinfo
 _active_lock = threading.Lock()
@@ -71,3 +81,22 @@ def force_family(network_path: NetworkPath | None) -> Iterator[None]:
         socket.getaddrinfo = previous_getaddrinfo
         with _active_lock:
             _active = False
+
+
+def ipv6_routable() -> bool:
+    """Whether this process has a route to the IPv6 internet, cached for
+    IPV6_PROBE_TTL_SECONDS. A container without IPv6, or with it disabled, fails the connect()
+    with ENETUNREACH/EADDRNOTAVAIL (or can't make the socket). A route doesn't promise a working
+    path, only that the rung isn't certain to fail; a real attempt still decides that."""
+    global _ipv6_probe
+    now = time.monotonic()
+    if _ipv6_probe is not None and now - _ipv6_probe[0] < IPV6_PROBE_TTL_SECONDS:
+        return _ipv6_probe[1]
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as probe:
+            probe.connect(_IPV6_PROBE_ADDRESS)
+        routable = True
+    except OSError:
+        routable = False
+    _ipv6_probe = (now, routable)
+    return routable

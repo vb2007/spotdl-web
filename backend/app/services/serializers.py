@@ -132,4 +132,6 @@ def track_attempt_to_dict(attempt: TrackAttempt, proxy_url: str | None = None) -
         "proxy_id": str(attempt.proxy_id) if attempt.proxy_id is not None else None,
         "proxy_label": _proxy_label(proxy_url),
         "network_path": attempt.network_path.value if attempt.network_path is not None else None,
+        # v55 (E11): a `held` row stands for this many consecutive holds.
+        "hold_count": attempt.hold_count,
     }

@@ -202,8 +202,13 @@ def record_failure(db: Session, track: Track, error_type: TrackErrorType, messag
     track.last_error_type = error_type
 
     if error_type == TrackErrorType.LOOKUP:
-        # Terminal — never touch scheduled_at, never retried.
+        # Terminal, never retried: no retry time is ever set for it. v55 (E10): one left
+        # over from an earlier ladder failure is cleared too, rather than every reader
+        # having to know to ignore it (the API reported it as the track's next retry). The
+        # rule this keeps is the original one: nothing schedules a terminal track, so beat
+        # (which reads only `waiting` rows) and the rollup never see a due time for it.
         track.state = TrackState.LOOKUP_FAILED
+        track.scheduled_at = None
         return
 
     # next_delay reads attempt_count as "failures before this one" (0 on the very first
@@ -278,6 +283,10 @@ def record_breaker_release(db: Session, now: datetime, *, end_running: bool, man
 
 
 def record_success(db: Session, track: Track) -> None:
+    # v55 (E9): a completed track no longer carries its last failure (TrackRow showed it as a
+    # red "last error" beside a finished download). The attempt history keeps every one.
+    track.last_error = None
+    track.last_error_type = None
     # v44: a success can be the first thing to notice an expired pause (a message that was
     # already queued runs before beat's next tick); record that release before it's cleared.
     # Checked unlocked first, like beat: the ordinary success (no pause on record) never
