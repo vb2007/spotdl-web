@@ -838,6 +838,36 @@ def test_download_track_retry_picks_proxy_and_records_success(db_session, monkey
     assert rows[0].network_path == NetworkPath.PROXY
 
 
+@pytest.mark.parametrize("succeeds", [True, False], ids=["success", "failure"])
+def test_download_track_locks_the_proxy_before_the_track_for_its_outcome(
+    db_session, monkeypatch, tmp_path, count_queries, succeeds
+):
+    """v56 (A4) on v55: the outcome paths lock the track (v55) and read the proxy locked
+    (attempts.PROXY_OUTCOME_LOCK, `FOR NO KEY UPDATE`). A proxy delete locks the proxy and then
+    (ON DELETE SET NULL) the track, so the outcome takes the proxy first, or the two could
+    deadlock."""
+    track, _proxy = _proxy_rung_track(db_session, monkeypatch)
+    output_path = tmp_path / "song-a.mp3"
+    output_path.write_bytes(b"fake audio bytes")
+
+    def fake_download_one(song, downloader):
+        if not succeeds:
+            raise RuntimeError("provider exploded")
+        return downloads.DownloadResult(song, output_path)
+
+    monkeypatch.setattr(downloads, "download_one", fake_download_one)
+
+    with count_queries() as statements:
+        download_task.download_track(str(track.id))
+
+    claim = next(i for i, sql in enumerate(statements) if sql.startswith("UPDATE tracks SET state"))
+    after = statements[claim + 1 :]
+    proxy_lock = next(i for i, sql in enumerate(after) if "FROM proxies" in sql and sql.rstrip().endswith("FOR NO KEY UPDATE"))
+    track_lock = next(i for i, sql in enumerate(after) if "FROM tracks" in sql and sql.rstrip().endswith("FOR UPDATE"))
+    assert proxy_lock < track_lock
+    assert db_session.get(Track, track.id).state == (TrackState.COMPLETED if succeeds else TrackState.WAITING)
+
+
 def test_download_track_retry_proxy_failure_sets_cooldown(db_session, monkeypatch):
     track = _make_track(db_session)
     track.attempt_count = 2  # v29: proxy is now the third rung

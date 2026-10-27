@@ -169,10 +169,11 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
 
 - **Data separation is a security property; it fails silently.** Any change to queries, endpoints
   or events re-runs `pytest backend/tests/test_ownership.py` plus the gating cases in `test_jobs.py`,
-  `test_settings_retention.py`, `test_proxies_router.py`, `test_worker.py`, `test_settings_router.py`
-  and `test_stats.py`, **and** `scripts/verify_separation_sse.sh` against a running stack, covering
-  **direct-id endpoints**. Non-owner access returns **404, not 403** (admin endpoints answer a
-  non-admin 403, except `/api/admin/stats` and the test-alert send, which 404). A module-level frontend store is a data surface
+  `test_settings_retention.py`, `test_proxies_router.py`, `test_worker.py`, `test_settings_router.py`,
+  `test_stats.py` and `test_admin_gating.py`, **and** `scripts/verify_separation_sse.sh` against a running stack, covering
+  **direct-id endpoints**. Non-owner access returns **404, not 403**. An admin route answers a non-admin
+  404 (`require_admin_hidden`) where its path names an id, and on `/api/admin/stats` and the test-alert
+  send; 403 (`require_admin`) on the other, id-free admin actions (v56). A module-level frontend store is a data surface
   too: reset it on logout or identity change (`queue.reset()`), never just re-fetch.
 - **The SSE stream is a data surface.** `publish_*_event` takes the owning user as a **required**
   argument; verify by raw-capturing `curl -N /api/stream`, never via the UI.

@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 from app.models import Job, JobSourceType, JobState, Track, TrackState
 
 
@@ -7,13 +9,48 @@ def test_worker_status_defaults(authenticated_client, db_session):
     response = authenticated_client.get("/api/worker/status")
 
     assert response.status_code == 200
-    assert response.json() == {
+    body = response.json()
+    server_time = datetime.fromisoformat(body.pop("server_time"))
+    assert abs((server_time - datetime.now(timezone.utc)).total_seconds()) < 5
+    assert body == {
         "paused": False,
+        "breaker_active": False,
+        "breaker_remaining_seconds": None,
         "breaker_tripped_until": None,
         "breaker_trip_count": 0,
         "consecutive_failures": 0,
         "busy": False,
     }
+
+
+def test_worker_status_reports_a_running_breaker_from_the_servers_clock(authenticated_client, db_session):
+    """v56 (A7): the client gets "active, N seconds left" decided on the server's clock,
+    so a browser whose clock is off still counts down the real remaining time (#63)."""
+    from app.services import retry
+
+    retry.get_worker_state(db_session).breaker_tripped_until = datetime.now(timezone.utc) + timedelta(minutes=30)
+    db_session.commit()
+
+    body = authenticated_client.get("/api/worker/status").json()
+
+    assert body["breaker_active"] is True
+    assert 30 * 60 - 5 < body["breaker_remaining_seconds"] <= 30 * 60
+
+
+def test_worker_status_reports_an_expired_trip_as_inactive(authenticated_client, db_session):
+    """beat records an expired trip's release on its next tick (v44); until then the
+    timestamp is still set, but the pause is over."""
+    from app.services import retry
+
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = datetime.now(timezone.utc) - timedelta(seconds=1)
+    worker_state.paused = True
+    db_session.commit()
+
+    body = authenticated_client.get("/api/worker/status").json()
+
+    assert (body["breaker_active"], body["breaker_remaining_seconds"], body["paused"]) == (False, None, True)
+    assert body["breaker_tripped_until"] is not None
 
 
 def test_worker_busy_reflects_any_users_downloading_track(

@@ -1,16 +1,16 @@
-# Graph Report - dev-engine-races  (2026-10-27)
+# Graph Report - dev-api-gaps  (2026-10-27)
 
 ## Corpus Check
-- 364 files · ~492,534 words
+- 368 files · ~505,557 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 5099 nodes · 7962 edges · 410 communities (251 shown, 159 thin omitted)
-- Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 660 edges (avg confidence: 0.75)
+- 5254 nodes · 8450 edges · 406 communities (264 shown, 142 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 822 edges (avg confidence: 0.76)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0048f778`
+- Built from commit: `ec09fb06`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -290,8 +290,10 @@
 - [[_COMMUNITY__is_busy|_is_busy]]
 - [[_COMMUNITY_send_now|send_now]]
 - [[_COMMUNITY_pg_backup.sh|pg_backup.sh]]
+- [[_COMMUNITY_check_not_production_database|check_not_production_database]]
 - [[_COMMUNITY_Any|Any]]
 - [[_COMMUNITY_library.py|library.py]]
+- [[_COMMUNITY_test_settings_retention.py|test_settings_retention.py]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_test_pacing_delay_is_zero_when_unconfigured|test_pacing_delay_is_zero_when_unconfigured]]
 - [[_COMMUNITY_Response|Response]]
@@ -308,6 +310,7 @@
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_UUID|UUID]]
 - [[_COMMUNITY_Session|Session]]
+- [[_COMMUNITY_a9d3c5e7f1b2_v56_proxy_fks_attempt_label_retry_now_step.py|a9d3c5e7f1b2_v56_proxy_fks_attempt_label_retry_now_step.py]]
 - [[_COMMUNITY_v69 — Admin-Managed User Access|v69 — Admin-Managed User Access]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_test_ladder_step_ignores_held_and_cancelled_rows|test_ladder_step_ignores_held_and_cancelled_rows]]
@@ -318,10 +321,16 @@
 - [[_COMMUNITY_datetime|datetime]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_timedelta|timedelta]]
+- [[_COMMUNITY_track_states.py|track_states.py]]
 - [[_COMMUNITY_Job|Job]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_Job|Job]]
 - [[_COMMUNITY_JobSourceType|JobSourceType]]
+- [[_COMMUNITY_NetworkPath|NetworkPath]]
+- [[_COMMUNITY_Song|Song]]
+- [[_COMMUNITY_NetworkPath|NetworkPath]]
+- [[_COMMUNITY_BaseException|BaseException]]
+- [[_COMMUNITY_datetime|datetime]]
 - [[_COMMUNITY_Path|Path]]
 - [[_COMMUNITY_BaseException|BaseException]]
 - [[_COMMUNITY_Exception|Exception]]
@@ -335,24 +344,19 @@
 - [[_COMMUNITY_datetime|datetime]]
 - [[_COMMUNITY_JobSourceType|JobSourceType]]
 - [[_COMMUNITY_Path|Path]]
+- [[_COMMUNITY_UUID|UUID]]
 - [[_COMMUNITY_Any|Any]]
 - [[_COMMUNITY_ColumnElement|ColumnElement]]
 - [[_COMMUNITY_datetime|datetime]]
 - [[_COMMUNITY_Proxy|Proxy]]
-- [[_COMMUNITY_Session|Session]]
-- [[_COMMUNITY_timedelta|timedelta]]
-- [[_COMMUNITY_UUID|UUID]]
+- [[_COMMUNITY_test_pick_proxy_skips_and_cools_down_a_proxy_that_refuses_tcp|test_pick_proxy_skips_and_cools_down_a_proxy_that_refuses_tcp]]
+- [[_COMMUNITY_test_sync_lets_a_file_line_take_the_target_of_a_manual_proxy_being_deleted|test_sync_lets_a_file_line_take_the_target_of_a_manual_proxy_being_deleted]]
 - [[_COMMUNITY_ColumnElement|ColumnElement]]
 - [[_COMMUNITY_Job|Job]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_ColumnElement|ColumnElement]]
 - [[_COMMUNITY_Path|Path]]
-- [[_COMMUNITY_Response|Response]]
-- [[_COMMUNITY_verify_separation_sse.sh|verify_separation_sse.sh]]
-- [[_COMMUNITY_Path|Path]]
 - [[_COMMUNITY_Song|Song]]
-- [[_COMMUNITY_Track|Track]]
-- [[_COMMUNITY_UUID|UUID]]
 - [[_COMMUNITY_JobSourceType|JobSourceType]]
 - [[_COMMUNITY_Response|Response]]
 - [[_COMMUNITY_Session|Session]]
@@ -363,24 +367,17 @@
 - [[_COMMUNITY_Job|Job]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_Popen|Popen]]
-- [[_COMMUNITY_datetime|datetime]]
 - [[_COMMUNITY_Path|Path]]
 - [[_COMMUNITY_Song|Song]]
-- [[_COMMUNITY_datetime|datetime]]
 - [[_COMMUNITY_Path|Path]]
 - [[_COMMUNITY_Any|Any]]
 - [[_COMMUNITY_Exception|Exception]]
 - [[_COMMUNITY_Request|Request]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_UUID|UUID]]
-- [[_COMMUNITY_Request|Request]]
-- [[_COMMUNITY_Response|Response]]
-- [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_JobSourceType|JobSourceType]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_Track|Track]]
-- [[_COMMUNITY_JobState|JobState]]
-- [[_COMMUNITY_UUID|UUID]]
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_UUID|UUID]]
 - [[_COMMUNITY_Job|Job]]
@@ -393,31 +390,30 @@
 - [[_COMMUNITY_Session|Session]]
 - [[_COMMUNITY_UUID|UUID]]
 - [[_COMMUNITY_JobSourceType|JobSourceType]]
-- [[_COMMUNITY_Job|Job]]
 
 ## God Nodes (most connected - your core abstractions)
-1. `$lib/api` - 155 edges
-2. `Our own session store — separate from the upstream VB-AUTH token (see v03).` - 96 edges
-3. `Track` - 77 edges
-4. `Version log` - 65 edges
-5. `$lib/stores/queue` - 53 edges
-6. `_make_track()` - 51 edges
-7. `$lib/components/TrackRow.svelte` - 48 edges
-8. `DownloadedTrack` - 47 edges
-9. `_patch_common()` - 47 edges
-10. `get_settings()` - 43 edges
+1. `$lib/api` - 158 edges
+2. `Track` - 106 edges
+3. `User` - 73 edges
+4. `Version log` - 66 edges
+5. `Job` - 59 edges
+6. `$lib/stores/queue` - 53 edges
+7. `Our own session store — separate from the upstream VB-AUTH token (see v03).` - 51 edges
+8. `_make_track()` - 51 edges
+9. `$lib/components/TrackRow.svelte` - 49 edges
+10. `DownloadedTrack` - 47 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `favicon.svg (Svelte default logo)` --semantically_similar_to--> `Instrument-panel THESIS (Operate mode)`  [AMBIGUOUS] [semantically similar]
   frontend/src/lib/assets/favicon.svg → frontend/src/DESIGN.md
-- `health()` --calls--> `get_settings()`  [INFERRED]
-  backend/app/routers/health.py → backend/app/config.py
+- `test_me_reports_no_language_without_creating_a_settings_row()` --indirect_call--> `UserSettings`  [INFERRED]
+  backend/tests/test_settings_language.py → backend/app/models/user_settings.py
 - `test_breaker_released_once_the_pause_has_passed()` --calls--> `WorkerState`  [INFERRED]
   backend/tests/test_alerts.py → backend/app/models/worker_state.py
 - `test_current_breaker_state()` --calls--> `WorkerState`  [INFERRED]
   backend/tests/test_stats.py → backend/app/models/worker_state.py
-- `_sync_proxies_on_boot()` --calls--> `sync_from_file()`  [INFERRED]
-  backend/app/tasks/celery_app.py → backend/app/services/proxies.py
+- `list_jobs()` --references--> `View`  [EXTRACTED]
+  backend/app/routers/jobs.py → frontend/src/lib/api.ts
 
 ## Import Cycles
 - None detected.
@@ -426,15 +422,15 @@
 - **CI PR-checks pipeline (pytest, publish-report, compose-config, frontend)** — github_workflows_ci_pytest_job, github_workflows_ci_publish_report_job, github_workflows_ci_compose_config_job, github_workflows_ci_frontend_job [EXTRACTED 1.00]
 - **Docker Compose layered configuration (base/override/prod)** — docker_compose_doc, docker_compose_override_doc, docker_compose_prod_doc [EXTRACTED 1.00]
 
-## Communities (410 total, 159 thin omitted)
+## Communities (406 total, 142 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
 Cohesion: 0.00
 Nodes (500): account_disconnect, account_disconnecting, account_heading, account_keyboard_heading, account_keyboard_hint, account_keyboard_mode, account_keyboard_off, account_keyboard_on (+492 more)
 
 ### Community 1 - "Config & Health Check"
-Cohesion: 0.17
-Nodes (13): expectDashboardIn(), htmlLang(), signIn(), signOut(), anyTitle(), escapeRegExp(), Lang, prefix() (+5 more)
+Cohesion: 0.21
+Nodes (10): expectDashboardIn(), htmlLang(), signIn(), signOut(), anyTitle(), escapeRegExp(), Lang, prefix() (+2 more)
 
 ### Community 2 - "record_attempt"
 Cohesion: 0.00
@@ -449,20 +445,20 @@ Cohesion: 0.12
 Nodes (44): _capture_progress(), _configure(), _make_ledger_row(), _NonClosingSession, _owner(), Same wrapper test_download_task.py uses -- db.close() inside the task must not, Two different spotify_track_ids whose folder+filename resolve identically in the, v48 (F34, owner decision): a sweep repoints every user's moved tracks, but archi (+36 more)
 
 ### Community 5 - "Job Model & Expansion Tests"
-Cohesion: 0.08
-Nodes (28): _as(), _create_key(), _fill(), v53: per-user API keys -- lifecycle, owner scoping, and the rule that a key reac, A key's only read is the job it just created (or its own unfinished duplicate):, An admin's cookie reads anyone's job; an admin's key only the admin's own., Review round 5: Postgres raises on a NUL in a query parameter, so the guard must, Round 6: a braille blank shows nothing; a lone control isn't "empty" (str.strip( (+20 more)
+Cohesion: 0.09
+Nodes (76): One row per individual song discovered while expanding a job — the unit the retr, Track, _attempts(), _attempts_by_number(), _capture_events(), _FakeDownloader, _make_track(), _owner() (+68 more)
 
 ### Community 6 - "Frontend API Client"
 Cohesion: 0.03
-Nodes (91): $lib/api, AlertSettings, API_BASE, ApiKey, ApiKeyList, archiveJobs(), buildQuery(), bumpJob() (+83 more)
+Nodes (95): $lib/api, AlertSettings, API_BASE, ApiKey, ApiKeyList, archiveJobs(), buildQuery(), bumpJob() (+87 more)
 
 ### Community 7 - "_FakePubSub"
 Cohesion: 0.06
 Nodes (35): 0. Method and provenance, 1. Score summary (the baseline v47 scores against), 2. Testing the "cluttered" claim, 3.1 `/`, group A: header, submit bar, IncomingJobs, Waterfall (`shots/01, 12, 14, 40, 41`), 3.2 `/`, group B: QueueControls, jobs list, tracks list (`shots/01, 08, 09, 40, 41`), 3.3 `/`, group C: expanded job and the five track-detail states, 3.4 `/`, group D: empty, loading, error, offline (`shots/09–14`), 3.5 `/settings` (`shots/42` admin, `shots/21` non-admin) (+27 more)
 
 ### Community 8 - "Frontend Lint Tooling"
-Cohesion: 0.06
-Nodes (35): _aware(), _fake_youtube_music_provider(), _FakeDownloaderForProxy, _FakeSettings, _NonClosingSession, v13 shipped MANUAL-source (UI-added) proxies alongside FILE-source ones, both me, Wraps db_session so sync_from_file's db.close() doesn't detach objects the test, v40.1: production's whole pool was dead, and every proxy-rung attempt was spent (+27 more)
+Cohesion: 0.05
+Nodes (64): One row per `download_track` invocation (v24) -- what it tried (direct vs. which, TrackAttempt, _aware(), _make_track(), _proxied_attempt(), datetime, v20 gap: archiving is only ever reachable once a job is settled/failed/cancelled, v56 (A8, #69): once per ladder step. The first press dispatches without resettin (+56 more)
 
 ### Community 9 - "Proxy Service Tests"
 Cohesion: 0.04
@@ -473,84 +469,84 @@ Cohesion: 0.09
 Nodes (25): active_count_expr(), aggregate_jobs(), derive_job_title(), derive_rollup(), job_title(), job_title_expr(), matches_status_filter(), next_retry_expr() (+17 more)
 
 ### Community 11 - "Dedup Ledger & Reconciliation"
-Cohesion: 0.07
-Nodes (42): _chained(), _FakeDownloader, _FakeProgressHandler, _FakeSettings, _FakeTracker, v40.1, production's exact failure: ytmusicapi couldn't reach music.youtube.com, A dead proxy says nothing about the video, even if some other text on the chain, v54.1, production's exact chain: the matched video was a premiere 102 days out, (+34 more)
+Cohesion: 0.11
+Nodes (6): _aware(), v31: the exact-substring guard this replaces only caught a leak when the message, test_pick_proxy_stamps_last_used_at_on_selection(), test_record_proxy_result_failure_reads_ladder_before_incrementing(), test_record_proxy_result_failure_sets_cooldown_and_increments(), test_redact_text_strips_a_credentialed_url_embedded_in_other_text()
 
 ### Community 13 - "Queue UI Components"
-Cohesion: 0.13
-Nodes (22): AppSettings, Single-row table (v13) backing the output-format defaults editable from the, _FakeSettings, _LegacySettings, A pre-v54.2 `.env`: values the app no longer offers., v54.2: the env only seeds a fresh row, so a stale mp3/320k there seeds the defau, test_a_seed_the_app_no_longer_offers_falls_back_to_opus_best(), test_get_library_settings_and_output_settings_share_one_row() (+14 more)
+Cohesion: 0.26
+Nodes (12): _FakeSettings, _LegacySettings, A pre-v54.2 `.env`: values the app no longer offers., v54.2: the env only seeds a fresh row, so a stale mp3/320k there seeds the defau, test_a_seed_the_app_no_longer_offers_falls_back_to_opus_best(), test_get_library_settings_and_output_settings_share_one_row(), test_get_library_settings_creates_row_seeded_with_defaults(), test_get_output_settings_creates_row_seeded_from_env() (+4 more)
 
 ### Community 14 - "Track Router Tests"
 Cohesion: 0.03
-Nodes (65): v01 deployment gotchas (learned deploying to the real host and local dev), v02 schema gotchas (learned building the SQLAlchemy models + initial migration), v03 auth gotchas (learned building the upstream login proxy + session cookie), v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`), v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation), v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch), v07 proxy-rotation gotchas (learned building `proxies.txt` sync + pick/cooldown + wiring), v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream) (+57 more)
+Nodes (66): v01 deployment gotchas (learned deploying to the real host and local dev), v02 schema gotchas (learned building the SQLAlchemy models + initial migration), v03 auth gotchas (learned building the upstream login proxy + session cookie), v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`), v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation), v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch), v07 proxy-rotation gotchas (learned building `proxies.txt` sync + pick/cooldown + wiring), v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream) (+58 more)
 
 ### Community 16 - "Backend Dependencies"
 Cohesion: 0.08
 Nodes (27): alembic==1.18.5, celery==5.6.3, backend/requirements.txt, fastapi==0.141.1, psycopg==3.3.4, python-json-logger==4.1.0, redis==6.4.0 (python client), spotdl==4.5.2 (+19 more)
 
 ### Community 17 - "Download Service Tests"
-Cohesion: 0.15
-Nodes (22): AgeRestrictedError, _chain_text_has(), DownloadResult, NotYetReleasedError, BaseException, Exception, Thin wrapper around spotdl's download machinery.  Never construct a `Downloader`, The matched YouTube video is age-gated ("Sign in to confirm your age"). A proper (+14 more)
+Cohesion: 0.07
+Nodes (47): _chained(), _FakeDownloader, _FakeProgressHandler, _FakeSettings, _FakeTracker, v40.1, production's exact failure: ytmusicapi couldn't reach music.youtube.com, A dead proxy says nothing about the video, even if some other text on the chain, v54.1, production's exact chain: the matched video was a premiere 102 days out, (+39 more)
 
 ### Community 18 - "Proxy Router Tests"
 Cohesion: 0.05
 Nodes (39): devDependencies, eslint, eslint-config-prettier, @eslint/js, eslint-plugin-svelte, @fontsource/ibm-plex-mono, @fontsource/ibm-plex-sans, globals (+31 more)
 
 ### Community 19 - "TypeScript Config"
-Cohesion: 0.12
-Nodes (20): NetworkPath, Which network path an attempt actually used (v29). Only the two *direct* rungs a, TrackAttemptOutcome, DeclarativeBase, BreakerEventKind, JobSourceType, JobState, LibrarySortRun (+12 more)
+Cohesion: 0.17
+Nodes (16): Proxy, ProxySource, NetworkPath, Which network path an attempt actually used (v29). Only the two *direct* rungs a, TrackAttemptOutcome, TrackErrorType, TrackState, DeclarativeBase (+8 more)
 
 ### Community 20 - "Alembic Env & JSON Logging"
 Cohesion: 0.09
-Nodes (31): _aware(), _make_track(), v20 gap: archiving is only ever reachable once a job is settled/failed/cancelled, Fresh-eyes review finding: a bare `encode('ascii', 'ignore')` lets a literal CR/, The ledger is what v28's library move will repoint (CLAUDE.md's master-v3     in, v35 (e): the frontend probes with HEAD before starting a real browser download., v27's plan: availability keys on the file existing at its recorded path, never o, A corrupted/tampered output_path must never turn into an X-Accel-Redirect outsid (+23 more)
+Nodes (25): test_a_key_cant_manage_keys(), test_me_with_a_key_reports_only_who_it_belongs_to(), bearer(), _metadata(), Live review: a stable code, not FastAPI's raw validation list, and never a 500 (, Review round 1 (M3): a compilation's only artist is the pseudo-artist., Review round 1 (L2): they can't sign in to revoke it, and no one else can see it, Review round 2 (L5c): the key's bucket, not the user's, is the one over the limi (+17 more)
 
 ### Community 22 - "Settings Router Tests"
 Cohesion: 0.06
-Nodes (27): _fail_upstream(), _metadata(), v53: job create for the extension -- the Spotify allowlist for key and extension, Review round 1 (M1): counted first, so parallel guesses can't all read the same, Review round 1 (M3): a compilation's only artist is the pseudo-artist., Review round 2 (L5a): one job's unfinished track never makes another job of the, Review round 3: the per-address bucket (ADDRESS_LIMIT_FACTOR times looser) stops, Live review: FastAPI's default 422 echoed `input`; a lone surrogate there made i (+19 more)
+Nodes (23): _fail_upstream(), v53: job create for the extension -- the Spotify allowlist for key and extension, Review round 1 (M1): counted first, so parallel guesses can't all read the same, Review round 2 (M1): an expansion that was lost leaves a job `expanding` forever, Review round 2 (L5a): one job's unfinished track never makes another job of the, Review round 3: the per-address bucket (ADDRESS_LIMIT_FACTOR times looser) stops, Live review: the job row was committed and then `expand_job.delay` raised (Redis, Live review: FastAPI's default 422 echoed `input`; a lone surrogate there made i (+15 more)
 
 ### Community 23 - "Master Plan Decisions"
-Cohesion: 0.08
-Nodes (27): _make_job_with_tracks(), v15's N+1 guard, extended by v18: the listing now runs a fixed small number of, The correctness half of the N+1 fix: the classic bulk-aggregate bug is grouping, v48 (owner decision): priority and bump are admin-only on the server too, not on, The admin check runs before the lookup: an unknown id answers the same 403, so a, The router-level sibling of test_archive_with_job_ids_ignores_another_users_job, v34.1: the FOR UPDATE is what serializes a cancel against expand_job's EXPANDED, v34.2: count, counts_by_status and the page must come from one snapshot (they (+19 more)
+Cohesion: 0.07
+Nodes (43): _committed_expanded_job_with_track(), _committed_job(), _make_job_with_tracks(), JobState, TrackState, UUID, v15's N+1 guard, extended by v18: the listing now runs a fixed small number of, The correctness half of the N+1 fix: the classic bulk-aggregate bug is grouping (+35 more)
 
 ### Community 25 - "Worker Status UI"
-Cohesion: 0.13
-Nodes (39): make_user(), Direct DB insert, no login round trip -- for task-level tests (beat/download/, Mints a session directly via `services.sessions.create_session`, bypassing     `, session_cookie(), test_another_users_unfinished_job_is_not_already_queued(), _as(), _make_job(), _make_track() (+31 more)
+Cohesion: 0.12
+Nodes (41): _as(), _make_job(), _make_track(), v17's threat model, exercised end to end: a non-owner (admin or not) must never, Sanity check alongside the 404 sweep above: the same job/track *does* resolve fo, v48: priority and bump are admin-only, so they left the 404 sweep above. A non-a, The generic direct-id sweep above proves the 404 with a file-less track (ownersh, v54: so is a non-admin's `view=all`/`view=others` -- normalized to `mine`, never (+33 more)
 
 ### Community 27 - "Spotify Client Tests"
-Cohesion: 0.12
-Nodes (35): _aware(), _breaker_events(), _make_track(), _owner(), datetime, v23: NO_OUTPUT is spotdl swallowing a real AudioProviderError internally (see, v40.1, the production wedge: the streak used to survive the trip, so after every, v40.1, found on the real stack: a proxy that accepts and drops the connection (+27 more)
+Cohesion: 0.13
+Nodes (34): Single-row table backing the global circuit breaker., WorkerState, _aware(), _breaker_events(), _make_track(), _owner(), v23: NO_OUTPUT is spotdl swallowing a real AudioProviderError internally (see, v40.1, the production wedge: the streak used to survive the trip, so after every (+26 more)
 
 ### Community 28 - "Auth Router Tests"
 Cohesion: 0.16
 Nodes (24): acquire_realdl(), dc(), die(), disable_env_database(), export_compose_env(), load_e2e_credentials(), lock_slot(), main() (+16 more)
 
 ### Community 29 - "Worker Router Tests"
-Cohesion: 0.10
-Nodes (74): _attempts(), _capture_events(), _FakeDownloader, _make_track(), _owner(), _patch_common(), The same error without a proxy is ambiguous, so it keeps its old classification., v55 (E8): spotdl found the output file already in place and returned it without (+66 more)
+Cohesion: 0.07
+Nodes (30): _as(), _create_key(), _fill(), v53: per-user API keys -- lifecycle, owner scoping, and the rule that a key reac, A key's only read is the job it just created (or its own unfinished duplicate):, An admin's cookie reads anyone's job; an admin's key only the admin's own., Live review: Starlette unquotes `"\\000"` in a quoted cookie into a NUL Postgres, Review round 5: Postgres raises on a NUL in a query parameter, so the guard must (+22 more)
 
 ### Community 31 - "Version Roadmap Plans"
-Cohesion: 0.10
-Nodes (37): expected(), dismissTimeOnEscape(), Binding, BindingGroup, bindingHelpText(), BINDINGS, bindingsFor(), chordHelp() (+29 more)
+Cohesion: 0.09
+Nodes (38): expected(), $lib/components/ChordIndicator.svelte, Binding, BindingGroup, bindingHelpText(), BINDINGS, bindingsFor(), chordHelp() (+30 more)
 
 ### Community 32 - "Stream Router Tests"
 Cohesion: 0.06
 Nodes (32): Claims that changed meaning since they were evidenced (none contradicted), Optional live re-checks (not required by any bullet; regression insurance), Re-covered by v48's full e2e run (no separate live check needed), Soft notes (not gaps), Totals, Totals, Totals (65 bullets: v41 9, v42 11, v43 10, v44 10, v45 14, v45.1 2, v46 13, v47 8), v32: dev database (PR #43) (+24 more)
 
 ### Community 33 - "CI Workflow Jobs"
-Cohesion: 0.11
-Nodes (23): BaseSettings, ADMIN_EMAIL gates who services.users.get_or_create_user marks is_admin;, Settings, Fail closed: in dev, "can't tell which database" must never read as "safe"., v54.2: Opus at "best" (YouTube's stream untouched), and yt-dlp's own player-clie, random.uniform tolerates reversed bounds and silently samples them anyway --, An admin who isn't allowlisted could never log in -- a deployment nobody can, v32: local dev's worker-meta once pruned a real production ledger row because de (+15 more)
+Cohesion: 0.09
+Nodes (26): BaseSettings, check_not_production_database(), get_settings() runs at import in every backend process (db.py, main.py,, ADMIN_EMAIL gates who services.users.get_or_create_user marks is_admin;, Refuses a dev-marked process pointed at the production database. Fails closed: i, Settings, Fail closed: in dev, "can't tell which database" must never read as "safe"., v54.2: Opus at "best" (YouTube's stream untouched), and yt-dlp's own player-clie (+18 more)
 
 ### Community 34 - "App Settings Migration"
-Cohesion: 0.10
-Nodes (33): $lib/components/ApiKeys.svelte, atLimit, creating, dismissFresh(), focusNameOrHeading(), label, load(), maxActive (+25 more)
+Cohesion: 0.12
+Nodes (28): $lib/components/ApiKeys.svelte, atLimit, creating, dismissFresh(), focusNameOrHeading(), label, load(), maxActive (+20 more)
 
 ### Community 35 - "Cancelled Job Migration"
 Cohesion: 0.11
 Nodes (17): 2026-08-09 — CLAUDE.md split into rules vs. reference (folded into v14), 2026-08-09 — v15 complete; two v14 findings confirmed already scheduled, one new finding added, 2026-08-09 — v16 complete; NOT NULL applied literally, login/job creation left broken for v17, 2026-08-13 — v22 complete; the v13-precedent closing pass performed, master v2 done, Amendments, Context, Critical files, Job rollup status — answering the open design question (+9 more)
 
 ### Community 36 - "Output Dir Drop Migration"
-Cohesion: 0.10
-Nodes (38): $lib/components/LanguageSwitch.svelte, $lib/i18n/format, browserRegion(), clockExample(), clockOptions(), formatClock(), formatDateTime(), formatLocale() (+30 more)
+Cohesion: 0.09
+Nodes (38): ApiError, knowsCode(), $lib/i18n/format, browserRegion(), clockExample(), clockOptions(), formatClock(), formatDateTime() (+30 more)
 
 ### Community 37 - "Initial Schema Migration"
 Cohesion: 0.08
@@ -561,40 +557,40 @@ Cohesion: 0.15
 Nodes (11): _BaseJsonFormatter, _exit_with_parent(), main(), Entry point of the v36 alert watchdog process: `python -m app.services.alert_wat, _configure_celery_logging(), JsonFormatter, Structured JSON logging (v12) — one shared formatter both uvicorn (`api`, via `l, Adds Celery task context (`task_id`/`task_name`) when a log call happens inside (+3 more)
 
 ### Community 42 - "Layout Load Guard"
-Cohesion: 0.11
-Nodes (21): admin_stats(), Admin-only, answering a non-admin exactly like a route that doesn't exist (v44's, v44: global download observability (every user's attempts together, hence     ad, require_admin_hidden(), v36's plan: a non-admin gets 404 on the test-alert endpoint, so its existence is, _require_admin_hidden(), begin_snapshot(), Ends `db`'s current transaction and starts a REPEATABLE READ one, so every state (+13 more)
+Cohesion: 0.12
+Nodes (8): v56 (A6): for an admin route whose path names an id (a job's priority or bump, o, require_admin_hidden(), v56 (A4, owner's decision): the deferred proxy delete. An admin's delete of a ma, Admin-only, answering a non-admin exactly like a route that doesn't exist (v44's, require_admin_hidden(), v36: the one place an enqueued alert is actually sent (worker-meta, `meta` queue, send_alert(), HTTPException
 
 ### Community 43 - "JUnit Report Script"
 Cohesion: 0.07
 Nodes (27): Accepted by design (stay accepted, reason restated), Alerts / observability → v59 unless noted, Amendments, API / state integrity → v56 unless noted, Context, Critical files, Critical interactions to design around, Dev loop / tests → v52 unless noted (+19 more)
 
 ### Community 44 - "Proxy Selection & Coexistence"
-Cohesion: 0.06
-Nodes (40): @fontsource/ibm-plex-sans/400.css, @fontsource/ibm-plex-sans/500.css, @fontsource/ibm-plex-sans/600.css, ApiError, TrackState, $lib/components/AdminOnlyNotice.svelte, $lib/components/AmbientField.svelte, $lib/components/ChordIndicator.svelte (+32 more)
+Cohesion: 0.07
+Nodes (37): @fontsource/ibm-plex-sans/400.css, @fontsource/ibm-plex-sans/500.css, @fontsource/ibm-plex-sans/600.css, TrackState, $lib/components/AdminOnlyNotice.svelte, $lib/components/AmbientField.svelte, $lib/components/ConfirmDialog.svelte, $lib/components/Countdown.svelte (+29 more)
 
 ### Community 45 - "spawn_watchdog"
-Cohesion: 0.13
-Nodes (19): UserSession, _allowlisted(), _bearer_token(), current_session(), login(), LoginRequest, logout(), me() (+11 more)
+Cohesion: 0.14
+Nodes (24): _allowlisted(), _bearer_token(), current_session(), login(), LoginRequest, logout(), me(), Request (+16 more)
 
 ### Community 46 - "Postgres Backup Script"
 Cohesion: 0.07
 Nodes (27): 1. Install PostgreSQL (host-native — not a container), 1. Pull the merged code, 2. Create the role and database, 2. Update `.env`, 3. Let Docker containers reach Postgres, 3. Migrate the downloads directory (one-time, before first boot with the new bind mount), 4. Bring up the stack with the production overlay, 4. Install Docker + the Compose plugin (+19 more)
 
 ### Community 47 - "Backend Package Init"
-Cohesion: 0.09
-Nodes (35): Our own session store — separate from the upstream VB-AUTH token (see v03)., Per-user preferences, get-or-create on first read -- same singleton-row pattern, UserSettings, clock_preference(), get_user_settings(), keyboard_shortcuts_enabled(), language_preference(), Per-user preferences: retention (v19), keyboard shortcuts (v45), language and cl (+27 more)
+Cohesion: 0.18
+Nodes (21): Our own session store — separate from the upstream VB-AUTH token (see v03)., clock_preference(), get_user_settings(), keyboard_shortcuts_enabled(), language_preference(), Per-user preferences: retention (v19), keyboard shortcuts (v45), language and cl, Read-only: a user with no settings row yet has the default (on), and no row is, Read-only, like `keyboard_shortcuts_enabled`: no row (or no choice yet) is `None (+13 more)
 
 ### Community 48 - "Backend Package Init"
-Cohesion: 0.08
-Nodes (47): Row created on first successful login (v17). The `ALLOWED_EMAILS` env allowlist, User, get_or_create_user(), normalize_email(), User identity (v17) -- ALLOWED_EMAILS decides who may log in at all; this module, Creates the user row on first login, or loads and reconciles it on every     lat, An empty-string username is treated the same as None -- neither is a real fetche, Changing ADMIN_EMAIL must take effect on the next login, not need manual SQL -- (+39 more)
+Cohesion: 0.15
+Nodes (19): get_or_create_user(), normalize_email(), User identity (v17) -- ALLOWED_EMAILS decides who may log in at all; this module, Creates the user row on first login, or loads and reconciles it on every     lat, An empty-string username is treated the same as None -- neither is a real fetche, Changing ADMIN_EMAIL must take effect on the next login, not need manual SQL --, A None username (upstream_auth's degrade-gracefully path, e.g. a flaky `GET, test_get_or_create_user_bumps_last_login_at() (+11 more)
 
 ### Community 49 - "Backend Package Init"
 Cohesion: 0.12
 Nodes (18): JobsPage, StreamEvent, TracksPage, TrackWithJob, cancelJob, downloadingTrack(), getJob, hardReload() (+10 more)
 
 ### Community 50 - "Backend Package Init"
-Cohesion: 0.09
-Nodes (28): Track, TrackJobSummary, View, $lib/stores/progressCache, Cache, clearProgress(), Entry, flush() (+20 more)
+Cohesion: 0.10
+Nodes (27): Track, TrackJobSummary, $lib/stores/progressCache, Cache, clearProgress(), Entry, flush(), forgetProgress() (+19 more)
 
 ### Community 51 - "Backend Package Init"
 Cohesion: 0.24
@@ -606,11 +602,11 @@ Nodes (6): _FakeSongTracker, The whole enforcement mechanism (v17): a call site 
 
 ### Community 57 - "Auth Version Doc"
 Cohesion: 0.10
-Nodes (21): bearer(), Live review: Starlette unquotes `"\\000"` in a quoted cookie into a NUL Postgres, test_a_nul_in_the_session_cookie_is_no_session_and_falls_back_to_the_key(), Live review: a stable code, not FastAPI's raw validation list, and never a 500 (, Review round 1 (L2): they can't sign in to revoke it, and no one else can see it, Review round 2 (M1): an expansion that was lost leaves a job `expanding` forever, Review round 2 (L5c): the key's bucket, not the user's, is the one over the limi, Live review: the job row was committed and then `expand_job.delay` raised (Redis (+13 more)
+Nodes (43): _alert_settings_to_dict(), _clock_to_dict(), get_alert_settings(), get_clock_settings(), get_keyboard_settings(), get_language_settings(), get_library_settings(), get_output_options() (+35 more)
 
 ### Community 58 - "URL Expansion Version Doc"
-Cohesion: 0.09
-Nodes (41): job_to_dict(), Job, counts is passed in, not queried -- dropping the Session parameter is what makes, BaseModel, One row per submitted URL (album/playlist/artist/track)., UpdateAlertSettingsRequest, UpdateClockRequest, UpdateKeyboardRequest (+33 more)
+Cohesion: 0.12
+Nodes (39): Principal, Who a `require_session_or_api_key` route is acting for, and how they got in., archive_jobs(), ArchiveJobsRequest, bump_job(), cancel_job(), _classify_source_type(), create_job() (+31 more)
 
 ### Community 59 - "Downloader Version Doc"
 Cohesion: 0.10
@@ -618,15 +614,15 @@ Nodes (19): Architecture invariants, Locked decisions (`plan/master-v1/00-master
 
 ### Community 60 - "Proxy Cooldown Backoff"
 Cohesion: 0.12
-Nodes (7): _login(), _mock_upstream_login(), v46: the per-user interface language and time format., Owner's answer on PR #68: a saved language can be cleared, and the browser decid, Owner's rule: the browser decides until the user picks a language on /account; s, test_language_goes_back_to_automatic(), test_signing_in_saves_no_language()
+Nodes (8): _login(), _mock_upstream_login(), v46: the per-user interface language and time format., Owner's answer on PR #68: a saved language can be cleared, and the browser decid, Owner's rule: the browser decides until the user picks a language on /account; s, test_language_goes_back_to_automatic(), test_me_reports_no_language_without_creating_a_settings_row(), test_signing_in_saves_no_language()
 
 ### Community 61 - "Live Progress Version Doc"
-Cohesion: 0.21
-Nodes (19): download_track(), _give_up_claim(), _hold(), _lock_if_still_owned(), _notes(), pacing_delay(), datetime, NetworkPath (+11 more)
+Cohesion: 0.08
+Nodes (45): title/artists/album straight from a track's `song_json` -- the single field, track_song_meta(), archive_due_jobs(), dispatch_due_tracks(), timedelta, A track stuck in DOWNLOADING/QUEUED past this long means whatever was supposed t, Hourly (not every 30s like dispatch_due_tracks -- this is housekeeping, and it, _reclaim_stale_tracks() (+37 more)
 
 ### Community 62 - "Breaker Release Policy"
-Cohesion: 0.44
-Nodes (8): _is_busy(), pause_worker(), `worker-dl` runs `--concurrency=1` (CLAUDE.md invariant), so at most one track, Clears the countdown early and starts a fresh failure streak, exactly like a tri, release_breaker(), resume_worker(), _status_dict(), worker_status()
+Cohesion: 0.14
+Nodes (28): _assert_cancelled_with_its_tracks(), _assert_cancelled_with_its_tracks_n(), _beat(), _Broker, _BrokerDown, _cancel(), _committed_expanding_job(), BaseException (+20 more)
 
 ### Community 63 - "Queue Controls Version Doc"
 Cohesion: 0.21
@@ -641,35 +637,35 @@ Cohesion: 0.14
 Nodes (17): copy_verify(), destination_path(), files_match(), quarantine(), _quarantine_destination(), Library sort & move (v28) -- destination-path building from tags, conflict detec, Preserves the source's own basename under quarantine_dir, disambiguated with a, Moves source into quarantine_dir instead of deleting it -- the conflict-with- (+9 more)
 
 ### Community 66 - "v03 — Authentication"
-Cohesion: 0.16
-Nodes (17): connection_target(), force_proxy(), _newest_first(), next_cooldown(), pick_proxy(), _probe_reachable(), Proxy pool: file sync (`proxies.txt`), LRU selection, and per-proxy cooldown.  M, Best-effort TCP connect so an obviously dead entry isn't picked: at sync time fo (+9 more)
+Cohesion: 0.13
+Nodes (27): committed_db(), A sessionmaker on this run's database whose sessions really commit, so several o, _cancel(), _committed_track(), _FakeDownloader, _FakeProgressHandler, v55: download_track's races against cancel and beat's stale reclaim, on real con, Beat's stale reclaim takes the track (waiting + its row), and the same tick's di (+19 more)
 
 ### Community 67 - "v06 — Retry Engine"
-Cohesion: 0.24
-Nodes (18): breaker_active(), breaker_tripped(), classify_error(), get_worker_state(), maybe_trip_breaker(), next_delay(), datetime, Session (+10 more)
+Cohesion: 0.16
+Nodes (24): _make_job(), _make_track(), _NonClosingSession, _owner(), _patch_session(), v44: the first tick after a trip's pause runs out records its release at the pau, See test_download_task.py — download_track's db.close() would otherwise detach, v31: a track stuck past the staleness threshold used to be reclaimed with no (+16 more)
 
 ### Community 68 - "v14 — Master v1 Implementation Audit"
 Cohesion: 0.12
-Nodes (5): _cred_url(), A credentialed test URL, assembled so a secret scanner doesn't read the fake, v44, the owner's rule: one connection target, one credential. Scheme, credential, test_create_proxy_rejects_a_second_credential_for_the_same_target(), test_enabling_a_proxy_refuses_when_its_target_is_already_live()
+Nodes (28): connection_target(), finalize_proxy_deletions(), force_proxy(), lock_for_outcome(), _newest_first(), next_cooldown(), pick_proxy(), _probe_reachable() (+20 more)
 
 ### Community 69 - "v17 — Multi-User Auth & Ownership Enforcement"
 Cohesion: 0.07
-Nodes (29): $lib/components/TrackRow.svelte, attemptsKey, awaitCancelledAttempt(), canCancel, canDownload, canRetry, clamped, collapsedNotice (+21 more)
+Nodes (31): $lib/components/TrackRow.svelte, attemptsKey, awaitCancelledAttempt(), canCancel, canDownload, canRetry, clamped, collapsedNotice (+23 more)
 
 ### Community 70 - "v19 — Archive & Retention"
-Cohesion: 0.11
-Nodes (5): probe_socket(), _ProbeSocket, The real kernel, no stub: whatever this machine's routing says, the probe answer, Stands in for socket.socket in the probe: records what it was asked, and fails t, test_the_ipv6_probe_on_this_machine_answers_without_raising()
+Cohesion: 0.18
+Nodes (18): _capture_job_events(), _FakeSong, _NonClosingSession, _owner(), A run that committed EXPANDED then died mid-enqueue is redelivered (acks_late):, Wraps db_session so expand_job's db.close() doesn't detach objects the test, _stub_download_track(), test_expand_job_db_error_during_insert_marks_job_failed() (+10 more)
 
 ### Community 71 - "v20 — Job-Centric UI"
-Cohesion: 0.11
-Nodes (18): Architecture, Development environments, graphify, Invariants — break these and things fail silently, Job rollup status (v2) — two derived axes, never one stored flag, Locked decisions (settled — don't re-litigate without asking), Maintaining this file, Master v2 additions (+10 more)
+Cohesion: 0.09
+Nodes (7): _cred_url(), A credentialed test URL, assembled so a secret scanner doesn't read the fake, v44, the owner's rule: one connection target, one credential. Scheme, credential, v56 (A4, owner's decision): 202 and `deleting`, never picked again, PATCH refuse, test_create_proxy_rejects_a_second_credential_for_the_same_target(), test_deleting_a_proxy_a_download_is_using_waits_for_it(), test_enabling_a_proxy_refuses_when_its_target_is_already_live()
 
 ### Community 72 - "v21 — Multi-User Hardening & Real-Stack Verification"
 Cohesion: 0.12
 Nodes (15): 2026-08-09 — v23.1 inserted; v29 inserted; hardening close renumbered to v30, 2026-08-09 — v23's root cause was not the stale yt-dlp pin, 2026-09-27 — v30 inserted; hardening close renumbered again, to v31, 2026-09-28 — v31 merged with one item deferred; v31.1 patch slice inserted, Amendments, Context, Critical files, Critical interactions to design around (+7 more)
 
 ### Community 73 - "beat.py"
-Cohesion: 0.21
+Cohesion: 0.23
 Nodes (13): SpotifyRef, v53: the Spotify allowlist's parser and the cascade resolver (spotdl mocked here, Review round 1 (L1): never queued behind slow calls nobody waits for any more., _stub(), test_a_cascade_is_refused_at_once_when_every_worker_is_busy(), test_a_cascade_that_doesnt_apply_is_invalid_without_a_metadata_call(), test_a_failing_or_slow_metadata_call_is_unavailable(), test_a_single_artist_cascades_to_that_artist() (+5 more)
 
 ### Community 74 - "v00 — Planning"
@@ -681,16 +677,16 @@ Cohesion: 0.22
 Nodes (12): _mock_upstream_login(), upstream_auth.login degrades gracefully (username=None) when GET /user fails --, A username changed upstream must propagate on the next login (same reconciliatio, Unlike every other test in this file, this does NOT mock `upstream_auth.login` -, test_login_end_to_end_through_real_cookie_extraction_path_never_leaks_vb_auth(), test_login_stores_and_returns_username_from_upstream(), test_login_success_sets_cookie_and_me_returns_email(), test_login_with_failed_username_fetch_falls_back_to_email_and_still_succeeds() (+4 more)
 
 ### Community 76 - "test_events.py"
-Cohesion: 0.06
-Nodes (58): One row per `download_track` invocation (v24) -- what it tried (direct vs. which, TrackAttempt, download_one(), Song, Must be called from a plain sync context — search_and_download raises     Downlo, committed_db(), A sessionmaker on this run's database whose sessions really commit, so several o, v55 (E2), the other snapshotted state: the sweep snapshots a track stuck `queued (+50 more)
+Cohesion: 0.07
+Nodes (34): _FakeProgressHandler, v51, the test above on real connections: the first delivery commits COMPLETED an, test_a_redelivery_before_the_first_deliverys_ack_is_a_noop_on_real_connections(), v51, the test above on two real connections: cancel_job holds the job's row lock, v56 (A1) on two real connections. The job's last track is completing: its     tr, test_cancel_job_racing_its_last_track_completing_leaves_the_job_settled(), test_cancel_job_row_lock_holds_off_a_concurrent_expanded_commit(), The admin's delete locks the row while it decides; a pick at that moment (SKIP L (+26 more)
 
 ### Community 77 - "v05 — Downloader"
 Cohesion: 0.13
 Nodes (15): beat_heartbeat_age(), breaker_released(), category_enabled(), _delete_if_equals(), failure_spike(), mark_breaker_open(), Called on every dispatch_due_tracks tick, whether or not alerts are configured., (fingerprint, text, newest finished_at) when the newest `threshold` real attempt (+7 more)
 
 ### Community 78 - "v07 — Proxy Rotation"
-Cohesion: 0.12
-Nodes (20): _assert_proxy_transport_failure(), _aware(), _chained_no_output(), _proxy_rung_track(), datetime, Review finding: pick_proxy's probes can take seconds; a cancel committed meanwhi, v40.1: a verdict about the video means the proxy carried the request to YouTube, v40.1: pick_proxy probes before use; a pool that refuses TCP connections cools d (+12 more)
+Cohesion: 0.09
+Nodes (24): _assert_proxy_transport_failure(), _aware(), _chained_no_output(), _proxy_rung_track(), datetime, Review finding: a read timeout or reset can also happen *after* YouTube was reac, Review finding: pick_proxy's probes can take seconds; a cancel committed meanwhi, The same error without a proxy is ambiguous, so it keeps its old classification. (+16 more)
 
 ### Community 79 - "v08 — Live Progress (SSE)"
 Cohesion: 0.14
@@ -701,12 +697,12 @@ Cohesion: 0.09
 Nodes (32): AdminStats, BreakerEvent, $lib/components/stats/FailureChannels.svelte, breakerLine, heldSeconds, holdLabel(), shown, summary (+24 more)
 
 ### Community 81 - "v10 — Queue Controls"
-Cohesion: 0.18
-Nodes (5): fake_redis(), FakeRedis, _Pipeline, Shared v53 test helpers: an in-memory stand-in for the rate limiter's Redis, and, The few commands services/rate_limit.py uses, with real expiry.
+Cohesion: 0.19
+Nodes (17): _error(), _FakeOutputSettings, _make_track(), v46: every user-facing API error carries a stable `code` beside its English `det, A non-admin's 404 on an admin-only route must read exactly like an unknown route, test_admin_required_carries_a_code(), test_api_key_errors_carry_codes(), test_auth_errors_carry_codes() (+9 more)
 
 ### Community 82 - "alerts.py"
-Cohesion: 0.22
-Nodes (8): get_downloader(), get_supported_output_options(), NetworkPath, The format/bitrate values the settings UI offers and the API accepts (v54.2): on, Downloader, The output formats and qualities this app offers (v54.2).  YouTube (and YouTube, What to hand spotdl for `bitrate`. "best" is ours, not spotdl's: "disable" makes, spotdl_bitrate()
+Cohesion: 0.25
+Nodes (7): Downloader, The output formats and qualities this app offers (v54.2).  YouTube (and YouTube, What to hand spotdl for `bitrate`. "best" is ours, not spotdl's: "disable" makes, spotdl_bitrate(), get_downloader(), get_supported_output_options(), The format/bitrate values the settings UI offers and the API accepts (v54.2): on
 
 ### Community 83 - "test_stream.py"
 Cohesion: 0.24
@@ -717,8 +713,8 @@ Cohesion: 0.16
 Nodes (10): _FakeSettings, v54.2: not spotdl's whole range. Nothing above YouTube's ~130-160k source, no, test_get_output_options_offers_only_what_the_source_can_back(), test_get_output_settings_seeds_from_env_defaults(), test_update_output_settings_ignores_output_dir_if_sent(), test_update_output_settings_ignores_unset_fields(), test_update_output_settings_persists_and_returns_partial_update(), test_update_output_settings_rejects_unsupported_bitrate() (+2 more)
 
 ### Community 86 - "sv"
-Cohesion: 0.15
-Nodes (8): `busy` is global (any user's track), not scoped to the caller -- and carries no, Deliberately not admin-gated (v17) -- any authenticated user can see why a queue, v40.1: a release used to keep the streak, so the first failure after it re-tripp, v44: the admin's button ends a running pause and records it as a manual release., test_admin_breaker_release_records_a_manual_release_event(), test_admin_breaker_release_starts_a_fresh_streak_but_keeps_escalation(), test_worker_busy_reflects_any_users_downloading_track(), test_worker_status_defaults()
+Cohesion: 0.19
+Nodes (19): Exception, AgeRestrictedError, _chain_text_has(), download_one(), DownloadResult, NotYetReleasedError, Thin wrapper around spotdl's download machinery.  Never construct a `Downloader`, The matched YouTube video is age-gated ("Sign in to confirm your age"). A proper (+11 more)
 
 ### Community 107 - "$lib/stores/progressCache"
 Cohesion: 0.20
@@ -745,8 +741,8 @@ Cohesion: 0.29
 Nodes (11): _install_transport(), v25: `upstream_auth.login` now also best-effort fetches the username via `GET /u, A 200 that parses as valid JSON but isn't an object (`null`, `[]`, a bare scalar, test_get_user_empty_string_username_degrades_to_none(), test_get_user_failure_degrades_to_none_without_failing_login(), test_get_user_non_object_json_body_degrades_to_none_without_crashing(), test_login_failure_never_calls_get_user(), test_login_success_fetches_username_using_extracted_cookie() (+3 more)
 
 ### Community 130 - "stream"
-Cohesion: 0.07
-Nodes (50): Track, track_to_dict(), One row per individual song discovered while expanding a job — the unit the retr, _alert_settings_to_dict(), _clock_to_dict(), get_alert_settings(), get_clock_settings(), get_keyboard_settings() (+42 more)
+Cohesion: 0.15
+Nodes (26): cancel_track(), _content_disposition(), download_track_file(), get_track(), _get_track_or_404(), list_track_attempts(), datetime, Path (+18 more)
 
 ### Community 131 - "Base"
 Cohesion: 0.17
@@ -765,24 +761,24 @@ Cohesion: 0.17
 Nodes (11): Accessibility & Inclusion, Brand Commitments, Capabilities and Constraints, Evidence on Hand, Operating Context, Platform, Positioning, Product (+3 more)
 
 ### Community 135 - "auth.py"
-Cohesion: 0.09
-Nodes (56): checkAttemptHistory(), clearSlate(), globalSetup(), login(), seedJob(), globalTeardown(), E2E_DIR, ENV_FILE (+48 more)
+Cohesion: 0.11
+Nodes (44): clearSlate(), globalSetup(), login(), globalTeardown(), E2E_DIR, ENV_FILE, loadE2eEnv(), REPO_ROOT (+36 more)
 
 ### Community 136 - "9e18f8d457c8_add_users_and_ownership_schema.py"
-Cohesion: 0.17
-Nodes (13): ApiKey, active_keys(), authenticate(), create_key(), _generate(), _hash(), key_to_dict(), looks_like_key() (+5 more)
+Cohesion: 0.11
+Nodes (18): Architecture, Development environments, graphify, Invariants — break these and things fail silently, Job rollup status (v2) — two derived axes, never one stored flag, Locked decisions (settled — don't re-litigate without asking), Maintaining this file, Master v2 additions (+10 more)
 
 ### Community 137 - "_ensure_spotify_client"
-Cohesion: 0.16
-Nodes (23): search(), expectNoHiddenFocusables(), focusRowByKeys(), HELD_TRACKS, method(), noOpenDialog(), openJob(), overlayEntries() (+15 more)
+Cohesion: 0.15
+Nodes (24): search(), expectNoHiddenFocusables(), focusRowByKeys(), HELD_TRACKS, method(), noOpenDialog(), openJob(), overlayEntries() (+16 more)
 
 ### Community 138 - "README.md"
 Cohesion: 0.13
 Nodes (14): Adding a required env var, First deploy, GHCR packages, Idempotency, `.last-good`, Manual recovery levers, No cancelling, no stale deploys (v49), Notifications (v33, curl-only since v49) (+6 more)
 
 ### Community 139 - "test_rollup.py"
-Cohesion: 0.19
-Nodes (17): _error(), _FakeOutputSettings, _make_track(), v46: every user-facing API error carries a stable `code` beside its English `det, A non-admin's 404 on an admin-only route must read exactly like an unknown route, test_admin_required_carries_a_code(), test_api_key_errors_carry_codes(), test_auth_errors_carry_codes() (+9 more)
+Cohesion: 0.16
+Nodes (16): $lib/components/IncomingJobs.svelte, confirmCancelTuning(), confirmCancelTuningFlow(), dismissButtons(), failed, handleCancel(), handleRetry(), keepFocus() (+8 more)
 
 ### Community 140 - "list_jobs"
 Cohesion: 0.18
@@ -809,8 +805,8 @@ Cohesion: 0.25
 Nodes (8): is_supported_format(), ID3/tag integrity verification and repair (v26).  spotdl embeds tags at download, Raw tag dict for library sort/move (v28) -- unlike verify_tags below (which only, Returns the set of required field names missing or empty on the file. Caller, Re-embeds whatever's missing from `song`. Cover art is only (re-)fetched when, read_tags(), repair_tags(), verify_tags()
 
 ### Community 146 - "worker.py"
-Cohesion: 0.08
-Nodes (25): channel_for(), _format(), _make_record(), Structured JSON logging (v12). The one contract that matters most here: a creden, test_credentialed_url_in_exception_traceback_is_redacted(), test_credentialed_url_in_message_is_redacted(), test_no_task_context_outside_a_running_task(), test_plain_message_passes_through_unchanged() (+17 more)
+Cohesion: 0.28
+Nodes (10): _format(), _make_record(), Structured JSON logging (v12). The one contract that matters most here: a creden, test_credentialed_url_in_exception_traceback_is_redacted(), test_credentialed_url_in_message_is_redacted(), test_no_task_context_outside_a_running_task(), test_plain_message_passes_through_unchanged(), test_task_context_injected_when_running_inside_a_task() (+2 more)
 
 ### Community 147 - "test_pagination.py"
 Cohesion: 0.36
@@ -837,8 +833,8 @@ Cohesion: 0.25
 Nodes (7): Deploy notes, Done when, Files owned, Out of scope, Scope, Tasks, v53 — Extension API (keys, cascades, allowlist, rate limits)
 
 ### Community 153 - "v27 — Direct File Downloads"
-Cohesion: 0.15
-Nodes (18): latest_attempt_number(), previous_was_transport_failure(), datetime, NetworkPath, Session, TrackErrorType, UUID, Per-attempt download history (v24) -- see app/models/track_attempt.py's docstrin (+10 more)
+Cohesion: 0.12
+Nodes (23): latest_attempt_number(), previous_was_transport_failure(), _proxy_label(), datetime, NetworkPath, Proxy, Session, TrackErrorType (+15 more)
 
 ### Community 154 - "test_events.py"
 Cohesion: 0.39
@@ -847,6 +843,10 @@ Nodes (8): _attempt(), v40.1: a dead proxy pool fails attempts back to back as `
 ### Community 155 - "c1a9f0e2b3d4_add_no_output_track_error_type.py"
 Cohesion: 0.36
 Nodes (4): _stub_sort_library(), test_start_sort_allowed_again_once_previous_run_is_idle(), test_start_sort_enqueues_the_task_and_marks_running(), test_start_sort_rejects_a_second_concurrent_sweep()
+
+### Community 156 - "track_counts"
+Cohesion: 0.11
+Nodes (5): probe_socket(), _ProbeSocket, The real kernel, no stub: whatever this machine's routing says, the probe answer, Stands in for socket.socket in the probe: records what it was asked, and fails t, test_the_ipv6_probe_on_this_machine_answers_without_raising()
 
 ### Community 157 - "a1c7f4d8e2b0_add_username_to_users.py"
 Cohesion: 0.25
@@ -878,7 +878,7 @@ Nodes (7): Design, Done when, Files owned, Out of scope, Scope, Tests, v58 — F
 
 ### Community 164 - "archive_jobs"
 Cohesion: 0.14
-Nodes (16): Exception, ApiKeyLimitReached, CascadeAmbiguous, CascadeInvalid, CascadeNotFound, CascadeUnavailable, parse(), Spotify URL allowlist, normalization and server-side cascades (v53).  `parse` ac (+8 more)
+Nodes (14): CascadeAmbiguous, CascadeInvalid, CascadeNotFound, CascadeUnavailable, parse(), Spotify URL allowlist, normalization and server-side cascades (v53).  `parse` ac, Spotify has no such track or album., The metadata call failed or ran out of time (`reason` "failed"), or every metada (+6 more)
 
 ### Community 165 - "_get_or_create_run"
 Cohesion: 0.25
@@ -909,16 +909,16 @@ Cohesion: 0.29
 Nodes (6): Done when, Files owned, Items, Out of scope, Scope, v55 — Download Engine Races & Bookkeeping
 
 ### Community 172 - "v30 — Proxy Routing Fix"
-Cohesion: 0.10
-Nodes (29): admin_client(), admin_user(), authenticated_client(), client(), _Collect, db_session(), _drop(), _end_other_sessions() (+21 more)
+Cohesion: 0.06
+Nodes (43): _api_routes(), _fill(), _gate_status(), _gated_routes(), APIRoute, v56 (A6): one rule for what an admin route answers a non-admin, over every admin, The gate lets an admin through: whatever the handler answers next, it isn't the, Each route's gate (its dependency) gives the status the table says, and no admin (+35 more)
 
 ### Community 173 - "test_network_path.py"
 Cohesion: 0.38
 Nodes (6): job_matches(), Free-text search (v18) -- case-insensitive substring matching against the existi, One concatenated blob per track: title, album, and playlist/album name (all, A job matches if its own `source_url` does, or if any of its tracks do -- so, track_matches(), track_search_text()
 
 ### Community 174 - "v31 — Production Hardening & Close"
-Cohesion: 0.27
-Nodes (13): ProxySource, create_proxy(), CreateProxyRequest, delete_proxy(), _get_proxy_or_404(), list_proxies(), _proxy_to_dict(), A source=manual proxy is hard-deleted -- there's no proxies.txt entry that could (+5 more)
+Cohesion: 0.20
+Nodes (16): breaker_active(), breaker_tripped(), _exception_chain(), get_worker_state(), is_proxy_transport_error(), maybe_trip_breaker(), next_delay(), Per-track backoff ladder and global circuit breaker — see CLAUDE.md's "Retry eng (+8 more)
 
 ### Community 175 - "_event_stream"
 Cohesion: 0.30
@@ -1001,8 +1001,8 @@ Cohesion: 0.29
 Nodes (6): Deploy notes, Done when, Out of scope, Scope, Tasks, v40.1 — Breaker Wedge Fix (hard failures end by themselves)
 
 ### Community 195 - "$lib/components/IncomingJobs.svelte"
-Cohesion: 0.09
-Nodes (51): $lib/components/IncomingJobs.svelte, confirmCancelTuning(), confirmCancelTuningFlow(), dismissButtons(), failed, handleCancel(), handleRetry(), keepFocus() (+43 more)
+Cohesion: 0.17
+Nodes (34): $lib/keyboard/lists, actionsOf(), applyTabOrder(), awaitFallback(), awaitingFocus, collapseFocused(), focusedRow(), focusList() (+26 more)
 
 ### Community 196 - "v41 — Dashboard Redesign"
 Cohesion: 0.29
@@ -1061,12 +1061,12 @@ Cohesion: 0.33
 Nodes (5): Design, Done when, Files owned, Scope, v68 — Virtualized Job & Track Lists
 
 ### Community 210 - "test_worker_busy_reflects_any_users_downloading_track"
-Cohesion: 0.22
-Nodes (12): _proxy_label(), Session, UUID, Shared REST projections for Job/Track — deliberate projections rather than expos, proxies.redact() raises on a malformed port (urlsplit's .port), and sync_from_fi, `proxy_url` is the attempt's proxy's raw URL, joined in by the caller's own quer, One grouped aggregate covering every requested job -- replaces the per-job query, Single-job convenience over the bulk query -- for endpoints that serialize exact (+4 more)
+Cohesion: 0.13
+Nodes (19): _proxy_label(), Session, UUID, Shared REST projections for Job/Track — deliberate projections rather than expos, proxies.redact() raises on a malformed port (urlsplit's .port), and sync_from_fi, `proxy_label` is the `proxies.redact()` form stored with the row (v56, A4: it ou, One grouped aggregate covering every requested job -- replaces the per-job query, Single-job convenience over the bulk query -- for endpoints that serialize exact (+11 more)
 
 ### Community 211 - "_NonClosing"
-Cohesion: 0.15
-Nodes (8): _fetch_username(), login(), Check credentials against vb2007.hu-api, and best-effort fetch the username via, `isAuthenticated`'s `GET /user` reads the `VB-AUTH` cookie itself -- extracted, _sync_proxies_on_boot(), Rejects a pacing window that can't mean what it says. random.uniform happily, v50: the e2e fixture for an agent slot's fresh database (`scripts/agent_stack.sh, ../app.css
+Cohesion: 0.17
+Nodes (7): Which track states a cancel or a retry may act on (v56, A2): one definition for, _fetch_username(), login(), Check credentials against vb2007.hu-api, and best-effort fetch the username via, `isAuthenticated`'s `GET /user` reads the `VB-AUTH` cookie itself -- extracted, Rejects a pacing window that can't mean what it says. random.uniform happily, v50: the e2e fixture for an agent slot's fresh database (`scripts/agent_stack.sh
 
 ### Community 213 - "spawn_watchdog"
 Cohesion: 0.39
@@ -1077,8 +1077,8 @@ Cohesion: 0.25
 Nodes (7): Deploy notes, Done when, Files owned, Items, Out of scope, Scope, v60 — Pipeline Resilience, Persistent Logs & Docs Drift
 
 ### Community 216 - "$lib/components/IncomingJobs.svelte"
-Cohesion: 0.38
-Nodes (7): APIRoute, _admin_routes(), _all_routes(), _api_routes(), _depends_on(), Every APIRoute in the app. FastAPI (0.141+) keeps an included router as a lazy, test_the_route_lists_are_complete()
+Cohesion: 0.26
+Nodes (17): create_proxy(), CreateProxyRequest, delete_proxy(), _get_proxy_or_404(), list_proxies(), _proxy_to_dict(), ApiError, Proxy (+9 more)
 
 ### Community 217 - "Upgrading an existing deployment (manual fallback)"
 Cohesion: 0.33
@@ -1181,16 +1181,16 @@ Cohesion: 0.33
 Nodes (5): Done when, Out of scope, Scope, Tasks, v47 — UI Polish & Design-System Record
 
 ### Community 246 - "alerts.py"
-Cohesion: 0.18
-Nodes (15): _config_values(), _drop_pending(), enqueue(), enqueue_after_commit(), _enqueue_pending(), is_configured(), log_startup_state(), matrix_config() (+7 more)
+Cohesion: 0.12
+Nodes (23): AlertSendError, AlertsNotConfigured, _claim_cooldown(), _config_values(), deliver(), _drop_pending(), enqueue(), enqueue_after_commit() (+15 more)
 
 ### Community 247 - "Architecture"
-Cohesion: 0.11
-Nodes (24): ADMIN_GETS, CANCEL_TRACKS, confirmPerforms(), expectCancelDoesNothing(), Guarded, SUBMISSION_TRACKS, keyJourney(), me() (+16 more)
+Cohesion: 0.14
+Nodes (19): CANCEL_TRACKS, confirmPerforms(), expectCancelDoesNothing(), Guarded, SUBMISSION_TRACKS, keyJourney(), me(), requireQuietWorker() (+11 more)
 
 ### Community 248 - "_make_job"
-Cohesion: 0.20
-Nodes (12): health(), _get_client(), make_progress_callback(), publish(), publish_job_event(), publish_library_progress(), publish_track_event(), Redis pub/sub event bus for live progress.  Publishers (Celery tasks) are plain (+4 more)
+Cohesion: 0.24
+Nodes (11): _get_client(), make_progress_callback(), publish(), publish_job_event(), publish_library_progress(), publish_track_event(), Redis pub/sub event bus for live progress.  Publishers (Celery tasks) are plain, v28: library sort & move progress, published only to the admin who triggered the (+3 more)
 
 ### Community 249 - "BreakerEvent"
 Cohesion: 0.11
@@ -1205,16 +1205,16 @@ Cohesion: 0.33
 Nodes (5): Done when, Out of scope, Scope, Tasks, v70 — Master v5 Hardening & Close
 
 ### Community 253 - "expand_job"
-Cohesion: 0.20
-Nodes (12): title/artists/album straight from a track's `song_json` -- the single field, track_song_meta(), archive_due_jobs(), dispatch_due_tracks(), timedelta, A track stuck in DOWNLOADING/QUEUED past this long means whatever was supposed t, Hourly (not every 30s like dispatch_due_tracks -- this is housekeeping, and it, _reclaim_stale_tracks() (+4 more)
+Cohesion: 0.19
+Nodes (13): checkAttemptHistory(), seedJob(), cancelUnlessSettled(), expectedAttemptVia(), expectedTimeline(), isSettled(), ledgerDownloads(), ledgerFilePath() (+5 more)
 
 ### Community 254 - "download_one"
 Cohesion: 0.44
 Nodes (11): _make_job(), _owner(), test_archive_jobs_age_is_measured_from_newest_track_activity_not_job_created_at(), test_archive_jobs_archives_only_settled_failed_or_cancelled_jobs_for_the_owner(), test_archive_jobs_ignores_job_ids_belonging_to_another_user(), test_archive_jobs_never_archives_a_waiting_job_regardless_of_age(), test_archive_jobs_never_touches_downloaded_tracks(), test_archive_jobs_sweep_archives_settled_jobs_past_the_threshold() (+3 more)
 
 ### Community 255 - "_NonClosingSession"
-Cohesion: 0.20
-Nodes (6): _FakeDownloadsSettings, _moved_ledger_row(), _NonClosingSession, v38: the real dedup gate (not a stub) over a ledger row the library sort moved., Wraps db_session so download_track's db.close() doesn't detach objects the test, test_download_track_unknown_track_is_a_noop()
+Cohesion: 0.14
+Nodes (16): _FakeSettings, _NonClosingSession, datetime, Wraps db_session so sync_from_file's db.close() doesn't detach objects the test, v44: the first line for a host:port wins; a later one is skipped, and a row it, A new credential for a target whose old line left the file is the same proxy:, The exact URL is still taken (proxies.url is unique) until the finalizer removes, test_sync_from_file_adds_new_and_disables_removed() (+8 more)
 
 ### Community 256 - "06-admin-pages.e2e.ts"
 Cohesion: 0.40
@@ -1253,84 +1253,132 @@ Cohesion: 0.40
 Nodes (4): Design — nginx X-Accel-Redirect, Done when, Scope, v27 — Direct File Downloads
 
 ### Community 265 - "sent"
-Cohesion: 0.29
-Nodes (6): force_family(), ipv6_routable(), NetworkPath, Forces yt-dlp's and ytmusicapi's separate HTTP stacks onto one IP family (v29)., No-op for PROXY (a literal-IPv4 destination, see NetworkPath's own docstring) an, Whether this process has a route to the IPv6 internet, cached for     IPV6_PROBE
+Cohesion: 0.18
+Nodes (5): fake_redis(), FakeRedis, _Pipeline, Shared v53 test helpers: an in-memory stand-in for the rate limiter's Redis, and, The few commands services/rate_limit.py uses, with real expiry.
 
 ### Community 266 - "$lib/i18n/format"
-Cohesion: 0.18
-Nodes (15): _allowed_ignorable(), _collapse_spaces(), _emoji_like(), _ignorable(), _is_cjk(), _is_mongolian(), _is_virama(), _joining_letter() (+7 more)
+Cohesion: 0.10
+Nodes (29): ApiKey, active_keys(), _allowed_ignorable(), ApiKeyLimitReached, authenticate(), _collapse_spaces(), create_key(), _emoji_like() (+21 more)
 
 ### Community 290 - "Path"
-Cohesion: 0.50
-Nodes (5): _exception_chain(), is_proxy_transport_error(), BaseException, `exc` and everything it was raised from. Also follows yt-dlp's DownloadError, wh, True if `exc` (or anything it was raised from) shows the request never got throu
+Cohesion: 0.21
+Nodes (12): _fake_youtube_music_provider(), _FakeDownloaderForProxy, Stands in for spotdl's Downloader -- force_proxy only ever touches     .audio_pr, v31: a real end-to-end run caught this, no unit test did -- every existing test, test_force_proxy_leaves_create_client_callable_as_an_instance_method_after_exit(), test_force_proxy_none_is_a_noop(), test_force_proxy_only_swaps_youtube_music_providers(), test_force_proxy_patches_create_client_with_the_given_proxy() (+4 more)
 
 ### Community 291 - "Gate"
-Cohesion: 0.25
-Nodes (8): AlertSendError, AlertsNotConfigured, _claim_cooldown(), deliver(), Carries only a redacted, token-free description of what went wrong., One PUT to the room. Raises AlertsNotConfigured or AlertSendError; never retries, Cooldown gate, then send. Returns "sent", "suppressed" or "failed"; never raises, send_now()
+Cohesion: 0.17
+Nodes (3): _FakePubSub, _FakeRedisClient, `messages` are replayed in order, shaped as redis-py delivers them: `channel` as
 
 ### Community 292 - "Local development environment"
 Cohesion: 0.23
 Nodes (11): _make_job(), v18's `GET /api/jobs` -- every parameter tested in combination, not one at a tim, The plan's own "Done when" standard, taken literally: search + status filter +, test_counts_by_status_reflects_other_filters_but_not_the_status_filter_itself(), test_include_archived_toggle_composes_with_search(), test_job_listing_embeds_owner_username_when_set(), test_scope_track_all_users_flag_from_non_admin_is_ignored(), test_scope_track_on_jobs_endpoint_matches_get_tracks_endpoint() (+3 more)
 
 ### Community 293 - "redact_text"
-Cohesion: 0.12
-Nodes (18): test_next_delay_is_pinned_for_every_failure_count(), test_next_delay_follows_ladder_and_caps_at_final_step(), is_already_downloaded(), LedgerRootUnavailable, _mount_looks_missing(), Download dedup ledger (`downloaded_tracks`) and startup disk reconciliation., A ledger row's file is missing, but it lives under a root that looks unmounted i, None means "attempt a real download" -- to the caller, a stale ledger row (file (+10 more)
+Cohesion: 0.18
+Nodes (11): _reconcile_disk_on_boot(), _sync_proxies_on_boot(), is_already_downloaded(), LedgerRootUnavailable, _mount_looks_missing(), Download dedup ledger (`downloaded_tracks`) and startup disk reconciliation., A ledger row's file is missing, but it lives under a root that looks unmounted i, None means "attempt a real download" -- to the caller, a stale ledger row (file (+3 more)
 
 ### Community 295 - "send_now"
 Cohesion: 0.25
 Nodes (8): format_body(), The message exactly as it reaches the room: labelled (dev and production share, Credentialed-URL redaction for free-form text (v31, moved here from proxies.py i, Redacts every credentialed-URL-shaped substring found anywhere in `text`, not, Only the API-key half of `redact_text`: app/logging_config.py's formatter has it, redact_api_keys(), redact_text(), test_redact_text_strips_an_api_keys_secret_and_keeps_its_prefix()
+
+### Community 298 - "check_not_production_database"
+Cohesion: 0.33
+Nodes (10): AppSettings, Single-row table (v13) backing the output-format defaults editable from the, v54.2's data migration (alembic revision a7c4e1b9d2f5): the stored output defaul, Copied, not imported, so it keeps meaning what it meant. Today they match., _row(), test_an_offered_pair_is_left_alone(), test_defaults_the_app_no_longer_offers_become_opus_best(), test_no_row_is_a_no_op() (+2 more)
 
 ### Community 299 - "Any"
 Cohesion: 0.36
 Nodes (9): changed(), exit_status(), is_worker(), log(), main(), v52 (D2): dev-only autoreload for the Celery workers, stdlib only.  A Celery wor, A child killed by signal N (Popen's -N) as a shell reports it, 128 + N: sys.exit, snapshot() (+1 more)
 
 ### Community 300 - "library.py"
-Cohesion: 0.67
-Nodes (3): _attempts_by_number(), Only *consecutive identical* holds collapse: a real attempt in between, or a hol, test_a_hold_after_an_attempt_or_another_reason_starts_a_new_row()
+Cohesion: 0.47
+Nodes (9): _is_busy(), pause_worker(), Session, `worker-dl` runs `--concurrency=1` (CLAUDE.md invariant), so at most one track, Clears the countdown early and starts a fresh failure streak, exactly like a tri, release_breaker(), resume_worker(), _status_dict() (+1 more)
+
+### Community 301 - "test_settings_retention.py"
+Cohesion: 0.17
+Nodes (5): v56 (A5): 1..36500 (the /account form's own bound), else 422. Before v56 only a, v56 (A5): `retention_days=10**9` used to be stored, and the hourly sweep's     `, test_a_huge_retention_value_no_longer_breaks_the_archive_sweep(), test_retention_settings_are_isolated_per_user(), test_update_retention_settings_rejects_a_value_out_of_range()
+
+### Community 305 - "test_pacing_delay_is_zero_when_unconfigured"
+Cohesion: 0.15
+Nodes (12): cancelled_used_proxy_id(), v56 (A4): what a cancel UPDATE writes to `used_proxy_id`. A track whose download, _more_identities(), test_next_delay_is_pinned_for_every_failure_count(), health(), configured(), test_alerts_off_when_any_variable_is_missing_or_blank(), get_settings() (+4 more)
 
 ### Community 306 - "Response"
 Cohesion: 0.40
 Nodes (3): v53: the rate limiter's Redis client (the limit behavior itself is in test_exten, Review round 3: redis-py retries with backoff by default, which turned 'fails op, test_the_limiter_never_retries_a_dead_redis()
 
+### Community 307 - "Session"
+Cohesion: 0.40
+Nodes (5): archive_jobs(), _eligible_job_ids(), Soft-archive lifecycle for jobs (v19). See `plan/master-v2/v19-archive-retention, `job_ids=None, older_than=None` (the "clear log" case) archives every eligible j, unarchive_jobs()
+
 ### Community 313 - "UUID"
-Cohesion: 0.12
-Nodes (18): _get_or_create_run(), Progress while running, the last finished sweep's report once it's IDLE again --, Admin-only, on-demand -- one sweep at a time (409 if one is already running)., _run_to_dict(), sort_status(), start_sort(), api_error_handler(), v46: user-facing API errors carry a stable machine `code` beside the English `de (+10 more)
+Cohesion: 0.15
+Nodes (13): list_tracks(), JobSourceType, Tracks across every job the caller can see, one page at a time, each with its, View, api_error_handler(), v46: user-facing API errors carry a stable machine `code` beside the English `de, v53: a body FastAPI's own validation refuses answers 422 `request_invalid`, with, _safe() (+5 more)
+
+### Community 316 - "Proxy"
+Cohesion: 0.48
+Nodes (6): _get_or_create_run(), Progress while running, the last finished sweep's report once it's IDLE again --, Admin-only, on-demand -- one sweep at a time (409 if one is already running)., _run_to_dict(), sort_status(), start_sort()
+
+### Community 317 - "Response"
+Cohesion: 0.33
+Nodes (5): ADMIN_GETS, removeTestProxy(), stageSettings(), OutputSettings, Proxy
+
+### Community 318 - "Session"
+Cohesion: 0.33
+Nodes (5): force_family(), ipv6_routable(), Forces yt-dlp's and ytmusicapi's separate HTTP stacks onto one IP family (v29)., No-op for PROXY (a literal-IPv4 destination, see NetworkPath's own docstring) an, Whether this process has a route to the IPv6 internet, cached for     IPV6_PROBE
+
+### Community 319 - "UUID"
+Cohesion: 0.20
+Nodes (6): _FakeDownloadsSettings, _moved_ledger_row(), _NonClosingSession, v38: the real dedup gate (not a stub) over a ledger row the library sort moved., Wraps db_session so download_track's db.close() doesn't detach objects the test, test_download_track_unknown_track_is_a_noop()
+
+### Community 320 - "Session"
+Cohesion: 0.15
+Nodes (21): Row created on first successful login (v17). The `ALLOWED_EMAILS` env allowlist, channel_for(), create_api_key(), CreateApiKeyRequest, list_api_keys(), `/api/account/api-keys` (v53): a user's own API keys, for the browser extension., revoke_api_key(), _event_stream() (+13 more)
+
+### Community 321 - "a9d3c5e7f1b2_v56_proxy_fks_attempt_label_retry_now_step.py"
+Cohesion: 0.50
+Nodes (3): _label(), proxy FKs SET NULL; attempt proxy_label; retry_now_step; due index; retention cl, upgrade()
 
 ### Community 322 - "v69 — Admin-Managed User Access"
 Cohesion: 0.25
 Nodes (7): Deploy notes, Done when, Files owned, Out of scope, Scope, Tasks, v69 — Admin-Managed User Access
 
 ### Community 325 - "check_not_production_database"
-Cohesion: 0.29
-Nodes (5): (server URL on its maintenance database, this run's own database URL), from, _test_database_urls(), check_not_production_database(), get_settings() runs at import in every backend process (db.py, main.py,, Refuses a dev-marked process pointed at the production database. Fails closed: i
+Cohesion: 0.27
+Nodes (9): admin_stats(), v44: global download observability (every user's attempts together, hence     ad, begin_snapshot(), Ends `db`'s current transaction and starts a REPEATABLE READ one, so every state, InvalidListParams, list_tracks(), Paginated/filtered/sorted/searchable track listing shared by `GET /api/tracks` a, _sort_key() (+1 more)
 
 ### Community 326 - "test_a_redelivery_before_the_first_deliverys_ack_is_a_noop_on_real_connections"
-Cohesion: 0.13
-Nodes (30): _make_job(), _make_track(), _NonClosingSession, _owner(), _patch_session(), Job, v44: the first tick after a trip's pause runs out records its release at the pau, See test_download_task.py — download_track's db.close() would otherwise detach (+22 more)
+Cohesion: 0.12
+Nodes (14): v40.1: a release used to keep the streak, so the first failure after it re-tripp, v44: the admin's button ends a running pause and records it as a manual release., v56 (A7): the client gets "active, N seconds left" decided on the server's clock, beat records an expired trip's release on its next tick (v44); until then the, Deliberately not admin-gated (v17) -- any authenticated user can see why a queue, test_admin_breaker_release_of_an_expired_pause_records_it_as_ended_on_its_own(), test_admin_breaker_release_records_a_manual_release_event(), test_admin_breaker_release_starts_a_fresh_streak_but_keeps_escalation() (+6 more)
+
+### Community 329 - "Session"
+Cohesion: 0.22
+Nodes (9): _downloading_through(), A cancel leaves the download running to its end (cancel's semantics), so a proxy, v56 (A4) on v55 (E3): beat's stale reclaim sets a `downloading` track `waiting`, An earlier attempt's proxy on a track now `waiting` (its attempt failed and ende, test_a_proxy_behind_a_cancelled_download_still_running_is_in_use(), test_a_proxy_behind_a_reclaimed_download_still_running_is_in_use(), test_a_waiting_tracks_old_proxy_isnt_in_use(), test_finalize_deletes_a_waiting_proxy_only_once_its_download_is_done() (+1 more)
+
+### Community 333 - "track_states.py"
+Cohesion: 0.38
+Nodes (7): _admin_routes(), _all_routes(), _api_routes(), _depends_on(), APIRoute, Every APIRoute in the app. FastAPI (0.141+) keeps an included router as a lazy, test_the_route_lists_are_complete()
 
 ## Ambiguous Edges - Review These
 - `favicon.svg (Svelte default logo)` → `Instrument-panel THESIS (Operate mode)`  [AMBIGUOUS]
   frontend/src/lib/assets/favicon.svg · relation: semantically_similar_to
 
 ## Knowledge Gaps
-- **2023 isolated node(s):** `wait_for_stack_health.sh script`, `spotdl-web-backend`, `Window`, `ADMIN_GETS`, `CANCEL_TRACKS` (+2018 more)
+- **2021 isolated node(s):** `wait_for_stack_health.sh script`, `spotdl-web-backend`, `Window`, `ADMIN_GETS`, `CANCEL_TRACKS` (+2016 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **159 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **142 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `favicon.svg (Svelte default logo)` and `Instrument-panel THESIS (Operate mode)`?**
   _Edge tagged AMBIGUOUS (relation: semantically_similar_to) - confidence is low._
-- **Why does `../app.css` connect `_NonClosing` to `worker.py`, `Proxy Selection & Coexistence`?**
-  _High betweenness centrality (0.079) - this node is a cross-community bridge._
-- **Why does `$lib/api` connect `Frontend API Client` to `App Settings Migration`, `$lib/components/IncomingJobs.svelte`, `Output Dir Drop Migration`, `v17 — Multi-User Auth & Ownership Enforcement`, `auth.py`, `_ensure_spotify_client`, `$lib/stores/progressCache`, `Proxy Selection & Coexistence`, `_event_stream`, `library.py`, `Backend Package Init`, `Backend Package Init`, `Architecture`?**
-  _High betweenness centrality (0.056) - this node is a cross-community bridge._
-- **Why does `DownloadedTrack` connect `Track Model & Beat Tests` to `stream`, `test_job_listing.py`, `redact_text`, `TypeScript Config`, `Live Progress Version Doc`, `Alembic Env & JSON Logging`, `Auth Version Doc`, `URL Expansion Version Doc`, `Worker Router Tests`, `download_one`, `_NonClosingSession`?**
-  _High betweenness centrality (0.029) - this node is a cross-community bridge._
-- **Are the 75 inferred relationships involving `Track` (e.g. with `record_attempt()` and `dispatch_due_tracks()`) actually correct?**
-  _`Track` has 75 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `Every required variable across the files -> whether an empty value also fails it`, ``major.minor.patch` as a tuple of ints, so versions compare numerically (5.10.0`, `A base commit at 5.50.0, then a branch commit that sets a version and touches a` to the rest of the system?**
-  _2518 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Session Auth Routes` be split into smaller, more focused modules?**
-  _Cohesion score 0.003992015968063872 - nodes in this community are weakly interconnected._
+- **Why does `View` connect `UUID` to `URL Expansion Version Doc`, `Backend Package Init`, `Frontend API Client`?**
+  _High betweenness centrality (0.069) - this node is a cross-community bridge._
+- **Why does `$lib/api` connect `Frontend API Client` to `App Settings Migration`, `Output Dir Drop Migration`, `v17 — Multi-User Auth & Ownership Enforcement`, `auth.py`, `UUID`, `_ensure_spotify_client`, `$lib/stores/progressCache`, `Proxy Selection & Coexistence`, `test_rollup.py`, `_event_stream`, `library.py`, `Backend Package Init`, `Backend Package Init`, `Architecture`, `expand_job`, `Response`?**
+  _High betweenness centrality (0.067) - this node is a cross-community bridge._
+- **Why does `User` connect `Auth Version Doc` to `stream`, `Track Model & Beat Tests`, `test_job_listing.py`, `Job Model & Expansion Tests`, `Frontend Lint Tooling`, `TypeScript Config`, `Master Plan Decisions`, `Spotify Client Tests`, `Layout Load Guard`, `library.py`, `spawn_watchdog`, `v30 — Proxy Routing Fix`, `Backend Package Init`, `UUID`, `URL Expansion Version Doc`, `Breaker Release Policy`, `Session`, `v03 — Authentication`, `v06 — Retry Engine`, `check_not_production_database`, `v19 — Archive & Retention`, `Session`, `test_events.py`, `test_worker_busy_reflects_any_users_downloading_track`, `$lib/components/IncomingJobs.svelte`, `download_one`?**
+  _High betweenness centrality (0.064) - this node is a cross-community bridge._
+- **Are the 104 inferred relationships involving `Track` (e.g. with `Base` and `cancel_job()`) actually correct?**
+  _`Track` has 104 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 24 inferred relationships involving `User` (e.g. with `require_session_or_api_key()` and `_cancel()`) actually correct?**
+  _`User` has 24 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 57 inferred relationships involving `Job` (e.g. with `_get_job_or_404()` and `_unfinished_job()`) actually correct?**
+  _`Job` has 57 INFERRED edges - model-reasoned connections that need verification._

@@ -43,6 +43,11 @@ celery_app.conf.update(
             "task": "app.tasks.beat.archive_due_jobs",
             "schedule": 3600.0,
         },
+        # v56 (A4): a proxy delete that waited for its download finishes within a tick of it.
+        "finalize-proxy-deletions": {
+            "task": "app.tasks.proxies.finalize_proxy_deletions",
+            "schedule": 30.0,
+        },
     },
     # Durability (v12): with the default task_acks_late=False, a track's broker message is
     # acked *before* download_track's body runs — a `docker compose down`/OOM-kill/host
@@ -78,6 +83,7 @@ from app.tasks import expand  # noqa: E402,F401
 from app.tasks import beat  # noqa: E402,F401
 from app.tasks import library  # noqa: E402,F401
 from app.tasks import alerts  # noqa: E402,F401
+from app.tasks import proxies  # noqa: E402,F401
 
 
 @worker_ready.connect

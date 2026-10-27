@@ -69,6 +69,7 @@ _DIRECT_ID_CASES = [
     ("GET", "/api/jobs/{job_id}"),
     ("GET", "/api/jobs/{job_id}/tracks"),
     ("DELETE", "/api/jobs/{job_id}"),
+    ("GET", "/api/tracks/{track_id}"),
     ("DELETE", "/api/tracks/{track_id}"),
     ("POST", "/api/tracks/{track_id}/retry"),
     ("GET", "/api/tracks/{track_id}/attempts"),
@@ -106,13 +107,15 @@ def test_direct_id_endpoint_200s_for_the_real_owner(client, db_session, make_use
 
     assert _as(client, owner_cookie).get(f"/api/jobs/{job.id}").status_code == 200
     assert _as(client, owner_cookie).get(f"/api/jobs/{job.id}/tracks").status_code == 200
+    track = _make_track(db_session, job)
+    assert _as(client, owner_cookie).get(f"/api/tracks/{track.id}").status_code == 200
 
 
 @pytest.mark.parametrize("who", ["owner", "stranger"])
-def test_priority_endpoints_403_for_every_non_admin(who, client, db_session, make_user, session_cookie):
+def test_priority_endpoints_404_for_every_non_admin(who, client, db_session, make_user, session_cookie):
     """v48: priority and bump are admin-only, so they left the 404 sweep above. A non-admin
-    gets the same 403 on their own job and on someone else's, so the answer still confirms
-    nothing about a foreign job."""
+    gets the same answer on their own job and on someone else's, so it confirms nothing
+    about a foreign job: v56 (A6) made it an unknown route's 404 (v48's was 403)."""
     owner = make_user("owner@example.com")
     cookie = session_cookie("owner@example.com" if who == "owner" else "stranger@example.com")
     job = _make_job(db_session, owner)
@@ -120,7 +123,7 @@ def test_priority_endpoints_403_for_every_non_admin(who, client, db_session, mak
     patched = _as(client, cookie).patch(f"/api/jobs/{job.id}/priority", json={"priority": 1})
     bumped = _as(client, cookie).post(f"/api/jobs/{job.id}/bump")
 
-    assert (patched.status_code, bumped.status_code) == (403, 403)
+    assert (patched.status_code, bumped.status_code) == (404, 404)
 
 
 def test_admin_has_full_read_and_write_access_to_a_foreign_job(client, db_session, make_user, session_cookie):
@@ -138,6 +141,7 @@ def test_admin_has_full_read_and_write_access_to_a_foreign_job(client, db_sessio
     assert _as(client, admin_cookie).post(f"/api/jobs/{job.id}/bump").status_code == 200
     assert _as(client, admin_cookie).post(f"/api/tracks/{track.id}/retry").status_code == 200
     assert _as(client, admin_cookie).get(f"/api/tracks/{track.id}/attempts").status_code == 200
+    assert _as(client, admin_cookie).get(f"/api/tracks/{track.id}").json()["job"]["owner_email"] == "owner@example.com"
     assert _as(client, admin_cookie).delete(f"/api/jobs/{job.id}").status_code == 200
 
 

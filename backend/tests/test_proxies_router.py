@@ -191,3 +191,70 @@ def test_enabling_a_proxy_refuses_when_its_target_is_already_live(admin_client, 
     assert admin_client.patch(f"/api/proxies/{parked.id}", json={"enabled": True}).status_code == 200
     # Re-enabling an already-enabled row is a no-op, not a clash with itself.
     assert admin_client.patch(f"/api/proxies/{parked.id}", json={"enabled": True}).status_code == 200
+
+
+def test_deleting_a_proxy_a_download_is_using_waits_for_it(admin_client, db_session, make_user):
+    """v56 (A4, owner's decision): 202 and `deleting`, never picked again, PATCH refused,
+    and gone after the download ends (the finalizer); an idle proxy still goes at once."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import Job, JobSourceType, Track, TrackState
+    from app.services import proxies as proxies_service
+
+    created = admin_client.post("/api/proxies", json={"url": "http://u:p@10.0.0.9:3128"}).json()
+    proxy = db_session.get(Proxy, uuid.UUID(created["id"]))
+    proxy.last_used_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    owner = make_user("owner@example.com")
+    job = Job(source_url="https://open.spotify.com/track/x", source_type=JobSourceType.TRACK, user_id=owner.id)
+    db_session.add(job)
+    db_session.flush()
+    track = Track(job_id=job.id, spotify_track_id="busy", song_json={"name": "B"}, state=TrackState.DOWNLOADING, used_proxy_id=proxy.id)
+    db_session.add(track)
+    db_session.commit()
+
+    response = admin_client.delete(f"/api/proxies/{created['id']}")
+    assert response.status_code == 202
+    assert response.json()["deleting"] is True
+    assert "u:p" not in response.text
+    listed = {p["id"]: p for p in admin_client.get("/api/proxies").json()}
+    assert listed[created["id"]]["deleting"] is True
+    patched = admin_client.patch(f"/api/proxies/{created['id']}", json={"enabled": False})
+    assert (patched.status_code, patched.json()["code"]) == (409, "proxy_deleting")
+    again = admin_client.delete(f"/api/proxies/{created['id']}")
+    assert again.status_code == 202
+
+    track.state = TrackState.COMPLETED
+    db_session.commit()
+    proxies_service.finalize_proxy_deletions(db_session)
+    assert all(p["id"] != created["id"] for p in admin_client.get("/api/proxies").json())
+
+    idle = admin_client.post("/api/proxies", json={"url": "http://10.0.0.10:3128"}).json()
+    assert admin_client.delete(f"/api/proxies/{idle['id']}").status_code == 204
+
+
+def test_a_deleting_proxy_doesnt_block_adding_its_target_again(admin_client, db_session):
+    from datetime import datetime, timezone
+
+    created = admin_client.post("/api/proxies", json={"url": "http://u:p@10.0.0.11:3128"}).json()
+    db_session.get(Proxy, uuid.UUID(created["id"])).delete_requested_at = datetime.now(timezone.utc)
+    db_session.commit()
+
+    assert admin_client.post("/api/proxies", json={"url": "http://v:q@10.0.0.11:3128"}).status_code == 201
+
+
+def test_re_adding_a_deleting_proxys_url_says_it_is_being_deleted(admin_client, db_session):
+    from datetime import datetime, timezone
+
+    created = admin_client.post("/api/proxies", json={"url": "http://10.0.0.12:3128"}).json()
+    db_session.get(Proxy, uuid.UUID(created["id"])).delete_requested_at = datetime.now(timezone.utc)
+    db_session.commit()
+
+    again = admin_client.post("/api/proxies", json={"url": "http://10.0.0.12:3128"})
+    assert (again.status_code, again.json()["code"]) == (409, "proxy_deleting")
+
+
+def test_deleting_a_proxy_that_is_already_gone_is_a_404(admin_client, db_session):
+    created = admin_client.post("/api/proxies", json={"url": "http://10.0.0.13:3128"}).json()
+    assert admin_client.delete(f"/api/proxies/{created['id']}").status_code == 204
+    gone = admin_client.delete(f"/api/proxies/{created['id']}")
+    assert (gone.status_code, gone.json()["code"]) == (404, "proxy_not_found")

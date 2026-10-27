@@ -652,3 +652,250 @@ def test_force_proxy_releases_the_reentry_guard_even_if_the_downloader_has_no_au
     # Must not be stuck active -- a following attempt (even a no-op direct one) must work.
     with proxies.force_proxy(None, downloader_without_providers):
         pass
+
+
+# --- v56 (A4, owner's decision): the deferred delete of a proxy in use ---------------------
+
+
+def _downloading_through(db, proxy, *, email="owner@example.com"):
+    from app.models import Job, JobSourceType, Track, TrackState, User
+
+    user = db.query(User).filter(User.email == email).one_or_none()
+    if user is None:
+        user = User(email=email, is_admin=False)
+        db.add(user)
+        db.flush()
+    job = Job(source_url="https://open.spotify.com/track/x", source_type=JobSourceType.TRACK, user_id=user.id)
+    db.add(job)
+    db.flush()
+    track = Track(
+        job_id=job.id, spotify_track_id=f"t-{proxy.id}", song_json={"name": "T"}, state=TrackState.DOWNLOADING,
+        used_proxy_id=proxy.id,
+    )
+    db.add(track)
+    db.commit()
+    return track
+
+
+def test_pick_proxy_never_picks_a_proxy_whose_delete_is_waiting(db_session, monkeypatch):
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: True)
+    db_session.add(
+        Proxy(url="http://10.0.0.1:3128", source=ProxySource.MANUAL, enabled=True, delete_requested_at=datetime.now(timezone.utc))
+    )
+    db_session.commit()
+
+    assert proxies.pick_proxy(db_session) is None
+
+
+def test_proxy_in_use_while_downloading_or_just_picked(db_session):
+    now = datetime.now(timezone.utc)
+    idle = Proxy(url="http://10.0.0.1:3128", source=ProxySource.MANUAL, enabled=True, last_used_at=now - timedelta(hours=1))
+    picked = Proxy(url="http://10.0.0.2:3128", source=ProxySource.MANUAL, enabled=True, last_used_at=now)
+    busy = Proxy(url="http://10.0.0.3:3128", source=ProxySource.MANUAL, enabled=True, last_used_at=now - timedelta(hours=1))
+    db_session.add_all([idle, picked, busy])
+    db_session.commit()
+    _downloading_through(db_session, busy)
+
+    assert [proxies.proxy_in_use(db_session, p, now) for p in (idle, picked, busy)] == [False, True, True]
+
+
+def test_finalize_deletes_a_waiting_proxy_only_once_its_download_is_done(db_session):
+    from app.models import TrackState
+
+    old = datetime.now(timezone.utc) - timedelta(hours=1)
+    proxy = Proxy(url="http://u:p@10.0.0.4:3128", source=ProxySource.MANUAL, enabled=True, last_used_at=old, delete_requested_at=old)
+    db_session.add(proxy)
+    db_session.commit()
+    track = _downloading_through(db_session, proxy)
+    proxy_id = proxy.id
+
+    assert proxies.finalize_proxy_deletions(db_session) == []
+    assert db_session.get(Proxy, proxy_id) is not None
+
+    track.state = TrackState.COMPLETED
+    db_session.commit()
+    assert proxies.finalize_proxy_deletions(db_session) == ["http://10.0.0.4:3128"]
+    db_session.expire_all()
+    assert db_session.get(Proxy, proxy_id) is None
+
+
+def test_a_pick_passes_over_a_proxy_whose_delete_holds_it_on_real_connections(committed_db, monkeypatch):
+    """The admin's delete locks the row while it decides; a pick at that moment (SKIP LOCKED)
+    takes another proxy, never the one being deleted."""
+    from concurrency import Gate, Thread
+    from sqlalchemy import event
+
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: True)
+    with committed_db() as db:
+        doomed = Proxy(url="http://10.0.0.5:3128", source=ProxySource.MANUAL, enabled=True)
+        other = Proxy(url="http://10.0.0.6:3128", source=ProxySource.MANUAL, enabled=True,
+                      last_used_at=datetime.now(timezone.utc) - timedelta(hours=1))
+        db.add_all([doomed, other])
+        db.commit()
+        doomed_id, other_id = doomed.id, other.id
+    gate = Gate("the delete, row locked, before its commit")
+
+    def delete():
+        with committed_db() as db:
+            event.listen(db, "before_commit", gate, once=True)
+            db.refresh(db.get(Proxy, doomed_id), with_for_update=True)
+            db.delete(db.get(Proxy, doomed_id))
+            db.commit()
+
+    deleter = Thread(delete, name="admin's delete")
+    gate.wait_reached()
+    with committed_db() as db:
+        picked = proxies.pick_proxy(db)
+        picked_id = picked.id
+        db.commit()
+    gate.open()
+    deleter.join()
+
+    assert picked_id == other_id
+
+
+def test_a_delete_arriving_mid_pick_waits_and_then_defers_on_real_connections(committed_db, monkeypatch):
+    """download_track's pick holds the proxy until its commit; the admin's delete waits for
+    it, then sees the fresh pick (in use) and defers instead of deleting under the download."""
+    from concurrency import Gate, Thread, blocked_or_done
+    from sqlalchemy import event
+
+    from app.models import User
+    from app.routers import proxies as proxies_router
+    from fastapi import Response
+
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: True)
+    with committed_db() as db:
+        proxy = Proxy(url="http://10.0.0.7:3128", source=ProxySource.MANUAL, enabled=True)
+        admin = User(email="root@example.com", is_admin=True)
+        db.add_all([proxy, admin])
+        db.commit()
+        proxy_id, admin_id = proxy.id, admin.id
+    gate = Gate("the pick, made, before download_track's commit")
+
+    def pick():
+        with committed_db() as db:
+            event.listen(db, "before_commit", gate, once=True)
+            assert proxies.pick_proxy(db).id == proxy_id
+            db.commit()
+
+    picker = Thread(pick, name="download_track's pick")
+    gate.wait_reached()
+
+    def delete():
+        with committed_db() as db:
+            response = Response()
+            body = proxies_router.delete_proxy(proxy_id, response, db=db, _=db.get(User, admin_id))
+            return response.status_code, body
+
+    deleter = Thread(delete, name="admin's delete")
+    held_off = blocked_or_done(deleter)
+    gate.open()
+    picker.join()
+    status, body = deleter.join()
+
+    assert held_off == "blocked"
+    assert status == 202 and body["deleting"] is True
+    with committed_db() as db:
+        assert db.get(Proxy, proxy_id).delete_requested_at is not None
+
+
+def test_sync_lets_a_file_line_take_the_target_of_a_manual_proxy_being_deleted(db_session, tmp_path, monkeypatch):
+    """v56 (A4): a deleting manual row no longer holds its target, so proxies.txt's line for
+    it syncs (it would otherwise stay skipped until the next boot after the row is gone)."""
+    proxy_file = tmp_path / "proxies.txt"
+    proxy_file.write_text("http://10.0.0.20:3128\n")
+    db_session.add(
+        Proxy(url="http://u:p@10.0.0.20:3128", source=ProxySource.MANUAL, enabled=True,
+              delete_requested_at=datetime.now(timezone.utc))
+    )
+    db_session.commit()
+    monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(proxies.get_settings(), "proxy_file", str(proxy_file))
+
+    proxies.sync_from_file()
+
+    assert db_session.query(Proxy).filter(Proxy.source == ProxySource.FILE).count() == 1
+
+
+def test_sync_skips_a_file_url_identical_to_a_manual_proxy_being_deleted(db_session, tmp_path, monkeypatch):
+    """The exact URL is still taken (proxies.url is unique) until the finalizer removes the
+    manual row: syncing it would fail the whole boot sync's commit."""
+    proxy_file = tmp_path / "proxies.txt"
+    proxy_file.write_text("http://u:p@10.0.0.21:3128\nhttp://10.0.0.22:3128\n")
+    db_session.add(
+        Proxy(url="http://u:p@10.0.0.21:3128", source=ProxySource.MANUAL, enabled=True,
+              delete_requested_at=datetime.now(timezone.utc))
+    )
+    db_session.commit()
+    monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(proxies.get_settings(), "proxy_file", str(proxy_file))
+
+    proxies.sync_from_file()
+
+    files = [p.url for p in db_session.query(Proxy).filter(Proxy.source == ProxySource.FILE)]
+    assert files == ["http://10.0.0.22:3128"]
+
+
+def test_a_proxy_behind_a_cancelled_download_still_running_is_in_use(db_session):
+    """A cancel leaves the download running to its end (cancel's semantics), so a proxy a
+    track used and was cancelled on moments ago still counts as in use; one cancelled longer
+    ago than the stale-track window doesn't."""
+    from app.models import TrackState
+
+    now = datetime.now(timezone.utc)
+    proxy = Proxy(url="http://10.0.0.30:3128", source=ProxySource.MANUAL, enabled=True, last_used_at=now - timedelta(hours=1))
+    db_session.add(proxy)
+    db_session.commit()
+    track = _downloading_through(db_session, proxy)
+    track.state = TrackState.CANCELLED
+    db_session.commit()
+
+    assert proxies.proxy_in_use(db_session, proxy, now) is True
+    assert proxies.proxy_in_use(db_session, proxy, now + timedelta(hours=2)) is False
+
+
+def test_a_proxy_behind_a_reclaimed_download_still_running_is_in_use(db_session):
+    """v56 (A4) on v55 (E3): beat's stale reclaim sets a `downloading` track `waiting` but lets
+    a still-running download go on to its end and rewrite the reclaim's row. Until that row is
+    rewritten (within the stale-track window), the track's proxy counts as in use."""
+    from app.models import TrackAttemptOutcome, TrackState
+    from app.services import attempts
+
+    now = datetime.now(timezone.utc)
+    proxy = Proxy(url="http://10.0.0.31:3128", source=ProxySource.MANUAL, enabled=True, last_used_at=now - timedelta(hours=1))
+    db_session.add(proxy)
+    db_session.commit()
+    track = _downloading_through(db_session, proxy)
+    entry = attempts.latest_attempt_number(db_session, track.id)
+    track.state = TrackState.WAITING
+    attempts.record_attempt(
+        db_session, track.id, now, now, TrackAttemptOutcome.FAILED, error_message=f"{attempts.RECLAIM_PREFIX}stuck"
+    )
+    db_session.commit()
+
+    assert proxies.proxy_in_use(db_session, proxy, now) is True
+    assert proxies.proxy_in_use(db_session, proxy, now + timedelta(hours=2)) is False
+
+    # The download reports back: the reclaim row becomes its real outcome.
+    attempts.record_attempt(
+        db_session, track.id, now, now, TrackAttemptOutcome.COMPLETED, proxy_id=proxy.id, supersede_reclaim_after=entry
+    )
+    track.state = TrackState.COMPLETED
+    db_session.commit()
+    assert proxies.proxy_in_use(db_session, proxy, now) is False
+
+
+def test_a_waiting_tracks_old_proxy_isnt_in_use(db_session):
+    """An earlier attempt's proxy on a track now `waiting` (its attempt failed and ended)."""
+    from app.models import TrackState
+
+    now = datetime.now(timezone.utc)
+    proxy = Proxy(url="http://10.0.0.32:3128", source=ProxySource.MANUAL, enabled=True, last_used_at=now - timedelta(hours=1))
+    db_session.add(proxy)
+    db_session.commit()
+    track = _downloading_through(db_session, proxy)
+    track.state = TrackState.WAITING
+    db_session.commit()
+
+    assert proxies.proxy_in_use(db_session, proxy, now) is False

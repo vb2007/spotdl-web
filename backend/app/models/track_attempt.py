@@ -81,7 +81,13 @@ class TrackAttempt(Base):
     # site, so the UI never has to guess severity from the text: error_message is only
     # ever a failure. Same already-redacted contract as error_message.
     warning_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    proxy_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("proxies.id"), nullable=True)
+    # v56 (A4): SET NULL, so a used proxy can be deleted. `proxy_label` keeps which one it was.
+    proxy_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("proxies.id", ondelete="SET NULL"), nullable=True
+    )
+    # v56 (A4): the proxy's `proxies.redact()` form (scheme://host:port, never a credential),
+    # captured when the row is written, so the history still names it after the proxy is gone.
+    proxy_label: Mapped[str | None] = mapped_column(Text, nullable=True)
     network_path: Mapped[NetworkPath | None] = mapped_column(
         Enum(
             NetworkPath,

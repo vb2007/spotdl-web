@@ -516,10 +516,15 @@
 		await keepFocus(from);
 	}
 
+	// v56 (A4): said once, politely, when a delete has to wait for a download.
+	let proxiesStatus = $state('');
+
 	async function removeProxy(proxy: api.Proxy) {
 		// Only ever called for source=manual -- the "remove" control isn't rendered for
 		// source=file rows at all (see markup below). A real, permanent delete: the row
-		// disappears from the list rather than being merged back in updated.
+		// disappears from the list rather than being merged back in updated. v56 (A4): unless a
+		// download is going through it, which the delete waits for: the row stays, marked
+		// "deleting", until a poll finds it gone.
 		// v43 (F08): permanent, so it asks first.
 		const confirmed = await confirmAction({
 			title: m.settings_proxy_remove_title(),
@@ -538,20 +543,20 @@
 		proxyBusy = { ...proxyBusy, [proxy.id]: true };
 		proxyMutations += 1;
 		proxiesError = '';
+		proxiesStatus = '';
 		try {
-			await api.deleteProxy(proxy.id);
-			proxyList = proxyList.filter((p) => p.id !== proxy.id);
-			// The row (and the focused button) is gone: land on the list's own heading, unless
-			// the user already moved on while the delete was in flight.
+			const waiting = await api.deleteProxy(proxy.id);
+			if (waiting?.deleting) {
+				proxyList = proxyList.map((p) => (p.id === waiting.id ? waiting : p));
+				proxiesStatus = m.settings_proxy_delete_waiting({ url: proxy.url });
+			} else {
+				proxyList = proxyList.filter((p) => p.id !== proxy.id);
+			}
+			// The row's buttons are gone either way: land on the list's own heading, unless the
+			// user already moved on while the delete was in flight.
 			await keepFocus(document.getElementById('proxies-heading'));
 		} catch (err) {
-			// A manual proxy that some attempt has used can't be hard-deleted: the attempt
-			// history still references it and the backend answers 500 (a known backend limit,
-			// not something to retry).
-			proxiesError =
-				err instanceof api.ApiError && err.status === 500
-					? m.settings_proxy_remove_failed({ url: proxy.url })
-					: errorText(err);
+			proxiesError = errorText(err);
 		} finally {
 			const { [proxy.id]: _unused, ...rest } = proxyBusy;
 			proxyBusy = rest;
@@ -1038,7 +1043,7 @@
 					{:else}
 						<ul class="proxy-list" aria-label={m.settings_proxies_list_label()}>
 							{#each proxyList as proxy (proxy.id)}
-								<li class="proxy-row" class:off={!proxy.enabled}>
+								<li class="proxy-row" class:off={!proxy.enabled || proxy.deleting}>
 									<span class="url mono">{proxy.url}</span>
 									<span class="health">
 										<span class="source mono" class:manual={proxy.source === 'manual'}
@@ -1069,33 +1074,42 @@
 										{/if}
 									</span>
 									<span class="controls">
-										<span class="state mono" class:on={proxy.enabled}
-											>{proxy.enabled
-												? m.settings_proxy_switched_on()
-												: m.settings_proxy_switched_off()}</span
-										>
-										<button
-											type="button"
-											class="btn small"
-											disabled={proxyBusy[proxy.id]}
-											aria-label={proxy.enabled
-												? m.settings_proxy_switch_off_named({ url: proxy.url })
-												: m.settings_proxy_switch_on_named({ url: proxy.url })}
-											onclick={() => toggleProxy(proxy)}
-										>
-											{proxy.enabled ? m.settings_proxy_switch_off() : m.settings_proxy_switch_on()}
-										</button>
-										{#if proxy.source === 'manual'}
+										{#if proxy.deleting}
+											<!-- v56 (A4): waiting for a download, so the waiting blue (DESIGN.md §2),
+											     and nothing to press until it's gone. -->
+											<span class="state mono deleting">{m.settings_proxy_deleting()}</span>
+											<span class="fact deleting-hint">{m.settings_proxy_deleting_hint()}</span>
+										{:else}
+											<span class="state mono" class:on={proxy.enabled}
+												>{proxy.enabled
+													? m.settings_proxy_switched_on()
+													: m.settings_proxy_switched_off()}</span
+											>
 											<button
 												type="button"
-												class="btn small danger"
+												class="btn small"
 												disabled={proxyBusy[proxy.id]}
-												aria-label={m.settings_proxy_remove_named({ url: proxy.url })}
-												data-remove={proxy.id}
-												onclick={() => removeProxy(proxy)}
+												aria-label={proxy.enabled
+													? m.settings_proxy_switch_off_named({ url: proxy.url })
+													: m.settings_proxy_switch_on_named({ url: proxy.url })}
+												onclick={() => toggleProxy(proxy)}
 											>
-												{m.settings_proxy_remove()}
+												{proxy.enabled
+													? m.settings_proxy_switch_off()
+													: m.settings_proxy_switch_on()}
 											</button>
+											{#if proxy.source === 'manual'}
+												<button
+													type="button"
+													class="btn small danger"
+													disabled={proxyBusy[proxy.id]}
+													aria-label={m.settings_proxy_remove_named({ url: proxy.url })}
+													data-remove={proxy.id}
+													onclick={() => removeProxy(proxy)}
+												>
+													{m.settings_proxy_remove()}
+												</button>
+											{/if}
 										{/if}
 									</span>
 								</li>
@@ -1103,6 +1117,7 @@
 						</ul>
 					{/if}
 					<p class="form-error" role="alert">{proxiesError}</p>
+					<p class="sr-only" role="status">{proxiesStatus}</p>
 					<p class="sr-only" role="alert">
 						{proxiesLoadError && proxyList.length === 0
 							? m.settings_proxies_load_failed_alert()
@@ -1388,6 +1403,12 @@
 
 	.state.on {
 		color: var(--settled);
+	}
+
+	/* v56 (A4): a delete waiting for a download is scheduled, not failed: the waiting blue. */
+	.state.deleting,
+	.deleting-hint {
+		color: var(--waiting);
 	}
 
 	/* v42's remainder: a switched-off row is said in words and drops its address to muted

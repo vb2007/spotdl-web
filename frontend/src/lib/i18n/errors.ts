@@ -2,6 +2,7 @@ import { ApiError } from '$lib/api';
 import * as m from '$lib/paraglide/messages';
 import { counted, formatNumber } from './format';
 import { trackStateLabel } from './labels';
+import { formatCountdown } from '$lib/attempts';
 
 /** v46: an API error in the active language, by its stable `code` (backend/app/errors.py),
  * never by matching the English `detail`. A code this table doesn't know (a newer backend, or
@@ -30,6 +31,9 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	not_authenticated: () => m.error_not_authenticated(),
 	admin_required: () => m.error_admin_required(),
 	job_not_found: () => m.error_job_not_found(),
+	// v56: a cancel of something already finished (A1, A2).
+	job_not_cancellable: () => m.error_job_not_cancellable(),
+	job_cancelled: () => m.error_job_cancelled(),
 	archive_nothing_selected: () => m.error_archive_nothing_selected(),
 	// The reason is the server's own diagnostic (a bad cursor, an unknown sort), kept as sent.
 	invalid_list_params: (p) => m.error_invalid_list_params({ reason: String(p.reason ?? '') }),
@@ -38,6 +42,16 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	job_archived: () => m.error_job_archived(),
 	track_not_retryable: (p) =>
 		m.error_track_not_retryable({ state: trackStateLabel(String(p.state)) }),
+	track_not_cancellable: (p) =>
+		m.error_track_not_cancellable({ state: trackStateLabel(String(p.state)) }),
+	// v56 (A8): a non-admin's second "retry now" in one ladder step.
+	retry_cooldown: (p) => {
+		if (String(p.paused) === 'true') return m.error_retry_cooldown_paused();
+		const seconds = Number(p.retry_after ?? 0);
+		return seconds > 0
+			? m.error_retry_cooldown({ time: formatCountdown(seconds * 1000) })
+			: m.error_retry_cooldown_due();
+	},
 	file_not_found: () => m.error_file_not_found(),
 	download_failed: (p) => m.error_download_failed({ status: String(p.status ?? '') }),
 	file_empty: () => m.error_file_empty(),
@@ -46,6 +60,7 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 			? m.error_proxy_target_exists_file({ target: String(p.target) })
 			: m.error_proxy_target_exists_manual({ target: String(p.target) }),
 	proxy_not_found: () => m.error_proxy_not_found(),
+	proxy_deleting: () => m.error_proxy_deleting(),
 	proxy_url_required: () => m.error_proxy_url_required(),
 	proxy_url_invalid: () => m.error_proxy_url_invalid(),
 	proxy_url_exists: () => m.error_proxy_url_exists(),
@@ -61,7 +76,12 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	alerts_not_configured: () => m.error_alerts_not_configured(),
 	// The reason is the Matrix server's own (redacted) words: shown as sent, untranslated.
 	alert_send_failed: (p) => m.error_alert_send_failed({ reason: String(p.reason ?? '') }),
-	retention_days_invalid: () => m.error_retention_days_invalid(),
+	// v56 (A5): the server's own bound, the /account form's.
+	retention_out_of_range: (p) =>
+		m.error_retention_out_of_range({
+			min: formatNumber(Number(p.min)),
+			max: formatNumber(Number(p.max))
+		}),
 	// v53: keys (/account) and the limits on sign-in and submitting.
 	rate_limited: (p) => m.error_rate_limited(counted(Number(p.retry_after ?? 0))),
 	api_key_label_invalid: (p) =>

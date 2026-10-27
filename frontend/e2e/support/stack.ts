@@ -326,7 +326,7 @@ elif row is None:
 }
 
 /** Removes a TEST-NET proxy a killed run may have left (else the next create answers 409),
- * switching it off if it can't be deleted (a used proxy can't, v43's found-not-fixed). */
+ * switching it off if it can't be deleted (before v56 a used proxy couldn't be). */
 export async function removeTestProxy(context: APIRequestContext, url: string): Promise<void> {
 	const proxies = (await (await context.get('/api/proxies')).json()) as {
 		id: string;
@@ -750,9 +750,10 @@ export async function cancelUnlessSettled(
 	const owner = await request.newContext({ baseURL, storageState });
 	try {
 		const job = (await (await owner.get(`/api/jobs/${jobId}`)).json()) as Job;
-		if (job.status.lifecycle !== 'settled') {
+		if (job.status.lifecycle !== 'settled' && job.status.lifecycle !== 'cancelled') {
 			const cancelled = await owner.delete(`/api/jobs/${jobId}`);
-			expect.soft(cancelled.status(), `cancelling unsettled job ${jobId}`).toBe(200);
+			// v56 (A1): 409 when it finished between the read and the cancel; nothing to clean.
+			expect.soft([200, 409], `cancelling unsettled job ${jobId}`).toContain(cancelled.status());
 		}
 	} finally {
 		await owner.dispose();
@@ -789,7 +790,8 @@ export function expectedAttemptVia(attempt: TrackAttempt): string {
 	if (attempt.network_path === 'direct-ipv4') return 'direct · IPv4';
 	if (attempt.network_path === 'direct-ipv6') return 'direct · IPv6';
 	if (attempt.network_path === 'proxy') return `via proxy ${attempt.proxy_label ?? ''}`.trim();
-	if (attempt.proxy_id) return 'via proxy';
+	// v56: a deleted proxy leaves `proxy_id` null but keeps its label (attemptPath, A4).
+	if (attempt.proxy_id || attempt.proxy_label) return 'via proxy';
 	if (attempt.outcome === 'completed' || attempt.outcome === 'failed') return 'direct';
 	return 'no network';
 }

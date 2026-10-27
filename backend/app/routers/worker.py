@@ -13,8 +13,22 @@ router = APIRouter(prefix="/api/worker", tags=["worker"])
 
 
 def _status_dict(worker_state: WorkerState, busy: bool) -> dict:
+    # v56 (A7): whether the breaker's pause is running, and for how long yet, decided on the
+    # server's clock. A client comparing `breaker_tripped_until` with its own clock showed a
+    # wrong countdown (or none) whenever that clock was off (#63). `paused` is separate.
+    now = datetime.now(timezone.utc)
+    breaker_active = retry.breaker_tripped(worker_state, now)
     return {
+        # v56 (A7): the server's clock at answer time, so the client can place the server's
+        # own timestamps (a track's `scheduled_at`) on its clock however far that is off.
+        "server_time": now.isoformat(),
         "paused": worker_state.paused,
+        "breaker_active": breaker_active,
+        "breaker_remaining_seconds": (
+            round((worker_state.breaker_tripped_until - now).total_seconds(), 3)
+            if breaker_active
+            else None
+        ),
         "breaker_tripped_until": (
             worker_state.breaker_tripped_until.isoformat()
             if worker_state.breaker_tripped_until is not None

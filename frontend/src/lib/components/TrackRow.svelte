@@ -28,12 +28,21 @@
 
 	// v54 (U1): `elsewhere`, another user's track in the admin's all/others view: receiving, but
 	// not for this viewer, so it reads idle, never amber (DESIGN.md §2).
+	// v56 (A2): `jobCancelled`, the track's job was cancelled: a not-found track it left behind
+	// can't be retried (the server answers 409 job_cancelled), so it offers no "retry now".
 	let {
 		track,
 		jobId,
 		isAdmin,
-		elsewhere = false
-	}: { track: LiveTrack; jobId: string; isAdmin: boolean; elsewhere?: boolean } = $props();
+		elsewhere = false,
+		jobCancelled = false
+	}: {
+		track: LiveTrack;
+		jobId: string;
+		isAdmin: boolean;
+		elsewhere?: boolean;
+		jobCancelled?: boolean;
+	} = $props();
 
 	let expanded = $state(false);
 	const detailId = $derived(`track-detail-${track.id}`);
@@ -110,7 +119,7 @@
 
 	const CANCELLABLE_STATES = new Set<TrackState>(['pending', 'queued', 'downloading', 'waiting']);
 	// v41 (F24, owner's call): a lookup_failed track is already terminal, so it offers
-	// "retry now" only. The backend still accepts a cancel; the UI no longer asks for one.
+	// "retry now" only. v56 (A2): the backend refuses its cancel too (track_states.py).
 	const RETRYABLE_STATES = new Set<TrackState>(['waiting', 'lookup_failed']);
 	// The only two states download_track ever sets `output_path` from (backend/app/tasks/
 	// download.py) -- every other state never had a file, so the action simply doesn't
@@ -119,7 +128,7 @@
 	// 404s and surfaces through the same notice as any other action error.
 	const DOWNLOADABLE_STATES = new Set<TrackState>(['completed', 'skipped_duplicate']);
 
-	let canRetry = $derived(RETRYABLE_STATES.has(track.state));
+	let canRetry = $derived(RETRYABLE_STATES.has(track.state) && !jobCancelled);
 	let canDownload = $derived(DOWNLOADABLE_STATES.has(track.state));
 	let canCancel = $derived(CANCELLABLE_STATES.has(track.state));
 	let rowButton: HTMLButtonElement | undefined = $state();
@@ -130,24 +139,23 @@
 	// waiting track's real next try is the later of its own slot and the breaker's clear.
 	let nextTry = $derived.by((): { at: string; heldByBreaker: boolean } | null => {
 		if (track.state !== 'waiting' || !track.scheduled_at) return null;
-		const breakerUntil = $workerStatus?.breaker_tripped_until ?? null;
-		// An expired trip can keep its timestamp until beat's next tick, a success or a release
-		// clears it (v44), so it only counts while it's still in the future (the backend's own
-		// `breaker_active` test).
-		if (
-			breakerUntil &&
-			Date.parse(breakerUntil) > Date.now() &&
-			Date.parse(breakerUntil) > Date.parse(track.scheduled_at)
-		) {
+		// v56 (A7): both on this browser's clock: the track's slot is the server's timestamp,
+		// placed with the server's clock offset, and the breaker's clear comes from the
+		// server's remaining time. Whether the hold runs is the server's answer (#63).
+		const slot = api.serverToLocal(track.scheduled_at);
+		const breakerUntil = $workerStatus?.breaker_active ? $workerStatus.breaker_clears_at : null;
+		if (breakerUntil && Date.parse(breakerUntil) > Date.parse(slot)) {
 			return { at: breakerUntil, heldByBreaker: true };
 		}
-		return { at: track.scheduled_at, heldByBreaker: false };
+		return { at: slot, heldByBreaker: false };
 	});
 	let workerPaused = $derived($workerStatus?.paused ?? false);
 
 	let groups = $derived(groupAttempts(attempts));
 	let lastPath = $derived.by(() => {
-		const reached = attempts.filter((a) => a.network_path !== null || a.proxy_id !== null);
+		const reached = attempts.filter(
+			(a) => a.network_path !== null || a.proxy_id !== null || a.proxy_label !== null
+		);
 		if (!reached.length) return null;
 		// The strip names the family; the proxy's address is in the timeline's own entry.
 		return pathLabel(attemptPath(reached[reached.length - 1]));
@@ -348,19 +356,13 @@
 		// Another identity took over meanwhile: this answer belongs to the previous session.
 		if (queue.getResetCount() !== session) return;
 		// The server's current state decides, not this row's: the row may be stale (its stream
-		// down, or remounted with old props), and the backend would still cancel a track that
-		// turned lookup_failed meanwhile, which v41 deliberately offers no cancel for. One read
-		// of the job's cancellable tracks (no per-row loop).
+		// down, or remounted with old props). It also says whether the cancel lands mid-download,
+		// which the notices below need. v56 (A3): one read of this track alone, where it used to
+		// be up to 1000 of the job's.
 		let current: TrackState | null | undefined;
 		try {
-			const page = await api.listJobTracksPage(jobId, {
-				state: [...CANCELLABLE_STATES],
-				limit: 1000
-			});
-			const found = page.items.find((t) => t.id === track.id)?.state;
-			// Past the read's 1000-row cap (a big discography), absence proves nothing: the row's
-			// last known state decides there, as before v43.
-			current = found ?? (page.next_cursor !== null && canCancel ? track.state : null);
+			const state = (await api.getTrack(track.id)).state;
+			current = CANCELLABLE_STATES.has(state) ? state : null;
 		} catch {
 			current = undefined;
 		}
@@ -391,8 +393,12 @@
 			}
 		} catch (err) {
 			// A session reset meanwhile: the answer belongs to the previous identity.
-			if (queue.getResetCount() === session)
-				showNotice(errorText(err, m.track_notice_cancel_failed), true);
+			if (queue.getResetCount() === session) {
+				// v56 (A2): it settled between the read above and the cancel; the server left it.
+				if (err instanceof api.ApiError && err.code === 'track_not_cancellable')
+					showNotice(m.track_notice_not_cancelled_settled());
+				else showNotice(errorText(err, m.track_notice_cancel_failed), true);
+			}
 		}
 		// "cancel track" leaves with the cancellable state: land on the row itself.
 		await keepFocus(landing());
@@ -406,8 +412,13 @@
 			if (queue.getResetCount() !== session) return;
 			showNotice(breakerHeld ? m.track_notice_retry_held() : m.track_notice_retry_queued());
 		} catch (err) {
+			// v56: a second "retry now" in one ladder step (A8), or a track under a cancelled job
+			// (A2), is a rule, not a failure.
+			const refused =
+				err instanceof api.ApiError &&
+				(err.code === 'retry_cooldown' || err.code === 'job_cancelled');
 			if (queue.getResetCount() === session)
-				showNotice(errorText(err, m.track_notice_retry_failed), true);
+				showNotice(errorText(err, m.track_notice_retry_failed), !refused);
 		}
 	}
 
@@ -539,7 +550,11 @@
 	{#if expanded}
 		<div class="detail" id={detailId}>
 			<div class="strip">
-				<span class="status {stateCond}">{STATUS_TEXT[track.state]()}</span>
+				<span class="status {stateCond}"
+					>{track.state === 'lookup_failed' && jobCancelled
+						? m.track_status_lookup_failed_job_cancelled()
+						: STATUS_TEXT[track.state]()}</span
+				>
 				{#if track.state === 'downloading' && track.progress !== undefined}
 					<span
 						class="progress"

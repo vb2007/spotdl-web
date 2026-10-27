@@ -35,16 +35,14 @@
 	$effect(() => () => {
 		gone = true;
 	});
-	let now = $state(Date.now());
-
 	const POLL_MS = 5000;
 
-	const holdUntil = $derived(
-		$status?.breaker_tripped_until != null &&
-			new Date($status.breaker_tripped_until).getTime() > now
-			? $status.breaker_tripped_until
-			: null
-	);
+	// v56 (A7): whether the hold runs is the server's answer, and its countdown runs on this
+	// browser's clock from the server's remaining time (api.ts's `breaker_clears_at`): a
+	// skewed clock no longer moves it. `holdTrip` names the trip itself (the server's
+	// timestamp, compared for equality only), so a re-read can tell a new hold from this one.
+	const holdUntil = $derived($status?.breaker_active ? $status.breaker_clears_at : null);
+	const holdTrip = $derived($status?.breaker_active ? $status.breaker_tripped_until : null);
 	const paused = $derived($status?.paused ?? false);
 
 	function clockTime(iso: string): string {
@@ -122,6 +120,7 @@
 	// the one exposure this app exists to avoid.
 	async function handleRelease() {
 		const until = holdUntil;
+		const trip = holdTrip;
 		const confirmed = await confirmAction({
 			title: m.worker_release_confirm_title(),
 			// Whole sentences, joined: each is a message of its own.
@@ -153,14 +152,9 @@
 		}
 		busy = false;
 		if (gone) return;
-		now = Date.now();
 		// Decided on what this read returned, not the store (a poll may have overtaken it).
-		const freshHold =
-			fresh.breaker_tripped_until !== null &&
-			new Date(fresh.breaker_tripped_until).getTime() > Date.now()
-				? fresh.breaker_tripped_until
-				: null;
-		if (!freshHold || freshHold !== until) {
+		const freshHold = fresh.breaker_active ? fresh.breaker_tripped_until : null;
+		if (!freshHold || freshHold !== trip) {
 			// Ended, or ended and a new hold began: the question was about the old one.
 			note = freshHold ? m.worker_note_new_hold() : m.worker_note_hold_ended();
 			await keepFocus(toggleButton);
@@ -208,10 +202,7 @@
 		// poll is the simplest way for a naturally-tripping breaker (5 consecutive
 		// AudioProviderErrors, no user action involved) to still surface here without
 		// the user having to reload.
-		const id = setInterval(() => {
-			now = Date.now();
-			poll();
-		}, POLL_MS);
+		const id = setInterval(poll, POLL_MS);
 		return () => clearInterval(id);
 	});
 </script>

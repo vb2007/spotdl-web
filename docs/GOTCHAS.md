@@ -33,6 +33,10 @@ needed" claim — rather than silently deleted.
   it silently passes via a value some *other* test's `conftest.py` setdefault already set → *v17*
 
 **Database, migrations & enums**
+- A loaded row written back (`track.state = X; commit`) overwrites a concurrent commit; a
+  conditional `UPDATE … WHERE state IN (…)` is re-checked by Postgres after the row lock → *v56*
+- A proxy FK without `ondelete` made a used manual proxy undeletable (500); history now stores
+  the redacted label with the row → *v56*
 - `ALTER TYPE ... ADD VALUE` in a migration that also *uses* the value must run in
   `op.get_context().autocommit_block()`; a v35 migration that rewrites data says so and needs a
   `pg_backup` → *v35*
@@ -210,6 +214,8 @@ needed" claim — rather than silently deleted.
   `docker compose restart web` → *v52*
 
 **Auth, cookies & sessions**
+- Admin routes: 404 (`require_admin_hidden`) where the path names an id, 403 elsewhere → *v56*
+- A `failed` job's cancel is the incoming overlay's "dismiss": a cancel rule must keep it → *v56*
 - A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
   production, TCP on and off); a key is the fallback, valid only on job create, reading its own
   job and `me` (an admin's key gets 401 everywhere else) → *v53*
@@ -351,6 +357,21 @@ needed" claim — rather than silently deleted.
   kHz and nothing above ~16 kHz, where Opus is 48 kHz → *v54.2*
 
 **Celery, tasks & durability**
+- `expand_job`'s tracks carry an outbox marker (`pending` + `scheduled_at`) under a lease, so a
+  broker error mid-enqueue is beat's next tick, never a stranded track → *v56*
+- `timedelta(days=10**9)` raises OverflowError: an unbounded `retention_days` stopped the archive
+  sweep for every later user (v56 bounds new values and clamps old rows) → *v56*
+- A server timestamp compared with `Date.now()` is a skewed countdown: use the worker status's
+  `server_time` offset (`api.serverToLocal`) or a server-computed remaining time → *v56*
+- `attempts.py` must not import `serializers`/`proxies` (spotdl) — alerts.py imports it → *v56*
+- Deleting a proxy a download is using waits for it (`delete_requested_at`, never picked, removed
+  by `finalize_proxy_deletions` once idle); `pick_proxy` locks only its chosen proxy → *v56*
+- SQLAlchemy's `with_for_update(key_share=True)` renders `FOR NO KEY UPDATE`; `FOR KEY SHARE`
+  needs `read=True` too. Check the SQL, not the flag → *v56*
+- A track beat reclaimed mid-download (v55) may still be downloading through its proxy:
+  `proxy_in_use` counts it until the reclaim row is rewritten → *v56*
+- Two bulk UPDATEs of one job's tracks (cancel vs expand's claim) take the job row lock first, or
+  they can deadlock; a partial index on `state = 'waiting'` can't serve `state IN (…)` → *v56*
 - A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
   pre-boot value as "since boot" or every restart looks like an outage → *v36*
 - Celery's own "Task ... received/succeeded" log lines echo task *args*: anything secret-shaped
@@ -486,7 +507,7 @@ needed" claim — rather than silently deleted.
 - `reconcile_disk()` skips `/downloads` rows only while `/downloads` is empty, which an emptying
   sweep makes it; the first boot after a new download prunes every row whose file is gone → *v48*
 - Priority and bump are admin-only on the server since v48 (403 before the job lookup, the same
-  for any id), not only hidden in the UI → *v48*
+  for any id), not only hidden in the UI → *v48* *(2026-10-26, v56: now 404, the A6 rule below.)*
 - A library sweep archives only the sweeping admin's own settled jobs; every user's moved
   tracks are still repointed (owner decision, F34) → *v48*
 - A real production breaker trip (2026-10-18 18:46 UTC) reached `breaker_events` but never the
@@ -815,6 +836,13 @@ needed" claim — rather than silently deleted.
   library sweep's start) → *v52*
 
 **Testing & verification technique**
+- A `docker exec … python /tmp/x.py` imports the image's site-packages `app`, not the mounted
+  `/app/app`: set `PYTHONPATH=/app` → *v56*
+- `download_track.delay` is one object for expand and beat: a monkeypatch of one patches both → *v56*
+- `docker pause` on Redis fails no publish (the kernel buffers it); `docker stop` refuses → *v56*
+- Playwright's `page.clock.install({ time })` skews the browser clock for countdown checks → *v56*
+- A rebase that re-parents a migration under one a slot already passed: alembic sees the head as
+  applied and skips the new parent; downgrade to it, stamp the old parent, upgrade → *v56*
 - A real download on a slot can finish in ~10 s, before six browser pages have logged in: hold
   the track `waiting` with `scheduled_at` a minute out, then start `realdl`. A Spotify id whose
   song is already on disk under the same name resolves instantly ("already exists" is the
@@ -4720,6 +4748,8 @@ independently-found production bug from the same conversation)
   `worker-dl --concurrency=1`, and pending messages pass `download_track`'s gate, so the sweep
   would duplicate-dispatch them. This needs Redis to fail mid-loop. Recovery: re-send
   `expand_job` for that job; its `EXPANDED` branch enqueues exactly the still-pending tracks.
+  *(2026-10-26, v56: fixed with an outbox marker on the track, see v56's section. Tracks a
+  pre-v56 run stranded have no marker and stay stranded; the recovery above still applies.)*
 - **Rolling back across v34.1 strands the `expand` queue.** A pre-v34.1 compose has no
   consumer for it, and `--remove-orphans` removes `worker-expand`. An expansion queued or
   in flight at rollback time stays `expanding`, and a library sweep stays `running`, which
@@ -4931,7 +4961,7 @@ independently-found production bug from the same conversation)
   does the same as the existing Output/Library panels (the page itself isn't admin-gated). The
   settings redesign is v43.
 - **Test-alert is 404 for a non-admin, per the plan.** Every other admin-only route answers 403
-  (`require_admin`). The alert settings GET/PATCH keep 403 to match their siblings.
+  (`require_admin`). The alert settings GET/PATCH keep 403 to match their siblings. *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)*
 
 ### v37 e2e-harness gotchas
 
@@ -4963,7 +4993,10 @@ independently-found production bug from the same conversation)
   assertion is the one that names a leak.
 - **Admin endpoints answer 403, not 404** (`require_admin`, pinned since v22). The v37 plan's
   "404" was a slip; the owner confirmed asserting 403 (recorded in the master plan's
-  Amendments). Only the v36 test-alert POST is 404.
+  Amendments). Only the v36 test-alert POST is 404. *(2026-10-26, v56 (A6): one rule now. An
+  admin route whose path names an id (priority, bump, one proxy) answers 404 like
+  `/api/admin/stats` and the test-alert send; the id-free ones keep 403. `test_admin_gating.py`
+  holds the table.)*
 - **`skipped_duplicate` attempts carry no `network_path`**, and an expected label computed from
   the API agrees with the UI even when the API drops the field (both fall to "no network"). So
   spec 3 requires the key on every attempt, and also checks an admin-owned track a past
@@ -5662,7 +5695,7 @@ independently-found production bug from the same conversation)
   accepted a job's owner. Both now depend on `require_admin`, which answers 403 before the job
   lookup, so a non-admin gets the same 403 for their own job, a foreign one, and an unknown id
   (live on dev: 403 `admin_required` ×3, priority unchanged; the admin still 200/404). They left
-  `test_ownership.py`'s 404 sweep for a 403 test of their own.
+  `test_ownership.py`'s 404 sweep for a 403 test of their own. *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)*
 - **The ambient glow's glide runs on WAAPI once the pointer stops (owner answer to v40's open
   question), and stays a rAF loop while it moves.** The first version retargeted a Web Animation
   on every move. At a real mouse's one move per frame that cost 0.90ms/frame against the loop's
@@ -6067,7 +6100,7 @@ independently-found production bug from the same conversation)
   401 `not_authenticated` (owner's decision, 2026-10-24: keep 401). `test_api_keys.py`
   parametrizes this over every route in the app, not only the admin ones. The job read was added
   on the owner's decision the same day (the master plan's "read their own submission status"):
-  through a key it's the key's user's own jobs only, an admin's too (404 otherwise).
+  through a key it's the key's user's own jobs only, an admin's too (404 otherwise). *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)*
 - **FastAPI keeps an included router as a lazy `_IncludedRouter` in `app.routes`** (0.162 in the slot's
   image, 0.141.1 in `uv.lock`/`requirements.txt`: both do). A test
   walking `app.routes` for `APIRoute`s finds only the four built-in docs routes; descend through
@@ -6509,6 +6542,146 @@ independently-found production bug from the same conversation)
   commit and then overwrites `completed` with `cancelled`, until v56 makes cancel re-check the
   state. The live UI then disagrees with the DB until a reload: the API's late `cancelled`
   event reaches a row already `completed`, which the store doesn't move to another state.
+  *(2026-10-27, v56: fixed. Both cancels are conditional `UPDATE … WHERE state IN (…)` now; a
+  track that completed first is left alone and the cancel answers 409.)*
 - **graphify's HTML view stops at 5000 nodes.** This slice took the graph past it, and
   `graphify update .` deletes the tracked `graph.html` instead of updating it. Run it as
   `GRAPHIFY_VIZ_NODE_LIMIT=10000 graphify update .`.
+
+### v56 api-gaps gotchas (learned closing A1–A8 and E1)
+
+- **Loaded rows written back lose races; a conditional UPDATE doesn't.** `cancel_job` used to
+  load the cancellable tracks, set `state = cancelled` on the objects and commit. A track whose
+  completion committed in between was overwritten to `cancelled`, and the finished job relabelled
+  (A1). The ORM flush is an `UPDATE … WHERE id = …`; it waits for the row lock and then writes
+  regardless. `UPDATE tracks SET state = 'cancelled' WHERE job_id = … AND state IN (…)` waits for
+  the same lock, but Postgres re-evaluates the `WHERE` on the newly committed row (READ COMMITTED),
+  so the completed track is skipped and the cancel answers 409. The race test makes the
+  completion hold the row lock uncommitted (as `record_attempt`'s UPDATE does) and fails on the
+  old code. `DELETE /api/tracks/{id}` got the same shape.
+- **The outbox marker, and why a lease.** Tracks are created `pending` with `scheduled_at` set
+  (a microsecond apart, so beat keeps album order); beat's dispatch query takes `pending` as well
+  as `waiting`, still only where `scheduled_at <= now`. `expand_job` claims its tracks by moving
+  the marker `DISPATCH_LEASE` (10 min) ahead in one committed UPDATE, sends, then clears the sent
+  ones' marker. A broker error puts the unsent ones' marker back to now (beat's next tick);
+  anything worse (a killed worker, the DB gone too) lets the lease run out. Clearing the marker
+  *before* sending would have stranded tracks on a crash between the claim and the sends.
+  Verified on the slot stack with the broker refusing send #4: before v56, 12 of 15 tracks had
+  no message and no marker; after, every track had exactly one message within one beat tick, with
+  a mocked refusal and with Redis really stopped.
+- **`docker pause` doesn't make a broker fail.** A paused container's socket still accepts the
+  connection and the writes (the kernel buffers them), so a publish "succeeds" and is delivered
+  on unpause. `docker stop` gives a real refusal (`Error -2 connecting to redis:6379`). The
+  slot's Redis is `appendonly`, so the messages sent before the stop survive the restart.
+- **A one-off script in a container imports the image's code.** `docker exec … python
+  /tmp/script.py` puts `/tmp` first on `sys.path`, and `app` resolves to the installed copy in
+  site-packages, built at `up`, not the worktree mounted at `/app/app`. The first E1 run silently
+  ran the pre-v56 `expand.py` (which happened to make a good "before"). Pass `-e PYTHONPATH=/app`.
+- **`download_track.delay` is shared.** `expand.py` and `beat.py` import the same task object, so
+  monkeypatching `beat.download_track.delay` replaces expand's too. One stub that records who sent
+  each track (`_Broker` in `test_expand_task.py`) keeps the two apart.
+- **`timedelta(days=10**9)` raises `OverflowError`** (and anything past about 739,000 days
+  overflows `now - delta`). `retention_days` had no upper bound, so one such value stopped the
+  hourly archive sweep for every user after it (A5). 1–36500 now, else 422. A production row
+  stored before v56 with a larger value would still break the sweep: check with
+  `SELECT count(*) FROM user_settings WHERE retention_days > 36500 OR retention_days < 1`.
+  *(2026-10-26, v56 round 3, owner's decision: the v56 migration clamps such rows, above 36500 to
+  36500 and below 1 to NULL; proven on the slot DB, where a 10**9 row made the sweep raise.)*
+- **The attempt's proxy label is captured, not joined.** v35 joined `proxies.url` at read time,
+  so deleting a proxy would have erased "which proxy" (and the FK made deleting a used one a 500).
+  `record_attempt` stores the redacted label; the migration backfills existing rows with a frozen
+  copy of `proxies.redact()`'s rule. `attempts.py` can't call `proxies.redact()` itself: alerts.py
+  imports attempts.py and must not import spotdl, which `proxies` (and `serializers`) do.
+- **Breaker time comes from the server now (A7).** `/api/worker/status` answers `breaker_active`
+  and `breaker_remaining_seconds`; `api.ts` adds `breaker_clears_at` (arrival time plus the
+  remaining seconds, on the browser's clock). `breaker_tripped_until` stays the trip's identity
+  (the release flow compares it for equality), never a clock reading. With the browser 2h ahead,
+  main's pill showed "worker ready" during a real hold; now it counts down the server's time.
+  `TrackRow`'s next-try countdown and the dashboard's own hold line still compare
+  `breaker_tripped_until` with `Date.now()` (outside v56's scope, in its PR's "Found, not fixed").
+  *(2026-10-26, v56 round 3, owner's decision: fixed in v56 too. The status also answers
+  `server_time`; `api.serverToLocal()` places a track's `scheduled_at` on the browser's clock. A proxy's
+  `cooldown_until` (`/settings`' countdown, `/stats`) still meets the browser's clock as is.)*
+- **Retry-now is once per ladder step for a non-admin (A8).** `tracks.retry_now_step` holds the
+  `attempt_count` at which it was used; equal means used. The check runs under the track's row
+  lock (two presses at once: one 200, one 429). The 429's `retry_after` is the later of the
+  track's slot and the breaker's clear, 0 when it's due anyway. `lookup_failed` retries and an
+  admin's are unrestricted.
+- **A `failed` job's cancel is a dismiss.** The first cut of A1 answered 409 for every job not
+  `expanding`/`active`/`waiting`, `failed` included. But `IncomingJobs.svelte` dismisses a failed
+  row (and finishes "try again") with `DELETE /api/jobs/{id}`, and specs 01/05 dismiss one: the
+  row could never be cleared. Caught by review and by the e2e run; the owner kept `failed`
+  cancellable (master plan Amendments).
+- **SET NULL opens a new window: a proxy deleted mid-download.** The FK used to block that delete
+  (a 500); now it succeeds, and the attempt row written when the download returns named a proxy
+  that no longer exists, a ForeignKeyViolation that rolled back the whole commit, a completed
+  download's ledger row with it. `record_attempt` now records no proxy when the row is gone
+  (reproduced on two real connections, the worker session holding the expired proxy).
+  *(2026-10-26, v56 round 3: `record_attempt` and `proxies.record_proxy_result` now read the
+  proxy locked, so a delete landing while the attempt's transaction is open waits for its
+  commit; only a delete committed before the read still leaves the row unlabelled. 2026-10-27:
+  that lock is `FOR NO KEY UPDATE`, not the `FOR KEY SHARE` first written here; see the entry
+  on `with_for_update(key_share=True)` below.)*
+- **Bulk UPDATEs of the same rows need one lock order.** `cancel_job`'s `UPDATE … WHERE job_id`
+  and expand_job's claim `UPDATE … WHERE id IN (…)` can lock one job's tracks in different
+  orders. Both take the job's row lock first now (cancel_job always did), so they serialize.
+- **A partial index only serves a query whose predicate implies it.** `ix_tracks_scheduled_at_waiting`
+  (`WHERE state = 'waiting'`) can't serve `state IN ('waiting', 'pending')`; the planner fell back
+  to a scan. `ix_tracks_scheduled_at_due` covers both states (`EXPLAIN` shows it used).
+- **A clear that matches the lease alone.** A track worker-dl settles before expand_job clears its
+  marker isn't `pending` any more; matching on `pending` too left a completed track with a future
+  `scheduled_at`. Clearing matches the lease value only, which nothing else ever writes.
+- **The outbox's per-track CASE has a size ceiling.** `_due_case` binds two parameters per track and
+  the `IN` list one more, so one marker UPDATE carries about 3N binds (Postgres caps a statement at
+  65,535): past about 21,800 pending tracks in one job, the redelivery path's UPDATE fails and
+  those tracks stay unmarked. The largest real jobs are about a thousand tracks (a discography),
+  so it's accepted; chunk the UPDATE if jobs ever get that big. The success path is safe
+  regardless: `_mark_due` marks each track on its own ORM row before the claim.
+- **A used proxy's delete waits for its download (owner's decision).** ON DELETE SET NULL made a
+  used proxy deletable, and every review round then found another millisecond window where the
+  delete met a download through that proxy (an FK violation, a StaleDataError, a lock-order
+  deadlock with v55's track locking). Locks alone kept chasing corners, so the delete no longer
+  races the download at all. `DELETE /api/proxies/{id}` deletes an idle proxy at once (204). One in
+  use (`proxy_in_use`: a track `downloading` through it, or picked in the last 60s, which covers
+  pick → the `downloading` commit) gets `delete_requested_at` instead (202, `deleting: true`).
+  `pick_proxy` skips it, and after a candidate's probe locks only that one `FOR UPDATE SKIP
+  LOCKED` (a delete deciding meanwhile holds the row, so the pick passes over it; no lock is held
+  across the probes). `used_proxy_id` names the current attempt's proxy only (a direct attempt
+  clears it), or `proxy_in_use` would see a direct download as going through the old proxy. A
+  track cancelled mid-download within the stale-track window also counts as using its proxy: a
+  cancel lets the download run to its end, and the delete must wait for it too. `finalize_proxy_deletions` (beat, every
+  30s) deletes it once idle, and `/settings` shows it as "deleting" until then. On the slot it was
+  gone 17s after its download ended.
+- **Rebased onto v55: the proxy before the track, in every outcome path.** v55 locks the track's
+  row in `download_track`'s success and failure paths (and in `record_attempt`) before anything
+  reads the proxy. A proxy delete locks the proxy and then (ON DELETE SET NULL) the track, so
+  those paths now take the proxy's lock first (`proxies.lock_for_outcome`); a statement-order test
+  pins it. v55's supersede rewrite of a reclaim row stores the proxy label too, as a new row does.
+- **`with_for_update(key_share=True)` is `FOR NO KEY UPDATE` in SQLAlchemy;** `FOR KEY SHARE`
+  needs `read=True` as well. v56's proxy reads had the former while its comments said the latter.
+  It's kept, now named (`attempts.PROXY_OUTCOME_LOCK`): it still makes a delete wait, and the
+  outcome's transaction then updates the same proxy row (`record_proxy_result`), which needs it
+  anyway: one lock up front rather than a `KEY SHARE` upgraded halfway through. Check the
+  rendered SQL, never the flag name.
+- **A reclaimed download is still a proxy's user.** v55's stale reclaim moves a live
+  `downloading` track to `waiting` and lets the download finish and rewrite the reclaim's row.
+  `proxy_in_use` counted only `downloading` (and recently cancelled) tracks, so a proxy behind a
+  download beat had reclaimed could be deleted under it. It now also counts a track whose reclaim
+  row is unrewritten and recent (`attempts.reclaim_unreported`). Every hold is bounded, so a
+  delete is never stuck: a reclaimed download holds its proxy for one stale-track window after
+  the reclaim (about twice the window after it started), a cancelled one for one window after the
+  cancel; a download outliving that loses only its attempt's label, never its commit. And a cancel clears
+  `used_proxy_id` unless the track's download may still run (`downloading`, or reclaimed and
+  unreported): an ended attempt's proxy on a cancelled `waiting` track held its delete for the
+  whole stale-track window, while clearing it on a reclaimed one let the delete through. One gap
+  is left, the v55 claim's kind: a cancel that waits on beat's uncommitted reclaim re-checks the
+  row's own columns afterwards but runs the `track_attempts` subquery on its original snapshot,
+  so it misses the reclaim row and drops `used_proxy_id`; that download's proxy is then
+  unprotected (the outcome still commits, unlabelled). Accepted: it needs a cancel within
+  milliseconds of a 30-minute reclaim, and closing it would mean a proxy lock in beat's reclaim,
+  against the delete's lock order.
+- **A re-parented migration on a database that already ran it.** After the rebase put v55's
+  `d9b3e5f7a1c2` under v56's `a9d3c5e7f1b2`, the slot's database still read `a9d3c5e7f1b2`, the
+  head, so `alembic upgrade head` did nothing and `hold_count` was never added. Repair: `alembic
+  downgrade d9b3e5f7a1c2` (runs only v56's downgrade), `alembic stamp a7c4e1b9d2f5`, `alembic
+  upgrade head`. Production never sees this: it only ever runs the merged chain.

@@ -12,11 +12,12 @@ v35: this is also the only writer of `track_attempts.attempt_number` and of the
 import uuid
 from datetime import datetime
 from typing import NamedTuple
+from urllib.parse import urlsplit
 
 from sqlalchemy import Exists, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import NetworkPath, Track, TrackAttempt, TrackAttemptOutcome, TrackErrorType
+from app.models import NetworkPath, Proxy, Track, TrackAttempt, TrackAttemptOutcome, TrackErrorType
 
 # Outcomes that always mean this invocation went out to the network. A `cancelled` row
 # only counts when it carries a network_path, i.e. the cancel landed mid-download rather
@@ -49,6 +50,23 @@ def latest_attempt_number(db: Session, track_id: uuid.UUID) -> int:
     ).scalar_one()
 
 
+def reclaim_unreported(since) -> Exists:
+    """v56 (A4): `EXISTS` a `failed` row beat's stale reclaim wrote for the enclosing query's
+    track (correlated on `tracks.id`) after `since`, not yet rewritten by the outcome of the
+    download it reclaimed (v55, E3): that download may still be running, through its proxy."""
+    return (
+        select(TrackAttempt.id)
+        .where(
+            TrackAttempt.track_id == Track.id,
+            TrackAttempt.outcome == TrackAttemptOutcome.FAILED,
+            TrackAttempt.network_path.is_(None),
+            TrackAttempt.error_message.startswith(RECLAIM_PREFIX),
+            TrackAttempt.finished_at > since,
+        )
+        .exists()
+    )
+
+
 def recorded_since(track_id: uuid.UUID, attempt_number: int) -> Exists:
     """`EXISTS` a row newer than `attempt_number` (see latest_attempt_number)."""
     return (
@@ -78,6 +96,28 @@ def previous_was_transport_failure(db: Session, track_id: uuid.UUID, before: int
         and previous.outcome == TrackAttemptOutcome.FAILED
         and (previous.error_message or "").startswith(TRANSPORT_FAILURE_PREFIX)
     )
+
+
+def _proxy_label(proxy: Proxy | None) -> str | None:
+    """v56 (A4): the row's stored proxy label, `proxies.redact()`'s scheme://host:port
+    (never a credential), and "proxy" for a URL that doesn't parse, as the attempt history
+    always showed one. Not `proxies.redact()` itself: that module imports spotdl, which
+    alerts.py (an importer of this module) must not."""
+    if proxy is None:
+        return None
+    try:
+        parsed = urlsplit(proxy.url)
+        return f"{parsed.scheme}://{parsed.hostname}:{parsed.port}"
+    except ValueError:
+        return "proxy"
+
+
+# v56 (A4): the lock an attempt's outcome takes on its proxy. SQLAlchemy renders this as
+# `FOR NO KEY UPDATE` (`FOR KEY SHARE` would need `read=True` as well). That's the one wanted:
+# it makes a proxy delete (FOR UPDATE) wait for the outcome's commit, and it's already the lock
+# the same transaction's proxy UPDATE (proxies.record_proxy_result) needs, so the outcome takes
+# its one lock on the proxy up front instead of a KEY SHARE upgraded halfway through.
+PROXY_OUTCOME_LOCK = {"key_share": True}
 
 
 class RecordedAttempt(NamedTuple):
@@ -121,6 +161,16 @@ def record_attempt(
     note) extends that row, its finished_at and hold_count, instead of adding one per hold:
     "held N times from T1 to T2". Beat's reclaim never passes it, so its rows stay one per
     reclaim and keep latest_attempt_number a working ownership token."""
+    # v56 (A4): the proxy may have been deleted while this attempt ran (its FK is now ON
+    # DELETE SET NULL): the row then names no proxy rather than failing the whole commit
+    # (and with it a completed download's ledger row). PROXY_OUTCOME_LOCK: a delete waits for
+    # this commit (then nulls the new row's proxy_id). Taken before the track's row lock below:
+    # a delete locks the proxy, then its cascade the track, so the same order here can't
+    # deadlock. A caller already holding the track (download_track's outcome paths) takes the
+    # proxy's lock before that one too (proxies.lock_for_outcome); here it's then held already.
+    proxy = db.get(Proxy, proxy_id, with_for_update=PROXY_OUTCOME_LOCK) if proxy_id is not None else None
+    if proxy is None:
+        proxy_id = None
     # Derived from the row alone (outcome + network_path), so the counters can always be
     # recomputed from track_attempts -- the migration's backfill uses the same rule.
     attempted = outcome in _NETWORK_OUTCOMES or network_path is not None
@@ -179,6 +229,7 @@ def record_attempt(
         reclaim_row.error_message = error_message
         reclaim_row.warning_message = warning_message
         reclaim_row.proxy_id = proxy_id
+        reclaim_row.proxy_label = _proxy_label(proxy)
         reclaim_row.network_path = network_path
         db.flush()
         return RecordedAttempt(reclaim_row.attempt_number, attempts_made, failure_count)
@@ -203,6 +254,8 @@ def record_attempt(
             error_message=error_message,
             warning_message=warning_message,
             proxy_id=proxy_id,
+            # v56 (A4): stored, not joined at read time, so deleting the proxy keeps it.
+            proxy_label=_proxy_label(proxy),
             network_path=network_path,
         )
     )

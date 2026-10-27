@@ -215,7 +215,19 @@ export type StreamEvent = TrackStateEvent | JobStateEvent | LibraryProgressEvent
 
 export interface WorkerStatus {
 	paused: boolean;
+	/** v56 (A7): the breaker's pause is running, decided on the server's clock. */
+	breaker_active: boolean;
+	/** v56 (A7): how long it runs yet, from the server (null when it isn't running). */
+	breaker_remaining_seconds: number | null;
+	/** v56 (A7): when it clears on *this* browser's clock: the time this answer arrived plus
+	 * `breaker_remaining_seconds`, so a countdown is right however far this clock is off.
+	 * Added here, not sent. Never compare `breaker_tripped_until` (the server's clock) with
+	 * `Date.now()`: that is #63's skewed countdown. */
+	breaker_clears_at: string | null;
+	/** The server's own timestamp: identifies a trip (equality), never a clock reading. */
 	breaker_tripped_until: string | null;
+	/** v56 (A7): the server's clock when it answered (`serverToLocal` uses it). */
+	server_time: string;
 	breaker_trip_count: number;
 	consecutive_failures: number;
 	/** v20: true if *any* user's track is currently `downloading` -- global, not scoped
@@ -296,6 +308,9 @@ export interface Proxy {
 	url: string;
 	enabled: boolean;
 	source: ProxySource;
+	/** v56 (A4): deleted while a download was using it; never picked again, gone once that
+	 * download ends. */
+	deleting: boolean;
 	consecutive_failures: number;
 	cooldown_until: string | null;
 	last_used_at: string | null;
@@ -759,6 +774,11 @@ export function unarchiveJobs(jobIds: string[]): Promise<{ unarchived_ids: strin
 	});
 }
 
+/** v56 (A3): one track as the server has it now (owner or admin; anyone else a 404). */
+export function getTrack(trackId: string): Promise<TrackWithJob> {
+	return request(`/api/tracks/${trackId}`);
+}
+
 export function cancelTrack(trackId: string): Promise<Track> {
 	return request(`/api/tracks/${trackId}`, { method: 'DELETE' });
 }
@@ -823,20 +843,51 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 	}
 }
 
+// v56 (A7): every worker answer gets `breaker_clears_at` on arrival (see WorkerStatus). One
+// trip keeps one deadline while each answer agrees with it to within 2s: recomputed from every
+// 5s poll, network jitter could move it across a minute and make the pill's live region (which
+// names the clock time) speak again. Global worker state, the same for every user.
+let lastClear: { trip: string; at: number } | null = null;
+// v56 (A7): how far the server's clock is ahead of this browser's, from the last worker answer
+// (every page polls it). 0 until one arrives.
+let serverAheadMs = 0;
+
+/** A timestamp of the server's (a track's `scheduled_at`), placed on this browser's clock, so a
+ * countdown to it is right however far this clock is off (#63). */
+export function serverToLocal(iso: string): string {
+	return new Date(Date.parse(iso) - serverAheadMs).toISOString();
+}
+
+async function workerAnswer(path: string, init?: RequestInit): Promise<WorkerStatus> {
+	const status: Omit<WorkerStatus, 'breaker_clears_at'> = await request(path, init);
+	serverAheadMs = Date.parse(status.server_time) - Date.now();
+	const remaining = status.breaker_active ? status.breaker_remaining_seconds : null;
+	const trip = status.breaker_tripped_until;
+	if (remaining === null || trip === null) {
+		lastClear = null;
+		return { ...status, breaker_clears_at: null };
+	}
+	const at = Date.now() + remaining * 1000;
+	if (!lastClear || lastClear.trip !== trip || Math.abs(lastClear.at - at) > 2000) {
+		lastClear = { trip, at };
+	}
+	return { ...status, breaker_clears_at: new Date(lastClear.at).toISOString() };
+}
+
 export function workerStatus(): Promise<WorkerStatus> {
-	return request('/api/worker/status');
+	return workerAnswer('/api/worker/status');
 }
 
 export function pauseWorker(): Promise<WorkerStatus> {
-	return request('/api/worker/pause', { method: 'POST' });
+	return workerAnswer('/api/worker/pause', { method: 'POST' });
 }
 
 export function resumeWorker(): Promise<WorkerStatus> {
-	return request('/api/worker/resume', { method: 'POST' });
+	return workerAnswer('/api/worker/resume', { method: 'POST' });
 }
 
 export function releaseBreaker(): Promise<WorkerStatus> {
-	return request('/api/worker/breaker/release', { method: 'POST' });
+	return workerAnswer('/api/worker/breaker/release', { method: 'POST' });
 }
 
 export function getAdminStats(window: StatsWindow): Promise<AdminStats> {
@@ -863,9 +914,10 @@ export function setProxyEnabled(proxyId: string, enabled: boolean): Promise<Prox
 	});
 }
 
-/** A manual proxy is hard-deleted (204, no body); a file-sourced proxy is only
- * soft-disabled (200, returns the updated row) -- see the backend's own docstring for
- * why. `undefined` back means "the row is really gone." */
+/** A manual proxy is hard-deleted (204, no body: `undefined` back means "the row is really
+ * gone"), or, while a download is using it, marked `deleting` (202, the row; v56, A4); a
+ * file-sourced proxy is only soft-disabled (200, the updated row) -- see the backend's own
+ * docstring for why. */
 export function deleteProxy(proxyId: string): Promise<Proxy | undefined> {
 	return request(`/api/proxies/${proxyId}`, { method: 'DELETE' });
 }

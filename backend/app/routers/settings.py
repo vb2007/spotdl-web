@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, StrictBool
 from sqlalchemy.orm import Session
 
@@ -8,7 +8,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.errors import ApiError
 from app.models import AppSettings, User, UserSettings
-from app.routers.auth import require_admin, require_session
+from app.routers.auth import require_admin, require_admin_hidden, require_session
 from app.services import alerts, app_settings, downloads, user_settings
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -22,6 +22,11 @@ class UpdateOutputSettingsRequest(BaseModel):
 
 class UpdateRetentionRequest(BaseModel):
     retention_days: int | None
+
+
+# v56 (A5): one day to about a hundred years, as /account allows.
+RETENTION_DAYS_MIN = 1
+RETENTION_DAYS_MAX = 36500
 
 
 class UpdateKeyboardRequest(BaseModel):
@@ -209,17 +214,8 @@ def update_alert_settings(
     return _alert_settings_to_dict(row)
 
 
-def _require_admin_hidden(user: User = Depends(require_session)) -> User:
-    """v36's plan: a non-admin gets 404 on the test-alert endpoint, so its existence isn't
-    confirmed (the other admin-only routes here answer 403, via require_admin)."""
-    if not user.is_admin:
-        # v46: deliberately no `code` -- it must read exactly like an unknown route's 404.
-        raise HTTPException(status_code=404, detail="Not Found")
-    return user
-
-
 @router.post("/alerts/test")
-def send_test_alert(user: User = Depends(_require_admin_hidden)) -> dict:
+def send_test_alert(user: User = Depends(require_admin_hidden)) -> dict:
     """Sends one message straight to the room and reports whether it arrived, bypassing
     the category toggles and the cooldown -- the point is to check the wiring. Admin-only
     and synchronous (alerts.SEND_TIMEOUT_SECONDS per connect/read phase), never on a download
@@ -264,9 +260,15 @@ def update_retention_settings(
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
 ) -> dict:
-    if payload.retention_days is not None and payload.retention_days <= 0:
+    # v56 (A5): the client's own bound. Unbounded, a huge value overflowed the archive
+    # sweep's `timedelta(days=...)` and stopped it for every user after this one.
+    days = payload.retention_days
+    if days is not None and not RETENTION_DAYS_MIN <= days <= RETENTION_DAYS_MAX:
         raise ApiError(
-            400, "retention_days_invalid", "retention_days must be a positive integer or null"
+            422,
+            "retention_out_of_range",
+            f"retention_days must be {RETENTION_DAYS_MIN}-{RETENTION_DAYS_MAX}, or null",
+            {"min": RETENTION_DAYS_MIN, "max": RETENTION_DAYS_MAX},
         )
     row = user_settings.update_retention(db, user.id, payload.retention_days)
     db.commit()

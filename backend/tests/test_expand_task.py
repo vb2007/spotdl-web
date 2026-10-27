@@ -1,7 +1,7 @@
 import uuid
 
 from concurrency import Gate, Thread, blocked_or_done
-from sqlalchemy import event
+from sqlalchemy import event, text
 
 from app.models import Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers import jobs as jobs_router
@@ -437,3 +437,215 @@ def test_an_expanded_commit_during_a_cancel_waits_for_it_on_real_connections(com
     _assert_cancelled_with_its_tracks(committed_db, job_id)
     assert enqueued == []
     assert held_off == "blocked"
+
+
+# --- v56 (E1): the outbox marker. A broker error mid-enqueue no longer strands tracks ------
+
+
+class _BrokerDown(Exception):
+    """Stands in for kombu's OperationalError: the broker refused a send."""
+
+
+class _Broker:
+    """One stub for `download_track.delay`, which expand_job and beat share (one task
+    object): records who sent each track, and can fail or die on expand_job's n-th send."""
+
+    def __init__(self, monkeypatch, *, fail_at: int | None = None, error: BaseException | None = None):
+        self.sender = "expand_job"
+        self.sent: list[tuple[str, str]] = []
+        self._fail_at, self._error = fail_at, error
+        self.during_expand = None
+        monkeypatch.setattr(expand_task.download_track, "delay", self.delay)
+
+    def delay(self, track_id: str) -> None:
+        if self.sender == "expand_job" and self._fail_at is not None and len(self.sent) == self._fail_at:
+            raise self._error
+        self.sent.append((self.sender, track_id))
+        if self.sender == "expand_job" and self.during_expand is not None:
+            self.during_expand(len(self.sent))
+
+    def by(self, sender: str) -> list[str]:
+        return [track_id for who, track_id in self.sent if who == sender]
+
+
+def _beat(committed_db, monkeypatch, broker: _Broker):
+    from app.tasks import beat as beat_task
+
+    monkeypatch.setattr(beat_task, "SessionLocal", committed_db)
+    monkeypatch.setattr(beat_task.alerts, "record_beat_heartbeat", lambda: None)
+
+    def tick() -> None:
+        previous, broker.sender = broker.sender, "beat"
+        try:
+            beat_task.dispatch_due_tracks()
+        finally:
+            broker.sender = previous
+
+    return tick
+
+
+def _songs(n: int) -> list[_FakeSong]:
+    return [_FakeSong(f"song{i}", {"name": f"Song {i}"}) for i in range(n)]
+
+
+def _track_ids_in_order(committed_db, job_id) -> list[str]:
+    with committed_db() as db:
+        tracks = db.query(Track).filter(Track.job_id == job_id).all()
+        by_song = {t.spotify_track_id: str(t.id) for t in tracks}
+        return [by_song[f"song{i}"] for i in range(len(tracks))]
+
+
+def test_expand_job_sends_each_track_once_and_beat_mid_send_sends_none(committed_db, monkeypatch):
+    """The happy path, with a beat tick landing while expand_job is still sending: the
+    run's claim (the marker leased ahead) keeps beat off every one of its tracks, so each
+    is sent exactly once, in album order, and none is left due afterwards."""
+    job_id, _ = _committed_expanding_job(committed_db)
+    _real_sessions(committed_db, monkeypatch)
+    broker = _Broker(monkeypatch)
+    tick = _beat(committed_db, monkeypatch, broker)
+    monkeypatch.setattr(expansion, "expand", lambda url: _songs(5))
+    broker.during_expand = lambda n: tick() if n == 2 else None  # a tick between two sends
+
+    expand_task.expand_job(str(job_id))
+    tick()  # and one after
+
+    assert broker.by("expand_job") == _track_ids_in_order(committed_db, job_id)
+    assert broker.by("beat") == []
+    with committed_db() as db:
+        rows = db.query(Track.state, Track.scheduled_at).filter(Track.job_id == job_id).all()
+        assert rows == [(TrackState.PENDING, None)] * 5
+
+
+def test_a_broker_error_mid_enqueue_leaves_the_rest_to_beats_next_tick(committed_db, monkeypatch):
+    """The v34.1 gap (E1): the broker fails on the 3rd of 5 sends. Before v56 the task
+    failed, was acked, and tracks 3-5 stayed `pending` forever. Now beat's next tick sends
+    exactly those three, so every track is sent once and none twice."""
+    job_id, _ = _committed_expanding_job(committed_db)
+    _real_sessions(committed_db, monkeypatch)
+    broker = _Broker(monkeypatch, fail_at=2, error=_BrokerDown("Error 111 connecting to redis:6379."))
+    tick = _beat(committed_db, monkeypatch, broker)
+    monkeypatch.setattr(expansion, "expand", lambda url: _songs(5))
+
+    expand_task.expand_job(str(job_id))  # doesn't raise: the rest is beat's
+    ordered = _track_ids_in_order(committed_db, job_id)
+    assert broker.by("expand_job") == ordered[:2]
+    with committed_db() as db:  # beat's order must come from the marker, not the heap
+        db.execute(text("UPDATE tracks SET song_json = song_json WHERE spotify_track_id IN ('song2', 'song3')"))
+        db.commit()
+        due = (
+            db.query(Track.spotify_track_id)
+            .filter(Track.job_id == job_id, Track.scheduled_at.is_not(None))
+            .order_by(Track.scheduled_at)
+            .all()
+        )
+        assert [song for (song,) in due] == ["song2", "song3", "song4"]
+
+    tick()
+    tick()
+
+    assert broker.by("beat") == ordered[2:]  # in album order, and only once
+    assert sorted(track_id for _, track_id in broker.sent) == sorted(ordered)
+    with committed_db() as db:
+        assert db.get(Job, job_id).state == JobState.EXPANDED
+        states = sorted(t.state.value for t in db.query(Track).filter(Track.job_id == job_id))
+        assert states == ["pending", "pending", "queued", "queued", "queued"]
+
+
+def test_a_run_that_dies_after_its_claim_leaves_the_tracks_to_beat_once_its_lease_runs_out(
+    committed_db, monkeypatch
+):
+    """The worker is killed between the claim and the sends (nothing in the task can
+    catch that): the tracks stay leased, beat leaves them alone until the lease runs out,
+    then sends them."""
+    from datetime import timedelta
+
+    job_id, _ = _committed_expanding_job(committed_db)
+    _real_sessions(committed_db, monkeypatch)
+    broker = _Broker(monkeypatch, fail_at=0, error=SystemExit("worker killed"))
+    tick = _beat(committed_db, monkeypatch, broker)
+    monkeypatch.setattr(expansion, "expand", lambda url: _songs(2))
+
+    try:
+        expand_task.expand_job(str(job_id))
+    except SystemExit:
+        pass
+    tick()
+    assert broker.sent == []
+
+    with committed_db() as db:  # the lease runs out
+        for track in db.query(Track).filter(Track.job_id == job_id):
+            track.scheduled_at -= expand_task.DISPATCH_LEASE + timedelta(seconds=1)
+        db.commit()
+    tick()
+
+    # Their lease is one timestamp, so beat's order among them is arbitrary (only here).
+    assert sorted(broker.by("beat")) == sorted(_track_ids_in_order(committed_db, job_id))
+
+
+def test_a_track_settled_before_its_marker_is_cleared_keeps_no_marker(committed_db, monkeypatch):
+    """worker-dl can finish a sent track before expand_job's last write: that clear matches
+    the lease alone, so the completed track isn't left with a future `scheduled_at`."""
+    from sqlalchemy import update
+
+    job_id, _ = _committed_expanding_job(committed_db)
+    _real_sessions(committed_db, monkeypatch)
+    broker = _Broker(monkeypatch)
+    monkeypatch.setattr(expansion, "expand", lambda url: _songs(2))
+
+    def worker_finishes_the_first(n: int) -> None:
+        if n == 1:
+            with committed_db() as db:
+                db.execute(update(Track).where(Track.id == broker.sent[0][1]).values(state=TrackState.COMPLETED))
+                db.commit()
+
+    broker.during_expand = worker_finishes_the_first
+    expand_task.expand_job(str(job_id))
+
+    with committed_db() as db:
+        rows = sorted((t.state.value, t.scheduled_at) for t in db.query(Track).filter(Track.job_id == job_id))
+        assert rows == [("completed", None), ("pending", None)]
+
+
+def test_a_claim_waits_for_a_cancel_holding_the_job_and_then_sends_nothing(committed_db, monkeypatch):
+    """The claim takes the job's row lock first, as cancel_job does, so the two bulk
+    UPDATEs of the same tracks serialize (no deadlock). A cancel that commits first leaves
+    the claim nothing `pending` to send."""
+    job_id, user_id = _committed_expanding_job(committed_db)
+    _real_sessions(committed_db, monkeypatch)
+    broker = _Broker(monkeypatch)
+    monkeypatch.setattr(expansion, "expand", lambda url: _songs(3))
+    gate = Gate("cancel_job, tracks cancelled, before its commit")
+    claim_reached = Gate("expand_job, EXPANDED committed, before its claim")
+    real_dispatch = expand_task._dispatch_due
+
+    def dispatch(db, job, track_ids):
+        claim_reached()
+        return real_dispatch(db, job, track_ids)
+
+    monkeypatch.setattr(expand_task, "_dispatch_due", dispatch)
+    expander = Thread(expand_task.expand_job, str(job_id), name="expand_job")
+    claim_reached.wait_reached()
+
+    def cancel():
+        with committed_db() as db:
+            event.listen(db, "before_commit", gate, once=True)
+            jobs_router.cancel_job(job_id, db=db, user=db.get(User, user_id))
+
+    canceller = Thread(cancel, name="cancel_job")
+    gate.wait_reached()
+    claim_reached.open()
+    held_off = blocked_or_done(expander)
+    gate.open()
+    canceller.join()
+    expander.join()
+
+    assert held_off == "blocked"
+    assert broker.sent == []
+    _assert_cancelled_with_its_tracks_n(committed_db, job_id, 3)
+
+
+def _assert_cancelled_with_its_tracks_n(committed_db, job_id, n: int) -> None:
+    with committed_db() as db:
+        assert db.get(Job, job_id).state == JobState.CANCELLED
+        states = [t.state for t in db.query(Track).filter(Track.job_id == job_id)]
+        assert states == [TrackState.CANCELLED] * n

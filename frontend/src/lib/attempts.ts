@@ -44,7 +44,8 @@ export type AttemptPath = 'direct-ipv4' | 'direct-ipv6' | 'proxy' | 'direct' | '
 export function attemptPath(attempt: TrackAttempt): AttemptPath {
 	if (attempt.network_path === 'direct-ipv4' || attempt.network_path === 'direct-ipv6')
 		return attempt.network_path;
-	if (attempt.network_path === 'proxy' || attempt.proxy_id) return 'proxy';
+	// v56: `proxy_label` too: a deleted proxy leaves `proxy_id` null but keeps its label (A4).
+	if (attempt.network_path === 'proxy' || attempt.proxy_id || attempt.proxy_label) return 'proxy';
 	if (attempt.outcome === 'completed' || attempt.outcome === 'failed') return 'direct';
 	return 'none';
 }

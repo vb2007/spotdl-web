@@ -1,3 +1,4 @@
+import math
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -5,23 +6,21 @@ from typing import Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Query, Response
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
 from app.errors import ApiError
-from app.models import DownloadedTrack, Job, JobSourceType, Proxy, Track, TrackAttempt, TrackState, User
+from app.models import DownloadedTrack, Job, JobSourceType, JobState, Proxy, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
-from app.services import app_settings, events, retry, track_listing
+from app.services import app_settings, events, retry, rollup, track_listing
+from app.services.track_states import CANCELLABLE_TRACK_STATES, RETRYABLE_TRACK_STATES, cancelled_used_proxy_id
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import track_attempt_to_dict, track_song_meta, track_to_dict
 from app.services.view_scope import View, resolve_view
 
 router = APIRouter(prefix="/api/tracks", tags=["tracks"])
-
-_TERMINAL_TRACK_STATES = {TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE, TrackState.CANCELLED}
-_RETRYABLE_TRACK_STATES = {TrackState.WAITING, TrackState.LOOKUP_FAILED}
-
 
 def _get_track_or_404(
     db: Session, track_id: uuid.UUID, user: User
@@ -130,6 +129,35 @@ def list_tracks(
         raise ApiError(400, "invalid_list_params", str(exc), {"reason": str(exc)}) from exc
 
 
+@router.get("/{track_id}")
+def get_track(
+    track_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """v56 (A3): one track as the server has it now, with its job's summary embedded in the
+    same shape as `GET /api/tracks`'s items. The track row's cancel used to re-read up to
+    1000 tracks of the job to find this one. Same owner-scoped 404-not-403 gate as every
+    other direct-id track endpoint; an admin reads anyone's."""
+    track, _owner_id, _archived_at = _get_track_or_404(db, track_id, user)
+    job, owner_email, owner_username = (
+        db.query(Job, User.email, User.username)
+        .join(User, Job.user_id == User.id)
+        .filter(Job.id == track.job_id)
+        .one()
+    )
+    body = track_to_dict(track)
+    body["job"] = {
+        "id": str(job.id),
+        "source_url": job.source_url,
+        "source_type": job.source_type.value,
+        "owner_email": owner_email,
+        "owner_username": owner_username,
+        "title": rollup.job_title(db, job),
+    }
+    return body
+
+
 @router.delete("/{track_id}")
 def cancel_track(
     track_id: uuid.UUID,
@@ -138,16 +166,42 @@ def cancel_track(
 ) -> dict:
     """Same semantics as `DELETE /api/jobs/{id}` but for a single track — a track
     already `downloading` finishes but its result is discarded by `download_track`
-    once it notices the state changed underneath it."""
+    once it notices the state changed underneath it.
+
+    v56 (A2): a track with nothing left in flight (`track_states.TERMINAL_TRACK_STATES`,
+    `lookup_failed` included) answers 409 `track_not_cancellable` with its state, like a
+    settled job's cancel, instead of a silent no-op. The state is re-checked by the UPDATE
+    itself, so a track that settled since it was read is never relabelled `cancelled`."""
     track, owner_id, _archived_at = _get_track_or_404(db, track_id, user)
-    if track.state not in _TERMINAL_TRACK_STATES:
-        track.state = TrackState.CANCELLED
-        track.scheduled_at = None
-        db.commit()
-        events.publish_track_event(
-            owner_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
+    cancelled = db.execute(
+        update(Track)
+        .where(Track.id == track.id, Track.state.in_(CANCELLABLE_TRACK_STATES))
+        .values(state=TrackState.CANCELLED, scheduled_at=None, used_proxy_id=cancelled_used_proxy_id())
+    ).rowcount
+    db.commit()
+    db.refresh(track)
+    if not cancelled:
+        raise ApiError(
+            409,
+            "track_not_cancellable",
+            f"Track is {track.state.value}, not cancellable",
+            {"state": track.state.value},
         )
+    events.publish_track_event(
+        owner_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
+    )
     return track_to_dict(track)
+
+
+def _seconds_until_tried(db: Session, track: Track, now: datetime) -> int:
+    """When a `waiting` track is dispatched without anyone's help: its own slot, or the
+    breaker's clear if that comes later (beat dispatches nothing while it holds). 0 when
+    it's due and nothing holds it."""
+    worker_state = retry.get_worker_state(db)
+    times = [track.scheduled_at] if track.scheduled_at is not None else []
+    if retry.breaker_tripped(worker_state, now):
+        times.append(worker_state.breaker_tripped_until)
+    return max([0] + [math.ceil((at - now).total_seconds()) for at in times])
 
 
 @router.post("/{track_id}/retry")
@@ -167,11 +221,28 @@ def retry_track(
     can have a `waiting`/`lookup_failed` track that got there any way other than *this*
     endpoint reviving one — so this is the one place that gate actually needs to live to
     keep "archived means settled, not just hidden" true. An archived job must be
-    unarchived first, exactly like a re-download would need it visible again anyway."""
+    unarchived first, exactly like a re-download would need it visible again anyway.
+
+    v56 (A8, #69): a non-admin may retry-now a `waiting` track once per ladder step
+    (`attempt_count`). It dispatches on the next beat pass and leaves the step as it is, so
+    the ladder keeps climbing; a second press in the same step answers 429 `retry_cooldown`
+    with the seconds until the track is tried anyway. An admin's retry is unrestricted, and so
+    is anyone's retry of a `lookup_failed` track (another search after a not-found)."""
     track, owner_id, archived_at = _get_track_or_404(db, track_id, user)
+    # v56 (A2): a job cancel leaves its not-found tracks as they are, so one can sit under a
+    # cancelled job; retrying it would download for a job that says "cancelled" and can no
+    # longer be cancelled. The job is read under a share lock, so a cancel committing
+    # meanwhile is seen (and a retry committing first is cancelled by it).
+    job_state = db.execute(
+        select(Job.state).where(Job.id == track.job_id).with_for_update(read=True)
+    ).scalar_one()
+    # Locked, so two presses at once can't both pass the per-step check below.
+    db.refresh(track, with_for_update=True)
     if archived_at is not None:
         raise ApiError(409, "job_archived", "Job is archived; unarchive it first")
-    if track.state not in _RETRYABLE_TRACK_STATES:
+    if job_state == JobState.CANCELLED:
+        raise ApiError(409, "job_cancelled", "Job is cancelled; submit the link again")
+    if track.state not in RETRYABLE_TRACK_STATES:
         raise ApiError(
             409,
             "track_not_retryable",
@@ -180,6 +251,21 @@ def retry_track(
         )
 
     now = datetime.now(timezone.utc)
+    if track.state == TrackState.WAITING and not user.is_admin:
+        if track.retry_now_step == track.attempt_count:
+            retry_after = _seconds_until_tried(db, track, now)
+            # A manual pause has no end time: nothing dispatches until someone resumes.
+            paused = bool(retry.get_worker_state(db).paused)
+            db.rollback()
+            raise ApiError(
+                429,
+                "retry_cooldown",
+                f"Retry now works once per wait; the next try is in {retry_after}s"
+                + (" once downloads resume" if paused else ""),
+                {"retry_after": retry_after, "paused": paused},
+                headers={"Retry-After": str(retry_after)},
+            )
+        track.retry_now_step = track.attempt_count
     track.state = TrackState.WAITING
     track.scheduled_at = now
     db.commit()
@@ -210,8 +296,10 @@ def list_track_attempts(
 ) -> list[dict]:
     """Per-attempt download history (v24) -- what each attempt tried (direct vs. which
     proxy) and what happened, oldest first. Same owner-scoped 404-not-403 gate as every
-    other direct-id track endpoint. The proxy is joined in the same query (v35) so each
-    row can carry its redacted label."""
+    other direct-id track endpoint. Each row carries its proxy's redacted label, stored
+    with the row since v56 (A4) so it outlives the proxy. The proxy is still joined in (v35),
+    in the same query, for a row with no stored label whose proxy exists: one an old worker
+    wrote during the deploy, after the migration's backfill."""
     _track, _owner_id, _archived_at = _get_track_or_404(db, track_id, user)
     rows = (
         db.query(TrackAttempt, Proxy.url)

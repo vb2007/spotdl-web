@@ -585,3 +585,28 @@ here.
     terminal row ignored every later event, so the UI stayed off by one until a reload, which
     is what E6 exists to stop. A `cancelled` event on a cancelled row now updates only its
     counters (no other state, no other field); v62 rebases onto it.
+
+- **2026-10-26, v56: a `failed` job stays cancellable; A8's rule confirmed (owner's decisions).**
+  - **A1:** the plan lets only an `expanding`/`active`/`waiting` job be cancelled. A `failed` job
+    (an expansion error, zero tracks) is cancelled too: that cancel is how the incoming overlay's
+    "dismiss" and the end of its "try again" clear it (`IncomingJobs.svelte`), and as written they
+    would have answered 409 forever. Settled and already-cancelled jobs answer 409
+    `job_not_cancellable`.
+  - **A8:** the plan's rule is kept as written: a non-admin's "retry now" on a `waiting` track
+    works once per ladder step. Each failed attempt advances the step, so it allows one immediate
+    retry per failure (the breaker still bounds a streak). `lookup_failed` retries and an admin's
+    stay unrestricted.
+  - **A7, widened:** the plan names only the pill and `/settings`. The dashboard's hold line (the
+    Waterfall, the only hold display a non-admin has) and a track's "next try" countdown had the
+    same skew, so they're fixed in v56 too. `/api/worker/status` also answers `server_time`, and
+    `api.serverToLocal()` places a server timestamp on the browser's clock. A proxy's
+    `cooldown_until` still meets the browser's clock as is.
+  - **A5, existing rows:** the bound only stops new values, and a stored value past ~739,000 days
+    still stops the archive sweep. v56's migration clamps existing rows (above 36500 → 36500,
+    below 1 → NULL). **So v56's migration does rewrite data**, against its plan's "(no data
+    rewrite)": out-of-range retention rows, plus the backfill of the new `proxy_label` column.
+    Take a `pg_backup` first, as the plan's Deploy notes already say.
+  - **A4, a used proxy's delete waits for its download:** rather than racing a download through
+    it, `DELETE /api/proxies/{id}` on a proxy in use marks it (`proxies.delete_requested_at`, a new
+    column in v56's migration): it's never picked again, a periodic task deletes it once nothing
+    uses it, and `/settings` shows it as "deleting" meanwhile. An idle proxy still goes at once.

@@ -35,13 +35,11 @@
 
 	let workerBusy = $derived($workerStatus?.busy ?? false);
 	let workerPaused = $derived($workerStatus?.paused ?? false);
-	// Only while it is still in the future (the backend's own `breaker_active` test); the
-	// 5s poll below re-derives it, so a cleared hold drops out within one poll.
+	// v56 (A7): whether the hold runs is the server's answer, on this browser's clock
+	// (api.ts's `breaker_clears_at`), never the server's timestamp against this clock (#63).
+	// The 5s poll below re-derives it, so a cleared hold drops out within one poll.
 	let breakerUntil = $derived(
-		$workerStatus?.breaker_tripped_until != null &&
-			Date.parse($workerStatus.breaker_tripped_until) > Date.now()
-			? $workerStatus.breaker_tripped_until
-			: null
+		$workerStatus?.breaker_active ? $workerStatus.breaker_clears_at : null
 	);
 
 	// v42 (F05): this page's own SSE link (`$link`), shown in the header and the Waterfall,

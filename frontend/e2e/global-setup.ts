@@ -75,7 +75,9 @@ async function clearSlate(context: APIRequestContext): Promise<void> {
 	const { items } = (await response.json()) as { items: Job[] };
 	for (const job of items) {
 		const cancelled = await context.delete(`/api/jobs/${job.id}`);
-		if (!cancelled.ok()) throw new Error(`cancelling job ${job.id} failed: ${cancelled.status()}`);
+		// v56 (A1): 409 when it finished between the listing and the cancel; nothing to clear.
+		if (!cancelled.ok() && cancelled.status() !== 409)
+			throw new Error(`cancelling job ${job.id} failed: ${cancelled.status()}`);
 	}
 	const archived = await context.post('/api/jobs/archive', { data: { all_settled: true } });
 	if (!archived.ok()) throw new Error(`clear log failed: ${archived.status()}`);

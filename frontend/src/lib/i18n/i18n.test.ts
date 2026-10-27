@@ -258,14 +258,20 @@ const BACKEND_CODES = [
 	'setting_out_of_range',
 	'alerts_not_configured',
 	'alert_send_failed',
-	'retention_days_invalid',
+	'retention_out_of_range',
 	// v53
 	'rate_limited',
 	'api_key_label_invalid',
 	'api_key_limit_reached',
 	'api_key_not_found',
 	'queue_unavailable',
-	'submit_too_long'
+	'submit_too_long',
+	// v56
+	'job_not_cancellable',
+	'track_not_cancellable',
+	'retry_cooldown',
+	'job_cancelled',
+	'proxy_deleting'
 ];
 const CLIENT_CODES = [
 	'request_invalid',
@@ -297,5 +303,20 @@ describe('every error code', () => {
 		expect(hungarian).not.toBe('the English detail');
 		expect(hungarian).not.toBe(english);
 		expect(hungarian).not.toMatch(/\{\w+\}/);
+	});
+
+	it('says a due retry_cooldown without a zero countdown (v56)', () => {
+		const due = new ApiError(429, 'the English detail', 'retry_cooldown', { retry_after: 0 });
+		expect(apiErrorText(due)).toBe(
+			'“retry now” works once per wait. This track goes on the next pass.'
+		);
+		// `paused` arrives as a JSON boolean, whatever ApiError's params type says.
+		const paused = new ApiError(429, 'the English detail', 'retry_cooldown', {
+			retry_after: 0,
+			paused: true as unknown as string
+		});
+		expect(apiErrorText(paused)).toContain('Downloads are paused');
+		const later = new ApiError(429, 'the English detail', 'retry_cooldown', { retry_after: 3725 });
+		expect(apiErrorText(later)).toBe('“retry now” works once per wait. Next try in 1:02:05.');
 	});
 });

@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime, timezone
 
+import pytest
 from concurrency import Gate, Thread, blocked_or_done
 from sqlalchemy import event, update
 
+from app.errors import ApiError
 from app.models import Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers import jobs as jobs_router
 from app.services import events
@@ -203,7 +205,11 @@ def test_cancel_job_marks_job_and_non_terminal_tracks_cancelled(authenticated_cl
         song_json={"name": "D"},
         state=TrackState.SKIPPED_DUPLICATE,
     )
-    db_session.add_all([downloading, waiting, completed, skipped])
+    # v56 (A2): not found is terminal, so a job cancel leaves it as it is.
+    not_found = Track(
+        job_id=job.id, spotify_track_id="e", song_json={"name": "E"}, state=TrackState.LOOKUP_FAILED
+    )
+    db_session.add_all([downloading, waiting, completed, skipped, not_found])
     db_session.commit()
 
     response = authenticated_client.delete(f"/api/jobs/{job_id}")
@@ -218,6 +224,7 @@ def test_cancel_job_marks_job_and_non_terminal_tracks_cancelled(authenticated_cl
         "cancelled": 2,
         "completed": 1,
         "skipped_duplicate": 1,
+        "lookup_failed": 1,
     }
 
     assert db_session.get(Track, downloading.id).state == TrackState.CANCELLED
@@ -226,6 +233,63 @@ def test_cancel_job_marks_job_and_non_terminal_tracks_cancelled(authenticated_cl
     # Already-terminal tracks are left exactly as they were.
     assert db_session.get(Track, completed.id).state == TrackState.COMPLETED
     assert db_session.get(Track, skipped.id).state == TrackState.SKIPPED_DUPLICATE
+    assert db_session.get(Track, not_found.id).state == TrackState.LOOKUP_FAILED
+
+
+@pytest.mark.parametrize(
+    ("job_state", "track_states", "lifecycle", "outcome"),
+    [
+        (JobState.EXPANDED, (TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE), "settled", "complete"),
+        (JobState.EXPANDED, (TrackState.COMPLETED, TrackState.LOOKUP_FAILED), "settled", "partial"),
+        (JobState.CANCELLED, (TrackState.CANCELLED,), "cancelled", None),
+    ],
+)
+def test_cancel_job_refuses_a_job_not_in_flight_with_409(
+    authenticated_client, db_session, owner, monkeypatch, job_state, track_states, lifecycle, outcome
+):
+    """v56 (A1): only an expanding/active/waiting job can be cancelled. Any other answers
+    409 with its rollup status, and the job and its tracks are left exactly as they were
+    (before v56 a settled job was relabelled `cancelled`)."""
+    published = []
+    monkeypatch.setattr(events, "publish_job_event", lambda *a, **kw: published.append(a))
+    monkeypatch.setattr(events, "publish_track_event", lambda *a, **kw: published.append(a))
+    job = _make_job_with_tracks(db_session, owner, states=track_states)
+    job.state = job_state
+    db_session.commit()
+
+    response = authenticated_client.delete(f"/api/jobs/{job.id}")
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "job_not_cancellable"
+    assert response.json()["params"] == {"lifecycle": lifecycle, "outcome": outcome}
+    db_session.expire_all()
+    assert db_session.get(Job, job.id).state == job_state
+    assert sorted(t.state for t in db_session.query(Track).filter(Track.job_id == job.id)) == sorted(track_states)
+    assert published == []
+
+
+def test_cancel_job_still_dismisses_a_failed_job(authenticated_client, db_session, owner):
+    """v56 (A1, owner's decision): a failed expansion has no tracks, and cancelling it is
+    the incoming overlay's "dismiss" (and the end of its "try again"), so it stays allowed."""
+    job = _make_job_with_tracks(db_session, owner, states=())
+    job.state = JobState.FAILED
+    db_session.commit()
+
+    response = authenticated_client.delete(f"/api/jobs/{job.id}")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == {"lifecycle": "cancelled", "outcome": None}
+
+
+@pytest.mark.parametrize("in_flight", [TrackState.PENDING, TrackState.QUEUED, TrackState.DOWNLOADING, TrackState.WAITING])
+def test_cancel_job_cancels_a_job_with_one_track_still_in_flight(authenticated_client, db_session, owner, in_flight):
+    job = _make_job_with_tracks(db_session, owner, states=(TrackState.COMPLETED, in_flight))
+
+    response = authenticated_client.delete(f"/api/jobs/{job.id}")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == {"lifecycle": "cancelled", "outcome": None}
+    assert response.json()["track_counts"] == {"completed": 1, "cancelled": 1}
 
 
 def test_cancel_unknown_job_returns_404(authenticated_client, db_session):
@@ -276,9 +340,10 @@ def test_bump_unknown_job_returns_404(admin_client, db_session):
     assert response.status_code == 404
 
 
-def test_priority_endpoints_403_for_a_non_admin_owner(authenticated_client, db_session, monkeypatch):
+def test_priority_endpoints_404_for_a_non_admin_owner(authenticated_client, db_session, monkeypatch):
     """v48 (owner decision): priority and bump are admin-only on the server too, not only
-    hidden in the UI -- even on the caller's own job."""
+    hidden in the UI -- even on the caller's own job. v56 (A6): the answer is an unknown
+    route's 404 (the path names an id), where v48 gave 403."""
     _stub_expand_job(monkeypatch)
     job_id = authenticated_client.post(
         "/api/jobs", json={"url": "https://open.spotify.com/track/abc"}
@@ -288,17 +353,17 @@ def test_priority_endpoints_403_for_a_non_admin_owner(authenticated_client, db_s
     bumped = authenticated_client.post(f"/api/jobs/{job_id}/bump")
 
     for response in (patched, bumped):
-        assert response.status_code == 403
-        assert response.json()["code"] == "admin_required"
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
     assert db_session.get(Job, uuid.UUID(job_id)).priority == 0
 
 
-def test_priority_endpoints_403_for_a_non_admin_whatever_the_id(authenticated_client):
-    """The admin check runs before the lookup: an unknown id answers the same 403, so a
+def test_priority_endpoints_404_for_a_non_admin_whatever_the_id(authenticated_client):
+    """The admin check runs before the lookup: an unknown id answers the same 404, so a
     non-admin learns nothing about which jobs exist."""
     job_id = uuid.uuid4()
-    assert authenticated_client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 1}).status_code == 403
-    assert authenticated_client.post(f"/api/jobs/{job_id}/bump").status_code == 403
+    assert authenticated_client.patch(f"/api/jobs/{job_id}/priority", json={"priority": 1}).status_code == 404
+    assert authenticated_client.post(f"/api/jobs/{job_id}/bump").status_code == 404
 
 
 def test_priority_endpoints_require_session(client):
@@ -477,6 +542,71 @@ def test_cancel_job_row_lock_holds_off_a_concurrent_expanded_commit(committed_db
     assert held_off == "blocked"
     with committed_db() as db:
         assert db.get(Job, job_id).state == JobState.CANCELLED
+
+
+def _committed_expanded_job_with_track(committed_db, state: TrackState) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
+    job_id, user_id = _committed_job(committed_db, JobState.EXPANDED)
+    with committed_db() as db:
+        track = Track(job_id=job_id, spotify_track_id="last", song_json={"name": "Last"}, state=state)
+        db.add(track)
+        db.commit()
+        return job_id, user_id, track.id
+
+
+def test_cancel_job_racing_its_last_track_completing_leaves_the_job_settled(committed_db, monkeypatch):
+    """v56 (A1) on two real connections. The job's last track is completing: its
+    transaction (download_track's, whose record_attempt UPDATE takes the track's row lock)
+    has written `completed` but not committed yet when the cancel arrives. The cancel's
+    track UPDATE waits on that lock, Postgres re-checks the row once it's released, finds
+    it `completed`, and the cancel answers 409 with the job left settled. Before v56 the
+    cancel read the track as `downloading`, then wrote `cancelled` over the completion and
+    relabelled the finished job `cancelled`."""
+    monkeypatch.setattr(events, "publish_track_event", lambda *a, **kw: None)
+    monkeypatch.setattr(events, "publish_job_event", lambda *a, **kw: None)
+    job_id, user_id, track_id = _committed_expanded_job_with_track(committed_db, TrackState.DOWNLOADING)
+    gate = Gate("the completion, written, before its commit")
+
+    def complete():
+        with committed_db() as db:
+            event.listen(db, "before_commit", gate, once=True)
+            db.execute(update(Track).where(Track.id == track_id).values(state=TrackState.COMPLETED))
+            db.commit()
+
+    completer = Thread(complete, name="download_track's completion")
+    gate.wait_reached()
+
+    def cancel():
+        with committed_db() as db:
+            return jobs_router.cancel_job(job_id, db=db, user=db.get(User, user_id))
+
+    canceller = Thread(cancel, name="cancel_job")
+    held_off = blocked_or_done(canceller)
+    gate.open()
+    completer.join()
+
+    with pytest.raises(ApiError) as refused:
+        canceller.join()
+    assert held_off == "blocked"
+    assert refused.value.status_code == 409
+    assert refused.value.code == "job_not_cancellable"
+    assert refused.value.params == {"lifecycle": "settled", "outcome": "complete"}
+    with committed_db() as db:
+        assert db.get(Job, job_id).state == JobState.EXPANDED
+        assert db.get(Track, track_id).state == TrackState.COMPLETED
+
+
+def test_cancel_job_that_wins_the_race_cancels_the_job_and_its_track(committed_db, monkeypatch):
+    """The other order: the cancel commits first, so the job and its last track are
+    `cancelled` (download_track then discards its result, as before v56)."""
+    monkeypatch.setattr(events, "publish_track_event", lambda *a, **kw: None)
+    monkeypatch.setattr(events, "publish_job_event", lambda *a, **kw: None)
+    job_id, user_id, track_id = _committed_expanded_job_with_track(committed_db, TrackState.DOWNLOADING)
+    with committed_db() as db:
+        body = jobs_router.cancel_job(job_id, db=db, user=db.get(User, user_id))
+    assert body["state"] == "cancelled"
+    with committed_db() as db:
+        assert db.get(Job, job_id).state == JobState.CANCELLED
+        assert db.get(Track, track_id).state == TrackState.CANCELLED
 
 
 def test_job_listing_reads_from_one_snapshot(authenticated_client, db_session, monkeypatch):

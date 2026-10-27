@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -55,8 +55,22 @@ def require_session(
 
 
 def require_admin(user: User = Depends(require_session)) -> User:
+    """v56 (A6): for an admin action whose path names no id (settings, worker controls, the
+    proxy list, the library sweep). A non-admin's 403 there confirms nothing."""
     if not user.is_admin:
         raise ApiError(403, "admin_required", "Admin access required")
+    return user
+
+
+def require_admin_hidden(user: User = Depends(require_session)) -> User:
+    """v56 (A6): for an admin route whose path names an id (a job's priority or bump, one
+    proxy), and the test-alert send v36 hid, answering a non-admin exactly like a route that
+    doesn't exist, so neither the route nor the id is confirmed (CLAUDE.md's v2 invariant:
+    ids are never confirmed). `/api/admin/stats` has its own copy (admin.py, v44).
+    Unauthenticated is still 401, from require_session."""
+    if not user.is_admin:
+        # Deliberately no `code` (v46): it must read exactly like an unknown route's 404.
+        raise HTTPException(status_code=404, detail="Not Found")
     return user
 
 

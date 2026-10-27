@@ -224,8 +224,8 @@ test.describe('non-admin', () => {
 		// own admin reads count here.
 		expect(adminCalls.filter((p) => p !== '/api/worker/status')).toEqual([]);
 
-		// 403, not 404: admin gating is v22's pinned contract (404-not-403 is the rule for a
-		// non-owner's direct-id access, not for admin endpoints). See the v37 Amendment.
+		// 403, not 404: these admin routes name no id (v56's A6 rule: 404 only where the path
+		// names an id, plus the stats page and the test-alert send). See the v37 Amendment.
 		for (const path of ADMIN_GETS) {
 			expect((await page.request.get(path)).status(), path).toBe(403);
 		}

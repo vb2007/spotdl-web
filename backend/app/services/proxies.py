@@ -17,12 +17,14 @@ from typing import TYPE_CHECKING, Iterator
 from urllib.parse import urlsplit
 
 from spotdl.providers.audio.ytmusic import YouTubeMusic
+from sqlalchemy import exists
 from sqlalchemy.orm import Session
 from ytmusicapi import YTMusic
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Proxy, ProxySource
+from app.models import Proxy, ProxySource, Track, TrackState
+from app.services.attempts import PROXY_OUTCOME_LOCK, reclaim_unreported
 # v31's redact_text, moved to the dependency-free redaction module in v36 (the alert
 # watchdog's own process uses it without importing spotdl); re-exported so every
 # `proxies.redact_text` call site is unchanged.
@@ -224,7 +226,16 @@ def sync_from_file() -> None:
     try:
         rows = db.query(Proxy).all()
         existing = {p.url: p for p in rows if p.source == ProxySource.FILE}
-        manual_targets = {connection_target(p.url) for p in rows if p.source == ProxySource.MANUAL}
+        # v56 (A4): a manual row waiting to be deleted no longer holds its target.
+        manual_targets = {
+            connection_target(p.url)
+            for p in rows
+            if p.source == ProxySource.MANUAL and p.delete_requested_at is None
+        }
+        # ...but its exact URL is still taken (proxies.url is unique) until it's gone.
+        deleting_urls = {
+            p.url for p in rows if p.source == ProxySource.MANUAL and p.delete_requested_at is not None
+        }
         listed = set(urls_in_file)
         # File rows the file no longer names, by target: each can take its target's
         # rotated credential.
@@ -246,6 +257,13 @@ def sync_from_file() -> None:
         skipped = 0
         for url in urls_in_file:
             target = connection_target(url)
+            if url in deleting_urls:
+                skipped += 1
+                logger.warning(
+                    "sync_from_file: skipping %s until its manual row's delete finishes",
+                    redact_text(target),
+                )
+                continue
             if target in claimed or target in manual_targets:
                 skipped += 1
                 logger.warning(
@@ -311,7 +329,14 @@ def pick_proxy(db: Session) -> Proxy | None:
             cooldown_until = cooldown_until.replace(tzinfo=timezone.utc)
         return cooldown_until <= now
 
-    candidates = [p for p in db.query(Proxy).filter(Proxy.enabled.is_(True)).all() if _cooldown_over(p)]
+    # v56 (A4): never a proxy whose delete is waiting.
+    candidates = [
+        p
+        for p in db.query(Proxy)
+        .filter(Proxy.enabled.is_(True), Proxy.delete_requested_at.is_(None))
+        .all()
+        if _cooldown_over(p)
+    ]
     if not candidates:
         return None
 
@@ -327,9 +352,23 @@ def pick_proxy(db: Session) -> Proxy | None:
     # proxy-rung track from ever reaching a verdict), so it's cooled down like any failed
     # proxy and the next one is tried. None left means the caller's direct fallback.
     for candidate in candidates:
-        candidate.last_used_at = now
         if _probe_reachable(candidate.url):
-            return candidate
+            # v56 (A4): the one chosen is locked (until the caller commits) only after its
+            # probe, so no lock is held across the probes; SKIP LOCKED passes over one an
+            # admin's delete is deciding on, and a delete that waited sees it as just picked.
+            chosen = (
+                db.query(Proxy)
+                .filter(Proxy.id == candidate.id, Proxy.delete_requested_at.is_(None))
+                .with_for_update(skip_locked=True)
+                .populate_existing()
+                .one_or_none()
+            )
+            if chosen is None:
+                continue
+            # Stamped now, not when the pick began: the probes before it can take seconds, and
+            # proxy_in_use's grace counts from here.
+            chosen.last_used_at = datetime.now(timezone.utc)
+            return chosen
         logger.warning(
             "pick_proxy: %s didn't accept a TCP connection; cooling it down and trying the next",
             redact(candidate.url),
@@ -338,8 +377,64 @@ def pick_proxy(db: Session) -> Proxy | None:
     return None
 
 
+# v56 (A4): a proxy picked this recently may still be on its way to the `downloading` commit
+# that records it on the track (download_track), so it counts as in use.
+PROXY_IN_USE_GRACE = timedelta(seconds=60)
+
+
+def proxy_in_use(db: Session, proxy: Proxy, now: datetime) -> bool:
+    """Whether a download may be going through `proxy` right now: a track `downloading` with
+    it as its proxy, one cancelled mid-download within the stale-track window (its download
+    runs on to the end, cancel's own semantics), one beat reclaimed within that window whose
+    download hasn't reported back (v55: a live one runs on and supersedes the reclaim's row),
+    or a pick within PROXY_IN_USE_GRACE. Call with the proxy row locked."""
+    last_used_at = proxy.last_used_at
+    if last_used_at is not None and last_used_at > now - PROXY_IN_USE_GRACE:
+        return True
+    still_running = now - timedelta(seconds=get_settings().stale_track_after_seconds)
+    return db.query(
+        exists().where(
+            Track.used_proxy_id == proxy.id,
+            (Track.state == TrackState.DOWNLOADING)
+            | ((Track.state == TrackState.CANCELLED) & (Track.updated_at > still_running))
+            | reclaim_unreported(still_running),
+        )
+    ).scalar()
+
+
+def lock_for_outcome(db: Session, proxy_id: uuid.UUID | None) -> None:
+    """v56 (A4): `attempts.PROXY_OUTCOME_LOCK` on an attempt's proxy, for download_track to
+    take before the track's row lock when it records the outcome. A delete locks the proxy and then (ON
+    DELETE SET NULL) the track; recording an outcome in the other order could deadlock with
+    it. Held to the outcome's commit, which a delete then waits for."""
+    if proxy_id is not None:
+        db.get(Proxy, proxy_id, with_for_update=PROXY_OUTCOME_LOCK)
+
+
+def finalize_proxy_deletions(db: Session) -> list[str]:
+    """Deletes every proxy whose delete was waiting and that nothing uses any more (v56, A4,
+    owner's decision). Returns the deleted ones' redacted URLs, for the log."""
+    now = datetime.now(timezone.utc)
+    waiting = (
+        db.query(Proxy)
+        .filter(Proxy.delete_requested_at.is_not(None))
+        .with_for_update(skip_locked=True)
+        .all()
+    )
+    deleted = []
+    for proxy in waiting:
+        if not proxy_in_use(db, proxy, now):
+            deleted.append(redact(proxy.url))
+            db.delete(proxy)
+    db.commit()
+    return deleted
+
+
 def record_proxy_result(db: Session, proxy_id: uuid.UUID, success: bool) -> None:
-    proxy = db.get(Proxy, proxy_id)
+    # v56 (A4): attempts.PROXY_OUTCOME_LOCK, so a delete (ON DELETE SET NULL now lets it
+    # through) waits for this commit instead of making its UPDATE match no row (StaleDataError,
+    # a rolled-back download).
+    proxy = db.get(Proxy, proxy_id, with_for_update=PROXY_OUTCOME_LOCK)
     if proxy is None:
         return
 

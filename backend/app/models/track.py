@@ -42,6 +42,13 @@ class Track(Base):
             "scheduled_at",
             postgresql_where=text("state = 'waiting'"),
         ),
+        # v56 (E1): beat's dispatch query also takes `pending` (expand_job's outbox marker),
+        # which the `waiting`-only index above can't serve.
+        Index(
+            "ix_tracks_scheduled_at_due",
+            "scheduled_at",
+            postgresql_where=text("state IN ('waiting', 'pending')"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -66,6 +73,9 @@ class Track(Base):
     attempts_made: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     failure_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     scheduled_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # v56 (A8): the ladder step (`attempt_count`) at which a non-admin last used "retry now"
+    # on this track while it was `waiting`. One retry-now per step: equal means used.
+    retry_now_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_error_type: Mapped[TrackErrorType | None] = mapped_column(
         Enum(
@@ -76,7 +86,7 @@ class Track(Base):
         nullable=True,
     )
     used_proxy_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("proxies.id"), nullable=True
+        ForeignKey("proxies.id", ondelete="SET NULL"), nullable=True
     )
     output_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)

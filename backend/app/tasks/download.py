@@ -404,9 +404,9 @@ def download_track(track_id: str) -> None:
         # v55 (E5): a conditional transition, not a plain assignment. A cancel or a reclaim
         # committed at any point since this invocation started (during the proxy probes
         # included) makes it match no row, where the old assignment overwrote it.
-        claim = {"state": TrackState.DOWNLOADING}
-        if proxy_id is not None:
-            claim["used_proxy_id"] = proxy_id
+        # v56 (A4): used_proxy_id is this attempt's proxy, or none: an earlier attempt's would
+        # make proxies.proxy_in_use see a direct download as going through it.
+        claim = {"state": TrackState.DOWNLOADING, "used_proxy_id": proxy_id}
         # v55 (E7): everything the download needs, read here, so nothing touches the ORM
         # between the commit below and the post-download refresh. Reading an expired row (or
         # the output settings row) after that commit opened a transaction that sat
@@ -548,7 +548,9 @@ def download_track(track_id: str) -> None:
             # the outcome (review round 1). Taken only here, after the file checks and the
             # tag repair above (no DB, but a cover-art fetch can take seconds), so neither a
             # cancel nor beat's reclaim waits on them (review round 2); a missing file
-            # raises into the failure path, which checks for a cancel the same way.
+            # raises into the failure path, which checks for a cancel the same way. v56 (A4):
+            # the proxy's lock first, a proxy delete's lock order.
+            proxies.lock_for_outcome(db, proxy_id)
             db.refresh(track, with_for_update=True)
             if track.state == TrackState.CANCELLED:
                 logger.info(
@@ -693,7 +695,8 @@ def download_track(track_id: str) -> None:
                 exc_info=(type(exc), log_exc, exc.__traceback__),
             )
             db.rollback()
-            # v55: locked, like the success path's refresh.
+            # v55: locked, like the success path's refresh (v56: after the proxy's lock).
+            proxies.lock_for_outcome(db, proxy_id)
             track = db.get(Track, uuid.UUID(track_id), with_for_update=True, populate_existing=True)
             if track.state == TrackState.CANCELLED:
                 logger.info(
