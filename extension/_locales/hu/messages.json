@@ -78,9 +78,6 @@
 	"menuChooseArtist": {
 		"message": "Melyik előadó?"
 	},
-	"toastQueued": {
-		"message": "Sorba állítva a spotdl-ben"
-	},
 	"toastQueuedAlbum": {
 		"message": "Az egész album sorba állítva a spotdl-ben"
 	},
