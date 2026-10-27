@@ -842,7 +842,15 @@
 	"stats_alerts_col_state": "Állapot",
 	"stats_alerts_col_attempts": "Próbák",
 	"stats_alerts_col_message": "Üzenet",
-	"stats_alerts_attempts_unit": "próba",
+	"stats_alerts_attempts_unit": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "próba"
+			}
+		}
+	],
 	"stats_alert_category_breaker": "Biztosíték",
 	"stats_alert_category_spike": "Hibahullám",
 	"stats_alert_category_beat_stale": "Ütemező elnémult",

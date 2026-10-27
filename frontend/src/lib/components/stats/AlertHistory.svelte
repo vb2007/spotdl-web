@@ -12,7 +12,7 @@
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
+	import { counted, formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
 
 	let { readToken }: { readToken: number } = $props();
 
@@ -186,7 +186,7 @@
 						</td>
 						<td class="num mono attempts"
 							>{formatNumber(item.attempts)}<span class="unit"
-								>&nbsp;{m.stats_alerts_attempts_unit()}</span
+								>&nbsp;{m.stats_alerts_attempts_unit(counted(item.attempts))}</span
 							></td
 						>
 						<td class="message">
@@ -368,7 +368,7 @@
 	}
 
 	/* Phone: 16px gutter; each row becomes a stacked reading (time, alert and state, then the
-	   message), the units spelled out. */
+	   message across the full width, then the tries), the units spelled out. */
 	@media (max-width: 40em) {
 		.panel {
 			padding: var(--space-4);
@@ -414,16 +414,17 @@
 			text-align: right;
 		}
 
-		.log .attempts {
-			grid-column: 3;
+		.log .message {
+			grid-column: 1 / -1;
 			grid-row: 2;
-			font-size: var(--fs-meta);
-			color: var(--text-muted);
 		}
 
-		.log .message {
-			grid-column: 1 / 3;
-			grid-row: 2;
+		.log .attempts {
+			grid-column: 1 / -1;
+			grid-row: 3;
+			text-align: left;
+			font-size: var(--fs-meta);
+			color: var(--text-muted);
 		}
 
 		.unit {

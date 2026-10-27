@@ -893,7 +893,16 @@
 	"stats_alerts_col_state": "State",
 	"stats_alerts_col_attempts": "Tries",
 	"stats_alerts_col_message": "Message",
-	"stats_alerts_attempts_unit": "tries",
+	"stats_alerts_attempts_unit": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "try",
+				"countPlural=*": "tries"
+			}
+		}
+	],
 	"stats_alert_category_breaker": "Breaker",
 	"stats_alert_category_spike": "Failure spike",
 	"stats_alert_category_beat_stale": "Beat stale",
