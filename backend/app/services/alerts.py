@@ -290,6 +290,8 @@ def record(db: Session, category: str, fingerprint: str, text: str):
     if not is_configured():
         return None
     body = format_body(text)
+    # The column's width, here once, so the cooldown lookup reads the same value it stores.
+    fingerprint = fingerprint[:200]
     try:
         with db.begin_nested():
             row = app_settings.get_alert_settings(db)
@@ -325,7 +327,7 @@ def record(db: Session, category: str, fingerprint: str, text: str):
             db.add(
                 AlertOutbox(
                     category=category,
-                    fingerprint=fingerprint[:200],
+                    fingerprint=fingerprint,
                     body=body,
                     created_at=created_at,
                     state=state,

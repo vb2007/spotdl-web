@@ -8,7 +8,7 @@
   The page's refresh re-reads the first page (`readToken`), newest read wins.
 -->
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
@@ -75,9 +75,10 @@
 	}
 
 	$effect(() => {
-		// Re-read whenever the page asks (its first load, and each refresh).
-		void readToken;
-		void readFirst();
+		// Re-read whenever the page asks: its first load (1) and each refresh. 0 is before the
+		// page's first load, which would only be superseded by it.
+		if (readToken === 0) return;
+		untrack(() => void readFirst());
 	});
 
 	const today = $derived(new Date().toDateString());
