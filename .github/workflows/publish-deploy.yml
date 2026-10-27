@@ -569,15 +569,31 @@ jobs:
           TMP="$(mktemp -d)"
           trap 'rm -rf "$TMP"' EXIT
           guard() {
-            local dir
+            local dir args net
             dir="$(mktemp -d -p "$TMP")"
             guard_rc=0
             for f in docker-compose.yml docker-compose.prod.yml; do
               # Unreadable target = "couldn't check" (1), not a step abort.
               git -C "$DEPLOY_DIR" show "$2:$f" > "$dir/$f" || { guard_rc=1; return 0; }
             done
-            IMAGE_TAG="$1" \
-              GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $dir/docker-compose.yml -f $dir/docker-compose.prod.yml --profile tunnel" \
+            args="--project-directory $DEPLOY_DIR -f $dir/docker-compose.yml -f $dir/docker-compose.prod.yml --profile tunnel"
+            # v60 (P3): when the failed release changed `networks:`, its `up` recreated the
+            # project network with the new config, and the probe's `compose run` with the
+            # target's files then tried to recreate it back while the failed stack still holds
+            # it ("network ... has active endpoints"): a guard error, so no rollback at all. The
+            # probe only needs Postgres, so it joins the live network as `external` instead of
+            # reconciling it; the rollback's own `up` below does recreate the network to the
+            # target's config. Absent network (nothing is up): no override, compose creates it.
+            # Only the name leaves the `config` output (which holds .env values).
+            net="$(IMAGE_TAG="$1" docker compose $args config --format json 2>/dev/null \
+              | python3 -c 'import json, sys; print(json.load(sys.stdin).get("networks", {}).get("default", {}).get("name", ""))' \
+              2>/dev/null || true)"
+            if [ -n "$net" ] && docker network inspect "$net" >/dev/null 2>&1; then
+              printf 'networks:\n  default: !override\n    name: %s\n    external: true\n' "$net" > "$dir/guard-network.yml"
+              args="$args -f $dir/guard-network.yml"
+              echo "migration_guard: probing on the live network $net as it is (external)"
+            fi
+            IMAGE_TAG="$1" GUARD_COMPOSE_ARGS="$args" \
               bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" \
               2> "$dir/guard.err" || guard_rc=$?
             # `|| true`: a redactor failure (it prints nothing then) mustn't abort a rollback
