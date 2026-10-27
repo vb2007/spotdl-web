@@ -43,6 +43,17 @@ celery_app.conf.update(
             "task": "app.tasks.beat.archive_due_jobs",
             "schedule": 3600.0,
         },
+        # v59: the alert outbox's delivery pass (the watchdog runs one too). An expired tick
+        # is just skipped: the next one, 30s later, does the same work.
+        "deliver-alerts": {
+            "task": "app.tasks.alerts.deliver_alerts",
+            "schedule": 30.0,
+            "options": {"expires": 25},
+        },
+        "prune-alert-outbox": {
+            "task": "app.tasks.alerts.prune_alert_outbox",
+            "schedule": 3600.0,
+        },
         # v56 (A4): a proxy delete that waited for its download finishes within a tick of it.
         "finalize-proxy-deletions": {
             "task": "app.tasks.proxies.finalize_proxy_deletions",
