@@ -1248,8 +1248,8 @@ needed" claim — rather than silently deleted.
   `update_url` reads a fixed `extension-updates` prerelease instead; extension releases are
   created `--latest=false` → *v61*
 - `gh release view`/`download` exit 1 for both "release not found" and real errors: match the
-  message (`release not found`, `no assets match the file pattern`) and fail on anything else
-  → *v61*
+  message (`release not found`, `no assets match the file pattern`, `no assets to download`) and
+  fail on anything else → *v61*
 
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
@@ -7292,6 +7292,13 @@ independently-found production bug from the same conversation)
   calls the branch's real `extension-release.yml` with `uses:`, which works from any ref.
 - **`gh release` errors are text.** `gh release view <missing>` and `gh release download
   <missing>` print `release not found`; a pattern matching nothing prints `no assets match the
-  file pattern`. Both exit 1, like an auth or network failure, so the workflow matches the message
-  and fails on anything else.
+  file pattern`, and a release with no assets at all `no assets to download` (gh's source; the
+  first two were seen this session). All exit 1, like an auth or network failure, so the
+  workflow matches the message and fails on anything else.
+- **Same version, other content.** Release & Deploy's plan reads "the `extension-v<version>` tag
+  exists" as "released". A version released from a branch (a dispatch) and later reused by a PR
+  carrying different code would never ship. CI's `check_version.py` compares the tag's
+  `extension/` tree with the PR's and refuses a difference; and a signed file fetched back from
+  AMO must equal the commit's `extension/` file for file (a web-ext build of it, minus
+  `META-INF/`).
 

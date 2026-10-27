@@ -15,7 +15,8 @@ Usage:
                                  # without the version rising above <base-ref>'s (path-aware:
                                  # a docs-only diff is not forced to bump), and the same for
                                  # extension/ and the extension's own version
-    check_version.py --extension # print the extension's version (extension-release.yml)
+    check_version.py --extension # print the extension's version (nothing if there's no
+                                 # extension/manifest.json): release-deploy.yml, extension-release.yml
 
 Prints the resolved app version to stdout on success — release.yml reuses this as the single
 source of the version string rather than a second, possibly-disagreeing parser. The extension
@@ -81,6 +82,16 @@ def git_show(ref: str, rel_path: str) -> str | None:
     return result.stdout if result.returncode == 0 else None
 
 
+def git_rev(rev: str) -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", rev],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
 def changed_paths(base: str) -> list[str]:
     result = subprocess.run(
         ["git", "diff", "--name-only", f"{base}...HEAD"],
@@ -131,11 +142,28 @@ def check_extension(base: str | None, changed: list[str]) -> int:
             file=sys.stderr,
         )
         return 1
+    # A version already released (its `extension-v*` tag, which CI's full-history checkout
+    # fetches) from other extension/ content would be "already released" to Release & Deploy's
+    # plan, and this code would never ship. Same content (the release was made from this very
+    # tree, a proof before merge) is fine.
+    tag = f"extension-v{version}"
+    released_tree = git_rev(f"refs/tags/{tag}^{{commit}}:extension")
+    if released_tree and released_tree != git_rev("HEAD:extension"):
+        print(
+            f"check_version: the extension's version ({version}) was already released as {tag} "
+            f"from other extension/ content, so this change would never ship. Raise "
+            f"{EXTENSION_MANIFEST_REL}'s version past every released one.",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 
 def main() -> int:
     if sys.argv[1:] == ["--extension"]:
+        # No extension at all prints nothing (Release & Deploy's plan then releases none).
+        if not EXTENSION_MANIFEST.exists():
+            return 0
         version = read_extension_version(EXTENSION_MANIFEST.read_text(), str(EXTENSION_MANIFEST))
         if not SEMVER_RE.match(version):
             print(

@@ -16,7 +16,9 @@ Firefox 153 (the current ESR) or newer, any release channel.
 1. Open the newest `extension-v<version>` release on
    [the releases page](https://github.com/vb2007/spotdl-web/releases) (it's never the one marked
    *Latest*: that badge is the app's) and click its `spotdl-web-<version>.xpi`.
-2. Firefox asks to install *spotdl-web*: confirm, and allow what it asks for (below).
+2. Firefox asks to install *spotdl-web*: confirm, and allow what it asks for (below). If the
+   click only downloads the file, open it from Firefox's downloads, or drag it onto
+   `about:addons`.
 
 It's a permanent install: it survives restarts, and `about:addons` lists it like any other
 add-on. Then set it up (next section).
@@ -126,16 +128,20 @@ principal that made it) found the extension contacting only the configured app o
    independent of the app's). CI's `version` job refuses a PR that touches `extension/` without
    raising it above `main`'s, and a PR that touches only `extension/` needs no app bump.
 2. Merge. The merge's "Release & Deploy" run (`docs/RELEASE_PIPELINE.md`) finds the version
-   above every released one, and its `extension-release` job (`.github/workflows/extension-release.yml`):
+   above every released one, and its `extension-release` job (`.github/workflows/extension-release.yml`,
+   after the app's deploy):
    - signs it on AMO, unlisted (`web-ext sign --channel unlisted`, `npm run sign`), waiting for
      AMO's automatic signing;
-   - checks the XPI carries Mozilla's signature and the right version;
+   - checks the XPI carries Mozilla's signature and the right version, and that its files are
+     this commit's `extension/`;
    - creates the `extension-v<version>` release with `spotdl-web-<version>.xpi` and
      `updates.json`, never marked *Latest*;
    - puts the new `updates.json` on the fixed `extension-updates` release, which installed copies
      read.
 
-   A merge that doesn't raise the version runs no extension job at all.
+   A merge that doesn't raise the version runs no extension job at all. CI also refuses a version
+   already released from other `extension/` content (an `extension-v*` tag), which would
+   otherwise count as "already released" and never ship.
 
 **Credentials.** Signing needs AMO API credentials as two repository secrets, `AMO_JWT_ISSUER`
 and `AMO_JWT_SECRET` (addons.mozilla.org → Developer Hub → *Manage API Keys*: the JWT issuer and
@@ -148,8 +154,9 @@ finds the version already on AMO and downloads its signed file instead of signin
 version already released is a successful no-op that only makes sure `updates.json` lists it.
 
 **By hand.** *Actions* → *Extension Release* → *Run workflow* releases the chosen ref's version,
-the same way. From a branch, that's an unmerged build every installed copy will update to; the
-run says so.
+the same way, refusing a version below the newest released one. From a branch, that's an
+unmerged build every installed copy will update to; the run says so. A dispatched run sends no
+Matrix notice (only "Release & Deploy" has `notify`): watch it in *Actions*.
 
 ## Development
 

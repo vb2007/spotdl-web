@@ -109,6 +109,11 @@ jobs:
         id: extension
         run: |
           VERSION="$(python3 .github/scripts/check_version.py --extension)"
+          if [ -z "$VERSION" ]; then
+            echo "extension=false" >> "$GITHUB_OUTPUT"
+            echo "No extension/manifest.json: no extension to release." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           TAGS="$(git ls-remote --tags --refs origin 'refs/tags/extension-v*')"
           RELEASED="$(printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/extension-v", "", $2); print $2}' \
@@ -135,11 +140,14 @@ jobs:
       commit: ${{ github.sha }}
     secrets: inherit
 
-  # v61: signs and releases the Firefox extension when `plan` found its version risen, beside
-  # (never instead of) the app's release and deploy, which don't wait for it.
+  # v61: signs and releases the Firefox extension when `plan` found its version risen. After the
+  # deploy, whatever its result (`!cancelled()`, so a skipped or failed deploy doesn't skip it):
+  # the one runner takes ready jobs first-in, first-out, and the app's release and deploy must
+  # never queue behind AMO's signing wait.
   extension-release:
-    needs: plan
-    if: needs.plan.outputs.extension == 'true'
+    needs: [plan, deploy]
+    if: >-
+      !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.extension == 'true'
     permissions:
       contents: write
     uses: ./.github/workflows/extension-release.yml
@@ -199,6 +207,7 @@ jobs:
           # v61: the extension's job, named in a failure notice like the others.
           EXTENSION_RESULT: ${{ needs['extension-release'].result }}
           EXTENSION_VERSION: ${{ needs.plan.outputs.extension_version }}
+          DEPLOY_SKIPPED: ${{ needs.deploy.outputs.skipped }}
           TAG: ${{ needs.release.outputs.tag || needs.plan.outputs.tag }}
           VERSION: ${{ needs.deploy.outputs.version || needs.plan.outputs.version }}
           DEPLOY_VERSION: ${{ needs.deploy.outputs.version }}
@@ -248,9 +257,13 @@ jobs:
               echo "❌ spotdl-web: $WORKFLOW failed"
               echo "Failed job(s):$failed"
               echo "Release: $release"
-              # v61: only when the extension's job ran in this run.
+              # v61: only when the extension's job ran in this run; and a deploy that did
+              # succeed beside its failure is said plainly.
               if [ "$EXTENSION_RESULT" != "skipped" ] && [ -n "$EXTENSION_RESULT" ]; then
                 echo "Extension: extension-v${EXTENSION_VERSION:-unresolved} ($EXTENSION_RESULT)"
+                if [ "$DEPLOY_RESULT" = "success" ] && [ "$DEPLOY_SKIPPED" != "true" ]; then
+                  echo "Deployed: ${DEPLOY_VERSION:-unresolved} to production"
+                fi
               fi
               echo "Rollback: $rollback"
               echo "Run: $RUN_URL"

@@ -241,6 +241,31 @@ class CheckAgainstBaseTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), self.BASE)
 
+    def test_extension_version_released_from_other_content_fails(self):
+        # 1.0.1 was released (tagged) from one tree; a branch now carries 1.0.1 with other code.
+        self.git("checkout", "-q", "-b", "released")
+        self.set_extension_version("1.0.1")
+        self.commit("released elsewhere")
+        self.git("tag", "extension-v1.0.1")
+        self.git("checkout", "-q", "main")
+        self.branch(self.BASE, "extension/content.js", extension_version="1.0.1")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("already released as extension-v1.0.1", result.stderr)
+
+    def test_extension_version_released_from_this_content_passes(self):
+        self.branch(self.BASE, "extension/content.js", extension_version="1.0.1")
+        self.git("tag", "extension-v1.0.1")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_extension_flag_prints_nothing_without_a_manifest(self):
+        self.git("rm", "-q", "extension/manifest.json")
+        self.commit("no extension")
+        result = self.run_check("--extension")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "")
+
     def test_extension_flag_prints_the_extension_version(self):
         self.branch(self.BASE, "extension/content.js", extension_version="1.2.3")
         result = self.run_check("--extension")

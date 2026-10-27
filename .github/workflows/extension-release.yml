@@ -38,8 +38,9 @@ permissions:
 jobs:
   extension-release:
     runs-on: self-hosted
-    # Waiting for AMO's automatic signing is the long part (web-ext waits up to 15 minutes).
-    timeout-minutes: 30
+    # Waiting for AMO is the long part: web-ext waits up to 15 minutes for validation and 15 more
+    # for the signing, so its own "timeout exceeded" message comes before this one.
+    timeout-minutes: 45
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
@@ -55,7 +56,20 @@ jobs:
         id: version
         run: |
           VERSION="$(python3 .github/scripts/check_version.py --extension)"
+          if [ -z "$VERSION" ]; then
+            echo "::error::No extension/manifest.json at this commit: there's no extension to release."
+            exit 1
+          fi
           COMMIT="$(git rev-parse HEAD)"
+          # Release & Deploy's plan never calls this for a version below the newest released one;
+          # a dispatch on an older ref mustn't either (equal is the already-released no-op).
+          TAGS="$(git ls-remote --tags --refs origin 'refs/tags/extension-v*')"
+          NEWEST="$( { printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/extension-v", "", $2); print $2}'; echo "$VERSION"; } \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
+          if [ "$NEWEST" != "$VERSION" ]; then
+            echo "::error::Extension $VERSION is below the newest released one ($NEWEST): not releasing it."
+            exit 1
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=extension-v$VERSION" >> "$GITHUB_OUTPUT"
           echo "xpi=spotdl-web-$VERSION.xpi" >> "$GITHUB_OUTPUT"
@@ -180,13 +194,18 @@ jobs:
           WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
         run: npm run sign
 
-      # Exactly one XPI, AMO-signed (it carries Mozilla's signature files), and of this version.
+      # Exactly one XPI, AMO-signed (it carries Mozilla's signature files), of this version, and
+      # built from this commit's extension/: every file in it, apart from the signature, equals
+      # the checkout's. A file AMO already held (fetched) that differs was signed from other
+      # content, so releasing it would ship the wrong code under this version: that fails. A
+      # difference in a file signed just now would be AMO's own doing: a warning, recorded.
       - name: Check the signed XPI
         if: steps.released.outputs.released != 'true'
         working-directory: extension
         env:
           VERSION: ${{ steps.version.outputs.version }}
           XPI: ${{ steps.version.outputs.xpi }}
+          FETCHED: ${{ steps.fetched.outputs.fetched }}
         run: |
           shopt -s nullglob
           files=(web-ext-artifacts/*.xpi)
@@ -195,9 +214,16 @@ jobs:
             exit 1
           fi
           cp "${files[0]}" "$RUNNER_TEMP/$XPI"
-          python3 - "$RUNNER_TEMP/$XPI" "$VERSION" <<'EOF'
-          import json, sys, zipfile
-          path, version = sys.argv[1], sys.argv[2]
+          npx web-ext build --source-dir . --artifacts-dir "$RUNNER_TEMP/unsigned" --overwrite-dest \
+            --filename unsigned.zip --ignore-files 'test/**' 'node_modules/**' 'package.json' \
+            'package-lock.json' 'web-ext-artifacts/**' 'DESIGN.md' '.impeccable/**' '.amo-upload-uuid'
+          python3 - "$RUNNER_TEMP/$XPI" "$VERSION" "$RUNNER_TEMP/unsigned/unsigned.zip" <<'EOF'
+          import json, os, sys, zipfile
+          path, version, unsigned = sys.argv[1], sys.argv[2], sys.argv[3]
+          def files(zip_path):
+              with zipfile.ZipFile(zip_path) as z:
+                  return {n: z.read(n) for n in z.namelist()
+                          if not n.endswith("/") and not n.startswith("META-INF/")}
           with zipfile.ZipFile(path) as xpi:
               names = set(xpi.namelist())
               manifest = json.loads(xpi.read("manifest.json"))
@@ -205,7 +231,16 @@ jobs:
               sys.exit(f"::error::{path} carries no AMO signature (no META-INF/cose.sig or mozilla.rsa)")
           if manifest.get("version") != version:
               sys.exit(f"::error::{path} is version {manifest.get('version')!r}, not {version}")
-          print(f"{path}: signed, version {version}")
+          signed, source = files(path), files(unsigned)
+          differ = sorted(n for n in signed.keys() | source.keys() if signed.get(n) != source.get(n))
+          if differ:
+              shown = ", ".join(differ[:10]) + (" …" if len(differ) > 10 else "")
+              if os.environ.get("FETCHED") == "true":
+                  sys.exit(f"::error::AMO's signed {version} differs from this commit's extension/ "
+                           f"({shown}): it was signed from other content. Raise the version and release that.")
+              print(f"::warning::The XPI AMO just signed differs from the source in: {shown}")
+          print(f"{path}: signed, version {version}, {len(signed)} files"
+                + ("" if differ else ", identical to this commit's extension/"))
           EOF
 
       # The update manifest lists every released version; Firefox installs the newest whose
@@ -225,18 +260,19 @@ jobs:
             printf '%s' "$CURRENT" > "$RUNNER_TEMP/updates.current.json"
           elif printf '%s\n' "$CURRENT" | grep -q "release not found"; then
             echo '{}' > "$RUNNER_TEMP/updates.current.json"
-          elif printf '%s\n' "$CURRENT" | grep -q "no assets match"; then
+          elif printf '%s\n' "$CURRENT" | grep -qE "no assets match|no assets to download"; then
             echo "::warning::$UPDATES_TAG has no updates.json: starting a new one, which lists this version only."
             echo '{}' > "$RUNNER_TEMP/updates.current.json"
           else
             echo "::error::Couldn't read the current updates.json from $UPDATES_TAG: $CURRENT"
             exit 1
           fi
+          # Already released: hash the release's own asset (downloaded), never a field the runner's
+          # gh might not have.
           if [ "$RELEASED" = "true" ]; then
-            HASH="$(gh release view "$TAG" --repo "$REPO" --json assets --jq ".assets[] | select(.name == \"$XPI\") | .digest")"
-          else
-            HASH="sha256:$(sha256sum "$RUNNER_TEMP/$XPI" | cut -d' ' -f1)"
+            gh release download "$TAG" --repo "$REPO" --pattern "$XPI" --dir "$RUNNER_TEMP" --clobber
           fi
+          HASH="sha256:$(sha256sum "$RUNNER_TEMP/$XPI" | cut -d' ' -f1)"
           HASH="$HASH" python3 - <<'EOF'
           import json, os, re
           env = os.environ
