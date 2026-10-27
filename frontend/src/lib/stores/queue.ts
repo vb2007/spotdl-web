@@ -710,12 +710,15 @@ function createQueueStore() {
 				// Only a lane still mid-attempt keeps its last tick; one in its grace window
 				// is showing the *previous* attempt's progress, which this one doesn't share.
 				// After a hard reload there's no lane at all: fall back to this browser's
-				// last sighting of this same attempt (v34.2, progressCache).
+				// last sighting of this same attempt (v34.2, progressCache). v62 (F10): the
+				// same *run*, by its start: a re-run that doesn't bump attempt_count (a reclaim,
+				// a redelivery) is a new one, and so is a lane whose run ended unseen.
 				const existing = current[track.id];
+				const run = track.download_started_at ?? null;
 				const progress =
-					existing?.state === 'downloading'
+					existing?.state === 'downloading' && (existing.download_started_at ?? null) === run
 						? existing.progress
-						: recallProgress(track.id, track.attempt_count);
+						: recallProgress(track.id, run);
 				const mine = ownedByViewer(job) ?? existing?.mine;
 				next[track.id] = { ...track, progress, mine, owner: laneOwner(job) };
 			}
@@ -1685,8 +1688,14 @@ function createQueueStore() {
 			if (event.attempt_count !== undefined) next.attempt_count = event.attempt_count;
 			if (event.attempts_made !== undefined) next.attempts_made = event.attempts_made;
 			if (event.failure_count !== undefined) next.failure_count = event.failure_count;
-			if (next.progress !== undefined) {
-				rememberProgress(event.track_id, next.progress, next.attempt_count);
+			if (event.download_started_at !== undefined) {
+				// v62 (F10): a new run's first event: the old run's last tick isn't this one's.
+				if (next.download_started_at !== event.download_started_at && event.progress === undefined)
+					next.progress = undefined;
+				next.download_started_at = event.download_started_at;
+			}
+			if (next.progress !== undefined && next.download_started_at) {
+				rememberProgress(event.track_id, next.progress, next.download_started_at);
 			}
 			ownerUnknown =
 				view !== 'mine' &&

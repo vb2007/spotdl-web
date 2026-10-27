@@ -108,6 +108,9 @@ export interface Track {
 	scheduled_at: string | null;
 	last_error: string | null;
 	last_error_type: TrackErrorType | null;
+	/** v62 (F10): which run of `downloading` this is (null otherwise); its `downloading` events
+	 * carry the same value. Absent on rows from before v62. */
+	download_started_at?: string | null;
 }
 
 export type TrackAttemptOutcome =
@@ -181,6 +184,8 @@ export interface TrackStateEvent {
 	title?: string | null;
 	artists?: string[] | null;
 	album?: string | null;
+	/** v62 (F10): on `downloading` events, the run they belong to (see `Track`). */
+	download_started_at?: string;
 	ts: string;
 }
 

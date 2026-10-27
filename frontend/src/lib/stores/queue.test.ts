@@ -93,6 +93,19 @@ function trackEvent(trackId: string, state: TrackWithJob['state'], progress?: nu
 	} satisfies StreamEvent;
 }
 
+// v62 (F10): two runs of one track, as the claim's time stamps them.
+const RUN_A = '2026-10-28T01:00:00.000001+00:00';
+const RUN_B = '2026-10-28T01:05:00.000002+00:00';
+const CACHE_KEY = 'spotdl:live-progress:v2';
+
+function runEvent(trackId: string, progress: number, run: string) {
+	return { ...trackEvent(trackId, 'downloading', progress), download_started_at: run };
+}
+
+function runningTrack(id: string, run: string): TrackWithJob {
+	return { ...downloadingTrack(id), download_started_at: run };
+}
+
 /** Routes each listing call to the right fake: the page's own reload (no status filter)
  * always gets an empty page; the incoming/active hydrations get the given responses. */
 function routeLists(opts: {
@@ -401,27 +414,60 @@ describe('v34 live hydration', () => {
 			return get(fresh.activeTracks);
 		}
 
-		it('a hard reload shows this browser’s last tick for the same attempt', async () => {
+		it('a hard reload shows this browser’s last tick for the same run', async () => {
 			vi.stubGlobal('localStorage', fakeStorage());
-			await queue.applyEvent(trackEvent('t1', 'downloading', 70));
-			const lanes = await hardReload(tracksPage([downloadingTrack('t1')]));
+			await queue.applyEvent(runEvent('t1', 70, RUN_A));
+			const lanes = await hardReload(tracksPage([runningTrack('t1', RUN_A)]));
 			expect(lanes[0].progress).toBe(70);
 		});
 
-		it('a retry’s lane created purely from SSE keys its cache on the event’s attempt_count', async () => {
+		it('a retry’s lane created purely from SSE keys its cache on the event’s run', async () => {
 			vi.stubGlobal('localStorage', fakeStorage());
-			await queue.applyEvent({ ...trackEvent('t1', 'downloading', 60), attempt_count: 3 });
-			const lanes = await hardReload(tracksPage([{ ...downloadingTrack('t1'), attempt_count: 3 }]));
+			await queue.applyEvent({ ...runEvent('t1', 60, RUN_A), attempt_count: 3 });
+			const lanes = await hardReload(
+				tracksPage([{ ...runningTrack('t1', RUN_A), attempt_count: 3 }])
+			);
 			expect(lanes[0].progress).toBe(60);
+		});
+
+		it('v62 (F10): a re-run with the same attempt_count never shows the previous run’s tick', async () => {
+			vi.stubGlobal('localStorage', fakeStorage());
+			await queue.applyEvent(runEvent('t1', 70, RUN_A));
+			// Beat's reclaim or a redelivery: same attempt_count, a new run.
+			const lanes = await hardReload(tracksPage([runningTrack('t1', RUN_B)]));
+			expect(lanes[0].progress).toBeUndefined();
+		});
+
+		it('v62 (F10): a live lane whose run ended unseen takes nothing from it on a resync', async () => {
+			routeLists({ active: async () => tracksPage([runningTrack('t1', RUN_B)]) });
+			await queue.applyEvent(runEvent('t1', 80, RUN_A));
+			await queue.reload();
+			expect(get(queue.activeTracks)[0].progress).toBeUndefined();
+		});
+
+		it('v62 (F10): a new run’s first event drops the old run’s tick, and the next tick is its own', async () => {
+			routeLists({});
+			await queue.applyEvent(runEvent('t1', 80, RUN_A));
+			await queue.applyEvent({ ...runEvent('t1', 0, RUN_B), progress: undefined });
+			expect(get(queue.activeTracks)[0].progress).toBeUndefined();
+			await queue.applyEvent(runEvent('t1', 10, RUN_B));
+			expect(get(queue.activeTracks)[0].progress).toBe(10);
+		});
+
+		it('v62 (F10): a row with no run (a server from before v62) recalls nothing', async () => {
+			vi.stubGlobal('localStorage', fakeStorage());
+			await queue.applyEvent(runEvent('t1', 70, RUN_A));
+			const lanes = await hardReload(tracksPage([downloadingTrack('t1')]));
+			expect(lanes[0].progress).toBeUndefined();
 		});
 
 		it('ticks are remembered as they land, and forgotten when the track leaves downloading', async () => {
 			const store = fakeStorage();
 			vi.stubGlobal('localStorage', store);
-			await queue.applyEvent(trackEvent('t1', 'downloading', 40));
-			expect(JSON.parse(store.data.get('spotdl:live-progress:v1')!).t1.progress).toBe(40);
+			await queue.applyEvent(runEvent('t1', 40, RUN_A));
+			expect(JSON.parse(store.data.get(CACHE_KEY)!).t1.progress).toBe(40);
 			await queue.applyEvent(trackEvent('t1', 'completed'));
-			expect(store.data.has('spotdl:live-progress:v1')).toBe(false);
+			expect(store.data.has(CACHE_KEY)).toBe(false);
 		});
 
 		it('v47: ticks within a second are written once, then the newest on the trailing edge', async () => {
@@ -436,24 +482,24 @@ describe('v34 live hydration', () => {
 				};
 				vi.stubGlobal('localStorage', store);
 				for (const progress of [10, 20, 30, 40]) {
-					await queue.applyEvent(trackEvent('t1', 'downloading', progress));
+					await queue.applyEvent(runEvent('t1', progress, RUN_A));
 				}
 				expect(writes).toBe(1);
-				expect(JSON.parse(store.data.get('spotdl:live-progress:v1')!).t1.progress).toBe(10);
+				expect(JSON.parse(store.data.get(CACHE_KEY)!).t1.progress).toBe(10);
 				vi.advanceTimersByTime(1000);
 				expect(writes).toBe(2);
-				expect(JSON.parse(store.data.get('spotdl:live-progress:v1')!).t1.progress).toBe(40);
+				expect(JSON.parse(store.data.get(CACHE_KEY)!).t1.progress).toBe(40);
 			} finally {
 				vi.useRealTimers();
 			}
 		});
 
-		it('a different attempt never inherits the stored progress', async () => {
+		it('a different run never inherits the stored progress', async () => {
 			vi.stubGlobal('localStorage', fakeStorage());
 			const { rememberProgress } = await import('$lib/stores/progressCache');
-			rememberProgress('t1', 90, 0);
+			rememberProgress('t1', 90, RUN_A);
 			routeLists({
-				active: async () => tracksPage([{ ...downloadingTrack('t1'), attempt_count: 1 }])
+				active: async () => tracksPage([{ ...runningTrack('t1', RUN_B), attempt_count: 1 }])
 			});
 			await queue.reload();
 			expect(get(queue.activeTracks)[0].progress).toBeUndefined();
@@ -462,7 +508,8 @@ describe('v34 live hydration', () => {
 		it('reset() (logout) clears it, like every other piece of queue state', async () => {
 			const store = fakeStorage();
 			vi.stubGlobal('localStorage', store);
-			await queue.applyEvent(trackEvent('t1', 'downloading', 40));
+			store.data.set('spotdl:live-progress:v1', '{}');
+			await queue.applyEvent(runEvent('t1', 40, RUN_A));
 			queue.reset();
 			expect(store.data.size).toBe(0);
 		});
