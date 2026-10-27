@@ -6661,15 +6661,16 @@ independently-found production bug from the same conversation)
   needs `read=True` as well. v56's proxy reads had the former while its comments said the latter.
   It's kept, now named (`attempts.PROXY_OUTCOME_LOCK`): it still makes a delete wait, and the
   outcome's transaction then updates the same proxy row (`record_proxy_result`), which needs it
-  anyway. Taking `KEY SHARE` first would mean upgrading the lock there, and an upgrade can
-  deadlock with a delete already queued for the row. Check the rendered SQL, never the flag name.
+  anyway: one lock up front rather than a `KEY SHARE` upgraded halfway through. Check the
+  rendered SQL, never the flag name.
 - **A reclaimed download is still a proxy's user.** v55's stale reclaim moves a live
   `downloading` track to `waiting` and lets the download finish and rewrite the reclaim's row.
   `proxy_in_use` counted only `downloading` (and recently cancelled) tracks, so a proxy behind a
   download running past 30 minutes could be deleted under it. It now also counts a track whose
-  reclaim row is unrewritten and recent. And a cancel clears `used_proxy_id` unless the track was
-  `downloading`: an ended attempt's proxy on a cancelled `waiting` track held its delete for the
-  whole stale-track window.
+  reclaim row is unrewritten and recent (`attempts.reclaim_unreported`). And a cancel clears
+  `used_proxy_id` unless the track's download may still run (`downloading`, or reclaimed and
+  unreported): an ended attempt's proxy on a cancelled `waiting` track held its delete for the
+  whole stale-track window, while clearing it on a reclaimed one let the delete through.
 - **A re-parented migration on a database that already ran it.** After the rebase put v55's
   `d9b3e5f7a1c2` under v56's `a9d3c5e7f1b2`, the slot's database still read `a9d3c5e7f1b2`, the
   head, so `alembic upgrade head` did nothing and `hold_count` was never added. Repair: `alembic

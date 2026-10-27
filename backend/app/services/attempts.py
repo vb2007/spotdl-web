@@ -50,6 +50,23 @@ def latest_attempt_number(db: Session, track_id: uuid.UUID) -> int:
     ).scalar_one()
 
 
+def reclaim_unreported(since) -> Exists:
+    """v56 (A4): `EXISTS` a `failed` row beat's stale reclaim wrote for the enclosing query's
+    track (correlated on `tracks.id`) after `since`, not yet rewritten by the outcome of the
+    download it reclaimed (v55, E3): that download may still be running, through its proxy."""
+    return (
+        select(TrackAttempt.id)
+        .where(
+            TrackAttempt.track_id == Track.id,
+            TrackAttempt.outcome == TrackAttemptOutcome.FAILED,
+            TrackAttempt.network_path.is_(None),
+            TrackAttempt.error_message.startswith(RECLAIM_PREFIX),
+            TrackAttempt.finished_at > since,
+        )
+        .exists()
+    )
+
+
 def recorded_since(track_id: uuid.UUID, attempt_number: int) -> Exists:
     """`EXISTS` a row newer than `attempt_number` (see latest_attempt_number)."""
     return (
@@ -98,8 +115,8 @@ def _proxy_label(proxy: Proxy | None) -> str | None:
 # v56 (A4): the lock an attempt's outcome takes on its proxy. SQLAlchemy renders this as
 # `FOR NO KEY UPDATE` (`FOR KEY SHARE` would need `read=True` as well). That's the one wanted:
 # it makes a proxy delete (FOR UPDATE) wait for the outcome's commit, and it's already the lock
-# the same transaction's proxy UPDATE (proxies.record_proxy_result) needs. A KEY SHARE taken
-# first would have to be upgraded there, and an upgrade can deadlock with a delete queued on it.
+# the same transaction's proxy UPDATE (proxies.record_proxy_result) needs, so the outcome takes
+# its one lock on the proxy up front instead of a KEY SHARE upgraded halfway through.
 PROXY_OUTCOME_LOCK = {"key_share": True}
 
 

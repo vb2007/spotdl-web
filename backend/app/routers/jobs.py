@@ -15,7 +15,7 @@ from app.routers.auth import Principal, require_admin_hidden, require_session, r
 from app.services import archive, events, job_listing, rate_limit, rollup, spotify_urls, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
-from app.services.track_states import CANCELLABLE_TRACK_STATES, CANCELLED_USED_PROXY_ID
+from app.services.track_states import CANCELLABLE_TRACK_STATES, cancelled_used_proxy_id
 from app.services.view_scope import View, resolve_view
 from app.tasks.expand import expand_job
 
@@ -444,7 +444,7 @@ def cancel_job(
         cancelled_tracks = db.execute(
             update(Track)
             .where(Track.job_id == job_id, Track.state.in_(CANCELLABLE_TRACK_STATES))
-            .values(state=TrackState.CANCELLED, scheduled_at=None, used_proxy_id=CANCELLED_USED_PROXY_ID)
+            .values(state=TrackState.CANCELLED, scheduled_at=None, used_proxy_id=cancelled_used_proxy_id())
             .returning(Track.id, Track.song_json)
         ).all()
     # An expanded job with no track left in flight is settled: nothing to cancel. (Its

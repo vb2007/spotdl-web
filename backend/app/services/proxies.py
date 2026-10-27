@@ -17,14 +17,14 @@ from typing import TYPE_CHECKING, Iterator
 from urllib.parse import urlsplit
 
 from spotdl.providers.audio.ytmusic import YouTubeMusic
-from sqlalchemy import exists, select
+from sqlalchemy import exists
 from sqlalchemy.orm import Session
 from ytmusicapi import YTMusic
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Proxy, ProxySource, Track, TrackAttempt, TrackAttemptOutcome, TrackState
-from app.services.attempts import PROXY_OUTCOME_LOCK, RECLAIM_PREFIX
+from app.models import Proxy, ProxySource, Track, TrackState
+from app.services.attempts import PROXY_OUTCOME_LOCK, reclaim_unreported
 # v31's redact_text, moved to the dependency-free redaction module in v36 (the alert
 # watchdog's own process uses it without importing spotdl); re-exported so every
 # `proxies.redact_text` call site is unchanged.
@@ -392,26 +392,12 @@ def proxy_in_use(db: Session, proxy: Proxy, now: datetime) -> bool:
     if last_used_at is not None and last_used_at > now - PROXY_IN_USE_GRACE:
         return True
     still_running = now - timedelta(seconds=get_settings().stale_track_after_seconds)
-    # The reclaim's `failed` row stands until the download it reclaimed reports back (the
-    # outcome rewrites it in place, attempts.record_attempt), so an unrewritten recent one
-    # may still be a download going through this proxy.
-    reclaimed_unreported = (
-        select(TrackAttempt.id)
-        .where(
-            TrackAttempt.track_id == Track.id,
-            TrackAttempt.outcome == TrackAttemptOutcome.FAILED,
-            TrackAttempt.network_path.is_(None),
-            TrackAttempt.error_message.startswith(RECLAIM_PREFIX),
-            TrackAttempt.finished_at > still_running,
-        )
-        .exists()
-    )
     return db.query(
         exists().where(
             Track.used_proxy_id == proxy.id,
             (Track.state == TrackState.DOWNLOADING)
             | ((Track.state == TrackState.CANCELLED) & (Track.updated_at > still_running))
-            | reclaimed_unreported,
+            | reclaim_unreported(still_running),
         )
     ).scalar()
 

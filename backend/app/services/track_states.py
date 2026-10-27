@@ -6,9 +6,13 @@ and the UI never offers cancel on it. A job cancel leaves such tracks as they ar
 `DELETE /api/tracks/{id}` refuses one. It stays retryable, though: "retry" is how a user asks
 for another search after a not-found."""
 
-from sqlalchemy import case
+from datetime import timedelta
 
+from sqlalchemy import case, func, or_
+
+from app.config import get_settings
 from app.models import Track, TrackState
+from app.services.attempts import reclaim_unreported
 
 # Every state with nothing left to happen to it unless someone retries it.
 TERMINAL_TRACK_STATES = frozenset(
@@ -28,7 +32,14 @@ CANCELLABLE_TRACK_STATES = frozenset(state for state in TrackState if state not 
 RETRYABLE_TRACK_STATES = frozenset({TrackState.WAITING, TrackState.LOOKUP_FAILED})
 
 
-# v56 (A4): what a cancel UPDATE writes to `used_proxy_id`. A track cancelled mid-download
-# keeps it (its download runs on to the end, and `proxies.proxy_in_use` must see that); any
-# other cancelled track drops it, or a stale earlier attempt's proxy would hold up its delete.
-CANCELLED_USED_PROXY_ID = case((Track.state == TrackState.DOWNLOADING, Track.used_proxy_id), else_=None)
+def cancelled_used_proxy_id():
+    """v56 (A4): what a cancel UPDATE writes to `used_proxy_id`. A track whose download may
+    still be running keeps it (the download runs on to the end, and `proxies.proxy_in_use`
+    must see that): one `downloading`, or one beat reclaimed mid-download within the
+    stale-track window whose download hasn't reported back (v55: it's `waiting` meanwhile).
+    Any other cancelled track drops it, or an ended attempt's proxy would hold up its delete."""
+    still_running = func.now() - timedelta(seconds=get_settings().stale_track_after_seconds)
+    return case(
+        (or_(Track.state == TrackState.DOWNLOADING, reclaim_unreported(still_running)), Track.used_proxy_id),
+        else_=None,
+    )

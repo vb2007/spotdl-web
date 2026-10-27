@@ -487,6 +487,28 @@ def test_cancel_keeps_the_proxy_only_of_a_download_still_running(authenticated_c
     )
 
 
+def test_cancel_keeps_the_proxy_of_a_reclaimed_download_still_running(authenticated_client, db_session, owner):
+    """v56 (A4) on v55: beat's reclaim leaves a still-running download's track `waiting`. A
+    cancel then must keep its proxy, or the proxy could be deleted under that download."""
+    track = _make_track(db_session, owner, state=TrackState.DOWNLOADING, attempt_count=1)
+    proxy = Proxy(url="http://10.0.0.34:8080", source=ProxySource.MANUAL, enabled=True)
+    db_session.add(proxy)
+    db_session.commit()
+    track.used_proxy_id = proxy.id
+    track.state = TrackState.WAITING
+    now = datetime.now(timezone.utc)
+    attempts.record_attempt(
+        db_session, track.id, now, now, TrackAttemptOutcome.FAILED, error_message=f"{attempts.RECLAIM_PREFIX}stuck"
+    )
+    db_session.commit()
+
+    assert authenticated_client.delete(f"/api/tracks/{track.id}").status_code == 200
+
+    db_session.expire_all()
+    assert db_session.get(Track, track.id).used_proxy_id == proxy.id
+    assert proxies.proxy_in_use(db_session, db_session.get(Proxy, proxy.id), datetime.now(timezone.utc)) is True
+
+
 def test_a_superseded_reclaim_row_takes_the_proxy_label(db_session, owner):
     """v56 (A4) with v55 (E3): a still-running download's outcome rewrites beat's reclaim row
     in place, and that rewrite names the proxy too, not only a freshly added row."""
