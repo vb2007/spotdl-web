@@ -9,10 +9,25 @@ name: Nightly
 # outage this version fixed (docs/GOTCHAS.md's v23 entry). This is the safety net for
 # when that build-time float step silently installs something stale (e.g. a transient
 # PyPI outage mid-build), independent of whether anyone happens to open a PR that week.
+#
+# v60 (P2): the one self-hosted runner sometimes never picks the scheduled job up ("The job was
+# not acquired by Runner of type self-hosted even after multiple attempts", 6 times in
+# 2026-09-12..10-15). Its own log shows why: GitHub's broker handed a job out while the runner
+# was taking a sibling job of the same run (or before its long poll came back), and the late
+# retry was refused (`acknowledge` 404, `acquirejob` 409). The runner was online and the host
+# idle, so neither moving the cron nor a `concurrency` group (banned since v49) would help: the
+# job never ran, so nothing was checked. `notify` therefore tells that case apart from a real
+# failure (a ⚠️ notice, not ❌) and dispatches Nightly once more; the retry run carries
+# `retry=true`, so it never re-dispatches itself.
 "on":
   schedule:
     - cron: "17 4 * * *"
   workflow_dispatch:
+    inputs:
+      retry:
+        description: "Set by notify's not-acquired re-dispatch: this run doesn't re-dispatch again"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -71,13 +86,24 @@ jobs:
   # nightly posts to the pipeline's Matrix room. One `run:` step, no `uses:` (no checkout): the
   # runner downloads nothing for this job, so a GitHub-side failure on an action download (v48's
   # 429) can't take the notice down with the job it reports on.
+  # v60: `actions: write` for the not-acquired re-dispatch, `checks: read` for the annotation
+  # that names it. The API is reached with curl, the token on stdin (never argv).
   notify:
     needs: [yt-dlp-freshness]
     runs-on: self-hosted
     if: always() && (needs.yt-dlp-freshness.result == 'failure' || needs.yt-dlp-freshness.result == 'cancelled')
+    permissions:
+      actions: write
+      checks: read
     steps:
       - name: Send the Matrix notification
         env:
+          GH_TOKEN: ${{ github.token }}
+          API_URL: ${{ github.api_url }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          REF: ${{ github.ref_name }}
+          RETRY: ${{ inputs.retry }}
           MATRIX_HOMESERVER_URL: ${{ secrets.MATRIX_HOMESERVER_URL }}
           MATRIX_ACCESS_TOKEN: ${{ secrets.MATRIX_ACCESS_TOKEN }}
           MATRIX_ROOM_ID: ${{ secrets.MATRIX_ROOM_ID }}
@@ -86,12 +112,55 @@ jobs:
           WORKFLOW: ${{ github.workflow }}
           RESULT: ${{ needs.yt-dlp-freshness.result }}
         run: |
-          {
-            echo "❌ spotdl-web: $WORKFLOW failed"
-            echo "Failed job(s): yt-dlp-freshness ($RESULT)"
-            echo "The backend image's yt-dlp or yt-dlp-ejs isn't PyPI's latest (or the check couldn't run): see the run."
-            echo "Run: $RUN_URL"
-          } > "$RUNNER_TEMP/message.txt"
+          # v60 (P2): was the check never run at all? The job is cancelled with no runner and no
+          # steps, and GitHub's annotation on it says "not acquired" (a job cancelled by hand
+          # while queued looks the same apart from that annotation). Any API error reads as
+          # "no", so the notice falls back to the plain failure.
+          gh_api() {  # METHOD PATH [BODY]
+            printf 'header = "Authorization: Bearer %s"\n' "$GH_TOKEN" \
+              | curl -s --config - -X "$1" --max-time 30 -H 'Accept: application/vnd.github+json' \
+                  -H 'Content-Type: application/json' ${3:+--data "$3"} -o "$RUNNER_TEMP/api.out" -w '%{http_code}' "$API_URL$2" || true
+          }
+          not_acquired=false
+          if [ "$RESULT" = "cancelled" ] && [ "$(gh_api GET "/repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100")" = 200 ]; then
+            job_id="$(python3 -c 'import json, sys
+          for j in json.load(open(sys.argv[1])).get("jobs", []):
+              if j.get("name") == "yt-dlp-freshness" and j.get("conclusion") == "cancelled" \
+                      and not j.get("steps") and not j.get("runner_name"):
+                  print(j["id"])' "$RUNNER_TEMP/api.out" 2>/dev/null || true)"
+            if [ -n "$job_id" ] && [ "$(gh_api GET "/repos/$REPO/check-runs/$job_id/annotations")" = 200 ] \
+               && grep -q 'not acquired' "$RUNNER_TEMP/api.out"; then
+              not_acquired=true
+            fi
+          fi
+
+          if [ "$not_acquired" = true ] && [ "$RETRY" != "true" ]; then
+            code="$(gh_api POST "/repos/$REPO/actions/workflows/nightly.yml/dispatches" \
+              "{\"ref\": \"$REF\", \"inputs\": {\"retry\": \"true\"}}")"
+            if [ "$code" = 204 ]; then
+              retry="Re-dispatched once (retry=true); its result arrives as its own notice if it fails."
+            else
+              retry="The re-dispatch failed (HTTP ${code:-none}): run Nightly by hand (gh workflow run nightly.yml)."
+            fi
+          elif [ "$not_acquired" = true ]; then
+            retry="Not re-dispatched: this run already was the retry. Run Nightly by hand (gh workflow run nightly.yml)."
+          fi
+
+          if [ "$not_acquired" = true ]; then
+            {
+              echo "⚠️ spotdl-web: $WORKFLOW didn't run, the runner never picked its job up"
+              echo "yt-dlp-freshness was not acquired by the self-hosted runner (GitHub-side, see docs/CI_SELF_HOSTED_RUNNER.md): nothing was checked, nothing failed."
+              echo "$retry"
+              echo "Run: $RUN_URL"
+            } > "$RUNNER_TEMP/message.txt"
+          else
+            {
+              echo "❌ spotdl-web: $WORKFLOW failed"
+              echo "Failed job(s): yt-dlp-freshness ($RESULT)"
+              echo "The backend image's yt-dlp or yt-dlp-ejs isn't PyPI's latest (or the check couldn't run): see the run."
+              echo "Run: $RUN_URL"
+            } > "$RUNNER_TEMP/message.txt"
+          fi
           cat "$RUNNER_TEMP/message.txt"
 
           # Matrix sender, kept identical in nightly.yml, release-deploy.yml and publish-deploy.yml
