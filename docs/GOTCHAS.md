@@ -6488,7 +6488,8 @@ independently-found production bug from the same conversation)
   `hold_count`) shrinks repeated trips (and pause/resume cycles: beat dispatches nothing while
   paused either) and the unmounted-root hold (every 15 min).
   The attempts API returns `hold_count`; the timeline still renders a collapsed row as one
-  `held` (no "×N") until the frontend reads it.
+  `held` (no "×N") until the frontend reads it, which the owner scheduled for v62 (ledger F11,
+  2026-10-27).
 - **E12: where IPv6 is routable.** The dev override and `docker-compose.prod.yml` both give the
   default network IPv6 (`enable_ipv6`, a ULA subnet), so the probe answers True there and the
   rung is used as before. The skip applies to a network without IPv6 (or a container with it

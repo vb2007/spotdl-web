@@ -154,6 +154,7 @@ files.
 | F8 | "Clear log" is enabled on an empty queue | #69 | v62 |
 | F9 | Cross-tab identity change detected by poll, not push | #63 | v62 |
 | F10 | Stale progress cache after a re-run that doesn't bump `attempt_count` | #49 | v62 |
+| F11 | The timeline's "×N" counts `held` rows, not holds: since v55 (E11) a collapsed row carries `hold_count` and renders as one plain `held`. `groupAttempts` (`lib/attempts.ts`) and `TrackRow.svelte` should count `hold_count` | v55 Amendment, PR #86 | v62 (owner, 2026-10-27) |
 
 ### UI debt (impeccable) → v67 unless noted
 
@@ -306,7 +307,7 @@ files.
 | **v59** | 3 | `dev-alert-delivery` | O1, O2, O4, O5, O6: reproduce the lost alert, a Postgres alert outbox with retries, worker-down, log throttling, alert history on `/stats` |
 | **v60** | 3 | `dev-pipeline-resilience` | P1–P8, O3, X1–X4. Workflows, compose logging and docs only, so no bump |
 | **v61** | 3 | `dev-extension-release` | AMO unlisted signing, a GitHub release with the XPI, `updates.json`, CI lint/tests, extension version check, install docs |
-| **v62** | 3 | `dev-frontend-store-fixes` | F1–F10 |
+| **v62** | 3 | `dev-frontend-store-fixes` | F1–F11 |
 | **v63** | 4 | `dev-watch-jobs` | Watched playlist/artist jobs (scheduled re-expand, new tracks only), "re-run expansion", "retry all failed" |
 | **v64** | 4 | `dev-job-export` | Streamed zip of a job's present files, plus an `.m3u8` |
 | **v65** | 4 | `dev-pwa-share-target` | Installable PWA, a Web Share Target → `/share`, a login round-trip |
@@ -572,8 +573,8 @@ here.
     `hold_count` (a one-line `serializers.py` addition), but the timeline (frontend, not v55's)
     still renders a collapsed row as a single `held`, so the "held ×N" it showed for N rows is
     lost there until the frontend reads `hold_count`: a regression of displayed admin
-    information. Open for the owner before merge: accept it, or schedule that frontend
-    follow-up.
+    information. **Owner decision (2026-10-27): a frontend follow-up in v62**, ledger item F11.
+    Until v62 merges, a collapsed hold shows as one `held` in the timeline.
   - **E12 records the skip in the row's note, not in `network_path`.** The row keeps the path
     really used (proxy, or forced IPv4 with no proxy up), so the column stays truthful and no
     enum value or migration is needed; the note reads "IPv6 isn't routable from this worker;
