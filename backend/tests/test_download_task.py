@@ -1330,6 +1330,48 @@ def test_spotdls_file_already_exists_skip_is_not_a_network_attempt(db_session, m
     assert (kwargs["attempts_made"], kwargs["failure_count"]) == (1, 1)
 
 
+def test_spotdls_skip_of_a_file_the_sweep_just_moved_is_a_hold(db_session, monkeypatch, tmp_path):
+    """v57 (rebase review): spotdl's "already in place" file was another row's, and the library
+    sweep filed it away before this ledger write (dedup.LedgerFileMoved). Nothing went to the
+    network, so it's a hold, as v55's E8 records the skip: no rung, no counter, no proxy or
+    breaker verdict, no ledger row on the dead path."""
+    track = _make_track(db_session)
+    track.attempt_count = 1
+    track.attempts_made, track.failure_count = 1, 1
+    db_session.commit()
+    _patch_common(monkeypatch, db_session)
+    _capture_events(monkeypatch)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = 3
+    db_session.commit()
+    output_path = tmp_path / "song-a.mp3"
+    output_path.write_bytes(b"already here")  # the sweep moves it after the file checks
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(downloads, "get_downloader", lambda *args, **kwargs: _FakeDownloader())
+    monkeypatch.setattr(
+        downloads,
+        "download_one",
+        lambda song, downloader: downloads.DownloadResult(song, output_path, skipped_existing=True),
+    )
+
+    def moved(*args, **kwargs):
+        raise dedup.LedgerFileMoved(str(output_path))
+
+    monkeypatch.setattr(dedup, "record_download", moved)
+
+    download_task.download_track(str(track.id))
+
+    updated = db_session.get(Track, track.id)
+    assert updated.state == TrackState.WAITING
+    assert updated.scheduled_at is not None
+    assert (updated.attempt_count, updated.attempts_made, updated.failure_count) == (1, 1, 1)
+    row = _attempts(db_session, track)[-1]
+    assert (row.outcome, row.network_path, row.proxy_id) == (TrackAttemptOutcome.HELD, None, None)
+    assert "library sweep moved it" in row.warning_message
+    assert db_session.get(DownloadedTrack, "abc123") is None
+    assert db_session.get(WorkerState, 1).consecutive_failures == 3
+
+
 @pytest.mark.parametrize("download_result", ["success", "failure"])
 def test_a_mid_download_cancel_publishes_after_its_row_with_counters(db_session, monkeypatch, download_result):
     """v55 (E6): the `cancelled` event goes out once its attempt row is committed, and carries

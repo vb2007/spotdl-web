@@ -610,3 +610,36 @@ here.
     it, `DELETE /api/proxies/{id}` on a proxy in use marks it (`proxies.delete_requested_at`, a new
     column in v56's migration): it's never picked again, a periodic task deletes it once nothing
     uses it, and `/settings` shows it as "deleting" meanwhile. An idle proxy still goes at once.
+- **2026-10-26, v57: a quarantine folder inside the downloads folder stays valid (owner's
+  decision).** L2 says to reject a quarantine dir "equal to, inside, or containing" the downloads
+  dir, but the shipped default, and production's value, is `/downloads/quarantine`, and
+  production mounts nowhere else writable outside the downloads and library volumes. Applied
+  literally, every production sweep would have been refused until a new mount existed. The rule
+  as built: the library may not equal, sit inside or contain the downloads dir; the quarantine
+  dir may not equal, sit inside or contain the library, nor equal or contain the downloads dir.
+  A subfolder of the downloads dir is fine, since the sweep walks ledger rows, never the
+  downloads tree.
+
+- **2026-10-26, v57: the library dir must be the library mount or a folder inside it (owner's
+  decision).** Every compose file mounts the library volume at `/mnt/raid1/media/music` (the host
+  path behind it is `LIBRARY_DIR`), and nginx's `/internal-library/` serves only that directory.
+  A `library_target_dir` anywhere else is a container's own writable layer: the sweep would file
+  downloads there and delete their sources, worker-dl and worker-meta can't see them, and a
+  recreate discards them. Saving one is a 422 (`library_dir_outside_mount`), and the sweep refuses
+  to start on one. "Switching LIBRARY_DIR" (L6) therefore means a folder inside the mount, or a
+  new host path behind the same mount point; the known-roots list covers the former.
+
+- **2026-10-27, v57: the quarantine dir must be a folder inside the downloads dir (owner's
+  decision).** It can't overlap the library (L2), so the downloads volume is the only mount it may
+  use; a quarantine dir anywhere else (`/srv`, `/tmp/…`) is the sweeping container's own writable
+  layer, and a recreate discards every file quarantined there. Saving one is a 422
+  (`library_quarantine_outside_mount`, quarantine on or off), and the sweep refuses to start on a
+  value saved before.
+- **2026-10-27, v57: two `copy_verify` trade-offs accepted by the owner.** (1) Once a verified
+  copy is hard-linked to its real name, the staging name is unlinked: the data stays under the
+  real name, nothing is lost. (2) A copy that a killed worker, a full disk or a failed
+  verification interrupts stays on the library under a hidden name (`.spotdl-copying-*`,
+  `.spotdl-copy-failed-*`, `.spotdl-verify-failed-*`; no audio extension, so scanners skip it) and
+  is never cleaned up, per the never-delete invariant. The cost is bounded: at most one track's
+  bytes per interrupted copy, only during a manual sweep, and it doesn't grow on its own; no
+  dedup, reconcile or "already exists" check reads those names.

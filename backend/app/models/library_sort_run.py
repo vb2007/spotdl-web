@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Enum, Integer
+from sqlalchemy import Boolean, Enum, Integer, false
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -40,3 +40,8 @@ class LibrarySortRun(Base):
     # wholesale (never appended in place), the same convention song_json already uses,
     # since SQLAlchemy's JSONB change tracking doesn't see an in-place mutation.
     errors: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    # v57 (L1): `POST /api/library/sort/cancel` sets cancel_requested; the sweep reads it between
+    # files (never mid-file) and, when it stops on it, sets cancelled, so the report says
+    # "cancelled after N of M" (processed of total). Both are reset by the next start.
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
+    cancelled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())

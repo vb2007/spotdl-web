@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Integer, Text, true
+from sqlalchemy import Boolean, Integer, Text, text, true
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -32,6 +33,12 @@ class AppSettings(Base):
     library_folder_template: Mapped[str] = mapped_column(Text, nullable=False)
     library_quarantine_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
     library_quarantine_dir: Mapped[str] = mapped_column(Text, nullable=False)
+    # v57 (L6): every library_target_dir this install has used, the current one included, so a
+    # ledger row left under an earlier root still dedups and is still served after a repoint
+    # (app/services/dedup.py's known_library_roots). Only ever grows; reassigned wholesale.
+    library_known_roots: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
     # v36: alert categories (app/services/alerts.py's CATEGORIES) and their tunables.
     alerts_breaker_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
     alerts_spike_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())

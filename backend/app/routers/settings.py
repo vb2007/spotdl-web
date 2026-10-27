@@ -9,6 +9,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import AppSettings, User, UserSettings
 from app.routers.auth import require_admin, require_admin_hidden, require_session
+from app.routers.library import check_library_paths
 from app.services import alerts, app_settings, downloads, user_settings
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -145,8 +146,18 @@ def update_library_settings(
 ) -> dict:
     fields = payload.model_dump(exclude_unset=True)
     for key in ("library_target_dir", "library_folder_template", "library_quarantine_dir"):
-        if key in fields and not fields[key].strip():
+        # An explicit null was a 500 (review round 7): it's as blank as an empty string.
+        if key in fields and (fields[key] is None or not fields[key].strip()):
             raise ApiError(400, "setting_blank", f"{key} must not be blank", {"field": key})
+
+    # v57 (L2): the directories as they'd be after this save, so a change to one is checked
+    # against the others' current values.
+    current = app_settings.get_library_settings(db)
+    check_library_paths(
+        downloads_dir=get_settings().download_output_dir,
+        library_dir=fields.get("library_target_dir", current.library_target_dir),
+        quarantine_dir=fields.get("library_quarantine_dir", current.library_quarantine_dir),
+    )
 
     row = app_settings.update_library_settings(db, **fields)
     db.commit()

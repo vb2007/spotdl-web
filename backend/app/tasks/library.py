@@ -1,11 +1,18 @@
+import hashlib
 import logging
+import time
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.db import SessionLocal
+from sqlalchemy import text
+
+from app.config import get_settings
+from app.db import SessionLocal, engine
 from app.models import DownloadedTrack, LibrarySortRun, LibrarySortState, Track, TrackState
-from app.services import alerts, app_settings, archive, events, library
+from app.services import alerts, app_settings, archive, dedup, events, library
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -14,6 +21,38 @@ logger = logging.getLogger(__name__)
 # state machine. Anything else (e.g. a stale WAITING track that shares this
 # spotify_track_id via a since-superseded dedup path) must never be repointed.
 _MOVED_TRACK_STATES = (TrackState.COMPLETED, TrackState.SKIPPED_DUPLICATE)
+
+
+# One sweep at a time, whatever the deliveries (v57, review round 7): a session-level advisory
+# lock, held for the whole run on a connection of its own in autocommit (never idle in a
+# transaction), released by the unlock or with the connection if the worker dies.
+_SWEEP_LOCK_KEY = int.from_bytes(hashlib.sha256(b"spotdl-web:library-sweep").digest()[:8], "big", signed=True)
+
+
+# How long a delivery waits for a sweep that's finishing (review round 8): a start landing just
+# as the previous sweep commits idle, but before it releases the lock, would otherwise be
+# dropped and leave its row running with nothing behind it. A stale delivery beside a long
+# sweep still gives up after this.
+_SWEEP_LOCK_WAIT_SECONDS = 30.0
+
+
+@contextmanager
+def _sweep_lock() -> Iterator[bool]:
+    """Yields whether this delivery holds the sweep lock, polling for up to
+    _SWEEP_LOCK_WAIT_SECONDS (never a blocking wait: no lock_timeout to leave on a pooled
+    connection)."""
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        deadline = time.monotonic() + _SWEEP_LOCK_WAIT_SECONDS
+        while True:
+            held = conn.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": _SWEEP_LOCK_KEY}).scalar()
+            if held or time.monotonic() >= deadline:
+                break
+            time.sleep(0.5)
+        try:
+            yield bool(held)
+        finally:
+            if held:
+                conn.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _SWEEP_LOCK_KEY})
 
 
 def _get_run(db) -> LibrarySortRun:
@@ -47,6 +86,13 @@ def _repoint(db, rows: list[DownloadedTrack], source: Path, dest: Path) -> list[
         row.file_path = str(dest)
         row.in_library = True
     return moved
+
+
+def _mark_in_place(db, rows: list[DownloadedTrack]) -> None:
+    """v57 (L2): rows whose file is already inside the library are filed where they are."""
+    for row in rows:
+        row.in_library = True
+    db.commit()
 
 
 def _sync_tracks_and_archive_jobs(db, moved_spotify_ids: set[str], admin_user_id: str) -> None:
@@ -108,12 +154,101 @@ def _publish_progress(run: LibrarySortRun, admin_user_id: str, **kwargs) -> None
     )
 
 
+_RELATION_TEXT = {"equal": "the same directory as", "inside": "inside", "contains": "a parent of"}
+
+
+def describe_conflict(conflict: dict) -> str:
+    """One library.path_conflicts entry in words, for a report row or an API error detail."""
+    return f"{conflict['field']} is {_RELATION_TEXT[conflict['relation']]} {conflict['other']}"
+
+
+def _cancel_requested(db, run: LibrarySortRun) -> bool:
+    # Re-read from the row: POST /api/library/sort/cancel sets it from another session.
+    db.refresh(run, ["cancel_requested"])
+    return run.cancel_requested
+
+
+def _finish(db, run: LibrarySortRun, admin_user_id: str) -> None:
+    run.state = LibrarySortState.IDLE
+    run.finished_at = datetime.now(timezone.utc)
+    db.commit()
+    _publish_progress(run, admin_user_id, done=True)
+    _alert_sweep_finished(run)
+
+
 def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     settings_row = app_settings.get_library_settings(db)
     target_dir = Path(settings_row.library_target_dir)
     quarantine_dir = Path(settings_row.library_quarantine_dir)
     quarantine_enabled = settings_row.library_quarantine_enabled
     folder_template = settings_row.library_folder_template
+    # The mount point too (review round 6): a root seeded as a folder inside it would otherwise
+    # leave the rest of the mount open to a move, and a move deletes its source.
+    library_roots = [
+        root.resolve() for root in [*dedup.known_library_roots(settings_row), library.library_mount()]
+    ]
+
+    # v57 (L2): the settings were checked when saved and when the sweep was started, but a
+    # value saved before v57 (or changed since the start) is checked here too. A library that
+    # overlaps the downloads dir would have the sweep moving files onto themselves.
+    conflicts = library.path_conflicts(
+        Path(get_settings().download_output_dir), target_dir, quarantine_dir
+    )
+    refusals = [f"refused to start: {describe_conflict(conflict)}" for conflict in conflicts]
+    # Owner decision (2026-10-26): only the library volume's mount point, or a folder inside it.
+    # After the overlap checks, in the same order as the API's.
+    if library.outside_library_mount(target_dir):
+        refusals.append(
+            f"refused to start: library_target_dir is outside the library mount {library.library_mount()}"
+        )
+    # Owner decision (2026-10-27): the quarantine dir is a folder inside the downloads dir, the one
+    # mounted volume it may use. Checked whether or not quarantine is on, as the API does, and
+    # only when no overlap already names it (one reason per problem, the API's order).
+    if not any(conflict["field"] == "library_quarantine_dir" for conflict in conflicts) and (
+        library.outside_downloads_mount(quarantine_dir, Path(get_settings().download_output_dir))
+    ):
+        refusals.append(
+            "refused to start: library_quarantine_dir is not a folder inside the downloads dir "
+            f"{get_settings().download_output_dir}"
+        )
+    if refusals:
+        for message in refusals:
+            _record_error(run, "<sweep>", message)
+        _finish(db, run, admin_user_id)
+        return
+
+    # v57 (L4): the target must be known to be mounted: its own sentinel, or one of an
+    # enclosing known root (the mount point, for a folder inside it, which is created as needed).
+    # Otherwise it gets one here under reconcile_disk's rule, or the sweep is refused: filling an
+    # unattached mountpoint whose ledger files are all missing would put new files on the wrong
+    # filesystem, and the next reconcile would take them as proof the volume is there. (A target
+    # no ledger row points into at all still gets a sentinel: the documented gap.)
+    # The mount point's sentinel counts too, known root or not (read only here: reconcile_disk,
+    # which creates sentinels, sticks to the ledger's own roots).
+    if not dedup.covered(target_dir, [*dedup.known_library_roots(settings_row), library.library_mount()]):
+        # Every ledger file under the target or a root around it counts (review round 6, the
+        # same rule as reconcile_disk's): a new, empty folder on an unattached mountpoint must
+        # not look like a fresh volume while the mount's own rows say otherwise.
+        enclosing = [
+            root
+            for root in [*dedup.known_library_roots(settings_row), library.library_mount()]
+            if target_dir.is_relative_to(root)
+        ]
+        under_target = [
+            Path(path)
+            for (path,) in db.query(DownloadedTrack.file_path).all()
+            if any(Path(path).is_relative_to(root) for root in enclosing)
+        ]
+        db.commit()
+        if not dedup.ensure_sentinel(target_dir, under_target, caller="library sweep"):
+            _record_error(
+                run,
+                "<sweep>",
+                f"refused to start: {target_dir} has no {dedup.SENTINEL_NAME}, so it isn't known to "
+                "be mounted (create the folder if it's new; worker-expand's log says more)",
+            )
+            _finish(db, run, admin_user_id)
+            return
 
     # v48 (review round 4): a fixed order, so which of two colliding files is filed and which
     # is flagged doesn't depend on how Postgres happens to return the rows -- the earlier
@@ -135,6 +270,10 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
     for row in ledger_rows:
         groups.setdefault(Path(row.file_path), []).append(row)
     run.total = len(groups)
+    # Counted from this delivery's own work (review round 8): a sweep resumed by a redelivery
+    # after its worker died recounts only the files left, so the dead run's counts would read
+    # "cancelled after 450 of 200". Its moves are committed either way.
+    run.processed = run.moved = run.skipped_present = run.quarantined = 0
     db.commit()
     _publish_progress(run, admin_user_id)
 
@@ -158,6 +297,13 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
         moved_spotify_ids.update(row.spotify_track_id for row in rows)
 
     for source, rows in groups.items():
+        # v57 (L1): between files only, never mid-file, so every file already moved keeps its
+        # committed repoint and the tracks still follow it below.
+        if _cancel_requested(db, run):
+            run.cancelled = True
+            db.commit()
+            logger.info("library: sweep cancelled after %d of %d files", run.processed, run.total)
+            break
         file_path = str(source)
         try:
             if not source.exists():
@@ -170,6 +316,26 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 continue
 
             dest = library.destination_path(target_dir, folder_template, tags, source)
+
+            # v57 (L2): a source already at its own destination would be read as "already
+            # there" and quarantined or deleted: the library's only copy. A source anywhere
+            # else in a library root is skipped too: nothing on the library filesystem is ever
+            # moved or deleted by a sweep.
+            # The rows are marked filed (nothing on disk changes), so the next sweep doesn't
+            # report the same file again.
+            resolved_source = source.resolve()
+            if dest.resolve() == resolved_source:
+                _mark_in_place(db, rows)
+                _record_error(
+                    run, file_path, "destination is the source file itself; marked filed, nothing moved"
+                )
+                continue
+            if any(resolved_source.is_relative_to(root) for root in library_roots):
+                _mark_in_place(db, rows)
+                _record_error(
+                    run, file_path, "source is already inside the library; marked filed, nothing moved"
+                )
+                continue
 
             claimant = claimed_destinations.get(dest)
             if claimant is not None:
@@ -188,15 +354,18 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                 # quarantine/delete below leaks a redundant source file (recoverable
                 # manually), instead of losing track of the real, already-correct file
                 # the way committing only at the end of the row would.
-                rows = _repoint(db, rows, source, dest)
-                db.commit()
-                _mark_filed(rows, dest)
-                if quarantine_enabled:
-                    library.quarantine(source, quarantine_dir)
-                    run.quarantined += 1
-                else:
-                    source.unlink()
-                    run.skipped_present += 1
+                # v57 (L3): the re-read, the repoint and the source's removal hold the file's
+                # lock, so worker-dl can't record a row on this file in between.
+                with dedup.file_lock(source):
+                    rows = _repoint(db, rows, source, dest)
+                    db.commit()
+                    _mark_filed(rows, dest)
+                    if quarantine_enabled:
+                        library.quarantine(source, quarantine_dir)
+                        run.quarantined += 1
+                    else:
+                        source.unlink()
+                        run.skipped_present += 1
             else:
                 if not library.copy_verify(source, dest):
                     # v31: copy_verify itself renames the corrupt copy off dest's exact
@@ -211,12 +380,13 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
                     continue
                 # Same crash-safety ordering as the conflict branch above: the ledger
                 # is repointed and committed to the *verified* copy before the source
-                # is ever deleted.
-                rows = _repoint(db, rows, source, dest)
-                db.commit()
-                _mark_filed(rows, dest)
-                source.unlink()
-                run.moved += 1
+                # is ever deleted. Under the file's lock, as above (v57, L3).
+                with dedup.file_lock(source):
+                    rows = _repoint(db, rows, source, dest)
+                    db.commit()
+                    _mark_filed(rows, dest)
+                    source.unlink()
+                    run.moved += 1
         except Exception as exc:
             logger.exception("library: error processing %s", file_path)
             _record_error(run, file_path, str(exc))
@@ -241,11 +411,7 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
             )
             db.commit()
 
-    run.state = LibrarySortState.IDLE
-    run.finished_at = datetime.now(timezone.utc)
-    db.commit()
-    _publish_progress(run, admin_user_id, done=True)
-    _alert_sweep_finished(run)
+    _finish(db, run, admin_user_id)
 
 
 def _alert_sweep_finished(run: LibrarySortRun, crash: str | None = None) -> None:
@@ -259,6 +425,8 @@ def _alert_sweep_finished(run: LibrarySortRun, crash: str | None = None) -> None
     )
     if crash is not None:
         text = f"Library sweep failed: {crash} ({counts})."
+    elif run.cancelled:
+        text = f"Library sweep cancelled after {run.processed} of {run.total} files: {counts}."
     elif run.errors:
         first = run.errors[0]
         text = (
@@ -285,9 +453,30 @@ def sort_library(admin_user_id: str) -> None:
     ledger, or elsewhere outside that loop must still reset `run.state` back to IDLE,
     or `POST /api/library/sort`'s 409-if-running gate wedges permanently with no
     recovery short of a manual DB edit."""
+    with _sweep_lock() as held:
+        if not held:
+            # Another delivery is sweeping: a message redelivered after its worker died
+            # (acks_late) or after the 6 h visibility timeout, beside the sweep it belongs to or a
+            # newer one. Two at once raced each other's files (review round 7, live).
+            logger.warning("sort_library: another sweep holds the lock; dropping this delivery")
+            return
+        _sort_library_locked(admin_user_id)
+
+
+def _sort_library_locked(admin_user_id: str) -> None:
     db = SessionLocal()
     try:
         run = _get_run(db)
+        # v57 (live review): POST /api/library/sort sets the row running before it sends this.
+        # A delivery that finds it idle is stale: a message redelivered after its worker died
+        # (acks_late), arriving after an admin reset the wedged row by hand. Running it would
+        # be a sweep no page shows and no cancel reaches (409, "not running").
+        if run.state != LibrarySortState.RUNNING:
+            logger.warning(
+                "sort_library: the run row is %s, not running; dropping a stale delivery", run.state.value
+            )
+            db.commit()
+            return
         try:
             _run_sweep(db, run, admin_user_id)
         except Exception as exc:

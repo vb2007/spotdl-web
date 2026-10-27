@@ -344,7 +344,11 @@ def download_track_file(
     # on an absolute, possibly-nonexistent path is purely lexical (no filesystem access
     # required), so this needs no volume mount into this container.
     downloads_root = Path(get_settings().download_output_dir).resolve()
-    library_root = Path(app_settings.get_library_settings(db).library_target_dir).resolve()
+    # v57 (L6): the whole library mount, not only the current library_target_dir, so a track
+    # left under an earlier root stays downloadable (the owner's mount rule keeps every library
+    # root inside it). nginx's /internal-library/ aliases exactly that directory, so the path
+    # nginx gets is relative to it.
+    library_alias = Path(app_settings.DEFAULT_LIBRARY_TARGET_DIR).resolve()
     db.commit()
 
     resolved = raw_path if raw_path.is_absolute() else (downloads_root / raw_path)
@@ -352,8 +356,8 @@ def download_track_file(
 
     if resolved.is_relative_to(downloads_root) and resolved != downloads_root:
         root, prefix = downloads_root, _INTERNAL_DOWNLOADS_PREFIX
-    elif resolved.is_relative_to(library_root) and resolved != library_root:
-        root, prefix = library_root, _INTERNAL_LIBRARY_PREFIX
+    elif resolved.is_relative_to(library_alias) and resolved != library_alias:
+        root, prefix = library_alias, _INTERNAL_LIBRARY_PREFIX
     else:
         raise ApiError(404, "file_not_found", "File not found")
 

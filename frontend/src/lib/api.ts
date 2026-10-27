@@ -389,6 +389,10 @@ export interface LibrarySortRun {
 	skipped_present: number;
 	quarantined: number;
 	errors: { file: string; error: string }[];
+	/** v57 (L1): a cancel was asked for; the sweep stops at its next file boundary. */
+	cancel_requested: boolean;
+	/** v57 (L1): it stopped on that cancel: "cancelled after `processed` of `total`". */
+	cancelled: boolean;
 }
 
 /** v17: every session carries the admin flag so the frontend can hide admin-only UI --
@@ -997,6 +1001,11 @@ export function getLibrarySortStatus(): Promise<LibrarySortRun> {
 
 export function startLibrarySort(): Promise<LibrarySortRun> {
 	return request('/api/library/sort', { method: 'POST' });
+}
+
+/** v57 (L1): asks the running sweep to stop between files (409 when none runs). */
+export function cancelLibrarySort(): Promise<LibrarySortRun> {
+	return request('/api/library/sort/cancel', { method: 'POST' });
 }
 
 /** `EventSource` needs `withCredentials: true` for the (now rare, see resolveApiBase)

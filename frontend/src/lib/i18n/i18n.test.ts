@@ -243,6 +243,13 @@ const BACKEND_CODES = [
 	'archive_nothing_selected',
 	'invalid_list_params',
 	'library_sort_running',
+	// v57
+	'library_sort_not_running',
+	'library_paths_overlap',
+	'library_path_not_absolute',
+	'library_dir_outside_mount',
+	'library_quarantine_outside_mount',
+	'library_path_invalid',
 	'track_not_found',
 	'job_archived',
 	'track_not_retryable',
@@ -318,5 +325,28 @@ describe('every error code', () => {
 		expect(apiErrorText(paused)).toContain('Downloads are paused');
 		const later = new ApiError(429, 'the English detail', 'retry_cooldown', { retry_after: 3725 });
 		expect(apiErrorText(later)).toBe('“retry now” works once per wait. Next try in 1:02:05.');
+	});
+});
+
+describe('library_paths_overlap (v57)', () => {
+	const combos: [string, string, string][] = [
+		['library_target_dir', 'download_output_dir', 'equal'],
+		['library_target_dir', 'download_output_dir', 'inside'],
+		['library_target_dir', 'download_output_dir', 'contains'],
+		['library_quarantine_dir', 'library_target_dir', 'equal'],
+		['library_quarantine_dir', 'library_target_dir', 'inside'],
+		['library_quarantine_dir', 'library_target_dir', 'contains'],
+		['library_quarantine_dir', 'download_output_dir', 'equal'],
+		['library_quarantine_dir', 'download_output_dir', 'contains']
+	];
+	afterEach(() => speak(baseLocale));
+
+	it.each(['en', 'hu'] as Locale[])('names each overlap in its own sentence (%s)', (lang) => {
+		speak(lang);
+		const texts = combos.map(([field, other, relation]) =>
+			apiErrorText(new ApiError(422, 'detail', 'library_paths_overlap', { field, other, relation }))
+		);
+		expect(new Set(texts).size).toBe(combos.length);
+		expect(texts).not.toContain(m.error_library_paths_overlap());
 	});
 });

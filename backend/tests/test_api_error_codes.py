@@ -107,6 +107,18 @@ def test_library_sort_running_carries_a_code(admin_client, db_session, monkeypat
     _error(admin_client.post("/api/library/sort"), 409, "library_sort_running")
 
 
+def test_library_sort_cancel_and_path_errors_carry_codes(admin_client, db_session):
+    """v57: a cancel with nothing running, and overlapping sweep folders (with the params the
+    frontend's sentence is picked by)."""
+    _error(admin_client.post("/api/library/sort/cancel"), 409, "library_sort_not_running")
+    body = _error(
+        admin_client.patch("/api/settings/library", json={"library_target_dir": "/downloads/x"}),
+        422,
+        "library_paths_overlap",
+    )
+    assert body["params"] == {"field": "library_target_dir", "other": "download_output_dir", "relation": "inside"}
+
+
 def test_settings_errors_carry_codes_and_params(admin_client, db_session, monkeypatch):
     monkeypatch.setattr(app_settings, "get_settings", lambda: _FakeOutputSettings())
     body = _error(admin_client.patch("/api/settings/output", json={"default_format": "wma"}), 400, "unsupported_format")

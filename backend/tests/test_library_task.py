@@ -1,7 +1,13 @@
 import uuid
+from contextlib import nullcontext
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from app.models import (
     DownloadedTrack,
+    LibrarySortState,
     Job,
     JobSourceType,
     JobState,
@@ -9,11 +15,36 @@ from app.models import (
     TrackState,
     User,
 )
-from app.services import app_settings, events
+from app.services import app_settings, dedup, events
 from app.services import library as library_service
 from app.tasks import library as library_task
 
 _FAKE_TAGS = {"artists": ["Daft Punk"], "album_name": "Discovery", "year": 2001}
+
+
+@pytest.fixture(autouse=True)
+def _library_mount_in_tmp(tmp_path, monkeypatch):
+    """v57 (owner decision): the library dir must be under the library mount; here that's
+    tmp_path, the same as every library dir these tests configure."""
+    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "library")
+
+
+@pytest.fixture(autouse=True)
+def _downloads_in_tmp(tmp_path, monkeypatch):
+    """The owner's rule (2026-10-27): the quarantine dir is a folder inside the downloads dir,
+    here tmp_path's, where every ledger row these tests make points."""
+    monkeypatch.setattr(
+        library_task, "get_settings", lambda: SimpleNamespace(download_output_dir=str(tmp_path / "downloads"))
+    )
+
+
+@pytest.fixture(autouse=True)
+def _no_file_lock_connection(monkeypatch):
+    """v57 (L3): the sweep's per-file advisory lock lives on a connection of its own, which a
+    rollback-isolated test can't open. These tests are about what the sweep does with each
+    file; the lock itself is proven on committed sessions in test_library_race.py."""
+    monkeypatch.setattr(dedup, "file_lock", lambda path: nullcontext())
+    monkeypatch.setattr(library_task, "_sweep_lock", lambda: nullcontext(True))
 
 
 class _NonClosingSession:
@@ -41,11 +72,13 @@ def _owner(db_session, email="owner@example.com") -> User:
 
 
 def _configure(db_session, tmp_path, *, quarantine_enabled=True):
+    # v57 (round 2): the sweep refuses a target folder it can't confirm is mounted.
+    (tmp_path / "library").mkdir(exist_ok=True)
     app_settings.update_library_settings(
         db_session,
         library_target_dir=str(tmp_path / "library"),
         library_quarantine_enabled=quarantine_enabled,
-        library_quarantine_dir=str(tmp_path / "quarantine"),
+        library_quarantine_dir=str(tmp_path / "downloads" / "quarantine"),
     )
     db_session.commit()
 
@@ -77,6 +110,9 @@ def _capture_progress(monkeypatch):
 
 
 def _run(monkeypatch, db_session, admin_id=None):
+    # As POST /api/library/sort leaves it: the task drops a delivery that finds the row idle.
+    library_task._get_run(db_session).state = LibrarySortState.RUNNING
+    db_session.commit()
     monkeypatch.setattr(library_task, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
     library_task.sort_library(str(admin_id or uuid.uuid4()))
@@ -133,7 +169,7 @@ def test_sort_library_conflict_with_quarantine_enabled(db_session, tmp_path, mon
     assert dest.read_bytes() == b"pre-existing library copy, different bitrate"
     # The source was quarantined, not deleted.
     assert not (tmp_path / "downloads" / "track1.mp3").exists()
-    quarantined = list((tmp_path / "quarantine").iterdir())
+    quarantined = list((tmp_path / "downloads" / "quarantine").iterdir())
     assert len(quarantined) == 1
     assert quarantined[0].read_bytes() == b"the real audio bytes"
     # The ledger now points at the pre-existing target file, and is marked in-library.
@@ -157,7 +193,7 @@ def test_sort_library_conflict_with_quarantine_disabled(db_session, tmp_path, mo
     db_session.refresh(row)
     assert dest.read_bytes() == b"pre-existing library copy"
     assert not (tmp_path / "downloads" / "track1.mp3").exists()
-    assert not (tmp_path / "quarantine").exists() or not list((tmp_path / "quarantine").iterdir())
+    assert not (tmp_path / "downloads" / "quarantine").exists() or not list((tmp_path / "downloads" / "quarantine").iterdir())
     assert row.file_path == str(dest)
     assert row.in_library is True
 
@@ -197,6 +233,8 @@ def test_sort_library_verification_failure_leaves_source_and_ledger_untouched(db
     monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
     monkeypatch.setattr(library_service, "copy_verify", lambda source, dest: False)
 
+    library_task._get_run(db_session).state = LibrarySortState.RUNNING
+    db_session.commit()
     library_task.sort_library(str(uuid.uuid4()))
 
     db_session.refresh(row)
@@ -488,7 +526,7 @@ def test_sort_library_quarantines_a_shared_file_once_and_repoints_every_row(
         assert row.in_library is True
         assert row.file_path == str(dest)
     assert dest.read_bytes() == b"the copy already in the library"
-    assert len(list((tmp_path / "quarantine").rglob("*.mp3"))) == 1
+    assert len(list((tmp_path / "downloads" / "quarantine").rglob("*.mp3"))) == 1
 
     run = library_task._get_run(db_session)
     assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (1, 1, 0, 0, 1)
@@ -567,7 +605,7 @@ def test_sort_library_keeps_every_shared_row_repointed_when_the_source_delete_fa
     db_session.refresh(track)
     assert track.output_path == dest
     assert (tmp_path / "downloads" / "single-cut.mp3").exists()
-    assert not (tmp_path / "quarantine").exists() or not list((tmp_path / "quarantine").rglob("*"))
+    assert not (tmp_path / "downloads" / "quarantine").exists() or not list((tmp_path / "downloads" / "quarantine").rglob("*"))
     run = library_task._get_run(db_session)
     assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (1, 1, 0, 0, 0)
     assert len(run.errors) == 1
@@ -719,6 +757,8 @@ def test_sort_library_leaves_every_row_on_a_shared_file_whose_copy_failed(
     monkeypatch.setattr(library_service, "copy_verify", _copy_verify)
     _capture_progress(monkeypatch)
 
+    library_task._get_run(db_session).state = LibrarySortState.RUNNING
+    db_session.commit()
     library_task.sort_library(str(uuid.uuid4()))
 
     assert len(calls) == 1
@@ -773,6 +813,8 @@ def test_sort_library_resets_to_idle_when_sync_and_archive_raises(db_session, tm
 
     monkeypatch.setattr(library_task, "_sync_tracks_and_archive_jobs", _boom)
 
+    library_task._get_run(db_session).state = LibrarySortState.RUNNING
+    db_session.commit()
     library_task.sort_library(str(uuid.uuid4()))
 
     run = library_task._get_run(db_session)
@@ -793,9 +835,400 @@ def test_sort_library_resets_to_idle_when_settings_load_raises(db_session, tmp_p
 
     monkeypatch.setattr(app_settings, "get_library_settings", _boom)
 
+    library_task._get_run(db_session).state = LibrarySortState.RUNNING
+    db_session.commit()
     library_task.sort_library(str(uuid.uuid4()))
 
     run = library_task._get_run(db_session)
     assert run.state.value == "idle"
     assert run.finished_at is not None
     assert any("crashed" in e["error"] for e in run.errors)
+
+
+def test_sort_library_cancel_stops_between_files_and_keeps_the_moved_ones(db_session, tmp_path, monkeypatch):
+    """v57 (L1): a cancel requested while a file is being copied lets that file finish (its
+    ledger row repointed, its track following it), and no later file is touched. The report
+    says "cancelled after N of M" through cancelled/processed/total, and so does the alert."""
+    from sqlalchemy import update
+
+    from app.models import LibrarySortRun
+    from app.services import alerts
+
+    _configure(db_session, tmp_path)
+    rows = [_make_ledger_row(db_session, tmp_path, spotify_track_id=f"t{i}") for i in range(3)]
+    owner = _owner(db_session)
+    job = Job(
+        user_id=owner.id,
+        source_url="https://open.spotify.com/album/x",
+        source_type=JobSourceType.ALBUM,
+        state=JobState.EXPANDED,
+    )
+    db_session.add(job)
+    db_session.commit()
+    track = Track(
+        job_id=job.id,
+        spotify_track_id="t0",
+        song_json={"name": "t0"},
+        state=TrackState.COMPLETED,
+        output_path=rows[0].file_path,
+    )
+    db_session.add(track)
+    db_session.commit()
+    real_copy_verify = library_service.copy_verify
+    copied = []
+
+    def _cancel_mid_copy(source, dest):
+        # POST /api/library/sort/cancel, landing while the first file is in flight.
+        db_session.execute(
+            update(LibrarySortRun).values(cancel_requested=True).execution_options(synchronize_session=False)
+        )
+        copied.append(source.name)
+        return real_copy_verify(source, dest)
+
+    monkeypatch.setattr(library_service, "copy_verify", _cancel_mid_copy)
+    sent = []
+    monkeypatch.setattr(alerts, "enqueue", lambda category, fingerprint, text: sent.append(text))
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    run = library_task._get_run(db_session)
+    assert run.state.value == "idle"
+    assert (run.cancelled, run.processed, run.total, run.moved) == (True, 1, 3, 1)
+    assert copied == ["t0.mp3"]
+    dest = tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "t0.mp3"
+    for row in rows:
+        db_session.refresh(row)
+    assert (rows[0].file_path, rows[0].in_library) == (str(dest), True)
+    assert dest.exists() and not (tmp_path / "downloads" / "t0.mp3").exists()
+    for row in rows[1:]:
+        assert row.in_library is False and Path(row.file_path).exists()
+    db_session.refresh(track)
+    assert track.output_path == str(dest)
+    assert sent and sent[0].startswith("Library sweep cancelled after 1 of 3 files:")
+
+
+def test_sort_library_skips_a_source_that_is_its_own_destination(db_session, tmp_path, monkeypatch):
+    """v57 (L2): a not-yet-filed ledger row whose file already sits at its computed destination
+    read as "already exists" and was quarantined (or deleted): the library's only copy. It's
+    skipped with a reason, and nothing is moved or deleted."""
+    _configure(db_session, tmp_path)
+    dest = tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "self.mp3"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(b"the library's only copy")
+    row = DownloadedTrack(spotify_track_id="self", file_path=str(dest), format="mp3", bitrate="320k", in_library=False)
+    db_session.add(row)
+    db_session.commit()
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert dest.read_bytes() == b"the library's only copy"
+    assert not (tmp_path / "downloads" / "quarantine").exists()
+    run = library_task._get_run(db_session)
+    assert run.errors == [
+        {"file": str(dest), "error": "destination is the source file itself; marked filed, nothing moved"}
+    ]
+    assert (run.processed, run.moved, run.quarantined, run.skipped_present) == (1, 0, 0, 0)
+    # Filed where it is (review round 1): the next sweep doesn't report it again.
+    db_session.refresh(row)
+    assert row.in_library is True and row.file_path == str(dest)
+    _run(monkeypatch, db_session)
+    assert library_task._get_run(db_session).total == 0  # nothing left to consider
+
+
+def test_sort_library_never_moves_a_source_already_inside_the_library(db_session, tmp_path, monkeypatch):
+    """v57 (L2): a not-yet-filed row on a file elsewhere in the library (or an earlier library
+    root) is skipped: a sweep never moves or deletes anything on the library filesystem."""
+    _configure(db_session, tmp_path)
+    elsewhere = tmp_path / "library" / "Unsorted" / "loose.mp3"
+    elsewhere.parent.mkdir(parents=True)
+    elsewhere.write_bytes(b"loose library file")
+    db_session.add(
+        DownloadedTrack(spotify_track_id="loose", file_path=str(elsewhere), format="mp3", bitrate="320k")
+    )
+    db_session.commit()
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert elsewhere.read_bytes() == b"loose library file"
+    assert not (tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "loose.mp3").exists()
+    run = library_task._get_run(db_session)
+    assert run.errors == [
+        {"file": str(elsewhere), "error": "source is already inside the library; marked filed, nothing moved"}
+    ]
+    assert db_session.get(DownloadedTrack, "loose").in_library is True
+
+
+def test_sort_library_refuses_to_run_with_overlapping_directories(db_session, tmp_path, monkeypatch):
+    """v57 (L2): a library inside the downloads dir (saved before v57) is refused by the task
+    itself too, before any file is touched."""
+    downloads = tmp_path / "downloads"
+    app_settings.update_library_settings(
+        db_session,
+        library_target_dir=str(downloads / "library"),
+        library_quarantine_dir=str(tmp_path / "downloads" / "quarantine"),
+    )
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    monkeypatch.setattr(library_task, "get_settings", lambda: SimpleNamespace(download_output_dir=str(downloads)))
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    run = library_task._get_run(db_session)
+    assert run.state.value == "idle"
+    # The overlap first; a library inside the downloads dir is outside the mount too.
+    assert run.errors[0] == {
+        "file": "<sweep>",
+        "error": "refused to start: library_target_dir is inside download_output_dir",
+    }
+    db_session.refresh(row)
+    assert row.in_library is False and Path(row.file_path).exists()
+
+
+def test_sort_library_refuses_a_quarantine_dir_outside_the_downloads_dir(db_session, tmp_path, monkeypatch):
+    """Owner decision (2026-10-27): a quarantine dir saved before the rule, outside the downloads
+    volume, is refused by the task itself too, before any file is touched, quarantine on or off."""
+    _configure(db_session, tmp_path, quarantine_enabled=False)
+    app_settings.update_library_settings(db_session, library_quarantine_dir=str(tmp_path / "quarantine"))
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    run = library_task._get_run(db_session)
+    assert run.state.value == "idle"
+    assert run.errors == [
+        {
+            "file": "<sweep>",
+            "error": "refused to start: library_quarantine_dir is not a folder inside the downloads dir "
+            f"{tmp_path / 'downloads'}",
+        }
+    ]
+    db_session.refresh(row)
+    assert row.in_library is False and Path(row.file_path).exists()
+    assert not (tmp_path / "quarantine").exists()
+
+
+def test_sort_library_gives_one_reason_for_a_quarantine_dir_that_overlaps(db_session, tmp_path, monkeypatch):
+    """Review: a quarantine dir equal to the downloads dir is also not *inside* it; the overlap is
+    the one reason recorded, as the API reports only that."""
+    _configure(db_session, tmp_path)
+    app_settings.update_library_settings(db_session, library_quarantine_dir=str(tmp_path / "downloads"))
+    db_session.commit()
+    _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert library_task._get_run(db_session).errors == [
+        {"file": "<sweep>", "error": "refused to start: library_quarantine_dir is the same directory as download_output_dir"}
+    ]
+
+
+def test_sort_library_never_adopts_a_partial_copy_left_by_a_full_disk(db_session, tmp_path, monkeypatch):
+    """v57 (L7): a copy that fails with ENOSPC is recorded as an error, and the next sweep
+    tries the copy again instead of reading the partial file as "already in the library" and
+    quarantining the good source over it."""
+    _configure(db_session, tmp_path)
+    row = _make_ledger_row(db_session, tmp_path)
+    dest = tmp_path / "library" / "Daft Punk - Discovery - (2001)" / "track1.mp3"
+
+    def _disk_full_copy(source, target):
+        Path(target).write_bytes(b"the r")
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(library_service.shutil, "copy2", _disk_full_copy)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+    _run(monkeypatch, db_session)
+
+    db_session.refresh(row)
+    assert row.in_library is False
+    assert Path(row.file_path).read_bytes() == b"the real audio bytes"
+    assert not dest.exists()
+    assert not (tmp_path / "downloads" / "quarantine").exists()
+    assert len(list(dest.parent.glob(".spotdl-copy-failed-*"))) == 2
+    run = library_task._get_run(db_session)
+    assert run.quarantined == 0 and run.errors[0]["error"].startswith("[Errno 28]")
+
+
+def test_sort_library_ignores_a_known_root_that_overlaps_the_downloads_dir(db_session, tmp_path, monkeypatch):
+    """v57 (review round 1): a known root around the downloads dir (a value saved before L2's
+    check; the list can't be edited) must not make every download read as "already inside the
+    library"."""
+    downloads = tmp_path / "downloads"
+    _configure(db_session, tmp_path)
+    row_settings = app_settings.get_library_settings(db_session)
+    row_settings.library_known_roots = [str(tmp_path / "library"), str(tmp_path)]
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    monkeypatch.setattr(library_task, "get_settings", lambda: SimpleNamespace(download_output_dir=str(downloads)))
+    monkeypatch.setattr(dedup, "get_settings", lambda: SimpleNamespace(download_output_dir=str(downloads)))
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    db_session.refresh(row)
+    assert row.in_library is True
+    assert library_task._get_run(db_session).moved == 1
+
+
+def test_sort_library_creates_its_targets_sentinel(db_session, tmp_path, monkeypatch):
+    """v57 (review round 1): a new library root the sweep fills is "mounted" at once, not only
+    after worker-meta's next boot."""
+    _configure(db_session, tmp_path)
+    _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert (tmp_path / "library" / dedup.SENTINEL_NAME).is_file()
+
+
+def test_sort_library_refuses_a_target_that_looks_unmounted(db_session, tmp_path, monkeypatch):
+    """v57 (review round 2): the library mount didn't attach, so the target is an empty
+    mountpoint while ledger rows point into it. Filing into it would put new files on the wrong
+    filesystem, and the next reconcile would take them as proof the volume is mounted."""
+    _configure(db_session, tmp_path)
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="filed-before",
+            file_path=str(tmp_path / "library" / "A - B - (2001)" / "song.mp3"),
+            format="mp3",
+            bitrate="320k",
+            in_library=True,
+        )
+    )
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    run = library_task._get_run(db_session)
+    assert run.state.value == "idle" and run.total == 0
+    assert run.errors[0]["file"] == "<sweep>"
+    assert run.errors[0]["error"].startswith(f"refused to start: {tmp_path / 'library'} has no .spotdl-volume")
+    assert list((tmp_path / "library").iterdir()) == []
+    db_session.refresh(row)
+    assert row.in_library is False and Path(row.file_path).exists()
+
+
+def test_sort_library_refuses_a_target_folder_that_does_not_exist(db_session, tmp_path, monkeypatch):
+    _configure(db_session, tmp_path)
+    (tmp_path / "library").rmdir()
+    _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert not (tmp_path / "library").exists()
+    assert library_task._get_run(db_session).errors[0]["error"].startswith("refused to start:")
+
+
+def test_sort_library_refuses_a_library_dir_outside_the_mount(db_session, tmp_path, monkeypatch):
+    """v57 (owner decision, 2026-10-26): a library dir outside the volume's mount point is the
+    container's own writable layer; the sweep files nothing there."""
+    _configure(db_session, tmp_path)
+    row = _make_ledger_row(db_session, tmp_path)
+    monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "mnt" / "music")
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    run = library_task._get_run(db_session)
+    assert run.errors == [
+        {
+            "file": "<sweep>",
+            "error": f"refused to start: library_target_dir is outside the library mount {tmp_path / 'mnt' / 'music'}",
+        }
+    ]
+    db_session.refresh(row)
+    assert row.in_library is False and Path(row.file_path).exists()
+
+
+def test_sort_library_fills_a_new_folder_inside_a_mounted_root(db_session, tmp_path, monkeypatch):
+    """Review round 4: a library dir switched to a folder inside the mount (the owner's rule for
+    L6) is covered by the mount point's sentinel; the sweep creates the folder."""
+    _configure(db_session, tmp_path)
+    (tmp_path / "library" / dedup.SENTINEL_NAME).write_text("sentinel")
+    app_settings.update_library_settings(db_session, library_target_dir=str(tmp_path / "library" / "sorted"))
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    db_session.refresh(row)
+    assert row.file_path == str(tmp_path / "library" / "sorted" / "Daft Punk - Discovery - (2001)" / "track1.mp3")
+    assert library_task._get_run(db_session).moved == 1
+
+
+def test_sort_library_drops_a_delivery_that_finds_the_run_idle(db_session, tmp_path, monkeypatch):
+    """Live review: a message redelivered after its worker died, arriving after an admin reset the
+    wedged row to idle, must not run a sweep no page shows and no cancel reaches."""
+    _configure(db_session, tmp_path)
+    row = _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+    monkeypatch.setattr(library_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
+
+    library_task.sort_library(str(uuid.uuid4()))  # the row was never set running
+
+    db_session.refresh(row)
+    assert row.in_library is False and Path(row.file_path).exists()
+    assert library_task._get_run(db_session).total == 0
+
+
+def test_sort_library_never_moves_a_file_elsewhere_in_the_mount(db_session, tmp_path, monkeypatch):
+    """Review round 6: with the library dir a folder inside the mount, a not-yet-filed row on a
+    file elsewhere in the mount (under no known root) is still library, never moved."""
+    _configure(db_session, tmp_path)
+    app_settings.get_library_settings(db_session).library_target_dir = str(tmp_path / "library" / "Sorted")
+    app_settings.get_library_settings(db_session).library_known_roots = [str(tmp_path / "library" / "Sorted")]
+    (tmp_path / "library" / dedup.SENTINEL_NAME).write_text("sentinel")
+    db_session.commit()
+    elsewhere = tmp_path / "library" / "Other" / "x.mp3"
+    elsewhere.parent.mkdir(parents=True)
+    elsewhere.write_bytes(b"library audio")
+    db_session.add(DownloadedTrack(spotify_track_id="other", file_path=str(elsewhere), format="mp3", bitrate="320k"))
+    db_session.commit()
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert elsewhere.read_bytes() == b"library audio"
+    other = db_session.get(DownloadedTrack, "other")
+    db_session.refresh(other)
+    assert other.in_library is True
+    assert library_task._get_run(db_session).moved == 0
+
+
+def test_sort_library_target_check_counts_the_mounts_rows(db_session, tmp_path, monkeypatch):
+    """Review round 6: a new, empty target folder on an unattached mountpoint (no sentinel) whose
+    rows all sit elsewhere in the mount must not get a sentinel; the sweep is refused."""
+    _configure(db_session, tmp_path)
+    target = tmp_path / "library" / "new"
+    target.mkdir()
+    app_settings.get_library_settings(db_session).library_target_dir = str(target)
+    db_session.commit()
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="filed", file_path=str(tmp_path / "library" / "A" / "a.mp3"), format="mp3", bitrate="320k", in_library=True
+        )
+    )
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert not (target / dedup.SENTINEL_NAME).exists()
+    assert library_task._get_run(db_session).errors[0]["error"].startswith("refused to start:")
+    db_session.refresh(row)
+    assert row.in_library is False

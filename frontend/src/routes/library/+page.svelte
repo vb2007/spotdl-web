@@ -14,12 +14,17 @@
 
 	let run = $state<api.LibrarySortRun | null>(null);
 	let starting = $state(false);
+	// v57 (L1): the cancel request in flight; once answered, run.cancel_requested says it.
+	let cancelling = $state(false);
 	let error = $state('');
 	let loadError = $state('');
 	// v43 (F20): the stream can drop mid-sweep; say so instead of freezing the counts.
 	let linkDown = $state(false);
 
 	const running = $derived(run?.state === 'running');
+	// Asked to stop: it finishes the file it's on, then reports "cancelled after N of M".
+	const stopping = $derived(running && (run?.cancel_requested ?? false));
+	const cancelled = $derived(!running && (run?.cancelled ?? false));
 	const percent = $derived(
 		run !== null && run.total > 0 ? Math.round((run.processed / run.total) * 100) : 0
 	);
@@ -61,14 +66,16 @@
 		run === null
 			? ''
 			: running
-				? m.library_state_running()
+				? stopping
+					? m.library_stopping()
+					: m.library_state_running()
 				: run.finished_at === null
 					? ''
 					: reportPending
 						? reportError
 							? m.library_state_finished_unread()
 							: ''
-						: m.library_state_finished({
+						: (run.cancelled ? m.library_state_cancelled : m.library_state_finished)({
 								movedN: formatNumber(run.moved),
 								...counted(run.errors.length)
 							})
@@ -86,6 +93,7 @@
 	let heading: HTMLElement | undefined = $state();
 	// v52 (D5): the start button, so a confirmed start can hand its focus on before disabling it.
 	let startButton: HTMLButtonElement | undefined = $state();
+	let cancelButton: HTMLButtonElement | undefined = $state();
 
 	function formatWhen(iso: string): string {
 		return formatDateTime(iso, { dateStyle: 'medium', timeStyle: 'short' });
@@ -160,7 +168,49 @@
 	 * stream's "running" then dropped it to <body> for good. */
 	function handFocusToPanel(): void {
 		const active = document.activeElement;
-		if (active === null || active === document.body || active === startButton) heading?.focus();
+		if (
+			active === null ||
+			active === document.body ||
+			active === startButton ||
+			active === cancelButton
+		)
+			heading?.focus();
+	}
+
+	// v57 (L1): stopping a sweep keeps every file it already filed, so it asks, like the start.
+	// One question and its request at a time, like the start. The button stays enabled while the
+	// question is open, so the dialog can give focus back to it on "keep sweeping"; the heading
+	// is only the fallback when focus has fallen to <body>.
+	let onCancelRunning = false;
+	async function onCancel() {
+		if (onCancelRunning) return;
+		onCancelRunning = true;
+		try {
+			const confirmed = await confirmAction({
+				title: m.library_cancel_confirm_title(),
+				body: m.library_cancel_confirm_body(),
+				confirmLabel: m.library_cancel(),
+				cancelLabel: m.library_cancel_confirm_keep()
+			});
+			// Not confirmed, left the page, or finished while the question was open.
+			if (!confirmed || unmounted || !running) return keepFocus(heading);
+			// The button is disabled from here until the sweep ends.
+			handFocusToPanel();
+			cancelling = true;
+			error = '';
+			try {
+				await api.cancelLibrarySort();
+				// Only the flag: the answer's counts may be older than the stream's.
+				if (run !== null && run.state === 'running') run = { ...run, cancel_requested: true };
+			} catch (err) {
+				error = errorText(err);
+			} finally {
+				cancelling = false;
+			}
+			await keepFocus(heading);
+		} finally {
+			onCancelRunning = false;
+		}
 	}
 
 	async function onStartFlow() {
@@ -243,6 +293,7 @@
 		// A sweep started elsewhere (another tab) arrives here first as an event: its start and
 		// errors are its own, not the previous run's.
 		const fresh = run?.state !== 'running';
+		const previous = run;
 		run = {
 			state: payload.done ? 'idle' : 'running',
 			// Joined mid-run, its real start is unknown until the report is read ("took" waits).
@@ -253,7 +304,11 @@
 			moved: payload.moved,
 			skipped_present: payload.skipped_present,
 			quarantined: payload.quarantined,
-			errors: fresh ? [] : (run?.errors ?? [])
+			errors: fresh ? [] : (previous?.errors ?? []),
+			// The event carries neither: a cancel asked for here stays asked; the done event's
+			// report read says whether the sweep stopped on it.
+			cancel_requested: fresh ? false : (previous?.cancel_requested ?? false),
+			cancelled: false
 		};
 		// The SSE payload doesn't carry the final error list -- re-fetch the full report
 		// once the sweep reports done, rather than trying to accumulate per-file errors
@@ -342,15 +397,28 @@
 							{sweepHint.before}<a href={resolve('/settings')}>{sweepHint.link}</a>{sweepHint.after}
 						</p>
 					</div>
-					<button
-						type="button"
-						class="btn"
-						disabled={starting || running}
-						onclick={onStart}
-						bind:this={startButton}
-					>
-						{running ? m.library_sweeping() : starting ? m.library_starting() : m.library_start()}
-					</button>
+					<div class="actions">
+						{#if running}
+							<button
+								type="button"
+								class="btn danger"
+								disabled={cancelling || stopping}
+								onclick={onCancel}
+								bind:this={cancelButton}
+							>
+								{stopping ? m.library_cancelling() : m.library_cancel()}
+							</button>
+						{/if}
+						<button
+							type="button"
+							class="btn"
+							disabled={starting || running}
+							onclick={onStart}
+							bind:this={startButton}
+						>
+							{running ? m.library_sweeping() : starting ? m.library_starting() : m.library_start()}
+						</button>
+					</div>
 				</header>
 				<!-- One alert line for the page: a start that failed, or a report that couldn't be read. -->
 				<p class="form-error" role="alert">{error || reportError}</p>
@@ -397,7 +465,9 @@
 											class="mono">{values[piece.slot]}</span
 										>{/if}{/each}
 							{:else if run.finished_at}
-								{m.library_last_finished({ when: formatWhen(run.finished_at) })}
+								{(cancelled ? m.library_last_cancelled : m.library_last_finished)({
+									when: formatWhen(run.finished_at)
+								})}
 								{#if formatTook(run.started_at, run.finished_at)}
 									<span class="took"
 										>{m.library_took({
@@ -407,6 +477,17 @@
 								{/if}
 							{/if}
 						</p>
+						{#if stopping}
+							<p class="stopping">{m.library_stopping()}</p>
+						{:else if cancelled}
+							<p class="stopping">
+								{m.library_cancelled_after({
+									count: run.total,
+									processed: formatNumber(run.processed),
+									total: formatNumber(run.total)
+								})}
+							</p>
+						{/if}
 						<!-- Always present, so the loss is announced when its text appears. -->
 						<p class="link-lost" role="status">{linkNote}</p>
 
@@ -415,8 +496,8 @@
 						{#if run.total > 0}
 							<div
 								class="progress-bar"
-								class:done={!running && errorCount === 0}
-								class:crashed={!running && errorCount > 0}
+								class:done={!running && errorCount === 0 && !cancelled}
+								class:crashed={!running && (errorCount > 0 || cancelled)}
 								class:stale={running && linkDown}
 								role="progressbar"
 								aria-label={m.library_progress_label()}
@@ -526,6 +607,13 @@
 		gap: var(--space-3) var(--space-5);
 	}
 
+	/* v57: cancel sits before start, so start keeps its place at the panel's edge. */
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-2);
+	}
+
 	.head-text {
 		display: flex;
 		flex-direction: column;
@@ -561,6 +649,12 @@
 		font-family: inherit;
 		font-variant-numeric: tabular-nums;
 		letter-spacing: normal;
+	}
+
+	/* A stop asked for, or a sweep that stopped on one: neither live nor an error. */
+	.stopping {
+		font-size: var(--fs-detail);
+		color: var(--text-muted);
 	}
 
 	.link-lost {
@@ -599,8 +693,8 @@
 		background: var(--settled-dim);
 	}
 
-	/* Over, with errors (or cut short by a crash): neither live (amber) nor a clean success
-	   (mint). */
+	/* Over, with errors (or cut short by a crash or, v57, a cancel): neither live (amber) nor a
+	   clean success (mint). */
 	.progress-bar.crashed .progress-fill {
 		background: var(--line-bright);
 	}

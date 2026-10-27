@@ -248,6 +248,25 @@
 			libraryForm = { ...librarySettings };
 			librarySavedAt = new Date();
 		} catch (err) {
+			// v57 (L2): two folders overlap, or one isn't a full path; the sentence goes under the
+			// field the server named.
+			const field = err instanceof api.ApiError ? err.params.field : undefined;
+			if (
+				err instanceof api.ApiError &&
+				[
+					'library_paths_overlap',
+					'library_path_not_absolute',
+					'library_path_invalid',
+					'library_dir_outside_mount',
+					'library_quarantine_outside_mount'
+				].includes(err.code ?? '') &&
+				typeof field === 'string' &&
+				field in libraryForm
+			) {
+				libraryFieldErrors = { [field]: errorText(err) };
+				librarySaving = false;
+				return focusInvalid(field);
+			}
 			libraryError = errorText(err);
 		} finally {
 			librarySaving = false;

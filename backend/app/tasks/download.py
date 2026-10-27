@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import (
-    DownloadedTrack,
     Job,
     NetworkPath,
     Track,
@@ -278,8 +277,8 @@ def download_track(track_id: str) -> None:
             existing_path = dedup.is_already_downloaded(track.spotify_track_id)
         except dedup.LedgerRootUnavailable as exc:
             logger.error(
-                "download_track: track %s's ledger file %s is under %s, which is missing or "
-                "empty in this worker; holding it as waiting rather than downloading it again",
+                "download_track: track %s's ledger file %s is under %s, which has no mount "
+                "sentinel in this worker; holding it as waiting rather than downloading it again",
                 track_id,
                 exc.path,
                 exc.root,
@@ -290,7 +289,7 @@ def download_track(track_id: str) -> None:
                 owner_id,
                 attempt_started_at,
                 now + retry.next_delay(0),
-                f"{exc.root} is missing or empty; rescheduled without attempting",
+                f"{exc.root} has no {dedup.SENTINEL_NAME} (not mounted?); rescheduled without attempting",
                 entry_state,
                 entry_attempt,
             )
@@ -591,19 +590,57 @@ def download_track(track_id: str) -> None:
                 # path, no counter, no proxy or breaker verdict. The ledger gains the row it
                 # was missing, so the next submission resolves at the gate. Its tags were
                 # verified (and repaired) above like a fresh download's, as before v55.
+                # v57 (L3): under the file's advisory lock, like a fresh download's row below.
+                # The file was already there, likely as another row's, so the library sweep may
+                # have filed it away meanwhile: nothing went to the network, so that's a hold
+                # (no rung, counter or proxy verdict), and the next attempt's dedup gate decides
+                # (rebase review, v55's E8 contract).
+                try:
+                    dedup.record_download(
+                        db,
+                        track.spotify_track_id,
+                        output_path,
+                        format=output_format,
+                        bitrate=output_bitrate,
+                    )
+                except dedup.LedgerFileMoved:
+                    logger.info(
+                        "download_track: track %s's existing file %s was moved by the library sweep "
+                        "before it could be recorded; holding it",
+                        track_id,
+                        output_path,
+                    )
+                    # Written here, not through _hold: the track is this invocation's claim
+                    # (`downloading`, under the row lock above), and a reclaim's row meanwhile
+                    # is superseded as the skip's would be; a hold counts as nothing.
+                    track.state = TrackState.WAITING
+                    track.scheduled_at = datetime.now(timezone.utc) + retry.next_delay(0)
+                    recorded = attempts.record_attempt(
+                        db,
+                        track.id,
+                        attempt_started_at,
+                        datetime.now(timezone.utc),
+                        TrackAttemptOutcome.HELD,
+                        warning_message="spotdl found the file already in place, but the library "
+                        "sweep moved it meanwhile; rescheduled",
+                        supersede_reclaim_after=entry_attempt,
+                    )
+                    db.commit()
+                    events.publish_track_event(
+                        owner_id,
+                        track.id,
+                        track.job_id,
+                        track.state.value,
+                        scheduled_at=track.scheduled_at,
+                        attempts_made=recorded.attempts_made,
+                        failure_count=recorded.failure_count,
+                        **track_meta,
+                    )
+                    return
                 track.state = TrackState.SKIPPED_DUPLICATE
                 track.output_path = str(output_path)
                 track.last_error = None
                 track.last_error_type = None
-                db.merge(
-                    DownloadedTrack(
-                        spotify_track_id=track.spotify_track_id,
-                        file_path=str(output_path),
-                        format=output_format,
-                        bitrate=output_bitrate,
-                        in_library=False,
-                    )
-                )
                 recorded = attempts.record_attempt(
                     db,
                     track.id,
@@ -630,18 +667,14 @@ def download_track(track_id: str) -> None:
 
             track.state = TrackState.COMPLETED
             track.output_path = str(output_path)
-            # in_library is set, not left out: merge copies only the attributes given, so a row
-            # whose library file went missing and was downloaded again kept in_library=True on
-            # its new /downloads path, and no sweep (which reads only in_library=False) would
-            # ever file it (v48).
-            db.merge(
-                DownloadedTrack(
-                    spotify_track_id=track.spotify_track_id,
-                    file_path=str(output_path),
-                    format=output_format,
-                    bitrate=output_bitrate,
-                    in_library=False,
-                )
+            # v57 (L3): under the file's advisory lock, so the library sweep can't delete the
+            # file between its re-read of the ledger and this row landing (dedup.record_download).
+            dedup.record_download(
+                db,
+                track.spotify_track_id,
+                output_path,
+                format=output_format,
+                bitrate=output_bitrate,
             )
             if proxy_id is not None:
                 proxies.record_proxy_result(db, proxy_id, success=True)

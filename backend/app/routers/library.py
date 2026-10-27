@@ -1,13 +1,16 @@
 from datetime import datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import get_db
 from app.errors import ApiError
 from app.models import LibrarySortRun, LibrarySortState, User
 from app.routers.auth import require_admin
-from app.tasks.library import sort_library
+from app.services import app_settings, library
+from app.tasks.library import describe_conflict, sort_library
 
 router = APIRouter(prefix="/api/library", tags=["library"])
 
@@ -32,7 +35,46 @@ def _run_to_dict(run: LibrarySortRun) -> dict:
         "skipped_present": run.skipped_present,
         "quarantined": run.quarantined,
         "errors": run.errors,
+        "cancel_requested": run.cancel_requested,
+        "cancelled": run.cancelled,
     }
+
+
+def check_library_paths(*, downloads_dir: str, library_dir: str, quarantine_dir: str) -> None:
+    """v57 (L2): 422 `library_path_not_absolute` for a relative library or quarantine dir,
+    422 `library_paths_overlap` for the first way the sweep's directories overlap, then
+    `library_dir_outside_mount` for a library dir outside the library volume's mount point, then
+    `library_quarantine_outside_mount` for a quarantine dir outside the downloads dir. The
+    quarantine dir is checked whether or not quarantine is on (L2, literally)
+    (library.path_conflicts), naming both settings and how they relate. Shared by the settings
+    PATCH and the sweep's start."""
+    # A relative path would resolve against each container's own working directory, so the
+    # overlap check couldn't mean anything for it.
+    for field, value in (("library_target_dir", library_dir), ("library_quarantine_dir", quarantine_dir)):
+        # A NUL can't be in a path: every filesystem call on it raised, a 500 (live review).
+        if "\x00" in value:
+            raise ApiError(422, "library_path_invalid", f"{field} contains a NUL character", {"field": field})
+        if not Path(value).is_absolute():
+            raise ApiError(422, "library_path_not_absolute", f"{field} must be an absolute path", {"field": field})
+    conflicts = library.path_conflicts(Path(downloads_dir), Path(library_dir), Path(quarantine_dir))
+    if conflicts:
+        conflict = conflicts[0]
+        raise ApiError(422, "library_paths_overlap", describe_conflict(conflict), conflict)
+    if library.outside_library_mount(Path(library_dir)):
+        mount = str(library.library_mount())
+        raise ApiError(
+            422,
+            "library_dir_outside_mount",
+            f"library_target_dir must be {mount} or a folder inside it",
+            {"field": "library_target_dir", "mount": mount},
+        )
+    if library.outside_downloads_mount(Path(quarantine_dir), Path(downloads_dir)):
+        raise ApiError(
+            422,
+            "library_quarantine_outside_mount",
+            f"library_quarantine_dir must be a folder inside {downloads_dir}",
+            {"field": "library_quarantine_dir", "mount": downloads_dir},
+        )
 
 
 @router.get("/sort/status")
@@ -66,6 +108,12 @@ def start_sort(
     run = _get_or_create_run(db, for_update=True)
     if run.state == LibrarySortState.RUNNING:
         raise ApiError(409, "library_sort_running", "A library sort is already running")
+    settings_row = app_settings.get_library_settings(db)
+    check_library_paths(
+        downloads_dir=get_settings().download_output_dir,
+        library_dir=settings_row.library_target_dir,
+        quarantine_dir=settings_row.library_quarantine_dir,
+    )
 
     run.state = LibrarySortState.RUNNING
     run.started_at = datetime.now(timezone.utc)
@@ -76,7 +124,26 @@ def start_sort(
     run.skipped_present = 0
     run.quarantined = 0
     run.errors = []
+    run.cancel_requested = False
+    run.cancelled = False
     db.commit()
 
     sort_library.delay(str(admin.id))
+    return _run_to_dict(run)
+
+
+@router.post("/sort/cancel", status_code=202)
+def cancel_sort(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    """v57 (L1): asks the running sweep to stop. It stops between files, never mid-file, so
+    the answer is 202 and the sweep's own done event (or the status row) says when it has:
+    `cancelled` with "N of M" in `processed`/`total`. 409 when no sweep is running. The same
+    row lock as the start, so a cancel can't land between a start's check and its commit."""
+    run = _get_or_create_run(db, for_update=True)
+    if run.state != LibrarySortState.RUNNING:
+        raise ApiError(409, "library_sort_not_running", "No library sort is running")
+    run.cancel_requested = True
+    db.commit()
     return _run_to_dict(run)

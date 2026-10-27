@@ -1,4 +1,7 @@
+import errno
 from pathlib import Path
+
+import pytest
 
 from app.services import library
 
@@ -96,7 +99,7 @@ def test_copy_verify_failure_leaves_both_files_in_place(tmp_path, monkeypatch):
     assert not dest.exists()
     siblings = list(dest.parent.iterdir())
     assert len(siblings) == 1
-    assert siblings[0].name.startswith(f"{dest.name}.verify-failed-")
+    assert siblings[0].name.startswith(".spotdl-verify-failed-")
     assert siblings[0].read_bytes() == b"the audio bytes"
     assert source.exists()
 
@@ -137,3 +140,140 @@ def test_read_sort_tags_returns_none_for_unsupported_format(tmp_path):
     source.write_bytes(b"not a real wav file")
 
     assert library.read_sort_tags(source) is None
+
+
+def _disk_full_copy(source, dest):
+    """shutil.copy2 on a full disk: part of the file written, then ENOSPC (as on a 2 MiB tmpfs)."""
+    Path(dest).write_bytes(Path(source).read_bytes()[:4])
+    raise OSError(28, "No space left on device")
+
+
+def test_copy_verify_renames_a_partial_copy_off_the_destination_when_the_disk_fills(tmp_path, monkeypatch):
+    """v57 (L7): the copy raises before any checksum. The partial file must not stay at the
+    destination's exact name, where the next sweep's folder+filename check would adopt it."""
+
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+    monkeypatch.setattr(library.shutil, "copy2", _disk_full_copy)
+
+    with pytest.raises(OSError) as exc_info:
+        library.copy_verify(source, dest)
+
+    assert exc_info.value.errno == errno.ENOSPC
+    assert not dest.exists()
+    leftovers = list(dest.parent.iterdir())
+    assert len(leftovers) == 1 and leftovers[0].name.startswith(".spotdl-copy-failed-"), leftovers
+    assert leftovers[0].read_bytes() == b"the "  # kept, never deleted
+    assert source.read_bytes() == b"the whole real audio"
+
+
+def test_path_relation_resolves_before_comparing(tmp_path):
+    """v57 (L2): `..` and a symlinked alias compare as the directory they name."""
+    (tmp_path / "downloads").mkdir()
+    (tmp_path / "alias").symlink_to(tmp_path / "downloads")
+
+    assert library.path_relation(tmp_path / "alias", tmp_path / "downloads") == "equal"
+    assert library.path_relation(tmp_path / "downloads" / ".." / "downloads" / "x", tmp_path / "downloads") == "inside"
+    assert library.path_relation(tmp_path, tmp_path / "downloads") == "contains"
+    assert library.path_relation(tmp_path / "library", tmp_path / "downloads") is None
+
+
+def test_copy_verify_keeps_a_complete_copy_whose_metadata_copy_failed(tmp_path, monkeypatch):
+    """v57 (review round 1): copy2 can raise in copystat after every byte landed (a mount that
+    refuses times or mode). That copy verifies, so it's a success, not a renamed full-size
+    leftover on the library filesystem every sweep."""
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+
+    def _copystat_fails(src, dst):
+        Path(dst).write_bytes(Path(src).read_bytes())
+        raise PermissionError(1, "Operation not permitted")
+
+    monkeypatch.setattr(library.shutil, "copy2", _copystat_fails)
+
+    assert library.copy_verify(source, dest) is True
+    assert dest.read_bytes() == b"the whole real audio"
+    assert [p.name for p in dest.parent.iterdir()] == ["source.mp3"]
+
+
+def test_copy_verify_never_leaves_an_unverified_file_at_the_destination(tmp_path, monkeypatch):
+    """v57 (review round 2): a worker killed mid-copy (OOM, a deploy) leaves its partial file at
+    the staging name, never the real one the next sweep's "already exists" check reads."""
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+
+    class _Killed(BaseException):
+        pass
+
+    def _killed_mid_copy(src, dst):
+        Path(dst).write_bytes(b"the wh")
+        raise _Killed
+
+    monkeypatch.setattr(library.shutil, "copy2", _killed_mid_copy)
+
+    with pytest.raises(_Killed):
+        library.copy_verify(source, dest)
+
+    assert not dest.exists()
+    assert [p.name[: len(".spotdl-copying-")] for p in dest.parent.iterdir()] == [".spotdl-copying-"]
+
+
+def test_copy_verify_never_overwrites_a_destination_that_appeared_meanwhile(tmp_path, monkeypatch):
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+    real_copy2 = library.shutil.copy2
+
+    def _someone_else_wrote_dest(src, dst):
+        real_copy2(src, dst)
+        dest.write_bytes(b"another file")
+
+    monkeypatch.setattr(library.shutil, "copy2", _someone_else_wrote_dest)
+
+    with pytest.raises(FileExistsError):
+        library.copy_verify(source, dest)
+    assert dest.read_bytes() == b"another file"
+
+
+def test_copy_verify_places_the_copy_without_replacing_a_file_created_at_the_last_moment(tmp_path, monkeypatch):
+    """Review round 3: the final step is a hard link, which fails on an existing name where a
+    rename would overwrite a library file."""
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+    real_link = library.os.link
+
+    def _dest_appears_first(src, dst):
+        Path(dst).write_bytes(b"another file")
+        return real_link(src, dst)
+
+    monkeypatch.setattr(library.os, "link", _dest_appears_first)
+
+    with pytest.raises(FileExistsError):
+        library.copy_verify(source, dest)
+    assert dest.read_bytes() == b"another file"
+    assert any(p.name.startswith(".spotdl-copying-") for p in dest.parent.iterdir())
+
+
+def test_copy_verify_leaves_only_the_destination_name(tmp_path):
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"the whole real audio")
+    dest = tmp_path / "library" / "Album" / "source.mp3"
+
+    assert library.copy_verify(source, dest) is True
+    assert [p.name for p in dest.parent.iterdir()] == ["source.mp3"]
+    assert dest.read_bytes() == b"the whole real audio"
+
+
+def test_copy_verify_copes_with_a_filename_at_the_length_limit(tmp_path):
+    """Review round 4: the staging name doesn't grow with the destination's, so a 255-byte
+    filename (the ext4 limit) still copies."""
+    source = tmp_path / "source.mp3"
+    source.write_bytes(b"audio")
+    dest = tmp_path / "library" / ("x" * 251 + ".mp3")
+
+    assert library.copy_verify(source, dest) is True
+    assert dest.read_bytes() == b"audio"

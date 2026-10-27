@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "backend/app/routers/jobs.py": {
-    "mtime": 1793124478.9399784,
-    "ast_hash": "6b2ea27e378bc7fecd33e776fca1bf95",
+    "mtime": 1793127154.5607448,
+    "ast_hash": "ac976c48ae30d3f2b15f6ec28a8a37b1",
     "semantic_hash": ""
   },
   "backend/app/services/expansion.py": {
@@ -265,8 +265,8 @@
     "semantic_hash": ""
   },
   "backend/app/tasks/download.py": {
-    "mtime": 1793124544.2459822,
-    "ast_hash": "a2b418a4badb91ba035bd2f2f5287032",
+    "mtime": 1793125753.068545,
+    "ast_hash": "cad8ab2d631a4e4455ad30b8a6e6f565",
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
@@ -275,8 +275,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
-    "mtime": 1793124452.0446348,
-    "ast_hash": "42a27044b87451e9c589843858bd2d8d",
+    "mtime": 1793125722.556558,
+    "ast_hash": "799cb88bf32c3649020ba16e8af6d2bd",
     "semantic_hash": ""
   },
   "backend/tests/test_downloads.py": {
@@ -315,13 +315,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/proxies.py": {
-    "mtime": 1793124555.2308238,
-    "ast_hash": "a5eee47458a37feb90a05f4a2046092e",
+    "mtime": 1793127154.5605953,
+    "ast_hash": "e410e98bd1851b7a2ca6f54556bfd274",
     "semantic_hash": ""
   },
   "backend/tests/test_proxies.py": {
-    "mtime": 1793124555.2308238,
-    "ast_hash": "0d8ac2e35d2603d89c7c9d6486ddd769",
+    "mtime": 1793125611.128374,
+    "ast_hash": "2db6d1f6010799402d1b1fde1b29a46e",
     "semantic_hash": ""
   },
   "backend/app/routers/stream.py": {
@@ -390,8 +390,8 @@
     "semantic_hash": "f58377931697d47bb2d8a671f775fa7c"
   },
   "backend/app/routers/tracks.py": {
-    "mtime": 1793124555.6068392,
-    "ast_hash": "2c335a9f0683568f5e88215860d1f7dd",
+    "mtime": 1793127170.553179,
+    "ast_hash": "bb2e7980c2289bb1d3c3996ca19e294e",
     "semantic_hash": ""
   },
   "backend/app/routers/worker.py": {
@@ -405,8 +405,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_tracks.py": {
-    "mtime": 1793124727.545824,
-    "ast_hash": "d4584f8061b98b5b592ce99701c4c9dd",
+    "mtime": 1793127476.904382,
+    "ast_hash": "103459341a74c27df97bcf16d9b87cc3",
     "semantic_hash": ""
   },
   "backend/tests/test_worker.py": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793124763.7662961,
-    "ast_hash": "77ab94e91afb686450a6a164ad48924b",
+    "mtime": 1793127476.9101567,
+    "ast_hash": "6844c24568a700bb05dcf3e740ff0bec",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -865,8 +865,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/attempts.py": {
-    "mtime": 1793124738.2191007,
-    "ast_hash": "370b4b4fee0ca54d19a7b78a15b4b5fd",
+    "mtime": 1793127207.0838134,
+    "ast_hash": "1583ea1484b8e0fe4e7f5b30b86c5aa6",
     "semantic_hash": ""
   },
   "backend/alembic/versions/a1c7f4d8e2b0_add_username_to_users.py": {
@@ -1900,8 +1900,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/track_states.py": {
-    "mtime": 1793124452.0707393,
-    "ast_hash": "6303764855be60db1eb1a9ee87ed75bd",
+    "mtime": 1793127189.6420567,
+    "ast_hash": "94c7e248e55ee989551471c59868b8c3",
     "semantic_hash": ""
   },
   "backend/app/tasks/proxies.py": {
