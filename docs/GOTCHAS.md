@@ -892,6 +892,11 @@ needed" claim — rather than silently deleted.
   → *v58*
 - A fresh install's options page tests the default origin (production) on open; every
   extension request goes to the configured origin only (captured by principal) → *v58*
+- `web-ext lint` refuses `update_url` (an error, "not allowed for Mozilla-hosted add-ons") unless
+  run with `--self-hosted`, which an unlisted add-on is → *v61*
+- AMO never takes the same version twice, even after a failure later in the job: a re-run must
+  fetch the already-signed file (web-ext's exported `util/submit-addon` client), not sign again
+  → *v61*
 
 **Testing & verification technique**
 - A `docker exec … python /tmp/x.py` imports the image's site-packages `app`, not the mounted
@@ -1236,6 +1241,15 @@ needed" claim — rather than silently deleted.
 - An unbumped merge deploys nothing now; `gh workflow run "Release & Deploy" -f redeploy=true`
   puts the current release back (after a `manual-*` dispatch, or for a workflow-side fix; the
   health script and compose files still come from the tag) → *v49*
+- `workflow_dispatch` only runs a workflow file that exists on the default branch: a new
+  workflow is proven before merge by a scratch branch whose own (push-triggered) test file calls
+  it with `uses:` → *v61*
+- GitHub's `releases/latest/download/…` is the app's newest `v*` release, so the extension's
+  `update_url` reads a fixed `extension-updates` prerelease instead; extension releases are
+  created `--latest=false` → *v61*
+- `gh release view`/`download` exit 1 for both "release not found" and real errors: match the
+  message (`release not found`, `no assets match the file pattern`) and fail on anything else
+  → *v61*
 
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
@@ -7248,3 +7262,36 @@ independently-found production bug from the same conversation)
 - **The runner is a service now.** CI_SELF_HOSTED_RUNNER.md said it ran as a long-lived
   `./run.sh`; the host shows `runsvc.sh` (from PID 1) → `RunnerService.js` → `Runner.Listener
   --startuptype service`, runner 2.338.0, beside eight other repos' runners.
+
+### v61 extension-release gotchas (learned building the extension's signing and release pipeline)
+
+- **`update_url` and the linter.** `web-ext lint` treats an `update_url` as an error
+  (`MANIFEST_UPDATE_URL`, "not allowed for Mozilla-hosted add-ons"). An unlisted add-on is
+  self-hosted, so `npm run lint` passes `--self-hosted`, which only drops the AMO-hosting rules.
+- **AMO never takes a version twice.** Not after a deletion, not after a failure in a later step.
+  So a job that signed a version and then failed (the GitHub release, say) can't simply re-run
+  `web-ext sign`. `extension-release.yml` first asks AMO for the version
+  (`GET /api/v5/addons/addon/<guid>/versions/v<version>/`, the `v` forcing a version-number
+  lookup) through web-ext's own exported client (`web-ext/util/submit-addon`: `Client`,
+  `JwtApiAuth`), and downloads the signed file when it's there. A 404 means "sign it"; any other
+  answer fails the step. With a made-up issuer AMO answers `401 {"detail": "Unknown JWT iss
+  (issuer)."}`, checked this session.
+- **The credentials stay off the command line.** The plan's `web-ext sign --api-key … --api-secret
+  …` runs as `npm run sign` with `WEB_EXT_API_KEY`/`WEB_EXT_API_SECRET` (web-ext reads every flag
+  from a `WEB_EXT_*` variable). The runner is the production host, where any process can read a
+  command line (`ps`), not another process's environment.
+- **"Latest" is the app's.** `releases/latest/download/updates.json` would serve whatever the
+  newest app release carries, which is never the extension's file. The update manifest lives on a
+  fixed `extension-updates` release (a prerelease, `--latest=false`, its tag outside release.yml's
+  `v*`), and each `extension-v*` release is created `--latest=false`, so the app's badge never
+  moves. An installed copy only ever reads the `update_url` it was installed with, so that release
+  and its asset must never be deleted.
+- **A new workflow can't be dispatched before it's merged.** `workflow_dispatch` (the UI and
+  `gh workflow run`) runs only files on the default branch. A scratch branch with its own
+  push-triggered test file (`.github/workflows/scratch-v61-release-deploy.yml`, never merged)
+  calls the branch's real `extension-release.yml` with `uses:`, which works from any ref.
+- **`gh release` errors are text.** `gh release view <missing>` and `gh release download
+  <missing>` print `release not found`; a pattern matching nothing prints `no assets match the
+  file pattern`. Both exit 1, like an auth or network failure, so the workflow matches the message
+  and fails on anything else.
+
