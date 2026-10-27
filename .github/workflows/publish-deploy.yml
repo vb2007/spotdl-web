@@ -321,6 +321,20 @@ jobs:
           test -f "$DEPLOY_DIR/.env" || { echo "::error::$DEPLOY_DIR/.env is missing"; exit 1; }
           test -f "$DEPLOY_DIR/proxies.txt" || { echo "::error::$DEPLOY_DIR/proxies.txt is missing"; exit 1; }
 
+      # v60 (P7): `.last-good` is gitignored only from v33 on, and every deploy step before v33
+      # ran a plain `git clean -fd` after checking out its own (older) commit. So a dispatch of
+      # a pre-v33 copy of this workflow (`gh workflow run --ref v4.32.0`), which never heard of
+      # `.last-good`, deleted it. The checkout's own exclude list isn't versioned: no checkout
+      # changes it, and every `git clean` without `-x` (all of them, v21 on) honours it. So
+      # that copy's clean now leaves the file alone, as every later one already did.
+      - name: Protect .last-good from every workflow version's git clean
+        run: |
+          mkdir -p "$DEPLOY_DIR/.git/info"
+          if ! grep -qxF '/.last-good' "$DEPLOY_DIR/.git/info/exclude" 2>/dev/null; then
+            echo '/.last-good' >> "$DEPLOY_DIR/.git/info/exclude"
+            echo "Added /.last-good to $DEPLOY_DIR/.git/info/exclude"
+          fi
+
       # v33: records, before anything moves, both what is running now (`current_tag`, used by
       # the skip check) and what a rollback returns to (`tag` + `commit`, together). The
       # rollback target is `.last-good`, written only after a healthy release-mode deploy, so a
@@ -679,8 +693,10 @@ jobs:
       # just confirmed this same version healthy, but never a stale one (v49), which would move
       # the baseline back. Only when the checkout is actually on the
       # release's own commit: the skip check compares tags, not commits, and a tag paired with
-      # some other commit is exactly the mismatch this file exists to prevent. Gitignored, so
-      # `git clean -fd` leaves it; written via rename so a crash can't leave half a file.
+      # some other commit is exactly the mismatch this file exists to prevent. Gitignored and in
+      # the checkout's info/exclude (v60), so no workflow version's `git clean -fd` removes it;
+      # written to a temp file, flushed to disk and renamed over it, so a crash leaves either the
+      # old file or the new one, never half of one.
       - name: Record last-known-good
         if: success() && needs.resolve.outputs.persist == 'true' && steps.stale.outputs.stale != 'true'
         env:
@@ -693,6 +709,7 @@ jobs:
           fi
           printf 'IMAGE_TAG=%s\nCOMMIT=%s\n' "${{ needs.resolve.outputs.version }}" \
             "$HEAD_COMMIT" > "$DEPLOY_DIR/.last-good.tmp"
+          sync "$DEPLOY_DIR/.last-good.tmp"
           mv "$DEPLOY_DIR/.last-good.tmp" "$DEPLOY_DIR/.last-good"
           echo "Wrote $DEPLOY_DIR/.last-good:"
           cat "$DEPLOY_DIR/.last-good"
