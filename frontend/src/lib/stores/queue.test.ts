@@ -656,7 +656,7 @@ describe('v40.2 live view stays in sync with a settling job', () => {
 		await loadJobsPage([job('job-1', 'expanded', 'active'), job('job-2', 'expanded', 'active')], {
 			active: 2
 		});
-		getJob.mockRejectedValue(new Error('404'));
+		getJob.mockRejectedValue(new api.ApiError(404, 'Not found'));
 
 		await queue.applyEvent(trackEvent('t1', 'completed'));
 		await vi.advanceTimersByTimeAsync(1000);
@@ -688,7 +688,7 @@ describe('v40.2 live view stays in sync with a settling job', () => {
 		await loadJobsPage([job('job-1', 'expanded', 'active'), job('job-2', 'expanded', 'active')], {
 			active: 2
 		});
-		getJob.mockRejectedValue(new Error('404'));
+		getJob.mockRejectedValue(new api.ApiError(404, 'Not found'));
 		await queue.applyEvent(trackEvent('t1', 'completed'));
 		await queue.applyEvent({
 			type: 'job.state',
@@ -1388,5 +1388,88 @@ describe('v62 (F1/F2) the state chips follow job.status, on the page or off it',
 		await queue.applyEvent(trackEvent('t1', 'waiting'));
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(counts()).toEqual({ active: 0, waiting: 1 });
+	});
+});
+
+describe('v62 (F3) only a 404 drops a row', () => {
+	async function loadPage(items: Job[], counts: Record<string, number>) {
+		listJobsPage.mockImplementation((params = {}) =>
+			Promise.resolve(
+				params.status?.includes('expanding')
+					? jobsPage([])
+					: { ...jobsPage(items), counts_by_status: counts }
+			)
+		);
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		await queue.reload();
+	}
+
+	it.each([
+		['a network failure', () => new TypeError('Failed to fetch')],
+		['a 502 from the proxy', () => new api.ApiError(502, 'Bad Gateway', 'server_error')]
+	])('%s keeps the row, and the next event asks again', async (label, failure) => {
+		await loadPage([job('job-1', 'expanded', 'active')], { active: 1 });
+		getJob.mockRejectedValueOnce(failure());
+
+		await queue.applyEvent(trackEvent(`f3-1-${label}`, 'completed'));
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(get(queue.page).items.map((i) => i.id)).toEqual(['job-1']);
+		expect(get(queue.page).countsByStatus).toEqual({ active: 1 });
+
+		getJob.mockResolvedValue({
+			...job('job-1', 'expanded', 'settled'),
+			status: { lifecycle: 'settled', outcome: 'complete' }
+		});
+		// Another job's event: the failed one is retried with it.
+		await queue.applyEvent({ ...trackEvent(`f3-2-${label}`, 'queued'), job_id: 'job-2' });
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(getJob).toHaveBeenCalledTimes(3);
+		expect(get(queue.page).items[0]).toMatchObject({ status: { lifecycle: 'settled' } });
+		expect(get(queue.page).countsByStatus).toEqual({ active: 0, 'settled:complete': 1 });
+	});
+
+	it('a job event whose fetch failed keeps the incoming job and is applied again later', async () => {
+		listJobsPage.mockImplementation((params = {}) =>
+			Promise.resolve(
+				params.status?.includes('expanding')
+					? jobsPage([job('job-1', 'expanding', 'expanding')])
+					: jobsPage([])
+			)
+		);
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		await queue.reload();
+		getJob.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+		await queue.applyEvent({ type: 'job.state', job_id: 'job-1', state: 'failed', ts: 't' });
+		expect(get(queue.incomingJobs).map((j) => j.id)).toEqual(['job-1']);
+
+		getJob.mockResolvedValue({ ...job('job-1', 'failed', 'failed'), error: 'nope' });
+		await queue.applyEvent(trackEvent('f3-3', 'queued'));
+		await vi.advanceTimersByTimeAsync(0);
+		expect(get(queue.incomingJobs)).toMatchObject([
+			{ id: 'job-1', state: 'failed', error: 'nope' }
+		]);
+	});
+
+	it('a reconnect’s resync owes nothing to a refresh that failed before it', async () => {
+		await loadPage([job('job-1', 'expanded', 'active')], { active: 1 });
+		getJob.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+		await queue.applyEvent(trackEvent('f3-4', 'completed'));
+		await vi.advanceTimersByTimeAsync(1000);
+
+		await queue.reload();
+		getJob.mockClear();
+		await queue.applyEvent({ ...trackEvent('f3-5', 'downloading', 10), job_id: 'job-2' });
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(getJob.mock.calls.map(([id]) => id)).toEqual(['job-2']);
+	});
+
+	it('a 404 still drops the row and its count', async () => {
+		await loadPage([job('job-1', 'expanded', 'active')], { active: 1 });
+		getJob.mockRejectedValue(new api.ApiError(404, 'Not found'));
+		await queue.applyEvent(trackEvent('f3-6', 'completed'));
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(get(queue.page).items).toEqual([]);
+		expect(get(queue.page).countsByStatus).toEqual({ active: 0 });
 	});
 });

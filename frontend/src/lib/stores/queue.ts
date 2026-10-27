@@ -241,6 +241,26 @@ function createQueueStore() {
 		scheduleTrackCountsRefresh();
 	}
 
+	/** v62 (F3): refreshes that failed for any reason but a 404 (the network, a 5xx): the row
+	 * stays as it was and is asked for again on the next event, whichever job it's for. A
+	 * reconnect's reload re-reads every row anyway, so it clears them. Job events whose fetch
+	 * failed are kept whole, so their retry also updates the incoming overlay. */
+	const failedRowRefreshes = new Set<string>();
+	const failedJobEvents = new Map<string, Extract<StreamEvent, { type: 'job.state' }>>();
+
+	function retryFailedRefreshes(): void {
+		for (const jobId of failedRowRefreshes) scheduleJobRefresh(jobId);
+		failedRowRefreshes.clear();
+		const events = [...failedJobEvents.values()];
+		failedJobEvents.clear();
+		for (const event of events) applyJobEvent(event);
+	}
+
+	/** Only a 404 says a job is gone (deleted, or no longer this session's to see). */
+	function isGone(err: unknown): boolean {
+		return err instanceof api.ApiError && err.status === 404;
+	}
+
 	// v62 (F1/F2): the jobs scope's state chips (`countsByStatus`) cover jobs off the loaded
 	// page, so a status move must reach them without the row. The server publishes each move
 	// (`job.status`, old -> new); this store applies it here.
@@ -499,14 +519,20 @@ function createQueueStore() {
 	 * not the "per-job request loop" the project's invariant warns against, since this is
 	 * one row reacting to one real event, never a loop issued while rendering a listing. */
 	async function refreshJobRow(jobId: string): Promise<void> {
+		const epoch = storeEpoch;
 		let job: Job;
 		try {
 			job = await api.getJob(jobId);
-		} catch {
-			// 404 (deleted, or this session lost visibility) -- drop it from view.
-			dropPageJob(jobId);
+		} catch (err) {
+			if (epoch !== storeEpoch) return;
+			// 404 (deleted, or this session lost visibility) -- drop it from view. v62 (F3):
+			// only a 404; anything else (the api restarting, the network) says nothing about
+			// the job, so the row stays and is asked for again.
+			if (isGone(err)) dropPageJob(jobId);
+			else failedRowRefreshes.add(jobId);
 			return;
 		}
+		if (epoch !== storeEpoch) return;
 		// v40.2: through patchPageJob (no insert, as before) so a status change also moves
 		// the state chips' counts -- this used to swap the row only, and a job settling
 		// left its chip counted as "active" until the next full reload.
@@ -599,6 +625,9 @@ function createQueueStore() {
 			view === 'others' ? ownDownloading() : Promise.resolve(null)
 		]);
 		if (seq !== liveHydrateSeq) return;
+		// v62 (F3): a job event whose fetch failed before a full resync (a reconnect) needs no
+		// retry: this one re-reads the overlay, and its page reload every row.
+		if (incomingResult.status === 'fulfilled') failedJobEvents.clear();
 		if (ownSeq !== null && ownResult.status === 'fulfilled') {
 			applyOwnElsewhere(ownSeq, ownResult.value ?? 0);
 		}
@@ -859,6 +888,8 @@ function createQueueStore() {
 					status: f.status.length ? f.status : undefined
 				});
 				if (seq !== pageFetchSeq) return;
+				// v62 (F3): every row is read afresh; no row refresh is left to retry.
+				failedRowRefreshes.clear();
 				const countsByStatus = settleJobCounts(result, startedAt, null);
 				// Nothing older than this response can still land (pageFetchSeq), so moves
 				// before its start are spent.
@@ -1004,8 +1035,10 @@ function createQueueStore() {
 		clearAllLiveRemovalTimers();
 		liveActive.set({});
 		clearLiveTouches();
-		// v62: the counts are the old scope's.
+		// v62: the counts and the refreshes still owed are the old scope's.
 		forgetJobCounts();
+		failedRowRefreshes.clear();
+		failedJobEvents.clear();
 		// No fetch here (v34.2): the caller reconnects the stream under the new scope, and
 		// its `onopen` resyncs. Until then nothing from the old scope may show or land:
 		// invalidate in-flight page and hydration fetches and blank the page.
@@ -1055,6 +1088,8 @@ function createQueueStore() {
 		liveActive.set({});
 		clearLiveTouches();
 		forgetJobCounts();
+		failedRowRefreshes.clear();
+		failedJobEvents.clear();
 		clearProgress();
 		// v43: a question still open on screen was asked for the previous identity.
 		dismissConfirm();
@@ -1726,8 +1761,14 @@ function createQueueStore() {
 		let job: Job;
 		try {
 			job = await api.getJob(event.job_id);
-		} catch {
+		} catch (err) {
 			if (epoch !== storeEpoch) return;
+			// v62 (F3): anything but a 404 says nothing about the job: keep it where it is
+			// and apply this event again on the next one (the newest event per job wins).
+			if (!isGone(err)) {
+				failedJobEvents.set(event.job_id, event);
+				return;
+			}
 			// 404 (deleted, or this session lost visibility) -- drop it from view everywhere.
 			incoming.update((current) => {
 				const { [event.job_id]: _drop, ...rest } = current;
@@ -1766,6 +1807,8 @@ function createQueueStore() {
 	}
 
 	async function applyEvent(event: StreamEvent): Promise<void> {
+		// v62 (F3): the stream is delivering again, so what failed before is asked for again.
+		if (event.type !== 'library.progress') retryFailedRefreshes();
 		if (event.type === 'track.state') {
 			applyTrackEvent(event);
 		} else if (event.type === 'job.state') {
