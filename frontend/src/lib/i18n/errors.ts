@@ -59,6 +59,8 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	library_path_invalid: (p) => m.error_library_path_invalid({ field: field(p) }),
 	library_dir_outside_mount: (p) =>
 		m.error_library_dir_outside_mount({ field: field(p), mount: String(p.mount ?? '') }),
+	library_quarantine_outside_mount: (p) =>
+		m.error_library_quarantine_outside_mount({ field: field(p), mount: String(p.mount ?? '') }),
 	library_paths_overlap: (p) =>
 		(PATHS_OVERLAP[`${p.field}_${p.other}_${p.relation}`] ?? m.error_library_paths_overlap)(),
 	track_not_found: () => m.error_track_not_found(),

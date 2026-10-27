@@ -43,7 +43,8 @@ def _run_to_dict(run: LibrarySortRun) -> dict:
 def check_library_paths(*, downloads_dir: str, library_dir: str, quarantine_dir: str) -> None:
     """v57 (L2): 422 `library_path_not_absolute` for a relative library or quarantine dir,
     422 `library_paths_overlap` for the first way the sweep's directories overlap, then
-    `library_dir_outside_mount` for a library dir outside the library volume's mount point. The
+    `library_dir_outside_mount` for a library dir outside the library volume's mount point, then
+    `library_quarantine_outside_mount` for a quarantine dir outside the downloads dir. The
     quarantine dir is checked whether or not quarantine is on (L2, literally)
     (library.path_conflicts), naming both settings and how they relate. Shared by the settings
     PATCH and the sweep's start."""
@@ -66,6 +67,13 @@ def check_library_paths(*, downloads_dir: str, library_dir: str, quarantine_dir:
             "library_dir_outside_mount",
             f"library_target_dir must be {mount} or a folder inside it",
             {"field": "library_target_dir", "mount": mount},
+        )
+    if library.outside_downloads_mount(Path(quarantine_dir), Path(downloads_dir)):
+        raise ApiError(
+            422,
+            "library_quarantine_outside_mount",
+            f"library_quarantine_dir must be a folder inside {downloads_dir}",
+            {"field": "library_quarantine_dir", "mount": downloads_dir},
         )
 
 

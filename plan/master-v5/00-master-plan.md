@@ -628,3 +628,18 @@ here.
   recreate discards them. Saving one is a 422 (`library_dir_outside_mount`), and the sweep refuses
   to start on one. "Switching LIBRARY_DIR" (L6) therefore means a folder inside the mount, or a
   new host path behind the same mount point; the known-roots list covers the former.
+
+- **2026-10-27, v57: the quarantine dir must be a folder inside the downloads dir (owner's
+  decision).** It can't overlap the library (L2), so the downloads volume is the only mount it may
+  use; a quarantine dir anywhere else (`/srv`, `/tmp/…`) is the sweeping container's own writable
+  layer, and a recreate discards every file quarantined there. Saving one is a 422
+  (`library_quarantine_outside_mount`, quarantine on or off), and the sweep refuses to start on a
+  value saved before.
+- **2026-10-27, v57: two `copy_verify` trade-offs accepted by the owner.** (1) Once a verified
+  copy is hard-linked to its real name, the staging name is unlinked: the data stays under the
+  real name, nothing is lost. (2) A copy that a killed worker, a full disk or a failed
+  verification interrupts stays on the library under a hidden name (`.spotdl-copying-*`,
+  `.spotdl-copy-failed-*`, `.spotdl-verify-failed-*`; no audio extension, so scanners skip it) and
+  is never cleaned up, per the never-delete invariant. The cost is bounded: at most one track's
+  bytes per interrupted copy, only during a manual sweep, and it doesn't grow on its own; no
+  dedup, reconcile or "already exists" check reads those names.

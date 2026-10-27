@@ -248,6 +248,7 @@ const BACKEND_CODES = [
 	'library_paths_overlap',
 	'library_path_not_absolute',
 	'library_dir_outside_mount',
+	'library_quarantine_outside_mount',
 	'library_path_invalid',
 	'track_not_found',
 	'job_archived',

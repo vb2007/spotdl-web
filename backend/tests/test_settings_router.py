@@ -187,7 +187,7 @@ def test_library_settings_endpoints_reject_non_admin(authenticated_client):
         ),
         ({"library_quarantine_dir": "/mnt/raid1"}, "library_quarantine_dir", "library_target_dir", "contains"),
         ({"library_quarantine_dir": "/downloads"}, "library_quarantine_dir", "download_output_dir", "equal"),
-        ({"library_quarantine_dir": "/srv"}, None, None, None),
+        ({"library_quarantine_dir": "/downloads/elsewhere"}, None, None, None),
         (
             {"library_target_dir": "/mnt/raid1/media/music/sorted", "library_quarantine_dir": "/mnt/raid1/media"},
             "library_quarantine_dir",
@@ -262,6 +262,25 @@ def test_update_library_settings_refuses_a_library_dir_outside_the_mount(admin_c
     assert response.status_code == 422
     assert response.json()["code"] == "library_dir_outside_mount"
     assert response.json()["params"] == {"field": "library_target_dir", "mount": "/mnt/raid1/media/music"}
+
+
+@pytest.mark.parametrize("quarantine_dir", ["/srv", "/tmp/quarantine", "/downloadsx/quarantine", "/mnt/raid1/media/q"])
+def test_update_library_settings_refuses_a_quarantine_dir_outside_the_downloads_dir(
+    admin_client, db_session, quarantine_dir
+):
+    """Owner decision (2026-10-27): the downloads volume is the only mount the quarantine dir may
+    use; anywhere else is a container's own writable layer, lost on a recreate. Checked with
+    quarantine off too, like every other rule on it."""
+    before = admin_client.get("/api/settings/library").json()
+
+    response = admin_client.patch(
+        "/api/settings/library", json={"library_quarantine_enabled": False, "library_quarantine_dir": quarantine_dir}
+    )
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "library_quarantine_outside_mount"
+    assert response.json()["params"] == {"field": "library_quarantine_dir", "mount": "/downloads"}
+    assert admin_client.get("/api/settings/library").json() == before
 
 
 def test_update_library_settings_allows_a_folder_inside_the_mount(admin_client, db_session):

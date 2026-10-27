@@ -518,6 +518,8 @@ needed" claim — rather than silently deleted.
 - Known library roots only grow (`app_settings.library_known_roots`): dedup, reconcile and file
   serving cover every root the install has used, and nginx's `/internal-library/` still aliases
   only `/mnt/raid1/media/music` → *v57*
+- The quarantine dir must be a folder inside the downloads dir (owner decision, 2026-10-27);
+  anywhere else is a container's own layer, emptied by a recreate → *v57*
 - CI runs pytest on the production host, where `/mnt/raid1/media/music` is the real library: a
   test reaching `reconcile_disk` must keep every managed root under `tmp_path` → *v57*
 - `graphify update` drops `graphify-out/graph.html` past 5000 nodes; run it with
@@ -6742,6 +6744,17 @@ independently-found production bug from the same conversation)
   serves; anywhere else is the saving container's own writable layer. A 422 on save
   (`library_dir_outside_mount`), and a "refused to start" from the sweep for a value saved before.
   The overlap checks run first, so each of L2's cases keeps its own message.
+- **The quarantine dir must be a folder inside the downloads dir (owner decision, 2026-10-27).**
+  It may not overlap the library, so the downloads volume is the only mount it can use; anywhere
+  else (`/srv` was accepted before) is the sweeping container's own writable layer, and a
+  recreate discards everything quarantined there. A 422 on save
+  (`library_quarantine_outside_mount`, checked with quarantine off too) and a "refused to start"
+  from the sweep for a value saved before, after the overlap and library-mount checks.
+- **Interrupted copies leave hidden files on the library, by design (owner-accepted
+  2026-10-27).** A killed worker, a full disk or a failed verification leaves its copy at a
+  hidden `.spotdl-copying-*` / `.spotdl-copy-failed-*` / `.spotdl-verify-failed-*` name; nothing
+  deletes it (the never-delete invariant). At most one track's bytes each, never read by dedup,
+  reconcile or the sweep. To reclaim space, delete them by hand while no sweep is running.
 - **An enclosing mounted root covers a folder root inside it (review round 4).** Under the mount
   rule every library root but the mount point is a folder inside it, so `dedup.covered()` takes
   any enclosing root's sentinel: a folder root removed by hand is "gone from a mounted volume"

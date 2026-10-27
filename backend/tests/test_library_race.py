@@ -12,6 +12,7 @@ import time
 import uuid
 from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -63,7 +64,7 @@ def test_worker_dl_upsert_vs_sweep_move_of_the_same_file(committed_db, tmp_path,
         setup,
         library_target_dir=str(tmp_path / "library"),
         library_quarantine_enabled=False,
-        library_quarantine_dir=str(tmp_path / "quarantine"),
+        library_quarantine_dir=str(tmp_path / "downloads" / "quarantine"),
     )
     setup.add(DownloadedTrack(spotify_track_id="single", file_path=str(source), format="mp3", bitrate="320k"))
     setup.add(LibrarySortRun(id=1, state=LibrarySortState.RUNNING, errors=[]))  # as the endpoint leaves it
@@ -71,6 +72,9 @@ def test_worker_dl_upsert_vs_sweep_move_of_the_same_file(committed_db, tmp_path,
     setup.close()
 
     monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "library")
+    monkeypatch.setattr(
+        library_task, "get_settings", lambda: SimpleNamespace(download_output_dir=str(tmp_path / "downloads"))
+    )
     monkeypatch.setattr(library_task, "SessionLocal", committed_db)
     monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
     monkeypatch.setattr(events, "publish_library_progress", lambda *args, **kwargs: None)
@@ -126,13 +130,16 @@ def test_only_one_of_two_sweep_deliveries_runs(committed_db, tmp_path, monkeypat
         setup,
         library_target_dir=str(tmp_path / "library"),
         library_quarantine_enabled=False,
-        library_quarantine_dir=str(tmp_path / "quarantine"),
+        library_quarantine_dir=str(tmp_path / "downloads" / "quarantine"),
     )
     setup.add(DownloadedTrack(spotify_track_id="one", file_path=str(source), format="mp3", bitrate="320k"))
     setup.add(LibrarySortRun(id=1, state=LibrarySortState.RUNNING, errors=[]))
     setup.commit()
     setup.close()
     monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "library")
+    monkeypatch.setattr(
+        library_task, "get_settings", lambda: SimpleNamespace(download_output_dir=str(tmp_path / "downloads"))
+    )
     monkeypatch.setattr(library_task, "SessionLocal", committed_db)
     monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
     monkeypatch.setattr(events, "publish_library_progress", lambda *args, **kwargs: None)
@@ -169,13 +176,16 @@ def test_a_start_landing_as_the_previous_sweep_finishes_still_runs(committed_db,
         setup,
         library_target_dir=str(tmp_path / "library"),
         library_quarantine_enabled=False,
-        library_quarantine_dir=str(tmp_path / "quarantine"),
+        library_quarantine_dir=str(tmp_path / "downloads" / "quarantine"),
     )
     setup.add(DownloadedTrack(spotify_track_id="one", file_path=str(source), format="mp3", bitrate="320k"))
     setup.add(LibrarySortRun(id=1, state=LibrarySortState.RUNNING, errors=[]))
     setup.commit()
     setup.close()
     monkeypatch.setattr(library_service, "library_mount", lambda: tmp_path / "library")
+    monkeypatch.setattr(
+        library_task, "get_settings", lambda: SimpleNamespace(download_output_dir=str(tmp_path / "downloads"))
+    )
     monkeypatch.setattr(library_task, "SessionLocal", committed_db)
     monkeypatch.setattr(library_service, "read_sort_tags", lambda path: dict(_FAKE_TAGS))
     monkeypatch.setattr(events, "publish_library_progress", lambda *args, **kwargs: None)

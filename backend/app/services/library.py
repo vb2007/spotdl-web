@@ -165,6 +165,14 @@ def outside_library_mount(library_dir: Path) -> bool:
     return not library_dir.resolve().is_relative_to(mount)
 
 
+def outside_downloads_mount(quarantine_dir: Path, downloads_dir: Path) -> bool:
+    """The quarantine dir must be a folder inside the downloads dir (owner decision, 2026-10-27):
+    the downloads volume is the only mount it may use (it can't overlap the library), and anywhere
+    else is the sweeping container's own writable layer, which a recreate discards along with
+    every file quarantined there."""
+    return path_relation(quarantine_dir, downloads_dir) != "inside"
+
+
 def _quarantine_destination(quarantine_dir: Path, source: Path) -> Path:
     """Preserves the source's own basename under quarantine_dir, disambiguated with a
     short suffix if an earlier sweep already quarantined a same-named file -- this

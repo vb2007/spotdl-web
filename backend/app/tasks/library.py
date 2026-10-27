@@ -201,6 +201,13 @@ def _run_sweep(db, run: LibrarySortRun, admin_user_id: str) -> None:
         refusals.append(
             f"refused to start: library_target_dir is outside the library mount {library.library_mount()}"
         )
+    # Owner decision (2026-10-27): the quarantine dir is a folder inside the downloads dir, the one
+    # mounted volume it may use. Checked whether or not quarantine is on, as the API does.
+    if library.outside_downloads_mount(quarantine_dir, Path(get_settings().download_output_dir)):
+        refusals.append(
+            "refused to start: library_quarantine_dir is not a folder inside the downloads dir "
+            f"{get_settings().download_output_dir}"
+        )
     if refusals:
         for message in refusals:
             _record_error(run, "<sweep>", message)

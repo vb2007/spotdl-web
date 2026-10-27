@@ -30,6 +30,15 @@ def _library_mount_in_tmp(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _downloads_in_tmp(tmp_path, monkeypatch):
+    """The owner's rule (2026-10-27): the quarantine dir is a folder inside the downloads dir,
+    here tmp_path's, where every ledger row these tests make points."""
+    monkeypatch.setattr(
+        library_task, "get_settings", lambda: SimpleNamespace(download_output_dir=str(tmp_path / "downloads"))
+    )
+
+
+@pytest.fixture(autouse=True)
 def _no_file_lock_connection(monkeypatch):
     """v57 (L3): the sweep's per-file advisory lock lives on a connection of its own, which a
     rollback-isolated test can't open. These tests are about what the sweep does with each
@@ -69,7 +78,7 @@ def _configure(db_session, tmp_path, *, quarantine_enabled=True):
         db_session,
         library_target_dir=str(tmp_path / "library"),
         library_quarantine_enabled=quarantine_enabled,
-        library_quarantine_dir=str(tmp_path / "quarantine"),
+        library_quarantine_dir=str(tmp_path / "downloads" / "quarantine"),
     )
     db_session.commit()
 
@@ -160,7 +169,7 @@ def test_sort_library_conflict_with_quarantine_enabled(db_session, tmp_path, mon
     assert dest.read_bytes() == b"pre-existing library copy, different bitrate"
     # The source was quarantined, not deleted.
     assert not (tmp_path / "downloads" / "track1.mp3").exists()
-    quarantined = list((tmp_path / "quarantine").iterdir())
+    quarantined = list((tmp_path / "downloads" / "quarantine").iterdir())
     assert len(quarantined) == 1
     assert quarantined[0].read_bytes() == b"the real audio bytes"
     # The ledger now points at the pre-existing target file, and is marked in-library.
@@ -184,7 +193,7 @@ def test_sort_library_conflict_with_quarantine_disabled(db_session, tmp_path, mo
     db_session.refresh(row)
     assert dest.read_bytes() == b"pre-existing library copy"
     assert not (tmp_path / "downloads" / "track1.mp3").exists()
-    assert not (tmp_path / "quarantine").exists() or not list((tmp_path / "quarantine").iterdir())
+    assert not (tmp_path / "downloads" / "quarantine").exists() or not list((tmp_path / "downloads" / "quarantine").iterdir())
     assert row.file_path == str(dest)
     assert row.in_library is True
 
@@ -517,7 +526,7 @@ def test_sort_library_quarantines_a_shared_file_once_and_repoints_every_row(
         assert row.in_library is True
         assert row.file_path == str(dest)
     assert dest.read_bytes() == b"the copy already in the library"
-    assert len(list((tmp_path / "quarantine").rglob("*.mp3"))) == 1
+    assert len(list((tmp_path / "downloads" / "quarantine").rglob("*.mp3"))) == 1
 
     run = library_task._get_run(db_session)
     assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (1, 1, 0, 0, 1)
@@ -596,7 +605,7 @@ def test_sort_library_keeps_every_shared_row_repointed_when_the_source_delete_fa
     db_session.refresh(track)
     assert track.output_path == dest
     assert (tmp_path / "downloads" / "single-cut.mp3").exists()
-    assert not (tmp_path / "quarantine").exists() or not list((tmp_path / "quarantine").rglob("*"))
+    assert not (tmp_path / "downloads" / "quarantine").exists() or not list((tmp_path / "downloads" / "quarantine").rglob("*"))
     run = library_task._get_run(db_session)
     assert (run.total, run.processed, run.moved, run.skipped_present, run.quarantined) == (1, 1, 0, 0, 0)
     assert len(run.errors) == 1
@@ -915,7 +924,7 @@ def test_sort_library_skips_a_source_that_is_its_own_destination(db_session, tmp
     _run(monkeypatch, db_session)
 
     assert dest.read_bytes() == b"the library's only copy"
-    assert not (tmp_path / "quarantine").exists()
+    assert not (tmp_path / "downloads" / "quarantine").exists()
     run = library_task._get_run(db_session)
     assert run.errors == [
         {"file": str(dest), "error": "destination is the source file itself; marked filed, nothing moved"}
@@ -959,7 +968,7 @@ def test_sort_library_refuses_to_run_with_overlapping_directories(db_session, tm
     app_settings.update_library_settings(
         db_session,
         library_target_dir=str(downloads / "library"),
-        library_quarantine_dir=str(tmp_path / "quarantine"),
+        library_quarantine_dir=str(tmp_path / "downloads" / "quarantine"),
     )
     db_session.commit()
     row = _make_ledger_row(db_session, tmp_path)
@@ -977,6 +986,31 @@ def test_sort_library_refuses_to_run_with_overlapping_directories(db_session, tm
     }
     db_session.refresh(row)
     assert row.in_library is False and Path(row.file_path).exists()
+
+
+def test_sort_library_refuses_a_quarantine_dir_outside_the_downloads_dir(db_session, tmp_path, monkeypatch):
+    """Owner decision (2026-10-27): a quarantine dir saved before the rule, outside the downloads
+    volume, is refused by the task itself too, before any file is touched, quarantine on or off."""
+    _configure(db_session, tmp_path, quarantine_enabled=False)
+    app_settings.update_library_settings(db_session, library_quarantine_dir=str(tmp_path / "quarantine"))
+    db_session.commit()
+    row = _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    run = library_task._get_run(db_session)
+    assert run.state.value == "idle"
+    assert run.errors == [
+        {
+            "file": "<sweep>",
+            "error": "refused to start: library_quarantine_dir is not a folder inside the downloads dir "
+            f"{tmp_path / 'downloads'}",
+        }
+    ]
+    db_session.refresh(row)
+    assert row.in_library is False and Path(row.file_path).exists()
+    assert not (tmp_path / "quarantine").exists()
 
 
 def test_sort_library_never_adopts_a_partial_copy_left_by_a_full_disk(db_session, tmp_path, monkeypatch):
@@ -1001,7 +1035,7 @@ def test_sort_library_never_adopts_a_partial_copy_left_by_a_full_disk(db_session
     assert row.in_library is False
     assert Path(row.file_path).read_bytes() == b"the real audio bytes"
     assert not dest.exists()
-    assert not (tmp_path / "quarantine").exists()
+    assert not (tmp_path / "downloads" / "quarantine").exists()
     assert len(list(dest.parent.glob(".spotdl-copy-failed-*"))) == 2
     run = library_task._get_run(db_session)
     assert run.quarantined == 0 and run.errors[0]["error"].startswith("[Errno 28]")
