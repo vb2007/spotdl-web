@@ -11,6 +11,7 @@
 	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import { isTypingTarget } from '$lib/keyboard/registry';
 	import {
+		attemptCount,
 		attemptPath,
 		attemptVia,
 		formatDuration,
@@ -648,7 +649,9 @@
 						<ol class="timeline" aria-label={m.track_history_label()}>
 							{#each groups as group (group.key)}
 								{@const head = group.attempts[0]}
-								{@const run = group.attempts.length}
+								{@const rows = group.attempts.length}
+								<!-- v62 (F11): a collapsed hold row counts as its holds. -->
+								{@const run = group.count}
 								{@const message = head.error_message}
 								<li class="entry">
 									{@render when(head.finished_at, head.id)}
@@ -660,9 +663,9 @@
 											>
 											{#if head.error_type}<span class="class">{head.error_type}</span>{/if}
 											<span class="via"
-												>{run > 1 ? summarizeVia(group.attempts) : attemptVia(head)}</span
+												>{rows > 1 ? summarizeVia(group.attempts) : attemptVia(head)}</span
 											>
-											{#if run === 1 && head.outcome !== 'held'}
+											{#if rows === 1 && head.outcome !== 'held'}
 												<span class="dur">{formatDuration(head.duration_seconds)}</span>
 											{/if}
 										</p>
@@ -695,7 +698,7 @@
 												<span class="note-text mono" lang="en">{head.warning_message}</span>
 											</p>
 										{/if}
-										{#if run > 1}
+										{#if rows > 1}
 											<button
 												type="button"
 												class="inline-toggle"
@@ -711,6 +714,9 @@
 													{#each group.attempts as attempt (attempt.id)}
 														<li class="run-item mono">
 															{@render when(attempt.finished_at, `run-${attempt.id}`)}
+															{#if attemptCount(attempt) > 1}<span class="times"
+																	>×{formatNumber(attemptCount(attempt))}</span
+																>{/if}
 															<span class="via">{attemptVia(attempt)}</span>
 															{#if attempt.outcome !== 'held'}
 																<span class="dur">{formatDuration(attempt.duration_seconds)}</span>

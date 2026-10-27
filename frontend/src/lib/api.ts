@@ -146,6 +146,8 @@ export interface TrackAttempt {
 	/** v35: `null` when the row never reached the network (held, duplicate, cancelled
 	 * before dispatch), and on rows written before v29 recorded it. */
 	network_path: NetworkPath | null;
+	/** v55 (E11): a `held` row stands for this many consecutive holds (1 otherwise). */
+	hold_count?: number;
 }
 
 /** The parent-job summary `GET /api/tracks`/`?scope=track` embeds on every row -- not a

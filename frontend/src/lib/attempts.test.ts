@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TrackAttempt } from '$lib/api';
 import {
+	attemptCount,
 	attemptPath,
 	attemptVia,
 	formatCountdown,
@@ -165,5 +166,36 @@ describe('attemptPath', () => {
 		expect(attemptPath(attempt(3, { ...legacy, proxy_id: null, proxy_label: null }))).toBe(
 			'direct'
 		);
+	});
+});
+
+describe('v62 (F11) a collapsed hold counts as its holds', () => {
+	const held = (n: number, hold_count: number) =>
+		attempt(n, {
+			outcome: 'held',
+			error_type: null,
+			error_message: null,
+			warning_message: 'circuit breaker active; rescheduled without attempting',
+			network_path: null,
+			hold_count
+		});
+
+	it('one held row standing for 460 holds reads ×460', () => {
+		const [group] = groupAttempts([held(1, 460)]);
+		expect(group.attempts).toHaveLength(1);
+		expect(group.count).toBe(460);
+	});
+
+	it('a run of held rows sums their holds; any other row counts once', () => {
+		const groups = groupAttempts([attempt(1), attempt(2), held(3, 3), held(4, 2)]);
+		expect(groups.map((g) => [g.attempts.length, g.count])).toEqual([
+			[2, 5],
+			[2, 2]
+		]);
+	});
+
+	it('a row from before v55 (no hold_count) is one hold, and a failure never multiplies', () => {
+		expect(attemptCount({ ...held(1, 1), hold_count: undefined })).toBe(1);
+		expect(attemptCount(attempt(2, { hold_count: 9 }))).toBe(1);
 	});
 });
