@@ -6666,11 +6666,20 @@ independently-found production bug from the same conversation)
 - **A reclaimed download is still a proxy's user.** v55's stale reclaim moves a live
   `downloading` track to `waiting` and lets the download finish and rewrite the reclaim's row.
   `proxy_in_use` counted only `downloading` (and recently cancelled) tracks, so a proxy behind a
-  download running past 30 minutes could be deleted under it. It now also counts a track whose
-  reclaim row is unrewritten and recent (`attempts.reclaim_unreported`). And a cancel clears
+  download beat had reclaimed could be deleted under it. It now also counts a track whose reclaim
+  row is unrewritten and recent (`attempts.reclaim_unreported`). Every hold is bounded, so a
+  delete is never stuck: a reclaimed download holds its proxy for one stale-track window after
+  the reclaim (about twice the window after it started), a cancelled one for one window after the
+  cancel; a download outliving that loses only its attempt's label, never its commit. And a cancel clears
   `used_proxy_id` unless the track's download may still run (`downloading`, or reclaimed and
   unreported): an ended attempt's proxy on a cancelled `waiting` track held its delete for the
-  whole stale-track window, while clearing it on a reclaimed one let the delete through.
+  whole stale-track window, while clearing it on a reclaimed one let the delete through. One gap
+  is left, the v55 claim's kind: a cancel that waits on beat's uncommitted reclaim re-checks the
+  row's own columns afterwards but runs the `track_attempts` subquery on its original snapshot,
+  so it misses the reclaim row and drops `used_proxy_id`; that download's proxy is then
+  unprotected (the outcome still commits, unlabelled). Accepted: it needs a cancel within
+  milliseconds of a 30-minute reclaim, and closing it would mean a proxy lock in beat's reclaim,
+  against the delete's lock order.
 - **A re-parented migration on a database that already ran it.** After the rebase put v55's
   `d9b3e5f7a1c2` under v56's `a9d3c5e7f1b2`, the slot's database still read `a9d3c5e7f1b2`, the
   head, so `alembic upgrade head` did nothing and `hold_count` was never added. Repair: `alembic
