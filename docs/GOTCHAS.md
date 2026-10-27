@@ -176,6 +176,20 @@ needed" claim — rather than silently deleted.
   **Fixed 2026-10-24 (v52):** `--timeout-graceful-shutdown 3` in the dev command
 - A deploy recreates every container, so `docker compose logs` on the host only reaches back to
   the last deploy; anything older (an alert that never arrived) can't be reconstructed → *v48*
+  **Fixed 2026-10-27 (v60):** production logs to journald; `scripts/prod_logs.sh` reads across
+  deploys (json-file lines from before that are gone) → *v60*
+- The rollback guard's `compose run` with the *old* files fails ("network ... has active
+  endpoints") after a release that changed `networks:`, while plain `up` recreates a changed
+  network without complaint; the guard probes on the live network as `external` → *v60*
+- Compose echoes a *piece* of a `.env` value in a port-spec error (split at `:`, so a URL comes
+  back cut short), which whole-value masking misses; the redactor also masks URL userinfo → *v60*
+- A different `logging.driver` in an overlay replaces the base file's json-file `options` rather
+  than merging them (journald refuses `max-size`); the journald driver's `labels` option turns
+  `com.docker.compose.project` into a `COM_DOCKER_COMPOSE_PROJECT` field → *v60*
+- Docker's journald entries sit in the system journal: reading them takes `systemd-journal`/`adm`
+  (or root), which this host's `vb2007` doesn't have → *v60*
+- `.git/info/exclude` isn't versioned, so it protects a file from every version's `git clean -fd`,
+  including an old workflow copy that checks out a commit whose `.gitignore` lacks it → *v60*
 - Two stacks on one machine collide on more than ports: the dev override pins the network's IPv6
   subnet, Postgres 18's image refuses the old `/var/lib/postgresql/data` volume path, and a
   fresh worktree's bind-mount sources get created root-owned; `scripts/agent_stack.sh` handles
@@ -1164,7 +1178,9 @@ needed" claim — rather than silently deleted.
   to parse and GitHub shows a 0-second failed **`push`** run, not a PR check; `actionlint` (in
   Docker, `rhysd/actionlint`) catches it locally → *v51*
 - An unquoted colon in a workflow step's `name:` fails the **whole file** at parse time — the run
-  vanishes from PR checks rather than showing as failed → *v12*
+  vanishes from PR checks rather than showing as failed → *v12*; the same for a `run:` one-liner
+  holding `: ` (a 0-second "push" run, then `gh workflow run` answers 422 "does not have
+  'workflow_dispatch' trigger") → *v60*
 - `docker compose config` needs a real `.env` on disk, separate from `${VAR}` interpolation → *v12*
 - `npm run check` runs `svelte-kit sync` first, so `PUBLIC_*` vars must be set job-wide, not per
   step → *v12*
@@ -1200,6 +1216,13 @@ needed" claim — rather than silently deleted.
   (`uses:` + `workflow_call`) → *v49*
 - A called workflow sees the **caller's** `github` context (`event_name`, `workflow`, `sha`):
   decide its mode from its inputs, never from `github.event_name` → *v49*
+- A job-level `timeout-minutes` cut *cancels* the job: a `cancelled()` step starts but is killed
+  about 5 minutes later, no step after it runs, and even the job's log is lost. Put
+  `timeout-minutes` on the long steps (a timed-out step just fails); `cancel-timeout-minutes`
+  isn't a GitHub key → *v60*
+- "The job was not acquired by Runner of type self-hosted even after multiple attempts" is
+  GitHub's broker losing a job's assignment to the one runner (online, idle host), the first job
+  of a run whose jobs queue at once; the job is `cancelled` with no steps and no runner → *v60*
 - No `concurrency` group anywhere: even `cancel-in-progress: false` cancels an older *pending*
   run. Deploys are serialized by the single runner, and a stale one is a no-op by version → *v49*
 - The one runner takes jobs roughly FIFO across all runs, so each later stage of a merge's run queues
@@ -7141,3 +7164,61 @@ independently-found production bug from the same conversation)
   production's "SpotDL Web Bot" room, which the local `.env`'s commented `MATRIX_ROOM_ID` names.
   `agent_stack.sh` rewrites `.env.agent` on every `up` and copies no `MATRIX_*`, so a slot that
   needs alerts appends them after `up` and recreates the backend services.
+
+### v60 pipeline-resilience gotchas (learned closing P2–P8, O3 and the docs drift)
+
+- **"Not acquired" is GitHub's, not the host's (P2).** Six scheduled runs (2026-09-12 to 10-15)
+  had one job end `cancelled` with *"The job was not acquired by Runner of type self-hosted even
+  after multiple attempts"*, no steps, `runner_name` empty. Every time, the runner (`vbServer`)
+  was online and ran the run's *other* jobs; the host's load was low and no timer fires near
+  those times. The listener's `_diag/Runner_*.log` shows the mechanism: on 10-04 and 10-15 the
+  broker's first message, a second after the run was created, was a *sibling* job, which the
+  runner took, while the job GitHub had assigned first never arrived; on 10-10 nothing came for
+  61 s, and the late retry was refused (`POST …/acknowledge … NotFound`, then `POST …/acquirejob
+  … Conflict`). It only hit scheduled runs, whose six jobs queued together after hours of idle,
+  never a PR run. Since v49, Nightly is one job, so it needs another run queued at the same
+  moment. Nightly's `notify` now tells it apart (API: the job `cancelled`, no steps, no runner,
+  and that annotation on its check run) and re-dispatches once with `retry=true`. A job
+  cancelled by hand while queued looks identical except for the annotation.
+- **A job-level timeout is the wrong safety net (P4).** Scratch run 40595581518 (stand-in steps,
+  the real rollback `if:`): with `timeout-minutes: 2` on the job, the health step was cancelled
+  at 2 min, the `cancelled()` rollback started at once and was killed 4 min 49 s later, the
+  `always()` step after it never ran, and `gh run view --log` answers "log not found" for that
+  job: GitHub keeps only the annotation "The job has exceeded the maximum execution time". With
+  `timeout-minutes: 1` on the health *step* instead, the step failed ("has timed out after 1
+  minutes"), the rollback ran its full 9 minutes to success and the `always()` step ran. actionlint
+  rejects `cancel-timeout-minutes`, so the 5-minute grace after a cancel can't be raised, which
+  also means a hand-cancelled deploy's rollback has only that long.
+- **The guard, not `up`, is what a changed `networks:` breaks (P3).** Reproduced with a toy
+  project (Compose 5.6.0; the host has 5.6.1): `up` with a changed IPv6 subnet stops the
+  containers, recreates the network and starts them again, fine in both directions. But `compose
+  run --rm --no-deps migrate` with the *old* files, while the new stack holds the network, tries
+  the same recreation and fails: "error while removing network: network … has active endpoints".
+  That's migration_guard.sh's exit 1, a guard error, so no rollback. A third compose file with
+  `networks: default: !override {name: <live network>, external: true}` makes the probe join the
+  network as it is (`!override` replaces whatever keys the old definition had); when no such
+  network exists the override is left out, since `external` would then fail with "declared as
+  external, but could not be found". The network name comes from `config --format json`, whose
+  full output holds `.env` values, so only that one field is printed.
+- **Compose prints part of a value (P6).** `API_PORT=postgres://user:pass@db.example:5432/x`
+  makes compose say `invalid IP address: 127.0.0.1:postgres://user:pass@db.example`: it split
+  the port spec at the colons, so the full `.env` value never appears and `redact_env.py`'s
+  whole-value masking let the password through. Any `scheme://userinfo@` is now masked as well.
+- **`.last-good` versus old workflow copies (P7).** Every tag from v2.21.0 to v4.32.0 runs a
+  plain `git clean -fd` after checking out its own commit, whose `.gitignore` has no
+  `/.last-good`, so a dispatch *from* that workflow copy deletes the baseline (reproduced in a
+  local clone with v4.32.0's own commands). None of them used `-x`, so `.git/info/exclude`,
+  which no checkout changes, protects it from all of them.
+- **journald, verified on a local stack before the overlay (O3).** `docker compose logs` after a
+  recreation shows only the new container; `journalctl COM_DOCKER_COMPOSE_PROJECT=<project>`
+  shows both. `CONTAINER_NAME` (and the `{{.Name}}` tag) is stable across recreations; stderr
+  lines are priority 3, stdout 6. On the host the journal is persistent (`/var/log/journal`, 2.0
+  GiB, back to 2026-07-11, default caps), every other project there uses json-file, and this
+  stack writes about 0.7 MB a day.
+- **The X3 backup filenames are right as they are.** `pg_backup.sh` names its dumps
+  `spotdl_web_<timestamp>.dump` and its retention globs that prefix: the `spotdl_web` in
+  DEPLOYMENT.md's backup paths is a file prefix, not the database name (which is `spotdlweb`, read
+  from the host `.env` by name only).
+- **The runner is a service now.** CI_SELF_HOSTED_RUNNER.md said it ran as a long-lived
+  `./run.sh`; the host shows `runsvc.sh` (from PID 1) → `RunnerService.js` → `Runner.Listener
+  --startuptype service`, runner 2.338.0, beside eight other repos' runners.
