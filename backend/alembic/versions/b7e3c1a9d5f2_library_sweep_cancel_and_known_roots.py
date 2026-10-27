@@ -1,7 +1,7 @@
 """library sweep cancel flags and known library roots
 
 Revision ID: b7e3c1a9d5f2
-Revises: a7c4e1b9d2f5
+Revises: d9b3e5f7a1c2
 Create Date: 2026-10-26 18:00:00.000000
 
 v57 (L1, L6). Additive: `library_sort_runs` gains `cancel_requested`/`cancelled` (false by
@@ -19,7 +19,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = 'b7e3c1a9d5f2'
-down_revision: Union[str, Sequence[str], None] = 'a7c4e1b9d2f5'
+down_revision: Union[str, Sequence[str], None] = 'd9b3e5f7a1c2'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

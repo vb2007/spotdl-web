@@ -523,7 +523,7 @@ needed" claim — rather than silently deleted.
 - CI runs pytest on the production host, where `/mnt/raid1/media/music` is the real library: a
   test reaching `reconcile_disk` must keep every managed root under `tmp_path` → *v57*
 - `graphify update` drops `graphify-out/graph.html` past 5000 nodes; run it with
-  `GRAPHIFY_VIZ_NODE_LIMIT=8000` → *v57*
+  `GRAPHIFY_VIZ_NODE_LIMIT=10000` → *v55*
 - Priority and bump are admin-only on the server since v48 (403 before the job lookup, the same
   for any id), not only hidden in the UI → *v48* *(2026-10-26, v56: now 404, the A6 rule below.)*
 - A library sweep archives only the sweeping admin's own settled jobs; every user's moved
@@ -6862,9 +6862,6 @@ independently-found production bug from the same conversation)
   direct-ipv4` attempt): still 2 files, one per track.
 - **The L5 run, real:** `/downloads` holding only its sentinel, the ledger row on a hand-deleted
   file, and the resubmitted track recorded one attempt, `completed direct-ipv4`, no `held`.
-- **graphify's HTML view stops at 5000 nodes.** The graph reached 5091 here and `graphify update`
-  deleted the tracked `graphify-out/graph.html`; `GRAPHIFY_VIZ_NODE_LIMIT=8000 graphify update .`
-  keeps it.
 - **CI's pytest runs on the production host.** `/mnt/raid1/media/music` there is the real library,
   and `reconcile_disk` writes sentinels: `test_dedup.py` keeps every managed root under `tmp_path`
   (an autouse fixture asserts it). `update_library_settings` keeps the old root as a known one, so
