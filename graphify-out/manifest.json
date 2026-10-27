@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793046902.7702596,
-    "ast_hash": "4bcf372d54335e80b78e90ae1f73f5f4",
+    "mtime": 1793060290.4840853,
+    "ast_hash": "d0e111a5c65887575867255a1211d0ab",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1620,8 +1620,8 @@
     "semantic_hash": ""
   },
   "plan/master-v5/00-master-plan.md": {
-    "mtime": 1793049861.149275,
-    "ast_hash": "ae17db3211624125cba6cb67edbd416c",
+    "mtime": 1793060304.3048856,
+    "ast_hash": "beabad604f5a0eb79b7acf7a5adda1c5",
     "semantic_hash": ""
   },
   "plan/master-v5/IMPLEMENTATION_PROMPT.md": {
