@@ -282,9 +282,11 @@
 		alerts_spike_enabled: true,
 		alerts_beat_stale_enabled: true,
 		alerts_library_enabled: true,
+		alerts_worker_down_enabled: true,
 		alert_spike_threshold: 5,
 		alert_spike_window_minutes: 60,
 		alert_beat_stale_seconds: 180,
+		alert_worker_down_minutes: 15,
 		alert_cooldown_minutes: 60
 	});
 	let alertSaving = $state(false);
@@ -298,11 +300,13 @@
 		| 'alerts_breaker_enabled'
 		| 'alerts_spike_enabled'
 		| 'alerts_beat_stale_enabled'
+		| 'alerts_worker_down_enabled'
 		| 'alerts_library_enabled';
 	type AlertNumberKey =
 		| 'alert_spike_threshold'
 		| 'alert_spike_window_minutes'
 		| 'alert_beat_stale_seconds'
+		| 'alert_worker_down_minutes'
 		| 'alert_cooldown_minutes';
 
 	// v43 (F19): what each category reports, so fourteen controls read as two short groups.
@@ -321,6 +325,12 @@
 			key: 'alerts_beat_stale_enabled',
 			label: m.settings_alert_beat_stale,
 			hint: m.settings_alert_beat_stale_hint
+		},
+		// v59 (O4).
+		{
+			key: 'alerts_worker_down_enabled',
+			label: m.settings_alert_worker_down,
+			hint: m.settings_alert_worker_down_hint
 		},
 		{
 			key: 'alerts_library_enabled',
@@ -358,6 +368,14 @@
 			unit: m.settings_alert_beat_stale_unit,
 			min: 90,
 			max: 7 * 24 * 3600
+		},
+		// v59 (O4).
+		{
+			key: 'alert_worker_down_minutes',
+			label: m.settings_alert_worker_down_after,
+			unit: m.settings_alert_worker_down_unit,
+			min: 2,
+			max: 7 * 24 * 60
 		},
 		{
 			key: 'alert_cooldown_minutes',

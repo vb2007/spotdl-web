@@ -367,9 +367,11 @@ export interface AlertSettings {
 	alerts_spike_enabled: boolean;
 	alerts_beat_stale_enabled: boolean;
 	alerts_library_enabled: boolean;
+	alerts_worker_down_enabled: boolean;
 	alert_spike_threshold: number;
 	alert_spike_window_minutes: number;
 	alert_beat_stale_seconds: number;
+	alert_worker_down_minutes: number;
 	alert_cooldown_minutes: number;
 }
 
@@ -898,6 +900,39 @@ export function getAdminStats(window: StatsWindow): Promise<AdminStats> {
 	// The viewer's own clock, so a day bucket is their day (owner's choice, v44).
 	const offset = -new Date().getTimezoneOffset();
 	return request<AdminStats>(`/api/admin/stats?window=${window}&utc_offset_minutes=${offset}`);
+}
+
+export type AlertCategory = 'breaker' | 'spike' | 'beat_stale' | 'worker_down' | 'library' | 'test';
+export type AlertState = 'pending' | 'sent' | 'failed' | 'suppressed';
+
+/** v59: one alert outbox row. `body_preview` is stored redacted and capped server-side;
+ * `last_error` is the last failed send's reason, or why it was suppressed (untranslated). */
+export interface AlertHistoryItem {
+	id: string;
+	created_at: string;
+	category: AlertCategory | string;
+	state: AlertState;
+	attempts: number;
+	next_attempt_at: string | null;
+	sent_at: string | null;
+	last_error: string | null;
+	body_preview: string;
+}
+
+export interface AlertHistoryPage {
+	configured: boolean;
+	items: AlertHistoryItem[];
+	next_cursor: string | null;
+}
+
+/** v59 (O6): admin-only, newest first, one cursor page per request. */
+export function getAlertHistory(
+	cursor: string | null = null,
+	limit = 25
+): Promise<AlertHistoryPage> {
+	const params = new URLSearchParams({ limit: String(limit) });
+	if (cursor !== null) params.set('cursor', cursor);
+	return request<AlertHistoryPage>(`/api/admin/alerts?${params}`);
 }
 
 export function listProxies(): Promise<Proxy[]> {

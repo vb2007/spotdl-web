@@ -23,6 +23,7 @@
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 	import OutcomeBar from '$lib/components/stats/OutcomeBar.svelte';
 	import FailureChannels from '$lib/components/stats/FailureChannels.svelte';
+	import AlertHistory from '$lib/components/stats/AlertHistory.svelte';
 	import {
 		formatRate,
 		formatSpan,
@@ -54,9 +55,12 @@
 	// A window switch while a read is in flight: only the newest read may land (DESIGN.md's
 	// "a REST fetch that resolves out of order can clobber fresher state").
 	let sequence = 0;
+	// v59: the alert history below re-reads its first page on every load.
+	let alertsRead = $state(0);
 
 	async function load() {
 		const mine = ++sequence;
+		alertsRead += 1;
 		loading = true;
 		error = '';
 		try {
@@ -390,6 +394,8 @@
 					{/if}
 				</section>
 			</div>
+
+			<AlertHistory readToken={alertsRead} />
 		{/if}
 	</main>
 </div>
