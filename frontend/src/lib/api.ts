@@ -1,4 +1,5 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
+import { announceSession } from '$lib/session';
 
 /** v12: both production (via the `web` container's nginx /api/ proxy, see
  * frontend/nginx.conf) and local dev (via Vite's dev-server /api proxy, see
@@ -650,6 +651,8 @@ export async function login(email: string, password: string): Promise<SessionInf
 	});
 	signingOut = false;
 	signedOut = false;
+	// v62 (F9): the other tabs follow at once (session.ts).
+	announceSession({ type: 'login', email: session.email });
 	return session;
 }
 
@@ -671,11 +674,13 @@ export async function logout(): Promise<{ status: string }> {
 	try {
 		const answer = await request<{ status: string }>('/api/auth/logout', { method: 'POST' });
 		signedOut = true;
+		announceSession({ type: 'logout' });
 		return answer;
 	} catch (err) {
 		// A 401: there was no session left to end, so this tab is signed out all the same.
 		if (err instanceof ApiError && err.status === 401) {
 			signedOut = true;
+			announceSession({ type: 'logout' });
 			return { status: 'ok' };
 		}
 		// Still signed in: a later 401 means what it says again.

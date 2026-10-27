@@ -23,6 +23,7 @@
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { link as streamLink } from '$lib/stores/link';
+	import { onSessionMessage, setLeavingSession } from '$lib/session';
 	import {
 		cancelChord,
 		helpOpen,
@@ -116,6 +117,34 @@
 			} finally {
 				ending = false;
 			}
+		})
+	);
+
+	// v62 (F9): another tab signed out, or signed someone in. The cookie is shared, so this tab
+	// is signed out (or someone else) too, and it follows at once rather than on its next
+	// request (the v47 401 handler above and the layout's own load stay as the fallback).
+	// Navigate before resetting, as the 401 handler does: reset under a mounted `/`, its
+	// stream and poll would read it as an identity change and reload the tab first.
+	$effect(() =>
+		onSessionMessage(async (message) => {
+			const mine = data.session?.email ?? null;
+			if (message.type === 'logout') {
+				if (mine === null || page.url.pathname === resolve('/login')) return;
+				setLeavingSession(true);
+				try {
+					await goto(resolve('/login'), { state: { sessionEnded: true } });
+				} finally {
+					setLeavingSession(false);
+				}
+				queue.reset();
+				return;
+			}
+			if (message.email === mine) return;
+			// Someone else holds the session now (or this tab was signed out): start over as
+			// them, as v42 does for an identity change found on a stream reconnect.
+			setLeavingSession(true);
+			queue.reset();
+			window.location.reload();
 		})
 	);
 
