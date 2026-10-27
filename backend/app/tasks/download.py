@@ -18,7 +18,7 @@ from app.models import (
     TrackErrorType,
     TrackState,
 )
-from app.services import app_settings, attempts, dedup, downloads, events, proxies, retry, tagging
+from app.services import app_settings, attempts, dedup, downloads, events, job_status, proxies, retry, tagging
 from app.services import network_path as network_path_svc
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
@@ -110,6 +110,7 @@ def _hold(
         failure_count=track.failure_count,
         **track_song_meta(track.song_json),
     )
+    job_status.publish_change(db, owner_id, track.job_id)
 
 
 def _give_up_claim(db: Session, track: Track, attempt_started_at: datetime, when: str) -> None:
@@ -173,6 +174,7 @@ def _record_mid_download_cancel(
         failure_count=recorded.failure_count,
         **track_meta,
     )
+    job_status.publish_change(db, owner_id, track.job_id)
 
 
 @celery_app.task(name="app.tasks.download.download_track")
@@ -320,6 +322,7 @@ def download_track(track_id: str) -> None:
                 failure_count=track.failure_count,
                 **track_song_meta(track.song_json),
             )
+            job_status.publish_change(db, owner_id, track.job_id)
             return
 
         # Pacing hook (declared since v07, actually consumed as of v15). Deliberately
@@ -636,6 +639,7 @@ def download_track(track_id: str) -> None:
                         failure_count=recorded.failure_count,
                         **track_meta,
                     )
+                    job_status.publish_change(db, owner_id, job_id)
                     return
                 track.state = TrackState.SKIPPED_DUPLICATE
                 track.output_path = str(output_path)
@@ -663,6 +667,7 @@ def download_track(track_id: str) -> None:
                     failure_count=recorded.failure_count,
                     **track_meta,
                 )
+                job_status.publish_change(db, owner_id, job_id)
                 return
 
             track.state = TrackState.COMPLETED
@@ -705,6 +710,7 @@ def download_track(track_id: str) -> None:
                 failure_count=track.failure_count,
                 **track_meta,
             )
+            job_status.publish_change(db, owner_id, job_id)
         except Exception as exc:
             # Some exceptions (e.g. spotdl's DownloaderError for a malformed proxy) echo
             # the proxy string verbatim — never let that reach worker logs or the
@@ -800,5 +806,6 @@ def download_track(track_id: str) -> None:
                 failure_count=track.failure_count,
                 **track_meta,
             )
+            job_status.publish_change(db, owner_id, job_id)
     finally:
         db.close()

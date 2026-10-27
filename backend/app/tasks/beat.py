@@ -6,7 +6,7 @@ from sqlalchemy import and_, or_, select, update
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Job, Track, TrackAttemptOutcome, TrackState, UserSettings
-from app.services import alerts, archive, attempts, events, retry
+from app.services import alerts, archive, attempts, events, job_status, retry
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -146,6 +146,9 @@ def _reclaim_stale_tracks(db) -> None:
             failure_count=recorded.failure_count,
             **track_song_meta(song_json),
         )
+    # v62 (F1): a reclaim can turn a job `waiting`; one status check per job, not per track.
+    for job_id in job_ids:
+        job_status.publish_change(db, owner_by_job[job_id], job_id)
 
 
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")
@@ -200,6 +203,10 @@ def dispatch_due_tracks() -> None:
 
         for track in due_tracks:
             download_track.delay(str(track.id))
+        # v62 (F1): a `waiting` track's dispatch can turn its job `active` again; one status
+        # check per job, after the sends (it ends the session's transaction).
+        for job_id, user_id in {track.job_id: user_id for track, user_id in due_rows}.items():
+            job_status.publish_change(db, user_id, job_id)
     finally:
         db.close()
 

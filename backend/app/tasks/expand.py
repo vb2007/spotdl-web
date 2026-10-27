@@ -6,7 +6,7 @@ from sqlalchemy import case, select, update
 
 from app.db import SessionLocal
 from app.models import Job, JobState, Track, TrackState
-from app.services import events, expansion
+from app.services import events, expansion, job_status
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -227,6 +227,7 @@ def expand_job(job_id: str) -> None:
                 return
 
             events.publish_job_event(job.user_id, job.id, job.state.value)
+            job_status.publish_change(db, job.user_id, job.id)
         except Exception as exc:
             # Covers both expansion.expand() itself (assorted exception types spotdl raises
             # for malformed/unreachable URLs) and any DB error while inserting tracks (e.g. a
@@ -260,6 +261,7 @@ def expand_job(job_id: str) -> None:
                 return
             db.refresh(job)
             events.publish_job_event(job.user_id, job.id, job.state.value, error=job.error)
+            job_status.publish_change(db, job.user_id, job.id)
         else:
             _dispatch_due(db, job, [track.id for track in tracks])
     finally:

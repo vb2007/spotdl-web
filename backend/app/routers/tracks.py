@@ -14,7 +14,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import DownloadedTrack, Job, JobSourceType, JobState, Proxy, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
-from app.services import app_settings, events, retry, rollup, track_listing
+from app.services import app_settings, events, job_status, retry, rollup, track_listing
 from app.services.track_states import CANCELLABLE_TRACK_STATES, RETRYABLE_TRACK_STATES, cancelled_used_proxy_id
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import track_attempt_to_dict, track_song_meta, track_to_dict
@@ -190,6 +190,7 @@ def cancel_track(
     events.publish_track_event(
         owner_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
     )
+    job_status.publish_change(db, owner_id, track.job_id)
     return track_to_dict(track)
 
 
@@ -278,6 +279,7 @@ def retry_track(
         attempt_count=track.attempt_count,
         **track_song_meta(track.song_json),
     )
+    job_status.publish_change(db, owner_id, track.job_id)
 
     worker_state = retry.get_worker_state(db)
     db.commit()

@@ -12,7 +12,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import DownloadedTrack, Job, JobSourceType, JobState, Track, TrackState, User
 from app.routers.auth import Principal, require_admin_hidden, require_session, require_session_or_api_key
-from app.services import archive, events, job_listing, rate_limit, rollup, spotify_urls, track_listing
+from app.services import archive, events, job_listing, job_status, rate_limit, rollup, spotify_urls, track_listing
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
 from app.services.track_states import CANCELLABLE_TRACK_STATES, cancelled_used_proxy_id
@@ -215,6 +215,8 @@ def create_job(
     job = Job(source_url=source_url, source_type=source_type, user_id=user.id)
     db.add(job)
     db.commit()
+    # v62 (F1): its first status (`expanding`, from none), so the dashboard counts it at once.
+    job_status.publish_change(db, user.id, job.id, created=True)
     try:
         expand_job.delay(str(job.id))
     except Exception as exc:
@@ -227,6 +229,7 @@ def create_job(
         job.error = "Couldn't be queued for expansion; submit it again"
         job.archived_at = datetime.now(timezone.utc)
         db.commit()
+        job_status.publish_change(db, user.id, job.id)
         logger.warning("create_job: expansion not enqueued for %s: %s", job.id, type(exc).__name__)
         raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
     return {
@@ -467,6 +470,7 @@ def cancel_job(
             job.user_id, track_id, job.id, TrackState.CANCELLED.value, **track_song_meta(song_json)
         )
     events.publish_job_event(job.user_id, job.id, job.state.value)
+    job_status.publish_change(db, job.user_id, job.id)
     # Read after the cancel commit above, not before -- counts must reflect the just
     # -cancelled tracks.
     return job_to_dict(

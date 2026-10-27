@@ -125,6 +125,34 @@ def publish_job_event(
     publish(user_id, event)
 
 
+#: `publish_job_status_event`'s "the previous status isn't known" (no `prev_status` key at all),
+#: as opposed to `None` (the job is new: it wasn't counted under any status before).
+PREV_STATUS_UNKNOWN = object()
+
+
+def publish_job_status_event(
+    user_id: uuid.UUID | str,
+    job_id: Any,
+    status: str,
+    *,
+    archived: bool,
+    prev_status: Any = PREV_STATUS_UNKNOWN,
+) -> None:
+    """v62 (F1): a job's rollup status moved (`rollup.status_key` form: `active`,
+    `settled:partial`, ...). Published by `job_status.publish_change`, which keeps the chain:
+    each event's `prev_status` is the previous event's `status`. The dashboard moves its state
+    chips from it, a job off its loaded page included."""
+    event: dict[str, Any] = {
+        "type": "job.status",
+        "job_id": str(job_id),
+        "status": status,
+        "archived": archived,
+    }
+    if prev_status is not PREV_STATUS_UNKNOWN:
+        event["prev_status"] = prev_status
+    publish(user_id, event)
+
+
 def publish_library_progress(
     user_id: uuid.UUID | str,
     *,
