@@ -557,6 +557,20 @@ def test_worker_down_fires_with_due_work_and_the_breaker_closed(configured, watc
     assert "no download has started since (the last one started " in row.body
 
 
+def test_worker_down_counts_tracks_expand_job_already_sent(configured, watchdog, db_session, make_user):
+    """A new job's tracks go straight to the broker as `pending` with no scheduled_at (the
+    outbox marker is cleared by the send): owed to worker-dl since that send."""
+    track = _track(db_session, make_user, state=TrackState.PENDING)
+    db_session.commit()
+    track.updated_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    (row,) = _rows(db_session, "worker_down")
+    assert "1 due track(s) have waited 30m" in row.body
+    assert "(none recorded yet)" in row.body
+
+
 def test_worker_down_waits_its_threshold(configured, watchdog, db_session, backlog):
     app_settings.update_alert_settings(db_session, alert_worker_down_minutes=60)
     db_session.commit()

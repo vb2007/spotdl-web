@@ -674,15 +674,18 @@ def _release_recorded(db: Session, trip_fingerprint: str) -> bool:
 
 
 def due_backlog(db: Session, now: datetime):
-    """(oldest due scheduled_at, how many) over the tracks that should be with worker-dl by
-    now: queued (dispatched), or waiting/pending and due (beat's next tick dispatches them).
-    (None, 0) when there are none."""
+    """(oldest due time, how many) over the tracks that should be with worker-dl by now:
+    queued (dispatched), waiting/pending and due (beat's next tick dispatches them), or pending
+    with no scheduled_at, which expand_job has already sent to the broker (v56's outbox marker
+    is cleared by that send, so its updated_at is when it was sent). (None, 0) when there are
+    none."""
     from app.models import Track, TrackState
 
+    due_at = func.coalesce(Track.scheduled_at, Track.updated_at)
     oldest, count = db.execute(
-        select(func.min(Track.scheduled_at), func.count()).where(
+        select(func.min(due_at), func.count()).where(
             Track.state.in_((TrackState.QUEUED, TrackState.WAITING, TrackState.PENDING)),
-            Track.scheduled_at <= now,
+            due_at <= now,
         )
     ).one()
     return oldest, count
