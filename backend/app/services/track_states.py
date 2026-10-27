@@ -6,7 +6,9 @@ and the UI never offers cancel on it. A job cancel leaves such tracks as they ar
 `DELETE /api/tracks/{id}` refuses one. It stays retryable, though: "retry" is how a user asks
 for another search after a not-found."""
 
-from app.models import TrackState
+from sqlalchemy import case
+
+from app.models import Track, TrackState
 
 # Every state with nothing left to happen to it unless someone retries it.
 TERMINAL_TRACK_STATES = frozenset(
@@ -24,3 +26,9 @@ TERMINAL_TRACK_STATES = frozenset(
 CANCELLABLE_TRACK_STATES = frozenset(state for state in TrackState if state not in TERMINAL_TRACK_STATES)
 
 RETRYABLE_TRACK_STATES = frozenset({TrackState.WAITING, TrackState.LOOKUP_FAILED})
+
+
+# v56 (A4): what a cancel UPDATE writes to `used_proxy_id`. A track cancelled mid-download
+# keeps it (its download runs on to the end, and `proxies.proxy_in_use` must see that); any
+# other cancelled track drops it, or a stale earlier attempt's proxy would hold up its delete.
+CANCELLED_USED_PROXY_ID = case((Track.state == TrackState.DOWNLOADING, Track.used_proxy_id), else_=None)

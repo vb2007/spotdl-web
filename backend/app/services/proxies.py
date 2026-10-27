@@ -17,13 +17,14 @@ from typing import TYPE_CHECKING, Iterator
 from urllib.parse import urlsplit
 
 from spotdl.providers.audio.ytmusic import YouTubeMusic
-from sqlalchemy import exists
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 from ytmusicapi import YTMusic
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Proxy, ProxySource, Track, TrackState
+from app.models import Proxy, ProxySource, Track, TrackAttempt, TrackAttemptOutcome, TrackState
+from app.services.attempts import PROXY_OUTCOME_LOCK, RECLAIM_PREFIX
 # v31's redact_text, moved to the dependency-free redaction module in v36 (the alert
 # watchdog's own process uses it without importing spotdl); re-exported so every
 # `proxies.redact_text` call site is unchanged.
@@ -384,19 +385,44 @@ PROXY_IN_USE_GRACE = timedelta(seconds=60)
 def proxy_in_use(db: Session, proxy: Proxy, now: datetime) -> bool:
     """Whether a download may be going through `proxy` right now: a track `downloading` with
     it as its proxy, one cancelled mid-download within the stale-track window (its download
-    runs on to the end, cancel's own semantics), or a pick within PROXY_IN_USE_GRACE. Call
-    with the proxy row locked."""
+    runs on to the end, cancel's own semantics), one beat reclaimed within that window whose
+    download hasn't reported back (v55: a live one runs on and supersedes the reclaim's row),
+    or a pick within PROXY_IN_USE_GRACE. Call with the proxy row locked."""
     last_used_at = proxy.last_used_at
     if last_used_at is not None and last_used_at > now - PROXY_IN_USE_GRACE:
         return True
-    still_running = timedelta(seconds=get_settings().stale_track_after_seconds)
+    still_running = now - timedelta(seconds=get_settings().stale_track_after_seconds)
+    # The reclaim's `failed` row stands until the download it reclaimed reports back (the
+    # outcome rewrites it in place, attempts.record_attempt), so an unrewritten recent one
+    # may still be a download going through this proxy.
+    reclaimed_unreported = (
+        select(TrackAttempt.id)
+        .where(
+            TrackAttempt.track_id == Track.id,
+            TrackAttempt.outcome == TrackAttemptOutcome.FAILED,
+            TrackAttempt.network_path.is_(None),
+            TrackAttempt.error_message.startswith(RECLAIM_PREFIX),
+            TrackAttempt.finished_at > still_running,
+        )
+        .exists()
+    )
     return db.query(
         exists().where(
             Track.used_proxy_id == proxy.id,
             (Track.state == TrackState.DOWNLOADING)
-            | ((Track.state == TrackState.CANCELLED) & (Track.updated_at > now - still_running)),
+            | ((Track.state == TrackState.CANCELLED) & (Track.updated_at > still_running))
+            | reclaimed_unreported,
         )
     ).scalar()
+
+
+def lock_for_outcome(db: Session, proxy_id: uuid.UUID | None) -> None:
+    """v56 (A4): `attempts.PROXY_OUTCOME_LOCK` on an attempt's proxy, for download_track to
+    take before the track's row lock when it records the outcome. A delete locks the proxy and then (ON
+    DELETE SET NULL) the track; recording an outcome in the other order could deadlock with
+    it. Held to the outcome's commit, which a delete then waits for."""
+    if proxy_id is not None:
+        db.get(Proxy, proxy_id, with_for_update=PROXY_OUTCOME_LOCK)
 
 
 def finalize_proxy_deletions(db: Session) -> list[str]:
@@ -419,10 +445,10 @@ def finalize_proxy_deletions(db: Session) -> list[str]:
 
 
 def record_proxy_result(db: Session, proxy_id: uuid.UUID, success: bool) -> None:
-    # v56 (A4): FOR KEY SHARE, so a delete (ON DELETE SET NULL now lets it through) waits for
-    # this commit instead of making its UPDATE match no row (StaleDataError, a rolled-back
-    # download).
-    proxy = db.get(Proxy, proxy_id, with_for_update={"key_share": True})
+    # v56 (A4): attempts.PROXY_OUTCOME_LOCK, so a delete (ON DELETE SET NULL now lets it
+    # through) waits for this commit instead of making its UPDATE match no row (StaleDataError,
+    # a rolled-back download).
+    proxy = db.get(Proxy, proxy_id, with_for_update=PROXY_OUTCOME_LOCK)
     if proxy is None:
         return
 

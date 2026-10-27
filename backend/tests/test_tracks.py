@@ -17,7 +17,7 @@ from app.models import (
     TrackErrorType,
     TrackState,
 )
-from app.services import attempts, retry
+from app.services import attempts, proxies, retry
 
 
 def _aware(dt: datetime) -> datetime:
@@ -461,6 +461,32 @@ def test_record_attempt_labels_an_unparseable_proxy_url_plainly(db_session, owne
     assert row.proxy_label == "proxy"
 
 
+@pytest.mark.parametrize("via", ["track", "job"])
+@pytest.mark.parametrize("state", [TrackState.WAITING, TrackState.DOWNLOADING])
+def test_cancel_keeps_the_proxy_only_of_a_download_still_running(authenticated_client, db_session, owner, state, via):
+    """v56 (A4): a cancel lets a running download go on to its end, so a `downloading` track
+    keeps its used_proxy_id (proxies.proxy_in_use holds the proxy's delete for it). Any other
+    track's is an ended attempt's, and keeping it would hold up that proxy's delete for the
+    whole stale-track window."""
+    track = _make_track(db_session, owner, state=state, attempt_count=1)
+    proxy = Proxy(url="http://10.0.0.33:8080", source=ProxySource.MANUAL, enabled=True)
+    db_session.add(proxy)
+    db_session.commit()
+    track.used_proxy_id = proxy.id
+    db_session.commit()
+
+    path = f"/api/tracks/{track.id}" if via == "track" else f"/api/jobs/{track.job_id}"
+    assert authenticated_client.delete(path).status_code == 200
+
+    db_session.expire_all()
+    cancelled = db_session.get(Track, track.id)
+    assert cancelled.state == TrackState.CANCELLED
+    assert cancelled.used_proxy_id == (proxy.id if state == TrackState.DOWNLOADING else None)
+    assert proxies.proxy_in_use(db_session, db_session.get(Proxy, proxy.id), datetime.now(timezone.utc)) is (
+        state == TrackState.DOWNLOADING
+    )
+
+
 def test_a_superseded_reclaim_row_takes_the_proxy_label(db_session, owner):
     """v56 (A4) with v55 (E3): a still-running download's outcome rewrites beat's reclaim row
     in place, and that rewrite names the proxy too, not only a freshly added row."""
@@ -757,7 +783,7 @@ def test_a_proxy_deleted_mid_attempt_still_lets_the_attempt_commit_on_real_conne
 
 
 def test_a_proxy_delete_waits_for_an_attempt_being_recorded_on_real_connections(committed_db):
-    """v56 (A4): record_attempt reads the proxy FOR KEY SHARE, so an admin's delete landing
+    """v56 (A4): record_attempt reads the proxy locked (FOR NO KEY UPDATE), so an admin's delete landing
     while the attempt's transaction is open waits for its commit, then nulls the new row's
     proxy_id; the row keeps the label (no ForeignKeyViolation, no lost download)."""
     from concurrency import Gate, Thread, blocked_or_done

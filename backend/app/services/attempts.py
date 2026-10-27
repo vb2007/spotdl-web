@@ -95,6 +95,14 @@ def _proxy_label(proxy: Proxy | None) -> str | None:
         return "proxy"
 
 
+# v56 (A4): the lock an attempt's outcome takes on its proxy. SQLAlchemy renders this as
+# `FOR NO KEY UPDATE` (`FOR KEY SHARE` would need `read=True` as well). That's the one wanted:
+# it makes a proxy delete (FOR UPDATE) wait for the outcome's commit, and it's already the lock
+# the same transaction's proxy UPDATE (proxies.record_proxy_result) needs. A KEY SHARE taken
+# first would have to be upgraded there, and an upgrade can deadlock with a delete queued on it.
+PROXY_OUTCOME_LOCK = {"key_share": True}
+
+
 class RecordedAttempt(NamedTuple):
     attempt_number: int
     attempts_made: int
@@ -138,12 +146,12 @@ def record_attempt(
     reclaim and keep latest_attempt_number a working ownership token."""
     # v56 (A4): the proxy may have been deleted while this attempt ran (its FK is now ON
     # DELETE SET NULL): the row then names no proxy rather than failing the whole commit
-    # (and with it a completed download's ledger row). FOR KEY SHARE: a delete waits for this
-    # commit (then nulls the new row's proxy_id). Taken before the track's row lock below: a
-    # delete locks the proxy, then its cascade the track, so the same order here can't deadlock.
-    proxy = (
-        db.get(Proxy, proxy_id, with_for_update={"key_share": True}) if proxy_id is not None else None
-    )
+    # (and with it a completed download's ledger row). PROXY_OUTCOME_LOCK: a delete waits for
+    # this commit (then nulls the new row's proxy_id). Taken before the track's row lock below:
+    # a delete locks the proxy, then its cascade the track, so the same order here can't
+    # deadlock. A caller already holding the track (download_track's outcome paths) takes the
+    # proxy's lock before that one too (proxies.lock_for_outcome); here it's then held already.
+    proxy = db.get(Proxy, proxy_id, with_for_update=PROXY_OUTCOME_LOCK) if proxy_id is not None else None
     if proxy is None:
         proxy_id = None
     # Derived from the row alone (outcome + network_path), so the counters can always be

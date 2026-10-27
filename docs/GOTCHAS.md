@@ -366,6 +366,10 @@ needed" claim — rather than silently deleted.
 - `attempts.py` must not import `serializers`/`proxies` (spotdl) — alerts.py imports it → *v56*
 - Deleting a proxy a download is using waits for it (`delete_requested_at`, never picked, removed
   by `finalize_proxy_deletions` once idle); `pick_proxy` locks only its chosen proxy → *v56*
+- SQLAlchemy's `with_for_update(key_share=True)` renders `FOR NO KEY UPDATE`; `FOR KEY SHARE`
+  needs `read=True` too. Check the SQL, not the flag → *v56*
+- A track beat reclaimed mid-download (v55) may still be downloading through its proxy:
+  `proxy_in_use` counts it until the reclaim row is rewritten → *v56*
 - Two bulk UPDATEs of one job's tracks (cancel vs expand's claim) take the job row lock first, or
   they can deadlock; a partial index on `state = 'waiting'` can't serve `state IN (…)` → *v56*
 - A persistent Redis (`appendonly`) keeps "last seen" timestamps across downtime; treat a
@@ -6614,8 +6618,10 @@ independently-found production bug from the same conversation)
   download's ledger row with it. `record_attempt` now records no proxy when the row is gone
   (reproduced on two real connections, the worker session holding the expired proxy).
   *(2026-10-26, v56 round 3: `record_attempt` and `proxies.record_proxy_result` now read the
-  proxy `FOR KEY SHARE`, so a delete landing while the attempt's transaction is open waits for
-  its commit; only a delete committed before the read still leaves the row unlabelled.)*
+  proxy locked, so a delete landing while the attempt's transaction is open waits for its
+  commit; only a delete committed before the read still leaves the row unlabelled. 2026-10-27:
+  that lock is `FOR NO KEY UPDATE`, not the `FOR KEY SHARE` first written here; see the entry
+  on `with_for_update(key_share=True)` below.)*
 - **Bulk UPDATEs of the same rows need one lock order.** `cancel_job`'s `UPDATE … WHERE job_id`
   and expand_job's claim `UPDATE … WHERE id IN (…)` can lock one job's tracks in different
   orders. Both take the job's row lock first now (cancel_job always did), so they serialize.
@@ -6646,10 +6652,24 @@ independently-found production bug from the same conversation)
   cancel lets the download run to its end, and the delete must wait for it too. `finalize_proxy_deletions` (beat, every
   30s) deletes it once idle, and `/settings` shows it as "deleting" until then. On the slot it was
   gone 17s after its download ended.
-- **Rebased onto v55: one lock order through `record_attempt`.** v55 made `record_attempt` lock the
-  track's row explicitly before reading anything; v56's proxy `FOR KEY SHARE` is taken before that
-  lock, not after, because a proxy delete locks the proxy and then (its ON DELETE SET NULL) the
-  track. v55's supersede rewrite of a reclaim row stores the proxy label too, as a new row does.
+- **Rebased onto v55: the proxy before the track, in every outcome path.** v55 locks the track's
+  row in `download_track`'s success and failure paths (and in `record_attempt`) before anything
+  reads the proxy. A proxy delete locks the proxy and then (ON DELETE SET NULL) the track, so
+  those paths now take the proxy's lock first (`proxies.lock_for_outcome`); a statement-order test
+  pins it. v55's supersede rewrite of a reclaim row stores the proxy label too, as a new row does.
+- **`with_for_update(key_share=True)` is `FOR NO KEY UPDATE` in SQLAlchemy;** `FOR KEY SHARE`
+  needs `read=True` as well. v56's proxy reads had the former while its comments said the latter.
+  It's kept, now named (`attempts.PROXY_OUTCOME_LOCK`): it still makes a delete wait, and the
+  outcome's transaction then updates the same proxy row (`record_proxy_result`), which needs it
+  anyway. Taking `KEY SHARE` first would mean upgrading the lock there, and an upgrade can
+  deadlock with a delete already queued for the row. Check the rendered SQL, never the flag name.
+- **A reclaimed download is still a proxy's user.** v55's stale reclaim moves a live
+  `downloading` track to `waiting` and lets the download finish and rewrite the reclaim's row.
+  `proxy_in_use` counted only `downloading` (and recently cancelled) tracks, so a proxy behind a
+  download running past 30 minutes could be deleted under it. It now also counts a track whose
+  reclaim row is unrewritten and recent. And a cancel clears `used_proxy_id` unless the track was
+  `downloading`: an ended attempt's proxy on a cancelled `waiting` track held its delete for the
+  whole stale-track window.
 - **A re-parented migration on a database that already ran it.** After the rebase put v55's
   `d9b3e5f7a1c2` under v56's `a9d3c5e7f1b2`, the slot's database still read `a9d3c5e7f1b2`, the
   head, so `alembic upgrade head` did nothing and `hold_count` was never added. Repair: `alembic

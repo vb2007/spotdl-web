@@ -853,3 +853,49 @@ def test_a_proxy_behind_a_cancelled_download_still_running_is_in_use(db_session)
 
     assert proxies.proxy_in_use(db_session, proxy, now) is True
     assert proxies.proxy_in_use(db_session, proxy, now + timedelta(hours=2)) is False
+
+
+def test_a_proxy_behind_a_reclaimed_download_still_running_is_in_use(db_session):
+    """v56 (A4) on v55 (E3): beat's stale reclaim sets a `downloading` track `waiting` but lets
+    a still-running download go on to its end and rewrite the reclaim's row. Until that row is
+    rewritten (within the stale-track window), the track's proxy counts as in use."""
+    from app.models import TrackAttemptOutcome, TrackState
+    from app.services import attempts
+
+    now = datetime.now(timezone.utc)
+    proxy = Proxy(url="http://10.0.0.31:3128", source=ProxySource.MANUAL, enabled=True, last_used_at=now - timedelta(hours=1))
+    db_session.add(proxy)
+    db_session.commit()
+    track = _downloading_through(db_session, proxy)
+    entry = attempts.latest_attempt_number(db_session, track.id)
+    track.state = TrackState.WAITING
+    attempts.record_attempt(
+        db_session, track.id, now, now, TrackAttemptOutcome.FAILED, error_message=f"{attempts.RECLAIM_PREFIX}stuck"
+    )
+    db_session.commit()
+
+    assert proxies.proxy_in_use(db_session, proxy, now) is True
+    assert proxies.proxy_in_use(db_session, proxy, now + timedelta(hours=2)) is False
+
+    # The download reports back: the reclaim row becomes its real outcome.
+    attempts.record_attempt(
+        db_session, track.id, now, now, TrackAttemptOutcome.COMPLETED, proxy_id=proxy.id, supersede_reclaim_after=entry
+    )
+    track.state = TrackState.COMPLETED
+    db_session.commit()
+    assert proxies.proxy_in_use(db_session, proxy, now) is False
+
+
+def test_a_waiting_tracks_old_proxy_isnt_in_use(db_session):
+    """An earlier attempt's proxy on a track now `waiting` (its attempt failed and ended)."""
+    from app.models import TrackState
+
+    now = datetime.now(timezone.utc)
+    proxy = Proxy(url="http://10.0.0.32:3128", source=ProxySource.MANUAL, enabled=True, last_used_at=now - timedelta(hours=1))
+    db_session.add(proxy)
+    db_session.commit()
+    track = _downloading_through(db_session, proxy)
+    track.state = TrackState.WAITING
+    db_session.commit()
+
+    assert proxies.proxy_in_use(db_session, proxy, now) is False

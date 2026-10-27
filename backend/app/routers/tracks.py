@@ -15,7 +15,7 @@ from app.errors import ApiError
 from app.models import DownloadedTrack, Job, JobSourceType, JobState, Proxy, Track, TrackAttempt, TrackState, User
 from app.routers.auth import require_session
 from app.services import app_settings, events, retry, rollup, track_listing
-from app.services.track_states import CANCELLABLE_TRACK_STATES, RETRYABLE_TRACK_STATES
+from app.services.track_states import CANCELLABLE_TRACK_STATES, CANCELLED_USED_PROXY_ID, RETRYABLE_TRACK_STATES
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import track_attempt_to_dict, track_song_meta, track_to_dict
 from app.services.view_scope import View, resolve_view
@@ -176,7 +176,7 @@ def cancel_track(
     cancelled = db.execute(
         update(Track)
         .where(Track.id == track.id, Track.state.in_(CANCELLABLE_TRACK_STATES))
-        .values(state=TrackState.CANCELLED, scheduled_at=None)
+        .values(state=TrackState.CANCELLED, scheduled_at=None, used_proxy_id=CANCELLED_USED_PROXY_ID)
     ).rowcount
     db.commit()
     db.refresh(track)
