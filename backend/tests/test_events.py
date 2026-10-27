@@ -59,6 +59,34 @@ def test_publish_track_event_omits_metadata_when_not_given(monkeypatch):
     assert "album" not in captured
 
 
+def test_publish_track_event_carries_the_runs_start(monkeypatch):
+    """v62 (F10): the run a downloading event belongs to, as ISO text."""
+    captured = {}
+    monkeypatch.setattr(events, "publish", lambda user_id, event: captured.update(event))
+    from datetime import datetime, timezone
+
+    started = datetime(2026, 10, 28, 1, 2, 3, 456789, tzinfo=timezone.utc)
+    events.publish_track_event("user-1", "track-1", "job-1", "downloading", progress=0, download_started_at=started)
+
+    assert captured["download_started_at"] == "2026-10-28T01:02:03.456789+00:00"
+
+
+def test_publish_job_status_event_shape(monkeypatch):
+    """v62 (F1): prev_status absent (unknown) is not the same as null (a new job)."""
+    captured = []
+    monkeypatch.setattr(events, "publish", lambda user_id, event: captured.append(event))
+
+    events.publish_job_status_event("user-1", "job-1", "active", archived=False, prev_status="waiting")
+    events.publish_job_status_event("user-1", "job-1", "expanding", archived=False, prev_status=None)
+    events.publish_job_status_event("user-1", "job-1", "settled:complete", archived=True)
+
+    assert captured == [
+        {"type": "job.status", "job_id": "job-1", "status": "active", "archived": False, "prev_status": "waiting"},
+        {"type": "job.status", "job_id": "job-1", "status": "expanding", "archived": False, "prev_status": None},
+        {"type": "job.status", "job_id": "job-1", "status": "settled:complete", "archived": True},
+    ]
+
+
 def test_publish_job_event_shape(monkeypatch):
     captured = {}
     monkeypatch.setattr(events, "publish", lambda user_id, event: captured.update(event))
@@ -77,7 +105,14 @@ def test_make_progress_callback_publishes_downloading_progress(monkeypatch):
     monkeypatch.setattr(events, "publish_track_event", fake_publish_track_event)
 
     callback = events.make_progress_callback(
-        "user-1", "track-1", "job-1", title="Song", artists=["Artist"], album="Album", attempt_count=3
+        "user-1",
+        "track-1",
+        "job-1",
+        title="Song",
+        artists=["Artist"],
+        album="Album",
+        attempt_count=3,
+        download_started_at="run-start",
     )
     callback(_FakeSongTracker(progress=42), "Downloading")
 
@@ -92,6 +127,8 @@ def test_make_progress_callback_publishes_downloading_progress(monkeypatch):
         "title": "Song",
         "artists": ["Artist"],
         "album": "Album",
+        # v62 (F10): and on the run, which attempt_count alone doesn't always tell apart.
+        "download_started_at": "run-start",
     }
 
 

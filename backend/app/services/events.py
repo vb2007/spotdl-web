@@ -71,6 +71,7 @@ def publish_track_event(
     title: str | None = None,
     artists: list[str] | None = None,
     album: str | None = None,
+    download_started_at: datetime | None = None,
 ) -> None:
     # v35: attempts_made/failure_count ride along wherever the caller just wrote an
     # attempt row, so a live row's displayed counts move without a refetch.
@@ -106,6 +107,11 @@ def publish_track_event(
         event["artists"] = artists
     if album is not None:
         event["album"] = album
+    # v62 (F10): which run of `downloading` this is (the claim's updated_at, the same value the
+    # track's REST row carries as download_started_at), so the browser's progress cache can
+    # tell one run from the next even when attempt_count doesn't move (a reclaim, a redelivery).
+    if download_started_at is not None:
+        event["download_started_at"] = download_started_at.isoformat()
     publish(user_id, event)
 
 
@@ -190,6 +196,7 @@ def make_progress_callback(
     artists: list[str] | None = None,
     album: str | None = None,
     attempt_count: int | None = None,
+    download_started_at: datetime | None = None,
 ) -> Callable[[Any, str], None]:
     """Returns a callback for spotdl's `ProgressHandler.update_callback` hook — every
     `SongTracker.notify_*` call (searching/getting-meta/downloading/converting/complete)
@@ -203,8 +210,9 @@ def make_progress_callback(
     `tracker` each call -- the caller already has `song_json` loaded once per track, and
     every one of these callback invocations describes the same track.
 
-    attempt_count (v34.2) is the attempt this run is, so the frontend can tell this
-    attempt's ticks from a previous one's (its localStorage progress cache keys on it).
+    attempt_count (v34.2) is the attempt this run is. download_started_at (v62, F10) is
+    this run's own start, which the frontend's localStorage progress cache keys on instead:
+    a re-run that doesn't bump attempt_count (beat's reclaim, a redelivery) still differs.
     """
 
     def _callback(tracker: Any, message: str) -> None:
@@ -218,6 +226,7 @@ def make_progress_callback(
             title=title,
             artists=artists,
             album=album,
+            download_started_at=download_started_at,
         )
 
     return _callback

@@ -25,6 +25,7 @@ from app.models import (
     WorkerState,
 )
 from app.services import dedup, downloads, events, proxies, retry, tagging
+from app.services.serializers import track_to_dict
 from app.tasks import download as download_task
 
 
@@ -1623,6 +1624,52 @@ def test_a_retry_publishes_its_attempt_count_on_start_and_on_every_tick(db_sessi
     ticks = [k for a, k in published if a[3] == "downloading"]
     assert [t["progress"] for t in ticks] == [0, 50]
     assert all(t["attempt_count"] == 2 for t in ticks)
+
+
+def test_each_run_publishes_its_own_start_and_the_row_carries_it(db_session, monkeypatch, tmp_path):
+    """v62 (F10): the progress cache keys on the run, not attempt_count, which a re-run
+    doesn't always move (a reclaim, a redelivery). Every downloading event of a run carries
+    the claim's updated_at; the REST row says the same while it runs; the next run differs
+    even with the same attempt_count."""
+    track = _make_track(db_session)
+    _patch_common(monkeypatch, db_session)
+    monkeypatch.setattr(dedup, "is_already_downloaded", lambda track_id: None)
+    monkeypatch.setattr(proxies, "pick_proxy", lambda db: None)
+    monkeypatch.setattr(
+        downloads,
+        "get_downloader",
+        lambda fmt, bitrate, output_dir, output_template, proxy=None, network_path=None: _FakeDownloader(),
+    )
+    rows_mid_download = []
+
+    class _Tracker:
+        progress = 50
+
+    def download_one(song, downloader):
+        rows_mid_download.append(track_to_dict(db_session.get(Track, track.id)))
+        downloader.progress_handler.update_callback(_Tracker(), "Downloading")
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(downloads, "download_one", download_one)
+    published = []
+    monkeypatch.setattr(events, "publish_track_event", lambda *a, **k: published.append((a, k)))
+
+    starts = []
+    for _ in range(2):
+        track.state = TrackState.QUEUED
+        track.attempt_count = 1
+        db_session.commit()
+        published.clear()
+        download_task.download_track(str(track.id))
+        ticks = [k for a, k in published if a[3] == "downloading"]
+        assert [t["progress"] for t in ticks] == [0, 50]
+        assert len({t["download_started_at"] for t in ticks}) == 1
+        assert ticks[0]["download_started_at"].isoformat() == rows_mid_download[-1]["download_started_at"]
+        starts.append(ticks[0]["download_started_at"])
+
+    assert starts[0] != starts[1]
+    db_session.refresh(track)
+    assert track_to_dict(track)["download_started_at"] is None
 
 
 # --- v35 (a): attempt counting/numbering, and the ladder input it must not move ---------
