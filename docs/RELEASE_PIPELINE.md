@@ -337,7 +337,7 @@ leaves the host half-deployed. But a cancelled job gets only about 5 minutes for
 that still run, so **don't cancel a deploy by hand**: a real rollback can take longer.
 
 **Timeouts (v60).** Every step that can run long has its own `timeout-minutes` (the backup 10,
-pull + up 15, the health gate 10, the rollback 25, ...), and the job's own 90 is only a
+pull + up 30, since `up` waits for the migration; the health gate 10; the rollback 25; the checkouts 5), and the job's own 120 is only a
 backstop above their sum. A step that hits its limit simply *fails*, so the rollback runs as for
 any failure, with its full 25 minutes. The job limit is the wrong tool for this, which a scratch
 run on the runner showed (run 40595581518): when it cuts in, GitHub cancels the job; the
