@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Polls the spotdl-web prod compose stack until every service that can report health/running
-# actually does, or TIMEOUT_SECONDS elapses. Shared by publish-deploy.yml for two different
-# uses: a single instant check (timeout 0) to decide whether a redundant deploy can be
-# skipped, and the real post-deploy health gate (timeout ~420s).
+# actually does, or TIMEOUT_SECONDS elapses. Used by publish-deploy.yml three ways: a single
+# instant check (timeout 0) to decide whether a redundant deploy can be skipped, the pre-deploy
+# probe of what's running (180s, v60, verdict only), and the real post-deploy health gate
+# (timeout ~420s).
 #
 # 420s is not arbitrary: worker-dl/worker-meta/worker-expand's healthchecks (docker-compose.yml) have a 90s
 # start_period and a 120s interval, so a genuinely healthy worker can take ~3.5 minutes to

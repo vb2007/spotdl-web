@@ -37,7 +37,7 @@ for svc in "$@"; do
 done
 
 JOURNALCTL=(journalctl)
-if [ "$(id -u)" -ne 0 ] && ! id -nG | tr ' ' '\n' | grep -qxE 'systemd-journal|adm|wheel'; then
+if [ "$(id -u)" -ne 0 ] && ! id -nG | tr ' ' '\n' | grep -qxE 'systemd-journal|adm'; then
   if sudo -n true 2>/dev/null; then
     JOURNALCTL=(sudo -n journalctl)
   else

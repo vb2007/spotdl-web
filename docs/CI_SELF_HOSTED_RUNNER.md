@@ -361,6 +361,9 @@ handles it after the fact: its `notify` reads the job from the API, and when it'
 no runner, no steps and that annotation, it sends a **⚠️ "didn't run"** notice instead of ❌, and
 dispatches Nightly once more with `retry=true` (a run with that input never re-dispatches, so it
 can't loop). A job cancelled by hand while queued has no such annotation and still reads as ❌.
+Every doubt falls back to ❌ without a re-dispatch: an API error, or the annotation not there yet
+when `notify` reads it. If `notify` itself is the job that isn't acquired, nothing is sent at
+all, as before.
 Since v49 Nightly is a single job, so the race needs another run queued at the same moment and
 should be rarer.
 

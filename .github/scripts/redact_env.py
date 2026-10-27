@@ -17,8 +17,10 @@ whole line and each of its tokens. Strings shorter than 3 characters are left al
 
 v60: compose also echoes *part* of a value: a port spec is split on `:`, so a URL there comes
 back cut short (`invalid IP address: 127.0.0.1:postgres://user:pass@host`) and matches no
-whole value. Any `scheme://user:pass@` is therefore masked to `scheme://***@` as well, whatever
-it came from (P6).
+whole value. So every piece of a value cut at its colons (each prefix before a `:` and each
+suffix after one, 6 characters or more, so a port number doesn't garble every message) is
+masked too, and any `scheme://user:pass@` is masked to `scheme://***@` whatever it came from
+(P6).
 
 Usage: redact_env.py ENV_FILE < text
 """
@@ -55,6 +57,11 @@ def secrets(env_file: str) -> list[str]:
                               form.replace("\\n", "\n").replace('\\"', '"')):
                     if len(shown) >= 3:
                         found.add(shown)
+            parts = v.strip("'\"").split(":")
+            for i in range(1, len(parts)):
+                for piece in (":".join(parts[:i]), ":".join(parts[i:])):
+                    if len(piece) >= 6:
+                        found.add(piece)
     # Longest first, so a value containing a shorter one is masked whole.
     return sorted(found, key=len, reverse=True)
 

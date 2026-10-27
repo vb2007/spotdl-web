@@ -63,7 +63,7 @@ is in progress**: close every open gotcha, a Firefox extension, an admin "others
 Two environments share the physical Postgres server but **never a database**: local dev uses
 **`spotdlwebtest`**, production **`spotdlweb`** (v32). The dev override sets `SPOTDL_ENV=dev` on every
 backend service, and `app/config.py` refuses to boot any of them, `migrate` included, against a
-production database name (`spotdlweb`, also the templates' `spotdl_web`) or an unparseable URL.
+production database name (`spotdlweb`, also the old template name `spotdl_web`) or an unparseable URL.
 Never remove the marker or set it in production (any value but `dev` is refused). Dev uses test identities only, the
 dev `ADMIN_EMAIL` included, never the real admin account; create/reset steps are in `docs/LOCAL_DEV.md`'s "Dedicated dev database".
 

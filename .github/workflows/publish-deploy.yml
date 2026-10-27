@@ -255,13 +255,15 @@ jobs:
     # the rollback's own wait, plus pulls and the guard; a timeout mid-rollback would leave the
     # host half rolled back.
     # v60 (P4): every step that can run long has its own `timeout-minutes`, and this is only the
-    # backstop above their sum (6+5+3+10+15+10+25+10, plus seconds for the rest). Verified on the
+    # backstop above their sum (2+5+5+6+5+3+10+30+10+25+10+3 = 114, plus seconds for the untimed
+    # rest; the checkouts are bounded too, since a GitHub slowdown there would otherwise eat into
+    # the rollback's share and let this limit cut it after all). Verified on the
     # runner (scratch run 40595581518): when the *job* limit cuts in, GitHub cancels the job, the
     # `cancelled()` rollback starts but is killed about 5 minutes later (GitHub's fixed grace
     # for a cancelled job; `cancel-timeout-minutes` isn't a GitHub key), and no later step, the
     # rollback note and the Summary included, runs at all. A *step* that times out just fails,
     # so the rollback runs as for any failure, under its own limit.
-    timeout-minutes: 90
+    timeout-minutes: 120
     env:
       DEPLOY_DIR: /mnt/raid1/spotdl-web
     # Read by the `notify` job below, and by release-deploy.yml's (through this workflow's
@@ -286,6 +288,7 @@ jobs:
       # Here that means every pull is anonymous, as the public images need (no stale
       # credential can turn a pull into `denied`, the v21 failure).
       - name: Use a job-private Docker config
+        timeout-minutes: 2
         run: |
           DIR="$RUNNER_TEMP/docker-config"
           SHARED="${DOCKER_CONFIG:-$HOME/.docker}"
@@ -308,6 +311,7 @@ jobs:
       # the very first run, before DEPLOY_DIR itself has been updated to carry them -- checked
       # out into the job workspace, separate from DEPLOY_DIR itself.
       - uses: actions/checkout@v7
+        timeout-minutes: 5
         with:
           ref: ${{ needs.resolve.outputs.commit }}
 
@@ -317,6 +321,7 @@ jobs:
       # rollback) for that reason alone. Release mode runs from main, so it's always current.
       - name: Check out the pipeline's own scripts
         uses: actions/checkout@v7
+        timeout-minutes: 5
         with:
           ref: ${{ github.sha }}
           path: .pipeline
@@ -337,9 +342,12 @@ jobs:
       - name: Protect .last-good from every workflow version's git clean
         run: |
           mkdir -p "$DEPLOY_DIR/.git/info"
-          if ! grep -qxF '/.last-good' "$DEPLOY_DIR/.git/info/exclude" 2>/dev/null; then
-            echo '/.last-good' >> "$DEPLOY_DIR/.git/info/exclude"
-            echo "Added /.last-good to $DEPLOY_DIR/.git/info/exclude"
+          EXCLUDE="$DEPLOY_DIR/.git/info/exclude"
+          if ! grep -qxF '/.last-good' "$EXCLUDE" 2>/dev/null; then
+            # A last line without its newline would otherwise swallow the entry.
+            if [ -s "$EXCLUDE" ] && [ -n "$(tail -c1 "$EXCLUDE")" ]; then echo >> "$EXCLUDE"; fi
+            echo '/.last-good' >> "$EXCLUDE"
+            echo "Added /.last-good to $EXCLUDE"
           fi
 
       # v33: records, before anything moves, both what is running now (`current_tag`, used by
@@ -364,6 +372,8 @@ jobs:
           # "starting" for up to ~150s (a 120s healthcheck interval plus its 30s timeout), and an
           # instant probe called that stack unhealthy, which silently disabled the fallback. A
           # healthy stack still answers on the first pass; only a broken one waits it out.
+          # `timeout 240` around it: compose retries (v60, up to 35s a call) can stretch a pass,
+          # and this probe may only ever answer "not healthy", never fail the step.
           HEALTH_SCRIPT="$DEPLOY_DIR/.github/scripts/wait_for_stack_health.sh"
           [ -f "$HEALTH_SCRIPT" ] || HEALTH_SCRIPT=.github/scripts/wait_for_stack_health.sh
           RUNNING_IMAGE="$(cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml \
@@ -379,7 +389,7 @@ jobs:
           fi
           if [ -n "$CURRENT_TAG" ] && [ "${RUNNING_IMAGE##*:}" = "$CURRENT_TAG" ] \
              && [ "$RUNNING_REV" = "$HEAD_COMMIT" ] \
-             && bash "$HEALTH_SCRIPT" "$DEPLOY_DIR" 180 >/dev/null 2>&1; then
+             && timeout 240 bash "$HEALTH_SCRIPT" "$DEPLOY_DIR" 180 >/dev/null 2>&1; then
             echo "current_healthy=true" >> "$GITHUB_OUTPUT"
             echo "Running stack:        healthy"
           else
@@ -499,7 +509,9 @@ jobs:
       - name: Update the deploy checkout and bring the stack up
         id: deploy
         if: steps.skip.outputs.skip != 'true'
-        timeout-minutes: 15
+        # 30: `up` waits for `migrate` (every backend service depends on it), so this also bounds
+        # a migration. A data migration needing longer is deployed by hand.
+        timeout-minutes: 30
         run: |
           cd "$DEPLOY_DIR"
           # No fetch here (v33): the preflight fetched moments ago, and keeping this step's
@@ -801,6 +813,7 @@ jobs:
       # IMAGE_TAG line and .last-good aren't secret; compose's own output is redacted.
       - name: Summary
         if: always()
+        timeout-minutes: 3
         run: |
           {
             echo "## Deploy"

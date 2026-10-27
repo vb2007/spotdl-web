@@ -339,6 +339,16 @@ Lines from that json-file era weren't migrated and are gone. Local dev keeps jso
   everything else on the host. To pin it, set `MaxRetentionSec=` and/or `SystemMaxUse=` in a
   drop-in (`/etc/systemd/journald.conf.d/`) and `sudo systemctl restart systemd-journald`; that
   applies to every service on the host, so check with the other apps' needs first.
+- **Two deploys to see it work.** The first deploy with journald can't show anything from before
+  itself (that was json-file); from the second one on, `prod_logs.sh` reaches back past each
+  deploy.
+- **Who can read them.** json-file logs were readable only through docker (root-equivalent); the
+  journal is readable by every member of `systemd-journal` and `adm` too. On this host that's
+  nobody but root until `vb2007` is added.
+- **If journald stalls.** Docker's default log `mode` is blocking: a journald that stops reading
+  (a hung or restarting `systemd-journald`) makes the containers' writes to stdout block until it
+  recovers. Left at the default on purpose, since `non-blocking` drops lines under pressure,
+  which is what this change is meant to stop.
 - **Rate limit.** journald drops a flood above 10 000 messages per 30 s per unit, and every
   container's output arrives through `docker.service`, so all journald-logging containers share
   one budget. This stack writes a few thousand lines a day; a dropped burst shows up in the
