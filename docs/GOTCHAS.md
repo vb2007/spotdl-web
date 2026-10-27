@@ -1,7 +1,7 @@
-# spotdl-web — Accumulated Gotchas (master v1, v01–v13)
+# spotdl-web — Accumulated Gotchas (v01–v70+, every master)
 
-Hard-won findings from building master v1, kept **verbatim** as they were written when each
-version shipped. These were originally in `CLAUDE.md`; they were moved here once that file grew
+Hard-won findings from building every master so far (v1 from v01, through v5 and on), kept
+**verbatim** as they were written when each version shipped. These were originally in `CLAUDE.md`; they were moved here once that file grew
 past 1,700 lines, because a rule an agent must follow and a war story an agent might need are
 different kinds of document and only the first belongs in every context window.
 
@@ -9,9 +9,10 @@ different kinds of document and only the first belongs in every context window.
 that section, move on. `CLAUDE.md` carries the rules that always apply; this carries the specifics
 of *why* — and the failure modes that will otherwise be rediscovered the expensive way.
 
-**A caveat that matters:** these describe the codebase as it was at each version's merge. Master v2
-(v14+) changes schema, endpoints, and the frontend substantially. **Verify a referenced file,
-function, or flag still exists before acting on it.** A gotcha that turns out to be stale should be
+**A caveat that matters:** each entry describes the codebase as it was at its own version's merge,
+and every later master has changed schema, endpoints, workflows and the frontend since (master v2
+alone reworked most of v1's). **Verify a referenced file, function, flag or line number still
+exists before acting on it.** A gotcha that turns out to be stale should be
 corrected in place with a dated note — the way v12 corrected v09's false "no nginx SPA-fallback
 needed" claim — rather than silently deleted.
 
