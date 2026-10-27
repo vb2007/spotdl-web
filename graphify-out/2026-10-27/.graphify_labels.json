@@ -361,6 +361,8 @@
   "359": "ColumnElement",
   "360": "datetime",
   "361": "Proxy",
+  "362": "test_pick_proxy_skips_and_cools_down_a_proxy_that_refuses_tcp",
+  "363": "test_sync_lets_a_file_line_take_the_target_of_a_manual_proxy_being_deleted",
   "371": "ColumnElement",
   "372": "Job",
   "373": "Session",
