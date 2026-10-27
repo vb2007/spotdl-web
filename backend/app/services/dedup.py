@@ -47,8 +47,9 @@ class LedgerRootUnavailable(Exception):
 class LedgerFileMoved(Exception):
     """worker-dl's finished file left its path before the ledger could record it: the library
     sweep moved it while worker-dl waited on the file's lock (v57, L3). Recording it would
-    leave a row on a path that no longer exists, so the attempt fails instead (an ordinary
-    error: the ladder retries it, the breaker isn't fed)."""
+    leave a row on a path that no longer exists, so a fresh download's attempt fails instead (an
+    ordinary error: the ladder retries it, the breaker isn't fed), and spotdl's "already in
+    place" skip, which sent nothing to the network, is held instead (v55's E8)."""
 
 
 def known_library_roots(settings_row: AppSettings) -> list[Path]:

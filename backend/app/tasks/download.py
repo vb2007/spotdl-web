@@ -590,18 +590,57 @@ def download_track(track_id: str) -> None:
                 # path, no counter, no proxy or breaker verdict. The ledger gains the row it
                 # was missing, so the next submission resolves at the gate. Its tags were
                 # verified (and repaired) above like a fresh download's, as before v55.
+                # v57 (L3): under the file's advisory lock, like a fresh download's row below.
+                # The file was already there, likely as another row's, so the library sweep may
+                # have filed it away meanwhile: nothing went to the network, so that's a hold
+                # (no rung, counter or proxy verdict), and the next attempt's dedup gate decides
+                # (rebase review, v55's E8 contract).
+                try:
+                    dedup.record_download(
+                        db,
+                        track.spotify_track_id,
+                        output_path,
+                        format=output_format,
+                        bitrate=output_bitrate,
+                    )
+                except dedup.LedgerFileMoved:
+                    logger.info(
+                        "download_track: track %s's existing file %s was moved by the library sweep "
+                        "before it could be recorded; holding it",
+                        track_id,
+                        output_path,
+                    )
+                    # Written here, not through _hold: the track is this invocation's claim
+                    # (`downloading`, under the row lock above), and a reclaim's row meanwhile
+                    # is superseded as the skip's would be; a hold counts as nothing.
+                    track.state = TrackState.WAITING
+                    track.scheduled_at = datetime.now(timezone.utc) + retry.next_delay(0)
+                    recorded = attempts.record_attempt(
+                        db,
+                        track.id,
+                        attempt_started_at,
+                        datetime.now(timezone.utc),
+                        TrackAttemptOutcome.HELD,
+                        warning_message="spotdl found the file already in place, but the library "
+                        "sweep moved it meanwhile; rescheduled",
+                        supersede_reclaim_after=entry_attempt,
+                    )
+                    db.commit()
+                    events.publish_track_event(
+                        owner_id,
+                        track.id,
+                        track.job_id,
+                        track.state.value,
+                        scheduled_at=track.scheduled_at,
+                        attempts_made=recorded.attempts_made,
+                        failure_count=recorded.failure_count,
+                        **track_meta,
+                    )
+                    return
                 track.state = TrackState.SKIPPED_DUPLICATE
                 track.output_path = str(output_path)
                 track.last_error = None
                 track.last_error_type = None
-                # v57 (L3): under the file's advisory lock, like a fresh download's row below.
-                dedup.record_download(
-                    db,
-                    track.spotify_track_id,
-                    output_path,
-                    format=output_format,
-                    bitrate=output_bitrate,
-                )
                 recorded = attempts.record_attempt(
                     db,
                     track.id,
