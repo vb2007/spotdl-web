@@ -553,8 +553,8 @@ def test_worker_down_fires_with_due_work_and_the_breaker_closed(configured, watc
     watchdog.check_once()
     (row,) = _rows(db_session, "worker_down")
     assert row.fingerprint == "stalled"
-    assert row.body.startswith("[spotdl-web] worker-dl looks down: 1 due track(s) have waited 40m")
-    assert "no download has started since (the last one started " in row.body
+    assert row.body.startswith("[spotdl-web] worker-dl looks down: 1 track(s) are due (the oldest since ")
+    assert "no download has started for at least 40m (the last one started " in row.body
 
 
 def test_worker_down_counts_tracks_expand_job_already_sent(configured, watchdog, db_session, make_user):
@@ -567,8 +567,8 @@ def test_worker_down_counts_tracks_expand_job_already_sent(configured, watchdog,
     watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
     watchdog.check_once()
     (row,) = _rows(db_session, "worker_down")
-    assert "1 due track(s) have waited 30m" in row.body
-    assert "(none recorded yet)" in row.body
+    assert "1 track(s) are due" in row.body
+    assert "for at least 30m (none recorded yet)" in row.body
 
 
 def test_worker_down_waits_its_threshold(configured, watchdog, db_session, backlog):

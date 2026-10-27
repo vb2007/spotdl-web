@@ -926,14 +926,15 @@ class Watchdog:
         )
         if self._backlog_since is None or now - self._backlog_since <= down_after:
             return
+        # "At least": the watchdog's own view starts at its start or the breaker's release.
         idle = format_duration(timedelta(minutes=int((now - self._backlog_since).total_seconds() // 60)))
         last = f"the last one started {_hhmm(consumed)}" if consumed else "none recorded yet"
         self._record(
             CATEGORY_WORKER_DOWN,
             "stalled",
-            f"worker-dl looks down: {count} due track(s) have waited {idle} with the breaker "
-            f"closed, and no download has started since ({last}). Nothing downloads until "
-            f"it's back.",
+            f"worker-dl looks down: {count} track(s) are due (the oldest since "
+            f"{_hhmm(oldest_due)}) with the breaker closed, and no download has started for at "
+            f"least {idle} ({last}). Nothing downloads until it's back.",
         )
 
     def _record(self, category: str, fingerprint: str, text: str):
