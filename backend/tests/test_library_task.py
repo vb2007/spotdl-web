@@ -1013,6 +1013,22 @@ def test_sort_library_refuses_a_quarantine_dir_outside_the_downloads_dir(db_sess
     assert not (tmp_path / "quarantine").exists()
 
 
+def test_sort_library_gives_one_reason_for_a_quarantine_dir_that_overlaps(db_session, tmp_path, monkeypatch):
+    """Review: a quarantine dir equal to the downloads dir is also not *inside* it; the overlap is
+    the one reason recorded, as the API reports only that."""
+    _configure(db_session, tmp_path)
+    app_settings.update_library_settings(db_session, library_quarantine_dir=str(tmp_path / "downloads"))
+    db_session.commit()
+    _make_ledger_row(db_session, tmp_path)
+    _capture_progress(monkeypatch)
+
+    _run(monkeypatch, db_session)
+
+    assert library_task._get_run(db_session).errors == [
+        {"file": "<sweep>", "error": "refused to start: library_quarantine_dir is the same directory as download_output_dir"}
+    ]
+
+
 def test_sort_library_never_adopts_a_partial_copy_left_by_a_full_disk(db_session, tmp_path, monkeypatch):
     """v57 (L7): a copy that fails with ENOSPC is recorded as an error, and the next sweep
     tries the copy again instead of reading the partial file as "already in the library" and

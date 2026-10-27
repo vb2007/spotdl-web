@@ -134,3 +134,21 @@ def test_start_sort_refuses_overlapping_directories(admin_client, db_session, mo
     }
     assert enqueued == []
     assert admin_client.get("/api/library/sort/status").json()["state"] == "idle"
+
+
+def test_start_sort_refuses_a_quarantine_dir_outside_the_downloads_dir(admin_client, db_session, monkeypatch):
+    """Owner decision (2026-10-27): a quarantine dir saved before the rule, outside the downloads
+    dir, is refused at the start too; nothing is enqueued and the run stays idle."""
+    enqueued = _stub_sort_library(monkeypatch)
+    from app.services import app_settings
+
+    app_settings.get_library_settings(db_session).library_quarantine_dir = "/srv/quarantine"
+    db_session.commit()
+
+    response = admin_client.post("/api/library/sort")
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "library_quarantine_outside_mount"
+    assert response.json()["params"] == {"field": "library_quarantine_dir", "mount": "/downloads"}
+    assert enqueued == []
+    assert admin_client.get("/api/library/sort/status").json()["state"] == "idle"
