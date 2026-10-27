@@ -18,6 +18,12 @@ router = APIRouter(prefix="/api", tags=["stream"])
 # Cloudflare Tunnel closes an idle connection — this must stay comfortably under whatever
 # idle timeout it enforces (see CLAUDE.md's SSE notes).
 HEARTBEAT_INTERVAL_SEC = 15.0
+# v62 (F4): a named event, not only an SSE comment: page JavaScript never sees a comment, so a
+# quiet stream and one the network dropped under it (a laptop's sleep) looked the same. The
+# page times this (`addEventListener('heartbeat')`; `onmessage` ignores a named event) and
+# restarts a stream silent for longer than the interval. Its data is never read, but an
+# event with no data isn't dispatched at all.
+HEARTBEAT = "event: heartbeat\ndata: {}\n\n"
 
 
 async def _event_stream(request: Request, user: User, view: View):
@@ -47,12 +53,15 @@ async def _event_stream(request: Request, user: User, view: View):
             # get_message's own timeout doubles as the heartbeat interval — no message
             # within that window means it's time to emit one rather than a real event.
             # Filters (p)subscribe confirmations the same way for both subscribe modes.
+            # v62 (F4): the time left until the next one is due, not a fresh interval, so
+            # dropped messages (`others`) can't stretch the silence past it.
             message = await pubsub.get_message(
-                ignore_subscribe_messages=True, timeout=HEARTBEAT_INTERVAL_SEC
+                ignore_subscribe_messages=True,
+                timeout=max(0.0, HEARTBEAT_INTERVAL_SEC - (time.monotonic() - last_sent)),
             )
             if message is None:
                 last_sent = time.monotonic()
-                yield ": heartbeat\n\n"
+                yield HEARTBEAT
                 continue
 
             if skip_channel is not None:
@@ -64,7 +73,7 @@ async def _event_stream(request: Request, user: User, view: View):
                     # wire silent past the tunnel's idle timeout: heartbeat on schedule.
                     if time.monotonic() - last_sent >= HEARTBEAT_INTERVAL_SEC:
                         last_sent = time.monotonic()
-                        yield ": heartbeat\n\n"
+                        yield HEARTBEAT
                     continue
 
             data = message["data"]

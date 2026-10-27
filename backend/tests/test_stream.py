@@ -1,4 +1,5 @@
 import asyncio
+import types
 import uuid
 
 import pytest
@@ -58,6 +59,7 @@ class _FakePubSub:
         self.psubscribed: list[str] = []
         self.unsubscribed: list[str] = []
         self.punsubscribed: list[str] = []
+        self.timeouts: list[float] = []
         self._messages = list(messages or [])
 
     async def subscribe(self, channel: str) -> None:
@@ -73,6 +75,7 @@ class _FakePubSub:
         self.punsubscribed.append(pattern)
 
     async def get_message(self, **kwargs) -> dict | None:
+        self.timeouts.append(kwargs["timeout"])
         if not self._messages:
             return None
         channel, data = self._messages.pop(0)
@@ -178,4 +181,31 @@ def test_event_stream_others_heartbeats_through_a_run_of_dropped_messages(monkey
 
     _, sent = _drive(monkeypatch, admin, "others", messages)
 
-    assert sent and all(chunk == ": heartbeat\n\n" for chunk in sent)
+    assert sent and all(chunk == stream_router.HEARTBEAT for chunk in sent)
+
+
+def test_the_heartbeat_is_an_event_page_javascript_receives():
+    """v62 (F4): an SSE comment never reaches the page, so a quiet stream looked like a dead
+    one. A named event with data is dispatched (to `addEventListener('heartbeat')` only);
+    one with no data line isn't dispatched at all."""
+    lines = stream_router.HEARTBEAT.split("\n")
+
+    assert lines[0] == "event: heartbeat"
+    assert lines[1].startswith("data: ") and lines[1] != "data: "
+    assert stream_router.HEARTBEAT.endswith("\n\n")
+
+
+def test_dropped_messages_never_stretch_the_wait_past_the_heartbeat(monkeypatch):
+    """v62 (F4): the page restarts a stream silent for longer than the interval, so each wait
+    is only the time left until the next heartbeat is due, not a fresh interval."""
+    admin = User(id=uuid.uuid4(), email="admin@example.com", is_admin=True)
+    # The module stream.py reads, not time.monotonic itself (asyncio's loop reads that too):
+    # sent at 0, a dropped message at 4 and another at 9.
+    clock = iter([0.0, 4.0, 4.0, 9.0, 9.0])
+    monkeypatch.setattr(stream_router, "time", types.SimpleNamespace(monotonic=lambda: next(clock)))
+    messages = [(channel_for(admin.id), "{}")] * 2
+
+    pubsub, sent = _drive(monkeypatch, admin, "others", messages)
+
+    assert pubsub.timeouts == [stream_router.HEARTBEAT_INTERVAL_SEC - 4.0, stream_router.HEARTBEAT_INTERVAL_SEC - 9.0]
+    assert sent == []
