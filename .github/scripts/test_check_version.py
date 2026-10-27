@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for check_version.py (v50). Stdlib-only, like the script itself:
+"""Tests for check_version.py (v50; v61's extension rule). Stdlib-only, like the script itself:
 
     python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
@@ -45,6 +45,7 @@ class CheckAgainstBaseTest(unittest.TestCase):
     """A base commit at 5.50.0, then a branch commit that sets a version and touches a path."""
 
     BASE = "5.50.0"
+    EXTENSION_BASE = "1.0.0"
 
     def setUp(self):
         self.repo = Path(tempfile.mkdtemp(prefix="check_version_test_"))
@@ -54,6 +55,7 @@ class CheckAgainstBaseTest(unittest.TestCase):
         (self.repo / "backend").mkdir()
         (self.repo / "frontend").mkdir()
         (self.repo / "docs").mkdir()
+        (self.repo / "extension").mkdir()
         self.git("init", "-q", "-b", "main")
         self.git("config", "user.email", "test@example.com")
         self.git("config", "user.name", "test")
@@ -61,6 +63,8 @@ class CheckAgainstBaseTest(unittest.TestCase):
         (self.repo / "backend" / "app.py").write_text("x = 1\n")
         (self.repo / "frontend" / "app.ts").write_text("export {};\n")
         (self.repo / "docs" / "notes.md").write_text("notes\n")
+        self.set_extension_version(self.EXTENSION_BASE)
+        (self.repo / "extension" / "content.js").write_text("export {};\n")
         self.commit("base")
         self.git("tag", "base")
 
@@ -79,15 +83,23 @@ class CheckAgainstBaseTest(unittest.TestCase):
             json.dumps({"name": "app", "version": version}) + "\n"
         )
 
-    def branch(self, version, touched):
+    def set_extension_version(self, version):
+        (self.repo / "extension" / "manifest.json").write_text(
+            json.dumps({"manifest_version": 3, "name": "ext", "version": version}) + "\n"
+        )
+
+    def branch(self, version, touched, extension_version=None):
         self.set_version(version)
-        path = self.repo / touched
-        path.write_text(path.read_text() + "change\n")
+        if extension_version is not None:
+            self.set_extension_version(extension_version)
+        for rel in [touched] if isinstance(touched, str) else touched:
+            path = self.repo / rel
+            path.write_text(path.read_text() + "change\n")
         self.commit("branch")
 
-    def run_check(self):
+    def run_check(self, *args):
         return subprocess.run(
-            [sys.executable, ".github/scripts/check_version.py", "base"],
+            [sys.executable, ".github/scripts/check_version.py", *(args or ("base",))],
             cwd=self.repo,
             env=GIT_ENV,
             capture_output=True,
@@ -140,6 +152,106 @@ class CheckAgainstBaseTest(unittest.TestCase):
         self.branch(self.BASE, "docs/notes.md")
         result = self.run_check()
         self.assertEqual(result.returncode, 0, result.stderr)
+
+
+    # v61: the extension's own version rule, independent of the app's.
+
+    def test_extension_change_without_manifest_bump_fails(self):
+        self.branch(self.BASE, "extension/content.js")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("touches extension/", result.stderr)
+        self.assertIn("unchanged", result.stderr)
+
+    def test_extension_bump_passes_without_an_app_bump(self):
+        self.branch(self.BASE, "extension/content.js", extension_version="1.0.1")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        # stdout stays the app's version: release.yml reads it as the tag.
+        self.assertEqual(result.stdout.strip(), self.BASE)
+
+    def test_extension_lower_version_fails(self):
+        self.branch(self.BASE, "extension/content.js", extension_version="0.9.9")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("strictly greater", result.stderr)
+
+    def test_extension_version_is_compared_numerically(self):
+        self.git("checkout", "-q", "-b", "nine")
+        self.set_extension_version("1.9.0")
+        self.commit("main at extension 1.9.0")
+        self.git("tag", "-f", "base")
+        self.branch(self.BASE, "extension/content.js", extension_version="1.10.0")
+        self.assertEqual(self.run_check().returncode, 0)
+
+    def test_extension_manifest_bump_alone_passes(self):
+        self.branch(self.BASE, "docs/notes.md", extension_version="1.1.0")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_extension_non_semver_version_fails(self):
+        self.branch(self.BASE, "extension/content.js", extension_version="1.1")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("semver", result.stderr)
+
+    def test_extension_version_never_has_to_match_the_app(self):
+        self.branch("5.51.0", ["backend/app.py", "extension/content.js"], extension_version="1.0.1")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "5.51.0")
+
+    def test_app_and_extension_change_needs_both_bumps(self):
+        self.branch("5.51.0", ["backend/app.py", "extension/content.js"])
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("touches extension/", result.stderr)
+
+    def test_app_only_diff_is_unaffected_by_the_extension_rule(self):
+        self.branch("5.51.0", "backend/app.py")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "5.51.0")
+
+    def test_app_only_diff_without_app_bump_still_fails_for_the_app(self):
+        self.branch(self.BASE, "frontend/app.ts")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("touches backend/ or frontend/", result.stderr)
+        self.assertNotIn("extension", result.stderr)
+
+    def test_extension_new_at_base_needs_no_bump(self):
+        self.git("rm", "-q", "extension/manifest.json")
+        self.commit("no extension at base")
+        self.git("tag", "-f", "base")
+        self.branch(self.BASE, "extension/content.js", extension_version="1.0.0")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_no_base_ignores_the_extension(self):
+        # release.yml's call: an extension problem can never fail an app release.
+        self.branch(self.BASE, "extension/content.js", extension_version="not-a-version")
+        result = subprocess.run(
+            [sys.executable, ".github/scripts/check_version.py"],
+            cwd=self.repo,
+            env=GIT_ENV,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), self.BASE)
+
+    def test_extension_flag_prints_the_extension_version(self):
+        self.branch(self.BASE, "extension/content.js", extension_version="1.2.3")
+        result = self.run_check("--extension")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "1.2.3")
+
+    def test_extension_flag_refuses_a_non_semver_version(self):
+        self.branch(self.BASE, "extension/content.js", extension_version="1.2")
+        result = self.run_check("--extension")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.stdout, "")
 
 
 if __name__ == "__main__":
