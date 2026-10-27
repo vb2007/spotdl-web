@@ -1,7 +1,7 @@
 """v56 (A6): one rule for what an admin route answers a non-admin, over every admin route.
 
 - **404** (`require_admin_hidden`, no `code`, exactly an unknown route's answer) where the path
-  names an id, so neither the route nor the id is confirmed, plus the two pages v36/v44 hid.
+  names an id, so neither the route nor the id is confirmed, plus the pages v36/v44/v59 hid.
 - **403** `admin_required` (`require_admin`) for the admin actions whose path names no id
   (settings, worker controls, the proxy list, the library sweep), where it confirms nothing.
 
@@ -24,6 +24,7 @@ ADMIN_ROUTES: dict[tuple[str, str], int] = {
     ("PATCH", "/api/proxies/{proxy_id}"): 404,
     ("DELETE", "/api/proxies/{proxy_id}"): 404,
     ("GET", "/api/admin/stats"): 404,
+    ("GET", "/api/admin/alerts"): 404,
     ("POST", "/api/settings/alerts/test"): 404,
     ("GET", "/api/proxies"): 403,
     ("POST", "/api/proxies"): 403,
@@ -83,7 +84,11 @@ def test_every_admin_route_is_in_the_table():
 
 
 def test_the_rule_404s_exactly_where_the_path_names_an_id():
-    hidden_pages = {("GET", "/api/admin/stats"), ("POST", "/api/settings/alerts/test")}
+    hidden_pages = {
+        ("GET", "/api/admin/stats"),
+        ("GET", "/api/admin/alerts"),
+        ("POST", "/api/settings/alerts/test"),
+    }
     for (method, path), status in ADMIN_ROUTES.items():
         expected = 404 if "{" in path or (method, path) in hidden_pages else 403
         assert status == expected, (method, path)
