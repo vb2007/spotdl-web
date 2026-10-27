@@ -211,7 +211,19 @@ export interface LibraryProgressEvent {
 	ts: string;
 }
 
-export type StreamEvent = TrackStateEvent | JobStateEvent | LibraryProgressEvent;
+/** v62 (F1): a job's rollup status moved (`statusKey()` form). Each event's `prev_status` is the
+ * previous one's `status`; `null` means the job is new (counted under nothing before), and no
+ * `prev_status` at all means the server doesn't know what it left. */
+export interface JobStatusEvent {
+	type: 'job.status';
+	job_id: string;
+	status: string;
+	prev_status?: string | null;
+	archived: boolean;
+	ts: string;
+}
+
+export type StreamEvent = TrackStateEvent | JobStateEvent | JobStatusEvent | LibraryProgressEvent;
 
 export interface WorkerStatus {
 	paused: boolean;

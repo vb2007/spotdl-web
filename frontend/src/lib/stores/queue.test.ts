@@ -1169,3 +1169,224 @@ describe('v55 (E6) a cancelled row takes the worker’s counters', () => {
 		});
 	});
 });
+
+describe('v62 (F1/F2) the state chips follow job.status, on the page or off it', () => {
+	function withStatus(id: string, key: string): Job {
+		const [lifecycle, outcome] = key.split(':') as [Job['status']['lifecycle'], string?];
+		return {
+			...job(id, 'expanded', lifecycle),
+			status: { lifecycle, outcome: (outcome ?? null) as Job['status']['outcome'] }
+		};
+	}
+
+	function statusEvent(jobId: string, status: string, prev?: string | null, archived = false) {
+		return {
+			type: 'job.status',
+			job_id: jobId,
+			status,
+			archived,
+			...(prev === undefined ? {} : { prev_status: prev }),
+			ts: '2026-10-28T01:00:00+00:00'
+		} satisfies StreamEvent;
+	}
+
+	/** The page's own reload gets `first`; a 1-row counts read gets `countsRead`. */
+	async function loadPage(
+		items: Job[],
+		counts: Record<string, number>,
+		opts: { next?: string | null; countsRead?: () => Promise<JobsPage> } = {}
+	) {
+		listJobsPage.mockImplementation((params = {}) => {
+			if (params.status?.includes('expanding')) return Promise.resolve(jobsPage([]));
+			if (params.limit === 1 && opts.countsRead) return opts.countsRead();
+			return Promise.resolve({
+				...jobsPage(items, opts.next ?? null),
+				counts_by_status: counts
+			});
+		});
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		await queue.reload();
+	}
+
+	const counts = () => get(queue.page).countsByStatus;
+
+	it('F1: a job off the loaded page moves its chip from its own event', async () => {
+		await loadPage([withStatus('job-1', 'active')], { active: 2 }, { next: 'c1' });
+
+		await queue.applyEvent(statusEvent('job-9', 'settled:complete', 'active'));
+
+		expect(counts()).toEqual({ active: 1, 'settled:complete': 1 });
+	});
+
+	it('F1: a chain of moves for an off-page job counts each step once', async () => {
+		await loadPage([withStatus('job-1', 'active')], { active: 2 }, { next: 'c1' });
+
+		await queue.applyEvent(statusEvent('job-9', 'waiting', 'active'));
+		await queue.applyEvent(statusEvent('job-9', 'active', 'waiting'));
+		await queue.applyEvent(statusEvent('job-9', 'settled:partial', 'active'));
+
+		expect(counts()).toEqual({ active: 1, waiting: 0, 'settled:partial': 1 });
+	});
+
+	it('F1: the row refresh and the event for one move count it once, in either order', async () => {
+		await loadPage([withStatus('job-1', 'active')], { active: 1 });
+		getJob.mockResolvedValue(withStatus('job-1', 'settled:complete'));
+
+		// The row's refresh lands first, then the event.
+		await queue.applyEvent(trackEvent('t1', 'completed'));
+		await vi.advanceTimersByTimeAsync(1000);
+		await queue.applyEvent(statusEvent('job-1', 'settled:complete', 'active'));
+		expect(counts()).toEqual({ active: 0, 'settled:complete': 1 });
+
+		// The event lands first; a later refresh answering an older status moves nothing back.
+		await queue.applyEvent(statusEvent('job-1', 'waiting', 'settled:complete'));
+		getJob.mockResolvedValue(withStatus('job-1', 'settled:complete'));
+		await queue.applyEvent(trackEvent('t1', 'waiting'));
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(counts()).toEqual({ active: 0, 'settled:complete': 0, waiting: 1 });
+	});
+
+	it('F1: a move the server can’t place (no prev_status) re-reads the counts once', async () => {
+		const read = deferred<JobsPage>();
+		await loadPage(
+			[withStatus('job-1', 'active')],
+			{ active: 2 },
+			{
+				next: 'c1',
+				countsRead: () => read.promise
+			}
+		);
+
+		await queue.applyEvent(statusEvent('job-9', 'settled:complete'));
+		await queue.applyEvent(statusEvent('job-8', 'settled:complete'));
+		expect(counts()).toEqual({ active: 2 });
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(listJobsPage.mock.calls.filter(([p]) => p?.limit === 1)).toHaveLength(1);
+		read.resolve({
+			...jobsPage([withStatus('job-1', 'active')]),
+			counts_by_status: { 'settled:complete': 2 }
+		});
+		await vi.advanceTimersByTimeAsync(0);
+		expect(counts()).toEqual({ 'settled:complete': 2 });
+	});
+
+	it('F1: a new job is counted by its creation event, and not again when it reaches the page', async () => {
+		await loadPage([], {});
+		getJob.mockResolvedValue(withStatus('job-new', 'active'));
+
+		queue.addJob({ ...job('job-new', 'expanding', 'expanding') });
+		await queue.applyEvent(statusEvent('job-new', 'expanding', null));
+		expect(counts()).toEqual({ expanding: 1 });
+		await queue.applyEvent(statusEvent('job-new', 'active', 'expanding'));
+		await queue.applyEvent({ type: 'job.state', job_id: 'job-new', state: 'expanded', ts: 't' });
+
+		expect(get(queue.page).items.map((i) => i.id)).toEqual(['job-new']);
+		expect(counts()).toEqual({ expanding: 0, active: 1 });
+	});
+
+	it('F1: an archived job’s move leaves the counts while archived jobs are hidden', async () => {
+		await loadPage([withStatus('job-1', 'active')], { active: 1 });
+
+		await queue.applyEvent(statusEvent('job-9', 'settled:complete', 'waiting', true));
+
+		expect(counts()).toEqual({ active: 1 });
+	});
+
+	it('F1: with a search on, an off-page job’s move is asked for, not guessed', async () => {
+		await loadPage(
+			[withStatus('job-1', 'active')],
+			{ active: 2 },
+			{
+				countsRead: async () => ({ ...jobsPage([]), counts_by_status: { active: 1 } })
+			}
+		);
+		queue.filters.update((f) => ({ ...f, q: 'toto' }));
+
+		await queue.applyEvent(statusEvent('job-9', 'settled:complete', 'active'));
+		expect(counts()).toEqual({ active: 2 });
+		await vi.advanceTimersByTimeAsync(1000);
+
+		expect(counts()).toEqual({ active: 1 });
+	});
+
+	it('F1: the Tracks scope never moves job chips', async () => {
+		listTracksPage.mockResolvedValue(tracksPage([]));
+		listJobsPage.mockResolvedValue(jobsPage([]));
+		queue.setFilters({ scope: 'tracks' });
+		await vi.advanceTimersByTimeAsync(0);
+
+		await queue.applyEvent(statusEvent('job-9', 'settled:complete', 'active'));
+
+		expect(counts()).toEqual({});
+	});
+
+	it('F2: "load more" landing beside a settle never moves the chip twice', async () => {
+		await loadPage([withStatus('job-1', 'active')], { active: 1, waiting: 1 }, { next: 'c1' });
+		const more = deferred<JobsPage>();
+		listJobsPage.mockImplementation(() => more.promise);
+		getJob.mockResolvedValue(withStatus('job-1', 'settled:complete'));
+
+		const loading = queue.loadMore();
+		// The settle: its track event (the row refresh is 400ms away) and its status event.
+		await queue.applyEvent(trackEvent('t1', 'completed'));
+		await queue.applyEvent(statusEvent('job-1', 'settled:complete', 'active'));
+		// Page 2, read after the settle: its counts already have it.
+		more.resolve({
+			...jobsPage([withStatus('job-2', 'waiting')]),
+			counts_by_status: { active: 0, waiting: 1, 'settled:complete': 1 }
+		});
+		await loading;
+		await vi.advanceTimersByTimeAsync(1000);
+
+		expect(counts()).toEqual({ active: 0, waiting: 1, 'settled:complete': 1 });
+	});
+
+	it('F2: "load more" read before a settle never undoes it', async () => {
+		await loadPage([withStatus('job-1', 'active')], { active: 1, waiting: 1 }, { next: 'c1' });
+		const more = deferred<JobsPage>();
+		listJobsPage.mockImplementation(() => more.promise);
+
+		const loading = queue.loadMore();
+		await queue.applyEvent(statusEvent('job-1', 'settled:complete', 'active'));
+		more.resolve({
+			...jobsPage([withStatus('job-2', 'waiting')]),
+			counts_by_status: { active: 1, waiting: 1 }
+		});
+		await loading;
+
+		expect(counts()).toEqual({ active: 0, waiting: 1, 'settled:complete': 1 });
+	});
+
+	it('F2: a reload read before a move corrects the job it lists and re-reads its row', async () => {
+		await loadPage([withStatus('job-1', 'active')], { active: 1 });
+		const page = deferred<JobsPage>();
+		listJobsPage.mockImplementation((params = {}) =>
+			params.status?.includes('expanding') ? Promise.resolve(jobsPage([])) : page.promise
+		);
+		getJob.mockResolvedValue(withStatus('job-1', 'settled:complete'));
+
+		const reloading = queue.reload();
+		await queue.applyEvent(statusEvent('job-1', 'settled:complete', 'active'));
+		page.resolve({ ...jobsPage([withStatus('job-1', 'active')]), counts_by_status: { active: 1 } });
+		await reloading;
+		expect(counts()).toEqual({ active: 0, 'settled:complete': 1 });
+		await vi.advanceTimersByTimeAsync(1000);
+
+		expect(getJob).toHaveBeenCalledWith('job-1');
+		expect(get(queue.page).items[0]).toMatchObject({ status: { lifecycle: 'settled' } });
+		expect(counts()).toEqual({ active: 0, 'settled:complete': 1 });
+	});
+
+	it('reset() forgets every job’s counted status', async () => {
+		await loadPage([withStatus('job-1', 'active')], { active: 1 });
+		await queue.applyEvent(statusEvent('job-1', 'settled:complete', 'active'));
+		queue.reset();
+		await loadPage([withStatus('job-1', 'active')], { active: 1 });
+
+		// The next identity's job-1 is counted from its own page, not the last session's moves.
+		getJob.mockResolvedValue(withStatus('job-1', 'waiting'));
+		await queue.applyEvent(trackEvent('t1', 'waiting'));
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(counts()).toEqual({ active: 0, waiting: 1 });
+	});
+});

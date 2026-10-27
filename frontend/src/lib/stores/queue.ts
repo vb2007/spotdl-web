@@ -8,6 +8,7 @@ import { clearProgress, forgetProgress, recallProgress, rememberProgress } from 
 import type {
 	Job,
 	JobsPage,
+	JobStatusEvent,
 	JobTracksPage,
 	StreamEvent,
 	Track,
@@ -240,6 +241,168 @@ function createQueueStore() {
 		scheduleTrackCountsRefresh();
 	}
 
+	// v62 (F1/F2): the jobs scope's state chips (`countsByStatus`) cover jobs off the loaded
+	// page, so a status move must reach them without the row. The server publishes each move
+	// (`job.status`, old -> new); this store applies it here.
+	/** The status each job is counted under in `countsByStatus`, where this store knows it:
+	 * from the page response that counted it, or the last move applied to it. A move goes from
+	 * here, so a move already counted (by a snapshot taken after it, or by the row's refresh)
+	 * is never counted again. */
+	const countedJobStatus: Record<string, string> = {};
+	/** Jobs a `job.status` event has spoken for: from then on only events move their count. A
+	 * row refresh (`getJob`) can answer with a status older than an event already applied. A
+	 * job no event has reached (a server from before v62, a lost publish) still moves from its
+	 * row, as v40.2 did. */
+	const statusEventJobs = new Set<string>();
+	/** F2: bumped by every count move an event applies, and stamped on its job. A page response
+	 * whose request started before a job's latest move holds that job's older status. */
+	let countMoveSeq = 0;
+	const jobCountMovedAt: Record<string, number> = {};
+
+	function shiftCount(
+		counts: Record<string, number>,
+		from: string | null,
+		to: string | null
+	): Record<string, number> {
+		const next = { ...counts };
+		if (from !== null) next[from] = Math.max(0, (next[from] ?? 0) - 1);
+		if (to !== null) next[to] = (next[to] ?? 0) + 1;
+		return next;
+	}
+
+	function forgetJobCounts(): void {
+		clearTimeout(jobCountsTimer);
+		jobCountsSeq++;
+		for (const id of Object.keys(countedJobStatus)) delete countedJobStatus[id];
+		for (const id of Object.keys(jobCountMovedAt)) delete jobCountMovedAt[id];
+		statusEventJobs.clear();
+	}
+
+	/** A row's own status change (its refresh, this session's cancel): moves its count only
+	 * while no event speaks for the job. Returns the counts to keep. */
+	function moveCountFromRow(
+		counts: Record<string, number>,
+		jobId: string,
+		rowStatus: string,
+		to: string
+	): Record<string, number> {
+		if (statusEventJobs.has(jobId)) return counts;
+		const from = countedJobStatus[jobId] ?? rowStatus;
+		countedJobStatus[jobId] = to;
+		return from === to ? counts : shiftCount(counts, from, to);
+	}
+
+	/** The count a job leaving the counted set (a 404, an archive) takes with it. */
+	function uncountJob(jobId: string, rowStatus: string): string {
+		const key = countedJobStatus[jobId] ?? rowStatus;
+		delete countedJobStatus[jobId];
+		return key;
+	}
+
+	function applyJobStatusEvent(event: JobStatusEvent): void {
+		const id = event.job_id;
+		const f = get(filters);
+		statusEventJobs.add(id);
+		jobCountMovedAt[id] = ++countMoveSeq;
+		// The Tracks scope has no job chips; its page reload counts afresh.
+		if (f.scope !== 'jobs') {
+			delete countedJobStatus[id];
+			return;
+		}
+		// An archived job isn't in the counts unless archived jobs are shown.
+		if (event.archived && !f.includeArchived) {
+			delete countedJobStatus[id];
+			return;
+		}
+		// A search also matches a job's tracks, which this store doesn't hold: whether a job off
+		// the page is in the searched set at all is unknown, so the counts are asked for.
+		if (f.q.trim() && !get(page).items.some((i) => i.id === id)) {
+			delete countedJobStatus[id];
+			scheduleJobCountsRefresh();
+			return;
+		}
+		const from = id in countedJobStatus ? countedJobStatus[id] : event.prev_status;
+		countedJobStatus[id] = event.status;
+		// The server doesn't know what it left (a job from before v62, an expired record).
+		if (from === undefined) {
+			scheduleJobCountsRefresh();
+			return;
+		}
+		if (from === event.status) return;
+		page.update((p) => ({
+			...p,
+			countsByStatus: shiftCount(p.countsByStatus, from, event.status)
+		}));
+	}
+
+	/** F2: the counts a jobs page response brings, against the moves applied since its request
+	 * started (`startedAt`, a `countMoveSeq` value). With none, they're the newest there are.
+	 * Otherwise `local` (a "load more": the same set's counts, kept current by those moves)
+	 * stays; a full page's counts are corrected for the moved jobs it lists (each from its
+	 * listed status to the one counted now), and one moved job it doesn't list means they're
+	 * asked for again. Seeds `countedJobStatus` from the rows that weren't moved meanwhile. */
+	function settleJobCounts(
+		result: JobsPage,
+		startedAt: number,
+		local: Record<string, number> | null
+	): Record<string, number> {
+		const movedSince = (id: string) => (jobCountMovedAt[id] ?? 0) > startedAt;
+		for (const item of result.items) {
+			if (!movedSince(item.id)) countedJobStatus[item.id] = api.statusKey(item.status);
+		}
+		const moved = Object.keys(jobCountMovedAt).filter(movedSince);
+		if (moved.length === 0) return result.counts_by_status;
+		if (local !== null) return local;
+		let counts = result.counts_by_status;
+		let unlisted = false;
+		for (const id of moved) {
+			const listed = result.items.find((i) => i.id === id);
+			const now = countedJobStatus[id];
+			if (listed === undefined || now === undefined) {
+				unlisted = true;
+				continue;
+			}
+			const was = api.statusKey(listed.status);
+			if (was !== now) counts = shiftCount(counts, was, now);
+			// Its row is as old as its status: read it again.
+			scheduleJobRefresh(id);
+		}
+		if (unlisted) scheduleJobCountsRefresh();
+		return counts;
+	}
+
+	// F1/F2: one bulk re-read of the jobs scope's counts (a 1-row page carries the same
+	// counts_by_status), for a move this store can't place: debounced like the Tracks scope's.
+	let jobCountsTimer: ReturnType<typeof setTimeout> | undefined;
+	let jobCountsSeq = 0;
+
+	function scheduleJobCountsRefresh(): void {
+		if (get(filters).scope !== 'jobs') return;
+		clearTimeout(jobCountsTimer);
+		jobCountsTimer = setTimeout(refreshJobCounts, 1000);
+	}
+
+	async function refreshJobCounts(): Promise<void> {
+		const f = get(filters);
+		if (f.scope !== 'jobs') return;
+		const seq = pageFetchSeq;
+		const epoch = storeEpoch;
+		const countsSeq = ++jobCountsSeq;
+		const startedAt = countMoveSeq;
+		try {
+			const result = await api.listJobsPage({
+				...currentQueryParams(),
+				status: f.status.length ? f.status : undefined,
+				limit: 1
+			});
+			if (seq !== pageFetchSeq || epoch !== storeEpoch || countsSeq !== jobCountsSeq) return;
+			const counts = settleJobCounts(result, startedAt, null);
+			page.update((p) => ({ ...p, countsByStatus: counts }));
+		} catch {
+			// Best effort: the chips keep their last counts until the next reload.
+		}
+	}
+
 	// v35 (g): the Tracks scope's chip counts cover tracks that aren't on the loaded page
 	// (or are filtered out of it by the very state chip being counted), so a state change
 	// can't be patched into them locally. Re-read them instead: one bulk request (a
@@ -360,7 +523,7 @@ function createQueueStore() {
 			if (gone === undefined) return p;
 			const items = p.items.filter((i) => i.id !== jobId);
 			if (scope !== 'jobs') return { ...p, items };
-			const key = api.statusKey((gone as Job).status);
+			const key = uncountJob(jobId, api.statusKey((gone as Job).status));
 			return {
 				...p,
 				items,
@@ -690,16 +853,23 @@ function createQueueStore() {
 		page.update((p) => ({ ...p, loading: true, error: null, moreError: null }));
 		try {
 			if (f.scope === 'jobs') {
+				const startedAt = countMoveSeq;
 				const result: JobsPage = await api.listJobsPage({
 					...currentQueryParams(),
 					status: f.status.length ? f.status : undefined
 				});
 				if (seq !== pageFetchSeq) return;
+				const countsByStatus = settleJobCounts(result, startedAt, null);
+				// Nothing older than this response can still land (pageFetchSeq), so moves
+				// before its start are spent.
+				for (const [id, at] of Object.entries(jobCountMovedAt)) {
+					if (at <= startedAt) delete jobCountMovedAt[id];
+				}
 				page.set({
 					items: result.items,
 					nextCursor: result.next_cursor,
 					totalEstimate: result.total_estimate,
-					countsByStatus: result.counts_by_status,
+					countsByStatus,
 					countsByState: {},
 					loading: false,
 					loadingMore: false,
@@ -751,6 +921,7 @@ function createQueueStore() {
 		page.update((p) => ({ ...p, loadingMore: true, moreError: null }));
 		try {
 			if (f.scope === 'jobs') {
+				const startedAt = countMoveSeq;
 				const result: JobsPage = await api.listJobsPage({
 					...currentQueryParams(),
 					status: f.status.length ? f.status : undefined,
@@ -762,7 +933,8 @@ function createQueueStore() {
 					items: [...p.items, ...result.items],
 					nextCursor: result.next_cursor,
 					totalEstimate: result.total_estimate,
-					countsByStatus: result.counts_by_status,
+					// v62 (F2): a move applied while this page was on its way stays applied.
+					countsByStatus: settleJobCounts(result, startedAt, p.countsByStatus),
 					loadingMore: false,
 					// v42: "load more" is how a failed load-more is retried, so a success clears it.
 					moreError: null
@@ -832,6 +1004,8 @@ function createQueueStore() {
 		clearAllLiveRemovalTimers();
 		liveActive.set({});
 		clearLiveTouches();
+		// v62: the counts are the old scope's.
+		forgetJobCounts();
 		// No fetch here (v34.2): the caller reconnects the stream under the new scope, and
 		// its `onopen` resyncs. Until then nothing from the old scope may show or land:
 		// invalidate in-flight page and hydration fetches and blank the page.
@@ -880,6 +1054,7 @@ function createQueueStore() {
 		clearAllLiveRemovalTimers();
 		liveActive.set({});
 		clearLiveTouches();
+		forgetJobCounts();
 		clearProgress();
 		// v43: a question still open on screen was asked for the previous identity.
 		dismissConfirm();
@@ -1082,16 +1257,12 @@ function createQueueStore() {
 				items[idx] = job;
 				if (from === to) return { ...p, items };
 				// v40.2: the row changed state chip (active -> settled, a cancel), so its
-				// count moves with it. A job off the loaded page can't be moved this way
-				// (its old status is unknown here); its chips catch up on the next reload.
+				// count moves with it. v62 (F1): unless a `job.status` event speaks for the job
+				// (it moved the count already, and this answer may be older than it).
 				return {
 					...p,
 					items,
-					countsByStatus: {
-						...p.countsByStatus,
-						[from]: Math.max(0, (p.countsByStatus[from] ?? 0) - 1),
-						[to]: (p.countsByStatus[to] ?? 0) + 1
-					}
+					countsByStatus: moveCountFromRow(p.countsByStatus, job.id, from, to)
 				};
 			}
 			if (!opts.allowInsert) return p;
@@ -1121,11 +1292,18 @@ function createQueueStore() {
 			}
 			items.splice(insertAt, 0, job);
 			const key = api.statusKey(job.status);
+			// v62 (F1): a job its creation event already counted (`expanding`, from none) moves
+			// from there instead of being counted twice.
+			const countsByStatus =
+				job.id in countedJobStatus
+					? moveCountFromRow(p.countsByStatus, job.id, countedJobStatus[job.id], key)
+					: shiftCount(p.countsByStatus, null, key);
+			countedJobStatus[job.id] = countedJobStatus[job.id] ?? key;
 			return {
 				...p,
 				items,
 				totalEstimate: p.totalEstimate + 1,
-				countsByStatus: { ...p.countsByStatus, [key]: (p.countsByStatus[key] ?? 0) + 1 }
+				countsByStatus
 			};
 		});
 	}
@@ -1279,7 +1457,7 @@ function createQueueStore() {
 		// its bucket decremented by `patchArchivedFlagFromEvent` itself.
 		const countsByStatus = { ...current.countsByStatus };
 		for (const job of removed) {
-			const key = api.statusKey(job.status);
+			const key = uncountJob(job.id, api.statusKey(job.status));
 			countsByStatus[key] = Math.max(0, (countsByStatus[key] ?? 0) - 1);
 		}
 		page.update((p) => ({
@@ -1326,7 +1504,7 @@ function createQueueStore() {
 			delete next[jobId];
 			return next;
 		});
-		const key = api.statusKey(existing.status);
+		const key = uncountJob(jobId, api.statusKey(existing.status));
 		page.update((p) => ({
 			...p,
 			items: p.items.filter((i) => i.id !== jobId),
@@ -1592,6 +1770,8 @@ function createQueueStore() {
 			applyTrackEvent(event);
 		} else if (event.type === 'job.state') {
 			await applyJobEvent(event);
+		} else if (event.type === 'job.status') {
+			applyJobStatusEvent(event);
 		}
 		// 'library.progress' (v28) has nothing to do with the job/track queue this store
 		// manages -- the /library page reads it directly off its own EventSource.
