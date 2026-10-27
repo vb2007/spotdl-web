@@ -15,6 +15,11 @@ stripped, an inline ` #` comment dropped), and, for a line that isn't `KEY=value
 whole line and each of its tokens. Strings shorter than 3 characters are left alone (masking
 `1` or `no` everywhere would garble the message without hiding anything). Stdlib-only.
 
+v60: compose also echoes *part* of a value: a port spec is split on `:`, so a URL there comes
+back cut short (`invalid IP address: 127.0.0.1:postgres://user:pass@host`) and matches no
+whole value. Any `scheme://user:pass@` is therefore masked to `scheme://***@` as well, whatever
+it came from (P6).
+
 Usage: redact_env.py ENV_FILE < text
 """
 
@@ -24,6 +29,8 @@ import re
 import sys
 
 ENV_LINE_RE = re.compile(r"^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=(.*)$")
+# A URL's userinfo (`user:pass@`, or a bare token before `@`), up to the first `@`.
+URL_USERINFO_RE = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://)[^\s/@]+@")
 
 
 def secrets(env_file: str) -> list[str]:
@@ -62,6 +69,7 @@ def main() -> int:
     text = sys.stdin.buffer.read().decode("utf-8", errors="replace")
     for v in values:
         text = text.replace(v, "***")
+    text = URL_USERINFO_RE.sub(r"\1***@", text)
     sys.stdout.write(text)
     return 0
 
