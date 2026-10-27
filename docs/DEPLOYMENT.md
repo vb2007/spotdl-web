@@ -251,9 +251,8 @@ Expect every service `healthy` except `beat` (deliberately has no healthcheck �
 comment in `docker-compose.yml`) and `migrate`/`cloudflared` (one-shot / no healthcheck
 defined). If anything is `unhealthy`, `docker compose logs <service>` — output is now
 structured JSON (v12), so `docker compose logs api | jq .` is worth doing over raw
-scrollback. Logs only reach back to the last deploy: a deploy recreates every container, and
-each container's log goes with it, so anything older (an alert that never arrived, say) can't be
-reconstructed from the host (v48).
+scrollback. `docker compose logs` only reaches back to the last deploy (a deploy recreates every
+container); for anything older, `scripts/prod_logs.sh`, see [Logs](#logs-v60).
 
 From the host:
 ```bash
@@ -307,6 +306,44 @@ or `DOWNLOADS_DIR` is misconfigured in `.env`, not that the library is actually 
   docker builder prune -f --keep-storage 5GB
   ```
 
+### Logs (v60)
+
+Every production container logs to the host's **journald** (`docker-compose.prod.yml`, a
+`logging: driver: journald` on every service, tagged with the container name and the compose
+project/service labels). Before v60 they used the base file's `json-file`, whose files live in
+the container's own directory and go with it, so a deploy (which recreates every container)
+erased everything before it, and an alert that never arrived (O1, 2026-10-18) couldn't be traced.
+Lines from that json-file era weren't migrated and are gone. Local dev keeps json-file.
+
+- **Read across deploys**, on the host:
+  ```bash
+  cd /mnt/raid1/spotdl-web
+  scripts/prod_logs.sh 24                 # every service, the last 24 hours
+  scripts/prod_logs.sh 6 worker-dl beat   # just these services
+  PROD_LOGS_OPTS="-p err" scripts/prod_logs.sh 48   # stderr only (priority 3), two days
+  ```
+  It filters journald on the `COM_DOCKER_COMPOSE_PROJECT`/`_SERVICE` fields, so containers
+  replaced by a deploy are included. `docker compose logs <service>` still works, for the
+  current containers only.
+- **Access.** Docker's entries are in the system journal, which `vb2007` can't read: it's in
+  neither `systemd-journal` nor `adm`. Once (then log in again):
+  `sudo usermod -aG systemd-journal vb2007`. Until then the script falls back to `sudo -n
+  journalctl` when that works, and otherwise says what to do.
+- **Retention.** journald's own, host-wide; this app adds no rotation of its own. The journal is
+  persistent here (`/var/log/journal` exists, so it survives reboots too) and
+  `/etc/systemd/journald.conf` sets nothing, so the defaults apply: at most 10% of the root
+  filesystem and never more than 4 GiB (`SystemMaxUse`), while keeping 15% of it free, also
+  capped at 4 GiB (`SystemKeepFree`), and no age limit. On 2026-10-27 the whole journal took 2.0 GiB and reached
+  back to 2026-07-11, while this stack wrote about 0.7 MB of logs a day (`docker compose logs
+  --since 24h`, all services), so its share is negligible and the window is months, set by
+  everything else on the host. To pin it, set `MaxRetentionSec=` and/or `SystemMaxUse=` in a
+  drop-in (`/etc/systemd/journald.conf.d/`) and `sudo systemctl restart systemd-journald`; that
+  applies to every service on the host, so check with the other apps' needs first.
+- **Rate limit.** journald drops a flood above 10 000 messages per 30 s per unit, and every
+  container's output arrives through `docker.service`, so all journald-logging containers share
+  one budget. This stack writes a few thousand lines a day; a dropped burst shows up in the
+  journal as "Suppressed N messages from docker.service".
+
 ---
 
 ## Rollback / recovery (v21, v33)
@@ -332,7 +369,7 @@ happened:
 | succeeded, back on … the pre-deploy version | v33.1 fallback: the database was ahead of `.last-good`, so the rollback returned to what was running before the deploy (typically a `manual-*` dispatch) instead. `.last-good` is unchanged. | As above. The host is on the pre-deploy build (usually a `manual-*` dispatch) until the next real release. |
 | refused | The database is **ahead** of the rollback image. The failed deploy's checkout and containers were left exactly as they were. | "The database is ahead of the rollback image" below. |
 | not started | The rollback stopped before moving anything (no rollback target recorded). The failed deploy is still in place. | Read the log, then roll back manually if needed. |
-| not started (guard error) | The migration guard couldn't compare revisions (the rollback commit unreadable, Postgres unreachable, the old image unpullable, a compose error such as a changed network definition, or the new `migrate` still running after 5 minutes), so it started nothing. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
+| not started (guard error) | The migration guard couldn't compare revisions (the rollback commit unreadable, Postgres unreachable, the old image unpullable, a compose error, or the new `migrate` still running after 5 minutes), so it started nothing. A release that changed `networks:` no longer ends here: since v60 the guard's probe joins the live network instead of recreating it. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
 | failed | The rollback itself broke part-way. The stack may be down. | "Roll back to a known-good version manually" below, to the target the message names (`.last-good`, or the pre-deploy version if it says so). |
 | not needed, the new version passed its health gate | A step after the health gate failed (writing `.last-good`, say). The new version is up. | Check the Summary; `.last-good` may still name the previous release. |
 | UNKNOWN, the deploy job reported nothing | The deploy job produced no step outcomes (the runner died, the host rebooted, a cancel before it started). | Check the host's state (HEAD, `IMAGE_TAG`, `compose ps`) before doing anything. |

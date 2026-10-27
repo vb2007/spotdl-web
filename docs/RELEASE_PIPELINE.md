@@ -264,8 +264,11 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
    the `IMAGE_TAG` running now (for the skip check), and the rollback target, a **tag and commit
    together**, read from `.last-good` (see below). It falls back to `.env`'s `IMAGE_TAG` plus the
    checkout's `HEAD` only when `.last-good` doesn't exist yet. Since v33.1 it also records the
-   pre-deploy version and an instant verdict on whether it's healthy *and* really what's running
-   (the `api` container's image tag), for the rollback's fallback.
+   pre-deploy version and a verdict on whether it's healthy *and* really what's running (the
+   `api` container's image tag), for the rollback's fallback. That health check waits up to 180s
+   (v60; it was instant before): a worker restarted shortly before the deploy reads "starting"
+   for a couple of minutes, and an instant check called that stack unhealthy, which silently
+   ruled the fallback out.
 3. **Stale-version guard** (v49, release mode only): a version lower than `.last-good`'s
    `IMAGE_TAG` turns the rest of the job into a no-op (see "No cancelling, no stale deploys").
    It reads `.last-good` only, so the very first release after the file exists is compared, and
@@ -308,8 +311,12 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
    `redis`/`api`/`worker-dl`/`worker-meta`/`worker-expand`/`web` → `healthy`; `migrate` → `exited 0`;
    `beat`/`cloudflared` (deliberately no healthcheck) → `running`; plus a direct
    `curl http://localhost:8000/api/health`. Since v33 a compose **error** (an interpolation
-   failure, a bad file, no daemon) fails it immediately with exit 2, instead of reading as "not
-   healthy yet" and waiting out the timeout.
+   failure, a bad file, no daemon) fails it with exit 2, instead of reading as "not healthy yet"
+   and waiting out the timeout. Since v60 each failing compose call is retried 3 times first (5s,
+   10s, 20s), so a transient dockerd hiccup doesn't fail a good deploy, while a real error still
+   fails within about 35s. Compose's error text goes through `redact_env.py` here too (v60): it
+   can echo a `.env` value, or a cut-off piece of one (a URL split at a port colon), so the
+   redactor also masks any `scheme://user:pass@` credential.
 11. **Rollback on failure** — see "Rollback" below.
 12. **Record last-known-good** (release mode, on success only) — see below.
 13. **Prune** (on success only): `docker image prune -f` + `docker builder prune -f
@@ -326,8 +333,19 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
 
 Only runs when the deploy step (7–9) actually started, since a failure in the preflight or the
 backup left nothing to undo. A run **cancelled** by hand rolls back too, since a cancel mid-`up`
-leaves the host half-deployed. The job's `timeout-minutes` is 40 so that a failing deploy's two
-420s health waits (gate, then rollback) fit with room to spare. Code/image rollback only: Alembic migrations are never downgraded
+leaves the host half-deployed. But a cancelled job gets only about 5 minutes for the steps
+that still run, so **don't cancel a deploy by hand**: a real rollback can take longer.
+
+**Timeouts (v60).** Every step that can run long has its own `timeout-minutes` (the backup 10,
+pull + up 15, the health gate 10, the rollback 25, ...), and the job's own 90 is only a
+backstop above their sum. A step that hits its limit simply *fails*, so the rollback runs as for
+any failure, with its full 25 minutes. The job limit is the wrong tool for this, which a scratch
+run on the runner showed (run 40595581518): when it cuts in, GitHub cancels the job; the
+`cancelled()` rollback does start, but it's killed about 5 minutes later, and no step after it
+(the notice's rollback line, the Summary) runs at all, so the notice would say "UNKNOWN".
+`cancel-timeout-minutes` isn't a GitHub Actions key, so that 5-minute grace can't be raised.
+
+Code/image rollback only: Alembic migrations are never downgraded
 automatically (too risky unattended); the pre-deploy `pg_backup` is the recovery path for a bad
 migration.
 
@@ -338,11 +356,15 @@ migration.
    database's `alembic_version` against that image's own revision graph. If the database holds
    a revision the old image doesn't know (the failed deploy's `migrate` already upgraded it),
    starting the old stack is doomed, because its own `migrate` would refuse and nothing would
-   come up.
+   come up. The probe joins the project network that's up right now as `external` (v60), rather
+   than as the rollback commit's files define it: a failed release that changed `networks:` had
+   recreated that network, and reconciling it back while the failed stack still holds it fails
+   ("active endpoints"), which used to end every such rollback as a guard error. The probe only
+   needs Postgres; the rollback's own `up` recreates the network to the old definition.
    - **Fallback (v33.1):** when the database is ahead of `.last-good` (a `manual-*` dispatch
      migrated it since the last release, say), the guard runs again against **the version that
      was running just before this deploy** (pre-deploy HEAD + `IMAGE_TAG`), provided that version
-     was healthy before the run (an instant health check in the "record" step) and isn't the very
+     was healthy before the run (the record step's health check, see 2 above) and isn't the very
      build that just failed. If it knows the schema, the rollback goes there instead, since the
      aim is the least downtime. Only a
      refusal triggers it, never a guard error, and `.last-good` isn't changed by it, so a
@@ -389,12 +411,17 @@ COMMIT=<sha of the deploy checkout's HEAD>
 - A failed run never writes it, and neither does a stale one (v49): that would move the
   baseline back to an older version.
 - Gitignored (`/.last-good`), and every `git clean` in the job also passes `-e /.last-good`, so a
-  dispatch of a pre-v33 *ref* (whose `.gitignore` lacks the entry) can't delete it either. A
-  dispatch run *from* a pre-v33 copy of the workflow (`gh workflow run --ref <old tag>`) still
-  uses its old plain `git clean -fd` and will delete it; the next release-mode run recreates it.
+  dispatch of a pre-v33 *ref* (whose `.gitignore` lacks the entry) can't delete it either. Since
+  v60 it's also in the deploy checkout's own `.git/info/exclude`, which the deploy job adds on
+  every run: that list isn't versioned, so no checkout changes it, and every `git clean` without
+  `-x` honours it. That covers the one case the other two can't, a dispatch run *from* a pre-v33
+  copy of the workflow (`gh workflow run --ref <old tag>`): its old step checks out its own
+  commit (no entry in that `.gitignore`) and runs a plain `git clean -fd`, which deleted the file
+  until v60.
 - Only release mode writes it. After a recovery by dispatch or by hand onto a newer healthy
   version, it still names the previous release; update it by hand if that matters. Written
-  to `.last-good.tmp` and renamed into place.
+  to `.last-good.tmp`, flushed to disk (`sync`, v60) and renamed into place, so a crash leaves
+  the old file or the new one, never a torn one.
 
 ### First deploy
 

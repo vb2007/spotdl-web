@@ -110,6 +110,13 @@ sudo ./svc.sh status
 > more resilient option (survives a shell/session being torn down without something else keeping
 > `run.sh` alive) and is worth adopting on this host if it's ever seen going unexpectedly
 > **Offline**.
+>
+> **Corrected 2026-10-27 (v60):** it *is* the `svc.sh` install by now. The host's process tree
+> shows `runsvc.sh` (parent: PID 1, started at boot) → `RunnerService.js` → `Runner.Listener run
+> --startuptype service`, under `vb2007`, at `/home/vb2007/gh-actionrunners/spotdl-web` (runner
+> 2.338.0, self-updating). The other repos' runners on the host (`vb2007hu-api` ×4,
+> `vb2007hu-vue`, `discordbot`, `nfctools-app`, `zuti-clicker`) run the same way, each its own
+> process with its own registration, so they never take this repo's jobs.
 
 ## 4. Verify registration
 
@@ -341,6 +348,22 @@ The daily `17 4 * * *` schedule, plus `workflow_dispatch`. One job, `yt-dlp-fres
 unchanged from `ci.yml`): builds the backend image and compares the `yt-dlp` and `yt-dlp-ejs` it
 actually got against PyPI's latest. A failure posts a Matrix notice (`notify`, `curl` only).
 
+**"Not acquired" (v60).** Now and then GitHub marks a job of a run "cancelled" with *"The job was
+not acquired by Runner of type self-hosted even after multiple attempts"*: the job never started,
+so it neither passed nor failed. It hit the daily run six times between 2026-09-12 and 10-15,
+always the first job of a run whose jobs queued at once (the then-daily `ci.yml`), and never a
+PR run. The runner's own log (`_diag/Runner_*.log`) shows the cause is on GitHub's side, with
+the runner online and the host idle: the broker handed the job out while the runner was taking
+a sibling job of the same run (10-04, 10-15), or before its long poll came back (10-10: nothing
+for 61 s, then a late retry refused with `acknowledge … NotFound` and `acquirejob … Conflict`).
+Nothing on the host can prevent that, and a `concurrency` group is ruled out (v49), so Nightly
+handles it after the fact: its `notify` reads the job from the API, and when it's cancelled with
+no runner, no steps and that annotation, it sends a **⚠️ "didn't run"** notice instead of ❌, and
+dispatches Nightly once more with `retry=true` (a run with that input never re-dispatches, so it
+can't loop). A job cancelled by hand while queued has no such annotation and still reads as ❌.
+Since v49 Nightly is a single job, so the race needs another run queued at the same moment and
+should be rarer.
+
 Only the backend has real *tests* today (the frontend job above is lint/typecheck/build, not a
 test runner — `frontend/package.json` has no test script as of v09) — extend `pytest` with a
 second matrix entry, or the `frontend` job with an actual test step, once that changes.
@@ -441,6 +464,7 @@ real assertion message and exits `1`, then restored the test file with no diff l
 |---|---|---|
 | Runner shows **Offline** in the GitHub UI | systemd service not running | `sudo ./svc.sh status`; `sudo ./svc.sh start` if stopped; `journalctl -u actions.runner.* -n 50` for why it died |
 | Workflow run stays queued forever | No idle self-hosted runner available, or it's registered to the wrong repo | Confirm **Idle** status in Settings → Actions → Runners; re-run `config.sh` if it was registered against a different repo/org |
+| A job ends "cancelled" with *"not acquired by Runner of type self-hosted even after multiple attempts"*, no steps, no runner name | GitHub's broker lost the job's assignment to the one runner (see `nightly.yml` above, v60); the job never ran | Nightly re-dispatches itself once and says so (⚠️). Anywhere else, re-run the failed jobs (`gh run rerun <id> --failed`) |
 | `##[error]The version '3.12' ... was not found for Debian 12` | `actions/setup-python`'s manifest has no build for bare Debian (only specific GitHub-hosted OS images) — hit on this workflow's first real run | Already fixed: the workflow uses `uv python install 3.12` instead (Section 5) — if this reappears, something re-added `actions/setup-python` for a Python version step |
 | A PR's workflow run sits "waiting for approval" | Expected for outside-collaborator PRs (see Security considerations above) | Review the diff, then approve manually from the PR's **Checks** tab — never approve a fork PR's run without reading its workflow-file changes first, since that file itself is part of the diff |
 | `uv pip install ".[dev]"` fails with a fastapi/uvicorn conflict | `pyproject.toml`'s `[tool.uv] override-dependencies` didn't get picked up | Confirm the install used `uv`, not plain `pip` — the workflow's `.venv/bin/uv pip install` step, not `.venv/bin/pip install` |
