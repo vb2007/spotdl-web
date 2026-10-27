@@ -41,8 +41,8 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   # Reads the version at this commit and decides whether its tag still has to be cut, or (a
-  # `redeploy` dispatch) whether its release is deployed again. Kept small: v61 adds an
-  # `extension` output beside `release`.
+  # `redeploy` dispatch) whether its release is deployed again. Kept small. v61's `extension`
+  # output, beside `release`, decides the same for the Firefox extension's own version.
   plan:
     needs: checks
     runs-on: self-hosted
@@ -52,6 +52,8 @@ jobs:
       commit: ${{ steps.plan.outputs.commit }}
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
+      extension: ${{ steps.extension.outputs.extension }}
+      extension_version: ${{ steps.extension.outputs.version }}
     steps:
       - uses: actions/checkout@v7
 
@@ -99,12 +101,48 @@ jobs:
             echo "v$VERSION is already released: nothing to release or deploy." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
+      # v61: the extension is released when extension/manifest.json's version has risen above
+      # every released one (`extension-v*` tags), independently of the app's version. Otherwise
+      # its job is skipped inside this run, and no extension run exists at all. Same remote-read
+      # rules as above: the tags in an assignment of their own, names compared whole.
+      - name: Decide whether to release the extension
+        id: extension
+        run: |
+          VERSION="$(python3 .github/scripts/check_version.py --extension)"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          TAGS="$(git ls-remote --tags --refs origin 'refs/tags/extension-v*')"
+          RELEASED="$(printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/extension-v", "", $2); print $2}' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)"
+          NEWEST="$( { printf '%s\n' "$RELEASED"; echo "$VERSION"; } | grep . | sort -V | tail -n1)"
+          if printf '%s\n' "$RELEASED" | grep -qxF "$VERSION"; then
+            echo "extension=false" >> "$GITHUB_OUTPUT"
+            echo "Extension $VERSION is already released (extension-v$VERSION)." | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$NEWEST" != "$VERSION" ]; then
+            echo "extension=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Extension $VERSION is below the newest released one ($NEWEST): not releasing it."
+          else
+            echo "extension=true" >> "$GITHUB_OUTPUT"
+            echo "Extension $VERSION has no release yet: signing and releasing it (extension-v$VERSION)." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
   release:
     needs: plan
     if: needs.plan.outputs.release == 'true'
     permissions:
       contents: write
     uses: ./.github/workflows/release.yml
+    with:
+      commit: ${{ github.sha }}
+    secrets: inherit
+
+  # v61: signs and releases the Firefox extension when `plan` found its version risen, beside
+  # (never instead of) the app's release and deploy, which don't wait for it.
+  extension-release:
+    needs: plan
+    if: needs.plan.outputs.extension == 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/extension-release.yml
     with:
       commit: ${{ github.sha }}
     secrets: inherit
@@ -137,7 +175,7 @@ jobs:
   # GitHub-side failure on an action download (v48's 429, which took 4.40.2's deploy and its
   # notice down together) can't stop this job, since it downloads nothing.
   notify:
-    needs: [checks, plan, release, deploy]
+    needs: [checks, plan, release, deploy, extension-release]
     runs-on: self-hosted
     if: >-
       always() && (
@@ -158,6 +196,9 @@ jobs:
           PLAN_RESULT: ${{ needs.plan.result }}
           RELEASE_RESULT: ${{ needs.release.result }}
           DEPLOY_RESULT: ${{ needs.deploy.result }}
+          # v61: the extension's job, named in a failure notice like the others.
+          EXTENSION_RESULT: ${{ needs['extension-release'].result }}
+          EXTENSION_VERSION: ${{ needs.plan.outputs.extension_version }}
           TAG: ${{ needs.release.outputs.tag || needs.plan.outputs.tag }}
           VERSION: ${{ needs.deploy.outputs.version || needs.plan.outputs.version }}
           DEPLOY_VERSION: ${{ needs.deploy.outputs.version }}
@@ -165,7 +206,8 @@ jobs:
           ROLLBACK_NOTE: ${{ needs.deploy.outputs.rollback_note }}
         run: |
           failed=""
-          for pair in "checks=$CHECKS_RESULT" "plan=$PLAN_RESULT" "release=$RELEASE_RESULT" "deploy=$DEPLOY_RESULT"; do
+          for pair in "checks=$CHECKS_RESULT" "plan=$PLAN_RESULT" "release=$RELEASE_RESULT" "deploy=$DEPLOY_RESULT" \
+                      "extension-release=$EXTENSION_RESULT"; do
             case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*} (${pair#*=})" ;; esac
           done
           # Name the check itself (ci.yml's `failed` output), e.g. "checks: pytest (failure)".
@@ -180,7 +222,11 @@ jobs:
               echo "Run: $RUN_URL"
             } > "$RUNNER_TEMP/message.txt"
           else
-            if [ -n "$ROLLBACK_NOTE" ]; then
+            if [ "$failed" = " extension-release ($EXTENSION_RESULT)" ]; then
+              # v61: the extension's job alone failed. It never touches the host, so the deploy's
+              # own note (if any) says nothing about it.
+              rollback="not needed, only the extension's release failed (the app's deploy: ${DEPLOY_RESULT:-unresolved})"
+            elif [ -n "$ROLLBACK_NOTE" ]; then
               rollback="$ROLLBACK_NOTE"
             elif [ "$DEPLOY_RESULT" = "skipped" ]; then
               # The checks, the plan or the release failed: the deploy never started.
@@ -202,6 +248,10 @@ jobs:
               echo "❌ spotdl-web: $WORKFLOW failed"
               echo "Failed job(s):$failed"
               echo "Release: $release"
+              # v61: only when the extension's job ran in this run.
+              if [ "$EXTENSION_RESULT" != "skipped" ] && [ -n "$EXTENSION_RESULT" ]; then
+                echo "Extension: extension-v${EXTENSION_VERSION:-unresolved} ($EXTENSION_RESULT)"
+              fi
               echo "Rollback: $rollback"
               echo "Run: $RUN_URL"
             } > "$RUNNER_TEMP/message.txt"
