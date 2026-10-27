@@ -643,3 +643,13 @@ here.
   is never cleaned up, per the never-delete invariant. The cost is bounded: at most one track's
   bytes per interrupted copy, only during a manual sweep, and it doesn't grow on its own; no
   dedup, reconcile or "already exists" check reads those names.
+
+- **2026-10-26, v58: the now-playing bar isn't targeted (owner's decision).** The plan lists
+  "the now-playing bar's track" among the content script's targets, and a fixture and a real-run
+  screenshot for it. Spotify shows a track there only when logged in to Spotify; signed out it's
+  a "Sign up" banner. The owner, the extension's primary user, uses Spotify logged out (in
+  LibreWolf, which blocks DRM, so Spotify blocks playback after login) and called it a fair skip:
+  "if other potential users report it, we can come back to it". v58 ships rows, headers and
+  cards only, with no now-playing selector (an untestable guess would be dead code), and no
+  now-playing fixture. v61's scope is unchanged. A later slice adds the target only if another
+  user asks for it.

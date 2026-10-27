@@ -1,0 +1,404 @@
+{
+	"extName": {
+		"message": "spotdl-web"
+	},
+	"extDescription": {
+		"message": "Queue Spotify tracks, albums, artists and playlists in your spotdl-web app, straight from open.spotify.com."
+	},
+	"actionTitle": {
+		"message": "spotdl-web"
+	},
+	"iconTrack": {
+		"message": "Queue this track in spotdl"
+	},
+	"iconTrackNamed": {
+		"message": "Queue the track “$TITLE$” in spotdl",
+		"description": "The icon's accessible name; TITLE is the track's name as Spotify shows it.",
+		"placeholders": {
+			"title": {
+				"content": "$1"
+			}
+		}
+	},
+	"iconAlbum": {
+		"message": "Queue this album in spotdl"
+	},
+	"iconAlbumNamed": {
+		"message": "Queue the album “$TITLE$” in spotdl",
+		"placeholders": {
+			"title": {
+				"content": "$1"
+			}
+		}
+	},
+	"iconArtist": {
+		"message": "Queue this artist in spotdl"
+	},
+	"iconArtistNamed": {
+		"message": "Queue the artist “$TITLE$” in spotdl",
+		"placeholders": {
+			"title": {
+				"content": "$1"
+			}
+		}
+	},
+	"iconPlaylist": {
+		"message": "Queue this playlist in spotdl"
+	},
+	"iconPlaylistNamed": {
+		"message": "Queue the playlist “$TITLE$” in spotdl",
+		"placeholders": {
+			"title": {
+				"content": "$1"
+			}
+		}
+	},
+	"iconHint": {
+		"message": "Right-click, Shift+F10 or the Menu key for more choices",
+		"description": "Tooltip and description on the icon."
+	},
+	"menuLabel": {
+		"message": "Queue in spotdl"
+	},
+	"menuThisTrack": {
+		"message": "This track"
+	},
+	"menuThisAlbum": {
+		"message": "This album"
+	},
+	"menuWholeAlbum": {
+		"message": "Whole album"
+	},
+	"menuWholeArtist": {
+		"message": "Whole artist"
+	},
+	"menuDownload": {
+		"message": "Download"
+	},
+	"menuChooseArtist": {
+		"message": "Which artist?"
+	},
+	"toastQueued": {
+		"message": "Queued in spotdl"
+	},
+	"toastQueuedAlbum": {
+		"message": "The whole album is queued in spotdl"
+	},
+	"toastQueuedArtist": {
+		"message": "The whole artist is queued in spotdl"
+	},
+	"toastQueuedNamed": {
+		"message": "$NAME$ is queued in spotdl",
+		"placeholders": {
+			"name": {
+				"content": "$1"
+			}
+		}
+	},
+	"toastAlreadyQueued": {
+		"message": "Already in your queue: it's still downloading"
+	},
+	"toastInLibrary": {
+		"message": "Already in the library: nothing to download"
+	},
+	"errorLoginRequired": {
+		"message": "Log in to spotdl in this browser, or add an API key"
+	},
+	"errorKeyInvalid": {
+		"message": "spotdl refused the API key. Check it in the extension's settings"
+	},
+	"errorPermissionMissing": {
+		"message": "Let the extension reach $ORIGIN$ in its settings",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
+	},
+	"errorUnreachable": {
+		"message": "Can't reach spotdl at $ORIGIN$",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
+	},
+	"errorNotAnApp": {
+		"message": "$ORIGIN$ doesn't answer like a spotdl app",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
+	},
+	"errorRateLimited": {
+		"message": "Too many submissions. Try again in $SECONDS$ s",
+		"description": "SECONDS is the server's Retry-After.",
+		"placeholders": {
+			"seconds": {
+				"content": "$1"
+			}
+		}
+	},
+	"errorUrlNotSpotify": {
+		"message": "spotdl only takes Spotify track, album, artist and playlist links"
+	},
+	"errorCascadeNotFound": {
+		"message": "Spotify doesn't know this item"
+	},
+	"errorCascadeUnavailable": {
+		"message": "Couldn't read Spotify's details for it. Try again"
+	},
+	"errorCascadeInvalid": {
+		"message": "That choice doesn't apply to this item"
+	},
+	"errorQueueUnavailable": {
+		"message": "spotdl's queue is unavailable. Try again shortly"
+	},
+	"optionsTitle": {
+		"message": "spotdl-web extension settings"
+	},
+	"optionsHeading": {
+		"message": "spotdl-web"
+	},
+	"optionsIntro": {
+		"message": "The download icon on open.spotify.com sends the item's link to your spotdl-web app. Nothing else leaves the browser, and nothing goes anywhere but the app below."
+	},
+	"optionsAppHeading": {
+		"message": "App"
+	},
+	"optionsAppLabel": {
+		"message": "App address"
+	},
+	"optionsAppHint": {
+		"message": "Default: $DEFAULT$. Plain http works only on this computer (localhost, 127.0.0.1).",
+		"placeholders": {
+			"default": {
+				"content": "$1"
+			}
+		}
+	},
+	"optionsAppSave": {
+		"message": "save address"
+	},
+	"optionsAppReset": {
+		"message": "use default"
+	},
+	"optionsAppInvalid": {
+		"message": "That isn't an address the extension can use. Give an https address, or http on localhost."
+	},
+	"optionsAppDenied": {
+		"message": "Firefox didn't grant access to $ORIGIN$, so the address wasn't saved.",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
+	},
+	"optionsAppSaved": {
+		"message": "Saved. $RESULT$",
+		"description": "RESULT is one of the connection status sentences.",
+		"placeholders": {
+			"result": {
+				"content": "$1"
+			}
+		}
+	},
+	"optionsAuthHeading": {
+		"message": "Signing in"
+	},
+	"optionsAuthCookie": {
+		"message": "The extension uses your spotdl sign-in in this Firefox: log in to the app in any tab, and the icon just works."
+	},
+	"optionsAuthKey": {
+		"message": "Where that sign-in doesn't reach (a private window, cookies cleared on close), give it an API key from the app's account page. It's kept in this browser only, never synced."
+	},
+	"optionsKeyLabel": {
+		"message": "API key (optional)"
+	},
+	"optionsKeySave": {
+		"message": "save key"
+	},
+	"optionsKeyClear": {
+		"message": "remove key"
+	},
+	"optionsKeyInvalid": {
+		"message": "A key starts with sdw_. Copy the whole key from the app's account page."
+	},
+	"optionsKeySaved": {
+		"message": "Key saved (ending …$END$).",
+		"description": "END is the key's last 4 characters.",
+		"placeholders": {
+			"end": {
+				"content": "$1"
+			}
+		}
+	},
+	"optionsKeyCleared": {
+		"message": "Key removed."
+	},
+	"optionsKeyStored": {
+		"message": "A key is saved (ending …$END$).",
+		"description": "END is the key's last 4 characters.",
+		"placeholders": {
+			"end": {
+				"content": "$1"
+			}
+		}
+	},
+	"optionsKeyNone": {
+		"message": "No key saved."
+	},
+	"optionsAccountLink": {
+		"message": "open the account page"
+	},
+	"optionsTestHeading": {
+		"message": "Connection"
+	},
+	"optionsTest": {
+		"message": "test connection"
+	},
+	"optionsTesting": {
+		"message": "testing…"
+	},
+	"statusSignedIn": {
+		"message": "Signed in as $NAME$ ($VIA$).",
+		"description": "NAME is the username or email; VIA is viaCookie or viaKey.",
+		"placeholders": {
+			"name": {
+				"content": "$1"
+			},
+			"via": {
+				"content": "$2"
+			}
+		}
+	},
+	"viaCookie": {
+		"message": "through your sign-in in this browser"
+	},
+	"viaKey": {
+		"message": "through the API key"
+	},
+	"statusLoginRequired": {
+		"message": "Reached the app, but you aren't signed in. Log in to spotdl in this browser, or add an API key."
+	},
+	"optionsSpotifyHeading": {
+		"message": "open.spotify.com"
+	},
+	"optionsSpotifyGranted": {
+		"message": "The extension may add its icon on open.spotify.com."
+	},
+	"optionsSpotifyMissing": {
+		"message": "The extension isn't allowed on open.spotify.com yet, so no icon appears there."
+	},
+	"optionsSpotifyGrant": {
+		"message": "allow on open.spotify.com"
+	},
+	"popupRecent": {
+		"message": "Recent"
+	},
+	"popupEmpty": {
+		"message": "Nothing sent yet. Use the download icon on open.spotify.com."
+	},
+	"popupOpenApp": {
+		"message": "open spotdl"
+	},
+	"popupSettings": {
+		"message": "settings"
+	},
+	"popupChecking": {
+		"message": "Checking the connection…"
+	},
+	"popupCascadeAlbum": {
+		"message": "whole album"
+	},
+	"popupCascadeArtist": {
+		"message": "whole artist"
+	},
+	"typeTrack": {
+		"message": "track"
+	},
+	"typeAlbum": {
+		"message": "album"
+	},
+	"typeArtist": {
+		"message": "artist"
+	},
+	"typePlaylist": {
+		"message": "playlist"
+	},
+	"outcomeQueued": {
+		"message": "queued"
+	},
+	"outcomeAlreadyQueued": {
+		"message": "already queued"
+	},
+	"outcomeInLibrary": {
+		"message": "in the library"
+	},
+	"outcomeError": {
+		"message": "not queued"
+	},
+	"optionsAppGrant": {
+		"message": "allow access"
+	},
+	"toastUnreachable": {
+		"message": "Can't reach your spotdl app"
+	},
+	"toastPermissionMissing": {
+		"message": "Let the extension reach your spotdl app, in its settings"
+	},
+	"toastNotAnApp": {
+		"message": "The address in the settings doesn't answer like a spotdl app"
+	},
+	"optionsAppNotSaved": {
+		"message": "Not saved: $RESULT$",
+		"placeholders": {
+			"result": {
+				"content": "$1"
+			}
+		},
+		"description": "RESULT is one of the connection status sentences."
+	},
+	"errorFailed": {
+		"message": "Couldn't queue it. Try again"
+	},
+	"statusFailed": {
+		"message": "The app answered with an error. Try again"
+	},
+	"toastChooseArtistAgain": {
+		"message": "It has more than one artist: open the menu again to choose one"
+	},
+	"outcomeRateLimited": {
+		"message": "Too many submissions at the time"
+	},
+	"statusPermissionMissing": {
+		"message": "Firefox doesn't let the extension reach $ORIGIN$ yet: allow access below",
+		"placeholders": {
+			"origin": {
+				"content": "$1"
+			}
+		}
+	},
+	"errorServer": {
+		"message": "Your spotdl app had an error. Try again"
+	},
+	"optionsKeyNotSaved": {
+		"message": "Not saved: $RESULT$",
+		"description": "RESULT is one of the connection status sentences.",
+		"placeholders": {
+			"result": {
+				"content": "$1"
+			}
+		}
+	},
+	"toastStillSending": {
+		"message": "Your last choice for this is still on its way: wait for its answer"
+	},
+	"optionsKeyAddressChanged": {
+		"message": "the app address changed while the key was being checked. Save it again"
+	},
+	"statusKeyInvalid": {
+		"message": "spotdl refused this API key (mistyped, or revoked in the app)"
+	}
+}

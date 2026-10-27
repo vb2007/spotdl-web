@@ -1,0 +1,36 @@
+<!doctype html>
+<!--
+THESIS: the popup is a receiver's log strip: the link's state on top, the last ten things sent
+below, each with what the app answered.
+OWN-WORLD: frontend/src/DESIGN.md's tokens by value (see shared/page.css).
+STORY: after a few clicks on Spotify, a glance confirms they landed, and one click opens the app.
+FIRST VIEWPORT: wordmark + connection status line, the recent list, then two actions.
+FORM: an extension of the established surface (no concept roll).
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title data-i18n="extName">spotdl-web</title>
+		<link rel="stylesheet" href="../shared/page.css" />
+		<link rel="stylesheet" href="popup.css" />
+		<script type="module" src="popup.js"></script>
+	</head>
+	<body>
+		<main class="popup">
+			<header class="head">
+				<p class="wordmark" data-i18n="extName">spotdl-web</p>
+				<p class="status" id="connection" role="status" data-i18n="popupChecking"></p>
+			</header>
+			<section aria-labelledby="recent-heading">
+				<h1 class="label" id="recent-heading" data-i18n="popupRecent"></h1>
+				<ol class="recent" id="recent"></ol>
+				<p class="muted empty" id="empty" hidden data-i18n="popupEmpty"></p>
+			</section>
+			<footer class="foot">
+				<a class="button" id="open-app" target="_blank" rel="noopener" data-i18n="popupOpenApp"></a>
+				<button type="button" class="quiet" id="settings" data-i18n="popupSettings"></button>
+			</footer>
+		</main>
+	</body>
+</html>

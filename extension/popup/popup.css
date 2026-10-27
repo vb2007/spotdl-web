@@ -1,0 +1,79 @@
+body {
+	inline-size: 22rem;
+}
+
+.popup {
+	display: grid;
+	gap: var(--space-4);
+	padding: var(--space-4);
+}
+
+.head {
+	display: grid;
+	gap: var(--space-2);
+	padding-block-end: var(--space-3);
+	border-block-end: 1px solid var(--line);
+}
+
+.recent {
+	display: grid;
+	margin: var(--space-2) 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.recent li + li {
+	border-block-start: 1px solid var(--line);
+}
+
+.recent a {
+	display: grid;
+	gap: 0.125rem;
+	padding: var(--space-2) var(--space-2);
+	margin-inline: calc(-1 * var(--space-2));
+	border-radius: 4px;
+	text-decoration: none;
+}
+
+.recent a:hover {
+	background: var(--bg-1);
+}
+
+.title {
+	overflow: hidden;
+	font-size: 0.875rem;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0 var(--space-2);
+	color: var(--text-muted);
+	font-size: 0.75rem;
+}
+
+.outcome[data-tone='ok'] {
+	color: var(--settled);
+}
+
+.outcome[data-tone='error'] {
+	color: var(--fail);
+}
+
+.reason {
+	color: var(--text-muted);
+	font-size: 0.75rem;
+}
+
+.empty {
+	margin-block-start: var(--space-2);
+	font-size: 0.875rem;
+}
+
+.foot {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--space-2);
+}

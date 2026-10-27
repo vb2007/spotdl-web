@@ -1,0 +1,64 @@
+.options {
+	display: grid;
+	gap: var(--space-4);
+	inline-size: min(40rem, 100% - 2rem);
+	margin: var(--space-6) auto;
+}
+
+.masthead {
+	display: grid;
+	gap: var(--space-2);
+	margin-block-end: var(--space-2);
+}
+
+.intro {
+	max-inline-size: 60ch;
+}
+
+.panel {
+	display: grid;
+	gap: var(--space-3);
+	padding: var(--space-4) var(--space-5) var(--space-5);
+}
+
+.panel p {
+	max-inline-size: 65ch;
+}
+
+.row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: var(--space-3);
+}
+
+.field {
+	display: grid;
+	flex: 1 1 18rem;
+	gap: var(--space-1);
+}
+
+.field label {
+	color: var(--text-muted);
+	font-size: 0.8125rem;
+}
+
+.hint {
+	font-size: 0.8125rem;
+}
+
+.actions {
+	display: flex;
+	gap: var(--space-2);
+	padding-block-end: 0.1875rem;
+}
+
+.panel > button {
+	justify-self: start;
+}
+
+.row > .status {
+	flex: 1 1 18rem;
+	align-self: center;
+}
