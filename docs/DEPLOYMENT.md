@@ -34,6 +34,18 @@ stack doesn't come up healthy. Full pipeline detail, GHCR package layout, idempo
 every manual-recovery lever live in **`docs/RELEASE_PIPELINE.md`** — this doc doesn't duplicate
 that, only what's specific to this host.
 
+### Before merging a version that adds a required env var
+
+> ⚠️ **A new `${VAR:?}` in a compose file must be in this host's `/mnt/raid1/spotdl-web/.env`
+> before the version that adds it is merged.** Otherwise its deploy stops at the preflight,
+> naming the missing variable, with nothing on the host changed: the release is cut, but
+> production stays on the old version until the key is added and the failed jobs are re-run.
+> That PR lists the key and the value production needs under **"Deploy notes"**. The whole
+> checklist, templates and CI drift check included, is
+> [`docs/RELEASE_PIPELINE.md`, "Adding a required env var"](RELEASE_PIPELINE.md#adding-a-required-env-var);
+> the recovery when it's missed is "A deploy needs a new `.env` variable" under
+> [Rollback / recovery](#rollback--recovery-v21-v33).
+
 **Deploying a branch before merging its PR:** the "Publish & Deploy" workflow also accepts
 `workflow_dispatch`, so you don't have to merge first to try something on the real host:
 
@@ -89,9 +101,10 @@ Diff your existing `.env` against `.env.example` and add whatever's new for v12:
 | `YOUTUBE_PLAYER_CLIENTS` (v31.1, v54.2) | Optional; `app/config.py` defaults to `default` (yt-dlp's own client choice), the same as `.env.example`. v54.2 moved off v31.1's `android,web,mweb`, which by 2026-10 got no audio-only stream (GOTCHAS v54.2). Retune only if a yt-dlp player client starts failing |
 | `MATRIX_HOMESERVER_URL` / `MATRIX_ACCESS_TOKEN` / `MATRIX_ROOM_ID` (v36) | Optional; unset means app alerts are off. See [App alerts](#app-alerts-v36) |
 
-A key a newer version *requires* (`${VAR:?}` in a compose file) is named by the deploy's preflight
-before anything on the host moves; see "A deploy needs a new `.env` variable" under
-[Rollback / recovery](#rollback--recovery-v21-v33).
+A key a newer version *requires* (`${VAR:?}` in a compose file) has to be here before that
+version is merged: see [the callout above](#before-merging-a-version-that-adds-a-required-env-var).
+If it isn't, the deploy's preflight names it before anything on the host moves; see "A deploy
+needs a new `.env` variable" under [Rollback / recovery](#rollback--recovery-v21-v33).
 
 **No longer needed:** a `frontend/.env` file, and a manual `alembic upgrade head` step —
 both are now automatic (see §4 and §5 below). If you have a leftover `frontend/.env` from
@@ -561,13 +574,14 @@ sudo -u postgres psql -c "SHOW hba_file;"
 ### 2. Create the role and database
 
 ```bash
-sudo -u postgres psql -c "CREATE ROLE spotdl_web WITH LOGIN PASSWORD 'changeme';"
-sudo -u postgres psql -c "CREATE DATABASE spotdl_web OWNER spotdl_web;"
+sudo -u postgres psql -c "CREATE ROLE spotdlweb WITH LOGIN PASSWORD 'changeme';"
+sudo -u postgres psql -c "CREATE DATABASE spotdlweb OWNER spotdlweb;"
 ```
 
-(2026-10-19, v48: this host's real role and database are both **`spotdlweb`**, not the
-`spotdl_web` shown here, in §3's `pg_hba.conf` line and in `.env.example`. Local dev's
-`spotdlwebtest` is owned by the same role. `app/config.py` treats both names as production.)
+The role and the database are both **`spotdlweb`**, as on this host (checked against the host's
+`.env` in v60; this section, §3's `pg_hba.conf` line and `.env.example` said `spotdl_web` until
+then). Local dev's `spotdlwebtest` is owned by the same role. `app/config.py` treats `spotdlweb`,
+and the old template name `spotdl_web`, as production names.
 
 If you need to change the password later, use `\password <role>` inside an interactive
 `psql` session rather than passing it on the command line — special characters (`!`,
@@ -586,7 +600,7 @@ PGCONF=/etc/postgresql/18/main/postgresql.conf   # whatever `SHOW config_file` p
 sudo sed -i "s/^#\?listen_addresses\s*=.*/listen_addresses = '*'/" "$PGCONF"
 
 PGHBA=/etc/postgresql/18/main/pg_hba.conf   # whatever `SHOW hba_file` printed
-echo "host    spotdl_web    spotdl_web    172.16.0.0/12    scram-sha-256" | sudo tee -a "$PGHBA"
+echo "host    spotdlweb    spotdlweb    172.16.0.0/12    scram-sha-256" | sudo tee -a "$PGHBA"
 sudo systemctl restart postgresql
 ```
 
@@ -794,7 +808,8 @@ compose service). What it actually does, step by step:
 3. Runs `pg_dump -Fc --no-owner` — **custom format**, compressed and restorable with
    `pg_restore` (including `--clean` for a from-scratch overwrite), not a plain-SQL dump you'd
    have to pipe into `psql` by hand.
-4. Writes to `$SPOTDL_WEB_BACKUP_DIR/spotdl_web_<UTC-timestamp>.dump` — default
+4. Writes to `$SPOTDL_WEB_BACKUP_DIR/spotdl_web_<UTC-timestamp>.dump` (`spotdl_web_` is the
+   script's own fixed file prefix, which its retention also matches, not the database name) — default
    `<repo root>/backups` (derived from the script's own location, so it always lands next to
    whatever checkout is running it — on this host, `/mnt/raid1/spotdl-web/backups`). **v21
    correction:** this used to default to a hardcoded `/srv/spotdl-web/backups`, which never

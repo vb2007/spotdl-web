@@ -473,7 +473,8 @@ exactly what broke v28's deploy and its rollback on 2026-09-27. The checklist:
    otherwise (v33 drift check, `check_required_env.py`), naming the missing key.
 2. **List it under "Deploy notes" in the version's plan and PR**, with the value production
    needs. The owner reads that before merging.
-3. **Add it to the host's `.env` before merging** (`/mnt/raid1/spotdl-web/.env`). If it's
+3. **Add it to the host's `.env` before merging** (`/mnt/raid1/spotdl-web/.env`; the host-side
+   callout is [`docs/DEPLOYMENT.md`, "Before merging a version that adds a required env var"](DEPLOYMENT.md#before-merging-a-version-that-adds-a-required-env-var)). If it's
    forgotten, the deploy's preflight fails naming the variable, with nothing on the host
    changed: add it, then re-run the failed run's failed jobs (not "all jobs", see "Manual
    recovery levers").
