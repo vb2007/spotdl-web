@@ -335,9 +335,13 @@ jobs:
           echo "current_tag=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
           echo "current_commit=$HEAD_COMMIT" >> "$GITHUB_OUTPUT"
           # v33.1: whether what's running now is healthy AND really is CURRENT_TAG, a
-          # precondition for the rollback's fallback to it. Instant (timeout 0), verdict only.
-          # The checkout's own health script, since its compose files are the ones in effect
-          # (a newer script may list a service the old files don't have).
+          # precondition for the rollback's fallback to it. Verdict only. The checkout's own
+          # health script, since its compose files are the ones in effect (a newer script may
+          # list a service the old files don't have).
+          # v60 (P8): 180s, not an instant check. A worker restarted shortly before reads
+          # "starting" for up to ~150s (a 120s healthcheck interval plus its 30s timeout), and an
+          # instant probe called that stack unhealthy, which silently disabled the fallback. A
+          # healthy stack still answers on the first pass; only a broken one waits it out.
           HEALTH_SCRIPT="$DEPLOY_DIR/.github/scripts/wait_for_stack_health.sh"
           [ -f "$HEALTH_SCRIPT" ] || HEALTH_SCRIPT=.github/scripts/wait_for_stack_health.sh
           RUNNING_IMAGE="$(cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml \
@@ -353,7 +357,7 @@ jobs:
           fi
           if [ -n "$CURRENT_TAG" ] && [ "${RUNNING_IMAGE##*:}" = "$CURRENT_TAG" ] \
              && [ "$RUNNING_REV" = "$HEAD_COMMIT" ] \
-             && bash "$HEALTH_SCRIPT" "$DEPLOY_DIR" 0 >/dev/null 2>&1; then
+             && bash "$HEALTH_SCRIPT" "$DEPLOY_DIR" 180 >/dev/null 2>&1; then
             echo "current_healthy=true" >> "$GITHUB_OUTPUT"
             echo "Running stack:        healthy"
           else
