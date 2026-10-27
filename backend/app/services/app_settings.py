@@ -116,9 +116,11 @@ ALERT_SETTING_FIELDS = (
     "alerts_spike_enabled",
     "alerts_beat_stale_enabled",
     "alerts_library_enabled",
+    "alerts_worker_down_enabled",
     "alert_spike_threshold",
     "alert_spike_window_minutes",
     "alert_beat_stale_seconds",
+    "alert_worker_down_minutes",
     "alert_cooldown_minutes",
 )
 

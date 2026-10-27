@@ -20,8 +20,9 @@ class AppSettings(Base):
     same shape as the output-format fields above.
 
     v36 adds the Matrix alert controls (per-category on/off plus the thresholds and the
-    cooldown, see app/services/alerts.py) the same way. server_default on each, so the
-    migration fills the existing row with the documented defaults."""
+    cooldown, see app/services/alerts.py) the same way, and v59 the worker-down category.
+    server_default on each, so the migration fills the existing row with the documented
+    defaults."""
 
     __tablename__ = "app_settings"
 
@@ -44,11 +45,17 @@ class AppSettings(Base):
     alerts_spike_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
     alerts_beat_stale_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
     alerts_library_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
+    # v59: worker-dl consuming nothing while due tracks wait and the breaker is closed.
+    alerts_worker_down_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=true()
+    )
     # Failure spike: this many consecutive real attempts, all failing with the same
     # error_type, within the window.
     alert_spike_threshold: Mapped[int] = mapped_column(Integer, nullable=False, server_default="5")
     alert_spike_window_minutes: Mapped[int] = mapped_column(Integer, nullable=False, server_default="60")
     # Beat's heartbeat older than this is "beat stale" (it ticks every 30s).
     alert_beat_stale_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="180")
+    # v59: due work unconsumed for this long is "worker down" (the watchdog checks every 60s).
+    alert_worker_down_minutes: Mapped[int] = mapped_column(Integer, nullable=False, server_default="15")
     # How long an identical alert (same category + fingerprint) stays suppressed.
     alert_cooldown_minutes: Mapped[int] = mapped_column(Integer, nullable=False, server_default="60")
