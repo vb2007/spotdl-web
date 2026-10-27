@@ -461,6 +461,38 @@ def test_record_attempt_labels_an_unparseable_proxy_url_plainly(db_session, owne
     assert row.proxy_label == "proxy"
 
 
+def test_a_superseded_reclaim_row_takes_the_proxy_label(db_session, owner):
+    """v56 (A4) with v55 (E3): a still-running download's outcome rewrites beat's reclaim row
+    in place, and that rewrite names the proxy too, not only a freshly added row."""
+    track = _make_track(db_session, owner, state=TrackState.WAITING, attempt_count=1)
+    proxy = Proxy(url="http://user:s3cret@10.0.0.9:8080", source=ProxySource.MANUAL, enabled=True)
+    db_session.add(proxy)
+    db_session.commit()
+    now = datetime.now(timezone.utc)
+    entry = attempts.latest_attempt_number(db_session, track.id)
+    attempts.record_attempt(
+        db_session, track.id, now, now, TrackAttemptOutcome.FAILED, error_message=f"{attempts.RECLAIM_PREFIX}stuck"
+    )
+    attempts.record_attempt(
+        db_session,
+        track.id,
+        now,
+        now,
+        TrackAttemptOutcome.COMPLETED,
+        proxy_id=proxy.id,
+        network_path=NetworkPath.PROXY,
+        supersede_reclaim_after=entry,
+    )
+    db_session.commit()
+
+    row = db_session.query(TrackAttempt).filter(TrackAttempt.track_id == track.id).one()
+    assert (row.outcome, row.proxy_id, row.proxy_label) == (
+        TrackAttemptOutcome.COMPLETED,
+        proxy.id,
+        "http://10.0.0.9:8080",
+    )
+
+
 def test_deleting_a_used_proxy_keeps_its_label_on_the_history(admin_client, db_session, make_user):
     """v56 (A4): before v56 this delete was a 500 (the FKs had no ON DELETE). Now the
     references go NULL and every attempt keeps naming the proxy it went through."""

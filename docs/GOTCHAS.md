@@ -837,6 +837,8 @@ needed" claim — rather than silently deleted.
 - `download_track.delay` is one object for expand and beat: a monkeypatch of one patches both → *v56*
 - `docker pause` on Redis fails no publish (the kernel buffers it); `docker stop` refuses → *v56*
 - Playwright's `page.clock.install({ time })` skews the browser clock for countdown checks → *v56*
+- A rebase that re-parents a migration under one a slot already passed: alembic sees the head as
+  applied and skips the new parent; downgrade to it, stamp the old parent, upgrade → *v56*
 - A real download on a slot can finish in ~10 s, before six browser pages have logged in: hold
   the track `waiting` with `scheduled_at` a minute out, then start `realdl`. A Spotify id whose
   song is already on disk under the same name resolves instantly ("already exists" is the
@@ -6536,6 +6538,8 @@ independently-found production bug from the same conversation)
   commit and then overwrites `completed` with `cancelled`, until v56 makes cancel re-check the
   state. The live UI then disagrees with the DB until a reload: the API's late `cancelled`
   event reaches a row already `completed`, which the store doesn't move to another state.
+  *(2026-10-27, v56: fixed. Both cancels are conditional `UPDATE … WHERE state IN (…)` now; a
+  track that completed first is left alone and the cancel answers 409.)*
 - **graphify's HTML view stops at 5000 nodes.** This slice took the graph past it, and
   `graphify update .` deletes the tracked `graph.html` instead of updating it. Run it as
   `GRAPHIFY_VIZ_NODE_LIMIT=10000 graphify update .`.
@@ -6642,3 +6646,12 @@ independently-found production bug from the same conversation)
   cancel lets the download run to its end, and the delete must wait for it too. `finalize_proxy_deletions` (beat, every
   30s) deletes it once idle, and `/settings` shows it as "deleting" until then. On the slot it was
   gone 17s after its download ended.
+- **Rebased onto v55: one lock order through `record_attempt`.** v55 made `record_attempt` lock the
+  track's row explicitly before reading anything; v56's proxy `FOR KEY SHARE` is taken before that
+  lock, not after, because a proxy delete locks the proxy and then (its ON DELETE SET NULL) the
+  track. v55's supersede rewrite of a reclaim row stores the proxy label too, as a new row does.
+- **A re-parented migration on a database that already ran it.** After the rebase put v55's
+  `d9b3e5f7a1c2` under v56's `a9d3c5e7f1b2`, the slot's database still read `a9d3c5e7f1b2`, the
+  head, so `alembic upgrade head` did nothing and `hold_count` was never added. Repair: `alembic
+  downgrade d9b3e5f7a1c2` (runs only v56's downgrade), `alembic stamp a7c4e1b9d2f5`, `alembic
+  upgrade head`. Production never sees this: it only ever runs the merged chain.

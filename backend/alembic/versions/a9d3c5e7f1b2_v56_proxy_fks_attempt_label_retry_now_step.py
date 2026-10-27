@@ -1,7 +1,7 @@
 """proxy FKs SET NULL; attempt proxy_label; retry_now_step; due index; retention clamp
 
 Revision ID: a9d3c5e7f1b2
-Revises: a7c4e1b9d2f5
+Revises: d9b3e5f7a1c2
 Create Date: 2026-10-26 00:00:00.000000
 
 v56 (A4): deleting a manual proxy an attempt (or a track's `used_proxy_id`) referenced was a
@@ -40,7 +40,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'a9d3c5e7f1b2'
-down_revision: Union[str, Sequence[str], None] = 'a7c4e1b9d2f5'
+down_revision: Union[str, Sequence[str], None] = 'd9b3e5f7a1c2'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
