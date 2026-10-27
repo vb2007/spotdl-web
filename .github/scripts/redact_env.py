@@ -29,6 +29,28 @@ from __future__ import annotations
 
 import re
 import sys
+import unicodedata
+
+_GO_ESCAPES = {"\a": "\\a", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r",
+               "\t": "\\t", "\v": "\\v", "\\": "\\\\", '"': '\\"'}
+
+
+def go_quoted(value: str) -> str:
+    """The value as Go's strconv.Quote writes it, without the quotes: how compose shows a value
+    holding a tab, a control character or a non-printing one (NBSP, zero-width space) (v60)."""
+    out = []
+    for ch in value:
+        o = ord(ch)
+        if ch in _GO_ESCAPES:
+            out.append(_GO_ESCAPES[ch])
+        elif o < 0x20 or o == 0x7F:
+            out.append(f"\\x{o:02x}")
+        elif ch != " " and unicodedata.category(ch)[0] in "CZ":
+            out.append(f"\\u{o:04x}" if o <= 0xFFFF else f"\\U{o:08x}")
+        else:
+            out.append(ch)
+    return "".join(out)
+
 
 ENV_LINE_RE = re.compile(r"^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=(.*)$")
 # A URL's userinfo (`user:pass@`, or a bare token before `@`), up to the first `@`.
@@ -54,7 +76,7 @@ def secrets(env_file: str) -> list[str]:
                 # Also as compose (Go) quotes it in errors, `"` -> `\"` and `\` -> `\\`, and
                 # with a double-quoted value's escapes already applied.
                 for shown in (form, form.replace("\\", "\\\\").replace('"', '\\"'),
-                              form.replace("\\n", "\n").replace('\\"', '"')):
+                              form.replace("\\n", "\n").replace('\\"', '"'), go_quoted(form)):
                     if len(shown) >= 3:
                         found.add(shown)
             parts = v.strip("'\"").split(":")

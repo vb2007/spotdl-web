@@ -611,7 +611,7 @@ jobs:
           TMP="$(mktemp -d)"
           trap 'rm -rf "$TMP"' EXIT
           guard() {
-            local dir args net
+            local dir args nets override key net
             dir="$(mktemp -d -p "$TMP")"
             guard_rc=0
             for f in docker-compose.yml docker-compose.prod.yml; do
@@ -626,16 +626,25 @@ jobs:
             # probe only needs Postgres, so it joins the live network as `external` instead of
             # reconciling it; the rollback's own `up` below does recreate the network to the
             # target's config. Absent network (nothing is up): no override, compose creates it.
-            # Only the name leaves the `config` output (which holds .env values). `$args` is split
-            # on spaces on purpose, as migration_guard.sh splits GUARD_COMPOSE_ARGS.
+            # Every network of the target's files is handled so (a later release may attach
+            # `migrate` to more than `default`), keyed as the files key it. Only the key and the
+            # name leave the `config` output (which holds .env values). `$args` is split on
+            # spaces on purpose, as migration_guard.sh splits GUARD_COMPOSE_ARGS.
             # shellcheck disable=SC2086
-            net="$(IMAGE_TAG="$1" docker compose $args config --format json 2>/dev/null \
-              | python3 -c 'import json, sys; print(json.load(sys.stdin).get("networks", {}).get("default", {}).get("name", ""))' \
-              2>/dev/null || true)"
-            if [ -n "$net" ] && docker network inspect "$net" >/dev/null 2>&1; then
-              printf 'networks:\n  default: !override\n    name: %s\n    external: true\n' "$net" > "$dir/guard-network.yml"
+            nets="$(IMAGE_TAG="$1" docker compose $args config --format json 2>/dev/null \
+              | python3 -c 'import json, sys
+          for key, net in json.load(sys.stdin).get("networks", {}).items():
+              print(key, net.get("name", ""))' 2>/dev/null || true)"
+            override=""
+            while read -r key net; do
+              if [ -n "$net" ] && docker network inspect "$net" >/dev/null 2>&1; then
+                override="$override$(printf '  %s: !override\n    name: %s\n    external: true' "$key" "$net")"$'\n'
+                echo "migration_guard: probing on the live network $net as it is (external)"
+              fi
+            done <<< "$nets"
+            if [ -n "$override" ]; then
+              printf 'networks:\n%s' "$override" > "$dir/guard-network.yml"
               args="$args -f $dir/guard-network.yml"
-              echo "migration_guard: probing on the live network $net as it is (external)"
             fi
             IMAGE_TAG="$1" GUARD_COMPOSE_ARGS="$args" \
               bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" \

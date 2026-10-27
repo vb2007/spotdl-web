@@ -7203,7 +7203,10 @@ independently-found production bug from the same conversation)
 - **Compose prints part of a value (P6).** `API_PORT=postgres://user:pass@db.example:5432/x`
   makes compose say `invalid IP address: 127.0.0.1:postgres://user:pass@db.example`: it split
   the port spec at the colons, so the full `.env` value never appears and `redact_env.py`'s
-  whole-value masking let the password through. Any `scheme://userinfo@` is now masked as well.
+  whole-value masking let the password through. Any `scheme://userinfo@` is now masked as well,
+  and so is every piece of a value cut at its colons. A value holding a tab, a control character
+  or a non-printing one (NBSP, zero-width space) comes back Go-quoted (`\t`, `\u00a0`), so that
+  form is masked too (live review).
 - **`.last-good` versus old workflow copies (P7).** Every tag from v2.21.0 to v4.32.0 runs a
   plain `git clean -fd` after checking out its own commit, whose `.gitignore` has no
   `/.last-good`, so a dispatch *from* that workflow copy deletes the baseline (reproduced in a
