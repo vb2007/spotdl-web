@@ -140,6 +140,13 @@
 			: m.stats_alert_next_try({ time: at });
 	}
 
+	// A held-back row's last_error is a code (the backend stays language-neutral).
+	function heldReason(code: string): string {
+		if (code === 'cooldown') return m.stats_alert_held_cooldown();
+		if (code === 'category_off') return m.stats_alert_held_category_off();
+		return code;
+	}
+
 	// The room's own label ("[spotdl-web (dev)] ") is the same on every row; the message is what
 	// follows it.
 	function message(body: string): string {
@@ -193,14 +200,15 @@
 						<td class="message">
 							<!-- i18n-ignore: the alert's own text, as it was sent (alerts stay untranslated) -->
 							<span lang="en">{message(item.body_preview)}</span>
-							{#if item.last_error !== null}
+							{#if item.state === 'suppressed' && item.last_error !== null}
 								<span class="reason"
-									><span class="reason-label"
-										>{item.state === 'suppressed'
-											? m.stats_alert_reason_held()
-											: m.stats_alert_reason_error()}</span
-									>
-									<!-- i18n-ignore: the homeserver's or the cooldown's own words -->
+									><span class="reason-label">{m.stats_alert_reason_held()}</span>
+									{heldReason(item.last_error)}</span
+								>
+							{:else if item.last_error !== null}
+								<span class="reason"
+									><span class="reason-label">{m.stats_alert_reason_error()}</span>
+									<!-- i18n-ignore: the homeserver's or httpx's own words, as recorded -->
 									<span lang="en" class="mono">{item.last_error}</span></span
 								>
 							{/if}

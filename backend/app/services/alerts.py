@@ -115,6 +115,14 @@ DELIVERY_BATCH = 20
 # 30m" read three hours late must not read as now.
 LATE_NOTE_AFTER = timedelta(minutes=2)
 BODY_PREVIEW_CHARS = 280
+# A suppressed row's last_error: a code, which the frontend translates (the backend stays
+# language-neutral). A send failure's last_error is the homeserver's or httpx's own words.
+SUPPRESSED_COOLDOWN = "cooldown"
+SUPPRESSED_CATEGORY_OFF = "category_off"
+# One delivery pass at a time across worker-meta's slots and the watchdog (pg advisory lock
+# key), and how long a pass keeps claiming rows: a pass never holds a meta slot for long.
+DELIVERY_LOCK_KEY = 5_905_901
+DELIVERY_PASS_SECONDS = 20.0
 
 _ENV_VARS = ("MATRIX_HOMESERVER_URL", "MATRIX_ACCESS_TOKEN", "MATRIX_ROOM_ID")
 
@@ -280,7 +288,8 @@ def record(db: Session, category: str, fingerprint: str, text: str):
     """Records an alert in `db`'s transaction (the caller commits), so it is delivered only
     if that transaction commits: the room never hears about a breaker trip that was never
     persisted. Decides the category toggle and the cooldown here, recording a held-back
-    alert as `suppressed` with the reason in last_error. Returns the row's state, or None when
+    alert as `suppressed` with its reason code in last_error (SUPPRESSED_*; the history panel
+    translates it), at most once per window per alert. Returns the row's state, or None when
     alerts are off or recording failed. Never raises: the insert runs in a savepoint, so an
     error (the table missing mid-deploy, say) leaves the caller's transaction intact, and is
     one log warning."""
@@ -306,45 +315,65 @@ def record(db: Session, category: str, fingerprint: str, text: str):
             # created_at, and it must follow the order the rows really got written (see
             # Watchdog._record_release).
             created_at = db.execute(select(func.clock_timestamp())).scalar_one()
+            same = (AlertOutbox.category == category) & (AlertOutbox.fingerprint == fingerprint)
+            window_start = created_at - cooldown
             reason = None
             if not enabled:
-                reason = "category switched off in settings"
-            else:
-                earlier = db.execute(
-                    select(AlertOutbox.created_at)
-                    .where(
-                        AlertOutbox.category == category,
-                        AlertOutbox.fingerprint == fingerprint,
-                        AlertOutbox.state.in_((AlertState.PENDING, AlertState.SENT)),
-                        AlertOutbox.created_at > created_at - cooldown,
+                reason = SUPPRESSED_CATEGORY_OFF
+            elif db.execute(
+                select(
+                    exists().where(
+                        same,
+                        # Still unsent covers it whatever its age (the room hears it once, when
+                        # the homeserver is back); sent covers it for the window.
+                        (AlertOutbox.state == AlertState.PENDING)
+                        | (
+                            (AlertOutbox.state == AlertState.SENT)
+                            & (AlertOutbox.created_at > window_start)
+                        ),
                     )
-                    .order_by(AlertOutbox.created_at.desc())
-                    .limit(1)
-                ).scalar_one_or_none()
-                if earlier is not None:
-                    reason = f"cooldown: the same alert was raised at {_hhmm(earlier)}"
-            state = AlertState.SUPPRESSED if reason else AlertState.PENDING
-            db.add(
-                AlertOutbox(
-                    category=category,
-                    fingerprint=fingerprint,
-                    body=body,
-                    created_at=created_at,
-                    state=state,
-                    attempts=0,
-                    next_attempt_at=created_at if state == AlertState.PENDING else None,
-                    last_error=reason,
                 )
-            )
+            ).scalar_one():
+                reason = SUPPRESSED_COOLDOWN
+            state = AlertState.SUPPRESSED if reason else AlertState.PENDING
+            # A condition that lasts (beat dead, worker-dl down) is re-raised every watchdog
+            # minute: one suppressed row per window records the decision without burying the
+            # history in identical ones.
+            insert = state == AlertState.PENDING or not db.execute(
+                select(
+                    exists().where(
+                        same,
+                        AlertOutbox.state == AlertState.SUPPRESSED,
+                        AlertOutbox.created_at > window_start,
+                    )
+                )
+            ).scalar_one()
+            if insert:
+                db.add(
+                    AlertOutbox(
+                        category=category,
+                        fingerprint=fingerprint,
+                        body=body,
+                        created_at=created_at,
+                        state=state,
+                        attempts=0,
+                        next_attempt_at=created_at if state == AlertState.PENDING else None,
+                        last_error=reason,
+                    )
+                )
     except Exception as exc:
         logger.warning("alerts: could not record %s alert (%s)", category, type(exc).__name__)
         return None
-    if state == AlertState.SUPPRESSED:
+    if state == AlertState.PENDING:
+        logger.info("alerts: %s alert recorded (fingerprint %s)", category, fingerprint)
+    elif insert:
         logger.info(
             "alerts: %s alert suppressed (%s, fingerprint %s)", category, reason, fingerprint
         )
     else:
-        logger.info("alerts: %s alert recorded (fingerprint %s)", category, fingerprint)
+        logger.debug(
+            "alerts: %s alert suppressed again (%s, fingerprint %s)", category, reason, fingerprint
+        )
     return state
 
 
@@ -368,8 +397,9 @@ def enqueue(category: str, fingerprint: str, text: str) -> None:
 
 def send_test(db: Session, text: str) -> None:
     """The settings page's test alert: sent at once, bypassing the toggles and the cooldown
-    (the point is to check the wiring), and recorded as sent or failed for the history. Never
-    retried: the admin sees the failure now, and a retry hours later would only confuse.
+    (the point is to check the wiring), and recorded as sent or failed for the history. A
+    failed send isn't retried: the admin sees the failure now. Only a request that dies
+    mid-send leaves its row to a delivery pass, after the lease, under the same transaction id.
     Raises AlertsNotConfigured or AlertSendError, as send_now does."""
     from app.models import AlertOutbox, AlertState
 
@@ -390,9 +420,13 @@ def send_test(db: Session, text: str) -> None:
         next_attempt_at=now + timedelta(seconds=DELIVERY_LEASE_SECONDS),
     )
     db.add(row)
+    db.flush()
+    body, txn = row.body, row.id.hex
     db.commit()
+    # Read before the commit: after it, touching the row would open a transaction that stays
+    # idle through the send.
     try:
-        _put(config, row.body, row.id.hex)
+        _put(config, body, txn)
     except AlertSendError as exc:
         row.state = AlertState.FAILED
         row.last_error = str(exc)
@@ -477,73 +511,86 @@ def deliver_due(make_session: Callable[[], Session], *, limit: int = DELIVERY_BA
     """One delivery pass: sends due outbox rows one at a time, each claimed in a short
     transaction of its own and sent with no transaction open (a send can hang for a while,
     and an open transaction would hold locks a deploy's migrate queues on). Stops at the first
-    failed send: the homeserver is most likely down for every row alike. Returns how many were
-    sent. Never raises."""
+    failed send (the homeserver is most likely down for every row alike) and stops claiming
+    after DELIVERY_PASS_SECONDS. One pass at a time. Returns how many were sent. Never raises."""
     from app.models import AlertOutbox, AlertState
 
     config = matrix_config()
     if config is None:
         return 0
     sent = 0
+    started = time.monotonic()
     try:
-        with make_session() as db:
-            _give_up_overdue(db, _utcnow())
-            db.commit()
-        for _ in range(limit):
+        with make_session() as lock:
+            # One pass at a time (beat's ticks on both meta slots, and the watchdog): a pass
+            # that finds one running returns at once instead of holding a slot behind it. The
+            # lock lives in this session's own transaction, which touches no table, so no
+            # migrate ever waits on it while the sends run.
+            if not lock.execute(
+                select(func.pg_try_advisory_xact_lock(DELIVERY_LOCK_KEY))
+            ).scalar_one():
+                return 0
             with make_session() as db:
-                claimed = _claim_next(db, _utcnow())
+                _give_up_overdue(db, _utcnow())
                 db.commit()
-            if claimed is None:
-                break
-            row_id, body, created_at, attempts, category, fingerprint = claimed
-            error: AlertSendError | None = None
-            try:
-                _put(config, _with_late_note(body, created_at, _utcnow()), row_id.hex)
-            except AlertSendError as exc:
-                error = exc
-            except Exception as exc:
-                # Belt and braces for "never raises": anything unforeseen is a failed send too.
-                error = AlertSendError(type(exc).__name__)
-            now = _utcnow()
-            next_attempt_at, final_state = None, None
-            with make_session() as db:
-                row = db.get(AlertOutbox, row_id, with_for_update=True)
-                if row is not None and row.state == AlertState.PENDING:
-                    if error is None:
-                        row.state = AlertState.SENT
-                        row.sent_at = now
-                        row.next_attempt_at = None
-                    else:
-                        row.last_error = str(error)
-                        if now - _aware(row.created_at) >= ALERT_GIVE_UP_AFTER:
-                            row.state = AlertState.FAILED
+            for _ in range(limit):
+                if time.monotonic() - started > DELIVERY_PASS_SECONDS:
+                    break  # the next pass (30s) picks up the rest
+                with make_session() as db:
+                    claimed = _claim_next(db, _utcnow())
+                    db.commit()
+                if claimed is None:
+                    break
+                row_id, body, created_at, attempts, category, fingerprint = claimed
+                error: AlertSendError | None = None
+                try:
+                    _put(config, _with_late_note(body, created_at, _utcnow()), row_id.hex)
+                except AlertSendError as exc:
+                    error = exc
+                except Exception as exc:
+                    # Belt and braces for "never raises": anything unforeseen is a failed send too.
+                    error = AlertSendError(type(exc).__name__)
+                now = _utcnow()
+                next_attempt_at, final_state = None, None
+                with make_session() as db:
+                    row = db.get(AlertOutbox, row_id, with_for_update=True)
+                    if row is not None and row.state == AlertState.PENDING:
+                        if error is None:
+                            row.state = AlertState.SENT
+                            row.sent_at = now
                             row.next_attempt_at = None
                         else:
-                            row.next_attempt_at = now + timedelta(
-                                seconds=backoff_seconds(attempts, error.retry_after)
-                            )
-                    next_attempt_at = row.next_attempt_at
-                    final_state = row.state
-                db.commit()
-            if error is None:
-                sent += 1
-                logger.info(
-                    "alerts: %s alert sent (fingerprint %s, attempt %s)", category, fingerprint, attempts
-                )
-                continue
-            if final_state == AlertState.FAILED:
-                logger.warning(
-                    "alerts: %s alert given up after %s attempts: %s", category, attempts, error
-                )
-            else:
-                logger.warning(
-                    "alerts: %s alert not sent (attempt %s, next at %s): %s",
-                    category,
-                    attempts,
-                    f"{next_attempt_at:%H:%M:%S}" if next_attempt_at else "-",
-                    error,
-                )
-            break
+                            row.last_error = str(error)
+                            if now - _aware(row.created_at) >= ALERT_GIVE_UP_AFTER:
+                                row.state = AlertState.FAILED
+                                row.next_attempt_at = None
+                            else:
+                                row.next_attempt_at = now + timedelta(
+                                    seconds=backoff_seconds(attempts, error.retry_after)
+                                )
+                        next_attempt_at = row.next_attempt_at
+                        final_state = row.state
+                    db.commit()
+                if error is None:
+                    sent += 1
+                    logger.info(
+                        "alerts: %s alert sent (fingerprint %s, attempt %s)", category, fingerprint, attempts
+                    )
+                    continue
+                if final_state == AlertState.FAILED:
+                    logger.warning(
+                        "alerts: %s alert given up after %s attempts: %s", category, attempts, error
+                    )
+                else:
+                    logger.warning(
+                        "alerts: %s alert not sent (attempt %s, next at %s): %s",
+                        category,
+                        attempts,
+                        f"{next_attempt_at:%H:%M:%S}" if next_attempt_at else "-",
+                        error,
+                    )
+                break
+            lock.commit()
     except Exception as exc:
         logger.warning("alerts: delivery pass failed (%s)", type(exc).__name__)
     return sent
@@ -727,7 +774,9 @@ def worker_down_since(
     open_since: datetime,
     previous: datetime | None,
 ) -> datetime | None:
-    """The moment since which due work has waited with nothing taken by worker-dl, or None.
+    """The moment since which due work has waited with nothing taken by worker-dl (None when
+    nothing is due). The caller compares it to the threshold, so a busy worker-dl, whose last
+    start keeps moving, never reaches it.
 
     The plan's signal is the newest attempt's start against the oldest due scheduled_at, but
     the due time alone misleads twice: a track that fell due during a trip only became
@@ -739,12 +788,14 @@ def worker_down_since(
     watchdog's own memory are enough (docs/GOTCHAS.md v59)."""
     if oldest_due is None:
         return None
-    if previous is not None and (consumed is None or consumed < previous):
+    if previous is not None and (consumed is None or consumed <= previous):
         return previous
-    since = max(_aware(oldest_due), open_since)
-    if consumed is not None and consumed >= since:
-        return None
-    return since
+    # Idle since the latest of the three: a worker-dl that took tracks and then died midway
+    # through a backlog is idle from its last start, however long the backlog has been due.
+    moments = [_aware(oldest_due), open_since]
+    if consumed is not None:
+        moments.append(consumed)
+    return max(moments)
 
 
 def _text(value) -> str:
@@ -825,6 +876,7 @@ class Watchdog:
         # breaker or a pause holds it), and since when the current backlog has waited.
         self._open_since: datetime | None = None
         self._backlog_since: datetime | None = None
+        self._redis_failed_this_check = False
 
     def _session(self) -> Session:
         return Session(self._engine)
@@ -834,7 +886,10 @@ class Watchdog:
         try:
             value = read()
         except redis.RedisError:
-            self.redis_outage.failed(time.time())
+            # Counted once per check, however many of its reads fail.
+            if not self._redis_failed_this_check:
+                self._redis_failed_this_check = True
+                self.redis_outage.failed(time.time())
             return None, False
         self.redis_outage.reached(time.time())
         return value, True
@@ -845,6 +900,7 @@ class Watchdog:
         from app.services import app_settings
 
         now = datetime.now(timezone.utc)
+        self._redis_failed_this_check = False
         # Everything the checks need is read first, in one snapshot, and the session closed
         # before anything is recorded or sent.
         with self._session() as db:

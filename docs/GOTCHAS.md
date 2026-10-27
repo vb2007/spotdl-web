@@ -7035,16 +7035,23 @@ independently-found production bug from the same conversation)
 - **The outbox.** `alerts.record(db, …)` inserts the row in the caller's transaction, inside a
   savepoint (an insert error is one warning, never the caller's failure). The breaker trip is
   recorded in the trip's own transaction, so a rolled-back trip leaves no row. The cooldown is
-  decided there: a pending or sent row with the same `(category, fingerprint)` inside the window
-  makes the new one `suppressed` (reason in `last_error`); a switched-off category is
-  `suppressed` too. A transaction-scoped advisory lock on the pair makes "first" unique.
+  decided there: an identical `(category, fingerprint)` row still `pending` (any age), or `sent`
+  inside the window, makes the new one `suppressed`; a switched-off category is `suppressed` too.
+  The reason is a code in `last_error` (`cooldown`, `category_off`), translated by the history
+  panel. A lasting condition (beat dead, worker-dl down) is re-raised every watchdog minute, so a
+  suppressed repeat is recorded at most once per window; and an alert that waits out a Matrix
+  outage reaches the room once, not once per hour of it (review round 1). A transaction-scoped
+  advisory lock on the pair makes "first" unique.
 - **Delivery.** `deliver_due` claims one row at a time (attempts + 1, `next_attempt_at` a 120 s
   lease ahead) in a short transaction, sends with no transaction open, then records the outcome.
   Only the oldest pending row of each category is eligible, so a release never overtakes a
   backing-off trip. Backoff is 30 s, 2 min, 10 min, then hourly; a row still unsent 24 h after it
-  was raised is `failed`. A pass stops at its first failed send. Beat runs it every 30 s
-  (`deliver_alerts`, `expires=25`), and **the watchdog runs one after every check**: a dead
-  beat must still get its own alert out. Two deliverers are safe because of the lease.
+  was raised is `failed`. A pass stops at its first failed send, and stops claiming after 20 s.
+  Beat runs it every 30 s (`deliver_alerts`, `expires=25`), and **the watchdog runs one after
+  every check**: a dead beat must still get its own alert out. Only one pass runs at a time
+  (`pg_try_advisory_xact_lock`, held by a session of its own that touches no table, so no migrate
+  waits on it): a slow homeserver can't take both of worker-meta's slots from beat's dispatch
+  (review round 1). The lease still covers a pass that dies mid-send.
 - **The Matrix transaction id is the row id.** Synapse answers a repeated PUT under the same txn
   with the first event's id and posts nothing (verified: a hand re-PUT of a delivered row's id
   returned the same `event_id`, and the room kept one copy). Synapse keeps txn ids for about 30
@@ -7057,10 +7064,15 @@ independently-found production bug from the same conversation)
 - **A late delivery says so**: a row sent more than 2 min after it was raised gets "(raised
   YYYY-MM-DD HH:MM UTC, delivered late)", so "paused for 30m" read hours later isn't read as now.
 - **The test alert** is recorded too (inserted already claimed, sent at once, then `sent` or
-  `failed`, never retried), so the history shows it.
+  `failed`; a failed one isn't retried, only a request that died mid-send is finished by a pass
+  after the lease), so the history shows it. Its body and id are read before the commit: reading
+  an expired row after it opens a transaction that stays idle through the send.
 - **O4, worker down: the signal.** The newest worker-written attempt's `started_at` (beat's
   reclaim rows excluded: they're recorded on a stuck invocation's behalf) or a `downloading`
-  track's `updated_at`, against the oldest due track. The due time alone misleads twice: a track
+  track's `updated_at`, against the oldest due track. Idle is measured from the latest of the
+  oldest due time, the breaker's release and that last start, so a worker-dl that took a few
+  tracks and then died midway through a backlog is caught too (review round 1; the first cut
+  only compared the start with the due time). The due time alone misleads twice: a track
   due during a trip only became dispatchable at the release, and beat's stale sweep rewrites a
   stuck track's `scheduled_at` to its own tick every `STALE_TRACK_AFTER_SECONDS` (1800 s in
   production), so it never ages past a longer threshold. The watchdog therefore remembers the
@@ -7075,6 +7087,10 @@ independently-found production bug from the same conversation)
   down (N checks)" line every 10 min, and a recovery line. The watchdog keeps its database checks
   (release, worker-down) and the delivery pass running through the outage; only beat-stale,
   worker-down (beat's state is unknown) and spike (its "newest seen" key) skip.
+- **A `pending` track with a NULL `scheduled_at` that was never really sent** (a pre-v56
+  stranded one) reads as worker-dl down once the watchdog has run a threshold. Before deploying,
+  count them: `select count(*) from tracks where state = 'pending' and scheduled_at is null and
+  updated_at < now() - interval '1 hour'`.
 - **Deploy:** a v36 `send_alert` message still in the broker at deploy time is recorded into the
   outbox by the kept task. A trip open at deploy time has no outbox row, so its release isn't
   announced (the Redis marker is ignored).

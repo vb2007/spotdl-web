@@ -918,6 +918,8 @@
 	"stats_alert_next_try": "next try {time}",
 	"stats_alert_reason_held": "Why:",
 	"stats_alert_reason_error": "Last error:",
+	"stats_alert_held_cooldown": "the same alert is still waiting to go out, or went out within the repeat interval set in settings.",
+	"stats_alert_held_category_off": "this kind of alert is switched off in settings.",
 	"stats_breaker_no_hold": "The breaker didn’t hold in this window.",
 	"stats_breaker_held": [
 		{

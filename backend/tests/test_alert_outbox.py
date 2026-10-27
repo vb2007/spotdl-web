@@ -86,9 +86,25 @@ def test_cooldown_decisions_are_recorded_as_suppressed(configured, db_session, c
     assert _record(db_session, "breaker", "no_output", "four") == AlertState.PENDING
     suppressed = [r for r in _rows(db_session) if r.state == AlertState.SUPPRESSED]
     assert len(suppressed) == 1
-    assert suppressed[0].last_error.startswith("cooldown: the same alert was raised at ")
+    assert suppressed[0].last_error == alerts.SUPPRESSED_COOLDOWN
     assert suppressed[0].next_attempt_at is None
     assert "spike alert suppressed (cooldown" in caplog.text
+
+
+def test_a_lasting_condition_records_one_suppressed_row_per_window(configured, db_session):
+    """Beat dead for hours: the watchdog re-raises it every minute (review round 1)."""
+    for _ in range(5):
+        _record(db_session, "beat_stale", "stale")
+    assert [r.state for r in _rows(db_session)] == [AlertState.PENDING, AlertState.SUPPRESSED]
+
+
+def test_a_still_pending_alert_covers_its_repeat_whatever_its_age(configured, db_session):
+    """Matrix down for hours: the room gets the alert once when it's back, not once an hour."""
+    _record(db_session, "beat_stale", "stale")
+    (first,) = _rows(db_session)
+    first.created_at = first.created_at - timedelta(hours=10)
+    db_session.commit()
+    assert _record(db_session, "beat_stale", "stale") == AlertState.SUPPRESSED
 
 
 def test_the_cooldown_window_comes_from_settings(configured, db_session):
@@ -96,6 +112,7 @@ def test_the_cooldown_window_comes_from_settings(configured, db_session):
     db_session.commit()
     _record(db_session, "spike", "x")
     (first,) = _rows(db_session)
+    first.state = AlertState.SENT
     first.created_at = first.created_at - timedelta(minutes=2)
     db_session.commit()
     assert _record(db_session, "spike", "x") == AlertState.PENDING
@@ -116,7 +133,7 @@ def test_a_switched_off_category_is_recorded_suppressed(configured, db_session):
     db_session.commit()
     assert _record(db_session, "library", "run1") == AlertState.SUPPRESSED
     (row,) = _rows(db_session)
-    assert row.last_error == "category switched off in settings"
+    assert row.last_error == alerts.SUPPRESSED_CATEGORY_OFF
 
 
 def test_recording_never_breaks_the_callers_transaction(configured, db_session, monkeypatch, caplog):
@@ -333,6 +350,43 @@ def test_deliver_due_never_raises(configured, db_session, sessions, monkeypatch,
     assert alerts.deliver_due(no_database) == 0
 
 
+@pytest.fixture()
+def committed_lock():
+    """Another process's delivery pass in flight: the lock held on a connection of its own."""
+    from sqlalchemy import create_engine, func
+    from sqlalchemy.pool import NullPool
+
+    from app.db import engine
+
+    other = create_engine(engine.url, poolclass=NullPool)
+    with other.connect() as conn:
+        conn.execute(select(func.pg_advisory_lock(alerts.DELIVERY_LOCK_KEY)))
+        yield
+        conn.execute(select(func.pg_advisory_unlock(alerts.DELIVERY_LOCK_KEY)))
+    other.dispose()
+
+
+def test_one_delivery_pass_at_a_time(configured, db_session, sessions, homeserver, clock, committed_lock):
+    _record(db_session, "library", "run1")
+    assert alerts.deliver_due(sessions) == 0
+    assert homeserver.requests == []
+
+
+def test_a_pass_stops_claiming_after_its_budget(
+    configured, db_session, sessions, homeserver, clock, monkeypatch
+):
+    for i in range(3):
+        _record(db_session, "library", f"run{i}")
+    ticks = [0.0, 1.0]  # the pass's start, then its first claim; later reads are past it
+
+    def monotonic():
+        return ticks.pop(0) if ticks else alerts.DELIVERY_PASS_SECONDS + 1
+
+    monkeypatch.setattr(alerts.time, "monotonic", monotonic)
+    assert alerts.deliver_due(sessions) == 1  # the other two wait for the next pass
+    assert [r.state for r in _rows(db_session)].count(AlertState.PENDING) == 2
+
+
 def test_deliver_due_is_a_noop_when_unconfigured(db_session, sessions, homeserver):
     db_session.add(
         AlertOutbox(
@@ -523,17 +577,17 @@ def test_worker_down_since_rules():
     since = alerts.worker_down_since
     # Nothing due: nothing owed.
     assert since(None, _at(0), _at(-60), None) is None
-    # Something started after the oldest due track fell due: worker-dl is alive.
-    assert since(_at(0), _at(5), _at(-60), None) is None
-    # Nothing since: unconsumed from the due time...
+    # Idle from the latest of: the oldest due time, dispatch reopening, the last start...
     assert since(_at(0), _at(-10), _at(-60), None) == _at(0)
-    # ...or from when dispatch reopened, if that came later (a trip held it).
     assert since(_at(0), _at(-10), _at(20), None) == _at(20)
     assert since(_at(0), None, _at(-60), None) == _at(0)
+    # ...so a worker-dl that took tracks and then died midway through a backlog is idle from
+    # its last start (review round 1), and a busy one's keeps moving.
+    assert since(_at(0), _at(5), _at(-60), None) == _at(5)
     # Beat's stale sweep rewrites scheduled_at to its tick: the first moment is kept.
     assert since(_at(30), _at(-10), _at(-60), _at(0)) == _at(0)
     # Until something is consumed after it.
-    assert since(_at(30), _at(31), _at(-60), _at(0)) is None
+    assert since(_at(30), _at(31), _at(-60), _at(0)) == _at(31)
 
 
 @pytest.fixture()
@@ -569,6 +623,28 @@ def test_worker_down_counts_tracks_expand_job_already_sent(configured, watchdog,
     (row,) = _rows(db_session, "worker_down")
     assert "1 track(s) are due" in row.body
     assert "for at least 30m (none recorded yet)" in row.body
+
+
+def test_worker_down_fires_when_worker_dl_dies_midway_through_a_backlog(
+    configured, watchdog, db_session, backlog
+):
+    """It took a track after the backlog fell due, then nothing for longer than the threshold."""
+    _attempt(db_session, backlog, 20, TrackAttemptOutcome.COMPLETED)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    (row,) = _rows(db_session, "worker_down")
+    assert "no download has started for at least 20m" in row.body
+
+
+def test_worker_down_is_silent_while_worker_dl_keeps_starting_tracks(
+    configured, watchdog, db_session, backlog
+):
+    _attempt(db_session, backlog, 1, TrackAttemptOutcome.COMPLETED)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
 
 
 def test_worker_down_waits_its_threshold(configured, watchdog, db_session, backlog):
