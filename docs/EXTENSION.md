@@ -5,12 +5,35 @@ albums, artists and playlists on `open.spotify.com`; a click sends that item str
 spotdl-web queue, and a right-click offers the item's album or artist instead. It's Firefox only,
 Manifest V3, and has its own version (`extension/manifest.json`), separate from the app's.
 
-Signing, the XPI release and auto-update come in v61. Until then it runs unsigned, as a temporary
-add-on.
+Since v61 it's released as an **AMO-signed, unlisted** XPI: addons.mozilla.org signs it, but
+never lists it, so it's installed from this repository's GitHub releases and updates itself from
+there.
 
-## Install (temporary, unsigned)
+## Install
 
-Firefox 153 (the current ESR) or newer.
+Firefox 153 (the current ESR) or newer, any release channel.
+
+1. Open the newest `extension-v<version>` release on
+   [the releases page](https://github.com/vb2007/spotdl-web/releases) (it's never the one marked
+   *Latest*: that badge is the app's) and click its `spotdl-web-<version>.xpi`.
+2. Firefox asks to install *spotdl-web*: confirm, and allow what it asks for (below).
+
+It's a permanent install: it survives restarts, and `about:addons` lists it like any other
+add-on. Then set it up (next section).
+
+### Updates
+
+The manifest's `update_url` is
+`https://github.com/vb2007/spotdl-web/releases/download/extension-updates/updates.json`: the
+fixed `extension-updates` release, which always carries the newest update manifest. Firefox
+checks it on its own, about once a day, and installs a newer version without asking (unless it
+asks for new permissions). To check at once: `about:addons` → the gear → *Check for Updates*.
+
+The update manifest lists every released version, its XPI's sha256 and the oldest Firefox it
+needs; Firefox installs the newest one it meets. Don't delete the `extension-updates` release or
+its `updates.json`: an installed copy only ever reads the `update_url` it was installed with.
+
+### Temporary, unsigned (development)
 
 - **From the source tree:** `about:debugging#/runtime/this-firefox` → *Load Temporary Add-on…* →
   pick `extension/manifest.json`. It stays until Firefox restarts.
@@ -97,15 +120,49 @@ principal that made it) found the extension contacting only the configured app o
   for it (`plan/master-v5/00-master-plan.md`, Amendments).
 - The Spotify desktop app (not a web page), and Chrome.
 
+## Cutting an extension release
+
+1. Change `extension/` as needed, and raise `extension/manifest.json`'s `version` (its own semver,
+   independent of the app's). CI's `version` job refuses a PR that touches `extension/` without
+   raising it above `main`'s, and a PR that touches only `extension/` needs no app bump.
+2. Merge. The merge's "Release & Deploy" run (`docs/RELEASE_PIPELINE.md`) finds the version
+   above every released one, and its `extension-release` job (`.github/workflows/extension-release.yml`):
+   - signs it on AMO, unlisted (`web-ext sign --channel unlisted`, `npm run sign`), waiting for
+     AMO's automatic signing;
+   - checks the XPI carries Mozilla's signature and the right version;
+   - creates the `extension-v<version>` release with `spotdl-web-<version>.xpi` and
+     `updates.json`, never marked *Latest*;
+   - puts the new `updates.json` on the fixed `extension-updates` release, which installed copies
+     read.
+
+   A merge that doesn't raise the version runs no extension job at all.
+
+**Credentials.** Signing needs AMO API credentials as two repository secrets, `AMO_JWT_ISSUER`
+and `AMO_JWT_SECRET` (addons.mozilla.org → Developer Hub → *Manage API Keys*: the JWT issuer and
+JWT secret). Without them the job fails, naming the missing secret, and the run's Matrix notice
+names `extension-release`. Nothing is released then: Firefox installs only a signed XPI.
+
+**Re-running.** AMO never takes the same version twice. A run that failed after AMO signed the
+version (the GitHub release failed, say) re-runs fine (`gh run rerun <id> --failed`): the job
+finds the version already on AMO and downloads its signed file instead of signing again. A
+version already released is a successful no-op that only makes sure `updates.json` lists it.
+
+**By hand.** *Actions* → *Extension Release* → *Run workflow* releases the chosen ref's version,
+the same way. From a branch, that's an unmerged build every installed copy will update to; the
+run says so.
+
 ## Development
 
 ```bash
 cd extension
 npm ci
 npm test        # node:test: fixtures, background client, _locales parity, manifest
-npm run lint    # web-ext lint
+npm run lint    # web-ext lint --self-hosted (CI's `extension` job runs it, the parity check and the tests)
 npm start       # web-ext run
 ```
+
+`--self-hosted` because `update_url` is allowed only on an add-on AMO doesn't host; the linter
+refuses it otherwise.
 
 - **Selectors** live in `content/selectors.js` alone. They use `data-testid`, `data-encore-id` and
   ARIA, never class names. An item's identity is always a `/track/`, `/album/`, `/artist/` or
