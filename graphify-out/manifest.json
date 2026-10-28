@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1793139446.5713477,
-    "ast_hash": "f63a562547cd22ddea5e6738f79a9f52",
+    "mtime": 1793144126.2205107,
+    "ast_hash": "d862d68b60c7eef4e5fcd912e89ac9b2",
     "semantic_hash": ""
   },
   "README.md": {
@@ -45,9 +45,9 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "backend/app/routers/health.py": {
-    "mtime": 1793139446.5726333,
-    "ast_hash": "23d27ec5ca7ed7e0dccd7a0e46057df9",
-    "semantic_hash": "23d27ec5ca7ed7e0dccd7a0e46057df9"
+    "mtime": 1793149539.424147,
+    "ast_hash": "f2ad3c62c95c0c2580fc58238e1cb6b2",
+    "semantic_hash": ""
   },
   "backend/app/services/__init__.py": {
     "mtime": 1793139446.5726333,
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793144016.6589983,
-    "ast_hash": "098c22dad91570bcd75720457a044d4b",
+    "mtime": 1793156561.5001643,
+    "ast_hash": "40736573a3fa95bb35d2a76c85e58515",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1070,8 +1070,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/alerts.py": {
-    "mtime": 1793142313.2238176,
-    "ast_hash": "2f94e4b09df5afc8c9b30ecf2baf1442",
+    "mtime": 1793157309.120753,
+    "ast_hash": "5010d1d7d2cf0af7ff9a046a774159b2",
     "semantic_hash": ""
   },
   "backend/app/services/redaction.py": {
@@ -1380,8 +1380,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/13-admin-stats.e2e.ts": {
-    "mtime": 1793139446.5807557,
-    "ast_hash": "121310d250aa02450037834b9b49d490",
+    "mtime": 1793150438.9143832,
+    "ast_hash": "8528d4371ed44461644fd01de8f684b2",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/stats/FailureChannels.svelte": {
@@ -1405,8 +1405,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/stats/+page.svelte": {
-    "mtime": 1793142125.6004503,
-    "ast_hash": "66c1feb0365dd47de0977be343c832bd",
+    "mtime": 1793149634.141364,
+    "ast_hash": "63e9c7f49fd7dc65fc31ef7a9e834f2a",
     "semantic_hash": ""
   },
   "frontend/src/.impeccable/surfaces/frontend-src-routes-stats-page-svelte.md": {
@@ -1505,13 +1505,13 @@
     "semantic_hash": ""
   },
   "frontend/messages/en.json": {
-    "mtime": 1793142624.8305278,
-    "ast_hash": "a75cde7d92bd12e651e89e05c48ab0ee",
+    "mtime": 1793157309.5728066,
+    "ast_hash": "effef2f1f1c7ed4fe96a4130c67cc2b3",
     "semantic_hash": ""
   },
   "frontend/messages/hu.json": {
-    "mtime": 1793142624.8308215,
-    "ast_hash": "e02f9ff34f0e547c939ceeadf8cb8cbe",
+    "mtime": 1793157309.6048079,
+    "ast_hash": "1a7a76ac153ff50c8a76b36411535ae4",
     "semantic_hash": ""
   },
   "frontend/project.inlang/settings.json": {
@@ -1740,8 +1740,8 @@
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/ddfcc3e2c6047561.json": {
-    "mtime": 1793142626.448943,
-    "ast_hash": "458adb80253ab3718bf0ba67d6bc9da0",
+    "mtime": 1793157311.5286157,
+    "ast_hash": "c61cefb253e83b469084f4a921b8820c",
     "semantic_hash": ""
   },
   "scripts/agent_seed.py": {
@@ -2100,13 +2100,18 @@
     "semantic_hash": ""
   },
   "backend/tests/test_alert_outbox.py": {
-    "mtime": 1793142313.2239487,
-    "ast_hash": "7163d2d190fa49f78d5782e075911e3d",
+    "mtime": 1793157309.1208446,
+    "ast_hash": "bb0f384f2ec54e959366a6aa63cab743",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/stats/AlertHistory.svelte": {
-    "mtime": 1793142624.8309643,
-    "ast_hash": "776dc4478caa9b1c8e201e3a799de00c",
+    "mtime": 1793149634.1414466,
+    "ast_hash": "87c4ef72262a05267c00a65c447168a5",
+    "semantic_hash": ""
+  },
+  "frontend/project.inlang/cache/paraglide-js/cd63da1661e95993.json": {
+    "mtime": 1793158521.8959498,
+    "ast_hash": "598802e9ca00e602562ed7a6524c033a",
     "semantic_hash": ""
   }
 }
