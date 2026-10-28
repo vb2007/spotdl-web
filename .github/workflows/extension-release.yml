@@ -250,7 +250,8 @@ jobs:
 
       # Exactly one XPI, AMO-signed (it carries Mozilla's signature files), of this version, and
       # built from this commit's extension/: every file in it, apart from the signature, equals
-      # the checkout's. A file AMO already held (fetched) that differs was signed from other
+      # the checkout's (manifest.json as JSON: AMO re-serializes it when it signs, v61.1). A
+      # file AMO already held (fetched) that differs was signed from other
       # content, so releasing it would ship the wrong code under this version: that fails. A
       # difference in a file signed just now would be AMO's own doing: a warning, recorded.
       - name: Check the signed XPI
@@ -286,7 +287,16 @@ jobs:
           if manifest.get("version") != version:
               sys.exit(f"::error::{path} is version {manifest.get('version')!r}, not {version}")
           signed, source = files(path), files(unsigned)
-          differ = sorted(n for n in signed.keys() | source.keys() if signed.get(n) != source.get(n))
+          def same(name):
+              a, b = signed.get(name), source.get(name)
+              # AMO re-serializes manifest.json when it signs (its indentation changes): compared
+              # as JSON, or every fetched file would read as other content (v61.1). Canonical dumps,
+              # not ==, which would take true for 1.
+              if name == "manifest.json" and a is not None and b is not None:
+                  canon = lambda raw: json.dumps(json.loads(raw), sort_keys=True)
+                  return canon(a) == canon(b)
+              return a == b
+          differ = sorted(n for n in signed.keys() | source.keys() if not same(n))
           if differ:
               shown = ", ".join(differ[:10]) + (" …" if len(differ) > 10 else "")
               if os.environ.get("FETCHED") == "true":
@@ -296,7 +306,7 @@ jobs:
                            f"otherwise raise the version and release that.")
               print(f"::warning::The XPI AMO just signed differs from the source in: {shown}")
           print(f"{path}: signed, version {version}, {len(signed)} files"
-                + ("" if differ else ", identical to this commit's extension/"))
+                + ("" if differ else ", matching this commit's extension/"))
           EOF
 
       # The update manifest lists every released version; Firefox installs the newest whose
