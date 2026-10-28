@@ -7106,7 +7106,10 @@ independently-found production bug from the same conversation)
   min (review round 5). Its text says "isn't taking due tracks … worker-dl is down or stuck, or
   these tracks' queue messages were lost" (a `pending` track whose broker message was lost looks
   the same from the database), and names no "oldest due since": the stale sweep rewrites that,
-  so it could read later than the idle time beside it (live review round 2). **Accepted
+  so it could read later than the idle time beside it (live review round 2). While beat is
+  stale or Redis is out, dispatch counts as closed too: their return restarts the clock with a
+  full threshold, as a breaker release does, or a standing backlog read as "down" the moment
+  they were back (review round 6). **Accepted
   trade-off:** a worker-dl killed mid-download leaves its track `downloading`, which reads as
   busy until beat's stale sweep reclaims it, so that case is announced after
   `STALE_TRACK_AFTER_SECONDS` + the threshold (~45 min in production), not the threshold.

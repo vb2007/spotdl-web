@@ -1074,3 +1074,43 @@ def test_beat_gets_grace_after_a_redis_outage(configured, watchdog, db_session, 
     monkeypatch.setattr(alerts, "_redis", real)
     watchdog.check_once()  # Redis is back; beat hasn't ticked yet
     assert _rows(db_session, "beat_stale") == []
+
+
+def test_worker_down_gives_dispatch_grace_after_a_redis_outage(
+    configured, watchdog, db_session, backlog, fake_redis, monkeypatch
+):
+    """A standing backlog through a Redis outage: nothing reached worker-dl meanwhile, so its
+    return isn't "down" (review round 6)."""
+    import redis
+
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    real = alerts._redis
+    monkeypatch.setattr(alerts, "_redis", lambda: (_ for _ in ()).throw(redis.ConnectionError("down")))
+    watchdog.check_once()  # the outage
+    monkeypatch.setattr(alerts, "_redis", real)
+    fake_redis.store[alerts.BEAT_HEARTBEAT_KEY] = f"{time.time():.3f}"
+    watchdog.check_once()  # back: beat ticks again, the backlog is still there
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_a_delivered_test_alert_is_a_success_even_if_its_record_fails(
+    configured, db_session, homeserver, monkeypatch
+):
+    real_execute = db_session.execute
+    sent = []
+
+    def execute(stmt, *a, **k):
+        if sent and getattr(stmt, "is_update", False):
+            raise RuntimeError("connection dropped")
+        return real_execute(stmt, *a, **k)
+
+    real_put = alerts._put
+
+    def put(config, body, txn):
+        real_put(config, body, txn)
+        sent.append(txn)
+
+    monkeypatch.setattr(alerts, "_put", put)
+    monkeypatch.setattr(db_session, "execute", execute)
+    alerts.send_test(db_session, "Test alert.")  # doesn't raise
+    assert homeserver.messages == ["[spotdl-web] Test alert."]

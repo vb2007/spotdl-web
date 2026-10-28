@@ -470,12 +470,19 @@ def send_test(db: Session, text: str) -> None:
         if error is None
         else {"state": AlertState.FAILED, "last_error": str(error), "next_attempt_at": None}
     )
-    db.execute(
-        update(AlertOutbox)
-        .where(AlertOutbox.id == row_id, AlertOutbox.state == AlertState.PENDING)
-        .values(**values)
-    )
-    db.commit()
+    try:
+        db.execute(
+            update(AlertOutbox)
+            .where(AlertOutbox.id == row_id, AlertOutbox.state == AlertState.PENDING)
+            .values(**values)
+        )
+        db.commit()
+    except Exception as exc:
+        # The send's own answer is what the admin asked for: a failed history write mustn't
+        # turn a delivered test into a 500 (the leased row is sent again under the same txn
+        # by a pass, which posts nothing new; review round 6).
+        db.rollback()
+        logger.warning("alerts: test alert outcome not recorded (%s)", type(exc).__name__)
     if error is not None:
         raise error
 
@@ -1101,11 +1108,17 @@ class Watchdog:
             self._open_since = None
             self._backlog_since = None
             return
+        if not beat_alive:
+            # Beat isn't dispatching (its own alert covers that; a worker-dl with nothing
+            # dispatched to it isn't down), and while Redis is out nothing reaches worker-dl
+            # either. Dispatch reopens when they're back, with a full threshold of grace, as
+            # after a breaker release (review round 6).
+            self._open_since = None
+            self._backlog_since = None
+            return
         if self._open_since is None:
             self._open_since = now
-        if backlog is None or not beat_alive:
-            # Off, or beat isn't dispatching (its own alert covers that; a worker-dl with
-            # nothing dispatched to it isn't down).
+        if backlog is None:
             self._backlog_since = None
             return
         oldest_due, count, consumed = backlog
