@@ -247,12 +247,12 @@ def test_a_due_row_is_sent_under_its_own_id_as_the_transaction(
     assert alerts.deliver_due(sessions) == 0
 
 
-def test_a_failed_send_backs_off_30s_2m_10m_then_hourly(
+def test_a_failed_send_backs_off_30s_2m_10m_then_every_20m(
     configured, db_session, sessions, homeserver, clock
 ):
     _record(db_session, "beat_stale", "stale")
     homeserver.answer(*["unreachable"] * 6)
-    for attempts, wait in ((1, 30), (2, 120), (3, 600), (4, 3600), (5, 3600)):
+    for attempts, wait in ((1, 30), (2, 120), (3, 600), (4, 1200), (5, 1200)):
         assert alerts.deliver_due(sessions) == 0
         (row,) = _rows(db_session)
         db_session.refresh(row)
@@ -266,7 +266,7 @@ def test_a_failed_send_backs_off_30s_2m_10m_then_hourly(
         clock.advance(wait)
     assert alerts.deliver_due(sessions) == 0  # the 6th "unreachable"
     assert alerts.deliver_due(sessions) == 0  # backing off again
-    clock.advance(3600)
+    clock.advance(1200)
     assert alerts.deliver_due(sessions) == 1
     assert len(homeserver.messages) == 1
     assert len({r["txn"] for r in homeserver.requests}) == 1
@@ -665,8 +665,8 @@ def test_worker_down_fires_with_due_work_and_the_breaker_closed(configured, watc
     watchdog.check_once()
     (row,) = _rows(db_session, "worker_down")
     assert row.fingerprint == "stalled"
-    assert row.body.startswith("[spotdl-web] worker-dl looks down: 1 track(s) are due (the oldest since ")
-    assert "no download has started for at least 40m (the last one started " in row.body
+    assert row.body.startswith("[spotdl-web] worker-dl isn't taking due tracks: 1 track(s) are due (the oldest since ")
+    assert "no download has started for at least 40m (the last one ended " in row.body
 
 
 def test_worker_down_counts_tracks_expand_job_already_sent(configured, watchdog, db_session, make_user):
@@ -872,3 +872,101 @@ def test_the_history_is_404_for_a_non_admin_and_401_signed_out(authenticated_cli
     assert response.json() == {"detail": "Not Found"}
     authenticated_client.cookies.clear()
     assert authenticated_client.get("/api/admin/alerts").status_code == 401
+
+
+def test_a_bare_400_backs_off_like_the_homeserver_s_problem(configured, db_session, sessions, homeserver, clock):
+    """A proxy's 400 or a malformed room id isn't one message's fault (review round 3)."""
+    _record(db_session, "library", "run1", "one")
+    homeserver.answer((400, {"errcode": "M_INVALID_PARAM", "error": "bad room id"}))
+    alerts.deliver_due(sessions)
+    (row,) = _rows(db_session)
+    assert row.state == AlertState.PENDING and row.attempts == 1
+
+
+def test_matrix_s_bad_json_errcode_is_one_message_s_fault(configured, db_session, sessions, homeserver, clock):
+    _record(db_session, "library", "run1", "one")
+    _record(db_session, "library", "run2", "two")
+    homeserver.answer((400, {"errcode": "M_BAD_JSON", "error": "no"}))
+    assert alerts.deliver_due(sessions) == 1
+    assert [r.state for r in _rows(db_session)] == [AlertState.FAILED, AlertState.SENT]
+
+
+def test_a_category_switched_off_before_its_send_is_held_back(configured, db_session, sessions, homeserver, clock):
+    """Raised during an outage, switched off before the homeserver is back (review round 3)."""
+    _record(db_session, "spike", "no_output", "spike")
+    _record(db_session, "library", "run1", "sweep")
+    app_settings.update_alert_settings(db_session, alerts_spike_enabled=False)
+    db_session.commit()
+    assert alerts.deliver_due(sessions) == 1
+    assert homeserver.messages == ["[spotdl-web] sweep"]
+    spike = _rows(db_session, "spike")[0]
+    assert (spike.state, spike.last_error) == (AlertState.SUPPRESSED, alerts.SUPPRESSED_CATEGORY_OFF)
+
+
+def test_every_backoff_wait_stays_inside_synapse_s_txn_memory():
+    assert max(alerts.DELIVERY_BACKOFF_SECONDS) < 30 * 60
+
+
+def test_the_test_alert_still_sends_when_it_cant_be_recorded(admin_client, configured, homeserver, monkeypatch):
+    import app.models
+
+    def missing_table(**kwargs):
+        raise RuntimeError("relation alert_outbox does not exist")
+
+    monkeypatch.setattr(app.models, "AlertOutbox", missing_table)
+    assert admin_client.post("/api/settings/alerts/test").json() == {"sent": True}
+    assert homeserver.messages[0].startswith("[spotdl-web] Test alert")
+
+
+def test_worker_down_reads_a_merged_hold_by_its_end(configured, watchdog, db_session, backlog):
+    """v55 merges repeated holds into one row that keeps its first start: its end is when
+    worker-dl last touched it (review round 3)."""
+    finished = datetime.now(timezone.utc) - timedelta(minutes=1)
+    db_session.add(
+        TrackAttempt(
+            track_id=backlog.id, attempt_number=99,
+            started_at=finished - timedelta(hours=3), finished_at=finished,
+            outcome=TrackAttemptOutcome.HELD,
+        )
+    )
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_the_health_check_logs_a_redis_outage_once(monkeypatch, caplog):
+    import contextlib
+
+    import redis
+    from fastapi import Response
+
+    from app.routers import health
+
+    class Postgres:
+        def connect(self):
+            return contextlib.nullcontext(type("Conn", (), {"execute": lambda self, q: None})())
+
+    monkeypatch.setattr(health, "engine", Postgres())
+
+    class Down:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def ping(self):
+            raise redis.ConnectionError("Error 111")
+
+    monkeypatch.setattr(health.Redis, "from_url", lambda *a, **k: Down())
+    monkeypatch.setattr(health, "_redis_outage", alerts.RedisOutageLog(
+        health.logger, prefix="Health check", first="Redis unreachable", level=logging.ERROR
+    ))
+    for _ in range(5):
+        response = Response()
+        assert health.health(response) == {"status": "error", "failing": ["redis"]}
+        assert response.status_code == 503
+    lines = [r for r in caplog.records if r.name == "app.routers.health"]
+    assert [r.getMessage() for r in lines] == ["Health check: Redis unreachable"]
+    assert lines[0].exc_info is not None

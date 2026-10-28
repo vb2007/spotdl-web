@@ -102,7 +102,9 @@ USER_AGENT = "spotdl-web-alerts/1 (+https://github.com/vb2007/spotdl-web)"
 
 # v59: the outbox's delivery schedule. A failed send waits the next step (the last one
 # repeats); a 429's own retry_after is honoured when it is longer.
-DELIVERY_BACKOFF_SECONDS = (30, 120, 600, 3600)
+# Every wait stays under Synapse's ~30 min transaction-id memory (review round 3): a retry
+# right after a send whose answer was lost then lands on the same txn and posts nothing.
+DELIVERY_BACKOFF_SECONDS = (30, 120, 600, 1200)
 ALERT_GIVE_UP_AFTER = timedelta(hours=24)
 ALERT_RETENTION = timedelta(days=30)
 # A claimed row is held this far ahead while its send runs (three 10s phases, plus DNS):
@@ -126,8 +128,10 @@ DELIVERY_PASS_SECONDS = 20.0
 
 _ENV_VARS = ("MATRIX_HOMESERVER_URL", "MATRIX_ACCESS_TOKEN", "MATRIX_ROOM_ID")
 # Refusals about one message, not the homeserver: that row is given up at once and the pass
-# goes on, so it can't hold its category back for 24h (review round 2).
-ROW_ONLY_STATUSES = (400, 413)
+# goes on, so it can't hold its category back for 24h (review round 2). Only a 413 or Matrix's
+# own errcodes for a body it won't take: a bare 400 is as likely a proxy or a malformed room id,
+# which is every row's problem, and backs off like a 5xx (review round 3).
+ROW_ONLY_ERRCODES = ("M_NOT_JSON", "M_BAD_JSON", "M_TOO_LARGE")
 
 
 class MatrixConfig(NamedTuple):
@@ -202,6 +206,14 @@ def format_body(text: str) -> str:
 _SAFE_TEXT_ERRORS = (httpx.ConnectError, httpx.TimeoutException, httpx.NetworkError)
 
 
+def _errcode(response: httpx.Response) -> str | None:
+    try:
+        value = response.json().get("errcode")
+    except Exception:
+        return None
+    return value if isinstance(value, str) else None
+
+
 def _retry_after(response: httpx.Response) -> float | None:
     try:
         value = response.json().get("retry_after_ms")
@@ -245,8 +257,7 @@ def _put(config: MatrixConfig, body: str, txn_id: str) -> None:
         raise AlertSendError(
             redact_text(f"HTTP {response.status_code}: {response.text[:200]}"),
             retry_after=_retry_after(response) if response.status_code == 429 else None,
-            # 400 (a body Matrix won't take) and 413 (too large) are about this message alone.
-            row_only=response.status_code in ROW_ONLY_STATUSES,
+            row_only=response.status_code == 413 or _errcode(response) in ROW_ONLY_ERRCODES,
         )
 
 
@@ -419,19 +430,27 @@ def send_test(db: Session, text: str) -> None:
     # Inserted already claimed (attempts 1, a lease ahead), so no delivery pass picks it up
     # while this request sends it; if the request dies mid-send, the lease runs out and a
     # pass finishes it, under the same transaction id.
-    row = AlertOutbox(
-        category=CATEGORY_TEST,
-        fingerprint=uuid.uuid4().hex,
-        body=format_body(text),
-        created_at=now,
-        state=AlertState.PENDING,
-        attempts=1,
-        next_attempt_at=now + timedelta(seconds=DELIVERY_LEASE_SECONDS),
-    )
-    db.add(row)
-    db.flush()
-    row_id, body, txn = row.id, row.body, row.id.hex
-    db.commit()
+    try:
+        row = AlertOutbox(
+            category=CATEGORY_TEST,
+            fingerprint=uuid.uuid4().hex,
+            body=format_body(text),
+            created_at=now,
+            state=AlertState.PENDING,
+            attempts=1,
+            next_attempt_at=now + timedelta(seconds=DELIVERY_LEASE_SECONDS),
+        )
+        db.add(row)
+        db.flush()
+        row_id, body, txn = row.id, row.body, row.id.hex
+        db.commit()
+    except Exception as exc:
+        # The wiring check must work even when the history can't be written (mid-deploy, the
+        # table not migrated yet): send it unrecorded (review round 3).
+        db.rollback()
+        logger.warning("alerts: test alert not recorded (%s); sending it anyway", type(exc).__name__)
+        _put(config, format_body(text), uuid.uuid4().hex)
+        return
     # Read before the commit: after it, touching the row would open a transaction that stays
     # idle through the send.
     error: AlertSendError | None = None
@@ -501,24 +520,37 @@ def _claim_next(db: Session, now: datetime):
     that trip backs off). Returns (id, body, created_at, attempts) or None."""
     from app.models import AlertOutbox, AlertState
 
+    from app.services import app_settings
+
+    settings_row = app_settings.get_alert_settings(db)
     older = aliased(AlertOutbox)
-    row = db.execute(
-        select(AlertOutbox)
-        .where(
-            AlertOutbox.state == AlertState.PENDING,
-            AlertOutbox.next_attempt_at <= now,
-            ~exists().where(
-                older.state == AlertState.PENDING,
-                older.category == AlertOutbox.category,
-                older.created_at < AlertOutbox.created_at,
-            ),
-        )
-        .order_by(AlertOutbox.created_at, AlertOutbox.id)
-        .limit(1)
-        .with_for_update(skip_locked=True, of=AlertOutbox)
-    ).scalar_one_or_none()
-    if row is None:
-        return None
+    while True:
+        row = db.execute(
+            select(AlertOutbox)
+            .where(
+                AlertOutbox.state == AlertState.PENDING,
+                AlertOutbox.next_attempt_at <= now,
+                ~exists().where(
+                    older.state == AlertState.PENDING,
+                    older.category == AlertOutbox.category,
+                    older.created_at < AlertOutbox.created_at,
+                ),
+            )
+            .order_by(AlertOutbox.created_at, AlertOutbox.id)
+            .limit(1)
+            .with_for_update(skip_locked=True, of=AlertOutbox)
+        ).scalar_one_or_none()
+        if row is None:
+            return None
+        # A category switched off after the alert was raised (during an outage, say) isn't
+        # sent when the homeserver is back: v36 checked the toggle at send time too (review
+        # round 3).
+        if row.category == CATEGORY_TEST or category_enabled(settings_row, row.category):
+            break
+        row.state = AlertState.SUPPRESSED
+        row.last_error = SUPPRESSED_CATEGORY_OFF
+        row.next_attempt_at = None
+        db.flush()
     row.attempts += 1
     row.next_attempt_at = now + timedelta(seconds=DELIVERY_LEASE_SECONDS)
     return row.id, row.body, row.created_at, row.attempts, row.category, row.fingerprint
@@ -765,7 +797,7 @@ def due_backlog(db: Session, now: datetime):
 
 
 def last_consumed(db: Session, now: datetime):
-    """The latest moment worker-dl is known to have taken a track: the start of the newest
+    """The latest moment worker-dl is known to have worked a track: the end of the newest
     attempt it recorded (beat's reclaim rows are recorded on a stuck invocation's behalf, so
     they prove nothing), or `now` while it has a track in `downloading` younger than
     STALE_TRACK_AFTER_SECONDS (a download's progress isn't written to the database, so a long
@@ -774,10 +806,11 @@ def last_consumed(db: Session, now: datetime):
     from app.models import Track, TrackAttempt, TrackState
     from app.services.attempts import RECLAIM_PREFIX
 
-    # By finished_at's index (v36): with --concurrency=1 the newest finished attempt is also
-    # the newest started one.
-    started = db.execute(
-        select(TrackAttempt.started_at)
+    # finished_at, not started_at (review round 3): v55 merges a track's repeated holds into
+    # one row that keeps its first start, while its finish moves on with each hold. With
+    # --concurrency=1 the newest finish is at least as recent as the newest start, and indexed.
+    finished = db.execute(
+        select(TrackAttempt.finished_at)
         .where(
             (TrackAttempt.error_message.is_(None))
             | ~TrackAttempt.error_message.startswith(RECLAIM_PREFIX),
@@ -794,7 +827,7 @@ def last_consumed(db: Session, now: datetime):
         seconds=get_settings().stale_track_after_seconds
     ):
         downloading = now
-    moments = [_aware(m) for m in (started, downloading) if m is not None]
+    moments = [_aware(m) for m in (finished, downloading) if m is not None]
     return max(moments) if moments else None
 
 
@@ -848,12 +881,22 @@ class RedisOutageLog:
     """v59 (O5): a Redis outage's log lines, throttled. The first failed check logs one
     traceback; while it lasts, one "still down (N checks)" line every STILL_DOWN_EVERY; the
     first check that reaches Redis again logs the recovery. Before v59 the watchdog logged a
-    full traceback on every 60s check."""
+    full traceback on every 60s check, and the API's health check on every 30s probe.
+    `prefix`/`first` name the caller; `level` is the first line's."""
 
     STILL_DOWN_EVERY = 600.0
 
-    def __init__(self, log: logging.Logger) -> None:
+    def __init__(
+        self,
+        log: logging.Logger,
+        prefix: str = "alerts",
+        first: str = "Redis unreachable; skipping the checks that need it",
+        level: int = logging.WARNING,
+    ) -> None:
         self._log = log
+        self._prefix = prefix
+        self._first = first
+        self._level = level
         self.down_since: float | None = None
         self.checks = 0
         self._last_line = 0.0
@@ -863,18 +906,17 @@ class RedisOutageLog:
         if self.down_since is None:
             self.down_since = now
             self._last_line = now
-            self._log.warning(
-                "alerts: Redis unreachable; skipping the checks that need it", exc_info=True
-            )
+            self._log.log(self._level, "%s: %s", self._prefix, self._first, exc_info=True)
         elif now - self._last_line >= self.STILL_DOWN_EVERY:
             self._last_line = now
-            self._log.warning("alerts: Redis still down (%s checks)", self.checks)
+            self._log.warning("%s: Redis still down (%s checks)", self._prefix, self.checks)
 
     def reached(self, now: float) -> None:
         if self.down_since is None:
             return
         self._log.info(
-            "alerts: Redis reachable again after %ss (%s failed checks)",
+            "%s: Redis reachable again after %ss (%s failed checks)",
+            self._prefix,
             int(now - self.down_since),
             self.checks,
         )
@@ -1018,13 +1060,14 @@ class Watchdog:
             return
         # "At least": the watchdog's own view starts at its start or the breaker's release.
         idle = format_duration(timedelta(minutes=int((now - self._backlog_since).total_seconds() // 60)))
-        last = f"the last one started {_hhmm(consumed)}" if consumed else "none recorded yet"
+        last = f"the last one ended {_hhmm(consumed)}" if consumed else "none recorded yet"
         self._record(
             CATEGORY_WORKER_DOWN,
             "stalled",
-            f"worker-dl looks down: {count} track(s) are due (the oldest since "
+            f"worker-dl isn't taking due tracks: {count} track(s) are due (the oldest since "
             f"{_hhmm(oldest_due)}) with the breaker closed, and no download has started for at "
-            f"least {idle} ({last}). Nothing downloads until it's back.",
+            f"least {idle} ({last}). Either worker-dl is down or stuck, or these tracks' queue "
+            f"messages were lost; nothing downloads until that's fixed.",
         )
 
     def _record(self, category: str, fingerprint: str, text: str):

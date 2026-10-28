@@ -866,6 +866,7 @@
 	"stats_alert_next_try": "következő próba: {time}",
 	"stats_alert_reason_held": "Miért:",
 	"stats_alert_reason_error": "Utolsó hiba:",
+	"stats_alert_reason_earlier": "Korábbi hiba:",
 	"stats_alert_held_cooldown": "ugyanez a riasztás még küldésre vár, vagy a beállításokban megadott ismétlési időn belül már elment.",
 	"stats_alert_held_category_off": "ez a riasztásfajta ki van kapcsolva a beállításokban.",
 	"stats_breaker_no_hold": "A biztosíték ebben az időablakban nem tartott vissza.",

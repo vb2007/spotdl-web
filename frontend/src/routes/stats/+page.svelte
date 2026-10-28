@@ -55,12 +55,17 @@
 	// A window switch while a read is in flight: only the newest read may land (DESIGN.md's
 	// "a REST fetch that resolves out of order can clobber fresher state").
 	let sequence = 0;
-	// v59: the alert history below re-reads its first page on every load.
+	// v59: the alert history below re-reads its first page on the first load and on refresh,
+	// not on a window switch: it isn't scoped by the window.
 	let alertsRead = $state(0);
+
+	function refresh() {
+		alertsRead += 1;
+		void load();
+	}
 
 	async function load() {
 		const mine = ++sequence;
-		alertsRead += 1;
 		loading = true;
 		error = '';
 		try {
@@ -85,7 +90,7 @@
 
 	onMount(() => {
 		// A non-admin makes no admin request at all (F17): the page is the notice.
-		if (isAdmin) void load();
+		if (isAdmin) refresh();
 	});
 
 	const generated = $derived(stats === null ? 0 : Date.parse(stats.generated_at));
@@ -170,7 +175,7 @@
 								time: readAt
 							})}{/if}
 					</span>
-					<button type="button" class="btn small" disabled={loading} onclick={() => void load()}>
+					<button type="button" class="btn small" disabled={loading} onclick={refresh}>
 						{m.stats_refresh()}
 					</button>
 				</div>

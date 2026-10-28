@@ -7048,15 +7048,18 @@ independently-found production bug from the same conversation)
 - **Delivery.** `deliver_due` claims one row at a time (attempts + 1, `next_attempt_at` a 120 s
   lease ahead) in a short transaction, sends with no transaction open, then records the outcome.
   Only the oldest pending row of each category is eligible, so a release never overtakes a
-  backing-off trip. Backoff is 30 s, 2 min, 10 min, then hourly; a row still unsent 24 h after it
-  was raised is `failed`. A pass stops at its first failed send, and stops claiming after 20 s.
+  backing-off trip. Backoff is 30 s, 2 min, 10 min, then every 20 min (the plan's example ended
+  in hourly; every wait stays under Synapse's txn memory, review round 3); a row still unsent
+  24 h after it was raised is `failed`. The category toggle is checked again at send time: one
+  switched off during an outage isn't sent when the homeserver is back (v36 checked it there). A pass stops at its first failed send, and stops claiming after 20 s.
   Beat runs it every 30 s (`deliver_alerts`, `expires=25`), and **the watchdog runs one after
   every check**: a dead beat must still get its own alert out. Only one pass runs at a time
   (`pg_try_advisory_xact_lock`, held by a session of its own that touches no table, so no migrate
   waits on it): a slow homeserver can't take both of worker-meta's slots from beat's dispatch
-  (review round 1). The lease still covers a pass that dies mid-send. A 400 or 413 is about one
-  message, not the homeserver: that row is given up at once and the pass goes on, so it can't
-  hold its category back for 24 h (review round 2).
+  (review round 1). The lease still covers a pass that dies mid-send. A 413, or a 400 with
+  Matrix's `M_NOT_JSON`/`M_BAD_JSON`/`M_TOO_LARGE`, is about one message: that row is given up at
+  once and the pass goes on (review round 2). A bare 400 isn't: a proxy's or a malformed room
+  id's 400 is every row's problem and backs off like a 5xx (review round 3).
 - **Two clocks, accepted.** `created_at` (and a new row's first `next_attempt_at`) come from
   Postgres' `clock_timestamp()`; the due, lease and give-up checks use the app's clock. Production
   runs both on one host. Against the LAN dev database a skew of Δ delays a new row's first send by
@@ -7064,7 +7067,11 @@ independently-found production bug from the same conversation)
 - **The Matrix transaction id is the row id.** Synapse answers a repeated PUT under the same txn
   with the first event's id and posts nothing (verified: a hand re-PUT of a delivered row's id
   returned the same `event_id`, and the room kept one copy). Synapse keeps txn ids for about 30
-  min, longer than the backoff's first three steps; a crash mid-send is retried after the lease.
+  min; every backoff wait is shorter, so a retry right after a send whose answer was lost dedupes
+  (the live review proved it through a mirroring proxy: the PUT reached Synapse, the client timed
+  out, two retries under the same txn, one message). **Accepted limit:** a lost answer followed by
+  more than ~30 min of failed retries can still post twice, since nothing can ask Synapse whether
+  a txn landed.
 - **Rows are stamped with the database's `clock_timestamp()`**, not the caller's `now`: delivery
   order is `created_at`, and it must follow the order rows were really written. The release is
   recorded under `SELECT … FOR SHARE` on `worker_state`: a trip updates that row (the savepoint's
@@ -7076,8 +7083,10 @@ independently-found production bug from the same conversation)
   `failed`; a failed one isn't retried, only a request that died mid-send is finished by a pass
   after the lease), so the history shows it. Its body and id are read before the commit: reading
   an expired row after it opens a transaction that stays idle through the send.
-- **O4, worker down: the signal.** The newest worker-written attempt's `started_at` (beat's
-  reclaim rows excluded: they're recorded on a stuck invocation's behalf) or a `downloading`
+- **O4, worker down: the signal.** The newest worker-written attempt's end (beat's reclaim rows
+  excluded: they're recorded on a stuck invocation's behalf; its end, not its `started_at`, since
+  v55 merges a track's repeated holds into one row that keeps its first start, and a long
+  download that just ended isn't idle time, review round 3 and the live review) or a `downloading`
   track's `updated_at`, against the oldest due track. Idle is measured from the latest of the
   oldest due time, the breaker's release and that last start, so a worker-dl that took a few
   tracks and then died midway through a backlog is caught too (review round 1; the first cut
@@ -7091,12 +7100,18 @@ independently-found production bug from the same conversation)
   first moment of an unconsumed backlog, and when dispatch last reopened. That memory is the
   "backlog since" marker v36 lacked; no heartbeat was added. A restart of the watchdog gives one
   threshold of grace, as beat-stale's does. It stays silent while beat is stale (its own alert)
-  and while the breaker or a pause holds dispatch.
+  and while the breaker or a pause holds dispatch. A threshold below `PACING_MAX_SEC` reads the
+  pacing sleep (the track is still `queued`, with no attempt row yet) as idle. Its text says
+  "isn't taking due tracks … worker-dl is down or stuck, or these tracks' queue messages were
+  lost": a `pending` track whose broker message was lost looks the same from the database.
 - **Found live: a new job's tracks are `pending` with a NULL `scheduled_at`.** expand_job's send
   clears v56's outbox marker, so `scheduled_at <= now` missed all 11 tracks of a fresh album and
   the first live run never fired. Due time is `coalesce(scheduled_at, updated_at)`.
-- **O5.** `RedisOutageLog`: the first failed Redis read logs one traceback, then one "still
-  down (N checks)" line every 10 min, and a recovery line. The watchdog keeps its database checks
+- **O5.** `RedisOutageLog`: the first failed check logs one traceback, then one "still
+  down (N checks)" line every 10 min, and a recovery line. The API's `/api/health` uses it too:
+  Docker probes it every ~30 s, and the live review counted ~50 tracebacks from it in the
+  25-min outage before it did. Celery's own "consumer: Cannot connect to redis" retry lines
+  (54 in that outage) are Celery's and stay. The watchdog keeps its database checks
   (release, worker-down) and the delivery pass running through the outage; only beat-stale,
   worker-down (beat's state is unknown) and spike (its "newest seen" key) skip.
 - **A `pending` track with a NULL `scheduled_at` that was never really sent** (a pre-v56

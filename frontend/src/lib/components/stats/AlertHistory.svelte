@@ -207,7 +207,11 @@
 								>
 							{:else if item.last_error !== null}
 								<span class="reason"
-									><span class="reason-label">{m.stats_alert_reason_error()}</span>
+									><span class="reason-label"
+										>{item.state === 'sent'
+											? m.stats_alert_reason_earlier()
+											: m.stats_alert_reason_error()}</span
+									>
 									<!-- i18n-ignore: the homeserver's or httpx's own words, as recorded -->
 									<span lang="en" class="mono">{item.last_error}</span></span
 								>
