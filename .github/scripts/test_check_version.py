@@ -259,6 +259,25 @@ class CheckAgainstBaseTest(unittest.TestCase):
         result = self.run_check()
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_extension_version_below_a_released_one_fails(self):
+        # 1.0.10 was released (from a branch dispatch, say); a PR now carries 1.0.2.
+        self.git("checkout", "-q", "-b", "released")
+        self.set_extension_version("1.0.10")
+        self.commit("released elsewhere")
+        self.git("tag", "extension-v1.0.10")
+        self.git("checkout", "-q", "main")
+        self.branch(self.BASE, "extension/content.js", extension_version="1.0.2")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("below the newest released one (extension-v1.0.10)", result.stderr)
+
+    def test_extension_version_above_every_released_one_passes(self):
+        self.git("tag", "extension-v1.0.0")
+        self.git("tag", "extension-v0.9.0-rc1")
+        self.branch(self.BASE, "extension/content.js", extension_version="1.0.1")
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_extension_flag_prints_nothing_without_a_manifest(self):
         self.git("rm", "-q", "extension/manifest.json")
         self.commit("no extension")

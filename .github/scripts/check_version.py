@@ -92,6 +92,13 @@ def git_rev(rev: str) -> str | None:
     return result.stdout.strip() if result.returncode == 0 else None
 
 
+def git_lines(args: list[str]) -> list[str]:
+    result = subprocess.run(
+        ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=True
+    )
+    return [line for line in result.stdout.splitlines() if line]
+
+
 def changed_paths(base: str) -> list[str]:
     result = subprocess.run(
         ["git", "diff", "--name-only", f"{base}...HEAD"],
@@ -142,8 +149,24 @@ def check_extension(base: str | None, changed: list[str]) -> int:
             file=sys.stderr,
         )
         return 1
-    # A version already released (its `extension-v*` tag, which CI's full-history checkout
-    # fetches) from other extension/ content would be "already released" to Release & Deploy's
+    # Below a released version (an `extension-v*` tag, which CI's full-history checkout fetches;
+    # a dispatch can release from a branch): Release & Deploy's plan would never release it, so
+    # the change would never ship.
+    released = [
+        tag.removeprefix("extension-v")
+        for tag in git_lines(["tag", "--list", "extension-v*"])
+        if SEMVER_RE.match(tag.removeprefix("extension-v"))
+    ]
+    newest = max(released, key=semver_tuple, default=None)
+    if newest and semver_tuple(version) < semver_tuple(newest):
+        print(
+            f"check_version: the extension's version ({version}) is below the newest released one "
+            f"(extension-v{newest}), so this change would never ship. Raise "
+            f"{EXTENSION_MANIFEST_REL}'s version past it.",
+            file=sys.stderr,
+        )
+        return 1
+    # A version already released (its `extension-v*` tag) from other extension/ content would be "already released" to Release & Deploy's
     # plan, and this code would never ship. Same content (the release was made from this very
     # tree, a proof before merge) is fine.
     tag = f"extension-v{version}"

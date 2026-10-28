@@ -140,8 +140,8 @@ principal that made it) found the extension contacting only the configured app o
      read.
 
    A merge that doesn't raise the version runs no extension job at all. CI also refuses a version
-   already released from other `extension/` content (an `extension-v*` tag), which would
-   otherwise count as "already released" and never ship.
+   below a released one, or already released from other `extension/` content (the
+   `extension-v*` tags): either would otherwise never ship.
 
 **Credentials.** Signing needs AMO API credentials as two repository secrets, `AMO_JWT_ISSUER`
 and `AMO_JWT_SECRET` (addons.mozilla.org → Developer Hub → *Manage API Keys*: the JWT issuer and
@@ -151,10 +151,14 @@ names `extension-release`. Nothing is released then: Firefox installs only a sig
 **Re-running.** AMO never takes the same version twice. A run that failed after AMO signed the
 version (the GitHub release failed, say) re-runs fine (`gh run rerun <id> --failed`): the job
 finds the version already on AMO and downloads its signed file instead of signing again. A
-version already released is a successful no-op that only makes sure `updates.json` lists it.
+version already released is a successful no-op that only makes sure `updates.json` lists it, so
+the same re-run also repairs a release whose `updates.json` step failed (the `extension-v*` tag
+exists, so no later merge retries it, and installed copies don't see the version until then).
+A version below the newest released one is a successful no-op too (two extension merges whose
+runs finished out of order).
 
 **By hand.** *Actions* → *Extension Release* → *Run workflow* releases the chosen ref's version,
-the same way, refusing a version below the newest released one. From a branch, that's an
+the same way (a version below the newest released one releases nothing). From a branch, that's an
 unmerged build every installed copy will update to; the run says so. A dispatched run sends no
 Matrix notice (only "Release & Deploy" has `notify`): watch it in *Actions*.
 

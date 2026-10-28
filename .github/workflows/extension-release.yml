@@ -61,14 +61,16 @@ jobs:
             exit 1
           fi
           COMMIT="$(git rev-parse HEAD)"
-          # Release & Deploy's plan never calls this for a version below the newest released one;
-          # a dispatch on an older ref mustn't either (equal is the already-released no-op).
+          # A version below the newest released one is never released (a dispatch on an older ref,
+          # or this run's plan raced a newer merge's release on the runner): a successful no-op,
+          # like plan's own check. Equal is the already-released no-op below.
           TAGS="$(git ls-remote --tags --refs origin 'refs/tags/extension-v*')"
           NEWEST="$( { printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/extension-v", "", $2); print $2}'; echo "$VERSION"; } \
             | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
           if [ "$NEWEST" != "$VERSION" ]; then
-            echo "::error::Extension $VERSION is below the newest released one ($NEWEST): not releasing it."
-            exit 1
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Extension $VERSION is below the newest released one ($NEWEST): nothing to release."
+            echo "Extension $VERSION is below the newest released one ($NEWEST): nothing to release." >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=extension-v$VERSION" >> "$GITHUB_OUTPUT"
@@ -83,6 +85,7 @@ jobs:
       # "not released" and sign the version again. Only "release not found" means not released;
       # any other error fails the step.
       - name: Check whether this version was already released
+        if: steps.version.outputs.superseded != 'true'
         id: released
         env:
           TAG: ${{ steps.version.outputs.tag }}
@@ -108,7 +111,7 @@ jobs:
       # A missing signing key is a real failure, unlike a missing Matrix config: Release & Deploy's
       # `notify` posts it. Firefox installs only a signed XPI, so there's nothing to fall back to.
       - name: Require the AMO signing credentials
-        if: steps.released.outputs.released != 'true'
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
         env:
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
           AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
@@ -123,14 +126,14 @@ jobs:
           fi
 
       - uses: actions/setup-node@v7
-        if: steps.released.outputs.released != 'true'
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: extension/package-lock.json
 
       - name: Install the extension's tools (web-ext)
-        if: steps.released.outputs.released != 'true'
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
         working-directory: extension
         run: npm ci
 
@@ -140,7 +143,7 @@ jobs:
       # `util/submit-addon`) does the JWT and the download, as `web-ext sign` does.
       - name: Fetch the signed XPI if AMO already has this version
         id: fetched
-        if: steps.released.outputs.released != 'true'
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
         working-directory: extension
         env:
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
@@ -187,12 +190,18 @@ jobs:
       # (WEB_EXT_API_KEY/WEB_EXT_API_SECRET): this runner is the production host, and a command
       # line is readable by every process on it (`ps`), an environment isn't.
       - name: Sign on AMO (unlisted)
-        if: steps.released.outputs.released != 'true' && steps.fetched.outputs.fetched != 'true'
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true' && steps.fetched.outputs.fetched != 'true'
         working-directory: extension
         env:
-          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
-          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
-        run: npm run sign
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        # Whitespace-trimmed like the checks above (a secret pasted with a newline would pass them
+        # and then fail AMO's JWT check); assignments before the command are its environment, not
+        # its arguments.
+        run: |
+          WEB_EXT_API_KEY="$(printf '%s' "$AMO_JWT_ISSUER" | tr -d '[:space:]')" \
+          WEB_EXT_API_SECRET="$(printf '%s' "$AMO_JWT_SECRET" | tr -d '[:space:]')" \
+            npm run sign
 
       # Exactly one XPI, AMO-signed (it carries Mozilla's signature files), of this version, and
       # built from this commit's extension/: every file in it, apart from the signature, equals
@@ -200,7 +209,7 @@ jobs:
       # content, so releasing it would ship the wrong code under this version: that fails. A
       # difference in a file signed just now would be AMO's own doing: a warning, recorded.
       - name: Check the signed XPI
-        if: steps.released.outputs.released != 'true'
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
         working-directory: extension
         env:
           VERSION: ${{ steps.version.outputs.version }}
@@ -250,6 +259,7 @@ jobs:
       # bump it) and its XPI's sha256: hashed here, or GitHub's digest of the asset when it was
       # already released.
       - name: Build updates.json
+        if: steps.version.outputs.superseded != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -300,7 +310,7 @@ jobs:
 
       # Never "Latest": that badge is the app's (release.yml decides it among `v*` tags only).
       - name: Create the extension release
-        if: steps.released.outputs.released != 'true'
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -328,6 +338,7 @@ jobs:
       # asset: for a moment there's none, and a Firefox checking right then simply finds no update
       # and checks again later.
       - name: Publish updates.json on the fixed update URL
+        if: steps.version.outputs.superseded != 'true'
         env:
           COMMIT: ${{ steps.version.outputs.commit }}
         run: |
@@ -346,6 +357,7 @@ jobs:
           gh release upload "$UPDATES_TAG" --repo "$REPO" --clobber "$RUNNER_TEMP/updates.json"
 
       - name: Summary
+        if: steps.version.outputs.superseded != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
