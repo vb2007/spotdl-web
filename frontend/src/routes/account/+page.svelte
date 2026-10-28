@@ -69,8 +69,15 @@
 	// An unloading page can't finish a save (the request dies with it), so there anything not
 	// saved is asked about (review round 6).
 	const retentionSaveable = () => error === null && (neverArchive || !daysInvalid());
+	// A switch whose save failed shows its saved value again, with the failure: the choice isn't
+	// saved, so leaving asks too (live review round 2).
 	guardUnsavedEdits(
-		(unloading) => (dirty && !saving && (unloading || !retentionSaveable())) || keyNameTyped
+		(unloading) =>
+			(dirty && !saving && (unloading || !retentionSaveable())) ||
+			keyNameTyped ||
+			keyboardError !== null ||
+			languageError !== null ||
+			clockError !== null
 	);
 	// An in-app exit with a save to make (or one under way) waits for it, and leaves only once it
 	// landed: a failure stays here, shown, never on a page that's gone (review round 7).
@@ -219,10 +226,40 @@
 	let keyboardError = $state<Shown>(null);
 	let keyboardSavedAt = $state<Date | null>(null);
 
-	async function setShortcuts(enabled: boolean) {
+	// v62 (F7): one model for every preference, retention's: a choice made while one is saving
+	// is saved right after it, the last one winning, never dropped on a disabled button (live
+	// review round 2). A sign-out or another identity meanwhile ends the queue (v42's guard).
+	function lastChoiceWins<T>(save: (value: T) => Promise<void>): (value: T) => Promise<void> {
+		let running = false;
+		let next: { value: T } | null = null;
+		return async (value: T) => {
+			if (running) {
+				next = { value };
+				return;
+			}
+			running = true;
+			const resets = queue.getResetCount();
+			try {
+				let current: { value: T } | null = { value };
+				while (current !== null && queue.getResetCount() === resets) {
+					next = null;
+					await save(current.value);
+					current = next;
+				}
+			} finally {
+				running = false;
+				next = null;
+			}
+		};
+	}
+
+	const setShortcuts = lastChoiceWins(saveShortcuts);
+	const setLanguage = lastChoiceWins(saveLanguage);
+	const setClock = lastChoiceWins(saveClock);
+
+	async function saveShortcuts(enabled: boolean) {
 		// Always sent, even for the choice shown as pressed: another device may have changed
 		// it since this page read it (the PATCH is idempotent).
-		if (keyboardSaving) return;
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		keyboardSaving = true;
 		keyboardError = null;
@@ -245,10 +282,9 @@
 	let languageError = $state<Shown>(null);
 	let languageSavedAt = $state<Date | null>(null);
 
-	async function setLanguage(next: Locale | null) {
+	async function saveLanguage(next: Locale | null) {
 		// Always sent, even for the choice shown as pressed: another device may have changed it
 		// since this page read it (the PATCH is idempotent). `null` is automatic.
-		if (languageSaving) return;
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		languageSaving = true;
 		languageError = null;
@@ -285,8 +321,7 @@
 		{ value: '24h', label: (example) => m.account_clock_24h({ example }) }
 	];
 
-	async function setClock(next: Clock | null) {
-		if (clockSaving) return;
+	async function saveClock(next: Clock | null) {
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		clockSaving = true;
 		clockError = null;
@@ -453,7 +488,6 @@
 							<button
 								type="button"
 								aria-pressed={$shortcutsEnabled}
-								disabled={keyboardSaving}
 								onclick={() => setShortcuts(true)}
 							>
 								{m.account_keyboard_on()}
@@ -461,7 +495,6 @@
 							<button
 								type="button"
 								aria-pressed={!$shortcutsEnabled}
-								disabled={keyboardSaving}
 								onclick={() => setShortcuts(false)}
 							>
 								{m.account_keyboard_off()}
@@ -491,7 +524,6 @@
 						preference={languagePreference.current}
 						detected={detectLocale()}
 						onchoose={setLanguage}
-						disabled={languageSaving}
 						labelledby="language-mode-label"
 						describedby="language-hint"
 					/>
@@ -521,7 +553,6 @@
 							<button
 								type="button"
 								aria-pressed={clockPreference.current === choice.value}
-								disabled={clockSaving}
 								onclick={() => setClock(choice.value)}
 								>{choice.label(clockExample(now, choice.value))}</button
 							>

@@ -480,6 +480,31 @@ test.describe('F7/F8 on the real stack', () => {
 		await expect(retention.getByRole('status')).toHaveText(/\d/);
 	});
 
+	test('F7: every group keeps the last of two quick choices (the time format)', async ({
+		page
+	}) => {
+		await page.goto('/account');
+		// automatic, 12-hour, 24-hour (each label also shows the time, so by order, not name).
+		const choices = () =>
+			page.getByRole('group', { name: t(m.account_clock_heading) }).getByRole('button');
+		await expect(choices().nth(2)).toBeEnabled();
+		await page.route('**/api/settings/clock', async (route) => {
+			await new Promise((done) => setTimeout(done, 600));
+			await route.continue();
+		});
+		await choices().nth(2).click();
+		await choices().nth(1).click();
+		await expect(
+			page.getByRole('group', { name: t(m.account_clock_heading) }).getByRole('status')
+		).toHaveText(/\d/, { timeout: 10_000 });
+		await page.unroute('**/api/settings/clock');
+		await page.reload();
+		await expect(choices().nth(1)).toHaveAttribute('aria-pressed', 'true');
+		// Back to automatic, the identity's default.
+		await choices().nth(0).click();
+		await expect(choices().nth(0)).toHaveAttribute('aria-pressed', 'true');
+	});
+
 	test('F8: clear log is off with its reason once there is nothing to clear', async ({
 		page,
 		baseURL
