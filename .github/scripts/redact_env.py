@@ -65,9 +65,9 @@ VAR_REF_RE = re.compile(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)")
 MAX_COLON_PARTS = 256
 # A quoted value, then optionally an inline comment after the closing quote.
 QUOTED_RE = re.compile(r"""^(?:"((?:[^"\\]|\\.)*)"|'([^']*)')\s*(?:#.*)?$""")
-# Interpolation in a value: what's around it, and a `${X:-default}` default, are printed as is.
-INTERP_RE = re.compile(r"\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*")
-DEFAULT_RE = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*:?[-?+]([^}]*)\}")
+# Interpolation syntax in a value: splitting on it leaves the literal text around a reference
+# and inside a `${X:-default}` (nested ones too), which compose prints as is.
+INTERP_SYNTAX_RE = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*(?::?[-?+])?|\}|\$[A-Za-z_][A-Za-z0-9_]*")
 _DQ_ESCAPES = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", '"': '"', "$": "$"}
 
 
@@ -95,7 +95,8 @@ def colon_pieces(value: str) -> list[str]:
     """Each prefix before a `:` and each suffix after one, as compose cuts a port spec (v60)."""
     parts = value.split(":")
     if len(parts) > MAX_COLON_PARTS:
-        return []
+        # Too many to cut both ways: mask each part on its own instead (fails closed, linear).
+        return [p for p in parts if len(p) >= 6 and not NOT_SECRET_PIECE_RE.match(p)]
     pieces = [p for i in range(1, len(parts)) for p in (":".join(parts[:i]), ":".join(parts[i:]))]
     return [p for p in pieces if len(p) >= 6 and not NOT_SECRET_PIECE_RE.match(p)]
 
@@ -106,7 +107,8 @@ def secrets(env_file: str) -> list[str]:
     refs: set[str] = set()
     decoded_values: set[str] = set()
     for line in open(env_file, encoding="utf-8", errors="replace"):
-        line = line.rstrip("\n")
+        # Compose ignores a UTF-8 byte-order mark (an editor's), so the first line is still KEY=.
+        line = line.rstrip("\n").lstrip("\ufeff")
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         m = ENV_LINE_RE.match(line)
@@ -135,7 +137,7 @@ def secrets(env_file: str) -> list[str]:
             found.update(colon_pieces(v.strip("'\"")))
     # Literal parts around an interpolation, and defaults, come back verbatim in errors.
     for v in list(decoded_values):
-        for piece in [*INTERP_RE.split(v), *DEFAULT_RE.findall(v)]:
+        for piece in INTERP_SYNTAX_RE.split(v):
             if len(piece) >= 6 and not NOT_SECRET_PIECE_RE.match(piece):
                 found.add(piece)
             found.update(colon_pieces(piece))
